@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/quality-report.schema.json",
+  "title": "QualityReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_type", "target_id", "status", "checks", "created_at"],
+  "properties": {
+    "schema_version": { "const": "QualityReport@1" },
+    "target_type": { "type": "string", "enum": ["weapon_spec", "concept_image", "patch_image", "model_3d", "unity_export"] },
+    "target_id": { "$ref": "common.schema.json#/$defs/id" },
+    "status": { "type": "string", "enum": ["passed", "warning", "failed", "blocked"] },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "level", "status", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["IS_WEAPON", "CHINESE_DIVINE_STYLE", "TOON_3D2_STYLE", "SILHOUETTE_CLEAR", "MATERIAL_READABLE", "SINGLE_IMAGE_TO_3D_READY", "NO_WATERMARK", "NO_BROKEN_SUBJECT", "SAFETY_BOUNDARY", "GLB_LOADABLE", "MESH_NON_EMPTY", "BOUNDING_BOX_VALID", "UNITY_EXPORT_COMPLETE"]
+          },
+          "level": { "type": "string", "enum": ["blocker", "warning", "info"] },
+          "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+          "message": { "type": "string" },
+          "evidence": { "type": "object" }
+        }
+      }
+    },
+    "summary": { "type": "string" },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

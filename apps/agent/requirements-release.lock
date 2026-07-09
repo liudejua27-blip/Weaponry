@@ -1,0 +1,23 @@
+# Wushen Forge Python Agent release lock.
+# This file pins the Python runtime dependency closure used by the local Agent
+# service. License metadata is checked by `npm run release:license-sbom`.
+
+annotated-doc==0.0.4  # license=MIT; required_by=fastapi
+annotated-types==0.7.0  # license=MIT; required_by=pydantic
+anyio==4.12.1  # license=MIT; required_by=starlette
+attrs==26.1.0  # license=MIT; required_by=jsonschema
+click==8.1.8  # license=BSD-3-Clause; required_by=uvicorn
+exceptiongroup==1.3.1  # license=MIT; required_by=anyio
+fastapi==0.128.8  # license=MIT; required_by=direct
+h11==0.16.0  # license=MIT; required_by=uvicorn
+idna==3.18  # license=BSD-3-Clause; required_by=anyio
+jsonschema==4.25.1  # license=MIT; required_by=direct
+jsonschema-specifications==2025.9.1  # license=MIT; required_by=jsonschema
+pydantic==2.13.4  # license=MIT; required_by=direct
+pydantic_core==2.46.4  # license=MIT; required_by=pydantic
+referencing==0.36.2  # license=MIT; required_by=jsonschema
+rpds-py==0.27.1  # license=MIT; required_by=jsonschema
+starlette==0.49.3  # license=BSD-3-Clause; required_by=fastapi
+typing-inspection==0.4.2  # license=MIT; required_by=fastapi
+typing_extensions==4.16.0  # license=PSF-2.0; required_by=fastapi
+uvicorn==0.39.0  # license=BSD-3-Clause; required_by=direct

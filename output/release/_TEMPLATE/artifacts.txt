@@ -1,0 +1,10 @@
+截图:
+- output/playwright/<name>.png
+
+日志:
+- output/reports/<gate-id>.log
+
+产物:
+- output/playwright/<artifact>.png
+- output/contracts/<id>/schema.json
+- scripts/<smoke-script>.py 输出目录

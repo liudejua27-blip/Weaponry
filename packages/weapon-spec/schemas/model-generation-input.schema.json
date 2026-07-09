@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/model-generation-input.schema.json",
+  "title": "ModelGenerationInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "weapon_id", "source_image", "provider", "target_format", "style", "orientation_policy", "scale_policy", "created_at"],
+  "properties": {
+    "schema_version": { "const": "ModelGenerationInput@1" },
+    "weapon_id": { "$ref": "common.schema.json#/$defs/id" },
+    "source_image": { "$ref": "common.schema.json#/$defs/relative_path" },
+    "model_sheet_image": { "$ref": "common.schema.json#/$defs/relative_path" },
+    "provider": { "type": "string", "enum": ["stable_fast_3d", "triposr", "hunyuan3d", "trellis", "mock", "mock_3d"] },
+    "target_format": { "type": "string", "enum": ["glb", "obj"] },
+    "style": { "const": "stylized_toon_weapon" },
+    "orientation_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forward_axis", "long_axis", "pivot"],
+      "properties": {
+        "forward_axis": { "type": "string", "enum": ["+Z", "-Z", "+X", "-X"] },
+        "long_axis": { "type": "string", "enum": ["+Y", "-Y", "+X", "-X", "+Z", "-Z"] },
+        "pivot": { "type": "string", "enum": ["grip_center", "bounding_box_center"] }
+      }
+    },
+    "scale_policy": { "const": "normalized_game_asset_scale" },
+    "quality_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "triangle_count_min": { "type": "integer", "minimum": 0 },
+        "triangle_count_max": { "type": "integer", "minimum": 1 },
+        "max_texture_size": { "type": "integer", "minimum": 256, "maximum": 8192, "default": 2048 }
+      }
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

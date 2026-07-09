@@ -1,0 +1,13 @@
+命令: npm run <gate-command>
+启动时间: 2026-07-06T00:00:00+08:00
+结束时间: 2026-07-06T00:00:00+08:00
+执行人: Owner Name/Team
+
+输出日志:
+- line1: ...
+- line2: ...
+
+环境:
+- OS: macOS/Windows/Linux
+- Node: x.y.z
+- Python: x.y.z

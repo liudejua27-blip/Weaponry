@@ -1,0 +1,6 @@
+{
+  "weapon_id": "weapon_0001",
+  "job_id": "job_0001",
+  "status": "succeeded",
+  "event_stream_url": "/api/jobs/job_0001/events"
+}

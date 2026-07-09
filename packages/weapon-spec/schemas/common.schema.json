@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/common.schema.json",
+  "title": "Wushen Forge Common Definitions",
+  "$defs": {
+    "iso_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hex_color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "relative_path": {
+      "type": "string",
+      "not": {
+        "anyOf": [
+          { "pattern": "^/" },
+          { "pattern": "^[A-Za-z]:" },
+          { "pattern": "\\.\\." },
+          { "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*://" }
+        ]
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^(weapon|job|asset|file|ver|version|model|export|evt|spec|step|interp|cg|sg)_[A-Za-z0-9_\\-]+$"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["openai_compatible", "comfyui", "stable_fast_3d", "triposr", "hunyuan3d", "trellis", "mock"]
+    }
+  }
+}

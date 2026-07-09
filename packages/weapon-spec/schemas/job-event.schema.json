@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/job-event.schema.json",
+  "title": "JobEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "seq", "job_id", "step", "level", "status", "message", "created_at"],
+  "properties": {
+    "schema_version": { "const": "JobEvent@1" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "job_id": { "$ref": "common.schema.json#/$defs/id" },
+    "weapon_id": { "$ref": "common.schema.json#/$defs/id" },
+    "step": {
+      "type": "string",
+      "enum": ["request_guard", "input_interpreter", "weapon_spec_planner", "safety_boundary_check", "prompt_builder", "image_submit", "image_poll", "image_qc", "image_quality_check", "asset_commit_image", "patch_interpreter", "image_inpaint", "rough3d_plan", "rough3d_submit", "rough3d_poll", "model_qc_optimize", "asset_commit_model", "export_plan", "export_manifest", "export_package", "finalize_job"]
+    },
+    "level": { "type": "string", "enum": ["info", "warning", "error"] },
+    "status": { "type": "string", "enum": ["created", "queued", "started", "progress", "waiting_provider", "waiting_user", "retrying", "succeeded", "failed", "cancelled", "partial_succeeded", "skipped"] },
+    "message": { "type": "string", "minLength": 1 },
+    "artifact_asset_id": { "$ref": "common.schema.json#/$defs/id" },
+    "progress": { "type": "number", "minimum": 0, "maximum": 1 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "error_code": {
+      "type": "string",
+      "enum": ["AGENT_OFFLINE", "PROVIDER_UNCONFIGURED", "PROVIDER_AUTH_FAILED", "PROVIDER_TIMEOUT", "COMFYUI_WORKFLOW_INVALID", "ASSET_FILE_MISSING", "ASSET_PERMISSION_DENIED", "MASK_EMPTY", "MASK_SIZE_MISMATCH", "GLB_INVALID", "GLB_TOO_LARGE", "QUALITY_CHECK_FAILED", "SAFETY_BOUNDARY_BLOCKED", "LOCAL_IO_ERROR", "RATE_LIMITED"]
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "level": { "const": "error" } },
+        "required": ["level"]
+      },
+      "then": { "required": ["error_code"] }
+    }
+  ]
+}

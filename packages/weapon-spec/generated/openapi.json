@@ -1,0 +1,4151 @@
+{
+  "components": {
+    "schemas": {
+      "AssetFileResponse": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "weapon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Id"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "asset_id",
+          "role",
+          "logical_path",
+          "sha256",
+          "byte_size",
+          "mime_type",
+          "created_at"
+        ],
+        "title": "AssetFileResponse",
+        "type": "object"
+      },
+      "AssetFileSummary": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "asset_id",
+          "role",
+          "logical_path",
+          "sha256",
+          "byte_size",
+          "mime_type",
+          "created_at"
+        ],
+        "title": "AssetFileSummary",
+        "type": "object"
+      },
+      "AssetRevealResponse": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "opened": {
+            "title": "Opened",
+            "type": "boolean"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "filename",
+          "role",
+          "dry_run",
+          "opened",
+          "target",
+          "message"
+        ],
+        "title": "AssetRevealResponse",
+        "type": "object"
+      },
+      "AssetUploadRequest": {
+        "properties": {
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "data_base64": {
+            "title": "Data Base64",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "mime_type": {
+            "enum": [
+              "image/png",
+              "application/json"
+            ],
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "patch_mask",
+              "patch_manifest"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "role",
+          "filename",
+          "mime_type",
+          "data_base64"
+        ],
+        "title": "AssetUploadRequest",
+        "type": "object"
+      },
+      "AssetUploadResponse": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "patch_mask",
+              "patch_manifest"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "version_id",
+          "asset_id",
+          "role",
+          "logical_path",
+          "sha256",
+          "byte_size",
+          "mime_type"
+        ],
+        "title": "AssetUploadResponse",
+        "type": "object"
+      },
+      "CreateWeaponRequest": {
+        "properties": {
+          "auto_run": {
+            "const": true,
+            "default": true,
+            "title": "Auto Run",
+            "type": "boolean"
+          },
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "generation_options": {
+            "$ref": "#/components/schemas/GenerationOptions"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "sketch_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sketch Asset Id"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TargetOptions"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "text"
+        ],
+        "title": "CreateWeaponRequest",
+        "type": "object"
+      },
+      "CreativeGraphResponse": {
+        "properties": {
+          "creative_graph": {
+            "$ref": "#/components/schemas/CreativeWeaponGraphPayload"
+          },
+          "creative_graph_id": {
+            "title": "Creative Graph Id",
+            "type": "string"
+          },
+          "interpretation_id": {
+            "title": "Interpretation Id",
+            "type": "string"
+          },
+          "skill_graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SkillGraphPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skill_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Graph Id"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "creative_graph_id",
+          "interpretation_id",
+          "creative_graph"
+        ],
+        "title": "CreativeGraphResponse",
+        "type": "object"
+      },
+      "CreativeInterpretationCandidate": {
+        "properties": {
+          "anchor_points": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Anchor Points",
+            "type": "array"
+          },
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "candidate_seed": {
+            "title": "Candidate Seed",
+            "type": "integer"
+          },
+          "combat_affordances": {
+            "items": {
+              "enum": [
+                "attack",
+                "defense",
+                "area_control",
+                "summon",
+                "mobility",
+                "reflect",
+                "transform",
+                "recover",
+                "seal",
+                "projectile"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Combat Affordances",
+            "type": "array"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "protected_regions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protected Regions",
+            "type": "array"
+          },
+          "rank": {
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "recast_summary": {
+            "title": "Recast Summary",
+            "type": "string"
+          },
+          "risk_tags": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Risk Tags",
+            "type": "array"
+          },
+          "skill_anchor_points": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Skill Anchor Points",
+            "type": "array"
+          },
+          "structure_graph": {
+            "$ref": "#/components/schemas/CreativeStructureGraph"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "rank",
+          "name",
+          "summary",
+          "recast_summary",
+          "confidence",
+          "structure_graph",
+          "candidate_seed"
+        ],
+        "title": "CreativeInterpretationCandidate",
+        "type": "object"
+      },
+      "CreativeInterpretationRequest": {
+        "properties": {
+          "asset_priority": {
+            "default": "lowpoly_first",
+            "enum": [
+              "concept_first",
+              "lowpoly_first",
+              "unity_ready_first"
+            ],
+            "title": "Asset Priority",
+            "type": "string"
+          },
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "desired_style": {
+            "default": "3渲2国风神兵",
+            "title": "Desired Style",
+            "type": "string"
+          },
+          "freedom_level": {
+            "default": "strange",
+            "enum": [
+              "conservative",
+              "strange",
+              "alien",
+              "surreal"
+            ],
+            "title": "Freedom Level",
+            "type": "string"
+          },
+          "gameplay_complexity": {
+            "default": "multi_stage",
+            "enum": [
+              "light",
+              "multi_stage",
+              "transform_linked",
+              "multi_form"
+            ],
+            "title": "Gameplay Complexity",
+            "type": "string"
+          },
+          "mythology_level": {
+            "default": "guofeng_divine",
+            "enum": [
+              "realistic_material",
+              "guofeng_divine",
+              "xianxia_mechanism",
+              "mythic_concept"
+            ],
+            "title": "Mythology Level",
+            "type": "string"
+          },
+          "raw_description": {
+            "title": "Raw Description",
+            "type": "string"
+          },
+          "source_object": {
+            "title": "Source Object",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "source_object",
+          "raw_description"
+        ],
+        "title": "CreativeInterpretationRequest",
+        "type": "object"
+      },
+      "CreativeInterpretationResponse": {
+        "properties": {
+          "candidate_count": {
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "candidate_snapshot_hash": {
+            "title": "Candidate Snapshot Hash",
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CreativeInterpretationCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "interpretation_id": {
+            "title": "Interpretation Id",
+            "type": "string"
+          },
+          "needs_confirm": {
+            "default": true,
+            "title": "Needs Confirm",
+            "type": "boolean"
+          },
+          "preserved_candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preserved Candidate Id"
+          },
+          "raw_description": {
+            "title": "Raw Description",
+            "type": "string"
+          },
+          "resample_attempted": {
+            "default": false,
+            "title": "Resample Attempted",
+            "type": "boolean"
+          },
+          "source_object": {
+            "title": "Source Object",
+            "type": "string"
+          },
+          "stable_seed": {
+            "title": "Stable Seed",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "resampled_ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "interpretation_id",
+          "weapon_id",
+          "source_object",
+          "raw_description",
+          "status",
+          "candidate_count",
+          "stable_seed",
+          "candidate_snapshot_hash",
+          "created_at"
+        ],
+        "title": "CreativeInterpretationResponse",
+        "type": "object"
+      },
+      "CreativeRecastConfirmRequest": {
+        "properties": {
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "interpretation_id": {
+            "title": "Interpretation Id",
+            "type": "string"
+          },
+          "recast_choice_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recast Choice Text"
+          },
+          "recast_mode": {
+            "default": "stylized_artifact",
+            "enum": [
+              "stylized_artifact",
+              "game_asset",
+              "mythic_mechanism"
+            ],
+            "title": "Recast Mode",
+            "type": "string"
+          },
+          "selected_candidate_id": {
+            "title": "Selected Candidate Id",
+            "type": "string"
+          },
+          "selected_candidate_rank": {
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Selected Candidate Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "interpretation_id",
+          "selected_candidate_id",
+          "selected_candidate_rank"
+        ],
+        "title": "CreativeRecastConfirmRequest",
+        "type": "object"
+      },
+      "CreativeRecastConfirmResponse": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "creative_graph": {
+            "$ref": "#/components/schemas/CreativeWeaponGraphPayload"
+          },
+          "creative_graph_id": {
+            "title": "Creative Graph Id",
+            "type": "string"
+          },
+          "interpretation_id": {
+            "title": "Interpretation Id",
+            "type": "string"
+          },
+          "selected_candidate_id": {
+            "title": "Selected Candidate Id",
+            "type": "string"
+          },
+          "selected_candidate_rank": {
+            "title": "Selected Candidate Rank",
+            "type": "integer"
+          },
+          "skill_graph": {
+            "$ref": "#/components/schemas/SkillGraphPayload"
+          },
+          "skill_graph_id": {
+            "title": "Skill Graph Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "confirmed",
+            "default": "confirmed",
+            "title": "Status",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "interpretation_id",
+          "selected_candidate_id",
+          "selected_candidate_rank",
+          "creative_graph_id",
+          "skill_graph_id",
+          "creative_graph",
+          "skill_graph",
+          "created_at"
+        ],
+        "title": "CreativeRecastConfirmResponse",
+        "type": "object"
+      },
+      "CreativeStructureGraph": {
+        "properties": {
+          "attack_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Attack Sources",
+            "type": "array"
+          },
+          "energy_flow": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Energy Flow",
+            "type": "array"
+          },
+          "interaction_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Interaction Path",
+            "type": "array"
+          },
+          "movable_nodes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Movable Nodes",
+            "type": "array"
+          },
+          "skeleton": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skeleton",
+            "type": "array"
+          }
+        },
+        "title": "CreativeStructureGraph",
+        "type": "object"
+      },
+      "CreativeWeaponGraphPayload": {
+        "properties": {
+          "anchor_points": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Anchor Points",
+            "type": "array"
+          },
+          "combat_affordances": {
+            "items": {
+              "enum": [
+                "attack",
+                "defense",
+                "area_control",
+                "summon",
+                "mobility",
+                "reflect",
+                "transform",
+                "recover",
+                "seal",
+                "projectile"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Combat Affordances",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "creative_graph_id": {
+            "title": "Creative Graph Id",
+            "type": "string"
+          },
+          "non_manufacturing_asset": {
+            "const": true,
+            "default": true,
+            "title": "Non Manufacturing Asset",
+            "type": "boolean"
+          },
+          "protected_regions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protected Regions",
+            "type": "array"
+          },
+          "recast_summary": {
+            "title": "Recast Summary",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "CreativeWeaponGraph@1",
+            "default": "CreativeWeaponGraph@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "selected_candidate_id": {
+            "title": "Selected Candidate Id",
+            "type": "string"
+          },
+          "selected_candidate_rank": {
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Selected Candidate Rank",
+            "type": "integer"
+          },
+          "skill_anchor_points": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Skill Anchor Points",
+            "type": "array"
+          },
+          "source_interpretation_id": {
+            "title": "Source Interpretation Id",
+            "type": "string"
+          },
+          "source_object": {
+            "title": "Source Object",
+            "type": "string"
+          },
+          "structure_graph": {
+            "$ref": "#/components/schemas/CreativeStructureGraph"
+          },
+          "unity_handoff": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Unity Handoff",
+            "type": "object"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "creative_graph_id",
+          "weapon_id",
+          "source_interpretation_id",
+          "selected_candidate_id",
+          "selected_candidate_rank",
+          "source_object",
+          "recast_summary",
+          "structure_graph",
+          "created_at"
+        ],
+        "title": "CreativeWeaponGraphPayload",
+        "type": "object"
+      },
+      "ErrorEnvelope": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "recoverable": {
+            "default": true,
+            "title": "Recoverable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "ExportUnityRequest": {
+        "properties": {
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "export_type": {
+            "const": "unity_glb",
+            "default": "unity_glb",
+            "title": "Export Type",
+            "type": "string"
+          },
+          "include_quality_reports": {
+            "default": true,
+            "title": "Include Quality Reports",
+            "type": "boolean"
+          },
+          "include_source_spec": {
+            "default": true,
+            "title": "Include Source Spec",
+            "type": "boolean"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "ExportUnityRequest",
+        "type": "object"
+      },
+      "Generate3DRequest": {
+        "properties": {
+          "build_unity_export": {
+            "default": true,
+            "title": "Build Unity Export",
+            "type": "boolean"
+          },
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "orientation_policy": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Orientation Policy",
+            "type": "object"
+          },
+          "provider_id": {
+            "default": "mock_3d",
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "scale_policy": {
+            "const": "normalized_game_asset_scale",
+            "default": "normalized_game_asset_scale",
+            "title": "Scale Policy",
+            "type": "string"
+          },
+          "source_image_asset_id": {
+            "title": "Source Image Asset Id",
+            "type": "string"
+          },
+          "source_version_id": {
+            "title": "Source Version Id",
+            "type": "string"
+          },
+          "style": {
+            "const": "stylized_toon_weapon",
+            "default": "stylized_toon_weapon",
+            "title": "Style",
+            "type": "string"
+          },
+          "target_format": {
+            "const": "glb",
+            "default": "glb",
+            "title": "Target Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "source_version_id",
+          "source_image_asset_id"
+        ],
+        "title": "Generate3DRequest",
+        "type": "object"
+      },
+      "GenerationOptions": {
+        "properties": {
+          "concept_count": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Concept Count",
+            "type": "integer"
+          },
+          "image_provider_id": {
+            "default": "mock_comfyui",
+            "title": "Image Provider Id",
+            "type": "string"
+          },
+          "llm_provider_id": {
+            "default": "mock_llm",
+            "title": "Llm Provider Id",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "three_d_provider_id": {
+            "default": "mock_3d",
+            "title": "Three D Provider Id",
+            "type": "string"
+          }
+        },
+        "title": "GenerationOptions",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "mode"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "JobAcceptedResponse": {
+        "properties": {
+          "event_stream_url": {
+            "title": "Event Stream Url",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "job_id",
+          "status",
+          "event_stream_url"
+        ],
+        "title": "JobAcceptedResponse",
+        "type": "object"
+      },
+      "JobActionAuditEntry": {
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "action_type": {
+            "enum": [
+              "cancel",
+              "retry",
+              "retry_from_step"
+            ],
+            "title": "Action Type",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "previous_job_status": {
+            "title": "Previous Job Status",
+            "type": "string"
+          },
+          "requested_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Step"
+          },
+          "resulting_job_status": {
+            "title": "Resulting Job Status",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "noop"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "job_id",
+          "action_type",
+          "status",
+          "previous_job_status",
+          "resulting_job_status",
+          "message",
+          "created_at"
+        ],
+        "title": "JobActionAuditEntry",
+        "type": "object"
+      },
+      "JobActionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobActionAuditEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "JobActionListResponse",
+        "type": "object"
+      },
+      "JobActionResponse": {
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "event_stream_url": {
+            "title": "Event Stream Url",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "previous_status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Previous Status",
+            "type": "string"
+          },
+          "retry_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry From"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "job_id",
+          "status",
+          "previous_status",
+          "message",
+          "event_stream_url"
+        ],
+        "title": "JobActionResponse",
+        "type": "object"
+      },
+      "JobCheckpointSummary": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "checkpoint_id": {
+            "title": "Checkpoint Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "provider_task_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Record Id"
+          },
+          "resume_policy": {
+            "enum": [
+              "restart_step",
+              "skip_completed",
+              "manual_review"
+            ],
+            "title": "Resume Policy",
+            "type": "string"
+          },
+          "state": {
+            "additionalProperties": true,
+            "title": "State",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "leased",
+              "completed",
+              "cancelled",
+              "superseded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkpoint_id",
+          "job_id",
+          "step",
+          "attempt",
+          "status",
+          "resume_policy",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobCheckpointSummary",
+        "type": "object"
+      },
+      "JobDetail": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/JobEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "outputs": {
+            "additionalProperties": true,
+            "title": "Outputs",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "weapon_id",
+          "type",
+          "status",
+          "current_step",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobDetail",
+        "type": "object"
+      },
+      "JobEvent": {
+        "properties": {
+          "artifact_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Asset Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "level": {
+            "default": "info",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "weapon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Id"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "job_id",
+          "step",
+          "status",
+          "message"
+        ],
+        "title": "JobEvent",
+        "type": "object"
+      },
+      "JobListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "JobListResponse",
+        "type": "object"
+      },
+      "JobRuntimeStateResponse": {
+        "properties": {
+          "cancellable": {
+            "title": "Cancellable",
+            "type": "boolean"
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/JobCheckpointSummary"
+            },
+            "title": "Checkpoints",
+            "type": "array"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "provider_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderTaskSummary"
+            },
+            "title": "Provider Tasks",
+            "type": "array"
+          },
+          "resumable": {
+            "title": "Resumable",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "resumable",
+          "cancellable"
+        ],
+        "title": "JobRuntimeStateResponse",
+        "type": "object"
+      },
+      "JobSummary": {
+        "properties": {
+          "action_count": {
+            "default": 0,
+            "title": "Action Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "event_count": {
+            "default": 0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "latest_event_created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event Created At"
+          },
+          "latest_event_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event Message"
+          },
+          "latest_event_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event Status"
+          },
+          "output_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Model Id"
+          },
+          "output_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Version Id"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "weapon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Id"
+          },
+          "weapon_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Name"
+          }
+        },
+        "required": [
+          "job_id",
+          "type",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobSummary",
+        "type": "object"
+      },
+      "PatchWeaponRequest": {
+        "properties": {
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "instruction": {
+            "title": "Instruction",
+            "type": "string"
+          },
+          "mask_asset_id": {
+            "title": "Mask Asset Id",
+            "type": "string"
+          },
+          "patch_manifest_asset_id": {
+            "title": "Patch Manifest Asset Id",
+            "type": "string"
+          },
+          "preserve": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Preserve",
+            "type": "array"
+          },
+          "provider_id": {
+            "default": "mock_comfyui",
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "regenerate_3d": {
+            "default": false,
+            "title": "Regenerate 3D",
+            "type": "boolean"
+          },
+          "source_image_asset_id": {
+            "title": "Source Image Asset Id",
+            "type": "string"
+          },
+          "source_version_id": {
+            "title": "Source Version Id",
+            "type": "string"
+          },
+          "strength": {
+            "default": "medium",
+            "enum": [
+              "subtle",
+              "medium",
+              "strong"
+            ],
+            "title": "Strength",
+            "type": "string"
+          },
+          "target_area": {
+            "title": "Target Area",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "source_version_id",
+          "source_image_asset_id",
+          "mask_asset_id",
+          "patch_manifest_asset_id",
+          "target_area",
+          "instruction"
+        ],
+        "title": "PatchWeaponRequest",
+        "type": "object"
+      },
+      "ProviderSettings": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "has_secret": {
+            "default": false,
+            "title": "Has Secret",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "llm",
+              "image",
+              "three_d"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "configured",
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "kind",
+          "type",
+          "display_name"
+        ],
+        "title": "ProviderSettings",
+        "type": "object"
+      },
+      "ProviderSettingsListResponse": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderSettings"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "title": "ProviderSettingsListResponse",
+        "type": "object"
+      },
+      "ProviderTaskSummary": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "cancel_requested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Requested At"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_kind": {
+            "enum": [
+              "llm",
+              "image",
+              "three_d",
+              "asset_store",
+              "quality_checker",
+              "unity"
+            ],
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Id"
+          },
+          "status": {
+            "enum": [
+              "submitted",
+              "polling",
+              "cancel_requested",
+              "cancelled",
+              "succeeded",
+              "failed",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "task_record_id": {
+            "title": "Task Record Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_record_id",
+          "job_id",
+          "step",
+          "attempt",
+          "provider_kind",
+          "provider_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProviderTaskSummary",
+        "type": "object"
+      },
+      "RuntimeRecoveryItem": {
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "previous_status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Previous Status",
+            "type": "string"
+          },
+          "provider_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Id"
+          },
+          "resume_from_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume From Step"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "weapon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon Id"
+          }
+        },
+        "required": [
+          "job_id",
+          "previous_status",
+          "status",
+          "event_id",
+          "message"
+        ],
+        "title": "RuntimeRecoveryItem",
+        "type": "object"
+      },
+      "RuntimeRecoveryResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeRecoveryItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "recovered_count": {
+            "title": "Recovered Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recovered_count"
+        ],
+        "title": "RuntimeRecoveryResponse",
+        "type": "object"
+      },
+      "RuntimeWorkOnceResponse": {
+        "properties": {
+          "claimed": {
+            "title": "Claimed",
+            "type": "boolean"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "job_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Type"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "created",
+                  "queued",
+                  "running",
+                  "waiting_provider",
+                  "waiting_user",
+                  "retrying",
+                  "succeeded",
+                  "failed",
+                  "cancelled",
+                  "partial_succeeded"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "claimed",
+          "message"
+        ],
+        "title": "RuntimeWorkOnceResponse",
+        "type": "object"
+      },
+      "SkillCard": {
+        "properties": {
+          "anchor_point": {
+            "title": "Anchor Point",
+            "type": "string"
+          },
+          "combat_affordances": {
+            "items": {
+              "enum": [
+                "attack",
+                "defense",
+                "area_control",
+                "summon",
+                "mobility",
+                "reflect",
+                "transform",
+                "recover",
+                "seal",
+                "projectile"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Combat Affordances",
+            "type": "array"
+          },
+          "cooldown_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Hint"
+          },
+          "cost_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Hint"
+          },
+          "effect": {
+            "title": "Effect",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slot": {
+            "enum": [
+              "normal",
+              "heavy",
+              "mobility_or_defense",
+              "control",
+              "passive",
+              "ultimate"
+            ],
+            "title": "Slot",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot",
+          "name",
+          "trigger",
+          "effect",
+          "anchor_point"
+        ],
+        "title": "SkillCard",
+        "type": "object"
+      },
+      "SkillGraphPayload": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "non_manufacturing_asset": {
+            "const": true,
+            "default": true,
+            "title": "Non Manufacturing Asset",
+            "type": "boolean"
+          },
+          "origin_graph_id": {
+            "title": "Origin Graph Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "SkillGraph@1",
+            "default": "SkillGraph@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "skill_graph_id": {
+            "title": "Skill Graph Id",
+            "type": "string"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillCard"
+            },
+            "maxItems": 6,
+            "minItems": 6,
+            "title": "Skills",
+            "type": "array"
+          },
+          "source_interpretation_id": {
+            "title": "Source Interpretation Id",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_graph_id",
+          "weapon_id",
+          "origin_graph_id",
+          "source_interpretation_id",
+          "created_at"
+        ],
+        "title": "SkillGraphPayload",
+        "type": "object"
+      },
+      "TargetOptions": {
+        "properties": {
+          "engine": {
+            "const": "unity",
+            "default": "unity",
+            "title": "Engine",
+            "type": "string"
+          },
+          "output_format": {
+            "const": "glb",
+            "default": "glb",
+            "title": "Output Format",
+            "type": "string"
+          },
+          "phase": {
+            "const": "concept_to_rough_3d",
+            "default": "concept_to_rough_3d",
+            "title": "Phase",
+            "type": "string"
+          }
+        },
+        "title": "TargetOptions",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WeaponDetail": {
+        "properties": {
+          "current_model": {
+            "additionalProperties": true,
+            "title": "Current Model",
+            "type": "object"
+          },
+          "current_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Model Id"
+          },
+          "current_spec": {
+            "additionalProperties": true,
+            "title": "Current Spec",
+            "type": "object"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "fantasy_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fantasy Category"
+          },
+          "latest_jobs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Latest Jobs",
+            "type": "array"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "style": {
+            "title": "Style",
+            "type": "string"
+          },
+          "thumbnail_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Asset Id"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/WeaponVersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "weapon_family": {
+            "title": "Weapon Family",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "display_name",
+          "weapon_family",
+          "style",
+          "stage",
+          "updated_at"
+        ],
+        "title": "WeaponDetail",
+        "type": "object"
+      },
+      "WeaponListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WeaponSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "WeaponListResponse",
+        "type": "object"
+      },
+      "WeaponSummary": {
+        "properties": {
+          "current_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Model Id"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "thumbnail_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Asset Id"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "weapon_family": {
+            "title": "Weapon Family",
+            "type": "string"
+          },
+          "weapon_id": {
+            "title": "Weapon Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weapon_id",
+          "display_name",
+          "weapon_family",
+          "stage",
+          "updated_at"
+        ],
+        "title": "WeaponSummary",
+        "type": "object"
+      },
+      "WeaponVersionSummary": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetFileSummary"
+            },
+            "title": "Assets",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          },
+          "version_type": {
+            "title": "Version Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_no",
+          "version_type",
+          "status",
+          "created_at"
+        ],
+        "title": "WeaponVersionSummary",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Wushen Forge Agent",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/assets/{asset_id}": {
+      "get": {
+        "operationId": "get_asset_api_assets__asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetFileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Asset"
+      }
+    },
+    "/api/assets/{asset_id}/file": {
+      "get": {
+        "operationId": "get_asset_file_api_assets__asset_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Asset File"
+      }
+    },
+    "/api/assets/{asset_id}/reveal": {
+      "post": {
+        "operationId": "reveal_asset_file_api_assets__asset_id__reveal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetRevealResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reveal Asset File"
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/health/providers": {
+      "get": {
+        "operationId": "provider_health_api_health_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSettingsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Provider Health"
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "operationId": "list_jobs_api_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs"
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job"
+      }
+    },
+    "/api/jobs/{job_id}/actions": {
+      "get": {
+        "operationId": "list_job_actions_api_jobs__job_id__actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobActionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Job Actions"
+      }
+    },
+    "/api/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "cancel_job_api_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job"
+      }
+    },
+    "/api/jobs/{job_id}/events": {
+      "get": {
+        "operationId": "job_events_api_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "last_event_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Event Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Job Events"
+      }
+    },
+    "/api/jobs/{job_id}/retry": {
+      "post": {
+        "operationId": "retry_job_api_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job"
+      }
+    },
+    "/api/jobs/{job_id}/retry-from/{step_name}": {
+      "post": {
+        "operationId": "retry_job_from_step_api_jobs__job_id__retry_from__step_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "step_name",
+            "required": true,
+            "schema": {
+              "title": "Step Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job From Step"
+      }
+    },
+    "/api/jobs/{job_id}/runtime": {
+      "get": {
+        "operationId": "get_job_runtime_api_jobs__job_id__runtime_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRuntimeStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Runtime"
+      }
+    },
+    "/api/provider-settings": {
+      "get": {
+        "operationId": "list_provider_settings_api_provider_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSettingsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Provider Settings"
+      }
+    },
+    "/api/runtime/recover": {
+      "post": {
+        "operationId": "recover_runtime_api_runtime_recover_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeRecoveryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recover Runtime"
+      }
+    },
+    "/api/runtime/work-once": {
+      "post": {
+        "operationId": "runtime_work_once_api_runtime_work_once_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeWorkOnceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Runtime Work Once"
+      }
+    },
+    "/api/weapons": {
+      "get": {
+        "operationId": "list_weapons_api_weapons_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeaponListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Weapons"
+      },
+      "post": {
+        "operationId": "create_weapon_api_weapons_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWeaponRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Weapon"
+      }
+    },
+    "/api/weapons/{weapon_id}": {
+      "get": {
+        "operationId": "get_weapon_api_weapons__weapon_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeaponDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Weapon"
+      }
+    },
+    "/api/weapons/{weapon_id}/creative-graph": {
+      "get": {
+        "operationId": "get_creative_graph_api_weapons__weapon_id__creative_graph_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeGraphResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Creative Graph"
+      }
+    },
+    "/api/weapons/{weapon_id}/export-unity": {
+      "post": {
+        "operationId": "export_unity_api_weapons__weapon_id__export_unity_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportUnityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Unity"
+      }
+    },
+    "/api/weapons/{weapon_id}/generate-3d": {
+      "post": {
+        "operationId": "generate_3d_api_weapons__weapon_id__generate_3d_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Generate3DRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate 3D"
+      }
+    },
+    "/api/weapons/{weapon_id}/interpretation": {
+      "post": {
+        "operationId": "create_interpretation_api_weapons__weapon_id__interpretation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreativeInterpretationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeInterpretationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Interpretation"
+      }
+    },
+    "/api/weapons/{weapon_id}/patch": {
+      "post": {
+        "operationId": "patch_weapon_api_weapons__weapon_id__patch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchWeaponRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Weapon"
+      }
+    },
+    "/api/weapons/{weapon_id}/recast/confirm": {
+      "post": {
+        "operationId": "confirm_recast_api_weapons__weapon_id__recast_confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreativeRecastConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRecastConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Recast"
+      }
+    },
+    "/api/weapons/{weapon_id}/versions/{version_id}/activate": {
+      "post": {
+        "operationId": "activate_weapon_version_api_weapons__weapon_id__versions__version_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeaponDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Weapon Version"
+      }
+    },
+    "/api/weapons/{weapon_id}/versions/{version_id}/assets": {
+      "post": {
+        "operationId": "upload_version_asset_api_weapons__weapon_id__versions__version_id__assets_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weapon_id",
+            "required": true,
+            "schema": {
+              "title": "Weapon Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Version Asset"
+      }
+    }
+  }
+}

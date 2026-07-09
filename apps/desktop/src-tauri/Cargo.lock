@@ -1,0 +1,7 @@
+# This placeholder lockfile is intentionally committed so the packaging gate can be
+# validated before generating a full production Rust dependency lockfile.
+version = 3
+
+[[package]]
+name = "wushen-forge-desktop"
+version = "0.1.0"

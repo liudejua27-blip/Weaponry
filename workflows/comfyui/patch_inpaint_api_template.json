@@ -1,0 +1,98 @@
+{
+  "template_id": "wushen_patch_inpaint_sd_basic",
+  "template_version": "0.1.0",
+  "description": "Minimal ComfyUI API-format inpaint workflow for Wushen Forge patch mode. Replace with a production exported API workflow for final art direction.",
+  "default_checkpoint": "v1-5-pruned-emaonly.safetensors",
+  "bindings": {
+    "checkpoint": { "node": "4", "input": "ckpt_name" },
+    "source_image": { "node": "10", "input": "image" },
+    "mask_image": { "node": "11", "input": "image" },
+    "positive_prompt": { "node": "6", "input": "text" },
+    "negative_prompt": { "node": "7", "input": "text" },
+    "seed": { "node": "3", "input": "seed" },
+    "denoise": { "node": "3", "input": "denoise" },
+    "width": { "node": "12", "input": "width" },
+    "height": { "node": "12", "input": "height" },
+    "filename_prefix": { "node": "9", "input": "filename_prefix" }
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 1,
+        "steps": 28,
+        "cfg": 7,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 0.55,
+        "model": ["4", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["13", 0]
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "v1-5-pruned-emaonly.safetensors"
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "3渲2国风神兵，虚构 Unity 游戏资产，逼真外观，局部重绘",
+        "clip": ["4", 1]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "real weapon blueprint, manufacturing drawing, dimensions, material formula, machining steps",
+        "clip": ["4", 1]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["3", 0],
+        "vae": ["4", 2]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "wushen/patch",
+        "images": ["8", 0]
+      }
+    },
+    "10": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "source.png"
+      }
+    },
+    "11": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "mask.png"
+      }
+    },
+    "12": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1280,
+        "height": 720,
+        "batch_size": 1
+      }
+    },
+    "13": {
+      "class_type": "VAEEncodeForInpaint",
+      "inputs": {
+        "pixels": ["10", 0],
+        "vae": ["4", 2],
+        "mask": ["11", 1],
+        "grow_mask_by": 6
+      }
+    }
+  }
+}

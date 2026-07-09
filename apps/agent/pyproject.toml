@@ -1,0 +1,21 @@
+[project]
+name = "wushen-agent"
+version = "0.1.0"
+description = "Local FastAPI Agent service for Wushen Forge."
+requires-python = ">=3.9"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "pydantic>=2.7",
+  "jsonschema>=4.22"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

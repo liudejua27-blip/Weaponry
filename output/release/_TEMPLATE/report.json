@@ -1,0 +1,23 @@
+{
+  "gate_id": "GATE-XX",
+  "status": "blocked | pass | warn",
+  "owner": "Owner Name/Team",
+  "timestamp": "2026-07-06T00:00:00+08:00",
+  "command": "npm run <gate-command>",
+  "blocker": [
+    {
+      "code": "runtime_action_mismatch",
+      "summary": "待补充",
+      "evidence": "output/release/GATE-XX/artifacts.txt"
+    }
+  ],
+  "warning": [
+    {
+      "code": "non_manufacturing_drift",
+      "summary": "待补充"
+    }
+  ],
+  "next_action": "下一步动作清单与验收标准",
+  "next_owner": "Owner Name/Team",
+  "run_id": "optional-build-id"
+}

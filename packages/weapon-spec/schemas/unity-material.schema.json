@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/unity-material.schema.json",
+  "title": "UnityMaterial",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "shader_family", "shader_reference", "profile", "global", "materials", "created_at"],
+  "properties": {
+    "schema_version": { "const": "UnityMaterial@1" },
+    "shader_family": { "const": "toon" },
+    "shader_reference": { "type": "string" },
+    "profile": { "const": "wushen_toon_weapon_v1" },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outline_enabled", "outline_width", "shadow_steps", "rim_light_enabled", "rim_light_color", "rim_light_intensity", "matcap_enabled"],
+      "properties": {
+        "outline_enabled": { "type": "boolean" },
+        "outline_width": { "type": "number", "minimum": 0, "maximum": 0.1 },
+        "shadow_steps": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "rim_light_enabled": { "type": "boolean" },
+        "rim_light_color": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "rim_light_intensity": { "type": "number", "minimum": 0, "maximum": 5 },
+        "matcap_enabled": { "type": "boolean" }
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "category", "base_color"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "category": { "type": "string", "enum": ["WS_Blade_Metal", "WS_Edge_Highlight", "WS_Guard_Metal", "WS_Handle_Wrap", "WS_Core_Emission", "WS_Gem_Jade", "WS_Rune_Emission", "WS_Cloth_Talisman", "WS_Bone", "WS_Crystal", "WS_Unknown"] },
+          "base_color": { "$ref": "common.schema.json#/$defs/hex_color" },
+          "metallic": { "type": "number", "minimum": 0, "maximum": 1 },
+          "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "emission": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "color": { "$ref": "common.schema.json#/$defs/hex_color" },
+              "intensity": { "type": "number", "minimum": 0, "maximum": 10 }
+            }
+          }
+        }
+      }
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

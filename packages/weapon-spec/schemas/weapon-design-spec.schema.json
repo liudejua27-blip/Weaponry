@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/weapon-design-spec.schema.json",
+  "title": "WeaponDesignSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "style",
+    "weapon_family",
+    "silhouette",
+    "visual_keywords",
+    "color_palette",
+    "material_zones",
+    "toon_rules",
+    "generation",
+    "unity_target",
+    "safety_boundary",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "WeaponDesignSpec@1" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "name": { "type": "string", "minLength": 1 },
+    "style": { "const": "3渲2国风神兵" },
+    "weapon_family": {
+      "type": "string",
+      "enum": ["sword", "blade", "spear", "halberd", "axe", "bow", "crossbow", "hammer", "scythe", "staff", "umbrella", "fan", "mechanical", "energy", "hybrid", "alien", "mace", "trident", "dagger", "other"]
+    },
+    "fantasy_category": {
+      "type": "string",
+      "enum": ["dragon_relic", "phoenix_relic", "celestial", "demonic", "talisman", "elemental", "jade_spirit", "bone_relic", "crystal_core", "mechanical_arcane", "custom"]
+    },
+    "silhouette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_shape", "readability"],
+      "properties": {
+        "primary_shape": { "type": "string", "minLength": 1 },
+        "readability": { "type": "string", "enum": ["weak", "medium", "strong"] },
+        "asymmetry": { "type": "string", "enum": ["none", "low", "medium", "high"] }
+      }
+    },
+    "visual_keywords": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 3
+    },
+    "color_palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "secondary": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "accent": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "glow": { "$ref": "common.schema.json#/$defs/hex_color" }
+      }
+    },
+    "material_zones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["zone", "material"],
+        "properties": {
+          "zone": { "type": "string", "minLength": 1 },
+          "material": { "type": "string", "minLength": 1 },
+          "notes": { "type": "string" },
+          "is_emissive": { "type": "boolean" }
+        }
+      }
+    },
+    "toon_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outline", "shadow_steps", "rim_light", "emission"],
+      "properties": {
+        "outline": { "type": "string", "enum": ["none", "subtle", "medium", "strong"] },
+        "shadow_steps": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "rim_light": { "type": "string", "enum": ["none", "cool", "warm", "neutral"] },
+        "emission": { "type": "string", "enum": ["none", "localized", "strong"] }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["concept_prompt", "negative_prompt", "seed", "provider"],
+      "properties": {
+        "concept_prompt": { "type": "string" },
+        "negative_prompt": { "type": "string" },
+        "seed": { "type": ["integer", "null"] },
+        "provider": { "$ref": "common.schema.json#/$defs/provider" }
+      }
+    },
+    "unity_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "scale_policy", "material_profile"],
+      "properties": {
+        "format": { "type": "string", "enum": ["glb", "obj"] },
+        "scale_policy": { "type": "string", "enum": ["game_asset_relative_scale", "normalized_game_asset_scale"] },
+        "scale_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["longest_axis_normalized_to", "unit_semantics", "forbid_real_world_dimensions"],
+          "properties": {
+            "longest_axis_normalized_to": { "type": "number", "exclusiveMinimum": 0 },
+            "unit_semantics": { "type": "string", "enum": ["game_relative"] },
+            "forbid_real_world_dimensions": { "const": true }
+          }
+        },
+        "orientation_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["coordinate_system", "long_axis", "forward_axis", "up_axis", "pivot", "apply_transforms_before_export"],
+          "properties": {
+            "coordinate_system": { "type": "string", "enum": ["gltf_y_up_unity_compatible"] },
+            "long_axis": { "type": "string", "enum": ["+X", "+Y", "+Z", "-X", "-Y", "-Z"] },
+            "forward_axis": { "type": "string", "enum": ["+X", "+Y", "+Z", "-X", "-Y", "-Z"] },
+            "up_axis": { "type": "string", "enum": ["+Y"] },
+            "pivot": { "type": "string", "enum": ["grip_center", "bounding_box_center"] },
+            "fallback_pivot": { "type": "string", "enum": ["bounding_box_center"] },
+            "apply_transforms_before_export": { "type": "boolean" }
+          }
+        },
+        "model_3d": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target_format", "provider_strategy", "source_image_role", "expected_outputs"],
+          "properties": {
+            "target_format": { "type": "string", "enum": ["glb"] },
+            "provider_strategy": { "type": "string" },
+            "source_image_role": { "type": "string", "enum": ["concept_image", "model_sheet_image"] },
+            "model_sheet_allowed": { "type": "boolean" },
+            "expected_outputs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        },
+        "material_profile": { "type": "string", "enum": ["toon_weapon", "wushen_toon_weapon_v1"] }
+      }
+    },
+    "safety_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["real_world_manufacturing_details"],
+      "properties": {
+        "real_world_manufacturing_details": { "const": false }
+      }
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

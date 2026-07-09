@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wushen-forge.local/schemas/creative-weapon-graph.schema.json",
+  "title": "CreativeWeaponGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "creative_graph_id",
+    "weapon_id",
+    "source_interpretation_id",
+    "selected_candidate_id",
+    "selected_candidate_rank",
+    "source_object",
+    "recast_summary",
+    "combat_affordances",
+    "structure_graph",
+    "anchor_points",
+    "protected_regions",
+    "skill_anchor_points",
+    "unity_handoff",
+    "non_manufacturing_asset",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "CreativeWeaponGraph@1" },
+    "creative_graph_id": { "$ref": "common.schema.json#/$defs/id" },
+    "weapon_id": { "$ref": "common.schema.json#/$defs/id" },
+    "source_interpretation_id": { "$ref": "common.schema.json#/$defs/id" },
+    "selected_candidate_id": { "type": "string", "minLength": 3 },
+    "selected_candidate_rank": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "source_object": { "type": "string", "minLength": 1 },
+    "recast_summary": { "type": "string", "minLength": 1 },
+    "combat_affordances": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["attack", "defense", "area_control", "summon", "mobility", "reflect", "transform", "recover", "seal", "projectile"]
+      }
+    },
+    "structure_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skeleton", "interaction_path", "attack_sources", "movable_nodes", "energy_flow"],
+      "properties": {
+        "skeleton": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "interaction_path": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "attack_sources": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "movable_nodes": { "type": "array", "items": { "type": "string" } },
+        "energy_flow": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "anchor_points": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "protected_regions": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "skill_anchor_points": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "unity_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["socket", "scale_policy", "axis_hint"],
+      "properties": {
+        "socket": { "type": "string" },
+        "scale_policy": { "type": "string" },
+        "axis_hint": { "type": "string" }
+      }
+    },
+    "non_manufacturing_asset": { "const": true },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

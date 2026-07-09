@@ -1,0 +1,3 @@
+{"id":"evt_job_0001_0001","job_id":"job_0001","weapon_id":"weapon_0001","step":"request_guard","level":"info","status":"succeeded","message":"Request accepted by mock Agent.","progress":0.1,"created_at":"2026-07-04T14:00:00Z"}
+{"id":"evt_job_0001_0002","job_id":"job_0001","weapon_id":"weapon_0001","step":"weapon_spec_planner","level":"info","status":"succeeded","message":"Mock WeaponDesignSpec created.","artifact_asset_id":"file_mock_spec","progress":0.35,"created_at":"2026-07-04T14:00:01Z"}
+{"id":"evt_job_0001_0003","job_id":"job_0001","weapon_id":"weapon_0001","step":"finalize_job","level":"info","status":"succeeded","message":"Mock job completed.","progress":1,"created_at":"2026-07-04T14:00:02Z"}
