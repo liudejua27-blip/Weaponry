@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包和 combined GLB 导出 API 已实现；OBJ/PNG/爆炸图和完整 R5 检查矩阵尚未实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL 导出 API 已实现；PNG/爆炸图和完整 R5 检查矩阵尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -144,10 +144,11 @@ npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
 npm run r3:workbench-gate
+npm run r5:obj-gate
 npm run r5:quality-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查、负例、桌面触发和重启回读。它仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD 或 OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL 的变换、镜像、哈希、下载、桌面流程与重启回读；`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD、PNG 或 DCC round-trip。
 
 专项 Connector 门：
 
@@ -160,6 +161,15 @@ npm run agent:r5-mesh-assembly-quality-smoke
 该门同时验证 `GET /api/v1/projects/{project_id}/change-sets` 的 replace/mirror 操作时间线与 Agent 重启回读。
 
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
+
+创建导出时传 `"include_combined_obj": true`，OBJ 和 MTL 会分别写入 `Model/combined.obj`、`Model/combined.mtl`。可通过以下地址独立下载：
+
+```text
+GET /api/v1/exports/{export_id}/combined.obj
+GET /api/v1/exports/{export_id}/combined.mtl
+```
+
+OBJ 坐标单位固定为米，与 combined GLB 一致。单独下载 OBJ 后还应下载同一 Export 的 `combined.mtl`；需要完整来源和哈希时应下载源 ZIP。MTL 只投影基础颜色、透明度、粗糙度近似高光和自发光，不等价于 glTF PBR 材质。
 
 实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
 
@@ -337,7 +347,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。继续补精确相交、对称、隐藏几何和 LOD 样本；导出继续补 PNG、OBJ 与 HTML 报告。
+首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。OBJ/MTL 已完成首版；继续补精确相交、对称、隐藏几何和 LOD 样本，以及 PNG、爆炸图与 HTML 报告。
 
 ### Day 7：桌面回归
 

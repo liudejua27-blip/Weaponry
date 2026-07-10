@@ -401,6 +401,8 @@ POST   /api/v1/versions/{version_id}/exports
 GET    /api/v1/exports/{export_id}
 GET    /api/v1/exports/{export_id}/file
 GET    /api/v1/exports/{export_id}/combined.glb
+GET    /api/v1/exports/{export_id}/combined.obj
+GET    /api/v1/exports/{export_id}/combined.mtl
 GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
@@ -497,6 +499,8 @@ R5 的正式 P0 导出目标：
 Manifest 中明确 `intended_use` 和“非功能性概念模型”声明。P0 不显示“制造就绪”。
 
 combined GLB 第一切片合并静态 GLB 的 bufferView/accessor/mesh/material/node，去重完全相同材质，将 Graph `position(mm)` 转成 glTF `translation(m)`，Euler XYZ 转 quaternion，并将 `mirror_axis` 写入 wrapper node 有符号 scale。wrapper 使用稳定 `NODE_{node_id}__{module_id}` 名称和 provenance extras。skin、animation、纹理和 required/compression extension 当前结构化拒绝；后续由 glTF Transform/Meshopt 与纹理管线扩展，不能静默丢数据。
+
+combined OBJ 第一切片以同一份 combined GLB 为输入，递归扁平化 scene graph，将节点 matrix/TRS、非均匀缩放和镜像烘焙进顶点；法线使用逆转置矩阵并归一化，负行列式变换翻转三角面序。OBJ 固定声明米制，保留 `NODE_{node_id}__{module_id}` 路径、`v/vt/vn/f` 和稳定 material 名；PBR factor 确定性投影为配套 MTL。OBJ/MTL 进入同一不可变 ZIP 和 Manifest，并提供独立下载。该转换不支持 sparse accessor、非 TRIANGLES primitive、morph、skin、animation 或贴图搬运；MTL 是有损交换格式，不替代源 GLB。
 
 ## 14. 验证策略
 

@@ -189,9 +189,7 @@ class CreateQualityRunRequest(StrictApiModel):
 
 class InspectConceptVersionRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
-    ruleset_version: Literal["weapon-concept-geometry/1.0"] = (
-        "weapon-concept-geometry/1.0"
-    )
+    ruleset_version: Literal["weapon-concept-geometry/1.0"] = "weapon-concept-geometry/1.0"
 
 
 class QualityRunRecord(StrictApiModel):
@@ -278,6 +276,7 @@ class CreateConceptExportRequest(StrictApiModel):
     profile: IntendedUse
     include_modules: Literal[True] = True
     include_combined_glb: Literal[True] = True
+    include_combined_obj: bool = False
     include_quality_report: bool = True
 
 
@@ -293,5 +292,7 @@ class ConceptExportRecord(StrictApiModel):
     package_byte_size: int = Field(ge=0)
     combined_glb_sha256: str
     combined_glb_byte_size: int = Field(ge=0)
+    combined_obj_sha256: Optional[str] = None
+    combined_obj_byte_size: Optional[int] = Field(default=None, ge=0)
     manifest: ConceptExportManifest
     created_at: str

@@ -141,7 +141,7 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
-| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查和源包导出 | 已用 10 模块参考 Pack 跑 E2E；人工 Blender 最终质量与正式替换矩阵待完成 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查及 ZIP/GLB/OBJ/MTL 导出 | 已用 10 模块参考 Pack 跑 E2E；人工 Blender 最终质量与正式替换矩阵待完成 |
 | 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
 | Module Pack 资产门 | `ModulePackManifest@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现 | 工具链完成；正式 10–12 个 Blender GLB 仍需制作 |
 | Arctic Patrol S1 参考 Pack | 10 GLB、九类、17 Connector、UV0/normal/三材质、缩略图、许可证、确定性生成与 9 节点 Graph 已实现 | 可用于产品闭环和 DCC 交接，不冒充最终高质量美术 |
@@ -155,10 +155,10 @@ core.side_panel_left / core.side_panel_right
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ChangeSet 操作时间线 | Project 级只读 API、operation/node/status/result Version 与桌面时间线已实现 | 搜索、分页与 rejected 原因进入后续审计增强 |
 | ModelQualityReport | 服务端从版本绑定的不可变 GLB 检查索引、退化面、法线、UV0、开放/非流形边、清单 bounds/triangle、Connector 对齐和未直连 AABB 穿插；报告、Finding、JobEvent、桌面触发与重启恢复已实现 | 首版是确定性几何筛查；对称、隐藏几何、精确三角相交、LOD 与点击定位继续进入 R5，不代表强度/DFM/安全证明 |
-| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、Manifest hash、JobEvent、独立下载与重启恢复已实现 | OBJ/PNG/爆炸图继续进入 R5 |
+| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、扁平化 OBJ/MTL、Manifest hash、JobEvent、独立下载与重启恢复已实现 | PNG、爆炸图、纹理交换与 DCC round-trip 继续进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。combined GLB 已能烘焙 Graph 毫米 Transform 与镜像状态，首版 Mesh/Assembly 检查也已读取同一批不可变资产。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明最终资产矩阵、OBJ/PNG、完整 R5 检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。combined GLB 与 OBJ 已能烘焙 Graph 毫米 Transform 与镜像状态，首版 Mesh/Assembly 检查也已读取同一批不可变资产。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明最终资产矩阵、PNG/爆炸图、DCC round-trip、完整 R5 检查或 CAD/DFM 已完成。
 
 正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 

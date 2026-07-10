@@ -161,6 +161,14 @@ export class ForgeApiClient {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.glb`
   }
 
+  getConceptCombinedObjUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.obj`
+  }
+
+  getConceptCombinedMtlUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.mtl`
+  }
+
   async proposeChangeSet(
     versionId: string,
     input: ProposeChangeSetRequest,

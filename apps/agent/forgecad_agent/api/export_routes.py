@@ -77,6 +77,36 @@ def build_export_router(service: ConceptExportService) -> APIRouter:
             },
         )
 
+    @router.get("/exports/{export_id}/combined.obj", response_model=None)
+    def download_combined_obj(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_combined_obj(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="model/obj",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
+    @router.get("/exports/{export_id}/combined.mtl", response_model=None)
+    def download_combined_mtl(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_combined_mtl(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="model/mtl",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
     return router
 
 

@@ -662,6 +662,29 @@
             "title": "Combined Glb Sha256",
             "type": "string"
           },
+          "combined_obj_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combined Obj Byte Size"
+          },
+          "combined_obj_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combined Obj Sha256"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -1270,6 +1293,11 @@
             "const": true,
             "default": true,
             "title": "Include Combined Glb",
+            "type": "boolean"
+          },
+          "include_combined_obj": {
+            "default": false,
+            "title": "Include Combined Obj",
             "type": "boolean"
           },
           "include_modules": {
@@ -6513,6 +6541,86 @@
           }
         },
         "summary": "Download Combined Glb",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.mtl": {
+      "get": {
+        "operationId": "download_combined_mtl_api_v1_exports__export_id__combined_mtl_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Mtl",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.obj": {
+      "get": {
+        "operationId": "download_combined_obj_api_v1_exports__export_id__combined_obj_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Obj",
         "tags": [
           "concept-exports"
         ]

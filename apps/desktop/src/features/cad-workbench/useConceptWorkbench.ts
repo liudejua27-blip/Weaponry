@@ -243,6 +243,7 @@ export function useConceptWorkbench() {
         profile: 'game_asset',
         include_modules: true,
         include_combined_glb: true,
+        include_combined_obj: true,
         include_quality_report: true,
       })
       setState((current) => ({

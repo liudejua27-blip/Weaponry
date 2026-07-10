@@ -78,6 +78,7 @@
     "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke && npm run agent:r2-module-registry-smoke && npm run agent:r2-change-sets-smoke && npm run agent:r2-brief-variants-smoke && npm run agent:r2-exports-smoke",
     "r3:workbench-gate": "npm run r2:gate && npm run assets:reference-pack:check && npm run agent:r3-module-pack-smoke && npm run agent:r3-connector-snap-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:combined-glb-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r2-exports-smoke && npm run agent:r3-connector-snap-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
+    "r5:obj-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:quality-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke"
   },
   "engines": {

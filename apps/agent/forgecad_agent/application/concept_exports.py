@@ -14,6 +14,10 @@ from forgecad_agent.application.combined_glb import (
     CombinedGlbSource,
     build_combined_glb,
 )
+from forgecad_agent.application.combined_obj import (
+    CombinedObjError,
+    build_combined_obj,
+)
 from forgecad_agent.application.concept_models import (
     ConceptExportRecord,
     CreateConceptExportRequest,
@@ -57,7 +61,11 @@ class ConceptExportService:
         idempotency_key: str,
     ) -> ConceptExportRecord:
         scope = f"POST /api/v1/versions/{version_id}/exports"
-        request_hash = _hash_json(request.model_dump(mode="json"))
+        request_payload = request.model_dump(mode="json")
+        if not request.include_combined_obj:
+            # Preserve hashes written before the optional OBJ field existed.
+            request_payload.pop("include_combined_obj")
+        request_hash = _hash_json(request_payload)
 
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
             replay = unit_of_work.idempotency.get(scope, idempotency_key)
@@ -146,6 +154,19 @@ class ConceptExportService:
                 ) from exc
             combined_glb_sha256 = hashlib.sha256(combined_glb).hexdigest()
             files["Model/combined.glb"] = (combined_glb, "model/gltf-binary")
+            combined_obj = None
+            combined_obj_sha256: Optional[str] = None
+            if request.include_combined_obj:
+                try:
+                    combined_obj = build_combined_obj(combined_glb)
+                except CombinedObjError as exc:
+                    raise ConceptExportError(
+                        "INVALID_REQUEST",
+                        f"Combined OBJ could not be created: {exc}",
+                    ) from exc
+                combined_obj_sha256 = hashlib.sha256(combined_obj.obj).hexdigest()
+                files["Model/combined.obj"] = (combined_obj.obj, "model/obj")
+                files["Model/combined.mtl"] = (combined_obj.mtl, "model/mtl")
 
             quality_report_id: Optional[str] = None
             if request.include_quality_report:
@@ -210,6 +231,14 @@ class ConceptExportService:
                         "export_id": export_id,
                         "profile": request.profile,
                         "non_functional_only": True,
+                        **(
+                            {
+                                "combined_obj_vertex_count": combined_obj.vertex_count,
+                                "combined_obj_triangle_count": combined_obj.triangle_count,
+                            }
+                            if combined_obj is not None
+                            else {}
+                        ),
                     }
                 ),
                 created_at=created_at,
@@ -244,7 +273,27 @@ class ConceptExportService:
                 },
                 steps=[
                     ("collect", "Collected immutable concept sources.", 0.25, {}),
-                    ("combine", "Built a static combined GLB.", 0.55, {"sha256": combined_glb_sha256}),
+                    (
+                        "combine",
+                        (
+                            "Built static combined GLB and OBJ/MTL artifacts."
+                            if combined_obj is not None
+                            else "Built a static combined GLB."
+                        ),
+                        0.55,
+                        {
+                            "glb_sha256": combined_glb_sha256,
+                            **(
+                                {
+                                    "obj_sha256": combined_obj_sha256,
+                                    "obj_vertex_count": combined_obj.vertex_count,
+                                    "obj_triangle_count": combined_obj.triangle_count,
+                                }
+                                if combined_obj is not None
+                                else {}
+                            ),
+                        },
+                    ),
                     ("manifest", "Validated ConceptExportManifest@1.", 0.75, {}),
                     ("package", "Stored concept export package.", 1.0, {"export_id": export_id}),
                 ],
@@ -262,6 +311,10 @@ class ConceptExportService:
                 package_byte_size=stored.byte_size,
                 combined_glb_sha256=combined_glb_sha256,
                 combined_glb_byte_size=len(combined_glb),
+                combined_obj_sha256=combined_obj_sha256,
+                combined_obj_byte_size=(
+                    len(combined_obj.obj) if combined_obj is not None else None
+                ),
                 manifest=manifest,
                 created_at=created_at,
             )
@@ -299,21 +352,36 @@ class ConceptExportService:
             return payload, f"{export_id}.zip", str(row["package_sha256"])
 
     def read_combined_glb(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(export_id, "Model/combined.glb", "Combined GLB")
+        return payload, f"{export_id}.glb", hashlib.sha256(payload).hexdigest()
+
+    def read_combined_obj(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(export_id, "Model/combined.obj", "Combined OBJ")
+        return payload, f"{export_id}.obj", hashlib.sha256(payload).hexdigest()
+
+    def read_combined_mtl(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(export_id, "Model/combined.mtl", "Combined MTL")
+        return payload, "combined.mtl", hashlib.sha256(payload).hexdigest()
+
+    def _read_package_entry(self, export_id: str, path: str, label: str) -> bytes:
         package, _, _ = self.read_export(export_id)
         try:
             with zipfile.ZipFile(io.BytesIO(package)) as archive:
-                payload = archive.read("Model/combined.glb")
+                return archive.read(path)
         except (zipfile.BadZipFile, KeyError) as exc:
             raise ConceptExportError(
                 "EXPORT_PACKAGE_UNAVAILABLE",
-                "Combined GLB is missing from the immutable export package.",
+                f"{label} is missing from the immutable export package.",
             ) from exc
-        return payload, f"{export_id}.glb", hashlib.sha256(payload).hexdigest()
 
 
 def _record_from_row(row: Any) -> ConceptExportRecord:
     manifest = ConceptExportManifest.model_validate_json(row["manifest_json"])
     combined = next((entry for entry in manifest.files if entry.path == "Model/combined.glb"), None)
+    combined_obj = next(
+        (entry for entry in manifest.files if entry.path == "Model/combined.obj"),
+        None,
+    )
     if combined is None:
         raise ConceptExportError(
             "EXPORT_PACKAGE_UNAVAILABLE",
@@ -331,6 +399,8 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         package_byte_size=row["package_byte_size"],
         combined_glb_sha256=combined.sha256,
         combined_glb_byte_size=combined.byte_size,
+        combined_obj_sha256=combined_obj.sha256 if combined_obj else None,
+        combined_obj_byte_size=combined_obj.byte_size if combined_obj else None,
         manifest=manifest,
         created_at=row["created_at"],
     )

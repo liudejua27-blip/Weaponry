@@ -342,6 +342,40 @@ async function runWorkbenchUi(baseUrl, seeded) {
     if (glbHeader.subarray(0, 4).toString('ascii') !== 'glTF') {
       throw new Error('combined GLB download has an invalid header')
     }
+    await page.getByRole('button', { name: 'OBJ', exact: true }).click()
+    const objDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '创建并下载 combined OBJ' }).click()
+    const objDownload = await objDownloadPromise
+    if (!objDownload.suggestedFilename().endsWith('.obj')) {
+      throw new Error(`unexpected combined OBJ filename: ${objDownload.suggestedFilename()}`)
+    }
+    const objDownloadPath = await objDownload.path()
+    if (!objDownloadPath || (await stat(objDownloadPath)).size < 5_000) {
+      throw new Error('combined OBJ download is unexpectedly small')
+    }
+    const objText = await readFile(objDownloadPath, 'utf8')
+    for (const phrase of [
+      '# ForgeCAD combined OBJ',
+      '# units: meter',
+      'o NODE_node_core__module_core_shell_01__GEO_module_core_shell_01_LOD0',
+      '\nv ',
+      '\nvt ',
+      '\nvn ',
+      '\nf ',
+    ]) {
+      if (!objText.includes(phrase)) throw new Error(`combined OBJ is missing ${phrase}`)
+    }
+    const mtlDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载配套 combined.mtl' }).click()
+    const mtlDownload = await mtlDownloadPromise
+    if (mtlDownload.suggestedFilename() !== 'combined.mtl') {
+      throw new Error(`unexpected combined MTL filename: ${mtlDownload.suggestedFilename()}`)
+    }
+    const mtlDownloadPath = await mtlDownload.path()
+    const mtlText = mtlDownloadPath ? await readFile(mtlDownloadPath, 'utf8') : ''
+    if (!mtlText.includes('newmtl ') || !mtlText.includes('\nKd ')) {
+      throw new Error('combined MTL download is invalid')
+    }
 
     if (browserErrors.length) throw new Error(`browser page errors: ${browserErrors.join(' | ')}`)
     return {
@@ -361,6 +395,8 @@ async function runWorkbenchUi(baseUrl, seeded) {
       quality_run_id: qualityRecord.quality_run_id,
       export_downloaded: true,
       combined_glb_downloaded: true,
+      combined_obj_downloaded: true,
+      combined_mtl_downloaded: true,
     }
   } finally {
     await browser.close()
