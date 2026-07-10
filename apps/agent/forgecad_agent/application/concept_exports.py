@@ -22,6 +22,10 @@ from forgecad_agent.application.concept_models import (
     ConceptExportRecord,
     CreateConceptExportRequest,
 )
+from forgecad_agent.application.concept_renderer import (
+    ConceptRenderError,
+    render_concept_pngs,
+)
 from forgecad_agent.domain.concepts.models import (
     ConceptExportManifest,
     ExportFileEntry,
@@ -65,6 +69,9 @@ class ConceptExportService:
         if not request.include_combined_obj:
             # Preserve hashes written before the optional OBJ field existed.
             request_payload.pop("include_combined_obj")
+        if not request.include_render_png:
+            # Preserve hashes written before the optional render field existed.
+            request_payload.pop("include_render_png")
         request_hash = _hash_json(request_payload)
 
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
@@ -167,6 +174,21 @@ class ConceptExportService:
                 combined_obj_sha256 = hashlib.sha256(combined_obj.obj).hexdigest()
                 files["Model/combined.obj"] = (combined_obj.obj, "model/obj")
                 files["Model/combined.mtl"] = (combined_obj.mtl, "model/mtl")
+            render_result = None
+            preview_png_sha256: Optional[str] = None
+            exploded_png_sha256: Optional[str] = None
+            if request.include_render_png:
+                try:
+                    render_result = render_concept_pngs(combined_glb)
+                except ConceptRenderError as exc:
+                    raise ConceptExportError(
+                        "INVALID_REQUEST",
+                        f"Concept PNGs could not be rendered: {exc}",
+                    ) from exc
+                preview_png_sha256 = hashlib.sha256(render_result.preview_png).hexdigest()
+                exploded_png_sha256 = hashlib.sha256(render_result.exploded_png).hexdigest()
+                files["Renders/preview.png"] = (render_result.preview_png, "image/png")
+                files["Renders/exploded.png"] = (render_result.exploded_png, "image/png")
 
             quality_report_id: Optional[str] = None
             if request.include_quality_report:
@@ -239,6 +261,16 @@ class ConceptExportService:
                             if combined_obj is not None
                             else {}
                         ),
+                        **(
+                            {
+                                "render_width": render_result.width,
+                                "render_height": render_result.height,
+                                "render_triangle_count": render_result.triangle_count,
+                                "exploded_distance_m": render_result.exploded_distance_m,
+                            }
+                            if render_result is not None
+                            else {}
+                        ),
                     }
                 ),
                 created_at=created_at,
@@ -260,6 +292,52 @@ class ConceptExportService:
                 relation="concept_export_package",
                 created_at=created_at,
             )
+            job_steps = [
+                ("collect", "Collected immutable concept sources.", 0.2, {}),
+                (
+                    "combine",
+                    (
+                        "Built static combined GLB and OBJ/MTL artifacts."
+                        if combined_obj is not None
+                        else "Built a static combined GLB."
+                    ),
+                    0.48,
+                    {
+                        "glb_sha256": combined_glb_sha256,
+                        **(
+                            {
+                                "obj_sha256": combined_obj_sha256,
+                                "obj_vertex_count": combined_obj.vertex_count,
+                                "obj_triangle_count": combined_obj.triangle_count,
+                            }
+                            if combined_obj is not None
+                            else {}
+                        ),
+                    },
+                ),
+            ]
+            if render_result is not None:
+                job_steps.append(
+                    (
+                        "render",
+                        "Rendered transparent preview and exploded PNG artifacts.",
+                        0.7,
+                        {
+                            "preview_sha256": preview_png_sha256,
+                            "exploded_sha256": exploded_png_sha256,
+                            "width": render_result.width,
+                            "height": render_result.height,
+                            "triangle_count": render_result.triangle_count,
+                            "exploded_distance_m": render_result.exploded_distance_m,
+                        },
+                    )
+                )
+            job_steps.extend(
+                [
+                    ("manifest", "Validated ConceptExportManifest@1.", 0.82, {}),
+                    ("package", "Stored concept export package.", 1.0, {"export_id": export_id}),
+                ]
+            )
             job_id = record_completed_job(
                 unit_of_work,
                 project_id=project_id,
@@ -271,32 +349,7 @@ class ConceptExportService:
                     "package_asset_id": package_asset_id,
                     "package_sha256": stored.sha256,
                 },
-                steps=[
-                    ("collect", "Collected immutable concept sources.", 0.25, {}),
-                    (
-                        "combine",
-                        (
-                            "Built static combined GLB and OBJ/MTL artifacts."
-                            if combined_obj is not None
-                            else "Built a static combined GLB."
-                        ),
-                        0.55,
-                        {
-                            "glb_sha256": combined_glb_sha256,
-                            **(
-                                {
-                                    "obj_sha256": combined_obj_sha256,
-                                    "obj_vertex_count": combined_obj.vertex_count,
-                                    "obj_triangle_count": combined_obj.triangle_count,
-                                }
-                                if combined_obj is not None
-                                else {}
-                            ),
-                        },
-                    ),
-                    ("manifest", "Validated ConceptExportManifest@1.", 0.75, {}),
-                    ("package", "Stored concept export package.", 1.0, {"export_id": export_id}),
-                ],
+                steps=job_steps,
                 artifact_asset_id=package_asset_id,
             )
             response = ConceptExportRecord(
@@ -314,6 +367,14 @@ class ConceptExportService:
                 combined_obj_sha256=combined_obj_sha256,
                 combined_obj_byte_size=(
                     len(combined_obj.obj) if combined_obj is not None else None
+                ),
+                preview_png_sha256=preview_png_sha256,
+                preview_png_byte_size=(
+                    len(render_result.preview_png) if render_result is not None else None
+                ),
+                exploded_png_sha256=exploded_png_sha256,
+                exploded_png_byte_size=(
+                    len(render_result.exploded_png) if render_result is not None else None
                 ),
                 manifest=manifest,
                 created_at=created_at,
@@ -363,6 +424,14 @@ class ConceptExportService:
         payload = self._read_package_entry(export_id, "Model/combined.mtl", "Combined MTL")
         return payload, "combined.mtl", hashlib.sha256(payload).hexdigest()
 
+    def read_preview_png(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(export_id, "Renders/preview.png", "Preview PNG")
+        return payload, f"{export_id}-preview.png", hashlib.sha256(payload).hexdigest()
+
+    def read_exploded_png(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(export_id, "Renders/exploded.png", "Exploded PNG")
+        return payload, f"{export_id}-exploded.png", hashlib.sha256(payload).hexdigest()
+
     def _read_package_entry(self, export_id: str, path: str, label: str) -> bytes:
         package, _, _ = self.read_export(export_id)
         try:
@@ -380,6 +449,14 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
     combined = next((entry for entry in manifest.files if entry.path == "Model/combined.glb"), None)
     combined_obj = next(
         (entry for entry in manifest.files if entry.path == "Model/combined.obj"),
+        None,
+    )
+    preview_png = next(
+        (entry for entry in manifest.files if entry.path == "Renders/preview.png"),
+        None,
+    )
+    exploded_png = next(
+        (entry for entry in manifest.files if entry.path == "Renders/exploded.png"),
         None,
     )
     if combined is None:
@@ -401,6 +478,10 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         combined_glb_byte_size=combined.byte_size,
         combined_obj_sha256=combined_obj.sha256 if combined_obj else None,
         combined_obj_byte_size=combined_obj.byte_size if combined_obj else None,
+        preview_png_sha256=preview_png.sha256 if preview_png else None,
+        preview_png_byte_size=preview_png.byte_size if preview_png else None,
+        exploded_png_sha256=exploded_png.sha256 if exploded_png else None,
+        exploded_png_byte_size=exploded_png.byte_size if exploded_png else None,
         manifest=manifest,
         created_at=row["created_at"],
     )

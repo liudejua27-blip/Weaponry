@@ -107,6 +107,36 @@ def build_export_router(service: ConceptExportService) -> APIRouter:
             },
         )
 
+    @router.get("/exports/{export_id}/preview.png", response_model=None)
+    def download_preview_png(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_preview_png(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
+    @router.get("/exports/{export_id}/exploded.png", response_model=None)
+    def download_exploded_png(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_exploded_png(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
     return router
 
 

@@ -133,6 +133,10 @@ export type ConceptExportRecord = {
   "combined_glb_byte_size": number
   "combined_obj_sha256"?: string | null
   "combined_obj_byte_size"?: number | null
+  "preview_png_sha256"?: string | null
+  "preview_png_byte_size"?: number | null
+  "exploded_png_sha256"?: string | null
+  "exploded_png_byte_size"?: number | null
   "manifest": ConceptExportManifest
   "created_at": string
 }
@@ -236,6 +240,7 @@ export type CreateConceptExportRequest = {
   "include_modules"?: true
   "include_combined_glb"?: true
   "include_combined_obj"?: boolean
+  "include_render_png"?: boolean
   "include_quality_report"?: boolean
 }
 

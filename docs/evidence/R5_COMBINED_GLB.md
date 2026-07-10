@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明静态 Weapon Concept ModuleGraph 可以生成可追溯单一 GLB；OBJ/MTL 证据已拆到 `R5_COMBINED_OBJ.md`，本页不证明 PNG、纹理/动画/skin、Meshopt/Draco、最终美术或制造 CAD。
+范围：证明静态 Weapon Concept ModuleGraph 可以生成可追溯单一 GLB；OBJ/MTL 与 PNG 证据分别拆到 `R5_COMBINED_OBJ.md`、`R5_RENDER_PNG.md`，本页不证明纹理/动画/skin、Meshopt/Draco、最终美术或制造 CAD。
 
 ## 实现
 
@@ -41,7 +41,7 @@ npm run r5:combined-glb-gate
 
 - glTF Transform prune/dedupe/meshopt 与纹理合并；
 - textured GLB、skin、animation；
-- PNG、爆炸图；
+- 多视图、转台和照片级渲染；
 - 精确 triangle/BVH intersection、对称、隐藏几何与 LOD quality gate（首版实际 Mesh/Assembly 规则集见 `R5_MESH_ASSEMBLY_QUALITY.md`）；
 - Unity/其他引擎的 combined GLB round-trip；
 - 最终 Blender 资产的大小、draw call 和视觉验收。

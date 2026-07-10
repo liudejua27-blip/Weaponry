@@ -13,7 +13,7 @@
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB 与 OBJ/MTL 已实现；最终高质量资产、AI 方案质量、PNG/爆炸图尚未实现；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL 与透明/爆炸 PNG 已实现；最终高质量资产、AI 方案质量、多视图/转台尚未实现；
 - `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；正式 Blender 资产本身尚未完成；
 - 服务端 `weapon-concept-geometry/1.0` 已从版本绑定的内容寻址 GLB 计算首批 Mesh/Assembly Findings，并由桌面检查面板触发；精确三角相交、对称/隐藏几何/LOD 和点击定位尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
@@ -47,6 +47,7 @@
 | R3 operation timeline | 第一切片完成 | Project ChangeSet list API、operation/node/status/result Version、桌面回读与 restart smoke |
 | R5 combined GLB | 第一切片完成 | static GLB merge、mm→m、Euler→quaternion、mirror scale、stable wrapper nodes、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
+| R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
 | R5 Mesh/Assembly quality | 第一切片完成 | immutable GLB decode、indices/degenerate/normal/UV/topology/bounds、Connector alignment、unconnected AABB overlap、Finding/JobEvent/restart、desktop E2E |
 
 ## 2. 执行硬规则
@@ -319,7 +320,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 4. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
 5. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
 6. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
-7. 在已完成 combined GLB 与 OBJ/MTL 基础上补 PNG/爆炸图，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
+7. 在已完成 combined GLB、OBJ/MTL 与确定性 preview/exploded PNG 基础上补正视/侧视/顶视、转台，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
 8. 在已完成首版实际检查器基础上补精确三角相交、对称/隐藏几何/LOD 和 Finding 点击定位，并形成完整 C07 truth set。
 9. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
 10. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。

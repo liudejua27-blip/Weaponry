@@ -689,6 +689,29 @@
             "title": "Created At",
             "type": "string"
           },
+          "exploded_png_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exploded Png Byte Size"
+          },
+          "exploded_png_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exploded Png Sha256"
+          },
           "export_id": {
             "title": "Export Id",
             "type": "string"
@@ -719,6 +742,29 @@
           "package_sha256": {
             "title": "Package Sha256",
             "type": "string"
+          },
+          "preview_png_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Png Byte Size"
+          },
+          "preview_png_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Png Sha256"
           },
           "profile": {
             "enum": [
@@ -1309,6 +1355,11 @@
           "include_quality_report": {
             "default": true,
             "title": "Include Quality Report",
+            "type": "boolean"
+          },
+          "include_render_png": {
+            "default": false,
+            "title": "Include Render Png",
             "type": "boolean"
           },
           "profile": {
@@ -6626,6 +6677,46 @@
         ]
       }
     },
+    "/api/v1/exports/{export_id}/exploded.png": {
+      "get": {
+        "operationId": "download_exploded_png_api_v1_exports__export_id__exploded_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Exploded Png",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
     "/api/v1/exports/{export_id}/file": {
       "get": {
         "operationId": "download_export_api_v1_exports__export_id__file_get",
@@ -6661,6 +6752,46 @@
           }
         },
         "summary": "Download Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/preview.png": {
+      "get": {
+        "operationId": "download_preview_png_api_v1_exports__export_id__preview_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Preview Png",
         "tags": [
           "concept-exports"
         ]

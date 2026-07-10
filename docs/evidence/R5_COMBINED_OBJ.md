@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明静态 Weapon Concept combined GLB 可以确定性转换为可追溯 OBJ/MTL；不证明贴图迁移、完整 PBR 等价、Blender/Assimp round-trip、PNG/爆炸图、最终美术或制造 CAD。
+范围：证明静态 Weapon Concept combined GLB 可以确定性转换为可追溯 OBJ/MTL；PNG 证据已拆到 `R5_RENDER_PNG.md`，本页不证明贴图迁移、完整 PBR 等价、Blender/Assimp round-trip、最终美术或制造 CAD。
 
 ## 实现
 
@@ -43,5 +43,5 @@ npm run r5:obj-gate
 - metallic-roughness 到传统 MTL 的完整等价（该格式本身不具备等价表达）；
 - sparse accessor、morph target、skin、animation 和非 triangle primitive；
 - Blender、Assimp、Unity 或其他 DCC/引擎 round-trip；
-- glTF Transform/Meshopt 优化、PNG、爆炸图和 turntable；
+- glTF Transform/Meshopt 优化、多视图、照片级渲染和 turntable；
 - 任何 B-Rep、STEP、3MF、强度、切片或制造 DFM 结论。

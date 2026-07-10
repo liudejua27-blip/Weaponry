@@ -195,6 +195,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
         ? forgeApi.getConceptCombinedGlbUrl(result.export_id)
         : exportFormat === 'OBJ'
         ? forgeApi.getConceptCombinedObjUrl(result.export_id)
+        : exportFormat === 'PNG'
+        ? forgeApi.getConceptPreviewPngUrl(result.export_id)
         : forgeApi.getConceptExportFileUrl(result.export_id),
     )
   }, [concept, exportFormat])
@@ -690,7 +692,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 { id: 'SOURCE ZIP', enabled: true },
                 { id: 'GLB', enabled: true },
                 { id: 'OBJ', enabled: true },
-                { id: 'PNG', enabled: false },
+                { id: 'PNG', enabled: true },
               ].map((format) => (
                 <button
                   key={format.id}
@@ -720,6 +722,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   ? '创建并下载 combined GLB'
                   : exportFormat === 'OBJ'
                   ? '创建并下载 combined OBJ'
+                  : exportFormat === 'PNG'
+                  ? '创建并下载透明 preview.png'
                   : '创建并下载概念源包'
               }
             </button>
@@ -731,6 +735,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 )}
               >
                 下载配套 combined.mtl
+              </button>
+            )}
+            {exportFormat === 'PNG' && concept.lastExport && (
+              <button
+                className="secondary-action"
+                onClick={() => window.location.assign(
+                  forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
+                )}
+              >
+                下载 exploded.png
               </button>
             )}
           </section>

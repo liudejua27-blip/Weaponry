@@ -18,7 +18,7 @@
 - 兼容模块替换走 ChangeSet preview/confirm，edge Connector 按相同 slot/type 自动重映射；
 - `locked` Graph 节点由服务端保护，即使客户端省略 `protected_node_ids` 也不能绕过；
 - 页面不再用程序化武器模型冒充真实 ModuleGraph；没有 Graph 或 Module 时显示明确空状态；
-- 当前可创建 `SOURCE ZIP`、combined `GLB` 与 combined `OBJ/MTL`；PNG 仍显式标记为 R5 未实现。
+- 当前可创建 `SOURCE ZIP`、combined `GLB`、combined `OBJ/MTL`、透明 `preview.png` 与 `exploded.png`。
 - `ModulePackManifest@1` 固定包坐标、用途、许可证和模块文件索引；
 - 仓库参考 Pack 含 10 个真实 GLB、九类、17 Connector、UV0/normal/三材质、512×512 缩略图与许可证；生成器 `--check` 防止二进制/Manifest/hash 漂移；
 - Module Pack CLI 校验安全路径、九类 release 覆盖、GLB 2.0、UV0、材质、三角数、毫米 bounds、identity Transform、缩略图、哈希和许可证；
@@ -48,7 +48,7 @@ npm run agent:r3-connector-snap-smoke
 7. 隐藏/显示、聚焦和 overlay 控件可操作；
 8. 拖拽候选后替换按钮才启用，ChangeSet 不被绕过；
 9. Undo 到 V2、Redo 到 V3，并验证爆炸视图开关；
-10. 从工作台创建并下载非空 Concept ZIP、combined GLB、OBJ 与配套 MTL；OBJ 含稳定节点名和 `v/vt/vn/f`，MTL 含 material/Kd；
+10. 从工作台创建并下载非空 Concept ZIP、combined GLB、OBJ、配套 MTL、透明 preview PNG 和 exploded PNG；OBJ 含稳定节点名和 `v/vt/vn/f`，PNG 为 640×640；
 11. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
 12. 浏览器没有未处理 page error。
 13. 连续切换 V3↔V4 20 轮，始终只有 1 个 canvas/1 个 active context；参考 Pack 基准触发 80 renderer generations，GC 后 heap 增长约 3.1–3.6 MB，最终约 17 geometries/3 textures。
@@ -79,5 +79,5 @@ GPU 数值同样只属于系统 Chrome + 最小 fixture。正式资产和 Tauri 
 - 首批 10–12 个高质量、UV/材质完整的 Weapon Concept LOD0 GLB；
 - 正式 10–12 个资产的 Connector 替换/镜像矩阵与 ≥95% 实测；
 - 正式资产与 Tauri 窗口的 GPU profiling；
-- combined GLB、OBJ、PNG、实际 Mesh/Assembly 检查；
+- 多正交视图、转台、正式渲染性能与实际资产视觉验收；
 - Tauri 打包窗口中的同等 E2E。

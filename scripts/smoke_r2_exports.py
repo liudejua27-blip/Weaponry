@@ -5,9 +5,11 @@ import hashlib
 import io
 import json
 import sqlite3
+import struct
 import tempfile
 import urllib.request
 import zipfile
+import zlib
 from pathlib import Path
 
 from forgecad_agent.application.combined_glb import (
@@ -18,6 +20,7 @@ from forgecad_agent.application.combined_glb import (
     write_glb,
 )
 from forgecad_agent.application.combined_obj import CombinedObjError, build_combined_obj
+from forgecad_agent.application.concept_renderer import render_concept_pngs
 from forgecad_agent.domain.concepts.models import ModuleGraph, Transform
 
 from smoke_r2_concept_projects import (
@@ -133,6 +136,7 @@ def main() -> int:
                 "include_modules": True,
                 "include_combined_glb": True,
                 "include_combined_obj": True,
+                "include_render_png": True,
                 "include_quality_report": True,
             }
             created = _json_request(
@@ -159,6 +163,13 @@ def main() -> int:
                 base_url, f"/api/v1/jobs/{created['job_id']}", method="GET"
             )
             _assert(job["status"] == "succeeded", "export job status mismatch")
+            render_event = next(
+                event for event in job["events"] if event["step"] == "render"
+            )
+            _assert(
+                render_event["metadata"]["exploded_distance_m"] > 0,
+                "export render event lost exploded distance",
+            )
             _assert(
                 job["events"][-1]["artifact_asset_id"] == created["package_asset_id"],
                 "export artifact was not linked from JobEvent@2",
@@ -185,6 +196,8 @@ def main() -> int:
                     "Model/combined.glb",
                     "Model/combined.obj",
                     "Model/combined.mtl",
+                    "Renders/preview.png",
+                    "Renders/exploded.png",
                     "Quality/model-quality-report.json",
                     "README.txt",
                 }
@@ -256,6 +269,56 @@ def main() -> int:
                     len(combined_obj) == created["combined_obj_byte_size"],
                     "combined OBJ size mismatch",
                 )
+                preview_png = archive.read("Renders/preview.png")
+                exploded_png = archive.read("Renders/exploded.png")
+                preview_stats = _png_stats(preview_png)
+                exploded_stats = _png_stats(exploded_png)
+                _assert(
+                    preview_stats[0:2] == (640, 640), "preview PNG dimensions mismatch"
+                )
+                _assert(
+                    exploded_stats[0:2] == (640, 640),
+                    "exploded PNG dimensions mismatch",
+                )
+                _assert(
+                    preview_stats[2] > 0 and preview_stats[3] > 0,
+                    "preview transparency mismatch",
+                )
+                _assert(
+                    exploded_stats[2] > 0 and exploded_stats[3] > 0,
+                    "exploded transparency mismatch",
+                )
+                _assert(
+                    preview_png != exploded_png,
+                    "preview and exploded PNG are identical",
+                )
+                _assert(
+                    hashlib.sha256(preview_png).hexdigest()
+                    == created["preview_png_sha256"],
+                    "preview PNG hash mismatch",
+                )
+                _assert(
+                    hashlib.sha256(exploded_png).hexdigest()
+                    == created["exploded_png_sha256"],
+                    "exploded PNG hash mismatch",
+                )
+                _assert(
+                    len(preview_png) == created["preview_png_byte_size"],
+                    "preview PNG size mismatch",
+                )
+                _assert(
+                    len(exploded_png) == created["exploded_png_byte_size"],
+                    "exploded PNG size mismatch",
+                )
+                rerendered = render_concept_pngs(combined_payload)
+                _assert(
+                    rerendered.preview_png == preview_png,
+                    "preview render is not deterministic",
+                )
+                _assert(
+                    rerendered.exploded_png == exploded_png,
+                    "exploded render is not deterministic",
+                )
                 for entry in manifest["files"]:
                     payload = archive.read(entry["path"])
                     _assert(
@@ -273,6 +336,15 @@ def main() -> int:
             _assert(
                 _download_combined_mtl(base_url, created["export_id"]) == combined_mtl,
                 "direct combined MTL download mismatch",
+            )
+            _assert(
+                _download_png(base_url, created["export_id"], "preview") == preview_png,
+                "direct preview PNG download mismatch",
+            )
+            _assert(
+                _download_png(base_url, created["export_id"], "exploded")
+                == exploded_png,
+                "direct exploded PNG download mismatch",
             )
             _assert_unsupported_static_feature_rejected(
                 ModuleGraph.model_validate(graph)
@@ -355,6 +427,16 @@ def main() -> int:
                 == combined_mtl,
                 "restart combined MTL mismatch",
             )
+            _assert(
+                _download_png(restart_url, created["export_id"], "preview")
+                == preview_png,
+                "restart preview PNG mismatch",
+            )
+            _assert(
+                _download_png(restart_url, created["export_id"], "exploded")
+                == exploded_png,
+                "restart exploded PNG mismatch",
+            )
         finally:
             _stop_agent(restarted_process)
 
@@ -371,6 +453,9 @@ def main() -> int:
                     "combined_obj_sha256": created["combined_obj_sha256"],
                     "combined_obj_transform_mirror_verified": True,
                     "combined_obj_unsupported_mode_rejected": True,
+                    "preview_png_sha256": created["preview_png_sha256"],
+                    "exploded_png_sha256": created["exploded_png_sha256"],
+                    "transparent_png_verified": True,
                     "unsupported_feature_rejected": True,
                     "restart_restored": True,
                 },
@@ -437,6 +522,52 @@ def _download_combined_mtl(base_url: str, export_id: str) -> bytes:
         _assert(response.status == 200, "combined MTL download failed")
         _assert(response.headers.get_content_type() == "model/mtl", "MTL MIME mismatch")
         return response.read()
+
+
+def _download_png(base_url: str, export_id: str, kind: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/{kind}.png",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, f"{kind} PNG download failed")
+        _assert(response.headers.get_content_type() == "image/png", "PNG MIME mismatch")
+        return response.read()
+
+
+def _png_stats(payload: bytes) -> tuple[int, int, int, int]:
+    _assert(payload.startswith(b"\x89PNG\r\n\x1a\n"), "PNG signature mismatch")
+    offset = 8
+    width = height = 0
+    compressed = bytearray()
+    while offset < len(payload):
+        length = struct.unpack_from(">I", payload, offset)[0]
+        kind = payload[offset + 4 : offset + 8]
+        data = payload[offset + 8 : offset + 8 + length]
+        stored_crc = struct.unpack_from(">I", payload, offset + 8 + length)[0]
+        _assert(
+            zlib.crc32(kind + data) & 0xFFFFFFFF == stored_crc,
+            f"PNG chunk CRC mismatch: {kind!r}",
+        )
+        offset += 12 + length
+        if kind == b"IHDR":
+            width, height, bit_depth, color_type, _, _, _ = struct.unpack(
+                ">IIBBBBB", data
+            )
+            _assert((bit_depth, color_type) == (8, 6), "PNG must be RGBA8")
+        elif kind == b"IDAT":
+            compressed.extend(data)
+        elif kind == b"IEND":
+            break
+    raw = zlib.decompress(bytes(compressed))
+    stride = width * 4
+    opaque = transparent = 0
+    for row in range(height):
+        start = row * (stride + 1)
+        _assert(raw[start] == 0, "PNG smoke only supports deterministic filter 0")
+        alpha = raw[start + 4 : start + stride + 1 : 4]
+        opaque += sum(value > 0 for value in alpha)
+        transparent += sum(value == 0 for value in alpha)
+    return width, height, opaque, transparent
 
 
 def _assert_obj_transform_and_mirror(graph: ModuleGraph, payload: bytes) -> None:

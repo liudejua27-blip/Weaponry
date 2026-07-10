@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,6 +10,8 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright')
 const SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-workbench.png')
 const MIRROR_SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-mirror.png')
+const PREVIEW_RENDER = join(OUTPUT_DIR, 'r5-concept-preview.png')
+const EXPLODED_RENDER = join(OUTPUT_DIR, 'r5-concept-exploded.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -376,6 +378,34 @@ async function runWorkbenchUi(baseUrl, seeded) {
     if (!mtlText.includes('newmtl ') || !mtlText.includes('\nKd ')) {
       throw new Error('combined MTL download is invalid')
     }
+    await page.getByRole('button', { name: 'PNG', exact: true }).click()
+    const previewDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '创建并下载透明 preview.png' }).click()
+    const previewDownload = await previewDownloadPromise
+    if (!previewDownload.suggestedFilename().endsWith('-preview.png')) {
+      throw new Error(`unexpected preview PNG filename: ${previewDownload.suggestedFilename()}`)
+    }
+    const previewDownloadPath = await previewDownload.path()
+    if (!previewDownloadPath || (await stat(previewDownloadPath)).size < 5_000) {
+      throw new Error('preview PNG download is unexpectedly small')
+    }
+    const previewBytes = await readFile(previewDownloadPath)
+    assertPng(previewBytes, 'preview')
+    await copyFile(previewDownloadPath, PREVIEW_RENDER)
+    const explodedDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载 exploded.png' }).click()
+    const explodedDownload = await explodedDownloadPromise
+    if (!explodedDownload.suggestedFilename().endsWith('-exploded.png')) {
+      throw new Error(`unexpected exploded PNG filename: ${explodedDownload.suggestedFilename()}`)
+    }
+    const explodedDownloadPath = await explodedDownload.path()
+    if (!explodedDownloadPath || (await stat(explodedDownloadPath)).size < 5_000) {
+      throw new Error('exploded PNG download is unexpectedly small')
+    }
+    const explodedBytes = await readFile(explodedDownloadPath)
+    assertPng(explodedBytes, 'exploded')
+    if (previewBytes.equals(explodedBytes)) throw new Error('preview and exploded PNG are identical')
+    await copyFile(explodedDownloadPath, EXPLODED_RENDER)
 
     if (browserErrors.length) throw new Error(`browser page errors: ${browserErrors.join(' | ')}`)
     return {
@@ -397,9 +427,24 @@ async function runWorkbenchUi(baseUrl, seeded) {
       combined_glb_downloaded: true,
       combined_obj_downloaded: true,
       combined_mtl_downloaded: true,
+      preview_png_downloaded: true,
+      exploded_png_downloaded: true,
+      preview_render: PREVIEW_RENDER,
+      exploded_render: EXPLODED_RENDER,
     }
   } finally {
     await browser.close()
+  }
+}
+
+function assertPng(bytes, label) {
+  if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+    throw new Error(`${label} PNG signature is invalid`)
+  }
+  const width = bytes.readUInt32BE(16)
+  const height = bytes.readUInt32BE(20)
+  if (width !== 640 || height !== 640) {
+    throw new Error(`${label} PNG dimensions are ${width}x${height}`)
   }
 }
 

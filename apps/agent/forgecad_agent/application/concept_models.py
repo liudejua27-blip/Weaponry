@@ -277,6 +277,7 @@ class CreateConceptExportRequest(StrictApiModel):
     include_modules: Literal[True] = True
     include_combined_glb: Literal[True] = True
     include_combined_obj: bool = False
+    include_render_png: bool = False
     include_quality_report: bool = True
 
 
@@ -294,5 +295,9 @@ class ConceptExportRecord(StrictApiModel):
     combined_glb_byte_size: int = Field(ge=0)
     combined_obj_sha256: Optional[str] = None
     combined_obj_byte_size: Optional[int] = Field(default=None, ge=0)
+    preview_png_sha256: Optional[str] = None
+    preview_png_byte_size: Optional[int] = Field(default=None, ge=0)
+    exploded_png_sha256: Optional[str] = None
+    exploded_png_byte_size: Optional[int] = Field(default=None, ge=0)
     manifest: ConceptExportManifest
     created_at: str

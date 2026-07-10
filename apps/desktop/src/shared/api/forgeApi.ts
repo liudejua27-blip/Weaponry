@@ -169,6 +169,14 @@ export class ForgeApiClient {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.mtl`
   }
 
+  getConceptPreviewPngUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/preview.png`
+  }
+
+  getConceptExplodedPngUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/exploded.png`
+  }
+
   async proposeChangeSet(
     versionId: string,
     input: ProposeChangeSetRequest,
