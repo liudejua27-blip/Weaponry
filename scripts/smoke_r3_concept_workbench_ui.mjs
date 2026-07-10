@@ -106,8 +106,8 @@ async function seedConceptGraph(baseUrl) {
       color: [0.31, 0.37, 0.44, 1],
       scale: [70, 30, 24],
       connectors: [
-        connector('connector_core_front', 'core.front', 'shell_mount'),
-        connector('connector_core_grip', 'core.grip', 'grip_mount'),
+        connector('connector_core_front', 'core.front', 'shell_mount', [-35, 2, 0]),
+        connector('connector_core_grip', 'core.grip', 'grip_mount', [22, -18, 0]),
       ],
     },
     {
@@ -116,7 +116,7 @@ async function seedConceptGraph(baseUrl) {
       category: 'front_shell',
       color: [0.19, 0.23, 0.28, 1],
       scale: [58, 22, 20],
-      connectors: [connector('connector_front_core', 'front.core', 'shell_mount')],
+      connectors: [connector('connector_front_core', 'front.core', 'shell_mount', [29, 0, 0])],
     },
     {
       moduleId: 'module_grip_shell_01',
@@ -124,7 +124,7 @@ async function seedConceptGraph(baseUrl) {
       category: 'grip_shell',
       color: [0.12, 0.16, 0.2, 1],
       scale: [28, 62, 25],
-      connectors: [connector('connector_grip_core', 'grip.core', 'grip_mount')],
+      connectors: [connector('connector_grip_core', 'grip.core', 'grip_mount', [0, 31, 0])],
     },
     {
       moduleId: 'module_front_shell_02',
@@ -132,7 +132,7 @@ async function seedConceptGraph(baseUrl) {
       category: 'front_shell',
       color: [0.42, 0.22, 0.16, 1],
       scale: [68, 18, 24],
-      connectors: [connector('connector_front_alt_core', 'front.core', 'shell_mount')],
+      connectors: [connector('connector_front_alt_core', 'front.core', 'shell_mount', [34, 0, 0])],
     },
   ]
 
@@ -274,6 +274,12 @@ async function runWorkbenchUi(baseUrl, seeded) {
     if (inspectorValuesAfterReplace[1] !== 'module_front_shell_02') {
       throw new Error(`replacement was not reflected in inspector: ${JSON.stringify(inspectorValuesAfterReplace)}`)
     }
+    const snappedPosition = await page.locator('.properties-panel .axis-group').first().locator('input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (JSON.stringify(snappedPosition) !== JSON.stringify(['-69.00', '17.00', '0.00'])) {
+      throw new Error(`Connector snap was not reflected in inspector: ${JSON.stringify(snappedPosition)}`)
+    }
 
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     await page.waitForFunction(
@@ -332,6 +338,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
       undo_redo_verified: true,
       exploded_view_verified: true,
       drag_candidate_verified: true,
+      connector_snap_verified: true,
       export_downloaded: true,
     }
   } finally {
@@ -354,20 +361,24 @@ async function verifyReplacement(baseUrl, projectId) {
   if (frontEdge?.to_connector_id !== 'connector_front_alt_core') {
     throw new Error(`replacement connector was not remapped: ${frontEdge?.to_connector_id}`)
   }
+  if (JSON.stringify(frontNode?.transform.position) !== JSON.stringify([-69, 17, 0])) {
+    throw new Error(`replacement node was not snapped after restart: ${JSON.stringify(frontNode?.transform.position)}`)
+  }
   return {
     version_id: version.version_id,
     graph_id: graph.graph.graph_id,
     module_id: frontNode.module_id,
     connector_id: frontEdge.to_connector_id,
+    position_mm: frontNode.transform.position,
   }
 }
 
-function connector(connectorId, slot, connectorType) {
+function connector(connectorId, slot, connectorType, position = [0, 0, 0]) {
   return {
     connector_id: connectorId,
     slot,
     connector_type: connectorType,
-    transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+    transform: { position, rotation: [0, 0, 0], scale: [1, 1, 1] },
     scale_range: [0.8, 1.2],
     exclusive: true,
   }
@@ -384,7 +395,7 @@ function graphNode(nodeId, moduleId, position, locked = false) {
 }
 
 function boxGlb(name, color, scale) {
-  const [sx, sy, sz] = scale.map((value) => value / 2)
+  const [sx, sy, sz] = scale.map((value) => value / 2000)
   const positions = new Float32Array([
     -sx, -sy, -sz, sx, -sy, -sz, sx, sy, -sz, -sx, sy, -sz,
     -sx, -sy, sz, sx, -sy, sz, sx, sy, sz, -sx, sy, sz,

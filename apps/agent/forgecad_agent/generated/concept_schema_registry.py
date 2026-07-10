@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
 {
-  "common.schema.json": "d0f1f9558ebb9561608bf2245829004521a78e32bbf6da675b1018204508b4db",
+  "common.schema.json": "b23eef139a99d6bf9d69e926bcfcc90280e730e5986527803b5f3c0fd4df6d23",
   "concept-export-manifest.schema.json": "eea63092e4f0397210e5c023e097a82bd7e767fd486c012a9747fda4dc05e648",
   "design-change-set.schema.json": "8b18274fd49404fd63fd97de5fbcbc335a50ee5fcd681246f868465c029fb620",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
@@ -84,15 +84,19 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       },
       "transform": {
         "additionalProperties": false,
+        "description": "Workbench transform: position in millimeters, rotation in radians using Euler XYZ, and dimensionless scale.",
         "properties": {
           "position": {
-            "$ref": "#/$defs/vec3"
+            "$ref": "#/$defs/vec3",
+            "description": "Millimeters in graph-world or module-local space."
           },
           "rotation": {
-            "$ref": "#/$defs/vec3"
+            "$ref": "#/$defs/vec3",
+            "description": "Radians using Euler XYZ order."
           },
           "scale": {
-            "$ref": "#/$defs/vec3"
+            "$ref": "#/$defs/vec3",
+            "description": "Dimensionless positive scale."
           }
         },
         "required": [

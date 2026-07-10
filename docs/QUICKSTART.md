@@ -34,10 +34,11 @@ npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
 npm run agent:r3-module-pack-smoke
+npm run agent:r3-connector-snap-smoke
 npm run r3:workbench-gate
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph 与 GLB；`r3:workbench-gate` 使用 4 个程序化 GLB fixture 验证拖拽候选、ChangeSet 替换、Undo/Redo、爆炸视图和重启恢复，并用 9 个最小 GLB 验证 Module Pack 工具链。这些 fixture 不代表最终模块资产质量。完整吸附/镜像、正式 10–12 个资产、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
+当前页面已读取真实 Concept Project、Version、ModuleGraph 与 GLB；`r3:workbench-gate` 使用 4 个米制 GLB fixture 验证拖拽候选、ChangeSet 替换、Connector 重定位、Undo/Redo、爆炸视图和重启恢复，并用 9 个最小 GLB 验证 Module Pack 工具链。100 组合成 Connector 样本全部通过，但不代表正式资产已达到 ≥95%。镜像、正式 10–12 个资产、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
 
 开始制作首包前先读 [MODULE_ASSET_GUIDE.md](MODULE_ASSET_GUIDE.md)。资产 CLI 默认只做 dry-run；只有显式传入 `--import` 才会注册到本地 Agent。
 

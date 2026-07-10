@@ -42,9 +42,21 @@ class StrictContractModel(BaseModel):
 
 
 class Transform(StrictContractModel):
-    position: List[float] = Field(min_length=3, max_length=3)
-    rotation: List[float] = Field(min_length=3, max_length=3)
-    scale: List[float] = Field(min_length=3, max_length=3)
+    position: List[float] = Field(
+        min_length=3,
+        max_length=3,
+        description="Millimeters in graph-world or module-local space.",
+    )
+    rotation: List[float] = Field(
+        min_length=3,
+        max_length=3,
+        description="Radians using Euler XYZ order.",
+    )
+    scale: List[float] = Field(
+        min_length=3,
+        max_length=3,
+        description="Dimensionless positive scale.",
+    )
 
     @model_validator(mode="after")
     def validate_finite_positive_scale(self) -> "Transform":

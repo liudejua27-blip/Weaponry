@@ -6,6 +6,8 @@ import type { ModuleAssetRecord, ModuleGraphRecord } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 
+const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
+
 type ModuleGraphViewportProps = {
   graphRecord: ModuleGraphRecord | null
   modules: ModuleAssetRecord[]
@@ -97,7 +99,10 @@ export function ModuleGraphViewport({
             resolve()
             return
           }
-          const object = gltf.scene
+          const object = new THREE.Group()
+          const assetScene = gltf.scene
+          assetScene.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
+          object.add(assetScene)
           const moduleRecord = modules.find(
             (item) => item.manifest.module_id === node.module_id,
           )

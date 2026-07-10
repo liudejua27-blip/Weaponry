@@ -4992,6 +4992,7 @@
         "additionalProperties": false,
         "properties": {
           "position": {
+            "description": "Millimeters in graph-world or module-local space.",
             "items": {
               "type": "number"
             },
@@ -5001,6 +5002,7 @@
             "type": "array"
           },
           "rotation": {
+            "description": "Radians using Euler XYZ order.",
             "items": {
               "type": "number"
             },
@@ -5010,6 +5012,7 @@
             "type": "array"
           },
           "scale": {
+            "description": "Dimensionless positive scale.",
             "items": {
               "type": "number"
             },

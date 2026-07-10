@@ -76,6 +76,15 @@ forward_axis: -Z
 manifest bounds_mm = GLB POSITION bounds × 1000
 ```
 
+工作台合同：
+
+```text
+ModuleGraph node.position: mm
+Connector transform.position: mm
+rotation: rad, Euler XYZ
+scale: dimensionless
+```
+
 Blender glTF 导出器负责源坐标到 glTF 坐标的转换。不要再在导出后手工旋转 GLB。
 
 ### 3.2 原点与 Transform
@@ -114,7 +123,7 @@ Connector 是视觉装配合同，不是功能性机械参数。每个 Blender E
   "slot": "core.front",
   "connector_type": "shell_mount",
   "transform": {
-    "position": [0.092, 0.000, -0.004],
+    "position": [92, 0, -4],
     "rotation": [0, 0, 0],
     "scale": [1, 1, 1]
   },
@@ -123,9 +132,11 @@ Connector 是视觉装配合同，不是功能性机械参数。每个 Blender E
 }
 ```
 
-- `position` 使用模块局部坐标，单位为米，与 GLB 一致；
+- `position` 使用模块局部坐标，单位为毫米；工作台加载 GLB 时将标准米制几何换算为毫米；
 - `rotation` 使用当前 `Transform@1` 的欧拉角约定；P0 首包优先保持零旋转，减少解释差异；
 - 可替换模块必须提供相同 `slot + connector_type`；系统据此重映射 edge；
+- 替换后服务端以 root 建立确定性父子树：非 root 替换固定父节点并重定位本节点及后代，root 替换固定 root 并重定位全部子树；
+- 额外循环边必须在 0.1 mm / 0.1° 内同时满足，否则 preview 返回 Connector snap conflict；
 - `connector_id` 永久稳定，模型微调不能顺手改 ID；
 - 一个模块内 `slot` 唯一；包内 `connector_id` 唯一；
 - 第一条替换链固定验证 `core.front ↔ front.core`，再扩展 top/side/grip。

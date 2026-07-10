@@ -22,12 +22,15 @@
 - `ModulePackManifest@1` 固定包坐标、用途、许可证和模块文件索引；
 - Module Pack CLI 校验安全路径、九类 release 覆盖、GLB 2.0、UV0、材质、三角数、毫米 bounds、identity Transform、缩略图、哈希和许可证；
 - CLI 默认 dry-run，显式 `--import` 后才调用 immutable Module registry，内容派生幂等键支持安全重放。
+- glTF 标准米制 GLB 在 asset scene 固定换算为毫米，Graph/Connector position 统一为毫米，rotation 为 Euler XYZ 弧度；
+- replace preview 在 Connector remap 后执行 rooted 子树吸附；root/child 替换、后代重定位和循环冲突拒绝均由服务端完成并进入子版本。
 
 ## 自动验证
 
 ```bash
 npm run desktop:r3-concept-workbench-smoke
 npm run agent:r3-module-pack-smoke
+npm run agent:r3-connector-snap-smoke
 ```
 
 临时库中创建“寒地巡逻 S1”，注册 4 个包含真实 box mesh 的 GLB，持久化 2 条 Connector edge，将 Graph 绑定到 V2。Playwright 使用系统 Chrome 在 `1536×1024` 验证：
@@ -46,6 +49,10 @@ npm run agent:r3-module-pack-smoke
 12. 浏览器没有未处理 page error。
 
 Module Pack smoke 另用 9 个含 triangle/UV/material 的最小 GLB 覆盖九类资产，验证 dry-run、release 门、批量注册、幂等重放和重启恢复；并确认哈希篡改、越界路径、缺许可证、跨模块重复 Connector 和 pack_id 不一致会失败。
+
+Connector smoke 使用 100 组确定性平移、Euler XYZ 旋转和非均匀缩放样本，100/100 在 `1e-7 mm / 1e-5°` 数学误差内；API 另验证 root 替换重定位所有子树、child 替换重定位后代、Connector ID remap、幂等确认、重启恢复和额外循环边冲突。桌面 smoke 验证 front 替换后位置从 `[-64,17,0]` 变为 `[-69,17,0]` 并在检查器和重启回读中保持。
+
+该 100% 只属于合成基准。C04 的正式 ≥95% 仍需首批 10–12 个 Blender 模块形成替换矩阵后计算，不能用合成样本替代。
 
 截图：`output/playwright/r3-concept-workbench.png`。
 

@@ -19,7 +19,12 @@ from forgecad_agent.domain.concepts.models import (
     DesignChangeOperation,
     DesignChangeSet,
     ModuleGraph,
+    Transform,
     WeaponConceptSpec,
+)
+from forgecad_agent.domain.concepts.connector_snapping import (
+    connector_alignment_error,
+    snap_child_transform,
 )
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 
@@ -150,6 +155,11 @@ class ConceptChangeSetService:
                 unit_of_work,
                 base_graph=base_graph,
                 preview_graph=preview_graph,
+                change_set=change_set,
+            )
+            preview_graph = _snap_graph_after_replacements(
+                unit_of_work,
+                graph=preview_graph,
                 change_set=change_set,
             )
             project = unit_of_work.concept_projects.get_active(change_set.project_id)
@@ -434,6 +444,153 @@ def _replacement_connector_id(
             ),
         )
     return str(matches[0]["connector_id"])
+
+
+def _snap_graph_after_replacements(
+    unit_of_work: SQLiteUnitOfWork,
+    *,
+    graph: ModuleGraph,
+    change_set: DesignChangeSet,
+) -> ModuleGraph:
+    replaced_node_ids = {
+        str(operation.node_id)
+        for operation in change_set.operations
+        if operation.op == "replace_module" and operation.node_id
+    }
+    if not replaced_node_ids:
+        return graph
+
+    payload = graph.model_dump(mode="json")
+    nodes = {node["node_id"]: node for node in payload["nodes"]}
+    connector_rows = unit_of_work.modules.connector_map(
+        [str(node["module_id"]) for node in payload["nodes"]]
+    )
+    parent_edges, traversal = _rooted_parent_edges(graph)
+    descendants: dict[str, set[str]] = {node_id: set() for node_id in nodes}
+    for child_id in reversed(traversal[1:]):
+        parent_id, _ = parent_edges[child_id]
+        descendants[parent_id].add(child_id)
+        descendants[parent_id].update(descendants[child_id])
+    affected = set(replaced_node_ids)
+    for node_id in replaced_node_ids:
+        affected.update(descendants.get(node_id, set()))
+    affected.discard(graph.root_node_id)
+
+    for child_id in traversal[1:]:
+        if child_id not in affected:
+            continue
+        parent_id, edge = parent_edges[child_id]
+        parent_connector_id, child_connector_id = _edge_connector_ids(
+            edge,
+            parent_id=parent_id,
+            child_id=child_id,
+        )
+        parent_connector = _connector_transform(
+            connector_rows,
+            parent_connector_id,
+            parent_id,
+        )
+        child_connector = _connector_transform(
+            connector_rows,
+            child_connector_id,
+            child_id,
+        )
+        parent_transform = Transform.model_validate(nodes[parent_id]["transform"])
+        child_transform = Transform.model_validate(nodes[child_id]["transform"])
+        nodes[child_id]["transform"] = snap_child_transform(
+            parent_transform=parent_transform,
+            parent_connector=parent_connector,
+            child_scale=child_transform.scale,
+            child_connector=child_connector,
+        ).model_dump(mode="json")
+
+    snapped = ModuleGraph.model_validate(payload)
+    snapped_nodes = {node.node_id: node for node in snapped.nodes}
+    for edge in snapped.edges:
+        if not ({edge.from_node_id, edge.to_node_id} & affected):
+            continue
+        first_connector = _connector_transform(
+            connector_rows,
+            edge.from_connector_id,
+            edge.from_node_id,
+        )
+        second_connector = _connector_transform(
+            connector_rows,
+            edge.to_connector_id,
+            edge.to_node_id,
+        )
+        distance_mm, rotation_degrees = connector_alignment_error(
+            first_transform=snapped_nodes[edge.from_node_id].transform,
+            first_connector=first_connector,
+            second_transform=snapped_nodes[edge.to_node_id].transform,
+            second_connector=second_connector,
+        )
+        if distance_mm > 0.1 or rotation_degrees > 0.1:
+            raise ConceptChangeSetError(
+                "CHANGE_SET_INVALID",
+                (
+                    f"Connector snap conflict on {edge.edge_id}: "
+                    f"{distance_mm:.4f} mm / {rotation_degrees:.4f} deg."
+                ),
+            )
+    return snapped
+
+
+def _rooted_parent_edges(
+    graph: ModuleGraph,
+) -> tuple[dict[str, tuple[str, Any]], list[str]]:
+    adjacency: dict[str, list[tuple[str, Any]]] = {
+        node.node_id: [] for node in graph.nodes
+    }
+    for edge in graph.edges:
+        adjacency[edge.from_node_id].append((edge.to_node_id, edge))
+        adjacency[edge.to_node_id].append((edge.from_node_id, edge))
+    for entries in adjacency.values():
+        entries.sort(key=lambda item: (item[1].edge_id, item[0]))
+    parent_edges: dict[str, tuple[str, Any]] = {}
+    traversal = [graph.root_node_id]
+    pending = [graph.root_node_id]
+    visited = {graph.root_node_id}
+    while pending:
+        parent_id = pending.pop(0)
+        for child_id, edge in adjacency[parent_id]:
+            if child_id in visited:
+                continue
+            visited.add(child_id)
+            parent_edges[child_id] = (parent_id, edge)
+            traversal.append(child_id)
+            pending.append(child_id)
+    return parent_edges, traversal
+
+
+def _edge_connector_ids(
+    edge: Any,
+    *,
+    parent_id: str,
+    child_id: str,
+) -> tuple[str, str]:
+    if edge.from_node_id == parent_id and edge.to_node_id == child_id:
+        return edge.from_connector_id, edge.to_connector_id
+    if edge.to_node_id == parent_id and edge.from_node_id == child_id:
+        return edge.to_connector_id, edge.from_connector_id
+    raise ConceptChangeSetError(
+        "CHANGE_SET_INVALID",
+        f"Edge {edge.edge_id} does not connect {parent_id} to {child_id}.",
+    )
+
+
+def _connector_transform(
+    connector_rows: dict[str, Any],
+    connector_id: str,
+    node_id: str,
+) -> Transform:
+    row = connector_rows.get(connector_id)
+    if row is None:
+        raise ConceptChangeSetError(
+            "CHANGE_SET_INVALID",
+            f"Cannot resolve connector {connector_id} on {node_id} for snapping.",
+        )
+    return Transform.model_validate_json(row["transform_json"])
 
 
 def _apply_operation(
