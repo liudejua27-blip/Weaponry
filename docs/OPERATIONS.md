@@ -163,12 +163,22 @@ npm run r5:c07-intersection-gate
 
 ```bash
 npm run assets:module-pack-gate
+npm run assets:blender-starter-preflight
 npm run agent:r3-connector-snap-smoke
 npm run r5:combined-glb-gate
 npm run agent:r5-mesh-assembly-quality-smoke
 ```
 
 该门同时验证 `GET /api/v1/projects/{project_id}/change-sets` 的 replace/mirror 操作时间线与 Agent 重启回读。
+
+Blender starter 的预检只验证 authoring source、三模块稳定 ID 与导出合同是否齐全。真实构建必须显式配置 Blender：
+
+```bash
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-starter-build
+```
+
+未安装时预检返回 `blocked_blender_not_configured`，不得据此声称 `.blend`、Blender GLB 或缩略图已生成。输出默认写入 `output/blender/weapon-concept-v1-starter`，不修改提交中的 reference Pack。
 
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
 

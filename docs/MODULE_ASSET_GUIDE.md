@@ -213,3 +213,18 @@ npm run assets:module-pack-gate
 7. 这条链稳定后再扩到正式 10–12 模块。
 
 第一阶段的“细致、精密”体现在比例、命名、稳定 ID、材质/UV、Connector、哈希、版本和可回退，而不是把概念 GLB 宣称为可制造武器 CAD。
+
+仓库已提供可复现的三模块 Blender 起步脚本。安装 Blender 前先运行：
+
+```bash
+npm run assets:blender-starter-preflight
+```
+
+配置 Blender 4.2 LTS 或更新版本后执行真实 `.blend`、GLB、缩略图和 Manifest 生成：
+
+```bash
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-starter-build
+```
+
+详细输出、人工编辑和晋级边界见 [Blender Authoring Starter](BLENDER_AUTHORING_STARTER.md)。

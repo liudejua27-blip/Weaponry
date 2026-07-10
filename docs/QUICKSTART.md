@@ -40,6 +40,7 @@ npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
 npm run assets:module-pack-gate
+npm run assets:blender-starter-preflight
 npm run agent:r3-connector-snap-smoke
 npm run r3:workbench-gate
 npm run r5:combined-glb-gate

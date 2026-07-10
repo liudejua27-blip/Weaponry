@@ -47,6 +47,8 @@
     "assets:reference-pack:generate": ".venv/bin/python scripts/generate_reference_module_pack.py",
     "assets:reference-pack:check": ".venv/bin/python scripts/generate_reference_module_pack.py --check",
     "assets:module-pack-gate": "npm run assets:reference-pack:check && npm run agent:r3-module-pack-smoke",
+    "assets:blender-starter-preflight": ".venv/bin/python scripts/build_blender_starter_pack.py",
+    "assets:blender-starter-build": ".venv/bin/python scripts/build_blender_starter_pack.py --require-blender",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
