@@ -13,7 +13,7 @@
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已有九区工作台原型，并已切换到“概念/组装/精修/检查/展示”与 Concept 导出语义；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph 和 ChangeSet preview/confirm 已实现；首批高质量模块资产、Brief variants、质量运行和通用 GLB 导出尚未实现；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet 和 QualityRun 数据/API 已实现；首批高质量模块资产、Brief variants、实际质量检查器和通用 GLB 导出尚未实现；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
 旧代码是迁移输入；当前工作台是参考实现，不代表新领域完成。
@@ -33,6 +33,7 @@
 | R2 project/version data + API | 第一切片完成 | migration `0009`、Concept repositories/service/routes、`r2:gate` |
 | R2 module registry + graph | 第一切片完成 | immutable GLB registration、Connector compatibility、Graph persistence、restart smoke |
 | R2 ChangeSet + child Version | 第一切片完成 | proposed/previewed/confirmed、protected node、stale base、parent immutability smoke |
+| R2 QualityRun/Findings | 第一切片完成 | version-scoped report ingestion、finding persistence、idempotency、round-trip |
 
 ## 2. 执行硬规则
 
@@ -297,9 +298,9 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 1. 将剩余 Provider workflow 从 `asset_store.py` 提取为 application services。
 2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
-3. 实现 QualityRun/Findings Repository 与最小检查 API。
-4. 实现 Brief/Variant Repository 与 A/B/C 占位数据闭环。
-5. 为 Concept JobEvent@2 建立通用 Job/Event 持久化和 SSE。
+3. 实现 Brief/Variant Repository 与 A/B/C 占位数据闭环。
+4. 为 Concept JobEvent@2 建立通用 Job/Event 持久化和 SSE。
+5. 实现 Concept export package Job 与 Manifest 数据闭环。
 6. 制定 Module/Connector/材质/UV/LOD 命名规范。
 7. 准备第一套 8–12 个 GLB fixture 与 Manifest。
 8. 实现模块选择、高亮、隐藏、替换和 Connector overlay。

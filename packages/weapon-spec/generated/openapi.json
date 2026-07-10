@@ -839,6 +839,26 @@
         "title": "CreateConceptProjectRequest",
         "type": "object"
       },
+      "CreateQualityRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ModelQualityReport"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "report"
+        ],
+        "title": "CreateQualityRunRequest",
+        "type": "object"
+      },
       "CreateWeaponRequest": {
         "properties": {
           "auto_run": {
@@ -2766,6 +2786,68 @@
         "title": "JobSummary",
         "type": "object"
       },
+      "ModelQualityReport": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/QualityFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "report_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "ruleset_version": {
+            "minLength": 1,
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModelQualityReport@1",
+            "default": "ModelQualityReport@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "not_run"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "project_id",
+          "version_id",
+          "ruleset_version",
+          "status",
+          "created_at"
+        ],
+        "title": "ModelQualityReport",
+        "type": "object"
+      },
       "ModuleAssetListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -3513,6 +3595,138 @@
           "updated_at"
         ],
         "title": "ProviderTaskSummary",
+        "type": "object"
+      },
+      "QualityFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "graph",
+              "mesh",
+              "assembly"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "check_id": {
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "finding_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "measured_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Value"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "not_run"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggestion": {
+            "default": "",
+            "title": "Suggestion",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "finding_id",
+          "check_id",
+          "category",
+          "severity",
+          "status",
+          "message"
+        ],
+        "title": "QualityFinding",
+        "type": "object"
+      },
+      "QualityRunRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality_run_id": {
+            "title": "Quality Run Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ModelQualityReport"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quality_run_id",
+          "project_id",
+          "version_id",
+          "report",
+          "created_at"
+        ],
+        "title": "QualityRunRecord",
         "type": "object"
       },
       "RegisterModuleAssetRequest": {
@@ -5592,6 +5806,48 @@
         ]
       }
     },
+    "/api/v1/quality-runs/{quality_run_id}": {
+      "get": {
+        "operationId": "get_quality_run_api_v1_quality_runs__quality_run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quality_run_id",
+            "required": true,
+            "schema": {
+              "title": "Quality Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quality Run",
+        "tags": [
+          "concept-quality"
+        ]
+      }
+    },
     "/api/v1/versions/{version_id}/change-sets": {
       "post": {
         "operationId": "propose_change_set_api_v1_versions__version_id__change_sets_post",
@@ -5657,6 +5913,74 @@
         "summary": "Propose Change Set",
         "tags": [
           "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/quality-runs": {
+      "post": {
+        "operationId": "create_quality_run_api_v1_versions__version_id__quality_runs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQualityRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Quality Run",
+        "tags": [
+          "concept-quality"
         ]
       }
     },

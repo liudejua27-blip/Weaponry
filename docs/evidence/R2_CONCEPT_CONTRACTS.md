@@ -19,6 +19,7 @@
 - DesignChangeSet proposed → ghost preview → confirmed 状态机；
 - preview 使用新 Graph ID，不覆盖父 Graph；确认后才创建子 Version 和正式 Graph；
 - 保护节点修改在合同层拒绝，stale base 在提交时转为 `stale` 并返回冲突。
+- version-scoped QualityRun/Findings 持久化、幂等 replay 和报告 round-trip。
 
 ## 已验证不变量
 
@@ -47,6 +48,8 @@ npm run r2:gate
 
 ChangeSet smoke 将已验证 Graph 绑定到 V2，提出并预览局部比例/风格修改，确认后创建 V3 与新的正式 Graph；V2 和父 Graph 保持原值。另验证锁定核心修改被拒绝、当前版本推进后旧 preview 转为 `stale`。版本总数和 Graph 总数证明 preview 本身不写正式版本。
 
+同一 smoke 为确认后的 V3 写入 1 个 `ModelQualityReport`、1 个 QualityRun 和 1 个 Finding，并通过 GET 完整回读。该切片只证明报告合同与数据链，不代表 R5 的实际网格检查算法已经完成。
+
 Legacy 重启恢复提取另由以下命令验证：
 
 ```bash
@@ -57,7 +60,7 @@ Legacy 重启恢复提取另由以下命令验证：
 
 ## 未完成
 
-- QualityRun/Findings API；
+- Brief/Variant API；
 - Version DAG、ChangeSet preview/commit；
 - GLB fixture、工作台真实 ModuleGraph 绑定；
 - C01–C10 完整发布门。

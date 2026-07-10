@@ -14,6 +14,7 @@ from forgecad_agent.domain.concepts.models import (
     ModuleAssetManifest,
     ModuleCategory,
     ModuleGraph,
+    ModelQualityReport,
     WeaponConceptSpec,
 )
 
@@ -155,3 +156,16 @@ class ChangeSetPreviewResponse(StrictApiModel):
 class ChangeSetConfirmResponse(StrictApiModel):
     change_set: "DesignChangeSet"
     project: ConceptProjectDetail
+
+
+class CreateQualityRunRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    report: ModelQualityReport
+
+
+class QualityRunRecord(StrictApiModel):
+    quality_run_id: str
+    project_id: str
+    version_id: str
+    report: ModelQualityReport
+    created_at: str

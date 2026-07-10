@@ -156,6 +156,11 @@ export type CreateConceptProjectRequest = {
   "assumptions"?: Array<string>
 }
 
+export type CreateQualityRunRequest = {
+  "client_request_id": string
+  "report": ModelQualityReport
+}
+
 export type CreateWeaponRequest = {
   "client_request_id": string
   "text": string
@@ -469,6 +474,17 @@ export type JobSummary = {
   "finished_at"?: string | null
 }
 
+export type ModelQualityReport = {
+  "schema_version"?: "ModelQualityReport@1"
+  "report_id": string
+  "project_id": string
+  "version_id": string
+  "ruleset_version": string
+  "status": "passed" | "warning" | "failed" | "not_run"
+  "findings"?: Array<QualityFinding>
+  "created_at": string
+}
+
 export type ModuleAssetListResponse = {
   "items"?: Array<ModuleAssetRecord>
   "pack_id"?: string | null
@@ -606,6 +622,27 @@ export type ProviderTaskSummary = {
   "metadata"?: Record<string, unknown>
   "created_at": string
   "updated_at": string
+}
+
+export type QualityFinding = {
+  "finding_id": string
+  "check_id": string
+  "category": "graph" | "mesh" | "assembly"
+  "severity": "info" | "warning" | "error"
+  "status": "passed" | "warning" | "failed" | "not_run"
+  "node_ids"?: Array<string>
+  "measured_value"?: number | string | null
+  "threshold"?: number | string | null
+  "message": string
+  "suggestion"?: string
+}
+
+export type QualityRunRecord = {
+  "quality_run_id": string
+  "project_id": string
+  "version_id": string
+  "report": ModelQualityReport
+  "created_at": string
 }
 
 export type RegisterModuleAssetRequest = {

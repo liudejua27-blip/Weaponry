@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-10）
-状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph 和 ChangeSet 子版本提交已落地。
+状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet 和 QualityRun 数据/API 已落地。
 
 ## 1. 产品定义
 

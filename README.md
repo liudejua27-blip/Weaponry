@@ -147,7 +147,7 @@ core.side_panel_left / core.side_panel_right
 | WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化和回读 API 已实现 | Version 绑定与桌面真实渲染待实现 |
 | Connector / 模块吸附 / 爆炸视图 | Connector 合同、数据表、注册和兼容校验已实现；交互未实现 | P0 核心技术阶段 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Brief 生成仍待 R4 |
-| ModelQualityReport | 未实现 | P0 Mesh/资产检查 |
+| ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
 当前主数据链仍是旧 Weapon/Unity baseline；新工作台只是交互原型，不能据此声称 P0 模块系统或 CAD/DFM 已完成。

@@ -11,6 +11,7 @@ from .concept_repositories import (
     ConceptProjectRepository,
     DomainProfileRepository,
     ModuleRepository,
+    QualityRepository,
 )
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
 
@@ -30,6 +31,7 @@ class SQLiteUnitOfWork:
         self.concept_assets: ConceptAssetRepository
         self.modules: ModuleRepository
         self.change_sets: ChangeSetRepository
+        self.quality: QualityRepository
 
     def __enter__(self) -> "SQLiteUnitOfWork":
         connection = self.connection_factory.connect()
@@ -43,6 +45,7 @@ class SQLiteUnitOfWork:
         self.concept_assets = ConceptAssetRepository(connection)
         self.modules = ModuleRepository(connection)
         self.change_sets = ChangeSetRepository(connection)
+        self.quality = QualityRepository(connection)
         return self
 
     def __exit__(

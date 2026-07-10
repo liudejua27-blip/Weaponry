@@ -616,3 +616,74 @@ class ChangeSetRepository:
             """,
             (change_set_json, updated_at, change_set_id),
         )
+
+
+class QualityRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add_report(
+        self,
+        *,
+        quality_run_id: str,
+        project_id: str,
+        version_id: str,
+        ruleset_version: str,
+        status: str,
+        report_json: str,
+        findings: list[Mapping[str, Any]],
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO quality_runs (
+              quality_run_id, project_id, version_id, report_asset_id,
+              ruleset_version, status, report_json, created_at
+            )
+            VALUES (?, ?, ?, NULL, ?, ?, ?, ?)
+            """,
+            (
+                quality_run_id,
+                project_id,
+                version_id,
+                ruleset_version,
+                status,
+                report_json,
+                created_at,
+            ),
+        )
+        for finding in findings:
+            self.connection.execute(
+                """
+                INSERT INTO quality_findings (
+                  finding_id, quality_run_id, check_id, category, severity,
+                  status, node_ids_json, measured_value_json, threshold_json,
+                  message, suggestion
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    finding["finding_id"],
+                    quality_run_id,
+                    finding["check_id"],
+                    finding["category"],
+                    finding["severity"],
+                    finding["status"],
+                    finding["node_ids_json"],
+                    finding["measured_value_json"],
+                    finding["threshold_json"],
+                    finding["message"],
+                    finding["suggestion"],
+                ),
+            )
+
+    def get_report(self, quality_run_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT quality_run_id, project_id, version_id, report_asset_id,
+                   ruleset_version, status, report_json, created_at
+            FROM quality_runs
+            WHERE quality_run_id = ?
+            """,
+            (quality_run_id,),
+        ).fetchone()

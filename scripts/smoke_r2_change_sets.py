@@ -149,6 +149,52 @@ def main() -> int:
             )
             _assert(confirm_replay["project"]["current_version_id"] == version_3, "confirm replay mismatch")
 
+            quality_report = {
+                "schema_version": "ModelQualityReport@1",
+                "report_id": "quality_arctic_patrol_v3",
+                "project_id": project_id,
+                "version_id": version_3,
+                "ruleset_version": "weapon-concept-quality/1.0",
+                "status": "warning",
+                "findings": [
+                    {
+                        "finding_id": "finding_symmetry_v3",
+                        "check_id": "assembly.symmetry_deviation",
+                        "category": "assembly",
+                        "severity": "warning",
+                        "status": "warning",
+                        "node_ids": ["node_front"],
+                        "measured_value": 0.4,
+                        "threshold": 0.25,
+                        "message": "前部外壳超出目标对称偏差。",
+                        "suggestion": "重新吸附或接受非对称风格。",
+                    }
+                ],
+                "created_at": "2026-07-10T12:00:00+00:00",
+            }
+            quality = _json_request(
+                base_url,
+                f"/api/v1/versions/{version_3}/quality-runs",
+                method="POST",
+                body={"client_request_id": "r2-quality-v3", "report": quality_report},
+                idempotency_key="r2-quality-v3",
+            )
+            _assert(quality["report"]["status"] == "warning", "quality report status mismatch")
+            quality_replay = _json_request(
+                base_url,
+                f"/api/v1/versions/{version_3}/quality-runs",
+                method="POST",
+                body={"client_request_id": "r2-quality-v3", "report": quality_report},
+                idempotency_key="r2-quality-v3",
+            )
+            _assert(quality_replay["quality_run_id"] == quality["quality_run_id"], "quality replay mismatch")
+            quality_read = _json_request(
+                base_url,
+                f"/api/v1/quality-runs/{quality['quality_run_id']}",
+                method="GET",
+            )
+            _assert(quality_read["report"] == quality_report, "quality report round-trip mismatch")
+
             protected = _change_set(project_id, version_3, "change_protected_core")
             protected["operations"][0]["node_id"] = "node_core"
             protected_status, protected_body = _json_request_allow_error(
@@ -215,10 +261,14 @@ def main() -> int:
             ).fetchone()
             version_count = connection.execute("SELECT COUNT(*) FROM project_versions").fetchone()[0]
             graph_count = connection.execute("SELECT COUNT(*) FROM module_graphs").fetchone()[0]
+            quality_run_count = connection.execute("SELECT COUNT(*) FROM quality_runs").fetchone()[0]
+            finding_count = connection.execute("SELECT COUNT(*) FROM quality_findings").fetchone()[0]
         _assert(confirmed_row == ("confirmed", version_3), "confirmed ChangeSet trace mismatch")
         _assert(stale_row == ("stale",), "stale ChangeSet was not persisted")
         _assert(version_count == 4, "unexpected project version count")
         _assert(graph_count == 2, "preview should persist exactly one child graph on confirm")
+        _assert(quality_run_count == 1, "quality run count mismatch")
+        _assert(finding_count == 1, "quality finding count mismatch")
 
         print(
             json.dumps(
@@ -231,6 +281,8 @@ def main() -> int:
                     "stale_change_set_id": stale_change["change_set_id"],
                     "version_count": version_count,
                     "graph_count": graph_count,
+                    "quality_run_count": quality_run_count,
+                    "finding_count": finding_count,
                 },
                 ensure_ascii=False,
                 indent=2,

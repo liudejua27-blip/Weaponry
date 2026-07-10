@@ -5,6 +5,7 @@ from .concept_repositories import (
     ConceptProjectRepository,
     DomainProfileRepository,
     ModuleRepository,
+    QualityRepository,
 )
 from .migrations import MigrationError, SQLiteMigrationRunner
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
@@ -20,6 +21,7 @@ __all__ = [
     "IdempotencyRepository",
     "JobRepository",
     "ModuleRepository",
+    "QualityRepository",
     "MigrationError",
     "SQLiteConnectionFactory",
     "SQLiteMigrationRunner",

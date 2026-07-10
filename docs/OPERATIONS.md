@@ -145,7 +145,7 @@ npm run r2:contracts-gate
 npm run r2:gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Concept Schema、Pydantic 不变量和生成类型一致；`r2:gate` 进一步证明 fresh/repeat migration、Project/Version、不可变 GLB 模块注册、Connector/ModuleGraph、ChangeSet preview/confirm、父版本保护、stale base、幂等冲突和重启恢复，但仍不证明 R3 工作台交互或正式模块资产质量。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Concept Schema、Pydantic 不变量和生成类型一致；`r2:gate` 进一步证明 fresh/repeat migration、Project/Version、不可变 GLB 模块注册、Connector/ModuleGraph、ChangeSet、QualityRun/Findings、父版本保护、stale base、幂等冲突和重启恢复，但仍不证明实际 Mesh 检查器、R3 工作台交互或正式模块资产质量。
 
 ### 2.3 Tauri 检查
 
