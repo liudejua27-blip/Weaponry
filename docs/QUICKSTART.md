@@ -65,9 +65,9 @@ npm run release:license-sbom
 npm run release:gate
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 验证 10 模块参考 Pack、替换/吸附/镜像、Undo/Redo、爆炸视图和视口生命周期；`r3:change-set-audit-gate` 还验证当前筛选的 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、桌面下载与重启回读；`r3:library-backup-gate` 验证 SQLite Backup API、引用对象/容量 Manifest、tamper/overwrite/secret negatives 和隔离恢复后 Agent 回读；`r4:planner-gate` 验证 Brief/Module/Change Planner、半透明 ghost 与显式 confirm 链。它们不代表真实模型 AI 指标、法规级 WORM/legal hold、加密异地备份或正式资产规模性能已达标。R5 各门继续验证 GLB/OBJ/PNG/MP4、展示交付和 `weapon-concept-geometry/1.3`。
+当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 验证 10 模块参考 Pack、替换/吸附/镜像、Undo/Redo、爆炸视图和视口生命周期；`r3:change-set-audit-gate` 还验证当前筛选的 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、桌面下载与重启回读；`r3:library-backup-gate` 验证 SQLite Backup API、引用对象/容量 Manifest、tamper/overwrite/secret negatives、隔离恢复，以及 10 模块参考库的多轮耗时/容量报告和全部 Module hash 回读；`r4:planner-gate` 验证 Brief/Module/Change Planner、半透明 ghost 与显式 confirm 链。它们不代表真实模型 AI 指标、法规级 WORM/legal hold、加密异地备份或正式资产规模性能已达标。R5 各门继续验证 GLB/OBJ/PNG/MP4、展示交付和 `weapon-concept-geometry/1.3`。
 
-正式备份/验证/恢复命令只在 [OPERATIONS.md](OPERATIONS.md) 维护；Quickstart 不复制完整流程。
+正式备份/验证/恢复/演练命令只在 [OPERATIONS.md](OPERATIONS.md) 维护；Quickstart 不复制完整流程。
 
 `agent:r4-evaluation-baseline` 验证固定 20/20/20/20 truth set 和评测器，但仍不是 AI 证据。配置真实 OpenAI-compatible Provider 后，只有操作者明确运行 `npm run agent:r4-evaluation-live`，完整 80 次调用、token usage 和全部阈值通过，报告才可能标记为真实 Provider 证据；具体成本和失败码见 [OPERATIONS.md](OPERATIONS.md)。
 

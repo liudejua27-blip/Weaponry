@@ -23,6 +23,7 @@
 
 ```bash
 npm run agent:r3-library-backup-restore-smoke
+npm run agent:r3-library-recovery-drill-smoke
 npm run r3:library-backup-gate
 npm run r3:change-set-audit-gate
 ```
@@ -45,7 +46,7 @@ unreferenced_candidates       1 / 29 bytes
 
 ## 未证明
 
-- 正式 10–12 或 24–30 模块资产库的备份、验证、恢复耗时和峰值磁盘占用；
+- 正式 10–12 或 24–30 模块资产库的备份、验证、恢复耗时和峰值磁盘占用；参考 Pack 的演练基线见 [R3_LIBRARY_RECOVERY_DRILL.md](R3_LIBRARY_RECOVERY_DRILL.md)；
 - 定时调度、增量备份、远端复制、加密、密钥托管、WORM、legal hold；
 - Project 删除后的 reference-aware garbage collection；
 - 跨操作系统或未来较新 schema 向旧二进制恢复。

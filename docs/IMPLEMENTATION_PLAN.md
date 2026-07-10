@@ -16,7 +16,7 @@
 - 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module/Change Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；真实模型 AI 质量指标、最终高质量资产、纹理交换和真实 DCC round-trip 尚未实现；
 - `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter、`.blend` metadata、只读 re-export 与真实构建入口已实现，但当前机器未配置 Blender，正式资产本身尚未生成；
 - ChangeSet 审计批量导出已实现：当前服务端筛选形成确定性 JSONL、可选 CSV、逐文件 SHA-256 Manifest 和内容寻址 ZIP；`project_lifetime` 记录无单包删除 API，桌面可下载且 Agent 重启后回读。该策略不等于法规级 WORM、legal hold 或独立灾备；
-- Library backup/restore CLI 已实现：SQLite Backup API 快照归一化为独立 `journal_mode=DELETE` 文件，只复制快照中 legacy/Concept asset 表真实引用的内容寻址对象，保存 schema/table/hash/size/capacity Manifest；隔离烟测已验证篡改拒绝、禁止覆盖、密钥与 WAL/SHM 排除及恢复后 Agent 回读。正式资产库容量和耗时仍待测；
+- Library backup/restore CLI 已实现：SQLite Backup API 快照归一化为独立 `journal_mode=DELETE` 文件，只复制快照中 legacy/Concept asset 表真实引用的内容寻址对象，保存 schema/table/hash/size/capacity Manifest；恢复演练 CLI 可连续测量 backup/verify/restore/Agent 回读、吞吐和相对基线容量增长，并拒绝把已知 reference/smoke generator 申报为正式资产证据。10 模块参考库已跑通，正式 Blender/代表性用户资产库仍待执行；
 - 服务端 `weapon-concept-geometry/1.3` 已从版本绑定的 Spec、ModuleGraph 与内容寻址 GLB 计算 Mesh/Assembly Findings：除精确穿插、triangle provenance、Connector 对齐和保守表面间隙外，已覆盖重复面、内嵌封闭组件、组件间密度离群、项目总三角预算、P0 LOD0 合同和根中面对称占位偏差；桌面 Finding 会聚焦并高亮关联节点/局部 triangle。正式 Blender truth set、Tauri 大网格阈值与多 LOD 运行时尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
@@ -50,7 +50,7 @@
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
 | R3 ChangeSet audit archive | 批量导出切片完成 | migration `0016`、当前筛选 JSONL/CSV、hash Manifest、内容寻址 ZIP、`project_lifetime`、Job/artifact link、桌面下载与 restart smoke；WORM/legal hold/独立灾备未实现 |
-| R3 Library backup/restore | 隔离恢复切片完成 | `ForgeCADLibraryBackupManifest@1`、SQLite Backup API、独立 DB、引用对象去重、容量基线、tamper/overwrite/secret/transient negatives、恢复后 Project/Module/Planner Job/审计 ZIP 回读；正式规模待测 |
+| R3 Library backup/restore | 演练工具与参考基线完成 | `ForgeCADLibraryBackupManifest@1` + `ForgeCADLibraryRecoveryDrillReport@1`、SQLite Backup API、独立 DB、引用对象去重、多轮耗时/吞吐/容量增长、tamper/overwrite/secret/transient negatives、恢复后 Project/Version/全部 Module GLB/Planner Job/审计 ZIP 回读；正式 Blender 与代表性用户库待测 |
 | R5 combined GLB | 第一切片完成 | static GLB merge、mm→m、Euler→quaternion、mirror scale、stable wrapper nodes、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
@@ -327,7 +327,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 1. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，先完成 core + 两个 front，再逐个替换 GLB 和缩略图。
 2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
-3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 Library backup/restore CLI，记录备份/验证/恢复耗时、容量增长和未引用候选，再确定保留周期与 reference-aware GC；隔离 reference fixture 已完成 16 migration、审计 ZIP、篡改、覆盖、密钥排除和恢复后 Agent 回读，WORM/legal hold 不在当前承诺内。
+3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 `library:recovery-drill`，各至少 3 轮，保存备份/验证/恢复/Agent 回读耗时、吞吐、容量增长和未引用候选，再确定保留周期与 reference-aware GC；10 模块 reference fixture 已完成多轮稳定快照、全部 GLB hash 回读、基线增量和正式证据误报阻断，但不替代这两组真实报告。WORM/legal hold 不在当前承诺内。
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；安装 Blender 或 Assimp 后执行真实只读 round-trip，再评估纹理交换与 glTF Transform/Meshopt。转台 MP4、确定性轮廓抗锯齿、软接触阴影和 DCC 预检代码已完成。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
 6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。

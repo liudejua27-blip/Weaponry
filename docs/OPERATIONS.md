@@ -317,13 +317,38 @@ export WUSHEN_MIGRATIONS_DIR="$PWD/migrations"
 
 恢复先在临时目录重新验证 SQLite integrity/FK、引用集合及所有 SHA-256/size，成功后才原子落位；来源 Manifest 保存到 `backups/manifests/`。恢复后重新配置 Provider secret file，再启动 Agent 并检查 Project、Module、Job 和审计归档。备份目录未加密，应放在受访问控制/磁盘加密的介质；`project_lifetime` 和本地备份都不代表异地副本、WORM 或 legal hold。
 
+在参考库、代表性用户库或正式 10–12 模块库上测量恢复能力时，先停止源 Agent、worker 和 Tauri，再运行完整演练：
+
+```bash
+npm run library:recovery-drill -- \
+  --library-root "$PWD/WushenForgeLibrary" \
+  --output "$PWD/recovery-drills/forgecad-<timestamp>" \
+  --repeats 3 \
+  --evidence-class representative_user_library
+```
+
+它逐轮复用正式 `backup → verify → restore`，然后针对恢复目录启动本地 Agent，回读 Project/Version/Module，并下载所有注册 Module GLB 校验 hash。默认成功后只保留 `recovery-drill-report.json`；调试时才增加 `--retain-artifacts`。输出目录必须位于源库外且尚不存在。源库在多轮间发生写入会返回 `SOURCE_CHANGED_DURING_DRILL`。
+
+制作完成的人工 Blender 首包使用 `--evidence-class formal_blender_10_12`；工具要求 10–12 个 Module 并拒绝已知 reference/smoke generator，但仍需要人工资产审阅。仓库参考包只能使用 `reference_fixture`。再次演练时用旧报告计算容量增长：
+
+```bash
+npm run library:recovery-drill -- \
+  --library-root "$PWD/WushenForgeLibrary" \
+  --output "$PWD/recovery-drills/forgecad-<new-timestamp>" \
+  --repeats 3 \
+  --evidence-class representative_user_library \
+  --baseline-report "$PWD/recovery-drills/forgecad-<old-timestamp>/recovery-drill-report.json"
+```
+
+报告中的时间是本机 wall-clock 观察值，完成目录大小不是峰值磁盘占用；未引用候选只统计、不删除。至少收集正式首包和代表性用户库两组报告后，才确定保留周期与 reference-aware GC。
+
 专项演练：
 
 ```bash
 npm run r3:library-backup-gate
 ```
 
-它验证篡改失败、禁止覆盖、去重/未引用容量、密钥与 WAL/SHM 排除，并在恢复 Agent 上下载同一 SHA-256 的审计 ZIP。当前容量数值来自隔离 fixture，不是正式资产库性能结论。
+它验证篡改失败、禁止覆盖、去重/未引用容量、密钥与 WAL/SHM 排除、审计 ZIP 回读，以及 10 模块参考库的多轮时间/容量报告、Agent 回读、全部 Module hash、基线增长和正式证据误报阻断。当前容量与时间数值来自 reference fixture，不是正式资产库性能结论。
 
 测试使用独立库：
 
