@@ -84,6 +84,7 @@ def main() -> None:
 
         create_workflow_boundary = _assert_create_weapon_workflow_boundary()
         generate_3d_workflow_boundary = _assert_generate_3d_workflow_boundary()
+        worker_runtime_boundary = _assert_worker_runtime_boundary()
 
     print(
         {
@@ -93,6 +94,7 @@ def main() -> None:
             "object_sha256": expected_hash,
             "create_weapon_workflow": create_workflow_boundary,
             "generate_3d_workflow": generate_3d_workflow_boundary,
+            "worker_runtime": worker_runtime_boundary,
         }
     )
 
@@ -193,6 +195,54 @@ def _assert_generate_3d_workflow_boundary() -> dict[str, int | bool]:
     return {
         "facade_delegates_sync_and_queue": True,
         "runtime_selection_in_service": True,
+        "asset_store_lines": facade_lines,
+        "service_lines": len(service_source.splitlines()),
+    }
+
+
+def _assert_worker_runtime_boundary() -> dict[str, int | bool]:
+    facade_path = ROOT / "apps" / "agent" / "wushen_agent" / "asset_store.py"
+    service_path = (
+        ROOT / "apps" / "agent" / "wushen_agent" / "application" / "worker_runtime.py"
+    )
+    facade_source = facade_path.read_text(encoding="utf-8")
+    service_source = service_path.read_text(encoding="utf-8")
+    facade_worker = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "run_worker_once",
+    )
+    service_worker = _class_method_source(
+        service_source,
+        "LegacyWorkerService",
+        "run_worker_once",
+    )
+    assert "worker_runtime.run_worker_once" in facade_worker
+    for forbidden in ("generation_jobs", "waiting_provider", "_complete_generate_3d"):
+        assert forbidden not in facade_worker
+    for required in (
+        "generation_jobs",
+        "waiting_provider",
+        "_complete_generate_3d_worker_job",
+        "_resume_generate_3d_provider_job",
+        "_complete_export_unity_worker_job",
+        "lease_expires_at",
+    ):
+        assert required in service_worker, (
+            f"worker runtime lost dispatch responsibility: {required}"
+        )
+    for method_name in (
+        "_complete_generate_3d_worker_job",
+        "_resume_generate_3d_provider_job",
+        "_handle_generate_3d_provider_poll",
+    ):
+        _class_method_source(service_source, "LegacyWorkerService", method_name)
+    facade_lines = len(facade_source.splitlines())
+    assert facade_lines <= 2450, f"AssetStore facade expanded to {facade_lines} lines"
+    return {
+        "facade_delegates": True,
+        "claim_lease_dispatch_in_service": True,
+        "generate_provider_commit_in_service": True,
         "asset_store_lines": facade_lines,
         "service_lines": len(service_source.splitlines()),
     }

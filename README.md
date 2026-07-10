@@ -140,7 +140,7 @@ core.side_panel_left / core.side_panel_right
 | Job / Step / Event / SSE | 已实现 | 直接复用 |
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
-| R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library、Creative Recast、Create Weapon 与 Generate-3D 同步/排队入口已提取；异步 worker 执行、Patch/export 仍待迁移 |
+| R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library、Creative Recast、Create Weapon、Generate-3D 入口与 Worker Runtime 已提取；Patch 和 Unity export handler 仍待迁移 |
 | `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查及 ZIP/GLB/OBJ/MTL/PNG 导出 | 已用 10 模块参考 Pack 跑 E2E；人工 Blender 最终质量与正式替换矩阵待完成 |
 | 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
 | Module Pack 资产门 | `ModulePackManifest@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现 | 工具链完成；正式 10–12 个 Blender GLB 仍需制作 |

@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明旧 `POST /api/weapons/{weapon_id}/generate-3d` 的 runtime 选择、同步编排和排队事务已从 `SQLiteAssetStore` 迁入 application service，并保持追加版本、ProviderTask、Checkpoint、JobEvent 和错误合同。异步 worker 的 claim/poll/commit 内部仍待迁移，因此不代表整个 Generate-3D workflow 或 R1 完成。
+范围：证明旧 `POST /api/weapons/{weapon_id}/generate-3d` 的 runtime 选择、同步编排和排队事务已从 `SQLiteAssetStore` 迁入 application service，并保持追加版本、ProviderTask、Checkpoint、JobEvent 和错误合同。异步 worker 随后已迁入 `LegacyWorkerService`，见 `R1_WORKER_RUNTIME.md`；R1 仍未完成。
 
 ## 边界变化
 
@@ -32,6 +32,5 @@ npm run r1:generate3d-gate
 
 ## 未证明
 
-- `run_worker_once`、provider poll/resume 和 worker commit 已迁出 facade；
 - Patch 与 Unity export application-service 边界；
 - 正式 GPU 模型生成质量或制造级 CAD/DFM。
