@@ -189,6 +189,10 @@ export class ForgeApiClient {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/turntable/${frameIndex}.png`
   }
 
+  getConceptTurntableVideoUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/turntable.mp4`
+  }
+
   async proposeChangeSet(
     versionId: string,
     input: ProposeChangeSetRequest,

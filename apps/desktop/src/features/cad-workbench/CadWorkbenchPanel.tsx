@@ -226,6 +226,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
       || exportFormat === 'GLB'
       || (exportFormat === 'OBJ' && currentExport.combined_obj_sha256)
       || (exportFormat === 'PNG' && currentExport.preview_png_sha256)
+      || (exportFormat === 'MP4' && currentExport.turntable_video_sha256)
     )
     const result = reusable ? currentExport : await concept.createExport()
     if (!result) return
@@ -236,6 +237,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
         ? forgeApi.getConceptCombinedObjUrl(result.export_id)
         : exportFormat === 'PNG'
         ? forgeApi.getConceptPreviewPngUrl(result.export_id)
+        : exportFormat === 'MP4'
+        ? forgeApi.getConceptTurntableVideoUrl(result.export_id)
         : forgeApi.getConceptExportFileUrl(result.export_id),
     )
   }, [concept, exportFormat])
@@ -817,6 +820,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 { id: 'GLB', enabled: true },
                 { id: 'OBJ', enabled: true },
                 { id: 'PNG', enabled: true },
+                { id: 'MP4', enabled: true },
               ].map((format) => (
                 <button
                   key={format.id}
@@ -848,6 +852,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   ? '创建并下载 combined OBJ'
                   : exportFormat === 'PNG'
                   ? '创建并下载透明 preview.png'
+                  : exportFormat === 'MP4'
+                  ? '创建并下载转台 MP4'
                   : '创建并下载概念源包'
               }
             </button>
@@ -879,6 +885,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 >
                   下载正交视图与转台 ZIP
                 </button>
+                {concept.lastExport.turntable_video_sha256 && (
+                  <button
+                    className="secondary-action"
+                    onClick={() => window.location.assign(
+                      forgeApi.getConceptTurntableVideoUrl(concept.lastExport!.export_id),
+                    )}
+                  >
+                    下载转台 MP4
+                  </button>
+                )}
               </>
             )}
           </section>

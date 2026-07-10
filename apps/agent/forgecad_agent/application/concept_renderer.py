@@ -23,6 +23,8 @@ class ConceptRenderError(ValueError):
 Vector3 = tuple[float, float, float]
 Color4 = tuple[float, float, float, float]
 TURNTABLE_FRAME_COUNT = 8
+RENDER_ANTIALIAS_MODE = "deterministic_edge_coverage"
+RENDER_SHADOW_MODE = "soft_contact_alpha"
 ORTHOGRAPHIC_VIEWS: dict[str, tuple[Vector3, Vector3]] = {
     "front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
     "side": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
@@ -40,6 +42,8 @@ class ConceptRenderResult:
     height: int
     triangle_count: int
     exploded_distance_m: float
+    antialias_mode: str
+    shadow_mode: str
 
 
 @dataclass(frozen=True)
@@ -107,6 +111,8 @@ def render_concept_pngs(
             height=height,
             triangle_count=len(preview_triangles),
             exploded_distance_m=exploded_distance,
+            antialias_mode=RENDER_ANTIALIAS_MODE,
+            shadow_mode=RENDER_SHADOW_MODE,
         )
     except (CombinedObjError, KeyError, IndexError, TypeError, ValueError) as exc:
         if isinstance(exc, ConceptRenderError):
@@ -231,6 +237,17 @@ def _render_png(
     depths = [float("-inf")] * (width * height)
     light = _normalize((0.35, 0.9, 0.45))
 
+    if abs(camera[1]) < 0.94:
+        _draw_contact_shadow(
+            pixels,
+            width,
+            height,
+            center_x=width * 0.5,
+            center_y=height * 0.5 - (minimum_y - center_y) * scale + height * 0.012,
+            radius_x=max(width * 0.08, span_x * scale * 0.38),
+            radius_y=max(height * 0.012, span_y * scale * 0.055),
+        )
+
     for triangle in triangles:
         world_a, world_b, world_c = triangle.points
         normal_raw = _cross(_subtract(world_b, world_a), _subtract(world_c, world_a))
@@ -262,7 +279,64 @@ def _render_png(
                 )
             )
         _rasterize_triangle(pixels, depths, width, height, screen, rgba)
+    pixels = _antialias_transparent_edges(pixels, width, height)
     return _encode_png_rgba(width, height, pixels)
+
+
+def _draw_contact_shadow(
+    pixels: bytearray,
+    width: int,
+    height: int,
+    *,
+    center_x: float,
+    center_y: float,
+    radius_x: float,
+    radius_y: float,
+) -> None:
+    minimum_x = max(0, math.floor(center_x - radius_x))
+    maximum_x = min(width - 1, math.ceil(center_x + radius_x))
+    minimum_y = max(0, math.floor(center_y - radius_y))
+    maximum_y = min(height - 1, math.ceil(center_y + radius_y))
+    for y in range(minimum_y, maximum_y + 1):
+        normalized_y = (y + 0.5 - center_y) / radius_y
+        for x in range(minimum_x, maximum_x + 1):
+            normalized_x = (x + 0.5 - center_x) / radius_x
+            distance_squared = normalized_x * normalized_x + normalized_y * normalized_y
+            if distance_squared >= 1.0:
+                continue
+            falloff = (1.0 - distance_squared) ** 2
+            alpha = round(66 * falloff)
+            if alpha <= 0:
+                continue
+            offset = (y * width + x) * 4
+            pixels[offset : offset + 4] = bytes((12, 18, 28, alpha))
+
+
+def _antialias_transparent_edges(pixels: bytearray, width: int, height: int) -> bytes:
+    source = bytes(pixels)
+    output = bytearray(source)
+    row_stride = width * 4
+    for y in range(1, height - 1):
+        row_offset = y * row_stride
+        for x in range(1, width - 1):
+            offset = row_offset + x * 4
+            if source[offset + 3] != 0:
+                continue
+            neighbours = (
+                offset - 4,
+                offset + 4,
+                offset - row_stride,
+                offset + row_stride,
+            )
+            opaque = [candidate for candidate in neighbours if source[candidate + 3] >= 224]
+            if not opaque:
+                continue
+            count = len(opaque)
+            output[offset] = sum(source[candidate] for candidate in opaque) // count
+            output[offset + 1] = sum(source[candidate + 1] for candidate in opaque) // count
+            output[offset + 2] = sum(source[candidate + 2] for candidate in opaque) // count
+            output[offset + 3] = min(128, 48 + count * 20)
+    return bytes(output)
 
 
 def _rasterize_triangle(

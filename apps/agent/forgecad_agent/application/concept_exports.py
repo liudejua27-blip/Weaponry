@@ -27,6 +27,11 @@ from forgecad_agent.application.concept_renderer import (
     TURNTABLE_FRAME_COUNT,
     render_concept_pngs,
 )
+from forgecad_agent.application.concept_video import (
+    ConceptVideoError,
+    TURNTABLE_VIDEO_MIME_TYPE,
+    encode_turntable_mp4,
+)
 from forgecad_agent.domain.concepts.models import (
     ConceptExportManifest,
     ExportFileEntry,
@@ -73,6 +78,8 @@ class ConceptExportService:
         if not request.include_render_png:
             # Preserve hashes written before the optional render field existed.
             request_payload.pop("include_render_png")
+        if not request.include_turntable_video:
+            request_payload.pop("include_turntable_video")
         request_hash = _hash_json(request_payload)
 
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
@@ -180,6 +187,8 @@ class ConceptExportService:
             render_set_sha256: Optional[str] = None
             preview_png_sha256: Optional[str] = None
             exploded_png_sha256: Optional[str] = None
+            turntable_video_payload: Optional[bytes] = None
+            turntable_video_sha256: Optional[str] = None
             if request.include_render_png:
                 try:
                     render_result = render_concept_pngs(combined_glb)
@@ -202,6 +211,23 @@ class ConceptExportService:
                         for index, payload in enumerate(render_result.turntable_frames)
                     },
                 }
+                if request.include_turntable_video:
+                    try:
+                        turntable_video_payload = encode_turntable_mp4(
+                            render_result.turntable_frames
+                        )
+                    except ConceptVideoError as exc:
+                        raise ConceptExportError(
+                            "VIDEO_ENCODER_UNAVAILABLE",
+                            f"Turntable MP4 could not be encoded: {exc}",
+                        ) from exc
+                    turntable_video_sha256 = hashlib.sha256(
+                        turntable_video_payload
+                    ).hexdigest()
+                    render_files["turntable.mp4"] = (
+                        turntable_video_payload,
+                        TURNTABLE_VIDEO_MIME_TYPE,
+                    )
                 for path, artifact in render_files.items():
                     files[f"Renders/{path}"] = artifact
                 render_set_payload = _build_zip(render_files)
@@ -290,6 +316,9 @@ class ConceptExportService:
                                 "exploded_distance_m": render_result.exploded_distance_m,
                                 "orthographic_view_count": len(render_result.orthographic_pngs),
                                 "turntable_frame_count": len(render_result.turntable_frames),
+                                "render_antialias_mode": render_result.antialias_mode,
+                                "render_shadow_mode": render_result.shadow_mode,
+                                "turntable_video_sha256": turntable_video_sha256,
                             }
                             if render_result is not None
                             else {}
@@ -354,6 +383,9 @@ class ConceptExportService:
                             "exploded_distance_m": render_result.exploded_distance_m,
                             "orthographic_views": sorted(render_result.orthographic_pngs),
                             "turntable_frame_count": len(render_result.turntable_frames),
+                            "antialias_mode": render_result.antialias_mode,
+                            "shadow_mode": render_result.shadow_mode,
+                            "turntable_video_sha256": turntable_video_sha256,
                             "render_set_sha256": render_set_sha256,
                         },
                     )
@@ -411,6 +443,17 @@ class ConceptExportService:
                 ),
                 turntable_frame_count=(
                     len(render_result.turntable_frames) if render_result is not None else None
+                ),
+                turntable_video_sha256=turntable_video_sha256,
+                turntable_video_byte_size=(
+                    len(turntable_video_payload)
+                    if turntable_video_payload is not None
+                    else None
+                ),
+                turntable_video_mime_type=(
+                    TURNTABLE_VIDEO_MIME_TYPE
+                    if turntable_video_payload is not None
+                    else None
                 ),
                 manifest=manifest,
                 created_at=created_at,
@@ -507,6 +550,14 @@ class ConceptExportService:
             hashlib.sha256(payload).hexdigest(),
         )
 
+    def read_turntable_video(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(
+            export_id,
+            "Renders/turntable.mp4",
+            "Turntable MP4",
+        )
+        return payload, f"{export_id}-turntable.mp4", hashlib.sha256(payload).hexdigest()
+
     def _read_package_entry(self, export_id: str, path: str, label: str) -> bytes:
         package, _, _ = self.read_export(export_id)
         try:
@@ -540,7 +591,11 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
     )
     render_view_count = sum(entry.path.startswith("Renders/views/") for entry in manifest.files)
     turntable_frame_count = sum(
-        entry.path.startswith("Renders/turntable/") for entry in manifest.files
+        entry.path.startswith("Renders/turntable/frame-") for entry in manifest.files
+    )
+    turntable_video = next(
+        (entry for entry in manifest.files if entry.path == "Renders/turntable.mp4"),
+        None,
     )
     if combined is None:
         raise ConceptExportError(
@@ -569,6 +624,9 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         render_set_byte_size=render_set.byte_size if render_set else None,
         render_view_count=render_view_count if render_set else None,
         turntable_frame_count=turntable_frame_count if render_set else None,
+        turntable_video_sha256=(turntable_video.sha256 if turntable_video else None),
+        turntable_video_byte_size=(turntable_video.byte_size if turntable_video else None),
+        turntable_video_mime_type=(turntable_video.mime_type if turntable_video else None),
         manifest=manifest,
         created_at=row["created_at"],
     )

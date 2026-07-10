@@ -194,6 +194,21 @@ def build_export_router(service: ConceptExportService) -> APIRouter:
             },
         )
 
+    @router.get("/exports/{export_id}/turntable.mp4", response_model=None)
+    def download_turntable_video(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_turntable_video(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
     return router
 
 
@@ -212,7 +227,11 @@ def _export_error_response(exc: ConceptExportError) -> JSONResponse:
         "EXPORT_NOT_FOUND",
     }:
         status_code = 404
-    elif exc.code in {"EXPORT_SOURCE_UNAVAILABLE", "EXPORT_PACKAGE_UNAVAILABLE"}:
+    elif exc.code in {
+        "EXPORT_SOURCE_UNAVAILABLE",
+        "EXPORT_PACKAGE_UNAVAILABLE",
+        "VIDEO_ENCODER_UNAVAILABLE",
+    }:
         status_code = 503
     elif exc.code == "INVALID_REQUEST":
         status_code = 400

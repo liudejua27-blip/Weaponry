@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top 和 8 帧 turntable 导出 API 已实现；转台视频、正式渲染性能和完整 R5 检查矩阵尚未实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top、8 帧 turntable 和 MP4 导出 API 已实现；正式资产渲染性能、真实 DCC round-trip 和完整 R5 检查矩阵尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -158,7 +158,7 @@ npm run r5:quality-gate
 npm run r5:c07-intersection-gate
 ```
 
-`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、转台视频或 DCC round-trip。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:presentation-gate` 增加轮廓抗锯齿、软接触阴影、确定性 MP4 与 DCC 可用性预检；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、照片级渲染或真实 DCC round-trip。
 
 `r3:change-set-audit-gate` 专门验证 migration 0012、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、24 条桌面加载更多和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
@@ -204,14 +204,15 @@ GET /api/v1/exports/{export_id}/combined.mtl
 
 OBJ 坐标单位固定为米，与 combined GLB 一致。单独下载 OBJ 后还应下载同一 Export 的 `combined.mtl`；需要完整来源和哈希时应下载源 ZIP。MTL 只投影基础颜色、透明度、粗糙度近似高光和自发光，不等价于 glTF PBR 材质。
 
-创建导出时传 `"include_render_png": true`，透明预览和爆炸图写入 `Renders/preview.png`、`Renders/exploded.png`：
+创建导出时传 `"include_render_png": true`，透明预览和爆炸图写入 `Renders/preview.png`、`Renders/exploded.png`。需要 MP4 时同时传 `"include_turntable_video": true`；该选项依赖 FFmpeg，可用 `FORGECAD_FFMPEG_EXECUTABLE` 指定可执行文件：
 
 ```text
 GET /api/v1/exports/{export_id}/preview.png
 GET /api/v1/exports/{export_id}/exploded.png
+GET /api/v1/exports/{export_id}/turntable.mp4
 ```
 
-当前固定 640×640 RGBA8 三分之四技术预览。透明背景是 PNG alpha，不应以查看器显示的黑/白底判断失败；使用 alpha 像素或支持透明棋盘格的查看器确认。exploded 图的临时位移不创建新 Version。它不替代 Blender/Cycles、实时 Three.js 工作室渲染或正式营销图。
+当前固定 640×640 RGBA8 技术预览，使用确定性轮廓 coverage 和半透明软接触阴影。透明背景是 PNG alpha，不应以查看器显示的黑/白底判断失败；使用 alpha 像素或支持透明棋盘格的查看器确认。exploded 图的临时位移不创建新 Version。它不替代 Blender/Cycles、实时 Three.js 工作室渲染或正式营销图。
 
 同一 Export 还包含：
 
@@ -220,10 +221,21 @@ Renders/views/front.png
 Renders/views/side.png
 Renders/views/top.png
 Renders/turntable/frame-000.png ... frame-007.png
+Renders/turntable.mp4
 Renders/render-set.zip
 ```
 
-直接接口为 `/views/{view}.png`、`/turntable/{frame}.png` 和 `/renders.zip`。front 从 +Z 看向原点，side 从 +X，top 从 +Y；turntable 绕 Y 轴均匀采样 8 个方向。工作台首次创建完整交付包后，同一 Version 的格式下载复用该 Export；执行新 QualityRun 会清空桌面缓存的最近 Export，下一次下载自动创建包含新报告的包。
+直接接口为 `/views/{view}.png`、`/turntable/{frame}.png`、`/turntable.mp4` 和 `/renders.zip`。front 从 +Z 看向原点，side 从 +X，top 从 +Y；turntable 绕 Y 轴均匀采样 8 个方向，MP4 固定 8 fps。工作台首次创建完整交付包后，同一 Version 的格式下载复用该 Export；执行新 QualityRun 会清空桌面缓存的最近 Export，下一次下载自动创建包含新报告的包。
+
+真实 DCC 往返必须提供不可变 combined GLB；预检和强制门分别为：
+
+```bash
+npm run assets:dcc-roundtrip-preflight
+PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
+  --input-glb /absolute/path/to/combined.glb --require-dcc
+```
+
+只有输出 `dcc_roundtrip_validated` 才表示真实导入/再导出通过。`blocked_dcc_not_configured` 只是环境诊断；安装 Blender/Assimp 并设置 `FORGECAD_BLENDER_EXECUTABLE` 或 `FORGECAD_ASSIMP_EXECUTABLE` 后重跑。runner 拒绝覆盖输入和写入提交中的 Module Pack，并比较输入 SHA-256 与往返前后 vertex/triangle count。
 
 实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
 
@@ -401,7 +413,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位、未连接组件 triangle BVH/SAT 穿插与封闭网格包含，浏览器也验证 Finding 点击聚焦。OBJ/MTL、透明/爆炸 PNG、三正交视图和 8 帧 turntable 已完成首版；继续补异常间隙、对称、隐藏几何和 LOD 样本，以及转台视频、正式渲染性能与 HTML 报告。
+自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位、未连接组件 triangle BVH/SAT 穿插与封闭网格包含，浏览器也验证 Finding 点击聚焦。OBJ/MTL、透明/爆炸 PNG、三正交视图、8 帧 turntable、MP4、轮廓抗锯齿与软阴影已完成技术预览切片；继续补异常间隙、对称、隐藏几何和 LOD 样本、正式资产渲染性能、真实 DCC 往返与 HTML 报告。
 
 ### Day 7：桌面回归
 

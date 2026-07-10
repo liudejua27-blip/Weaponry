@@ -13,7 +13,7 @@
 - `App.tsx` 已从约 706 行缩为 21 行组合根；AppShell、Hash route、Runtime/JobEvent/Selection Providers、旧工作台控制器/渲染、任务持久化、资产选择器和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top 与 8 帧 turntable 已实现；最终高质量资产、AI 方案质量和转台视频尚未实现；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；最终高质量资产、AI 方案质量、纹理交换和真实 DCC round-trip 尚未实现；
 - `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter、`.blend` metadata、只读 re-export 与真实构建入口已实现，但当前机器未配置 Blender，正式资产本身尚未生成；
 - 服务端 `weapon-concept-geometry/1.1` 已从版本绑定的内容寻址 GLB 计算 Mesh/Assembly Findings，包含未连接组件 triangle BVH/SAT/containment，并由桌面 Finding 触发节点聚焦；异常间隙、对称/隐藏几何/LOD 和局部 triangle 高亮尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
@@ -49,6 +49,7 @@
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
 | R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
+| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；DCC preflight 已实现，当前环境无 Blender/Assimp，未声称真实 round-trip |
 | R5 Mesh/Assembly quality | 精确穿插切片完成 | immutable GLB decode、indices/degenerate/normal/UV/topology/bounds、Connector alignment、未直连组件 triangle BVH/SAT/closed-mesh containment、Finding 点击聚焦、JobEvent/restart、desktop E2E |
 
 ## 2. 执行硬规则
@@ -318,7 +319,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 1. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，先完成 core + 两个 front，再逐个替换 GLB 和缩略图。
 2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
 3. 为 ChangeSet 审计增加 actor/provider provenance、批量报告导出和长期归档策略；分页、搜索、状态/操作过滤、rejected/stale diagnostic 与重启恢复已完成。
-4. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
+4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；安装 Blender 或 Assimp 后执行真实只读 round-trip，再评估纹理交换与 glTF Transform/Meshopt。转台 MP4、确定性轮廓抗锯齿、软接触阴影和 DCC 预检代码已完成。
 5. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
 6. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。

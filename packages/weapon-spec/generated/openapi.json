@@ -911,6 +911,40 @@
             ],
             "title": "Turntable Frame Count"
           },
+          "turntable_video_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Byte Size"
+          },
+          "turntable_video_mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Mime Type"
+          },
+          "turntable_video_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Sha256"
+          },
           "version_id": {
             "title": "Version Id",
             "type": "string"
@@ -1487,6 +1521,11 @@
           "include_render_png": {
             "default": false,
             "title": "Include Render Png",
+            "type": "boolean"
+          },
+          "include_turntable_video": {
+            "default": false,
+            "title": "Include Turntable Video",
             "type": "boolean"
           },
           "profile": {
@@ -6959,6 +6998,46 @@
           }
         },
         "summary": "Download Render Set",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/turntable.mp4": {
+      "get": {
+        "operationId": "download_turntable_video_api_v1_exports__export_id__turntable_mp4_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Turntable Video",
         "tags": [
           "concept-exports"
         ]

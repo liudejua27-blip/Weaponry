@@ -153,6 +153,9 @@ export type ConceptExportRecord = {
   "render_set_byte_size"?: number | null
   "render_view_count"?: number | null
   "turntable_frame_count"?: number | null
+  "turntable_video_sha256"?: string | null
+  "turntable_video_byte_size"?: number | null
+  "turntable_video_mime_type"?: string | null
   "manifest": ConceptExportManifest
   "created_at": string
 }
@@ -257,6 +260,7 @@ export type CreateConceptExportRequest = {
   "include_combined_glb"?: true
   "include_combined_obj"?: boolean
   "include_render_png"?: boolean
+  "include_turntable_video"?: boolean
   "include_quality_report"?: boolean
 }
 

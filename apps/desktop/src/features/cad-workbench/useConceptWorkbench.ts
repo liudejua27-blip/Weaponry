@@ -270,6 +270,7 @@ export function useConceptWorkbench() {
         include_combined_glb: true,
         include_combined_obj: true,
         include_render_png: true,
+        include_turntable_video: true,
         include_quality_report: true,
       })
       setState((current) => ({

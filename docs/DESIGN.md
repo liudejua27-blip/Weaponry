@@ -411,6 +411,7 @@ GET    /api/v1/exports/{export_id}/preview.png
 GET    /api/v1/exports/{export_id}/exploded.png
 GET    /api/v1/exports/{export_id}/views/{front|side|top}.png
 GET    /api/v1/exports/{export_id}/turntable/{0..7}.png
+GET    /api/v1/exports/{export_id}/turntable.mp4
 GET    /api/v1/exports/{export_id}/renders.zip
 GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
@@ -538,7 +539,11 @@ combined GLB 第一切片合并静态 GLB 的 bufferView/accessor/mesh/material/
 
 combined OBJ 第一切片以同一份 combined GLB 为输入，递归扁平化 scene graph，将节点 matrix/TRS、非均匀缩放和镜像烘焙进顶点；法线使用逆转置矩阵并归一化，负行列式变换翻转三角面序。OBJ 固定声明米制，保留 `NODE_{node_id}__{module_id}` 路径、`v/vt/vn/f` 和稳定 material 名；PBR factor 确定性投影为配套 MTL。OBJ/MTL 进入同一不可变 ZIP 和 Manifest，并提供独立下载。该转换不支持 sparse accessor、非 TRIANGLES primitive、morph、skin、animation 或贴图搬运；MTL 是有损交换格式，不替代源 GLB。
 
-PNG 第一切片继续以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 Agent 内软件光栅化。固定输出 640×640 RGBA8、透明背景、三分之四正交投影、自动取景、z-buffer、基础材质颜色和简单方向光。exploded render 只复制 GLB JSON，在临时 wrapper translation 上按装配中心径向增加确定性距离；中心重合时用 node ID hash 生成稳定方向，不修改 ModuleGraph、Version 或源 GLB。第二切片增加固定 `front(+Z) / side(+X) / top(+Y)` 三个正交视图和绕 Y 轴均匀采样的 8 帧 turntable；13 张图与 `render-set.zip` 全部进入同一 Manifest。桌面在 Version 未变化且所需工件存在时复用最近 Export，避免各格式形成不同交付真相。当前渲染器仍是可追溯技术预览，不是照片级渲染；不含阴影、贴图、抗锯齿或转台视频。
+PNG 管线以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 Agent 内软件光栅化。固定输出 640×640 RGBA8、透明背景、正交投影、自动取景、z-buffer、基础材质颜色和方向光。exploded render 只复制 GLB JSON，在临时 wrapper translation 上按装配中心径向增加确定性距离；中心重合时用 node ID hash 生成稳定方向，不修改 ModuleGraph、Version 或源 GLB。固定 `front(+Z) / side(+X) / top(+Y)` 三个正交视图和绕 Y 轴均匀采样的 8 帧 turntable 与 preview/exploded 共 13 张图。
+
+展示交付切片在透明轮廓外缘增加固定 coverage 像素，并在非 top 相机下绘制确定性半透明软接触阴影；算法和模式进入 Export metadata/JobEvent，避免把技术预览写成照片级渲染。请求显式设置 `include_turntable_video=true` 时，Agent 通过配置的 FFmpeg 以固定 8 fps、单线程 H.264 参数和移除时间元数据的方式生成 `Renders/turntable.mp4`；视频和 13 张 PNG 一同进入 `render-set.zip`、主 ZIP 与 Manifest。旧请求默认不依赖 FFmpeg；视频请求在编码器缺失时返回结构化 `VIDEO_ENCODER_UNAVAILABLE`。桌面在 Version 未变化且所需工件存在时复用最近 Export，避免各格式形成不同交付真相。
+
+`scripts/check_dcc_roundtrip.py` 是只读交付门：发现 Blender/Assimp 后将显式输入的 combined GLB 导入再导出，校验源 SHA-256 未变化、输出 GLB 2.0 可读且 flatten 后 vertex/triangle count 一致。没有 DCC 时只返回 `blocked_dcc_not_configured`；这不构成 round-trip 证据。当前渲染器仍不含贴图、PBR 环境光或照片级材质。
 
 ## 14. 验证策略
 

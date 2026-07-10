@@ -21,6 +21,7 @@ from forgecad_agent.application.combined_glb import (
 )
 from forgecad_agent.application.combined_obj import CombinedObjError, build_combined_obj
 from forgecad_agent.application.concept_renderer import render_concept_pngs
+from forgecad_agent.application.concept_video import encode_turntable_mp4
 from forgecad_agent.domain.concepts.models import ModuleGraph, Transform
 
 from smoke_r2_concept_projects import (
@@ -137,6 +138,7 @@ def main() -> int:
                 "include_combined_glb": True,
                 "include_combined_obj": True,
                 "include_render_png": True,
+                "include_turntable_video": True,
                 "include_quality_report": True,
             }
             created = _json_request(
@@ -171,6 +173,15 @@ def main() -> int:
                 "export render event lost exploded distance",
             )
             _assert(
+                render_event["metadata"]["antialias_mode"]
+                == "deterministic_edge_coverage",
+                "export render event lost anti-aliasing mode",
+            )
+            _assert(
+                render_event["metadata"]["shadow_mode"] == "soft_contact_alpha",
+                "export render event lost shadow mode",
+            )
+            _assert(
                 job["events"][-1]["artifact_asset_id"] == created["package_asset_id"],
                 "export artifact was not linked from JobEvent@2",
             )
@@ -199,6 +210,7 @@ def main() -> int:
                     "Renders/preview.png",
                     "Renders/exploded.png",
                     "Renders/render-set.zip",
+                    "Renders/turntable.mp4",
                     "Quality/model-quality-report.json",
                     "README.txt",
                 }
@@ -292,6 +304,10 @@ def main() -> int:
                     "preview transparency mismatch",
                 )
                 _assert(
+                    preview_stats[4] > 0,
+                    "preview contains no partial-alpha anti-alias/shadow pixels",
+                )
+                _assert(
                     exploded_stats[2] > 0 and exploded_stats[3] > 0,
                     "exploded transparency mismatch",
                 )
@@ -349,6 +365,24 @@ def main() -> int:
                     len(set(turntable_frames)) == 8,
                     "turntable frames are not all distinct",
                 )
+                turntable_video = archive.read("Renders/turntable.mp4")
+                _assert(
+                    turntable_video[4:8] == b"ftyp",
+                    "turntable video is not an MP4 container",
+                )
+                _assert(
+                    hashlib.sha256(turntable_video).hexdigest()
+                    == created["turntable_video_sha256"],
+                    "turntable video hash mismatch",
+                )
+                _assert(
+                    len(turntable_video) == created["turntable_video_byte_size"],
+                    "turntable video size mismatch",
+                )
+                _assert(
+                    created["turntable_video_mime_type"] == "video/mp4",
+                    "turntable video MIME mismatch",
+                )
                 render_set = archive.read("Renders/render-set.zip")
                 _assert(
                     hashlib.sha256(render_set).hexdigest()
@@ -383,6 +417,10 @@ def main() -> int:
                             == payload,
                             f"render set frame {index} mismatch",
                         )
+                    _assert(
+                        render_archive.read("turntable.mp4") == turntable_video,
+                        "render set turntable video mismatch",
+                    )
                 rerendered = render_concept_pngs(combined_payload)
                 _assert(
                     rerendered.preview_png == preview_png,
@@ -399,6 +437,10 @@ def main() -> int:
                 _assert(
                     list(rerendered.turntable_frames) == turntable_frames,
                     "turntable render is not deterministic",
+                )
+                _assert(
+                    encode_turntable_mp4(rerendered.turntable_frames) == turntable_video,
+                    "turntable video is not deterministic",
                 )
                 for entry in manifest["files"]:
                     payload = archive.read(entry["path"])
@@ -440,6 +482,11 @@ def main() -> int:
                 _download_turntable_frame(base_url, created["export_id"], 3)
                 == turntable_frames[3],
                 "direct turntable frame mismatch",
+            )
+            _assert(
+                _download_turntable_video(base_url, created["export_id"])
+                == turntable_video,
+                "direct turntable video mismatch",
             )
             invalid_status, invalid_view = _json_request_allow_error(
                 base_url,
@@ -566,6 +613,11 @@ def main() -> int:
                 == turntable_frames[7],
                 "restart turntable frame mismatch",
             )
+            _assert(
+                _download_turntable_video(restart_url, created["export_id"])
+                == turntable_video,
+                "restart turntable video mismatch",
+            )
         finally:
             _stop_agent(restarted_process)
 
@@ -587,6 +639,7 @@ def main() -> int:
                     "transparent_png_verified": True,
                     "orthographic_views": sorted(view_pngs),
                     "turntable_frame_count": len(turntable_frames),
+                    "turntable_video_sha256": created["turntable_video_sha256"],
                     "render_set_sha256": created["render_set_sha256"],
                     "unsupported_feature_rejected": True,
                     "restart_restored": True,
@@ -704,7 +757,20 @@ def _download_turntable_frame(base_url: str, export_id: str, frame_index: int) -
         return response.read()
 
 
-def _png_stats(payload: bytes) -> tuple[int, int, int, int]:
+def _download_turntable_video(base_url: str, export_id: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/turntable.mp4",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, "turntable video download failed")
+        _assert(
+            response.headers.get_content_type() == "video/mp4",
+            "turntable video MIME mismatch",
+        )
+        return response.read()
+
+
+def _png_stats(payload: bytes) -> tuple[int, int, int, int, int]:
     _assert(payload.startswith(b"\x89PNG\r\n\x1a\n"), "PNG signature mismatch")
     offset = 8
     width = height = 0
@@ -730,14 +796,15 @@ def _png_stats(payload: bytes) -> tuple[int, int, int, int]:
             break
     raw = zlib.decompress(bytes(compressed))
     stride = width * 4
-    opaque = transparent = 0
+    opaque = transparent = partial = 0
     for row in range(height):
         start = row * (stride + 1)
         _assert(raw[start] == 0, "PNG smoke only supports deterministic filter 0")
         alpha = raw[start + 4 : start + stride + 1 : 4]
         opaque += sum(value > 0 for value in alpha)
         transparent += sum(value == 0 for value in alpha)
-    return width, height, opaque, transparent
+        partial += sum(0 < value < 255 for value in alpha)
+    return width, height, opaque, transparent, partial
 
 
 def _assert_obj_transform_and_mirror(graph: ModuleGraph, payload: bytes) -> None:

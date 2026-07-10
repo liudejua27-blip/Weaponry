@@ -53,6 +53,8 @@
     "assets:blender-reexport": ".venv/bin/python scripts/export_blender_starter_pack.py --execute --require-blender",
     "assets:blender-reexport-smoke": ".venv/bin/python scripts/smoke_blender_reexport_preflight.py",
     "assets:blender-authoring-preflight-gate": "npm run assets:blender-starter-preflight && npm run assets:blender-reexport-preflight && npm run assets:blender-reexport-smoke",
+    "assets:dcc-roundtrip-preflight": "PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py",
+    "assets:dcc-roundtrip-require": "PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py --require-dcc",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
@@ -95,6 +97,7 @@
     "r5:obj-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:render-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:multiview-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
+    "r5:presentation-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run assets:dcc-roundtrip-preflight && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:quality-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:c07-intersection-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke"
   },

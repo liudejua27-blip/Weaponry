@@ -479,6 +479,23 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (renderSetHeader.subarray(0, 2).toString('ascii') !== 'PK') {
       throw new Error('render set ZIP header is invalid')
     }
+    if (!deliveryRecord.turntable_video_sha256 || deliveryRecord.turntable_video_mime_type !== 'video/mp4') {
+      throw new Error('delivery export did not report a turntable MP4')
+    }
+    const videoDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载转台 MP4' }).click()
+    const videoDownload = await videoDownloadPromise
+    if (!videoDownload.suggestedFilename().endsWith('-turntable.mp4')) {
+      throw new Error(`unexpected turntable MP4 filename: ${videoDownload.suggestedFilename()}`)
+    }
+    const videoDownloadPath = await videoDownload.path()
+    if (!videoDownloadPath || (await stat(videoDownloadPath)).size < 1_000) {
+      throw new Error('turntable MP4 is unexpectedly small')
+    }
+    const videoHeader = await readFile(videoDownloadPath)
+    if (videoHeader.subarray(4, 8).toString('ascii') !== 'ftyp') {
+      throw new Error('turntable MP4 header is invalid')
+    }
     const visualArtifacts = [
       ['front', `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/views/front.png`, FRONT_RENDER],
       ['top', `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/views/top.png`, TOP_RENDER],
@@ -525,6 +542,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       preview_render: PREVIEW_RENDER,
       exploded_render: EXPLODED_RENDER,
       render_set_downloaded: true,
+      turntable_video_downloaded: true,
       export_reuse_verified: true,
       orthographic_renders: { front: FRONT_RENDER, top: TOP_RENDER },
       turntable_render: TURNTABLE_RENDER,

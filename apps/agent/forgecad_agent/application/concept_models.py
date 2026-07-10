@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from forgecad_agent.domain.concepts.models import (
     ConceptExportManifest,
@@ -290,7 +290,14 @@ class CreateConceptExportRequest(StrictApiModel):
     include_combined_glb: Literal[True] = True
     include_combined_obj: bool = False
     include_render_png: bool = False
+    include_turntable_video: bool = False
     include_quality_report: bool = True
+
+    @model_validator(mode="after")
+    def validate_render_options(self) -> "CreateConceptExportRequest":
+        if self.include_turntable_video and not self.include_render_png:
+            raise ValueError("include_turntable_video requires include_render_png")
+        return self
 
 
 class ConceptExportRecord(StrictApiModel):
@@ -315,5 +322,8 @@ class ConceptExportRecord(StrictApiModel):
     render_set_byte_size: Optional[int] = Field(default=None, ge=0)
     render_view_count: Optional[int] = Field(default=None, ge=0)
     turntable_frame_count: Optional[int] = Field(default=None, ge=0)
+    turntable_video_sha256: Optional[str] = None
+    turntable_video_byte_size: Optional[int] = Field(default=None, ge=0)
+    turntable_video_mime_type: Optional[str] = None
     manifest: ConceptExportManifest
     created_at: str
