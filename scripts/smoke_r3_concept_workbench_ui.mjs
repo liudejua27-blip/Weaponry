@@ -52,7 +52,27 @@ async function main() {
     processes.push(vite)
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
     const result = await runWorkbenchUi(viteBaseUrl, seeded)
-    console.log(JSON.stringify({ ok: true, ...seeded, ...result }, null, 2))
+    await stopProcess(agent)
+    const restartPort = await freePort()
+    const restartBaseUrl = `http://127.0.0.1:${restartPort}`
+    const restartedAgent = spawn(
+      join(ROOT, '.venv', 'bin', 'python'),
+      ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(restartPort)],
+      {
+        cwd: ROOT,
+        env: {
+          ...process.env,
+          WUSHEN_LIBRARY_ROOT: libraryRoot,
+          WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
+          WUSHEN_LOCAL_WORKER_ENABLED: '0',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    processes.push(restartedAgent)
+    await waitForHttp(`${restartBaseUrl}/api/health`, restartedAgent, 'restarted agent health')
+    const restartVerified = await verifyReplacement(restartBaseUrl, seeded.project_id)
+    console.log(JSON.stringify({ ok: true, ...seeded, ...result, restart_verified: restartVerified }, null, 2))
   } finally {
     await Promise.all(processes.reverse().map(stopProcess))
     await rm(tempRoot, { recursive: true, force: true })
@@ -105,6 +125,14 @@ async function seedConceptGraph(baseUrl) {
       color: [0.12, 0.16, 0.2, 1],
       scale: [28, 62, 25],
       connectors: [connector('connector_grip_core', 'grip.core', 'grip_mount')],
+    },
+    {
+      moduleId: 'module_front_shell_02',
+      assetId: 'asset_front_shell_02',
+      category: 'front_shell',
+      color: [0.42, 0.22, 0.16, 1],
+      scale: [68, 18, 24],
+      connectors: [connector('connector_front_alt_core', 'front.core', 'shell_mount')],
     },
   ]
 
@@ -205,6 +233,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
       'module_core_shell_01',
       'module_front_shell_01',
       'module_grip_shell_01',
+      'module_front_shell_02',
     ])
     await assertText(page.locator('.cad-status-bar'), ['3 nodes', '单位：mm'])
 
@@ -219,6 +248,44 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
 
+    await page.getByRole('button', { name: /module_front_shell_02/ }).click()
+    const replaceButton = page.getByRole('button', { name: '替换并创建新版本' })
+    if (await replaceButton.isDisabled()) throw new Error('compatible replacement action was disabled')
+    const confirmResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
+    )
+    await replaceButton.click()
+    const confirmResponse = await confirmResponsePromise
+    if (!confirmResponse.ok()) throw new Error(`ChangeSet confirm failed: ${confirmResponse.status()}`)
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('替换已确认并创建新版本'),
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('.cad-left-rail'), ['V3', 'ChangeSet: change_desktop_replace_'])
+    await assertText(page.locator('.cad-status-bar'), ['node_front'])
+    await page.getByRole('button', { name: '参数', exact: true }).click()
+    const inspectorValuesAfterReplace = await page.locator('.properties-panel .wide-field input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (inspectorValuesAfterReplace[1] !== 'module_front_shell_02') {
+      throw new Error(`replacement was not reflected in inspector: ${JSON.stringify(inspectorValuesAfterReplace)}`)
+    }
+    const canvas = page.locator('.weapon-viewport canvas')
+    const canvasBox = await canvas.boundingBox()
+    if (!canvasBox || canvasBox.width < 400 || canvasBox.height < 300) {
+      throw new Error(`ModuleGraph canvas is not usable: ${JSON.stringify(canvasBox)}`)
+    }
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.screenshot({ path: SCREENSHOT, fullPage: true })
+    if ((await stat(SCREENSHOT)).size < 20_000) throw new Error('R3 workbench screenshot is unexpectedly small')
+
+    await page.getByRole('button', { name: 'Connector' }).click()
+    await page.getByRole('button', { name: '隐藏' }).click()
+    await page.getByRole('button', { name: '显示' }).click()
+    await page.getByRole('button', { name: '聚焦' }).click()
+    await page.getByRole('button', { name: '连接' }).click()
+    await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
+
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
     const download = await downloadPromise
@@ -229,23 +296,39 @@ async function runWorkbenchUi(baseUrl, seeded) {
     if (!downloadPath || (await stat(downloadPath)).size < 500) throw new Error('concept export download is empty')
     await assertText(page.locator('.export-panel'), ['export_', 'SOURCE ZIP'])
 
-    const canvas = page.locator('.weapon-viewport canvas')
-    const canvasBox = await canvas.boundingBox()
-    if (!canvasBox || canvasBox.width < 400 || canvasBox.height < 300) {
-      throw new Error(`ModuleGraph canvas is not usable: ${JSON.stringify(canvasBox)}`)
-    }
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({ path: SCREENSHOT, fullPage: true })
-    if ((await stat(SCREENSHOT)).size < 20_000) throw new Error('R3 workbench screenshot is unexpectedly small')
     if (browserErrors.length) throw new Error(`browser page errors: ${browserErrors.join(' | ')}`)
     return {
       screenshot: SCREENSHOT,
       viewport: { width: 1536, height: 1024 },
       selected_node_id: 'node_front',
+      replacement_module_id: 'module_front_shell_02',
       export_downloaded: true,
     }
   } finally {
     await browser.close()
+  }
+}
+
+async function verifyReplacement(baseUrl, projectId) {
+  const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
+  if ((project.versions ?? []).length !== 3) {
+    throw new Error(`replacement should create V3, got ${(project.versions ?? []).length} versions`)
+  }
+  const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
+  const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
+  const frontNode = graph.graph.nodes.find((node) => node.node_id === 'node_front')
+  const frontEdge = graph.graph.edges.find((edge) => edge.to_node_id === 'node_front')
+  if (frontNode?.module_id !== 'module_front_shell_02') {
+    throw new Error(`restart restored wrong front module: ${frontNode?.module_id}`)
+  }
+  if (frontEdge?.to_connector_id !== 'connector_front_alt_core') {
+    throw new Error(`replacement connector was not remapped: ${frontEdge?.to_connector_id}`)
+  }
+  return {
+    version_id: version.version_id,
+    graph_id: graph.graph.graph_id,
+    module_id: frontNode.module_id,
+    connector_id: frontEdge.to_connector_id,
   }
 }
 

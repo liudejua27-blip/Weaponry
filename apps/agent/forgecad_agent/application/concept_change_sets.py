@@ -140,10 +140,17 @@ class ConceptChangeSetService:
 
             base_spec = WeaponConceptSpec.model_validate_json(version["spec_json"])
             base_graph = ModuleGraph.model_validate_json(graph_row["graph_json"])
+            _assert_locked_nodes_unchanged(base_graph, change_set)
             preview_spec, preview_graph = _apply_change_set(
                 base_spec,
                 base_graph,
                 change_set,
+            )
+            preview_graph = _remap_replaced_connectors(
+                unit_of_work,
+                base_graph=base_graph,
+                preview_graph=preview_graph,
+                change_set=change_set,
             )
             project = unit_of_work.concept_projects.get_active(change_set.project_id)
             if project is None:
@@ -339,6 +346,94 @@ def _apply_change_set(
             "CHANGE_SET_INVALID",
             f"ChangeSet produced an invalid Concept contract: {exc.errors()[0]['msg']}",
         ) from exc
+
+
+def _assert_locked_nodes_unchanged(
+    base_graph: ModuleGraph,
+    change_set: DesignChangeSet,
+) -> None:
+    locked_node_ids = {node.node_id for node in base_graph.nodes if node.locked}
+    protected_operations = {"remove_module", "replace_module", "set_transform"}
+    for operation in change_set.operations:
+        if operation.op in protected_operations and operation.node_id in locked_node_ids:
+            raise ConceptChangeSetError(
+                "CHANGE_SET_INVALID",
+                f"Locked ModuleGraph node cannot be changed: {operation.node_id}",
+            )
+
+
+def _remap_replaced_connectors(
+    unit_of_work: SQLiteUnitOfWork,
+    *,
+    base_graph: ModuleGraph,
+    preview_graph: ModuleGraph,
+    change_set: DesignChangeSet,
+) -> ModuleGraph:
+    base_nodes = {node.node_id: node for node in base_graph.nodes}
+    graph_payload = preview_graph.model_dump(mode="json")
+    for operation in change_set.operations:
+        if operation.op != "replace_module" or not operation.node_id or not operation.module_id:
+            continue
+        base_node = base_nodes.get(operation.node_id)
+        if base_node is None:
+            continue
+        connector_rows = unit_of_work.modules.connector_map(
+            [base_node.module_id, operation.module_id]
+        )
+        old_connectors = {
+            connector_id: row
+            for connector_id, row in connector_rows.items()
+            if row["module_id"] == base_node.module_id
+        }
+        new_connectors = [
+            row
+            for row in connector_rows.values()
+            if row["module_id"] == operation.module_id
+        ]
+        for edge in graph_payload["edges"]:
+            if edge["from_node_id"] == operation.node_id:
+                edge["from_connector_id"] = _replacement_connector_id(
+                    old_connectors,
+                    new_connectors,
+                    edge["from_connector_id"],
+                    operation.node_id,
+                )
+            if edge["to_node_id"] == operation.node_id:
+                edge["to_connector_id"] = _replacement_connector_id(
+                    old_connectors,
+                    new_connectors,
+                    edge["to_connector_id"],
+                    operation.node_id,
+                )
+    return ModuleGraph.model_validate(graph_payload)
+
+
+def _replacement_connector_id(
+    old_connectors: dict[str, Any],
+    new_connectors: list[Any],
+    old_connector_id: str,
+    node_id: str,
+) -> str:
+    old = old_connectors.get(old_connector_id)
+    if old is None:
+        raise ConceptChangeSetError(
+            "CHANGE_SET_INVALID",
+            f"Cannot resolve existing connector {old_connector_id} on {node_id}.",
+        )
+    matches = [
+        row
+        for row in new_connectors
+        if row["slot"] == old["slot"] and row["connector_type"] == old["connector_type"]
+    ]
+    if len(matches) != 1:
+        raise ConceptChangeSetError(
+            "CHANGE_SET_INVALID",
+            (
+                f"Replacement module must expose exactly one compatible connector for "
+                f"{old['slot']} ({old['connector_type']}); found {len(matches)}."
+            ),
+        )
+    return str(matches[0]["connector_id"])
 
 
 def _apply_operation(

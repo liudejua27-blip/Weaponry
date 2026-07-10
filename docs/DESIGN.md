@@ -363,7 +363,7 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
 
-当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export，并通过 `/brief:interpret`、`/variants` 和 `:select` 完成确定性 A/B/C 数据闭环。桌面 `#/cad` 已通过强类型 API 加载版本 Spec、Graph 和不可变 GLB，以 raycast 同步节点选择，并显示真实 Connector 与源包导出。Variant generator 仍是 R2 模板基线；隐藏、替换、吸附、爆炸视图和正式资产质量仍属于后续 R3。
+当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦和 Connector overlay。兼容模块替换走 `DesignChangeSet → preview → confirm`，后端按相同 slot 与 connector type 重映射 edge，并创建不可变子版本；锁定节点由服务端强制保护。拖放、镜像、爆炸视图和正式资产质量仍属于后续 R3。
 
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 

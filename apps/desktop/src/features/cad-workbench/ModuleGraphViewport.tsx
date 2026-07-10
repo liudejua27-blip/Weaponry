@@ -2,26 +2,34 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { ModuleGraphRecord } from '../../shared/types'
+import type { ModuleAssetRecord, ModuleGraphRecord } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 
 type ModuleGraphViewportProps = {
   graphRecord: ModuleGraphRecord | null
+  modules: ModuleAssetRecord[]
   cameraView: CameraView
   showGrid: boolean
   wireframe: boolean
   selectedNodeId: string
+  hiddenNodeIds: string[]
+  focusNodeId: string | null
+  showConnectors: boolean
   getModuleFileUrl: (moduleId: string) => string
   onSelectNode: (nodeId: string) => void
 }
 
 export function ModuleGraphViewport({
   graphRecord,
+  modules,
   cameraView,
   showGrid,
   wireframe,
   selectedNodeId,
+  hiddenNodeIds,
+  focusNodeId,
+  showConnectors,
   getModuleFileUrl,
   onSelectNode,
 }: ModuleGraphViewportProps) {
@@ -90,7 +98,7 @@ export function ModuleGraphViewport({
           object.position.set(px, py, pz)
           object.rotation.set(rx, ry, rz)
           object.scale.set(sx, sy, sz)
-          object.visible = node.visible !== false
+          object.visible = node.visible !== false && !hiddenNodeIds.includes(node.node_id)
           object.traverse((child) => {
             child.userData.nodeId = node.node_id
             if (!(child instanceof THREE.Mesh)) return
@@ -108,6 +116,32 @@ export function ModuleGraphViewport({
             })
             child.material = Array.isArray(child.material) ? materials : materials[0]
           })
+          if (showConnectors) {
+            const moduleRecord = modules.find(
+              (item) => item.manifest.module_id === node.module_id,
+            )
+            const markerRadius = Math.max(
+              ...(moduleRecord?.manifest.bounds_mm ?? [10]),
+            ) * 0.035
+            for (const connector of moduleRecord?.manifest.connectors ?? []) {
+              const marker = new THREE.Mesh(
+                new THREE.SphereGeometry(Math.max(markerRadius, 0.5), 16, 12),
+                new THREE.MeshBasicMaterial({
+                  color: connector.exclusive === false ? '#f1b84b' : '#42c8ff',
+                  depthTest: false,
+                  transparent: true,
+                  opacity: 0.9,
+                }),
+              )
+              const [cx = 0, cy = 0, cz = 0] = connector.transform.position
+              marker.position.set(cx, cy, cz)
+              marker.name = connector.connector_id
+              marker.renderOrder = 10
+              marker.userData.nodeId = node.node_id
+              marker.userData.connectorId = connector.connector_id
+              object.add(marker)
+            }
+          }
           moduleRoot.add(object)
           resolve()
         },
@@ -120,7 +154,9 @@ export function ModuleGraphViewport({
       Promise.all(graph.nodes.map(loadNode))
         .then(() => {
           if (disposed) return
-          const bounds = new THREE.Box3().setFromObject(moduleRoot)
+          const focusObject = focusNodeId ? moduleRoot.getObjectByName(focusNodeId) : null
+          let bounds = new THREE.Box3().setFromObject(focusObject ?? moduleRoot)
+          if (bounds.isEmpty() && focusObject) bounds = new THREE.Box3().setFromObject(moduleRoot)
           if (bounds.isEmpty()) {
             setLoadState('failed')
             setLoadMessage('ModuleGraph 已加载，但 GLB 中没有可显示网格')
@@ -185,7 +221,19 @@ export function ModuleGraphViewport({
       renderer.dispose()
       renderer.domElement.remove()
     }
-  }, [cameraView, getModuleFileUrl, graphRecord, onSelectNode, selectedNodeId, showGrid, wireframe])
+  }, [
+    cameraView,
+    focusNodeId,
+    getModuleFileUrl,
+    graphRecord,
+    hiddenNodeIds,
+    modules,
+    onSelectNode,
+    selectedNodeId,
+    showConnectors,
+    showGrid,
+    wireframe,
+  ])
 
   return (
     <div className="weapon-viewport-shell">

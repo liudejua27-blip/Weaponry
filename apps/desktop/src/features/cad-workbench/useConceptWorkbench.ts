@@ -250,6 +250,79 @@ export function useConceptWorkbench() {
     }
   }, [state.version])
 
+  const replaceModule = useCallback(async (nodeId: string, moduleId: string) => {
+    const project = state.project
+    const version = state.version
+    const graph = state.graphRecord?.graph
+    if (!project || !version || !graph) {
+      setState((current) => ({ ...current, error: '必须先加载 Project、Version 与 ModuleGraph。' }))
+      return null
+    }
+    const node = graph.nodes.find((item) => item.node_id === nodeId)
+    if (!node) {
+      setState((current) => ({ ...current, error: `Graph 节点不存在：${nodeId}` }))
+      return null
+    }
+    if (node.locked) {
+      setState((current) => ({ ...current, error: `节点 ${nodeId} 已锁定，不能替换。` }))
+      return null
+    }
+    if (node.module_id === moduleId) {
+      setState((current) => ({ ...current, error: '候选模块与当前节点模块相同。' }))
+      return null
+    }
+
+    const suffix = Date.now().toString(36)
+    const clientRequestId = `desktop-replace-${suffix}`
+    const changeSetId = `change_desktop_replace_${suffix}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在预览 ${node.module_id} → ${moduleId}…`,
+    }))
+    try {
+      const proposed = await forgeApi.proposeChangeSet(version.version_id, {
+        client_request_id: clientRequestId,
+        change_set: {
+          schema_version: 'DesignChangeSet@1',
+          change_set_id: changeSetId,
+          project_id: project.project_id,
+          base_version_id: version.version_id,
+          summary: `Replace ${node.module_id} with ${moduleId} on ${nodeId}.`,
+          operations: [{
+            operation_id: `op_replace_${suffix}`,
+            op: 'replace_module',
+            node_id: nodeId,
+            module_id: moduleId,
+          }],
+          protected_node_ids: graph.nodes.filter((item) => item.locked).map((item) => item.node_id),
+          status: 'proposed',
+        },
+      })
+      await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
+      const confirmed = await forgeApi.confirmChangeSet(
+        proposed.change_set_id,
+        `${clientRequestId}-confirm`,
+      )
+      const nextVersionId = confirmed.project.current_version_id ?? undefined
+      await loadProject(project.project_id, nextVersionId)
+      setState((current) => ({
+        ...current,
+        statusMessage: `替换已确认并创建新版本：${nextVersionId ?? 'unknown'}。`,
+      }))
+      return confirmed
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '模块替换 preview/confirm 失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.graphRecord, state.project, state.version])
+
   return {
     ...state,
     refresh,
@@ -257,6 +330,7 @@ export function useConceptWorkbench() {
     selectVersion,
     createStarterProject,
     createExport,
+    replaceModule,
   }
 }
 

@@ -35,6 +35,10 @@ import type {
   DesignVariantListResponse,
   CreateConceptExportRequest,
   ConceptExportRecord,
+  ProposeChangeSetRequest,
+  DesignChangeSet,
+  ChangeSetPreviewResponse,
+  ChangeSetConfirmResponse,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -133,6 +137,37 @@ export class ForgeApiClient {
 
   getConceptExportFileUrl(exportId: string): string {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/file`
+  }
+
+  async proposeChangeSet(
+    versionId: string,
+    input: ProposeChangeSetRequest,
+  ): Promise<DesignChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/change-sets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignChangeSet>(response)
+  }
+
+  async previewChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetPreviewResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:preview`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<ChangeSetPreviewResponse>(response)
+  }
+
+  async confirmChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetConfirmResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:confirm`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<ChangeSetConfirmResponse>(response)
   }
 
   async createWeapon(input: CreateWeaponRequest): Promise<CreateWeaponResponse> {

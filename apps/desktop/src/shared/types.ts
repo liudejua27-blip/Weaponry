@@ -44,6 +44,10 @@ export type DesignVariantListResponse = Api.DesignVariantListResponse
 export type DesignVariantRecord = Api.DesignVariantRecord
 export type CreateConceptExportRequest = Api.CreateConceptExportRequest
 export type ConceptExportRecord = Api.ConceptExportRecord
+export type DesignChangeSet = Api.DesignChangeSet
+export type ProposeChangeSetRequest = Api.ProposeChangeSetRequest
+export type ChangeSetPreviewResponse = Api.ChangeSetPreviewResponse
+export type ChangeSetConfirmResponse = Api.ChangeSetConfirmResponse
 
 export type ApiErrorEnvelope = {
   error: {

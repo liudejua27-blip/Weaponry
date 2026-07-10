@@ -92,6 +92,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
   const [selectedComponent, setSelectedComponent] = useState('')
+  const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState('')
+  const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+  const [showConnectors, setShowConnectors] = useState(false)
   const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [chatInput, setChatInput] = useState('')
@@ -124,11 +128,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     const nodes = concept.graphRecord?.graph.nodes ?? []
     if (nodes.length === 0) {
       setSelectedComponent('')
+      setSelectedLibraryModuleId('')
       return
     }
-    setSelectedComponent((current) => (
-      nodes.some((node) => node.node_id === current) ? current : nodes[0].node_id
-    ))
+    setSelectedComponent((current) => {
+      const nextNode = nodes.find((node) => node.node_id === current) ?? nodes[0]
+      setSelectedLibraryModuleId(nextNode.module_id)
+      return nextNode.node_id
+    })
+    setHiddenNodeIds((current) => current.filter((nodeId) => nodes.some((node) => node.node_id === nodeId)))
   }, [concept.graphRecord])
 
   const visibleComponents = useMemo(() => {
@@ -153,11 +161,42 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const selectedModule = concept.modules.find(
     (module) => module.manifest.module_id === selectedNode?.module_id,
   ) ?? null
+  const selectedLibraryModule = concept.modules.find(
+    (module) => module.manifest.module_id === selectedLibraryModuleId,
+  ) ?? null
+  const canReplaceSelected = Boolean(
+    selectedNode
+    && selectedLibraryModule
+    && !selectedNode.locked
+    && selectedNode.module_id !== selectedLibraryModule.manifest.module_id
+    && selectedModule?.manifest.category === selectedLibraryModule.manifest.category,
+  )
+
+  const selectGraphNode = useCallback((nodeId: string) => {
+    setSelectedComponent(nodeId)
+    const node = concept.graphRecord?.graph.nodes.find((item) => item.node_id === nodeId)
+    if (node) setSelectedLibraryModuleId(node.module_id)
+  }, [concept.graphRecord])
 
   const handleCreateExport = useCallback(async () => {
     const result = await concept.createExport()
     if (result) window.location.assign(forgeApi.getConceptExportFileUrl(result.export_id))
   }, [concept])
+
+  const handleReplaceSelected = useCallback(() => {
+    if (!selectedNode || !selectedLibraryModule) return
+    concept.replaceModule(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
+      .catch(() => undefined)
+  }, [concept, selectedLibraryModule, selectedNode])
+
+  const toggleSelectedNodeVisibility = useCallback(() => {
+    if (!selectedNode) return
+    setHiddenNodeIds((current) => (
+      current.includes(selectedNode.node_id)
+        ? current.filter((nodeId) => nodeId !== selectedNode.node_id)
+        : [...current, selectedNode.node_id]
+    ))
+  }, [selectedNode])
 
   const updateParameter = (key: keyof WeaponParameters, value: number) => {
     setParameters((current) => ({ ...current, [key]: value }))
@@ -341,12 +380,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             </div>
             <ModuleGraphViewport
               graphRecord={concept.graphRecord}
+              modules={concept.modules}
               cameraView={cameraView}
               showGrid={showGrid}
               wireframe={wireframe}
               selectedNodeId={selectedComponent}
+              hiddenNodeIds={hiddenNodeIds}
+              focusNodeId={focusedNodeId}
+              showConnectors={showConnectors}
               getModuleFileUrl={getModuleFileUrl}
-              onSelectNode={setSelectedComponent}
+              onSelectNode={selectGraphNode}
             />
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
@@ -400,30 +443,48 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                       </button>
                     ))}
                   </nav>
-                  <div className="component-grid">
-                    {visibleComponents.map((component) => {
-                      const ComponentIcon = componentIconFor(component.manifest.category)
-                      const graphNode = concept.graphRecord?.graph.nodes.find(
-                        (node) => node.module_id === component.manifest.module_id,
-                      )
-                      return (
-                        <button
-                          key={component.manifest.module_id}
-                          className={graphNode && selectedComponent === graphNode.node_id ? 'active' : ''}
-                          onClick={() => setSelectedComponent(graphNode?.node_id ?? component.manifest.module_id)}
-                        >
-                          <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
-                          <strong>{component.manifest.module_id}</strong>
-                          <small>{MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris</small>
-                        </button>
-                      )
-                    })}
-                    {visibleComponents.length === 0 && (
-                      <div className="component-empty">
-                        <strong>Module Pack 为空</strong>
-                        <span>先通过 ModuleAssetManifest 注册 GLB，工作台不会用假组件替代。</span>
-                      </div>
-                    )}
+                  <div className="component-library-content">
+                    <div className="module-replace-bar">
+                      <span>节点：{selectedNode?.node_id ?? '未选择'}</span>
+                      <span>候选：{selectedLibraryModule?.manifest.module_id ?? '未选择'}</span>
+                      <button
+                        onClick={handleReplaceSelected}
+                        disabled={!canReplaceSelected || concept.loading}
+                        title={selectedNode?.locked ? '锁定节点不能替换' : '通过 ChangeSet preview/confirm 创建子版本'}
+                      >
+                        替换并创建新版本
+                      </button>
+                    </div>
+                    <div className="component-grid">
+                      {visibleComponents.map((component) => {
+                        const ComponentIcon = componentIconFor(component.manifest.category)
+                        const graphNode = concept.graphRecord?.graph.nodes.find(
+                          (node) => node.module_id === component.manifest.module_id,
+                        )
+                        const isActiveNode = Boolean(graphNode && selectedComponent === graphNode.node_id)
+                        const isCandidate = selectedLibraryModuleId === component.manifest.module_id
+                        return (
+                          <button
+                            key={component.manifest.module_id}
+                            className={`${isActiveNode ? 'active' : ''} ${isCandidate ? 'candidate' : ''}`.trim()}
+                            onClick={() => {
+                              setSelectedLibraryModuleId(component.manifest.module_id)
+                              if (graphNode) selectGraphNode(graphNode.node_id)
+                            }}
+                          >
+                            <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
+                            <strong>{component.manifest.module_id}</strong>
+                            <small>{MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris</small>
+                          </button>
+                        )
+                      })}
+                      {visibleComponents.length === 0 && (
+                        <div className="component-empty">
+                          <strong>Module Pack 为空</strong>
+                          <span>先通过 ModuleAssetManifest 注册 GLB，工作台不会用假组件替代。</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -473,6 +534,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             {inspectorTab === 'parameters' && <>
               <label className="wide-field"><span>Graph 节点</span><input value={selectedNode?.node_id ?? '未选择'} readOnly /></label>
               <label className="wide-field"><span>模块资产</span><input value={selectedModule?.manifest.module_id ?? '—'} readOnly /></label>
+              <div className="node-actions">
+                <button onClick={toggleSelectedNodeVisibility} disabled={!selectedNode}>
+                  <Eye size={13} /> {selectedNode && hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}
+                </button>
+                <button onClick={() => selectedNode && setFocusedNodeId(selectedNode.node_id)} disabled={!selectedNode}>
+                  <Crosshair size={13} /> 聚焦
+                </button>
+                <button className={showConnectors ? 'active' : ''} onClick={() => setShowConnectors((current) => !current)}>
+                  <ShareNetwork size={13} /> Connector
+                </button>
+              </div>
               <div className="axis-group"><span>位置</span><div>
                 <AxisField axis="X" value={formatAxis(selectedNode?.transform.position[0])} />
                 <AxisField axis="Y" value={formatAxis(selectedNode?.transform.position[1])} />

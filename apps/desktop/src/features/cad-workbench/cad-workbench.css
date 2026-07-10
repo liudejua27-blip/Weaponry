@@ -677,6 +677,47 @@
   overflow-y: hidden;
 }
 
+.component-library-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 25px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.module-replace-bar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(80px, 0.8fr) minmax(130px, 1.4fr) auto;
+  gap: 7px;
+  align-items: center;
+  color: #78899e;
+  font-size: 8px;
+}
+
+.module-replace-bar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-replace-bar button {
+  padding: 4px 8px;
+  border: 1px solid #3568a0;
+  border-radius: 4px;
+  color: #bcdcff;
+  background: #183758;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.module-replace-bar button:disabled {
+  border-color: #2c3948;
+  color: #59687a;
+  background: #18222e;
+  cursor: not-allowed;
+}
+
 .component-grid > button {
   min-width: 74px;
   min-height: 0;
@@ -694,6 +735,11 @@
 .component-grid > button.active {
   border-color: #347fe6;
   box-shadow: inset 0 0 0 1px #347fe6;
+}
+
+.component-grid > button.candidate:not(.active) {
+  border-color: #b18436;
+  box-shadow: inset 0 0 0 1px rgb(225 166 58 / 35%);
 }
 
 .component-empty {
@@ -795,6 +841,39 @@
 
 .axis-group {
   margin: 8px 0;
+}
+
+.node-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 7px 0;
+}
+
+.node-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 5px 3px;
+  border: 1px solid #2c3d50;
+  border-radius: 4px;
+  color: #8797a9;
+  background: #121c27;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.node-actions button.active {
+  color: #8fdcff;
+  border-color: #3187bf;
+  background: #17364c;
+}
+
+.node-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .axis-group > span {
