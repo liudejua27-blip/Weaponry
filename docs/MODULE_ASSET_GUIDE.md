@@ -228,3 +228,11 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 ```
 
 详细输出、人工编辑和晋级边界见 [Blender Authoring Starter](BLENDER_AUTHORING_STARTER.md)。
+
+人工编辑 `.blend` 后不得重新运行 starter build。使用只读 re-export：
+
+```bash
+npm run assets:blender-reexport-preflight
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-reexport
+```

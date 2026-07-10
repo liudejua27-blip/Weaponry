@@ -162,6 +162,26 @@ def _build_module(output_root: Path, module: Module, license_text: str) -> dict[
     for connector in module.connectors:
         _create_connector(connector, collection)
     _create_render_rig(mesh_objects)
+    scene["forgecad_authoring_metadata"] = json.dumps(
+        {
+            "schema_version": "ForgeCADBlenderAuthoring@1",
+            "module_id": module.module_id,
+            "category": module.category,
+            "pack_id": "pack_weapon_concept_v1",
+            "asset_id": f"asset_{module.module_id.removeprefix('module_')}",
+            "connectors": [
+                {
+                    "connector_id": connector.connector_id,
+                    "slot": connector.slot,
+                    "connector_type": connector.connector_type,
+                    "scale_range": [0.9, 1.1],
+                    "exclusive": True,
+                }
+                for connector in module.connectors
+            ],
+        },
+        sort_keys=True,
+    )
 
     module_root = output_root / "modules" / module.module_id
     source_root = output_root / "sources"

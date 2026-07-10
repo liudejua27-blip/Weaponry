@@ -180,6 +180,16 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 未安装时预检返回 `blocked_blender_not_configured`，不得据此声称 `.blend`、Blender GLB 或缩略图已生成。输出默认写入 `output/blender/weapon-concept-v1-starter`，不修改提交中的 reference Pack。
 
+人工修改三份 `.blend` 后，使用只读 re-export，不能重跑 starter build：
+
+```bash
+npm run assets:blender-reexport-preflight
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-reexport
+```
+
+实际执行前必须看到 `ready_for_read_only_export`。runner 校验 source 集合/文件头、输出隔离和 Blender；导出脚本读取 `ForgeCADBlenderAuthoring@1` metadata 与 Connector Empty，拒绝未应用 Transform/Modifier、UV/材质/命名漂移；执行后验证 source SHA-256 未变化和输出 Pack 合同。专项静态/负例门为 `npm run assets:blender-authoring-preflight-gate`。
+
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
 
 创建导出时传 `"include_combined_obj": true`，OBJ 和 MTL 会分别写入 `Model/combined.obj`、`Model/combined.mtl`。可通过以下地址独立下载：

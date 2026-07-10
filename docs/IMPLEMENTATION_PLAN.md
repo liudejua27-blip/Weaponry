@@ -14,7 +14,7 @@
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
 - 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top 与 8 帧 turntable 已实现；最终高质量资产、AI 方案质量和转台视频尚未实现；
-- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter 与真实构建入口已实现，但当前机器未配置 Blender，正式资产本身尚未生成；
+- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter、`.blend` metadata、只读 re-export 与真实构建入口已实现，但当前机器未配置 Blender，正式资产本身尚未生成；
 - 服务端 `weapon-concept-geometry/1.1` 已从版本绑定的内容寻址 GLB 计算 Mesh/Assembly Findings，包含未连接组件 triangle BVH/SAT/containment，并由桌面 Finding 触发节点聚焦；异常间隙、对称/隐藏几何/LOD 和局部 triangle 高亮尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
@@ -41,7 +41,7 @@
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
-| R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender starter source/preflight 已完成，真实 `.blend` 与最终 art 待 Blender 环境 |
+| R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender starter/metadata/只读 re-export preflight 已完成，真实 `.blend` 与最终 art 待 Blender 环境 |
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 第一切片完成 | Project ChangeSet list API、operation/node/status/result Version、桌面回读与 restart smoke |

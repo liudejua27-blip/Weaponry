@@ -192,6 +192,7 @@ def _check_authoring_source() -> dict[str, object]:
         '"MAT_primary"',
         '"MAT_secondary"',
         '"MAT_accent"',
+        "forgecad_authoring_metadata",
     )
     missing_tokens = [token for token in required_tokens if token not in source]
     if missing_ids or missing_tokens:

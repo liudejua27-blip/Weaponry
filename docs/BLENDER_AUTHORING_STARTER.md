@@ -76,9 +76,24 @@ output/blender/weapon-concept-v1-starter/
 3. 分别打开两个 front source，让轮廓明显不同，但保持 `front.core + shell_mount`；
 4. 所有新增 mesh 按 `GEO_<module_id>_LOD0_NN` / `MESH_<module_id>_LOD0_NN` 命名；
 5. 应用 Rotation/Scale，维护 UV0，检查三材质实际被 primitive 使用；
-6. 人工审阅三分之四缩略图后，再执行受控重新导出与 Pack 校验。
+6. 人工审阅三分之四缩略图后，运行只读 re-export 与 Pack 校验。
 
-当前 starter generator 会重建输出，不能用它覆盖已经人工修改的 `.blend`。人工 source 的无覆盖重新导出入口是下一资产管线切片；在该入口完成前，保留 `.blend` 备份并按 `MODULE_ASSET_GUIDE.md` 手工导出。
+starter generator 会重建输出，不能用它覆盖已经人工修改的 `.blend`。编辑完成后先运行：
+
+```bash
+npm run assets:blender-reexport-preflight
+```
+
+预检显示 `ready_for_read_only_export` 后执行：
+
+```bash
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-reexport
+```
+
+re-export 默认从 starter 的 `sources/` 读取，输出到独立的 `output/blender/weapon-concept-v1-edited-export`。它不调用 Blender 保存 API；执行器在导出前后计算三份 `.blend` SHA-256，任何 source 变化都会失败。非空导出目录需要自定义命令显式 `--force`，但 source 与 output 不能相同、互为父子目录或位于 committed Pack。
+
+导出前会阻断：丢失/额外 Mesh、错误 Object/Mesh 名、未应用 Modifier/Transform、缺失 UV0、错误材质集合、Connector Empty 与 metadata 不一致、Connector scale 未应用、相机缺失。输出必须再次通过完整 Module Pack 校验。
 
 ## 6. 不可变注册边界
 
