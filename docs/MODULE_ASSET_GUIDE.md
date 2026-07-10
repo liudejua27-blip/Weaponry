@@ -2,6 +2,8 @@
 
 状态：`ModulePackManifest@1`、校验 CLI 和批量注册已实现；正式 8–12 个高质量 GLB 尚需按本文制作。
 
+仓库已提供 `assets/module-packs/weapon-concept-v1-reference`：10 个确定性程序化参考 GLB，用于工作台、Connector、性能和导出闭环。它包含 UV0、normal、三材质、缩略图与许可证，但不是人工 Blender 最终美术。
+
 本文只描述未来武器概念、游戏资产、影视道具和非功能展示模型的视觉资产管线。模块可以有精细比例、硬表面细节和明确接口，但不包含真实工作机构、弹道、承压或制造就绪结论。
 
 ## 1. 从哪里开始
@@ -162,18 +164,25 @@ Connector 是视觉装配合同，不是功能性机械参数。每个 Blender E
 
 ## 7. 校验与导入
 
+重新生成或检查仓库参考包：
+
+```bash
+npm run assets:reference-pack:generate
+npm run assets:reference-pack:check
+```
+
 默认命令只读，不写数据库：
 
 ```bash
 PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
-  /absolute/path/to/weapon-concept-v1 --release
+  "$PWD/assets/module-packs/weapon-concept-v1-reference" --release
 ```
 
 通过后会输出 `mode: dry-run`。修复全部错误后，启动本地 Agent，再显式导入：
 
 ```bash
 PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
-  /absolute/path/to/weapon-concept-v1 \
+  "$PWD/assets/module-packs/weapon-concept-v1-reference" \
   --release \
   --api-base-url http://127.0.0.1:8000 \
   --import

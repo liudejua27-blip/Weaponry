@@ -20,6 +20,7 @@ from concept_module_pack import (
 )
 from smoke_r2_concept_projects import (
     _assert,
+    _create_body,
     _free_port,
     _json_request,
     _start_agent,
@@ -45,11 +46,16 @@ CATEGORIES = [
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="forgecad_r3_module_pack_") as temporary_directory:
         temporary_root = Path(temporary_directory)
+        reference_pack = validate_module_pack(
+            ROOT / "assets" / "module-packs" / "weapon-concept-v1-reference",
+            release=True,
+        )
+        _assert(len(reference_pack.modules) == 10, "committed reference pack count mismatch")
         pack_root = temporary_root / "weapon-concept-v1"
         _create_pack(pack_root)
 
-        validated = validate_module_pack(pack_root, release=True)
-        _assert(len(validated.modules) == 9, "release pack module count mismatch")
+        fixture_pack = validate_module_pack(pack_root, release=True)
+        _assert(len(fixture_pack.modules) == 9, "release pack module count mismatch")
         dry_run = subprocess.run(
             [
                 sys.executable,
@@ -83,9 +89,9 @@ def main() -> int:
         process = _start_agent(library_root, port)
         try:
             _wait_for_health(base_url, process)
-            imported = import_module_pack(validated, base_url)
-            replay = import_module_pack(validated, base_url)
-            _assert(len(imported) == 9, "pack import count mismatch")
+            imported = import_module_pack(reference_pack, base_url)
+            replay = import_module_pack(reference_pack, base_url)
+            _assert(len(imported) == 10, "pack import count mismatch")
             _assert(
                 [item["object_path"] for item in imported]
                 == [item["object_path"] for item in replay],
@@ -96,7 +102,27 @@ def main() -> int:
                 "/api/v1/module-assets?pack_id=pack_weapon_concept_v1",
                 method="GET",
             )
-            _assert(len(listed["items"]) == 9, "registry did not contain the full pack")
+            _assert(len(listed["items"]) == 10, "registry did not contain the full pack")
+            project = _json_request(
+                base_url,
+                "/api/v1/projects",
+                method="POST",
+                body=_create_body(),
+                idempotency_key="r3-reference-pack-project",
+            )
+            reference_graph = _reference_graph(project["project_id"])
+            graph_result = _json_request(
+                base_url,
+                f"/api/v1/module-graphs/{reference_graph['graph_id']}/validate",
+                method="POST",
+                body={
+                    "client_request_id": "r3-reference-pack-graph",
+                    "graph": reference_graph,
+                    "persist": True,
+                },
+                idempotency_key="r3-reference-pack-graph",
+            )
+            _assert(graph_result["valid"] is True, "reference pack graph did not validate")
         finally:
             _stop_agent(process)
 
@@ -105,8 +131,8 @@ def main() -> int:
             connector_count = connection.execute(
                 "SELECT COUNT(*) FROM module_connectors"
             ).fetchone()[0]
-        _assert(module_count == 9, "module pack replay created duplicate records")
-        _assert(connector_count == 9, "connector import count mismatch")
+        _assert(module_count == 10, "module pack replay created duplicate records")
+        _assert(connector_count == 17, "connector import count mismatch")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -118,7 +144,13 @@ def main() -> int:
                 "/api/v1/module-assets?pack_id=pack_weapon_concept_v1",
                 method="GET",
             )
-            _assert(len(restored["items"]) == 9, "restart lost imported module pack")
+            _assert(len(restored["items"]) == 10, "restart lost imported module pack")
+            restored_graph = _json_request(
+                restart_url,
+                "/api/v1/module-graphs/mg_reference_pack_s1",
+                method="GET",
+            )
+            _assert(len(restored_graph["graph"]["nodes"]) == 9, "restart lost reference graph")
         finally:
             _stop_agent(restarted)
 
@@ -130,15 +162,69 @@ def main() -> int:
                     "connector_count": connector_count,
                     "dry_run_default": True,
                     "release_categories": CATEGORIES,
+                    "reference_pack_id": reference_pack.manifest.pack_id,
                     "negative_cases": negative_results,
                     "idempotent_replay": True,
                     "restart_restored": True,
+                    "reference_graph_nodes": 9,
                 },
                 ensure_ascii=False,
                 indent=2,
             )
         )
     return 0
+
+
+def _reference_graph(project_id: str) -> dict[str, Any]:
+    node_specs = [
+        ("node_core", "module_core_shell_01", [0, 0, 0], True),
+        ("node_front", "module_front_shell_01", [-50, 0, 0], False),
+        ("node_rear", "module_rear_shell_01", [50, 0, 0], False),
+        ("node_grip", "module_grip_shell_01", [14, -24, 0], False),
+        ("node_top", "module_top_accessory_01", [0, 24, 0], False),
+        ("node_side", "module_side_accessory_01", [0, 0, 20], False),
+        ("node_lower", "module_lower_structure_01", [-12, -24, 0], False),
+        ("node_storage", "module_storage_visual_01", [30, -24, 0], False),
+        ("node_armor", "module_armor_panel_01", [0, 0, -20], False),
+    ]
+    edge_specs = [
+        ("front", "connector_core_front", "connector_front_01_core"),
+        ("rear", "connector_core_rear", "connector_rear_core"),
+        ("grip", "connector_core_grip", "connector_grip_core"),
+        ("top", "connector_core_top", "connector_top_core"),
+        ("side", "connector_core_side", "connector_side_core"),
+        ("lower", "connector_core_lower", "connector_lower_core"),
+        ("storage", "connector_core_storage", "connector_storage_core"),
+        ("armor", "connector_core_armor", "connector_armor_core"),
+    ]
+    return {
+        "schema_version": "ModuleGraph@1",
+        "graph_id": "mg_reference_pack_s1",
+        "project_id": project_id,
+        "root_node_id": "node_core",
+        "nodes": [
+            {
+                "node_id": node_id,
+                "module_id": module_id,
+                "transform": {"position": position, "rotation": [0, 0, 0], "scale": [1, 1, 1]},
+                "mirror_axis": "none",
+                "locked": locked,
+                "visible": True,
+            }
+            for node_id, module_id, position, locked in node_specs
+        ],
+        "edges": [
+            {
+                "edge_id": f"edge_core_{name}",
+                "from_node_id": "node_core",
+                "from_connector_id": source_connector,
+                "to_node_id": f"node_{name}",
+                "to_connector_id": target_connector,
+                "status": "connected",
+            }
+            for name, source_connector, target_connector in edge_specs
+        ],
+    }
 
 
 def _create_pack(root: Path) -> None:

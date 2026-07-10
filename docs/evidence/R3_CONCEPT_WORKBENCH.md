@@ -20,6 +20,7 @@
 - 页面不再用程序化武器模型冒充真实 ModuleGraph；没有 Graph 或 Module 时显示明确空状态；
 - 当前仅可创建 `SOURCE ZIP`，GLB/OBJ/PNG 显式标记为 R5 未实现。
 - `ModulePackManifest@1` 固定包坐标、用途、许可证和模块文件索引；
+- 仓库参考 Pack 含 10 个真实 GLB、九类、17 Connector、UV0/normal/三材质、512×512 缩略图与许可证；生成器 `--check` 防止二进制/Manifest/hash 漂移；
 - Module Pack CLI 校验安全路径、九类 release 覆盖、GLB 2.0、UV0、材质、三角数、毫米 bounds、identity Transform、缩略图、哈希和许可证；
 - CLI 默认 dry-run，显式 `--import` 后才调用 immutable Module registry，内容派生幂等键支持安全重放。
 - glTF 标准米制 GLB 在 asset scene 固定换算为毫米，Graph/Connector position 统一为毫米，rotation 为 Euler XYZ 弧度；
@@ -36,26 +37,26 @@ npm run agent:r3-module-pack-smoke
 npm run agent:r3-connector-snap-smoke
 ```
 
-临时库中创建“寒地巡逻 S1”，注册 4 个包含真实 box mesh 的 GLB，持久化 2 条 Connector edge，将 Graph 绑定到 V2。Playwright 使用系统 Chrome 在 `1536×1024` 验证：
+临时库中创建“寒地巡逻 S1”，导入仓库 10 模块参考 Pack，以 core/front/grip 组成 Graph、保留第二 front 为替换候选，将 Graph 绑定到 V2。Playwright 使用系统 Chrome 在 `1536×1024` 验证：
 
 1. Project 与 V1/V2 来自 API；
-2. 4 个模块来自 Module registry；
+2. 10 个参考模块来自 Module registry；
 3. GLTFLoader 完成加载且 canvas 可用；
 4. 点击前部模块后 `node_front`、模块 ID 与 `front.core` 同步；
 5. 将 `module_front_shell_01` 替换为兼容的 `module_front_shell_02`，确认后创建 V3；
-6. Connector 从 `connector_front_core` 重映射为 `connector_front_alt_core`；
+6. Connector 从 `connector_front_01_core` 重映射为 `connector_front_02_core`；
 7. 隐藏/显示、聚焦和 overlay 控件可操作；
 8. 拖拽候选后替换按钮才启用，ChangeSet 不被绕过；
 9. Undo 到 V2、Redo 到 V3，并验证爆炸视图开关；
 10. 从工作台创建并下载非空 Concept ZIP；
 11. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
 12. 浏览器没有未处理 page error。
-13. 连续切换 V3↔V4 20 轮，始终只有 1 个 canvas/1 个 active context；一次基准运行触发 80 renderer generations，GC 后 heap 增长约 3.4 MB，最终 7 geometries/3 textures。
+13. 连续切换 V3↔V4 20 轮，始终只有 1 个 canvas/1 个 active context；参考 Pack 基准触发 80 renderer generations，GC 后 heap 增长约 3.1–3.6 MB，最终约 17 geometries/3 textures。
 14. 操作时间线显示 `replace_module(node_front)`、`set_mirror(node_grip)`、confirmed 状态和结果 Version。
 
 Module Pack smoke 另用 9 个含 triangle/UV/material 的最小 GLB 覆盖九类资产，验证 dry-run、release 门、批量注册、幂等重放和重启恢复；并确认哈希篡改、越界路径、缺许可证、跨模块重复 Connector 和 pack_id 不一致会失败。
 
-Connector smoke 使用 100 组确定性平移、Euler XYZ 旋转、非均匀缩放和 `none/x/y/z` 镜像样本，100/100 在 `1e-7 mm / 1e-5°` 数学误差内；API 另验证 root 替换重定位所有子树、child 替换重定位后代、Connector ID remap、mirror Version/Export、幂等确认、重启恢复、locked 后代和额外循环边冲突。桌面 smoke 验证 front 替换后位置从 `[-64,17,0]` 变为 `[-69,17,0]`，并验证 grip X 镜像创建 V4、检查器显示 `mirror_axis=x`、Export 与重启保持。
+Connector smoke 使用 100 组确定性平移、Euler XYZ 旋转、非均匀缩放和 `none/x/y/z` 镜像样本，100/100 在 `1e-7 mm / 1e-5°` 数学误差内；API 另验证 root 替换重定位所有子树、child 替换重定位后代、Connector ID remap、mirror Version/Export、幂等确认、重启恢复、locked 后代和额外循环边冲突。桌面 smoke 使用主 Connector 位于原点的正式约定，front 01→02 后保持 `[-50,0,0]` 精确吸附，并验证 grip X 镜像创建 V4、检查器显示 `mirror_axis=x`、Export 与重启保持。
 
 该 100% 只属于合成基准。C04 的正式 ≥95% 仍需首批 10–12 个 Blender 模块形成替换矩阵后计算，不能用合成样本替代。
 
@@ -71,7 +72,7 @@ GPU 数值同样只属于系统 Chrome + 最小 fixture。正式资产和 Tauri 
 - 顶部五阶段、左侧 Project/AI、中央视口、底部组件库、右侧检查/导出和状态栏保持一致；
 - 顶部裁切与组件卡越过状态栏的问题已修复；
 - 页面可见文案没有继续声称 STEP、DFM、制造就绪或当前不支持的导出格式；
-- 重大剩余差异是参考图的高质量硬表面资产，而 smoke 只有 4 个程序化盒体。
+- 重大剩余差异仍是参考图的人工高质量硬表面细节；当前 10 模块 Pack 是多部件、三材质程序化参考资产。
 
 ## 未完成
 

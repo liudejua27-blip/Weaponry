@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_armor_panel_01",
+  "bounds_mm": [
+    52.0,
+    30.0,
+    12.0
+  ],
+  "category": "armor_panel",
+  "connectors": [
+    {
+      "connector_id": "connector_armor_core",
+      "connector_type": "armor_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "armor.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_armor_panel_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "a13b4d1d6cfc82ed99976eddb150a294cddae4ee705ef8fe6244eb9e55181856",
+  "triangle_count": 36
+}

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -99,65 +98,19 @@ async function seedConceptGraph(baseUrl) {
     },
   })
 
-  const modules = [
-    {
-      moduleId: 'module_core_shell_01',
-      assetId: 'asset_core_shell_01',
-      category: 'core_shell',
-      color: [0.31, 0.37, 0.44, 1],
-      scale: [70, 30, 24],
-      connectors: [
-        connector('connector_core_front', 'core.front', 'shell_mount', [-35, 2, 0]),
-        connector('connector_core_grip', 'core.grip', 'grip_mount', [22, -18, 0]),
-      ],
-    },
-    {
-      moduleId: 'module_front_shell_01',
-      assetId: 'asset_front_shell_01',
-      category: 'front_shell',
-      color: [0.19, 0.23, 0.28, 1],
-      scale: [58, 22, 20],
-      connectors: [connector('connector_front_core', 'front.core', 'shell_mount', [29, 0, 0])],
-    },
-    {
-      moduleId: 'module_grip_shell_01',
-      assetId: 'asset_grip_shell_01',
-      category: 'grip_shell',
-      color: [0.12, 0.16, 0.2, 1],
-      scale: [28, 62, 25],
-      connectors: [connector('connector_grip_core', 'grip.core', 'grip_mount', [0, 31, 0])],
-    },
-    {
-      moduleId: 'module_front_shell_02',
-      assetId: 'asset_front_shell_02',
-      category: 'front_shell',
-      color: [0.42, 0.22, 0.16, 1],
-      scale: [68, 18, 24],
-      connectors: [connector('connector_front_alt_core', 'front.core', 'shell_mount', [34, 0, 0])],
-    },
-  ]
-
-  for (const item of modules) {
-    const glb = boxGlb(item.moduleId, item.color, item.scale)
+  const packRoot = join(ROOT, 'assets', 'module-packs', 'weapon-concept-v1-reference')
+  const pack = JSON.parse(await readFile(join(packRoot, 'pack.json'), 'utf8'))
+  for (const entry of pack.modules) {
+    const manifest = JSON.parse(await readFile(join(packRoot, entry.manifest_path), 'utf8'))
+    const glb = await readFile(join(packRoot, entry.glb_path))
     await jsonRequest(baseUrl, '/api/v1/module-assets', {
       method: 'POST',
-      idempotencyKey: `r3-ui-${item.moduleId}`,
+      idempotencyKey: `r3-ui-${manifest.module_id}`,
       body: {
-        client_request_id: `r3-ui-${item.moduleId}`,
-        logical_path: `packs/weapon-concept/${item.moduleId}.glb`,
+        client_request_id: `r3-ui-${manifest.module_id}`,
+        logical_path: `packs/weapon-concept/${manifest.module_id}.glb`,
         glb_data_base64: glb.toString('base64'),
-        manifest: {
-          schema_version: 'ModuleAssetManifest@1',
-          module_id: item.moduleId,
-          pack_id: 'pack_weapon_concept_v1',
-          category: item.category,
-          asset_id: item.assetId,
-          sha256: createHash('sha256').update(glb).digest('hex'),
-          bounds_mm: item.scale,
-          triangle_count: 12,
-          material_slots: ['primary'],
-          connectors: item.connectors,
-        },
+        manifest,
       },
     })
   }
@@ -168,9 +121,9 @@ async function seedConceptGraph(baseUrl) {
     project_id: project.project_id,
     root_node_id: 'node_core',
     nodes: [
-      graphNode('node_core', 'module_core_shell_01', [0, 15, 0], true),
-      graphNode('node_front', 'module_front_shell_01', [-64, 17, 0]),
-      graphNode('node_grip', 'module_grip_shell_01', [22, -34, 0]),
+      graphNode('node_core', 'module_core_shell_01', [0, 0, 0], true),
+      graphNode('node_front', 'module_front_shell_01', [-50, 0, 0]),
+      graphNode('node_grip', 'module_grip_shell_01', [14, -24, 0]),
     ],
     edges: [
       {
@@ -178,7 +131,7 @@ async function seedConceptGraph(baseUrl) {
         from_node_id: 'node_core',
         from_connector_id: 'connector_core_front',
         to_node_id: 'node_front',
-        to_connector_id: 'connector_front_core',
+        to_connector_id: 'connector_front_01_core',
         status: 'connected',
       },
       {
@@ -211,7 +164,7 @@ async function seedConceptGraph(baseUrl) {
     project_id: project.project_id,
     version_id: bound.current_version_id,
     graph_id: graph.graph_id,
-    module_count: modules.length,
+    module_count: pack.modules.length,
   }
 }
 
@@ -278,7 +231,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
     const snappedPosition = await page.locator('.properties-panel .axis-group').first().locator('input').evaluateAll(
       (inputs) => inputs.map((input) => input.value),
     )
-    if (JSON.stringify(snappedPosition) !== JSON.stringify(['-69.00', '17.00', '0.00'])) {
+    if (JSON.stringify(snappedPosition) !== JSON.stringify(['-50.00', '0.00', '0.00'])) {
       throw new Error(`Connector snap was not reflected in inspector: ${JSON.stringify(snappedPosition)}`)
     }
 
@@ -460,10 +413,10 @@ async function verifyReplacement(baseUrl, projectId) {
   if (frontNode?.module_id !== 'module_front_shell_02') {
     throw new Error(`restart restored wrong front module: ${frontNode?.module_id}`)
   }
-  if (frontEdge?.to_connector_id !== 'connector_front_alt_core') {
+  if (frontEdge?.to_connector_id !== 'connector_front_02_core') {
     throw new Error(`replacement connector was not remapped: ${frontEdge?.to_connector_id}`)
   }
-  if (JSON.stringify(frontNode?.transform.position) !== JSON.stringify([-69, 17, 0])) {
+  if (JSON.stringify(frontNode?.transform.position) !== JSON.stringify([-50, 0, 0])) {
     throw new Error(`replacement node was not snapped after restart: ${JSON.stringify(frontNode?.transform.position)}`)
   }
   if (gripNode?.mirror_axis !== 'x') {

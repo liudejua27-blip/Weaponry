@@ -146,7 +146,7 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个米制可渲染 GLB 验证真实工作台交互，用 9 个含 triangle/UV/material 的最小 GLB 验证 Module Pack，用 100 组含镜像数学样本及 API Graph 验证 Connector，并连续切换 V3/V4 20 轮检查 canvas、WebGL context、renderer resource 和 GC heap。它仍不证明正式 Blender 资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。它仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
 
 专项 Connector 门：
 
@@ -266,10 +266,20 @@ export WUSHEN_LLM_API_KEY=<secret>
 
 ```bash
 PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
-  /absolute/path/to/weapon-concept-v1 --release
+  "$PWD/assets/module-packs/weapon-concept-v1-reference" --release
 ```
 
 不要在 dry-run 失败时绕过校验直接调用注册 API。
+
+启动 Agent 后导入仓库参考包：
+
+```bash
+PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
+  "$PWD/assets/module-packs/weapon-concept-v1-reference" \
+  --release --api-base-url http://127.0.0.1:8000 --import
+```
+
+参考包可运行但不是最终美术；Blender 交接应保留现有 module/asset/connector ID，以内容哈希和 Version 追踪 GLB 更新。
 
 ### Day 3：标注连接器
 

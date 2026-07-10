@@ -278,7 +278,7 @@ packs/weapon-concept/
       "from_node_id": "node_core",
       "from_connector_id": "connector_core_front",
       "to_node_id": "node_front",
-      "to_connector_id": "connector_front_core",
+      "to_connector_id": "connector_front_01_core",
       "status": "connected"
     }
   ]

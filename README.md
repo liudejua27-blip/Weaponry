@@ -141,9 +141,10 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
-| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；正式 10–12 模块及其替换矩阵待完成 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图和源包导出 | 已用 10 模块参考 Pack 跑 E2E；人工 Blender 最终质量与正式替换矩阵待完成 |
 | 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
 | Module Pack 资产门 | `ModulePackManifest@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现 | 工具链完成；正式 10–12 个 Blender GLB 仍需制作 |
+| Arctic Patrol S1 参考 Pack | 10 GLB、九类、17 Connector、UV0/normal/三材质、缩略图、许可证、确定性生成与 9 节点 Graph 已实现 | 可用于产品闭环和 DCC 交接，不冒充最终高质量美术 |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |

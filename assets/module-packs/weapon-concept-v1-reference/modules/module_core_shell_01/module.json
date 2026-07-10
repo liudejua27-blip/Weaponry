@@ -1,0 +1,237 @@
+{
+  "asset_id": "asset_core_shell_01",
+  "bounds_mm": [
+    100.0,
+    51.0,
+    42.0
+  ],
+  "category": "core_shell",
+  "connectors": [
+    {
+      "connector_id": "connector_core_front",
+      "connector_type": "shell_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.front",
+      "transform": {
+        "position": [
+          -50,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_rear",
+      "connector_type": "rear_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.rear",
+      "transform": {
+        "position": [
+          50,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_grip",
+      "connector_type": "grip_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.grip",
+      "transform": {
+        "position": [
+          14,
+          -24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_top",
+      "connector_type": "top_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.top",
+      "transform": {
+        "position": [
+          0,
+          24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_side",
+      "connector_type": "side_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.side",
+      "transform": {
+        "position": [
+          0,
+          0,
+          20
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_lower",
+      "connector_type": "lower_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.lower",
+      "transform": {
+        "position": [
+          -12,
+          -24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_storage",
+      "connector_type": "storage_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.storage",
+      "transform": {
+        "position": [
+          30,
+          -24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "connector_id": "connector_core_armor",
+      "connector_type": "armor_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "core.armor",
+      "transform": {
+        "position": [
+          0,
+          0,
+          -20
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_core_shell_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "bc5417677ebd40b6ac803696f9f564e9ab5059e45170f348e791eb368c7496fd",
+  "triangle_count": 60
+}

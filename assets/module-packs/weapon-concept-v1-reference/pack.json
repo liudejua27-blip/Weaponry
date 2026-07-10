@@ -1,0 +1,105 @@
+{
+  "description": "Deterministic hard-surface reference modules for concept, game, film-prop and non-functional display workflow validation; not final art.",
+  "forward_axis": "-Z",
+  "handedness": "right",
+  "intended_uses": [
+    "visual_asset",
+    "game_asset",
+    "film_prop",
+    "non_functional_display"
+  ],
+  "license": {
+    "license_path": "LICENSES/PACK.txt",
+    "spdx_expression": "LicenseRef-ForgeCAD-Reference-Assets"
+  },
+  "modules": [
+    {
+      "glb_path": "modules/module_core_shell_01/model.glb",
+      "license_path": "modules/module_core_shell_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_core_shell_01/module.json",
+      "module_id": "module_core_shell_01",
+      "thumbnail_path": "modules/module_core_shell_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_front_shell_01/model.glb",
+      "license_path": "modules/module_front_shell_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_front_shell_01/module.json",
+      "module_id": "module_front_shell_01",
+      "thumbnail_path": "modules/module_front_shell_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_front_shell_02/model.glb",
+      "license_path": "modules/module_front_shell_02/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_front_shell_02/module.json",
+      "module_id": "module_front_shell_02",
+      "thumbnail_path": "modules/module_front_shell_02/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_rear_shell_01/model.glb",
+      "license_path": "modules/module_rear_shell_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_rear_shell_01/module.json",
+      "module_id": "module_rear_shell_01",
+      "thumbnail_path": "modules/module_rear_shell_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_grip_shell_01/model.glb",
+      "license_path": "modules/module_grip_shell_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_grip_shell_01/module.json",
+      "module_id": "module_grip_shell_01",
+      "thumbnail_path": "modules/module_grip_shell_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_top_accessory_01/model.glb",
+      "license_path": "modules/module_top_accessory_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_top_accessory_01/module.json",
+      "module_id": "module_top_accessory_01",
+      "thumbnail_path": "modules/module_top_accessory_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_side_accessory_01/model.glb",
+      "license_path": "modules/module_side_accessory_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_side_accessory_01/module.json",
+      "module_id": "module_side_accessory_01",
+      "thumbnail_path": "modules/module_side_accessory_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_lower_structure_01/model.glb",
+      "license_path": "modules/module_lower_structure_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_lower_structure_01/module.json",
+      "module_id": "module_lower_structure_01",
+      "thumbnail_path": "modules/module_lower_structure_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_storage_visual_01/model.glb",
+      "license_path": "modules/module_storage_visual_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_storage_visual_01/module.json",
+      "module_id": "module_storage_visual_01",
+      "thumbnail_path": "modules/module_storage_visual_01/thumbnail.png"
+    },
+    {
+      "glb_path": "modules/module_armor_panel_01/model.glb",
+      "license_path": "modules/module_armor_panel_01/LICENSE.txt",
+      "lod": "LOD0",
+      "manifest_path": "modules/module_armor_panel_01/module.json",
+      "module_id": "module_armor_panel_01",
+      "thumbnail_path": "modules/module_armor_panel_01/thumbnail.png"
+    }
+  ],
+  "name": "Arctic Patrol S1 Reference Module Pack",
+  "non_functional_only": true,
+  "pack_id": "pack_weapon_concept_v1",
+  "profile_id": "profile_weapon_concept_v1",
+  "schema_version": "ModulePackManifest@1",
+  "units": "millimeter",
+  "up_axis": "Y",
+  "version": "0.1.0"
+}
