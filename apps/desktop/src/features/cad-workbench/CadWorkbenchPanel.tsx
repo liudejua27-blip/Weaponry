@@ -32,7 +32,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react'
 import { forgeApi } from '../../shared/api/forgeApi'
-import type { ModuleAssetRecord } from '../../shared/types'
+import type { ModuleAssetRecord, QualityFinding } from '../../shared/types'
 import { ModuleGraphViewport } from './ModuleGraphViewport'
 import {
   useConceptWorkbench,
@@ -99,6 +99,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState('')
   const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+  const [qualityHighlightNodeIds, setQualityHighlightNodeIds] = useState<string[]>([])
+  const [qualityGeometryRefs, setQualityGeometryRefs] = useState<
+    NonNullable<QualityFinding['geometry_refs']>
+  >([])
   const [showConnectors, setShowConnectors] = useState(false)
   const [explodeFactor, setExplodeFactor] = useState(0)
   const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
@@ -208,14 +212,24 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     if (node) setSelectedLibraryModuleId(node.module_id)
   }, [concept.graphRecord])
 
-  const focusQualityFinding = useCallback((nodeIds: string[] | undefined) => {
-    const nodeId = nodeIds?.find((candidate) => (
+  const focusQualityFinding = useCallback((finding: QualityFinding) => {
+    const validNodeIds = (finding.node_ids ?? []).filter((candidate) => (
       concept.graphRecord?.graph.nodes.some((node) => node.node_id === candidate)
     ))
+    const nodeId = validNodeIds[0]
     if (!nodeId) return
     selectGraphNode(nodeId)
     setFocusedNodeId(nodeId)
+    setQualityHighlightNodeIds(validNodeIds)
+    setQualityGeometryRefs(
+      (finding.geometry_refs ?? []).filter((reference) => validNodeIds.includes(reference.node_id)),
+    )
   }, [concept.graphRecord, selectGraphNode])
+
+  useEffect(() => {
+    setQualityHighlightNodeIds([])
+    setQualityGeometryRefs([])
+  }, [concept.qualityRun?.quality_run_id, concept.version?.version_id])
 
   const handleCreateExport = useCallback(async () => {
     const currentExport = concept.lastExport?.version_id === concept.version?.version_id
@@ -472,6 +486,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               selectedNodeId={selectedComponent}
               hiddenNodeIds={hiddenNodeIds}
               focusNodeId={focusedNodeId}
+              qualityHighlightNodeIds={qualityHighlightNodeIds}
+              qualityGeometryRefs={qualityGeometryRefs}
               showConnectors={showConnectors}
               explodeFactor={explodeFactor}
               getModuleFileUrl={getModuleFileUrl}
@@ -792,12 +808,20 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   className={`quality-finding ${finding.severity}`}
                   key={finding.finding_id}
                   disabled={!finding.node_ids?.length}
-                  onClick={() => focusQualityFinding(finding.node_ids)}
+                  onClick={() => focusQualityFinding(finding)}
                   title={finding.node_ids?.length ? `选择并聚焦 ${finding.node_ids.join(', ')}` : undefined}
                 >
                   <strong>{finding.check_id}</strong>
                   <span>{finding.message}</span>
                   {finding.measured_value != null && <small>测量值：{String(finding.measured_value)}</small>}
+                  {Boolean(finding.geometry_refs?.length) && (
+                    <small>
+                      局部三角形：{finding.geometry_refs!.reduce(
+                        (count, reference) => count + (reference.triangle_indices?.length ?? 0),
+                        0,
+                      )} · 点击高亮双方
+                    </small>
+                  )}
                 </button>
               ))}
               <div className="dfm-suggestion"><WarningCircle size={15} /> 几何检查不代表结构强度、制造可行性或使用安全验证。</div>

@@ -26,6 +26,7 @@ class TriangleIntersectionResult:
     tested_triangle_pairs: int
     capped: bool
     containment: bool
+    hit_pairs: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -92,7 +93,7 @@ def inspect_triangle_mesh_intersection(
 ) -> TriangleIntersectionResult:
     """Run BVH broad phase, triangle SAT narrow phase, then closed-mesh containment."""
     if not first or not second:
-        return TriangleIntersectionResult(0, 0, False, False)
+        return TriangleIntersectionResult(0, 0, False, False, ())
     first_bounds = [triangle_bounds(triangle) for triangle in first]
     second_bounds = [triangle_bounds(triangle) for triangle in second]
     first_root = _build_bvh(first_bounds, tuple(range(len(first))))
@@ -100,6 +101,7 @@ def inspect_triangle_mesh_intersection(
     stack = [(first_root, second_root)]
     tested = 0
     hits = 0
+    hit_pairs: list[tuple[int, int]] = []
     while stack:
         first_node, second_node = stack.pop()
         if not _bounds_overlap(first_node.bounds, second_node.bounds):
@@ -112,8 +114,11 @@ def inspect_triangle_mesh_intersection(
                     tested += 1
                     if triangles_intersect(first[first_index], second[second_index]):
                         hits += 1
+                        hit_pairs.append((first_index, second_index))
                         if hits >= max_hits:
-                            return TriangleIntersectionResult(hits, tested, True, False)
+                            return TriangleIntersectionResult(
+                                hits, tested, True, False, tuple(hit_pairs)
+                            )
             continue
         if first_node.triangle_indices:
             if second_node.left is not None:
@@ -143,7 +148,7 @@ def inspect_triangle_mesh_intersection(
             containment = _mesh_has_point_inside(
                 first, second, second_mesh_bounds
             ) or _mesh_has_point_inside(second, first, first_mesh_bounds)
-    return TriangleIntersectionResult(hits, tested, False, containment)
+    return TriangleIntersectionResult(hits, tested, False, containment, tuple(hit_pairs))
 
 
 def point_inside_closed_mesh(point: Point3, triangles: Sequence[Triangle3]) -> bool:

@@ -378,6 +378,25 @@ class DesignChangeSet(StrictContractModel):
         return self
 
 
+class QualityGeometryReference(StrictContractModel):
+    node_id: ContractId
+    triangle_indices: List[Annotated[int, Field(ge=0)]] = Field(
+        default_factory=list, max_length=16
+    )
+    world_triangles_mm: List[List[List[float]]] = Field(default_factory=list, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_triangles(self) -> "QualityGeometryReference":
+        if len(self.triangle_indices) != len(self.world_triangles_mm):
+            raise ValueError("triangle_indices and world_triangles_mm must have equal length")
+        for triangle in self.world_triangles_mm:
+            if len(triangle) != 3 or any(len(point) != 3 for point in triangle):
+                raise ValueError("world triangles must contain exactly three VEC3 points")
+            if any(not math.isfinite(value) for point in triangle for value in point):
+                raise ValueError("world triangle coordinates must be finite")
+        return self
+
+
 class QualityFinding(StrictContractModel):
     finding_id: ContractId
     check_id: str = Field(min_length=1)
@@ -385,10 +404,19 @@ class QualityFinding(StrictContractModel):
     severity: Literal["info", "warning", "error"]
     status: QualityStatus
     node_ids: List[ContractId] = Field(default_factory=list)
+    geometry_refs: List[QualityGeometryReference] = Field(default_factory=list)
     measured_value: Optional[Union[float, str]] = None
     threshold: Optional[Union[float, str]] = None
     message: str = Field(min_length=1)
     suggestion: str = ""
+
+    @model_validator(mode="after")
+    def validate_geometry_references(self) -> "QualityFinding":
+        _require_unique("quality geometry node ids", [item.node_id for item in self.geometry_refs])
+        unknown = [item.node_id for item in self.geometry_refs if item.node_id not in self.node_ids]
+        if unknown:
+            raise ValueError(f"quality geometry references unknown finding nodes: {unknown}")
+        return self
 
 
 class ModelQualityReport(StrictContractModel):

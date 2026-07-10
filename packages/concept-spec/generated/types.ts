@@ -121,6 +121,11 @@ export type ModelQualityReport = {
   "severity": "info" | "warning" | "error"
   "status": "passed" | "warning" | "failed" | "not_run"
   "node_ids": Array<Id>
+  "geometry_refs"?: Array<{
+  "node_id": Id
+  "triangle_indices": Array<number>
+  "world_triangles_mm": Array<Array<Array<number>>>
+}>
   "measured_value"?: number | string | null
   "threshold"?: number | string | null
   "message": string

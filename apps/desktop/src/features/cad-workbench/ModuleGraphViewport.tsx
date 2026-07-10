@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { ModuleAssetRecord, ModuleGraphRecord } from '../../shared/types'
+import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 
@@ -19,6 +19,8 @@ type ModuleGraphViewportProps = {
   selectedNodeId: string
   hiddenNodeIds: string[]
   focusNodeId: string | null
+  qualityHighlightNodeIds: string[]
+  qualityGeometryRefs: NonNullable<QualityFinding['geometry_refs']>
   showConnectors: boolean
   explodeFactor: number
   getModuleFileUrl: (moduleId: string) => string
@@ -35,6 +37,8 @@ export function ModuleGraphViewport({
   selectedNodeId,
   hiddenNodeIds,
   focusNodeId,
+  qualityHighlightNodeIds,
+  qualityGeometryRefs,
   showConnectors,
   explodeFactor,
   getModuleFileUrl,
@@ -89,6 +93,8 @@ export function ModuleGraphViewport({
     const moduleRoot = new THREE.Group()
     moduleRoot.name = 'ModuleGraphRoot'
     scene.add(moduleRoot)
+    const qualityOverlay = buildQualityOverlay(qualityGeometryRefs)
+    scene.add(qualityOverlay)
 
     let disposed = false
     const loader = new GLTFLoader()
@@ -150,8 +156,19 @@ export function ModuleGraphViewport({
               const clone = material.clone()
               if ('wireframe' in clone) clone.wireframe = wireframe
               if (clone instanceof THREE.MeshStandardMaterial || clone instanceof THREE.MeshPhysicalMaterial) {
-                clone.emissive.set(node.node_id === selectedNodeId ? '#1f64a8' : '#000000')
-                clone.emissiveIntensity = node.node_id === selectedNodeId ? 0.42 : 0
+                const qualityHighlighted = qualityHighlightNodeIds.includes(node.node_id)
+                clone.emissive.set(
+                  qualityHighlighted
+                    ? '#b62424'
+                    : node.node_id === selectedNodeId
+                    ? '#1f64a8'
+                    : '#000000',
+                )
+                clone.emissiveIntensity = qualityHighlighted
+                  ? 0.72
+                  : node.node_id === selectedNodeId
+                  ? 0.42
+                  : 0
               }
               return clone
             })
@@ -192,9 +209,22 @@ export function ModuleGraphViewport({
       Promise.all(graph.nodes.map(loadNode))
         .then(() => {
           if (disposed) return
-          const focusObject = focusNodeId ? moduleRoot.getObjectByName(focusNodeId) : null
-          let bounds = new THREE.Box3().setFromObject(focusObject ?? moduleRoot)
-          if (bounds.isEmpty() && focusObject) bounds = new THREE.Box3().setFromObject(moduleRoot)
+          const focusObjects = (
+            qualityHighlightNodeIds.length
+              ? qualityHighlightNodeIds
+              : focusNodeId
+              ? [focusNodeId]
+              : []
+          )
+            .map((nodeId) => moduleRoot.getObjectByName(nodeId))
+            .filter((item): item is THREE.Object3D => Boolean(item))
+          let bounds = focusObjects.length
+            ? focusObjects.reduce(
+                (combined, item) => combined.union(new THREE.Box3().setFromObject(item)),
+                new THREE.Box3(),
+              )
+            : new THREE.Box3().setFromObject(moduleRoot)
+          if (bounds.isEmpty() && focusObjects.length) bounds = new THREE.Box3().setFromObject(moduleRoot)
           if (bounds.isEmpty()) {
             setLoadState('failed')
             setLoadMessage('ModuleGraph 已加载，但 GLB 中没有可显示网格')
@@ -297,6 +327,8 @@ export function ModuleGraphViewport({
     onSelectNode,
     onDropModule,
     selectedNodeId,
+    qualityGeometryRefs,
+    qualityHighlightNodeIds,
     showConnectors,
     showGrid,
     wireframe,
@@ -310,6 +342,11 @@ export function ModuleGraphViewport({
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
         data-focus-node-id={focusNodeId ?? ''}
+        data-quality-node-ids={qualityHighlightNodeIds.join(',')}
+        data-quality-triangle-count={qualityGeometryRefs.reduce(
+          (count, reference) => count + (reference.world_triangles_mm?.length ?? 0),
+          0,
+        )}
       />
       {loadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
@@ -319,6 +356,39 @@ export function ModuleGraphViewport({
       )}
     </div>
   )
+}
+
+function buildQualityOverlay(
+  references: NonNullable<QualityFinding['geometry_refs']>,
+): THREE.Group {
+  const group = new THREE.Group()
+  group.name = 'QualityGeometryOverlay'
+  references.forEach((reference, referenceIndex) => {
+    const positions: number[] = []
+    for (const triangle of reference.world_triangles_mm ?? []) {
+      if (triangle.length !== 3 || triangle.some((point) => point.length !== 3)) continue
+      const [first, second, third] = triangle
+      positions.push(
+        ...first, ...second,
+        ...second, ...third,
+        ...third, ...first,
+      )
+    }
+    if (!positions.length) return
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+    const material = new THREE.LineBasicMaterial({
+      color: referenceIndex % 2 === 0 ? '#ff4d4d' : '#ffb347',
+      depthTest: false,
+      transparent: true,
+      opacity: 0.98,
+    })
+    const lines = new THREE.LineSegments(geometry, material)
+    lines.name = `QualityTriangles_${reference.node_id}`
+    lines.renderOrder = 30
+    group.add(lines)
+  })
+  return group
 }
 
 function frameCamera(

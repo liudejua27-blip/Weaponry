@@ -101,9 +101,17 @@ class ConceptQualityService:
                     {
                         **finding.model_dump(
                             mode="json",
-                            exclude={"node_ids", "measured_value", "threshold"},
+                            exclude={
+                                "node_ids",
+                                "geometry_refs",
+                                "measured_value",
+                                "threshold",
+                            },
                         ),
                         "node_ids_json": _canonical_json(finding.node_ids),
+                        "geometry_refs_json": _canonical_json(
+                            [item.model_dump(mode="json") for item in finding.geometry_refs]
+                        ),
                         "measured_value_json": _optional_json(finding.measured_value),
                         "threshold_json": _optional_json(finding.threshold),
                     }
@@ -274,6 +282,9 @@ class ConceptQualityService:
                     "quality_run_id": report.report_id,
                     "status": report.status,
                     "finding_count": len(report.findings),
+                    "geometry_reference_count": sum(
+                        len(finding.geometry_refs) for finding in report.findings
+                    ),
                 },
                 steps=[
                     (
@@ -290,9 +301,14 @@ class ConceptQualityService:
                     ),
                     (
                         "inspect_assembly",
-                        "Checked Connector alignment and unconnected AABB overlaps.",
+                        "Checked Connector alignment, connected surface gaps, and exact unconnected intersections.",
                         0.86,
-                        {"edge_count": len(graph.edges)},
+                        {
+                            "edge_count": len(graph.edges),
+                            "geometry_reference_count": sum(
+                                len(finding.geometry_refs) for finding in findings
+                            ),
+                        },
                     ),
                     (
                         "finalize_report",
@@ -359,9 +375,17 @@ def _add_report(
             {
                 **finding.model_dump(
                     mode="json",
-                    exclude={"node_ids", "measured_value", "threshold"},
+                    exclude={
+                        "node_ids",
+                        "geometry_refs",
+                        "measured_value",
+                        "threshold",
+                    },
                 ),
                 "node_ids_json": _canonical_json(finding.node_ids),
+                "geometry_refs_json": _canonical_json(
+                    [item.model_dump(mode="json") for item in finding.geometry_refs]
+                ),
                 "measured_value_json": _optional_json(finding.measured_value),
                 "threshold_json": _optional_json(finding.threshold),
             }

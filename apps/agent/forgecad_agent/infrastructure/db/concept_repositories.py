@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any, Mapping, Optional
 
@@ -767,6 +768,28 @@ class QualityRepository:
                     finding["suggestion"],
                 ),
             )
+            for ref_index, reference in enumerate(
+                json.loads(finding["geometry_refs_json"])
+            ):
+                self.connection.execute(
+                    """
+                    INSERT INTO quality_finding_geometry_refs (
+                      finding_id, ref_index, node_id, geometry_ref_json
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        finding["finding_id"],
+                        ref_index,
+                        reference["node_id"],
+                        json.dumps(
+                            reference,
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                    ),
+                )
 
     def get_report(self, quality_run_id: str) -> Optional[sqlite3.Row]:
         return self.connection.execute(

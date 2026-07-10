@@ -25,6 +25,37 @@
           "severity": { "type": "string", "enum": ["info", "warning", "error"] },
           "status": { "type": "string", "enum": ["passed", "warning", "failed", "not_run"] },
           "node_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/id" } },
+          "geometry_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_id", "triangle_indices", "world_triangles_mm"],
+              "properties": {
+                "node_id": { "$ref": "common.schema.json#/$defs/id" },
+                "triangle_indices": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "items": { "type": "integer", "minimum": 0 }
+                },
+                "world_triangles_mm": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "array",
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "items": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "measured_value": { "type": ["number", "string", "null"] },
           "threshold": { "type": ["number", "string", "null"] },
           "message": { "type": "string", "minLength": 1 },

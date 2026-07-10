@@ -11,7 +11,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "design-change-set.schema.json": "167a0417615eafcfb16a01a5aa04e3156827b7521ec6b8b32011a959343936fb",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
-  "model-quality-report.schema.json": "f9d6ab460ab015fd300be40dd8027481c7d5f366885f66f660eacdaef4cd3ce3",
+  "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
@@ -587,6 +587,48 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             },
             "finding_id": {
               "$ref": "common.schema.json#/$defs/id"
+            },
+            "geometry_refs": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "node_id": {
+                    "$ref": "common.schema.json#/$defs/id"
+                  },
+                  "triangle_indices": {
+                    "items": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 16,
+                    "type": "array"
+                  },
+                  "world_triangles_mm": {
+                    "items": {
+                      "items": {
+                        "items": {
+                          "type": "number"
+                        },
+                        "maxItems": 3,
+                        "minItems": 3,
+                        "type": "array"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "maxItems": 16,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "triangle_indices",
+                  "world_triangles_mm"
+                ],
+                "type": "object"
+              },
+              "type": "array"
             },
             "measured_value": {
               "type": [

@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 `weapon-concept-geometry/1.1` 已把未连接组件的历史 AABB 提示升级为世界空间三角形相交与封闭网格包含检查，并把 Finding 连到桌面节点聚焦。它不证明异常间隙、结构强度、制造可行性、使用安全或完整 C07。
+范围：证明当时的 `weapon-concept-geometry/1.1` 已把未连接组件的历史 AABB 提示升级为世界空间三角形相交与封闭网格包含检查，并把 Finding 连到桌面节点聚焦。这是历史证据；局部 provenance、双节点高亮与已连接组件间隙已由 `1.2` 和 `R5_C07_LOCALIZATION.md` 取代。它不证明结构强度、制造可行性、使用安全或完整 C07。
 
 ## 算法与边界
 
@@ -34,10 +34,13 @@ npm run r5:c07-intersection-gate
 10. 浏览器点击 `geometry.ruleset` Finding 后，状态栏选择与视口 `data-focus-node-id` 都切换为 `node_core`。
 11. 请求历史 `weapon-concept-geometry/1.0` 会返回 422，避免把新算法结果写成旧规则版本。
 
-## 剩余 C07
+## 当时剩余、现由 1.2 完成
 
-- 异常间隙/悬空的几何距离规则；
+- 已连接组件异常间隙的保守 AABB 距离规则；
+- 相交 triangle id、双方节点框选与局部高亮。
+
+## 仍未完成
+
 - 对称、隐藏几何、密度与 LOD truth set；
-- 相交 triangle id、两组件并排定位与局部高亮；
 - 正式 Blender 资产和 Tauri 大网格性能阈值；
 - HTML 报告、规则配置 UI 和安全自动修复。

@@ -15,6 +15,7 @@ const EXPLODED_RENDER = join(OUTPUT_DIR, 'r5-concept-exploded.png')
 const FRONT_RENDER = join(OUTPUT_DIR, 'r5-concept-front.png')
 const TOP_RENDER = join(OUTPUT_DIR, 'r5-concept-top.png')
 const TURNTABLE_RENDER = join(OUTPUT_DIR, 'r5-concept-turntable-000.png')
+const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highlight.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -128,7 +129,13 @@ async function seedConceptGraph(baseUrl) {
     nodes: [
       graphNode('node_core', 'module_core_shell_01', [0, 0, 0], true),
       graphNode('node_front', 'module_front_shell_01', [-50, 0, 0]),
+      graphNode('node_rear', 'module_rear_shell_01', [50, 0, 0]),
       graphNode('node_grip', 'module_grip_shell_01', [14, -24, 0]),
+      graphNode('node_top', 'module_top_accessory_01', [0, 24, 0]),
+      graphNode('node_side', 'module_side_accessory_01', [0, 0, 20]),
+      graphNode('node_lower', 'module_lower_structure_01', [-12, -24, 0]),
+      graphNode('node_storage', 'module_storage_visual_01', [30, -24, 0]),
+      graphNode('node_armor', 'module_armor_panel_01', [0, 0, -20]),
     ],
     edges: [
       {
@@ -147,6 +154,12 @@ async function seedConceptGraph(baseUrl) {
         to_connector_id: 'connector_grip_core',
         status: 'connected',
       },
+      graphEdge('rear', 'connector_core_rear', 'connector_rear_core'),
+      graphEdge('top', 'connector_core_top', 'connector_top_core'),
+      graphEdge('side', 'connector_core_side', 'connector_side_core'),
+      graphEdge('lower', 'connector_core_lower', 'connector_lower_core'),
+      graphEdge('storage', 'connector_core_storage', 'connector_storage_core'),
+      graphEdge('armor', 'connector_core_armor', 'connector_armor_core'),
     ],
   }
   await jsonRequest(baseUrl, `/api/v1/module-graphs/${graph.graph_id}/validate`, {
@@ -200,7 +213,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       'module_grip_shell_01',
       'module_front_shell_02',
     ])
-    await assertText(page.locator('.cad-status-bar'), ['3 nodes', '单位：mm'])
+    await assertText(page.locator('.cad-status-bar'), ['9 nodes', '单位：mm'])
 
     await page.getByRole('button', { name: /module_front_shell_01/ }).click()
     await assertText(page.locator('.cad-status-bar'), ['node_front'])
@@ -358,18 +371,37 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     const qualityResponse = await qualityResponsePromise
     if (!qualityResponse.ok()) throw new Error(`geometry quality inspection failed: ${qualityResponse.status()}`)
     const qualityRecord = await qualityResponse.json()
-    if (qualityRecord.report.status !== 'passed' || (qualityRecord.report.findings ?? []).length !== 1) {
+    const qualityFindings = qualityRecord.report.findings ?? []
+    const highlightedFindingIndex = qualityFindings.findIndex(
+      (finding) => (finding.geometry_refs ?? []).some(
+        (reference) => (reference.world_triangles_mm ?? []).length > 0,
+      ),
+    )
+    if (qualityRecord.report.status !== 'warning' || highlightedFindingIndex < 0) {
       throw new Error(`unexpected geometry quality report: ${JSON.stringify(qualityRecord.report)}`)
     }
     await assertText(page.locator('.properties-panel'), [
       'Mesh/Assembly',
-      '通过',
+      '需复核',
       '几何检查不代表结构强度、制造可行性或使用安全验证',
     ])
-    const qualityFinding = page.locator('.quality-finding').first()
+    const highlightedFinding = qualityFindings[highlightedFindingIndex]
+    const highlightedNodeIds = highlightedFinding.node_ids ?? []
+    const qualityTriangleCount = (highlightedFinding.geometry_refs ?? []).reduce(
+      (count, reference) => count + (reference.world_triangles_mm ?? []).length,
+      0,
+    )
+    const qualityFinding = page.locator('.quality-finding').nth(highlightedFindingIndex)
     await qualityFinding.click()
-    await page.locator('.cad-status-bar').getByText('选择：node_core', { exact: true }).waitFor()
-    await page.locator('.weapon-viewport[data-focus-node-id="node_core"]').waitFor()
+    await page.locator('.cad-status-bar').getByText(`选择：${highlightedNodeIds[0]}`, { exact: true }).waitFor()
+    await page.locator(
+      `.weapon-viewport[data-quality-node-ids="${highlightedNodeIds.join(',')}"]`
+      + `[data-quality-triangle-count="${qualityTriangleCount}"]`,
+    ).waitFor()
+    await page.screenshot({ path: QUALITY_HIGHLIGHT_SCREENSHOT, fullPage: true })
+    if ((await stat(QUALITY_HIGHLIGHT_SCREENSHOT)).size < 20_000) {
+      throw new Error('quality triangle highlight screenshot is unexpectedly small')
+    }
 
     const exportResponsePromise = page.waitForResponse(
       (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
@@ -532,6 +564,9 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       timeline_rejected_diagnostic_verified: true,
       geometry_quality_inspection_verified: true,
       quality_finding_focus_verified: true,
+      quality_dual_node_highlight_verified: true,
+      quality_triangle_overlay_count: qualityTriangleCount,
+      quality_highlight_screenshot: QUALITY_HIGHLIGHT_SCREENSHOT,
       quality_run_id: qualityRecord.quality_run_id,
       export_downloaded: true,
       combined_glb_downloaded: true,
@@ -773,6 +808,17 @@ function graphNode(nodeId, moduleId, position, locked = false) {
     mirror_axis: 'none',
     locked,
     visible: true,
+  }
+}
+
+function graphEdge(name, sourceConnectorId, targetConnectorId) {
+  return {
+    edge_id: `edge_core_${name}`,
+    from_node_id: 'node_core',
+    from_connector_id: sourceConnectorId,
+    to_node_id: `node_${name}`,
+    to_connector_id: targetConnectorId,
+    status: 'connected',
   }
 }
 

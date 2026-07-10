@@ -13,13 +13,14 @@ from concept_module_pack import import_module_pack, validate_module_pack
 from forgecad_agent.application.combined_glb import read_glb, write_glb
 from forgecad_agent.application.mesh_quality_inspector import (
     ModuleInspectionSource,
+    inspect_concept_geometry,
     inspect_module_mesh,
 )
 from forgecad_agent.application.triangle_intersections import (
     inspect_triangle_mesh_intersection,
     triangles_intersect,
 )
-from forgecad_agent.domain.concepts.models import ModuleAssetManifest
+from forgecad_agent.domain.concepts.models import ModuleAssetManifest, ModuleGraph
 from smoke_r2_concept_projects import (
     _assert,
     _create_body,
@@ -39,6 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     mesh_negative_checks = _assert_mesh_negative_checks()
     exact_intersection_checks = _assert_exact_intersection_checks()
+    connected_gap_checks = _assert_connected_gap_checks()
     with tempfile.TemporaryDirectory(
         prefix="forgecad_r5_quality_"
     ) as temporary_directory:
@@ -73,7 +75,7 @@ def main() -> int:
 
             request = {
                 "client_request_id": "r5-quality-inspect-reference",
-                "ruleset_version": "weapon-concept-geometry/1.1",
+                "ruleset_version": "weapon-concept-geometry/1.2",
             }
             legacy_status, _legacy_error = _json_request_allow_error(
                 base_url,
@@ -81,12 +83,12 @@ def main() -> int:
                 method="POST",
                 body={
                     "client_request_id": "r5-quality-reject-legacy-ruleset",
-                    "ruleset_version": "weapon-concept-geometry/1.0",
+                    "ruleset_version": "weapon-concept-geometry/1.1",
                 },
                 idempotency_key="r5-quality-reject-legacy-ruleset",
             )
             _assert(
-                legacy_status == 422, "legacy AABB ruleset version was not rejected"
+                legacy_status == 422, "superseded 1.1 ruleset version was not rejected"
             )
             inspected = _json_request(
                 base_url,
@@ -114,6 +116,19 @@ def main() -> int:
                     for item in inspected["report"]["findings"]
                 ),
                 "exact intersection evidence missing",
+            )
+            _assert(
+                all(
+                    len(item.get("geometry_refs", [])) == 2
+                    and all(
+                        reference.get("triangle_indices")
+                        and len(reference["triangle_indices"])
+                        == len(reference.get("world_triangles_mm", []))
+                        for reference in item["geometry_refs"]
+                    )
+                    for item in inspected["report"]["findings"]
+                ),
+                "intersection triangle provenance missing",
             )
             quality_job = _json_request(
                 base_url,
@@ -174,7 +189,7 @@ def main() -> int:
                 method="POST",
                 body={
                     "client_request_id": "r5-quality-inspect-misaligned",
-                    "ruleset_version": "weapon-concept-geometry/1.1",
+                    "ruleset_version": "weapon-concept-geometry/1.2",
                 },
                 idempotency_key="r5-quality-inspect-misaligned",
             )
@@ -209,8 +224,21 @@ def main() -> int:
             finding_count = connection.execute(
                 "SELECT COUNT(*) FROM quality_findings"
             ).fetchone()[0]
+            geometry_ref_row_count = connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM quality_finding_geometry_refs refs
+                JOIN quality_findings findings USING (finding_id)
+                WHERE findings.quality_run_id = ?
+                """,
+                (inspected["quality_run_id"],),
+            ).fetchone()[0]
         _assert(report_count == 2, "quality reports were not persisted exactly once")
         _assert(finding_count >= 5, "quality findings were not normalized")
+        _assert(
+            geometry_ref_row_count == 4,
+            "intersection geometry references were not normalized exactly four times",
+        )
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -231,6 +259,11 @@ def main() -> int:
                 restored["report"]["status"] == "warning", "restart lost warning report"
             )
             _assert(
+                restored["report"]["findings"][0]["geometry_refs"]
+                == inspected["report"]["findings"][0]["geometry_refs"],
+                "restart lost intersection triangle provenance",
+            )
+            _assert(
                 restored_failed["report"]["status"] == "failed",
                 "restart lost failed report",
             )
@@ -241,18 +274,21 @@ def main() -> int:
             json.dumps(
                 {
                     "ok": True,
-                    "ruleset_version": "weapon-concept-geometry/1.1",
+                    "ruleset_version": "weapon-concept-geometry/1.2",
                     "module_meshes_checked": 9,
                     "reference_mesh_checks_passed": True,
                     "mesh_negative_checks": mesh_negative_checks,
                     "exact_intersection_checks": exact_intersection_checks,
+                    "connected_gap_checks": connected_gap_checks,
+                    "intersection_geometry_refs_persisted": True,
                     "reference_intersection_warnings": 2,
-                    "legacy_ruleset_rejected": True,
+                    "superseded_ruleset_rejected": True,
                     "connector_misalignment_failed": True,
                     "idempotent_replay": True,
                     "job_event_count": 4,
                     "report_count": report_count,
                     "finding_count": finding_count,
+                    "geometry_ref_row_count": geometry_ref_row_count,
                     "restart_restored": True,
                 },
                 ensure_ascii=False,
@@ -379,6 +415,109 @@ def _assert_exact_intersection_checks() -> dict[str, int | bool]:
         "bvh_cartesian_pairs": cartesian_pairs,
         "bvh_tested_pairs": pruned.tested_triangle_pairs,
     }
+
+
+def _assert_connected_gap_checks() -> dict[str, float | bool]:
+    first_payload = _triangle_glb("mat_gap_first")
+    document, binary = read_glb(_triangle_glb("mat_gap_second"))
+    shifted = bytearray(binary)
+    values = list(struct.unpack_from("<9f", shifted, 0))
+    for offset in range(0, 9, 3):
+        values[offset] += 0.2
+    shifted[:36] = struct.pack("<9f", *values)
+    second_payload = write_glb(document, bytes(shifted))
+    identity = {
+        "position": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0],
+    }
+    first_manifest = ModuleAssetManifest.model_validate(
+        {
+            "module_id": "module_gap_first",
+            "pack_id": "pack_weapon_concept_v1",
+            "category": "core_shell",
+            "asset_id": "asset_gap_first",
+            "sha256": hashlib.sha256(first_payload).hexdigest(),
+            "bounds_mm": [100.0, 50.0, 10.0],
+            "triangle_count": 1,
+            "material_slots": ["mat_gap_first"],
+            "connectors": [
+                {
+                    "connector_id": "connector_gap_first",
+                    "slot": "core.front",
+                    "connector_type": "surface_male",
+                    "transform": identity,
+                    "scale_range": [0.8, 1.2],
+                }
+            ],
+        }
+    )
+    second_manifest = ModuleAssetManifest.model_validate(
+        {
+            "module_id": "module_gap_second",
+            "pack_id": "pack_weapon_concept_v1",
+            "category": "front_shell",
+            "asset_id": "asset_gap_second",
+            "sha256": hashlib.sha256(second_payload).hexdigest(),
+            "bounds_mm": [100.0, 50.0, 10.0],
+            "triangle_count": 1,
+            "material_slots": ["mat_gap_second"],
+            "connectors": [
+                {
+                    "connector_id": "connector_gap_second",
+                    "slot": "front.core",
+                    "connector_type": "surface_female",
+                    "transform": identity,
+                    "scale_range": [0.8, 1.2],
+                }
+            ],
+        }
+    )
+    graph = ModuleGraph.model_validate(
+        {
+            "graph_id": "mg_connected_surface_gap_truth",
+            "project_id": "prj_connected_surface_gap_truth",
+            "root_node_id": "node_gap_first",
+            "nodes": [
+                {
+                    "node_id": "node_gap_first",
+                    "module_id": first_manifest.module_id,
+                    "transform": identity,
+                },
+                {
+                    "node_id": "node_gap_second",
+                    "module_id": second_manifest.module_id,
+                    "transform": identity,
+                },
+            ],
+            "edges": [
+                {
+                    "edge_id": "edge_connected_surface_gap",
+                    "from_node_id": "node_gap_first",
+                    "from_connector_id": "connector_gap_first",
+                    "to_node_id": "node_gap_second",
+                    "to_connector_id": "connector_gap_second",
+                    "status": "connected",
+                }
+            ],
+        }
+    )
+    findings = inspect_concept_geometry(
+        graph=graph,
+        sources=[
+            ModuleInspectionSource("node_gap_first", first_manifest, first_payload),
+            ModuleInspectionSource("node_gap_second", second_manifest, second_payload),
+        ],
+    )
+    alignment = [
+        item for item in findings if item.check_id == "assembly.connector_alignment"
+    ]
+    gaps = [item for item in findings if item.check_id == "assembly.connected_surface_gap"]
+    _assert(not alignment, "gap truth set unexpectedly failed Connector alignment")
+    _assert(len(gaps) == 1, "connected surface gap was not detected exactly once")
+    distance = float(gaps[0].measured_value)
+    _assert(abs(distance - 100.0) <= 0.001, "connected gap distance mismatch")
+    return {"connector_aligned": True, "gap_detected": True, "distance_mm": distance}
 
 
 def _cube_triangles(

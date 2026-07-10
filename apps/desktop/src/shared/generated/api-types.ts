@@ -537,7 +537,7 @@ export type HealthResponse = {
 
 export type InspectConceptVersionRequest = {
   "client_request_id": string
-  "ruleset_version"?: "weapon-concept-geometry/1.1"
+  "ruleset_version"?: "weapon-concept-geometry/1.2"
 }
 
 export type InterpretDesignBriefRequest = {
@@ -837,10 +837,17 @@ export type QualityFinding = {
   "severity": "info" | "warning" | "error"
   "status": "passed" | "warning" | "failed" | "not_run"
   "node_ids"?: Array<string>
+  "geometry_refs"?: Array<QualityGeometryReference>
   "measured_value"?: number | string | null
   "threshold"?: number | string | null
   "message": string
   "suggestion"?: string
+}
+
+export type QualityGeometryReference = {
+  "node_id": string
+  "triangle_indices"?: Array<number>
+  "world_triangles_mm"?: Array<Array<Array<number>>>
 }
 
 export type QualityRunRecord = {

@@ -3119,8 +3119,8 @@
             "type": "string"
           },
           "ruleset_version": {
-            "const": "weapon-concept-geometry/1.1",
-            "default": "weapon-concept-geometry/1.1",
+            "const": "weapon-concept-geometry/1.2",
+            "default": "weapon-concept-geometry/1.2",
             "title": "Ruleset Version",
             "type": "string"
           }
@@ -4895,6 +4895,13 @@
             "title": "Finding Id",
             "type": "string"
           },
+          "geometry_refs": {
+            "items": {
+              "$ref": "#/components/schemas/QualityGeometryReference"
+            },
+            "title": "Geometry Refs",
+            "type": "array"
+          },
           "measured_value": {
             "anyOf": [
               {
@@ -4970,6 +4977,44 @@
           "message"
         ],
         "title": "QualityFinding",
+        "type": "object"
+      },
+      "QualityGeometryReference": {
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "triangle_indices": {
+            "items": {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "maxItems": 16,
+            "title": "Triangle Indices",
+            "type": "array"
+          },
+          "world_triangles_mm": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "maxItems": 16,
+            "title": "World Triangles Mm",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "QualityGeometryReference",
         "type": "object"
       },
       "QualityRunRecord": {

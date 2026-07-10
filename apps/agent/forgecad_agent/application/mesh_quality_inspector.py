@@ -9,12 +9,14 @@ from forgecad_agent.application.combined_glb import CombinedGlbError, read_glb
 from forgecad_agent.application.triangle_intersections import (
     Triangle3,
     inspect_triangle_mesh_intersection,
+    mesh_bounds,
 )
 from forgecad_agent.domain.concepts.connector_snapping import connector_alignment_error
 from forgecad_agent.domain.concepts.models import (
     ModuleAssetManifest,
     ModuleGraph,
     QualityFinding,
+    QualityGeometryReference,
     Transform,
 )
 
@@ -24,6 +26,8 @@ DEGENERATE_AREA_EPSILON_MM2 = 1e-8
 NORMAL_LENGTH_TOLERANCE = 0.05
 CONNECTOR_DISTANCE_TOLERANCE_MM = 0.1
 CONNECTOR_ROTATION_TOLERANCE_DEG = 0.1
+CONNECTED_SURFACE_GAP_TOLERANCE_MM = 2.0
+MAX_HIGHLIGHT_TRIANGLES_PER_NODE = 16
 
 _COMPONENT_FORMATS = {
     5120: ("b", 1),
@@ -66,6 +70,7 @@ def inspect_concept_geometry(
         inspections[source.node_id] = inspection
         findings.extend(inspection.findings)
     findings.extend(_inspect_connector_alignment(graph, sources))
+    findings.extend(_inspect_connected_surface_gaps(graph, inspections))
     findings.extend(_inspect_unconnected_intersections(graph, inspections))
     if not findings:
         findings.append(
@@ -410,17 +415,7 @@ def _inspect_unconnected_intersections(
 ) -> list[QualityFinding]:
     nodes = {node.node_id: node for node in graph.nodes}
     connected = {frozenset((edge.from_node_id, edge.to_node_id)) for edge in graph.edges}
-    world_triangles = {
-        node_id: tuple(
-            tuple(
-                _world_point(nodes[node_id].transform, nodes[node_id].mirror_axis, point)
-                for point in triangle
-            )
-            for triangle in inspection.triangles_mm
-        )
-        for node_id, inspection in inspections.items()
-        if inspection.triangles_mm
-    }
+    world_triangles = _world_triangles(nodes, inspections)
     findings: list[QualityFinding] = []
     node_ids = sorted(world_triangles)
     for first_index, first_id in enumerate(node_ids):
@@ -460,9 +455,106 @@ def _inspect_unconnected_intersections(
                         measured,
                         "surface_pairs=0; containment=false",
                         "点击本条结果聚焦组件，并调整位置或建立正确的 Connector 连接。",
+                        geometry_refs=_intersection_geometry_refs(
+                            first_id,
+                            second_id,
+                            world_triangles[first_id],
+                            world_triangles[second_id],
+                            result.hit_pairs,
+                        ),
                     )
                 )
     return findings
+
+
+def _inspect_connected_surface_gaps(
+    graph: ModuleGraph,
+    inspections: dict[str, MeshInspection],
+) -> list[QualityFinding]:
+    nodes = {node.node_id: node for node in graph.nodes}
+    world_triangles = _world_triangles(nodes, inspections)
+    findings: list[QualityFinding] = []
+    for edge in graph.edges:
+        if edge.from_node_id not in world_triangles or edge.to_node_id not in world_triangles:
+            continue
+        distance = _bounds_distance(
+            mesh_bounds(world_triangles[edge.from_node_id]),
+            mesh_bounds(world_triangles[edge.to_node_id]),
+        )
+        if distance <= CONNECTED_SURFACE_GAP_TOLERANCE_MM:
+            continue
+        findings.append(
+            _finding(
+                13,
+                "assembly.connected_surface_gap",
+                "assembly",
+                "warning",
+                "warning",
+                [edge.from_node_id, edge.to_node_id],
+                "Connector 已建立，但两个组件的世界包围盒仍存在明显间隙。",
+                round(distance, 6),
+                CONNECTED_SURFACE_GAP_TOLERANCE_MM,
+                "检查 Connector 是否位于可见表面，或调整模块几何和连接点。",
+            )
+        )
+    return findings
+
+
+def _world_triangles(
+    nodes: dict[str, Any],
+    inspections: dict[str, MeshInspection],
+) -> dict[str, tuple[Triangle3, ...]]:
+    return {
+        node_id: tuple(
+            tuple(
+                _world_point(nodes[node_id].transform, nodes[node_id].mirror_axis, point)
+                for point in triangle
+            )
+            for triangle in inspection.triangles_mm
+        )
+        for node_id, inspection in inspections.items()
+        if inspection.triangles_mm
+    }
+
+
+def _bounds_distance(
+    first: tuple[tuple[float, float, float], tuple[float, float, float]],
+    second: tuple[tuple[float, float, float], tuple[float, float, float]],
+) -> float:
+    separations = [
+        max(0.0, first[0][axis] - second[1][axis], second[0][axis] - first[1][axis])
+        for axis in range(3)
+    ]
+    return math.sqrt(sum(value * value for value in separations))
+
+
+def _intersection_geometry_refs(
+    first_id: str,
+    second_id: str,
+    first_triangles: Sequence[Triangle3],
+    second_triangles: Sequence[Triangle3],
+    hit_pairs: Sequence[tuple[int, int]],
+) -> list[QualityGeometryReference]:
+    first_indices = list(dict.fromkeys(pair[0] for pair in hit_pairs))[
+        :MAX_HIGHLIGHT_TRIANGLES_PER_NODE
+    ]
+    second_indices = list(dict.fromkeys(pair[1] for pair in hit_pairs))[
+        :MAX_HIGHLIGHT_TRIANGLES_PER_NODE
+    ]
+    if not first_indices and not second_indices:
+        return []
+    return [
+        QualityGeometryReference(
+            node_id=first_id,
+            triangle_indices=first_indices,
+            world_triangles_mm=[first_triangles[index] for index in first_indices],
+        ),
+        QualityGeometryReference(
+            node_id=second_id,
+            triangle_indices=second_indices,
+            world_triangles_mm=[second_triangles[index] for index in second_indices],
+        ),
+    ]
 
 
 def _accessor(
@@ -584,6 +676,7 @@ def _finding(
     measured_value: float | str | None = None,
     threshold: float | str | None = None,
     suggestion: str = "",
+    geometry_refs: list[QualityGeometryReference] | None = None,
 ) -> QualityFinding:
     return QualityFinding(
         finding_id=f"finding_pending_{suffix}",
@@ -592,6 +685,7 @@ def _finding(
         severity=severity,
         status=status,
         node_ids=node_ids,
+        geometry_refs=geometry_refs or [],
         measured_value=measured_value,
         threshold=threshold,
         message=message,

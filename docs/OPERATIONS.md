@@ -156,9 +156,10 @@ npm run r5:render-gate
 npm run r5:multiview-gate
 npm run r5:quality-gate
 npm run r5:c07-intersection-gate
+npm run r5:c07-localization-gate
 ```
 
-`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:presentation-gate` 增加轮廓抗锯齿、软接触阴影、确定性 MP4 与 DCC 可用性预检；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、照片级渲染或真实 DCC round-trip。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:presentation-gate` 增加轮廓抗锯齿、软接触阴影、确定性 MP4 与 DCC 可用性预检；`r5:c07-localization-gate` 验证 `weapon-concept-geometry/1.2` 的实际 GLB Mesh/Assembly、triangle BVH/SAT/containment、已连接组件表面间隙、精确 triangle provenance、双节点/局部高亮及重启恢复。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、对称/隐藏几何/密度/LOD、照片级渲染或真实 DCC round-trip。
 
 `r3:change-set-audit-gate` 专门验证 migration 0012、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、24 条桌面加载更多和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
@@ -243,10 +244,10 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 curl -X POST "http://127.0.0.1:8000/api/v1/versions/VER_ID/quality-runs:inspect" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: manual-quality-001' \
-  -d '{"client_request_id":"manual-quality-001","ruleset_version":"weapon-concept-geometry/1.1"}'
+  -d '{"client_request_id":"manual-quality-001","ruleset_version":"weapon-concept-geometry/1.2"}'
 ```
 
-报告状态为 `warning` 时可以继续概念评审，但必须复核 Findings；`assembly.unconnected_triangle_intersection` 的测量值包含 `surface_pairs`、`containment`、`tested_pairs` 和 `capped`。点击桌面 Finding 会选择并聚焦第一个关联节点。`failed` 表示确定性几何或 Connector 门失败。两者都不代表结构强度、制造可行性或使用安全结论。
+报告状态为 `warning` 时可以继续概念评审，但必须复核 Findings；`assembly.unconnected_triangle_intersection` 的测量值包含 `surface_pairs`、`containment`、`tested_pairs` 和 `capped`，`geometry_refs` 保存双方局部 triangle index 与毫米世界坐标。点击桌面 Finding 会选择首个节点、框选并高亮全部关联节点，同时叠加局部三角形；`assembly.connected_surface_gap` 使用世界 AABB 分离距离，超过 `2 mm` 才提示，它不是精确装配公差。`failed` 表示确定性几何或 Connector 门失败。两者都不代表结构强度、制造可行性或使用安全结论。
 
 ### 2.3 Tauri 检查
 
@@ -413,7 +414,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位、未连接组件 triangle BVH/SAT 穿插与封闭网格包含，浏览器也验证 Finding 点击聚焦。OBJ/MTL、透明/爆炸 PNG、三正交视图、8 帧 turntable、MP4、轮廓抗锯齿与软阴影已完成技术预览切片；继续补异常间隙、对称、隐藏几何和 LOD 样本、正式资产渲染性能、真实 DCC 往返与 HTML 报告。
+自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位、已连接组件超过 2 mm 的保守 AABB 表面间隙、未连接组件 triangle BVH/SAT 穿插与封闭网格包含；浏览器也验证 Finding 的双节点和局部三角形高亮。OBJ/MTL、透明/爆炸 PNG、三正交视图、8 帧 turntable、MP4、轮廓抗锯齿与软阴影已完成技术预览切片；继续补对称、隐藏几何、密度和 LOD 样本、正式资产渲染性能、真实 DCC 往返与 HTML 报告。
 
 ### Day 7：桌面回归
 
