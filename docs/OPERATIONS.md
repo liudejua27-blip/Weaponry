@@ -1,35 +1,32 @@
 # ForgeCAD 操作与运行手册
 
-本文区分两种状态：
+本文把运行状态分成三层，避免用旧基线的通过结果冒充新产品能力：
 
-- **A. 当前可运行基线**：仓库今天真实存在的武神 Forge / Weapon / Unity 代码，用于冻结、回归和迁移开发。
-- **B. 目标 ForgeCAD Runtime**：CAD/DFM 重构后的运行契约，目前是实施要求，不代表已经可运行。
+- **当前可运行**：旧武神后端、ForgeCAD 基础设施和 `/cad` 参考工作台；
+- **P0 目标**：通用模块化 3D 平台 + Weapon Concept Pack；
+- **后续目标**：CAD / DFM Engineering Pack。
 
-不要用 A 的成功结果证明 CAD、STEP、3MF 或 DFM 已经完成。
+P0 不拒绝武器题材，但正式用途限定为未来概念、游戏资产、影视道具和非功能展示模型。
 
-## 1. 当前可运行基线
+## 1. 当前环境
 
-### 1.1 环境要求
+### 1.1 必需与可选依赖
 
 必需：
 
-- Node.js 20 或更高；
-- npm 10 或更高；
-- Python 3.9 或更高。
+- Node.js 20+；
+- npm 10+；
+- Python 3.9+。
 
 可选：
 
-- Rust + Cargo：编译或运行 Tauri 桌面壳；
-- Chrome：运行现有浏览器 UI smoke；
-- ComfyUI：旧概念图 Provider；
-- 旧本地 3D Runtime：旧神经 3D Provider；
-- Unity：只用于旧 Unity release gate。
+- Rust + Cargo：运行或编译 Tauri；
+- Chrome：执行现有浏览器 smoke；
+- ComfyUI、旧本地 3D Runtime、Unity：只服务 legacy 回归。
 
-CAD 重构后还会需要 build123d/OpenCascade、lib3mf，以及可选 PrusaSlicer；它们目前不在 `apps/agent/pyproject.toml` 中。
+P0 Concept 闭环不要求 build123d/OpenCascade、lib3mf 或 PrusaSlicer。它们属于后续 Engineering Pack。
 
 ### 1.2 安装
-
-在仓库根目录执行：
 
 ```bash
 npm install
@@ -37,7 +34,7 @@ python3 -m venv .venv
 .venv/bin/pip install -e "apps/agent[dev]"
 ```
 
-检查版本：
+确认环境：
 
 ```bash
 node --version
@@ -45,7 +42,7 @@ npm --version
 .venv/bin/python --version
 ```
 
-### 1.3 启动本地 Agent
+### 1.3 启动当前 Agent
 
 ```bash
 PYTHONPATH=apps/agent \
@@ -62,9 +59,9 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-预期健康响应应标识 `service=wushen-agent` 和 `status=ok`。如果 8000 端口上是别的服务，Tauri supervisor 会报告 `wrong_service`，不会把它当成当前 Agent。
+当前健康响应仍使用 `service=wushen-agent`。这表示迁移基线可运行，不表示 Concept API、模块装配或新导出器已经实现。
 
-### 1.4 运行前端开发壳
+### 1.4 打开参考工作台
 
 另开终端：
 
@@ -72,36 +69,40 @@ curl --fail http://127.0.0.1:8000/api/provider-settings
 VITE_FORGE_API_BASE_URL=http://127.0.0.1:8000 npm run desktop:dev
 ```
 
-这会打开或提供 `http://127.0.0.1:5173`。它只是 Vite 浏览器开发壳，不是最终桌面交付形态；浏览器中不能使用 Tauri invoke 和本地 supervisor 能力。
+当前 Vite 固定入口：
 
-### 1.5 运行 Tauri 本地桌面窗口
+```text
+http://127.0.0.1:1420/#/cad
+```
 
-安装 Rust/Cargo 后执行：
+这是浏览器开发壳。它可以验证布局和前端交互，但不具备 Tauri invoke、本地 supervisor 和正式桌面打包能力。
+
+### 1.5 运行 Tauri 开发窗口
+
+安装 Rust/Cargo 后：
 
 ```bash
 npm --workspace apps/desktop run tauri -- dev
 ```
 
-当前 Tauri 开发 supervisor 会尝试启动：
+当前开发 supervisor 仍尝试启动：
 
 ```text
 .venv/bin/python -m uvicorn wushen_agent.main:create_app
 ```
 
-并设置仓库内 `WushenForgeLibrary` 与 `migrations` 路径。它属于开发期 Python 进程管理，不是已完成的生产 sidecar 打包。
-
-常用覆盖项：
+常用覆盖：
 
 ```bash
 export WUSHEN_REPO_ROOT=/absolute/path/to/repo
 export WUSHEN_AGENT_PYTHON=/absolute/path/to/python
 ```
 
-开发 supervisor 日志位于仓库根目录 `.wushen-agent.log`。
+日志位于 `.wushen-agent.log`。当前 supervisor 是开发机制，不是生产 sidecar 打包完成的证据。
 
 ## 2. 当前验证命令
 
-### 2.1 最小静态检查
+### 2.1 静态与构建
 
 ```bash
 npm run agent:check
@@ -111,58 +112,59 @@ npm run desktop:typecheck
 npm run desktop:build
 ```
 
-Schema 或 Pydantic/OpenAPI 模型发生变化后先生成：
+Schema、Pydantic 或 OpenAPI 模型改变后：
 
 ```bash
 npm run contracts:types:generate
+npm run contracts:types:check
 ```
 
-然后重新运行 `contracts:types:check`。生成物不应手工编辑。
+生成物不能手工编辑。
 
-### 2.2 当前最高层领域回归
+### 2.2 当前最高层回归
 
 ```bash
 npm run m6:gate
 ```
 
-它验证迁移前的 CreativeWeaponGraph/SkillGraph 切片和桌面类型，不验证 ForgeCAD CAD/DFM 能力。
+该门只验证迁移前 CreativeWeaponGraph/SkillGraph 与桌面类型。
 
-R1 基础设施切片使用：
+R1 基础设施：
 
 ```bash
 npm run r1:foundation-gate
 ```
 
-该门先验证 migration 幂等、SQLite 连接约束、内容寻址去重、路径越界和 hash 篡改检测，再执行完整 `m6:gate`。
+它验证 migration 幂等、SQLite 约束、内容寻址去重、路径越界与哈希篡改检测，再执行 `m6:gate`。
 
-R1 当前完整回归使用：
+R1 当前完整回归：
 
 ```bash
 npm run r1:gate
 ```
 
-它在基础设施门后继续执行桌面生产构建和上下文连续性 UI smoke。
+它继续执行桌面生产构建和上下文连续性 smoke，仍不证明 R2–R6 Concept 能力。
 
-### 2.3 Rust/Tauri 编译检查
+### 2.3 Tauri 检查
 
 ```bash
 npm run desktop:tauri-check
 ```
 
-没有 Cargo 时应诚实记录为环境阻塞，不能据此声称桌面打包可用。
+缺少 Cargo 时必须记录环境阻塞，不能声称桌面包可用。
 
-### 2.4 旧发布门的处理
+### 2.4 旧 release gate
 
-`npm run release:gate` 当前仍检查旧的“仅虚构武器、禁止现实制造细节”安全文案、ComfyUI、Unity import 和旧打包条件。产品方向已经调整为支持武器 CAD/DFM 设计，因此：
+`npm run release:gate` 仍包含旧产品的安全措辞、ComfyUI、Unity import 和旧打包条件：
 
-- 它只保留为 legacy baseline 证据；
-- 旧安全文案不再代表 ForgeCAD 的产品范围，后续必须从新合同和发布门中移除；
-- 它不是 ForgeCAD release gate；
-- 在 C01–C10 新门落地前，不得声称新产品达到发布条件。
+- 只保留为 legacy baseline；
+- 不代表 P0 Concept 产品范围；
+- 不能作为 ForgeCAD 发布门；
+- C01–C10 落地前不得声称新产品达到 Beta。
 
-## 3. 当前数据与备份
+## 3. 数据、备份与临时环境
 
-默认库：
+当前默认库：
 
 ```text
 WushenForgeLibrary/
@@ -172,44 +174,30 @@ WushenForgeLibrary/
   objects/sha256/
 ```
 
-数据库与对象目录共同构成资产库，不能只备份 `library.db` 而丢失 `objects/sha256`。
+数据库和对象目录必须一起备份。
 
-### 3.1 安全备份
+安全备份：
 
-1. 停止 Agent 和 Tauri 管理的子进程。
-2. 确认没有 Uvicorn/worker 正在写库。
-3. 复制整个 `WushenForgeLibrary` 目录到带时间戳的备份位置。
-4. 校验备份包含数据库、WAL/SHM（如果仍存在）和对象目录。
+1. 停止 Agent、worker 和 Tauri supervisor；
+2. 确认数据库没有写入；
+3. 复制整个 `WushenForgeLibrary`；
+4. 校验数据库、WAL/SHM（若存在）和对象目录；
+5. 正式工具落地后优先使用 SQLite backup API。
 
-不要在进程写入期间直接打包活动数据库。正式迁移工具应使用 SQLite backup API 或一致性快照。
-
-### 3.2 使用临时库做测试
-
-为了避免污染真实资产：
+测试使用独立库：
 
 ```bash
 export WUSHEN_LIBRARY_ROOT="$PWD/.tmp/dev-library"
 export WUSHEN_MIGRATIONS_DIR="$PWD/migrations"
 ```
 
-测试结束前先确认该路径确实是临时路径，再删除。不要把用户资产库作为 smoke 输入。
+当前没有安全清空生产库的统一命令。不要对真实资产库执行递归删除。
 
-### 3.3 数据重置
+## 4. 当前 Provider
 
-当前没有“安全清空生产库”的统一命令。开发期需要重置时：
+默认 mock Provider 最适合迁移回归。
 
-1. 停止所有进程；
-2. 仅对明确的临时 `WUSHEN_LIBRARY_ROOT` 操作；
-3. 保留失败样本或先备份；
-4. 重新启动，让 migration runner 创建新库。
-
-本文不提供递归删除命令，避免误删真实资产。
-
-## 4. 当前 Provider 配置
-
-默认 Provider 是 mock，最适合做迁移前回归。
-
-OpenAI-compatible 旧 LLM Adapter：
+旧 OpenAI-compatible Adapter：
 
 ```bash
 export WUSHEN_LLM_PROVIDER=openai_compatible
@@ -218,201 +206,217 @@ export WUSHEN_LLM_MODEL=<model-name>
 export WUSHEN_LLM_API_KEY=<secret>
 ```
 
-密钥只能来自环境变量或 secret file。不得写入源码、日志、Job event、资产、导出包或文档示例。
+密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。
 
-旧 ComfyUI 与神经 3D 配置见历史文档；它们在目标架构中只保留为概念参考 Provider，不参与权威 CAD 构建。
+旧 ComfyUI 与神经 3D Provider 不进入 P0 权威模块链路。生成式图片可以作为风格参考，但不能成为 `ModuleGraph`。
 
-## 5. 常见故障
+## 5. 设计者的第一周操作路径
 
-### Agent 无法启动
+这一节是“具体怎么开始设计”的执行顺序。
 
-检查：
+### Day 1：冻结首个 Brief
 
-```bash
-.venv/bin/python -c "import fastapi, pydantic, uvicorn"
-test -d migrations
-lsof -nP -iTCP:8000 -sTCP:LISTEN
+项目只做一个：`寒地巡逻 S1`。
+
+```text
+类型：未来模块化短武器概念
+用途：游戏资产 / 影视道具 / 非功能展示
+气质：寒地、紧凑、工业、硬表面
+比例：约 230 mm 长，握持角 15°，整体偏厚重
+辨识点：石墨黑、枪灰、少量信号红；顶部轮廓清晰
+排除：真实工作机构、弹道、承压、制造就绪声明
 ```
 
-典型原因：虚拟环境未安装、工作目录错误、migration 路径错误、8000 被占用或数据库无写权限。
+验收物：一份 `WeaponConceptSpec` 示例 JSON、两张正交草图或参考图、模块清单。
 
-### 浏览器页面能打开，但桌面能力不可用
+### Day 2：做 8–12 个首批 GLB
 
-原因通常是运行了 Vite 壳。改用：
+优先制作：
 
-```bash
-npm --workspace apps/desktop run tauri -- dev
+- 核心外壳 1 个；
+- 前部外壳 2 个；
+- 后部外壳 1 个；
+- 握持外壳 2 个；
+- 顶部附件 1–2 个；
+- 侧板 2 个；
+- 能源/储存视觉模块 1 个。
+
+每个模块：
+
+- 原点和轴向一致；
+- 应用变换后再导出；
+- 米制/毫米约定固定；
+- 名称、材质槽、LOD 和碰撞体命名一致；
+- 先保证拓扑和连接，再追求数量。
+
+### Day 3：标注连接器
+
+核心至少标注：
+
+```text
+core.front
+core.rear
+core.top
+core.bottom
+core.left
+core.right
+core.grip
+core.side_panel_left
+core.side_panel_right
 ```
 
-并确认 Rust/Cargo 与 Tauri 构建条件齐全。
+用一个人工编写的 `module-manifest.json` 先跑通对齐。不要先做自由拖拽装配。
 
-### Tauri 显示 wrong_service
+### Day 4：完成最短工作台闭环
 
-端口 8000 已被其他服务占用。先确认进程归属，再停止正确的进程或修改开发配置。不要让 supervisor 杀死它没有启动的服务。
-
-### 合同检查失败
-
-如果改动了 Schema 或 API 模型：
-
-```bash
-npm run contracts:types:generate
-npm run contracts:check
-npm run contracts:types:check
+```text
+打开项目
+→ 从组件库替换前部或顶部模块
+→ 查看连接器吸附
+→ 调整整体比例/握持角/细节密度
+→ 保存为新版本
 ```
 
-如果生成后仍漂移，检查 Schema registry、Pydantic DTO 和 OpenAPI 是否代表同一合同。
+### Day 5：接 AI ChangeSet
 
-### Job 卡住或重启后未恢复
+先只支持三类语句：
 
-- 查询 `/api/jobs/{job_id}` 与 `/api/jobs/{job_id}/runtime`；
-- 读取 `/api/jobs/{job_id}/events`，确认最后成功的 step；
-- 检查 `.wushen-agent.log` 与 Agent stderr；
-- 确认 `WUSHEN_RECOVER_ON_STARTUP` 未被设为 `0`；
-- 保留 library 快照后再做手工数据修复。
+- “让轮廓更紧凑”；
+- “换一个更低的顶部附件”；
+- “增加红色装饰并保持核心外壳不变”。
 
-## 6. 目标 ForgeCAD Runtime 契约（尚未实现）
+AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
-本节是 R1–R6 的操作验收要求。
+### Day 6：做模型检查与导出
+
+人工构造四个失败样本：连接器不兼容、浮空模块、模块穿插、非法缩放。导出至少覆盖 GLB、PNG、Manifest 和 JSON 报告。
+
+### Day 7：桌面回归
+
+从干净临时库完整走一遍：新建 → Brief → 方案 → 替换 → ChangeSet → 检查 → 导出 → 重启恢复。
+
+## 6. P0 目标运行契约
 
 ### 6.1 目标进程
 
 ```text
 Tauri Desktop
-├─ forgecad-agent sidecar      127.0.0.1:8000
-└─ forgecad-cad-runtime        local IPC or loopback-only port
+└─ forgecad-agent sidecar    127.0.0.1:8000
+   ├─ API / workflow
+   ├─ module composition worker
+   ├─ model-quality worker
+   └─ render/export worker
 ```
 
-CAD Runtime 默认无外网，使用一次性工作目录，并限制 CPU、内存、时间、Feature 数和输出大小。Agent 健康不能替代 CAD Runtime readiness。
+重任务使用隔离工作目录和明确的 CPU、内存、时间、三角面与输出大小限制。P0 不要求 CAD Runtime 常驻进程。
 
 建议健康端点：
 
 ```http
 GET /api/v1/health
 GET /api/v1/readiness
-GET /api/v1/runtime/cad/health
-GET /api/v1/runtime/slicer/health
 ```
 
-`readiness` 应分别报告数据库、对象存储、CAD 内核、导出器和可选切片器，不能只有一个总布尔值。
+`readiness` 分别报告 database、object store、module pack、GLB pipeline、quality worker、renderer 和 exporter。
 
-### 6.2 目标环境变量
+### 6.2 P0 环境变量
 
 ```text
 FORGECAD_LIBRARY_ROOT
 FORGECAD_MIGRATIONS_DIR
 FORGECAD_AGENT_PORT
-FORGECAD_CAD_RUNTIME_URL
-FORGECAD_CAD_RUNTIME_TIMEOUT_SECONDS
 FORGECAD_LLM_PROVIDER
 FORGECAD_LLM_BASE_URL
 FORGECAD_LLM_MODEL
 FORGECAD_LLM_API_KEY / _FILE
 FORGECAD_RENDER_PROVIDER
-FORGECAD_SLICER_MODE=disabled|user_installed_cli|managed_external_runtime
-FORGECAD_PRUSASLICER_EXECUTABLE
+FORGECAD_WORKER_TIMEOUT_SECONDS
+FORGECAD_MAX_TRIANGLES
+FORGECAD_WEAPON_PACK_ROOT
 ```
 
-兼容期允许优先读取 `FORGECAD_*`、回退 `WUSHEN_*`，但必须打印弃用警告，且不得永久双写配置。
+兼容期优先读取 `FORGECAD_*`，回退 `WUSHEN_*` 并打印弃用警告；不得永久双写。
 
-### 6.3 产品范围：支持武器设计
-
-ForgeCAD 不拒绝武器、武器零部件或相关精密机械结构的设计请求。前期产品设计、演示样本和回归测试以武器设计为主要场景，因为这类对象能够集中验证：
-
-- 复杂但直观的外形与功能分区；
-- 尺寸、角度、孔位、壁厚、公差和装配关系；
-- 多组件参数化、约束传播和版本差异；
-- 材料、结构、可制造性与打印方向分析；
-- 属性面板、组件库、DFM 面板和制造导出的完整工作流。
-
-操作层面不得因为项目名称、提示词或零件类别属于武器而自动拒绝、隐藏功能或降级为纯概念图。系统应按普通 CAD 项目进入需求澄清、参数化建模、几何验证、DFM、版本和导出流程。
-
-同时，ForgeCAD 输出的是设计与制造辅助结果，不自动等同于实物安全认证。涉及爆压、膛压、热载荷、疲劳、材料批次、关键闭锁结构或法定合规时，界面必须明确展示尚未验证的工程假设，并要求用户完成适用地区的合规审查、专业仿真、材料验证和实物测试；这些提示不能被实现成对武器类别的一刀切拒绝。
-
-### 6.4 目标最小验收
+### 6.3 P0 最小验收
 
 ```text
-创建一个武器设计项目
-→ 导入参考图或输入自然语言需求
-→ 确认整体尺寸、关键角度、组件关系与制造目标
-→ 回答 blocker
-→ 构建 B-Rep
-→ STEP/3MF 回读
-→ 查看 GLB 和拓扑映射
-→ 运行 DFM
-→ 修改壁厚、角度或组件尺寸并保护关键接口
-→ 创建子版本
-→ 导出制造包
-→ 重启桌面并恢复项目/Job 历史
+创建 Weapon Concept 项目
+→ 输入“寒地巡逻 S1”Brief
+→ 生成并确认 WeaponConceptSpec
+→ 从 8–12 个模块生成两个方案
+→ 使用连接器组合 GLB
+→ 以 DesignChangeSet 修改并保护锁定核心
+→ 运行 Graph / Mesh / Assembly 检查
+→ 导出 GLB + PNG + Manifest + Report
+→ 重启桌面并恢复项目、版本和 Job
 ```
 
-首批固定回归样本至少覆盖：整体外形、主体/握持/导轨或接口类组件、尺寸约束、组件替换、DFM 告警和多格式导出。回归样本的目的，是验证 CAD 与制造工作流的精度和可解释性，而不是复用旧 Unity 游戏资产链路。
+## 7. P0 故障处置
 
-### 6.5 目标运行事件
+### 模块包无法加载
 
-每个耗时任务至少记录：
+1. 检查 pack manifest 的 schema version；
+2. 校验每个 GLB 的对象键和 SHA-256；
+3. 确认 module id、category 和 connector id 唯一；
+4. 将 pack 标记为 unavailable，不静默跳过损坏模块；
+5. UI 显示缺失模块，不用相似资产自动替换已确认版本。
 
-- job/step/attempt；
-- build/version/design id；
-- input hash；
-- runtime/compiler/kernel version；
-- timeout、cancel 和 retry 原因；
-- artifact id、sha256 与 validation status；
-- 用户可读消息和机器可读 error code。
+### 连接器不匹配或模块浮空
 
-日志中禁止出现 API key、用户文件原始绝对路径或未清洗的 Provider 响应。
+- 禁止提交为已确认版本；
+- 报告 node、两端 connector type 和实测变换；
+- 允许返回编辑状态修复；
+- AI 只能提出重连 ChangeSet，不能绕过验证。
 
-## 7. 目标故障处置
-
-### CAD Runtime 崩溃或超时
-
-1. Worker 标记当前 attempt 失败，不提交成功版本。
-2. 回收子进程和临时目录。
-3. 保存结构化 compiler diagnostics 和资源统计。
-4. 可恢复错误按策略最多重试 2–3 次。
-5. 超过上限后返回失败 feature、局部测量和建议参数。
-
-### STEP 或 3MF 回读失败
+### GLB 组合或回读失败
 
 - artifact 保留但标记 `validation_failed`；
-- 禁止进入生产导出包；
-- 记录 exporter、内核、格式版本和 hash；
-- 不用 STL 成功掩盖 STEP/3MF 失败。
+- 不进入正式导出包；
+- 记录源模块哈希、组合器版本和错误节点；
+- 不用 PNG 成功掩盖 GLB 失败。
 
-### DFM 服务不可用
+### 模型检查不可用
 
-- 几何验证失败时始终阻断生产导出；
-- 可选切片器不可用可以降级；
-- 核心 DFM ruleset 不可用时禁止将输出标记为 manufacturing-ready；
-- UI 必须区分“未检查”“检查失败”和“检查通过”。
+- UI 区分 `not_run`、`failed`、`warning` 和 `passed`；
+- 核心 Graph 检查不可用时禁止正式导出；
+- 非关键渲染检查可以降级，但报告必须写明未运行项。
 
-### 数据迁移失败
+### Job 卡住或重启未恢复
 
-- 事务回滚；
-- 原库保持只读不变；
-- importer 生成逐记录报告；
-- 不自动把 CreativeWeaponGraph 转成 FeatureGraph；
-- 修复 importer 后用相同输入可重复运行。
+- 查询 `/api/v1/jobs/{job_id}` 与 events；
+- 检查最后成功 step、attempt 和 heartbeat；
+- 检查 Agent 日志；
+- 保留 library 快照后再做数据修复；
+- 恢复逻辑不能重复提交版本或重复登记资产。
 
-## 8. ForgeCAD 发布检查（规划）
-
-发布候选必须依次通过：
+## 8. C01–C10 P0 发布门
 
 ```text
-C01 contracts
-C02 database
-C03 templates
-C04 geometry regression
-C05 STEP/3MF round-trip
-C06 ChangeSet / locked interfaces
-C07 DFM truth set
-C08 jobs / recovery
-C09 sandbox
-C10 desktop E2E
-dependency license + SBOM
-packaged sidecar launch
-clean-machine install and uninstall
+C01 concept contracts and generated types
+C02 database migrations and repositories
+C03 module pack integrity and content hashes
+C04 connector compatibility and deterministic assembly
+C05 viewport selection and GLB composition
+C06 DesignChangeSet preview, locks and version commit
+C07 Graph / Mesh / Assembly quality truth set
+C08 jobs, retry, cancellation and restart recovery
+C09 GLB / OBJ / PNG / Manifest / Report exports
+C10 packaged desktop E2E on a clean machine
 ```
 
-发布证据至少包含：测试命令、退出码、runtime 版本、平台、样本集版本、失败归档、工件 hash 和已知限制。
+发布证据包含命令、退出码、平台、pack/ruleset 版本、失败样本、工件哈希和已知限制。
 
-路线和门禁定义见 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)，架构与合同见 [DESIGN.md](DESIGN.md)。
+## 9. Engineering Pack 运行契约（后续）
+
+Engineering Pack 才增加：
+
+```text
+forgecad-cad-runtime
+build123d / OpenCascade
+STEP / 3MF round-trip
+DFM rules and optional slicer
+```
+
+它拥有独立 readiness、资源限制、校准几何和发布门。Concept P0 的通过结果不能证明工程制造能力。
+
+路线见 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)，合同与架构见 [DESIGN.md](DESIGN.md)。

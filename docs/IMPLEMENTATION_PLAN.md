@@ -1,306 +1,305 @@
 # ForgeCAD 路线图与实施计划
 
-状态：R0 已完成，R1 通用基础设施解耦进行中。
+状态：R0 已完成；R1 通用基础设施解耦进行中；产品主线已校准为 **Weapon Concept Pack first**。
 
-本文把“武神 Forge → AI CAD / 3D 打印 DFM Agent”拆成可独立评审、可回滚、带退出门的工程阶段。目标不是保留旧 Weapon API 的长期兼容，而是复用通用基础设施，建立新的 CAD/DFM 领域内核。
+本文保持 R0–R6 的可回滚阶段结构。P0 先完成模块化武器概念设计闭环；参数化 CAD/DFM 作为独立后续 Engineering Pack，不再阻塞第一阶段产品验证。
 
 ## 1. 计划基线
 
-截至 2026-07-10，仓库真实状态是：
+截至 2026-07-10：
 
-- 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复与版本记录；
-- `asset_store.py` 已从约 5210 行降至约 3717 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询/命令、资产上传、库/版本查询和 Creative Recast 用例已提取；通用资产写入已通过 `AssetRepository`，剩余 Provider worker、创建/Patch/导出工作流和 SQL 仍待拆分；
-- `App.tsx` 已从约 865 行降至约 702 行，AppShell、Hash route、RuntimeProvider、JobEventProvider、SelectionProvider 与懒加载 CAD 工作台已提取，旧任务恢复和页面业务组合仍待继续收敛；
-- `main.py` 已从约 458 行降至约 54 行，legacy asset/job/system/weapon routes、错误映射与 base app factory 已分模块；
-- 领域合同、表、API、UI 和发布门仍围绕 Weapon、Creative Recast、神经 3D 与 Unity；
-- `#/cad` 已有武器设计工作台交互壳，覆盖九区布局、参数联动、组件筛选、Three.js 视口、DFM/导出状态；它尚未连接真实 Design/Version/CAD Build 数据；
-- build123d、OpenCascade CAD Runtime、DesignSpec、FeatureGraph、STEP/3MF、DFM 和 Print Doctor 尚未实现。
+- 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
+- `asset_store.py` 已从约 5210 行降至约 3717 行；connection、migration、object store、Repository/UoW、Job query/command、asset upload、library/version 和 Creative Recast 已提取；
+- `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
+- `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
+- `#/cad` 已有九区工作台原型，并已切换到“概念/组装/精修/检查/展示”与 Concept 导出语义；
+- 新 `WeaponConceptSpec`、`ModuleGraph`、Connector、模块资产库、质量报告和通用 GLB 导出尚未实现；
+- build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
-旧代码是迁移输入，不是新产品完成度。
+旧代码是迁移输入；当前工作台是参考实现，不代表新领域完成。
 
-### 当前执行证据
+### 当前证据
 
 | 项目 | 状态 | 证据 |
 | --- | --- | --- |
 | R0 tag / branch | 完成 | `legacy-wushen-v0.1`、`codex/refactor-cad-dfm-agent` |
-| R0 ADR | 完成 | `docs/ADR/0001`–`0005` |
-| R0 门禁快照 | 完成 | `docs/evidence/R0_BASELINE.md` |
-| R1 SQLite / migration / object store | 完成首个切片 | `apps/agent/forgecad_agent/infrastructure` |
-| R1 Repository / UoW | 主要通用切片完成 | Idempotency、Asset、Job 查询/命令、Checkpoint、Library/Version facade 已提取 |
-| R1 API factory | 完成当前切片 | CORS/settings/app factory 与四组 legacy route modules 已提取 |
-| R1 frontend shell | 完成当前切片 | AppShell、routing、Runtime/JobEvent/Selection Providers 已提取 |
-| R1 CAD workbench shell | 完成参考图切片 | `#/cad`、`CadWorkbenchPanel`、`design-qa.md` |
-
-R1 当前证据见 `docs/evidence/R1_FOUNDATION.md`。
+| R0 ADR / baseline | 完成 | `docs/ADR`、`docs/evidence/R0_BASELINE.md` |
+| R1 infrastructure | 主要通用切片完成 | `forgecad_agent/infrastructure` |
+| R1 application services | 进行中 | Job、Asset、Library、Creative Recast services |
+| R1 API factory | 完成当前切片 | legacy routes + base app factory |
+| R1 frontend shell | 完成当前切片 | router、AppShell、Providers |
+| R1 workbench reference | 五阶段语义已完成 | `#/cad`、`design-qa.md`；真实 ModuleGraph/Connector 进入 R2–R3 |
 
 ## 2. 执行硬规则
 
-1. 先冻结旧基线，再进行领域替换。
-2. 先建立模块边界，禁止继续扩张 `asset_store.py` 和 `App.tsx`。
-3. 不把 `WeaponDesignSpec`、`CreativeWeaponGraph` 或 `SkillGraph` 机械改名为 CAD 类型。
-4. LLM 只能产生 Schema-valid 的结构化对象，不执行任意 Python。
-5. build123d + OpenCascade 是 MVP 唯一权威 CAD 内核。
-6. B-Rep 和 FeatureGraph 是工程源；GLB/STL 不是反向重建源。
-7. 每个阶段以证据和质量门退出，不以“页面看起来完成”退出。
-8. 每个副作用 API 保留幂等语义；每个耗时动作进入 Job。
-9. 旧数据只读导入，不长期双写新旧领域。
-10. 首个产品里程碑是模块化武器 CAD 样机完整纵向切片；L 型支架只作为内核几何校准样本，不作为产品主场景。
+1. 先冻结旧 baseline，再迁移领域。
+2. 禁止继续扩张 `asset_store.py` 和 `App.tsx`。
+3. 平台层保持通用，武器能力进入 `Weapon Concept Pack`。
+4. P0 权威模型是 `WeaponConceptSpec + ModuleGraph + GLB modules`，不是 B-Rep。
+5. 不把旧 WeaponDesignSpec、CreativeWeaponGraph 或 SkillGraph 机械改名。
+6. 首版 AI 优先解析 Brief、选择模块、调整参数；不默认整模重生成。
+7. 所有自然语言修改先形成结构化 `DesignChangeSet` 和幽灵预览。
+8. Module、Connector、Version、Asset 必须使用稳定 ID；父版本和原始资产不可覆盖。
+9. UI、报告和导出不得把概念 Mesh 声称为生产级 CAD 或制造就绪。
+10. CAD/DFM Engineering Pack 使用独立合同、迁移、运行时和质量门，不能与 P0 长期双写。
 
 ## 3. 里程碑总览
 
-| 阶段 | 目标 | 关键产物 | 参考周期 | 退出门 |
-| --- | --- | --- | ---: | --- |
-| R0 | 冻结与决策 | tag、分支、ADR、旧门禁快照 | 2–3 天 | 旧基线可恢复 |
-| R1 | 通用基础设施解耦 | Repository、UoW、App Factory、前端壳 | 2 周 | 旧 smoke 不回归 |
-| R2 | 新合同与新数据 | DesignSpec、FeatureGraph、migration、`/api/v1` | 2 周 | 合同/数据库门通过 |
-| R3 | 模块化武器 CAD 纵向切片 | build123d、B-Rep、稳定组件接口、STEP/3MF/STL/GLB | 3–4 周 | 几何、接口与 STEP 回读门通过 |
-| R4 | CAD 查看器与工作台 | selection、measurement、feature tree、version diff | 2–3 周 | 桌面 CAD E2E 通过 |
-| R5 | DFM 与 Print Doctor | profiles、trimesh、findings、slicer adapter | 2–3 周 | DFM 真值集通过 |
-| R6 | 结构化 AI 与 Beta | clarification、ChangeSet、武器组件与通用功能件模板集、清理旧域 | 2–3 周 | Beta 发布门通过 |
+| 阶段 | 目标 | 关键产物 | 退出门 |
+| --- | --- | --- | --- |
+| R0 | 冻结与决策 | tag、branch、ADR、baseline evidence | 旧版本可恢复 |
+| R1 | 通用基础设施与产品校准 | Repository/UoW、app factory、frontend shell、双轨文档 | 旧 smoke 不回归，P0 边界一致 |
+| R2 | Concept 合同与数据 | DomainProfile、WeaponConceptSpec、ModuleGraph、Connector、Version、ChangeSet | 合同/数据库门通过 |
+| R3 | 模块系统与工作台 | 8–12 modules、选择/隐藏/替换/吸附/爆炸/保存 | 模块 E2E 与 GPU 生命周期通过 |
+| R4 | AI Brief 与自然语言修改 | 三方案、模块推荐、ChangeSet、幽灵预览 | AI/锁定模块指标通过 |
+| R5 | 检查、渲染与导出 | ModelQualityReport、GLB/OBJ/PNG/Manifest、爆炸图 | 检查与导出门通过 |
+| R6 | Beta、资产扩展与发布 | 24–30 modules、用户测试、打包、旧域清理 | C01–C10 全部通过 |
 
-参考总周期为 14–17 周，按 3–5 名核心工程人员估算。实际推进以质量门为准。
+CAD/DFM Engineering Pack 在 R6 首轮 Beta 证明产品价值后进入独立路线；其 DesignSpec、FeatureGraph、build123d、STEP/3MF 和 DFM 架构边界继续保留在 `DESIGN.md`，但不占用 P0 退出门。
 
 ## 4. 阶段细化
 
-### R0：冻结旧版本与架构决策
+### R0：冻结旧版本与决策
 
-工作项：
+已完成：
 
-- 给当前代码创建 `legacy-wushen-v0.1` tag；
-- 创建 `codex/refactor-cad-dfm-agent` 或团队约定的重构分支；
-- 保存 `m6:gate` 和现有 release gate 的输出；
-- 新建 ADR：产品转向、CAD 内核、FeatureGraph 安全、第三方许可证；
-- 冻结旧 Weapon Schema 和 `/api/weapons` 新功能；
-- 明确旧数据库只读 importer 策略；
-- 记录 `WUSHEN_* → FORGECAD_*` 的一版兼容读取计划。
+- 创建 `legacy-wushen-v0.1` 和重构分支；
+- 保存旧门禁；
+- 建立产品、内核、安全、许可证、数据迁移 ADR；
+- 证明旧 baseline 可恢复。
 
-退出条件：
+新增范围修订必须使用 superseding ADR，不改写历史决策。
 
-- 能从 tag 恢复旧桌面与 Agent；
-- README、设计、计划和操作文档采用一致的新边界；
-- 所有团队成员理解旧 release gate 不是新产品发布门。
-
-### R1：提取通用基础设施
+### R1：通用基础设施与产品校准
 
 后端：
 
-- 从 `asset_store.py` 提取 connection、migration runner、content-addressed store；
-- 提取 Job、Asset、Idempotency、Checkpoint repository；
-- 建立 Unit of Work 和事务边界；
-- 将 `main.py` 改为 app factory + route modules；
-- API DTO、领域对象和数据库记录分离；
-- Provider 通过 Port 注入，Repository 不创建 Provider。
+- 提取 connection、migration、content-addressed store；
+- 提取 Job、Asset、Idempotency、Checkpoint repositories 和 UoW；
+- 提取 legacy Job、Library、Asset Upload、Creative Recast services；
+- 将剩余 create/Patch/provider/export workflows 移出 `asset_store.py`；
+- 保持 route handler 不写 SQL、不组文件、不直接调用 Provider。
 
 前端：
 
-- 将 `App.tsx` 缩为应用组合层；
-- 提取 RuntimeProvider、JobEventProvider、SelectionProvider；
-- 建立 router 与 AppShell；
-- 明确 URL、server state、viewport state 与表单 local state 的归属。
+- AppShell、router、Runtime/JobEvent/Selection Providers；
+- 将旧工作台业务控制器从 `App.tsx` 提出；
+- 将 `#/cad` 更名和改造成 Weapon Concept Workbench；
+- 五阶段：概念 / 组装 / 精修 / 检查 / 展示；
+- URL、server state、viewport state、未提交表单状态归属明确。
 
 退出条件：
 
 - `asset_store.py` 不再承担完整业务工作流；
-- route handler 不写 SQL、不组装文件、不直接调用 Provider；
-- `App.tsx` 不再管理全部业务状态；
-- 当前 `m6:gate` 仍通过，旧基线没有功能回归。
+- `App.tsx` 只做应用组合；
+- README、计划、设计、操作文档使用一致的 Concept-first 边界；
+- `npm run r1:gate` 通过。
 
-### R2：新领域合同与数据库
+### R2：Concept 合同、数据库与 API
 
 新增合同：
 
-- `DesignSpec@1`；
-- `FeatureGraph@1`；
-- `BuildManifest@1`；
-- `DfmReport@1`；
-- `ChangeSet@1`；
+- `DesignDomainProfile@1`；
+- `WeaponConceptSpec@1`；
+- `ModuleGraph@1`；
+- `ModuleAssetManifest@1`；
+- `DesignChangeSet@1`；
+- `ModelQualityReport@1`；
 - 通用 `JobEvent@2`。
 
 新增表：
 
-- `designs`、`design_versions`、`design_specs`；
-- `requirement_sessions`、`clarifications`、`change_sets`；
-- `feature_graphs`、`cad_builds`、`geometry_artifacts`；
-- `printer_profiles`、`material_profiles`、`process_profiles`；
-- `dfm_runs`、`dfm_findings`、`mesh_inspections`。
+```text
+projects / project_versions / domain_profiles
+module_assets / module_connectors / module_graphs
+design_briefs / design_variants / design_change_sets
+quality_runs / quality_findings / export_packages_v2
+```
 
 新增 API：
 
-- `/api/v1/designs`；
-- `/api/v1/designs/{id}/clarifications`；
-- `/api/v1/designs/{id}/versions`；
-- 通用 `/api/v1/jobs` 与 `/api/v1/assets`。
-
-退出条件：
-
-- 新安装迁移和重复迁移通过；
-- 可创建中立 Design 并追加 Version；
-- Python、TypeScript、OpenAPI 生成物无漂移；
-- 新旧领域物理分目录，禁止新表引用 Weapon 领域主键。
-
-### R3：第一个 CAD 纵向切片
-
-产品主样本实现模块化未来手枪 CAD 样机。支持：
-
-- 整体长度、主体高度、枪管模块长度和最小壁厚；
-- 握把角度、导轨长度和瞄具安装位置；
-- 主体、枪管、握把、导轨、瞄具和供弹模块的稳定接口；
-- 圆角、倒角、壳体、孔、阵列和布尔特征；
-- 材料/制造 Profile、打印方向和最大包围盒；
-- 爆压、热载荷、材料强度与法规条件的显式未验证标记。
-
-同时保留一个 L 型支架 calibration fixture，只用于快速验证 Extrude/Hole/Rib/Fillet、关键尺寸和 STEP/3MF round-trip；它不替代武器产品纵向切片。
-
-链路：
-
-```text
-DesignSpec
-→ FeatureGraph
-→ FeatureGraphCompiler
-→ build123d / OpenCascade
-→ B-Rep validation
-→ critical dimension measurement
-→ STEP / 3MF / STL / GLB
-→ BuildManifest
-→ immutable design version
+```http
+POST   /api/v1/projects
+GET    /api/v1/projects
+GET    /api/v1/projects/{project_id}
+POST   /api/v1/projects/{project_id}/versions
+GET    /api/v1/module-assets
+POST   /api/v1/module-graphs/{graph_id}/validate
+POST   /api/v1/projects/{project_id}/variants
+POST   /api/v1/versions/{version_id}/change-sets
+POST   /api/v1/change-sets/{change_id}/confirm
+POST   /api/v1/versions/{version_id}/quality-runs
+POST   /api/v1/versions/{version_id}/exports
 ```
 
-实现约束：
-
-- CAD Runtime 独立进程运行；
-- 默认无网络，有 CPU、内存、时间、特征数和输出大小限制；
-- 不接受 Python 代码，只接受通过 JSON Schema 的 FeatureGraph；
-- 生产 STEP 必须重新导入并复测关键尺寸；
-- 3MF 使用 lib3mf 正式写入与回读，不能只把 STL 改扩展名。
-
 退出条件：
 
-- 武器主样本与支架 calibration fixture 合计至少 100 组参数组合测试；
-- 支持范围内有效实体率 ≥95%；
-- 关键尺寸自动核验率 100%；
-- 所有锁定组件接口回归通过率 100%；
-- 生产 STEP 回读率 100%；
-- 所有失败返回 feature id、错误码与结构化诊断。
+- fresh/repeat migration 通过；
+- 可创建 `weapon_concept` Project 和追加 Version；
+- Module/Connector 稳定 ID 与引用完整；
+- Python、TypeScript、OpenAPI 生成物无漂移；
+- 新表不引用旧 CreativeWeaponGraph/SkillGraph 主键。
 
-### R4：CAD 查看器与桌面工作台
+### R3：模块系统与桌面工作台
 
-新增：
+首个固定项目：`寒地巡逻 S1`。
 
-- `NewDesignWizard`；
-- `CadViewport` 与 three-cad-viewer adapter；
-- three-mesh-bvh 选择和空间查询；
-- 正交/透视相机、标准六视图、毫米网格；
-- 面/边/特征选择、测量、截面；
-- Feature Tree、参数、接口、约束；
-- Build Volume 和 DFM overlay；
-- ChangeSet 与版本透明叠加对比。
+首批 8–12 个静态 GLB 模块覆盖：
 
-退出条件：
-
-- 点击三角面能映射到 B-Rep face、Feature 和语义标签；
-- 单 Feature 更新不重建整个 Viewer；
-- 连续加载模型无明显 GPU 资源泄漏；
-- 创建、构建、测量、修改、对比、重启恢复的桌面 E2E 通过。
-
-### R5：FDM DFM 与 Print Doctor
+```text
+core_shell / front_shell / rear_shell / grip_shell
+top_accessory / side_accessory / lower_structure
+storage_visual / armor_panel
+```
 
 实现：
 
-- PrinterProfile、MaterialProfile、ProcessProfile；
-- 几何确定性规则：空 Shape、多实体、开放壳、自相交、零厚度、小边/面；
-- FDM 规则：成型空间、壁厚、孔径、间隙、悬垂、桥接、底面稳定性；
-- 机械启发式：锐角应力集中、细长悬臂、层间方向风险；
-- trimesh 网格加载、组件、水密性、法线、体积和包围盒检查；
-- Manifold 只处理已分类且适合的 manifold 网格；
-- PrusaSlicer 通过外部 CLI Adapter 提供可选估算。
+- 统一坐标、朝向、原点、比例、材质槽、UV、LOD 和缩略图；
+- Connector overlay、拖放/替换、自动吸附、镜像、Transform、锁定；
+- 模块树与视口同步选择、高亮、隐藏和聚焦；
+- 爆炸视图、资源释放、Project 保存和恢复；
+- 版本追加、Undo/Redo 和操作时间线。
 
 退出条件：
 
-- 每个 Finding 有规则版本、Profile 版本、实测值、位置、严重度和建议；
-- curated blocker 真值集漏报为 0；
-- 原始上传文件永不被修复结果覆盖；
-- 未安装切片器时明确降级，不阻断基础 DFM。
+- 能加载由 8–12 个模块构成的模型；
+- 模块吸附和替换成功率 ≥95%；
+- 更换主体后子模块可按 Connector 重新定位；
+- 锁定模块不被普通操作改变；
+- 连续加载/卸载无明显 GPU 泄漏；
+- 重启后完整恢复 Project、Version 和 ModuleGraph。
 
-### R6：结构化 AI、模板扩展与 Beta
+### R4：AI Brief、方案与自然语言修改
+
+工具：
+
+```text
+parse_design_brief
+recommend_template
+recommend_modules
+create_variant
+set_style_parameters
+set_global_proportions
+plan_change_set
+```
+
+工作流：
+
+```text
+Brief → Schema validation → A/B/C variants
+→ 用户选择 → 指令 → ChangeSet → ghost preview
+→ conflict/lock check → confirm → child version
+```
+
+AI 只能引用 registry 中存在的 Module/Connector ID。组件库无法满足需求时，局部生成进入单独 Job，原始资产不覆盖。
+
+退出条件：
+
+- Brief 解析成功率 ≥90%；
+- 同一 Brief 返回三种明显不同方案；
+- AI 修改成功率 ≥85%；
+- 锁定模块保持率 ≥95%；
+- 所有 AI 修改可解释、可撤销并创建子版本。
+
+### R5：模型检查、渲染与导出
+
+检查：
+
+- 模块穿插、悬空模块、Connector 错位、非法缩放；
+- 法线、非流形、对称差异、隐藏几何、网格密度、UV、LOD；
+- Finding 点击后相机聚焦并高亮对应模块/区域。
+
+展示与导出：
+
+- 三分之四、正视、侧视、透明背景；
+- 爆炸图、简单工作室灯光和转台动画；
+- GLB、OBJ、PNG、Module Manifest 与 Project Report。
+
+退出条件：
+
+- 严重网格问题提示率 100%；
+- GLB 导出成功率 ≥98%；
+- 导出 Manifest 的 asset/version/hash 可追溯；
+- 原始资产不被修复或导出覆盖。
+
+### R6：Beta、资产扩展与发布
 
 实现：
 
-- Instructor + Pydantic 的 RequirementInterpretation；
-- 每轮最多 3 个真正阻塞的问题；
-- TemplateSelector、ConstraintExtractor、RiskClassifier；
-- 自然语言修改先生成 ChangeSet，再确认、重建和重跑 DFM；
-- locked interface 保护；
-- 自动修复最多 2–3 轮，超过后交回结构化诊断；
-- 增加电子外壳、转接件、安装板、固定件/收纳件和简单夹具；
-- 冻结旧 API，完成 importer，删除 Weapon/Skill/Unity 生产路径。
+- 模块库扩展到 24–30 个高质量资产；
+- 新手六步流程与专业参数渐进展开；
+- 10–20 名目标用户完成固定任务；
+- 统计完成时间、失败步骤、AI 修改失败和导出意愿；
+- 清理旧 Weapon/Skill/Unity 生产入口，保留 importer 和 baseline tag；
+- Tauri sidecar 打包、许可证、SBOM、干净机器安装/卸载。
 
 退出条件：
 
-- 关键尺寸缺失时禁止生产导出；
-- locked interface 修改保持率 ≥95%；
-- 所有修改创建子版本，父版本不可变；
-- 武器组件与通用功能件模板集的支持范围、失败边界和 DFM 证据明确；
-- 新桌面安装包可脱离源码目录运行。
+- 新用户首个有效设计时间 <5 分钟；
+- 首次 Project 完成率 ≥70%；
+- Undo/Redo、版本回退、崩溃恢复正确率 100%；
+- C01–C10 全部通过；
+- 安装包可脱离源码运行。
 
 ## 5. 推荐 PR 顺序
 
-每个 PR 只解决一个可验证边界：
+1. **Concept-first ADR 与文档**：双轨产品、P0 输出和范围。
+2. **R1 剩余边界**：Provider workflow、App controller、通用 services。
+3. **Concept contracts**：DomainProfile、Spec、ModuleGraph、ChangeSet、QualityReport。
+4. **Concept database/API**：Project/Version/Module/Connector 与 `/api/v1`。
+5. **Module fixtures**：第一套 8–12 个 GLB、Manifest、缩略图和许可证。
+6. **Workbench IA**：五阶段、左 ContextPanel、右 Inspector、底部 Drawer。
+7. **Module interaction**：选择、隐藏、替换、吸附、锁定、爆炸。
+8. **Version/ChangeSet**：Undo/Redo、ghost preview、child version。
+9. **Quality/Export**：检查定位、GLB/OBJ/PNG/Manifest。
+10. **AI/Beta**：Brief、三方案、修改指标、打包和旧域清理。
 
-1. **冻结与 ADR**：tag、产品转向、内核、安全、许可证决策。
-2. **Storage / Repository**：内容寻址存储、Job/Asset repository、UoW。
-3. **API / Models / App Shell**：app factory、routes、DTO、Providers、前端壳。
-4. **新合同与数据库**：DesignSpec、FeatureGraph、migration、generated types。
-5. **隔离 CAD Runtime**：build123d backend、compiler、sandbox、B-Rep validator。
-6. **模块化武器纵向切片**：稳定组件接口、STEP/3MF/STL/GLB、尺寸与 round-trip gate；L 型支架仅作 calibration fixture。
-7. **CAD Viewer**：three-cad-viewer、BVH、拓扑映射、测量、截面。
-8. **DFM / Print Doctor**：profiles、trimesh、findings、truth set。
-9. **结构化 AI 修改闭环**：clarification、ChangeSet、locked interface。
-10. **Beta 清理与发布**：其余模板、importer、旧域删除、打包和 SBOM。
+每个 PR 必须有独立退出证据，禁止把 2–10 合成一个大重构。
 
-禁止将 2–10 合并成一个“大重构 PR”。
-
-## 6. 新质量门
+## 6. C01–C10 新质量门
 
 | Gate | 内容 | 阻断条件 |
 | --- | --- | --- |
-| C01 Contracts | JSON Schema、Python/TS、OpenAPI、旧字段扫描 | 任一漂移或出现 Weapon 字段 |
-| C02 Database | fresh/repeat migration、FK、WAL、DAG | 迁移失败、孤儿记录、环 |
-| C03 Templates | 100+ 参数组合、范围错误 | 崩溃、错误无诊断 |
-| C04 Geometry | solid、bbox、体积、面积、孔位 | 关键几何超差 |
-| C05 STEP Round-trip | 导出、回读、实体与尺寸复测 | 任一生产 STEP 无法回读 |
-| C06 ChangeSet | 修改、接口保护、父版本不可变 | 锁定接口被静默破坏 |
-| C07 DFM Truth Set | 薄壁、非流形、平台、孔、悬垂 | blocker 漏报 |
-| C08 Jobs | 幂等、取消、超时、恢复、SSE replay | 丢事件或重复副作用 |
-| C09 Sandbox | 文件、网络、shell、资源限制 | 任意越权或无限资源 |
-| C10 Desktop E2E | 创建到导出、重启恢复 | 主链路失败 |
+| C01 Contracts | Schema、Python/TS、OpenAPI、unknown field | 漂移、非法引用或不兼容 |
+| C02 Database | fresh/repeat migration、FK、Version DAG | 失败、孤儿、环或父版本覆盖 |
+| C03 Module Assets | 坐标、原点、比例、材质、UV、LOD、hash | 任一发布模块不合规范 |
+| C04 Connectors | 类型、吸附、镜像、重定位、lock | 成功率 <95% 或锁定被破坏 |
+| C05 Viewport | 选择、高亮、隐藏、爆炸、资源释放 | 错选、状态不同步或 GPU 泄漏 |
+| C06 ChangeSet | before/after、ghost preview、Undo/Redo、Version | 变更不可解释或父版本被改写 |
+| C07 Quality | 穿插、悬空、错位、法线、非流形、UV/LOD | 严重问题漏报 |
+| C08 Jobs | 幂等、取消、超时、恢复、SSE replay | 重复副作用、丢事件或不可恢复 |
+| C09 Export | GLB/OBJ/PNG/Manifest、hash、回读 | GLB 成功率 <98% 或工件不可追溯 |
+| C10 Desktop E2E | Brief 到导出、重启恢复、打包 | 主链路或干净机器运行失败 |
 
-现有 `m6:gate` 只用于证明迁移前基线没有回归；现有 `release:gate` 仍包含 Unity 和旧安全文案，不能作为 ForgeCAD 发布门。
+现有 `m6:gate` 和 `release:gate` 只证明 legacy baseline；不得作为新产品发布证据。
+
+CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep、STEP/3MF round-trip、DFM truth set 和 CAD sandbox，不与以上 P0 gate 混用。
 
 ## 7. Definition of Done
 
-一个功能只有同时满足以下条件才算完成：
+功能只有同时满足以下条件才完成：
 
-- 合同、迁移、API、UI 和错误码一致；
-- 单元、集成、round-trip 或 E2E 证据与风险相匹配；
+- 合同、迁移、API、UI、错误码和领域 Profile 一致；
+- 单元、集成、回读或 E2E 证据与风险匹配；
 - Job 可取消、超时、重试或明确声明不适用；
-- 失败有结构化诊断，不能只返回自由文本；
-- 工件能追溯输入哈希、合同版本、内核版本和 Profile 版本；
-- 操作手册包含真实可执行步骤和恢复路径；
-- 第三方依赖的版本、许可证与分发方式已记录。
+- 失败有结构化 Finding/diagnostic；
+- 工件可追溯输入、版本、资产 hash、Provider 和规则版本；
+- 原始资产、父版本和锁定模块不可被静默覆盖；
+- 操作手册包含真实命令、备份和恢复路径；
+- 依赖、模型资产和素材许可证已记录；
+- 文档不把尚未实现的功能写成已完成。
 
 ## 8. 最近十个可执行动作
 
-按顺序执行：
+1. 将剩余 Provider workflow 从 `asset_store.py` 提取为 application services。
+2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
+3. 建立 `DesignDomainProfile@1` 和 Weapon Concept Profile。
+4. 新增 `WeaponConceptSpec@1`、`ModuleGraph@1`、`DesignChangeSet@1`、`ModelQualityReport@1`。
+5. 新增 Project/Version/Module/Connector migrations 和 `/api/v1/projects`。
+6. 制定 Module/Connector/材质/UV/LOD 命名规范。
+7. 准备第一套 8–12 个 GLB fixture 与 Manifest。
+8. 实现模块选择、高亮、隐藏、替换和 Connector overlay。
+9. 实现吸附、锁定、爆炸视图、保存与恢复。
+10. 跑通“替换模块→ChangeSet→新版本→检查→GLB+Manifest 导出”。
 
-1. 创建旧基线 tag 并保存门禁输出。
-2. 新建产品转向与 CAD 内核 ADR。
-3. 建立 `forgecad_agent` 新包边界，不移动旧域代码。
-4. 提取 SQLite connection、migration runner 和 content-addressed store。
-5. 提取 Job、Asset、Idempotency repository 与 UoW。
-6. 将 FastAPI 拆成 app factory 与 route modules。
-7. 将 `App.tsx` 拆为 AppShell、router 与 Providers。
-8. 新增五个核心 Schema 和类型生成管线。
-9. 新增 Design/Version/CAD Build migrations 与 `/api/v1/designs`。
-10. 实现隔离 build123d Runtime 的模块化武器样机最小构建，不接 LLM；并保留 L 型支架 calibration fixture 做快速内核回归。
-
-第 10 步通过后，再开始 three-cad-viewer、DFM 和 AI 修改闭环。
+第 10 步通过后再接入 AI Brief、局部组件生成与 Beta；CAD/DFM Engineering Pack 不提前占用 P0 主链。

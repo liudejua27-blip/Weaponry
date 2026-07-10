@@ -22,7 +22,6 @@ import {
   MagnifyingGlass,
   PaperPlaneRight,
   Plus,
-  Printer,
   Ruler,
   SelectionAll,
   ShareNetwork,
@@ -36,17 +35,19 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import './cad-workbench.css'
 
-type WorkspaceTab = 'design' | 'analysis' | 'render' | 'manufacture'
+type WorkspaceTab = 'concept' | 'assembly' | 'refine' | 'inspect' | 'showcase'
+type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
+type DrawerTab = 'components' | 'variants' | 'versions' | 'timeline'
 type Tool = 'select' | 'move' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 
 type WeaponParameters = {
   overallLength: number
   bodyHeight: number
-  barrelLength: number
+  frontShellLength: number
   gripAngle: number
-  wallThickness: number
-  magazineCapacity: number
+  shellThickness: number
+  detailDensity: number
 }
 
 const VERSION_ITEMS = [
@@ -57,16 +58,16 @@ const VERSION_ITEMS = [
 ]
 
 const COMPONENTS = [
-  { id: 'receiver-01', name: '主体_01', type: '主体', icon: SelectionAll },
-  { id: 'barrel-01', name: '枪管_01', type: '枪管', icon: Ruler },
-  { id: 'grip-01', name: '握把_01', type: '握把', icon: GridFour },
-  { id: 'rail-01', name: '导轨_01', type: '导轨', icon: ChartLineUp },
-  { id: 'sight-01', name: '瞄准镜_01', type: '瞄具', icon: Crosshair },
-  { id: 'magazine-01', name: '弹匣_01', type: '供弹', icon: Cube },
-  { id: 'muzzle-01', name: '枪口_01', type: '枪管', icon: ArrowsClockwise },
+  { id: 'core-shell-01', name: '核心外壳_01', type: '核心外壳', icon: SelectionAll },
+  { id: 'front-shell-01', name: '前部外壳_01', type: '前部外壳', icon: Ruler },
+  { id: 'grip-shell-01', name: '握持外壳_01', type: '握持外壳', icon: GridFour },
+  { id: 'top-accessory-01', name: '顶部附件_01', type: '顶部附件', icon: ChartLineUp },
+  { id: 'top-accessory-02', name: '顶部附件_02', type: '顶部附件', icon: Crosshair },
+  { id: 'storage-visual-01', name: '储存视觉_01', type: '视觉模块', icon: Cube },
+  { id: 'front-shell-02', name: '前部外壳_02', type: '前部外壳', icon: ArrowsClockwise },
 ]
 
-const COMPONENT_CATEGORIES = ['全部', '主体', '枪管', '握把', '导轨', '瞄具', '供弹'] as const
+const COMPONENT_CATEGORIES = ['全部', '核心外壳', '前部外壳', '握持外壳', '顶部附件', '视觉模块'] as const
 type ComponentCategory = (typeof COMPONENT_CATEGORIES)[number]
 
 const TOOL_ITEMS: Array<{ id: Tool; label: string; icon: typeof CursorClick }> = [
@@ -78,27 +79,29 @@ const TOOL_ITEMS: Array<{ id: Tool; label: string; icon: typeof CursorClick }> =
 ]
 
 export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('design')
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('concept')
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('parameters')
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('components')
   const [activeTool, setActiveTool] = useState<Tool>('select')
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
   const [activeVersion, setActiveVersion] = useState('v5')
-  const [selectedComponent, setSelectedComponent] = useState('receiver-01')
+  const [selectedComponent, setSelectedComponent] = useState('core-shell-01')
   const [componentCategory, setComponentCategory] = useState<ComponentCategory>('全部')
   const [componentQuery, setComponentQuery] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [assistantNote, setAssistantNote] = useState(
     '设计一把未来科幻风格的手枪，具有模块化结构和可替换组件。已生成两套候选结构。',
   )
-  const [exportFormat, setExportFormat] = useState('STEP')
+  const [exportFormat, setExportFormat] = useState('GLB')
   const [parameters, setParameters] = useState<WeaponParameters>({
     overallLength: 230,
     bodyHeight: 54,
-    barrelLength: 120,
+    frontShellLength: 120,
     gripAngle: 15,
-    wallThickness: 2.5,
-    magazineCapacity: 15,
+    shellThickness: 2.5,
+    detailDensity: 68,
   })
 
   const visibleComponents = useMemo(() => {
@@ -139,10 +142,11 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
         </div>
         <nav className="cad-mode-tabs" aria-label="工作模式">
           {([
-            ['design', '设计'],
-            ['analysis', '分析'],
-            ['render', '渲染'],
-            ['manufacture', '制造'],
+            ['concept', '概念'],
+            ['assembly', '组装'],
+            ['refine', '精修'],
+            ['inspect', '检查'],
+            ['showcase', '展示'],
           ] as Array<[WorkspaceTab, string]>).map(([id, label]) => (
             <button
               key={id}
@@ -167,7 +171,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             <div className="cad-panel-heading">
               <div>
                 <span className="eyebrow">项目</span>
-                <strong>未来手枪_001</strong>
+                <strong>寒地巡逻 S1</strong>
               </div>
               <CaretDown size={14} />
             </div>
@@ -209,10 +213,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               onChange={(value) => updateParameter('overallLength', value)}
             />
             <ParameterInput
-              label="枪管长度"
-              value={parameters.barrelLength}
+              label="前部长度"
+              value={parameters.frontShellLength}
               unit="mm"
-              onChange={(value) => updateParameter('barrelLength', value)}
+              onChange={(value) => updateParameter('frontShellLength', value)}
             />
             <ParameterInput
               label="握把角度"
@@ -221,13 +225,13 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               onChange={(value) => updateParameter('gripAngle', value)}
             />
             <ParameterInput
-              label="弹匣容量"
-              value={parameters.magazineCapacity}
-              unit="发"
-              onChange={(value) => updateParameter('magazineCapacity', value)}
+              label="细节密度"
+              value={parameters.detailDensity}
+              unit="%"
+              onChange={(value) => updateParameter('detailDensity', value)}
             />
-            <button className="primary-action" onClick={() => setAssistantNote('参数已更新，正在等待 CAD Runtime 重建。')}>
-              生成 3D 模型
+            <button className="primary-action" onClick={() => setAssistantNote('参数已更新，已生成 ModuleGraph 组合预览；确认后将创建新版本。')}>
+              生成组合预览
             </button>
           </section>
 
@@ -294,7 +298,18 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
 
           <section className="component-library">
             <div className="component-library-header">
-              <strong>组件库</strong>
+              <nav className="drawer-tabs" aria-label="底部工作区">
+                {([
+                  ['components', '组件'],
+                  ['variants', '方案'],
+                  ['versions', '版本'],
+                  ['timeline', '时间线'],
+                ] as Array<[DrawerTab, string]>).map(([id, label]) => (
+                  <button key={id} className={drawerTab === id ? 'active' : ''} onClick={() => setDrawerTab(id)}>
+                    {label}
+                  </button>
+                ))}
+              </nav>
               <div className="component-search">
                 <MagnifyingGlass size={15} />
                 <input
@@ -306,33 +321,43 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               </div>
             </div>
             <div className="component-library-body">
-              <nav className="component-categories">
-                {COMPONENT_CATEGORIES.map((category) => (
-                  <button
-                    key={category}
-                    className={componentCategory === category ? 'active' : ''}
-                    onClick={() => setComponentCategory(category)}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </nav>
-              <div className="component-grid">
-                {visibleComponents.map((component) => {
-                  const ComponentIcon = component.icon
-                  return (
-                    <button
-                      key={component.id}
-                      className={selectedComponent === component.id ? 'active' : ''}
-                      onClick={() => setSelectedComponent(component.id)}
-                    >
-                      <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
-                      <strong>{component.name}</strong>
-                      <small>{component.type}</small>
-                    </button>
-                  )
-                })}
-              </div>
+              {drawerTab === 'components' ? (
+                <>
+                  <nav className="component-categories">
+                    {COMPONENT_CATEGORIES.map((category) => (
+                      <button
+                        key={category}
+                        className={componentCategory === category ? 'active' : ''}
+                        onClick={() => setComponentCategory(category)}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </nav>
+                  <div className="component-grid">
+                    {visibleComponents.map((component) => {
+                      const ComponentIcon = component.icon
+                      return (
+                        <button
+                          key={component.id}
+                          className={selectedComponent === component.id ? 'active' : ''}
+                          onClick={() => setSelectedComponent(component.id)}
+                        >
+                          <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
+                          <strong>{component.name}</strong>
+                          <small>{component.type}</small>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="drawer-placeholder">
+                  {drawerTab === 'variants' && <><strong>候选方案</strong><button>紧凑巡逻型</button><button>长轮廓展示型</button></>}
+                  {drawerTab === 'versions' && <><strong>版本分支</strong><button>v5 当前版本</button><button>v4 父版本</button></>}
+                  {drawerTab === 'timeline' && <><strong>设计时间线</strong><span>10:30 应用顶部附件 ChangeSet</span><span>10:12 锁定核心外壳</span></>}
+                </div>
+              )}
             </div>
           </section>
         </main>
@@ -340,45 +365,55 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
         <aside className="cad-right-rail">
           <section className="cad-panel properties-panel">
             <div className="cad-panel-title"><span><SlidersHorizontal size={16} /> 属性面板</span></div>
-            <label className="wide-field">
-              <span>组件名称</span>
-              <input value={selectedComponent} readOnly />
-            </label>
-            <div className="axis-group">
-              <span>位置（mm）</span>
-              <div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div>
-            </div>
-            <div className="axis-group">
-              <span>旋转（°）</span>
-              <div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div>
-            </div>
-            <div className="property-divider" />
-            <div className="property-heading">关键参数 <CaretDown size={13} /></div>
-            <PropertyNumber label="整体长度" value={parameters.overallLength} unit="mm" onChange={(value) => updateParameter('overallLength', value)} />
-            <PropertyNumber label="主体高度" value={parameters.bodyHeight} unit="mm" onChange={(value) => updateParameter('bodyHeight', value)} />
-            <PropertyNumber label="枪管长度" value={parameters.barrelLength} unit="mm" onChange={(value) => updateParameter('barrelLength', value)} />
-            <PropertyNumber label="握把角度" value={parameters.gripAngle} unit="°" onChange={(value) => updateParameter('gripAngle', value)} />
-            <PropertyNumber label="最小壁厚" value={parameters.wallThickness} unit="mm" onChange={(value) => updateParameter('wallThickness', value)} />
-            <label className="wide-field">
-              <span>材料</span>
-              <select defaultValue="metal"><option value="metal">金属_钛合金</option><option value="polymer">工程聚合物</option><option value="prototype">原型树脂</option></select>
-            </label>
-          </section>
-
-          <section className="cad-panel dfm-panel">
-            <div className="cad-panel-title"><span><ChartLineUp size={16} /> DFM 分析结果</span></div>
-            <DfmRow label="最小壁厚" value={`${parameters.wallThickness.toFixed(1)} mm`} ok={parameters.wallThickness >= 2} />
-            <DfmRow label="悬垂角度" value="45°" ok />
-            <DfmRow label="结构完整性" value="基础检查通过" ok={parameters.bodyHeight >= 40} />
-            <DfmRow label="打印可行性" value={parameters.overallLength <= 256 ? '可打印' : '需拆件'} ok={parameters.overallLength <= 256} />
-            <div className="dfm-suggestion"><WarningCircle size={15} /> 建议：握把区域可增加防滑纹理并复核受力假设。</div>
-            <button className="secondary-action">查看详细报告</button>
+            <nav className="inspector-tabs" aria-label="属性分类">
+              {([
+                ['parameters', '参数'],
+                ['appearance', '外观'],
+                ['connections', '连接'],
+                ['inspection', '检查'],
+              ] as Array<[InspectorTab, string]>).map(([id, label]) => (
+                <button key={id} className={inspectorTab === id ? 'active' : ''} onClick={() => setInspectorTab(id)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+            {inspectorTab === 'parameters' && <>
+              <label className="wide-field"><span>组件名称</span><input value={selectedComponent} readOnly /></label>
+              <div className="axis-group"><span>位置（mm）</span><div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div></div>
+              <div className="axis-group"><span>旋转（°）</span><div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div></div>
+              <div className="property-divider" />
+              <div className="property-heading">概念比例 <CaretDown size={13} /></div>
+              <PropertyNumber label="整体长度" value={parameters.overallLength} unit="mm" onChange={(value) => updateParameter('overallLength', value)} />
+              <PropertyNumber label="主体高度" value={parameters.bodyHeight} unit="mm" onChange={(value) => updateParameter('bodyHeight', value)} />
+              <PropertyNumber label="前部长度" value={parameters.frontShellLength} unit="mm" onChange={(value) => updateParameter('frontShellLength', value)} />
+              <PropertyNumber label="握持角度" value={parameters.gripAngle} unit="°" onChange={(value) => updateParameter('gripAngle', value)} />
+              <PropertyNumber label="外壳厚度" value={parameters.shellThickness} unit="mm" onChange={(value) => updateParameter('shellThickness', value)} />
+            </>}
+            {inspectorTab === 'appearance' && <>
+              <label className="wide-field"><span>表面主题</span><select defaultValue="arctic"><option value="arctic">寒地石墨</option><option value="industrial">工业枪灰</option><option value="prototype">原型树脂</option></select></label>
+              <PropertyNumber label="细节密度" value={parameters.detailDensity} unit="%" onChange={(value) => updateParameter('detailDensity', value)} />
+              <div className="appearance-swatches"><button aria-label="石墨黑" /><button aria-label="枪灰" /><button aria-label="信号红" /></div>
+            </>}
+            {inspectorTab === 'connections' && <div className="connection-list">
+              <DfmRow label="core.front" value="已连接" ok />
+              <DfmRow label="core.grip" value="已锁定" ok />
+              <DfmRow label="core.top" value="已连接" ok />
+              <DfmRow label="core.right" value="可用" ok />
+            </div>}
+            {inspectorTab === 'inspection' && <>
+              <DfmRow label="网格完整性" value="通过" ok />
+              <DfmRow label="模块相交" value="0 处" ok />
+              <DfmRow label="连接器对齐" value="6 / 6" ok />
+              <DfmRow label="对称偏差" value="0.4 mm" ok />
+              <div className="dfm-suggestion"><WarningCircle size={15} /> 提示：当前是非功能性概念模型，不代表制造或安全验证。</div>
+              <button className="secondary-action">查看模型检查报告</button>
+            </>}
           </section>
 
           <section className="cad-panel export-panel">
-            <div className="cad-panel-title"><span><Export size={16} /> 输出与制造</span></div>
+            <div className="cad-panel-title"><span><Export size={16} /> 展示与导出</span></div>
             <div className="export-formats">
-              {['STEP', '3MF', 'STL', 'GLB'].map((format) => (
+              {['GLB', 'OBJ', 'PNG', 'REPORT'].map((format) => (
                 <button
                   key={format}
                   className={exportFormat === format ? 'active' : ''}
@@ -392,15 +427,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <span><FileArrowDown size={15} /> 当前格式</span>
               <strong>{exportFormat}</strong>
             </div>
-            <button className="primary-action"><Printer size={16} /> 准备制造导出</button>
+            <button className="primary-action"><FileArrowDown size={16} /> 创建概念交付包</button>
           </section>
         </aside>
       </div>
 
       <footer className="cad-status-bar">
-        <span>设计模式</span>
+        <span>{({ concept: '概念', assembly: '组装', refine: '精修', inspect: '检查', showcase: '展示' } as Record<WorkspaceTab, string>)[activeTab]}阶段</span>
         <span>选择：{selectedComponent}</span>
-        <span>内核：规划中</span>
+        <span>模型：ModuleGraph 预览</span>
         <span>单位：mm</span>
         <span>网格：10 mm</span>
         <span className="status-spacer" />
@@ -552,52 +587,52 @@ function createWeaponModel(
   const bodyLength = 154 * scale
   const bodyDepth = 38 * scale
 
-  addPart('receiver-01', new RoundedBoxGeometry(bodyLength, bodyHeight, bodyDepth, 5, 5), [18, 24, 0], [0, 0, -0.035], '#74808d')
-  addPart('receiver-01', new RoundedBoxGeometry(bodyLength * 0.82, 15, bodyDepth + 5, 4, 2.5), [27, 54, 0], [0, 0, -0.02], '#46515d')
-  addPart('receiver-01', new RoundedBoxGeometry(bodyLength * 0.57, 14, bodyDepth - 3, 3, 3), [-1, 1, 0], [0, 0, 0.03], '#202832')
-  addPart('receiver-01', new RoundedBoxGeometry(70, 17, bodyDepth + 1.5, 3, 3), [5, 15, 0], [0, 0, -0.03], '#414c58')
+  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength, bodyHeight, bodyDepth, 5, 5), [18, 24, 0], [0, 0, -0.035], '#74808d')
+  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength * 0.82, 15, bodyDepth + 5, 4, 2.5), [27, 54, 0], [0, 0, -0.02], '#46515d')
+  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength * 0.57, 14, bodyDepth - 3, 3, 3), [-1, 1, 0], [0, 0, 0.03], '#202832')
+  addPart('core-shell-01', new RoundedBoxGeometry(70, 17, bodyDepth + 1.5, 3, 3), [5, 15, 0], [0, 0, -0.03], '#414c58')
 
-  const barrelLength = THREE.MathUtils.clamp(parameters.barrelLength, 82, 165)
-  addPart('barrel-01', new THREE.CylinderGeometry(10, 10, barrelLength, 32), [-58, 26, 0], [0, 0, Math.PI / 2], '#343c46')
-  addPart('barrel-01', new THREE.CylinderGeometry(15, 15, barrelLength * 0.72, 12), [-35, 26, 0], [0, 0, Math.PI / 2], '#4d5864')
-  addPart('muzzle-01', new THREE.CylinderGeometry(18, 18, 15, 32), [-58 - barrelLength / 2, 26, 0], [0, 0, Math.PI / 2], '#2a323b')
-  addPart('muzzle-01', new THREE.TorusGeometry(10, 2.2, 12, 32), [-66 - barrelLength / 2, 26, 0], [0, Math.PI / 2, 0], '#151b22')
+  const frontShellLength = THREE.MathUtils.clamp(parameters.frontShellLength, 82, 165)
+  addPart('front-shell-01', new THREE.CylinderGeometry(10, 10, frontShellLength, 32), [-58, 26, 0], [0, 0, Math.PI / 2], '#343c46')
+  addPart('front-shell-01', new THREE.CylinderGeometry(15, 15, frontShellLength * 0.72, 12), [-35, 26, 0], [0, 0, Math.PI / 2], '#4d5864')
+  addPart('front-shell-02', new THREE.CylinderGeometry(18, 18, 15, 32), [-58 - frontShellLength / 2, 26, 0], [0, 0, Math.PI / 2], '#2a323b')
+  addPart('front-shell-02', new THREE.TorusGeometry(10, 2.2, 12, 32), [-66 - frontShellLength / 2, 26, 0], [0, Math.PI / 2, 0], '#151b22')
   for (let index = 0; index < 4; index += 1) {
-    addPart('barrel-01', new RoundedBoxGeometry(7, 20, bodyDepth + 5, 2, 1.5), [-52 + index * 15, 30, 0], [0, 0, -0.3], '#252e38')
+    addPart('front-shell-01', new RoundedBoxGeometry(7, 20, bodyDepth + 5, 2, 1.5), [-52 + index * 15, 30, 0], [0, 0, -0.3], '#252e38')
   }
 
   const gripAngle = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(parameters.gripAngle, 5, 28))
-  addPart('grip-01', new RoundedBoxGeometry(43, 92, 35, 6, 7), [42, -43, 0], [0, 0, -gripAngle], '#303945', 0.42)
-  addPart('grip-01', new RoundedBoxGeometry(31, 74, 39, 5, 5), [46, -44, 0], [0, 0, -gripAngle], '#1e2731', 0.24)
+  addPart('grip-shell-01', new RoundedBoxGeometry(43, 92, 35, 6, 7), [42, -43, 0], [0, 0, -gripAngle], '#303945', 0.42)
+  addPart('grip-shell-01', new RoundedBoxGeometry(31, 74, 39, 5, 5), [46, -44, 0], [0, 0, -gripAngle], '#1e2731', 0.24)
   for (let index = 0; index < 6; index += 1) {
-    addPart('grip-01', new THREE.BoxGeometry(29, 2, 40.5), [42 + index * 2.1, -66 + index * 10, 0], [0, 0, -gripAngle], '#74808d')
+    addPart('grip-shell-01', new THREE.BoxGeometry(29, 2, 40.5), [42 + index * 2.1, -66 + index * 10, 0], [0, 0, -gripAngle], '#74808d')
   }
-  addPart('magazine-01', new RoundedBoxGeometry(24, 70, 27, 4, 4), [43, -48, 0], [0, 0, -gripAngle], '#181f27')
-  addPart('magazine-01', new RoundedBoxGeometry(31, 9, 34, 3, 3), [55, -86, 0], [0, 0, -gripAngle], '#323b46')
+  addPart('storage-visual-01', new RoundedBoxGeometry(24, 70, 27, 4, 4), [43, -48, 0], [0, 0, -gripAngle], '#181f27')
+  addPart('storage-visual-01', new RoundedBoxGeometry(31, 9, 34, 3, 3), [55, -86, 0], [0, 0, -gripAngle], '#323b46')
 
-  addPart('receiver-01', new THREE.TorusGeometry(18, 3.6, 12, 32, Math.PI * 1.55), [12, -11, 0], [0, 0, 0.4], '#38424d')
-  addPart('receiver-01', new RoundedBoxGeometry(7, 22, 7, 3, 1.5), [8, -7, 0], [0, 0, -0.2], '#1c232b')
+  addPart('core-shell-01', new THREE.TorusGeometry(18, 3.6, 12, 32, Math.PI * 1.55), [12, -11, 0], [0, 0, 0.4], '#38424d')
+  addPart('core-shell-01', new RoundedBoxGeometry(7, 22, 7, 3, 1.5), [8, -7, 0], [0, 0, -0.2], '#1c232b')
 
   for (const [x, rotation] of [[43, -0.32], [59, -0.28], [75, -0.24]] as Array<[number, number]>) {
-    addPart('receiver-01', new RoundedBoxGeometry(7, 24, 2.4, 2, 1), [x, 27, bodyDepth / 2 + 1.2], [0, 0, rotation], '#ad3036', 0.45)
+    addPart('core-shell-01', new RoundedBoxGeometry(7, 24, 2.4, 2, 1), [x, 27, bodyDepth / 2 + 1.2], [0, 0, rotation], '#ad3036', 0.45)
   }
   for (const x of [-27, 18, 82]) {
-    addPart('receiver-01', new THREE.CylinderGeometry(3.8, 3.8, 2.2, 24), [x, 7, bodyDepth / 2 + 1.2], [Math.PI / 2, 0, 0], '#202832')
+    addPart('core-shell-01', new THREE.CylinderGeometry(3.8, 3.8, 2.2, 24), [x, 7, bodyDepth / 2 + 1.2], [Math.PI / 2, 0, 0], '#202832')
   }
 
   const railStart = -32
   for (let index = 0; index < 10; index += 1) {
-    addPart('rail-01', new RoundedBoxGeometry(10, 5, bodyDepth + 5, 2, 1), [railStart + index * 13, 64, 0], [0, 0, -0.02], '#252e38')
+    addPart('top-accessory-01', new RoundedBoxGeometry(10, 5, bodyDepth + 5, 2, 1), [railStart + index * 13, 64, 0], [0, 0, -0.02], '#252e38')
   }
   for (let index = 0; index < 7; index += 1) {
-    addPart('rail-01', new RoundedBoxGeometry(9, 4, bodyDepth + 1, 2, 1), [-37 + index * 13, -1, 0], [0, 0, 0.02], '#202832')
+    addPart('top-accessory-01', new RoundedBoxGeometry(9, 4, bodyDepth + 1, 2, 1), [-37 + index * 13, -1, 0], [0, 0, 0.02], '#202832')
   }
-  addPart('sight-01', new RoundedBoxGeometry(34, 20, 24, 4, 4), [34, 78, 0], [0, 0, -0.02], '#303946')
-  addPart('sight-01', new THREE.CylinderGeometry(8, 8, 26, 24), [15, 78, 0], [0, Math.PI / 2, 0], '#1d252e')
-  addPart('sight-01', new THREE.TorusGeometry(6, 1.5, 10, 24), [1, 78, 0], [0, Math.PI / 2, 0], '#cf4141')
+  addPart('top-accessory-02', new RoundedBoxGeometry(34, 20, 24, 4, 4), [34, 78, 0], [0, 0, -0.02], '#303946')
+  addPart('top-accessory-02', new THREE.CylinderGeometry(8, 8, 26, 24), [15, 78, 0], [0, Math.PI / 2, 0], '#1d252e')
+  addPart('top-accessory-02', new THREE.TorusGeometry(6, 1.5, 10, 24), [1, 78, 0], [0, Math.PI / 2, 0], '#cf4141')
 
   for (const x of [-34, -8, 76]) {
-    addPart('receiver-01', new RoundedBoxGeometry(12, 21, bodyDepth + 1, 3, 2), [x, 25, 0], [0, 0, -0.04], '#242c35')
+    addPart('core-shell-01', new RoundedBoxGeometry(12, 21, bodyDepth + 1, 3, 2), [x, 25, 0], [0, 0, -0.04], '#242c35')
   }
 
   group.rotation.set(-0.08, -0.3, 0)

@@ -1,582 +1,435 @@
 # ForgeCAD 系统设计
 
-版本：重构设计 v1（2026-07-10）
-状态：目标架构已定义，R0 已完成，R1 基础设施与 CAD 工作台壳进行中。
+版本：产品重构 v2（2026-07-10）
+状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；Concept 领域尚未落地。
 
 ## 1. 产品定义
 
-ForgeCAD 是一个本地优先的 AI 参数化 CAD 与 DFM 桌面 Agent。它前期主要面向武器、武器零部件和相关精密机械结构，同时支持常规 3D 打印功能件，把不完整的用户意图转化为：
+ForgeCAD 是本地优先的 AI 模块化 3D 设计工作台。产品不按“武器”类别拒绝需求，但第一阶段只把以下场景作为正式范围：
 
-- 明确的需求、尺寸、单位、接口、假设和未知项；
-- 受控、可审计、可重新构建的参数化特征图；
-- 有效 B-Rep 与工程/打印交换格式；
-- 可定位、带版本和实测值的 DFM 结论；
-- 不覆盖父版本的自然语言修改记录。
+- 未来武器概念；
+- 游戏 3D 资产；
+- 影视道具；
+- 非功能性展示与收藏模型。
 
-### 1.1 当前系统与目标系统
-
-当前实现：
+第一阶段产品形态由两层组成：
 
 ```text
-文本/草图
-→ 结构解释与 Creative Recast
-→ CreativeWeaponGraph / WeaponDesignSpec / SkillGraph
-→ 概念图与 Patch
-→ 神经 3D 粗模
-→ Unity 导出
+ForgeCAD 通用 3D 设计平台
+└─ Weapon Concept Pack（首个内容包）
+
+后续扩展
+└─ CAD / DFM Engineering Pack（独立工程能力包）
 ```
 
-目标实现：
+因此，“武器优先”描述的是首个垂直场景和内容包，不表示 P0 要完成可工作的武器工程设计或制造验证。
 
-```text
-文本/草图/参考图/尺寸
-→ RequirementInterpretation
-→ blocker 澄清与风险分类
-→ DesignSpec
-→ FeatureGraph
-→ CAD Runtime / B-Rep
-→ 几何与关键尺寸验证
-→ DFM
-→ ChangeSet / 新版本
-→ STEP / 3MF / STL / GLB / 报告
-```
+## 2. 首版边界
 
-这是领域内核替换，不是名词替换。
+### 2.1 P0 必须支持
 
-## 2. 范围和风险边界
+- 用自然语言和参考图描述设计意图；
+- 生成结构化 `WeaponConceptSpec`；
+- 从受控组件库选择模块，生成 `ModuleGraph`；
+- 使用语义连接器完成替换、对齐和组合；
+- 在可交互 3D 视口中进行选择、移动、旋转、测量和爆炸查看；
+- 生成候选方案和结构化 `DesignChangeSet`；
+- 先显示 ghost preview，用户确认后创建新版本；
+- 检查网格、连接、相交、浮空、比例、对称、法线和非流形问题；
+- 导出 GLB、OBJ、PNG、爆炸图、转台图、Module Manifest 和检查报告。
 
-首版支持武器、武器零部件、相关精密机械结构，以及 bracket、enclosure、adapter、mounting plate、simple fixture、holder/organizer 等单件或小型组件 CAD/DFM 场景。前期设计和回归优先使用武器项目验证复杂外形、精密尺寸、组件约束、材料、DFM 与制造导出。
+### 2.2 P0 不承诺
 
-首版拒绝或不支持：
+- 可发射、可承压或具有真实工作机构的武器设计；
+- 枪机、闭锁、供弹、击发、膛压、热载荷或弹道工程；
+- B-Rep、STEP、3MF、结构仿真、专业公差或制造认证；
+- 通过外观模型推断实物安全、合法性或制造可行性；
+- 让 LLM 直接生成并执行任意建模代码。
 
-- 将任何未经验证的设计自动宣称为安全、合规或已认证；
-- 自动替代适用地区的武器合规审查、专业工程仿真、材料验证与实物测试；
-- 医疗、航空飞行、汽车制动/转向、高压/承压、载人承重等领域的自动认证结论；
-- 复杂装配、CNC、钣金、注塑、FEA、GD&T；
-- 把神经网格声称为参数化 CAD；
-- 把启发式 DFM 声称为结构安全认证。
+### 2.3 后续 Engineering Pack
 
-风险策略：
-
-| 风险 | 典型用途 | 系统行为 |
-| --- | --- | --- |
-| R0 | 装饰、无承载 | 正常生成和导出 |
-| R1 | 普通功能件 | 正常生成，展示假设与限制 |
-| R2 | 承载、热、电气、运动结构 | 警告、人工确认、限制自动结论 |
-| R3 | 涉及法规、爆压/热载荷或其他安全关键条件 | 允许设计；醒目标注未验证条件，并要求合规审查、专业验证和实物测试后再用于实际制造 |
-
-## 3. 架构原则
-
-### 3.1 LLM 不负责几何真值
-
-LLM 可以：
-
-- 提取用途、尺寸和接口；
-- 识别缺失信息；
-- 选择模板；
-- 提议 DesignSpec、FeatureGraph 和 ChangeSet；
-- 解释结构化构建或 DFM 错误。
-
-LLM 不可以：
-
-- 直接输出生产几何；
-- 静默改动锁定尺寸；
-- 生成并执行任意 Python；
-- 绕过 Schema、Compiler、验证或风险策略。
-
-### 3.2 单一权威几何链
+CAD / DFM Engineering Pack 使用独立的权威链路：
 
 ```text
 DesignSpec
 → FeatureGraph
-→ build123d Compiler
-→ OpenCascade B-Rep
-→ validated STEP
-→ 3MF / STL / GLB
+→ build123d / OpenCascade
+→ validated B-Rep
+→ STEP / 3MF / STL / GLB
+→ DFM / slicer estimate
 ```
 
-MVP 不同时维护 build123d 和 CadQuery 两套权威实现。CadQuery 只保留在 `CadBackend` 接口的未来扩展位。
+该链路不与 P0 的 `ModuleGraph` 混称。概念项目只有在用户主动进入工程化流程、补齐尺寸与制造条件后，才能创建新的 Engineering Project。
 
-### 3.3 所有状态可追溯
+## 3. 产品原则
 
-每次构建、DFM、切片和导出都必须关联：
+### 3.1 通用平台优先，内容包承载垂直语义
 
-- design/version/build/job id；
-- 输入合同与内容哈希；
-- compiler、CAD kernel 与 runtime 版本；
-- printer/material/ruleset 版本；
-- 输出 asset id 与 SHA-256；
-- 验证、警告和失败诊断。
+项目、版本、任务、资产、预览、选择、导出和审计属于平台层；模块分类、提示模板、连接器规则、检查规则和演示数据属于 Weapon Concept Pack。未来增加机器人、载具或工业设备时，不复制一套应用骨架。
 
-### 3.4 本地优先和进程隔离
-
-SQLite 与对象存储是本地权威数据。FastAPI 负责任务和应用用例；CAD 原生内核在独立进程运行，避免崩溃、超时或内存异常拖垮 Agent。
-
-## 4. 目标系统结构
+### 3.2 P0 的几何真值是模块图和 GLB
 
 ```text
-┌───────────────────────────────────────────────────────┐
-│ Tauri Desktop                                         │
-│ New Design | CAD Workbench | Print Doctor | Jobs      │
-│ Profiles | Library | Settings | Reports               │
-└───────────────────────┬───────────────────────────────┘
-                        │ HTTP + SSE
-┌───────────────────────▼───────────────────────────────┐
-│ FastAPI Local API                                     │
-│ Routes → Use Cases → Workflow / Jobs                  │
-├───────────────────────┬───────────────────────────────┤
-│ Repository / UoW      │ External Ports                │
-│ SQLite / Object Store │ LLM / Renderer / Slicer       │
-└───────────────────────┴───────────────┬───────────────┘
-                                        │ local IPC/HTTP
-┌───────────────────────────────────────▼───────────────┐
-│ Isolated CAD Runtime                                  │
-│ FeatureGraph Compiler → build123d / OCCT → B-Rep      │
-│ validation → tessellation → STEP/3MF/STL/GLB          │
-└───────────────────────────────────────┬───────────────┘
-                                        │
-┌───────────────────────────────────────▼───────────────┐
-│ DFM / Mesh / Slicing                                  │
-│ Rules + Profiles | trimesh | lib3mf | Slicer Adapter  │
-└───────────────────────────────────────────────────────┘
+WeaponConceptSpec
+→ Module selection
+→ ModuleGraph
+→ validated module transforms/connectors
+→ combined GLB
 ```
 
-## 5. 模块边界
+GLB 源模块、连接器元数据、变换矩阵和内容哈希共同构成可重建依据。渲染图不是几何真值；生成式概念图不能静默覆盖模块图。
 
-建议目标目录：
+### 3.3 AI 只提出变更
+
+AI 可以解析 Brief、选择模块、调整比例、提出风格和组合方案，但修改必须落入结构化 `DesignChangeSet`。锁定模块和锁定连接器不能被静默修改；确认前只显示预览。
+
+### 3.4 本地优先、可恢复、可追溯
+
+SQLite 和内容寻址对象存储是本地权威数据。每个版本、任务和导出必须记录输入哈希、资产哈希、算法/Provider 版本、状态、错误和父版本。
+
+## 4. P0 系统结构
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Tauri Desktop                                              │
+│ Projects | Workbench | Library | Jobs | Exports | Settings │
+└──────────────────────────┬─────────────────────────────────┘
+                           │ HTTP + SSE
+┌──────────────────────────▼─────────────────────────────────┐
+│ FastAPI Local Agent                                        │
+│ Routes → Use Cases → Workflow / Jobs                       │
+├───────────────────────┬────────────────────────────────────┤
+│ Repository / UoW      │ Ports                              │
+│ SQLite / Object Store │ LLM / GLB / Renderer / Exporter    │
+└───────────────────────┴────────────────────────────────────┘
+```
+
+P0 不强制启动独立 CAD Runtime。复杂网格检查或渲染可以先作为隔离 worker 运行；Engineering Pack 再增加 OpenCascade sidecar。
+
+## 5. 代码边界
+
+目标目录：
 
 ```text
 apps/agent/forgecad_agent/
-  api/                 # app factory、dependencies、thin routes、DTO
-  application/         # commands、queries、use cases
-  domain/              # design、geometry、manufacturing、dfm、jobs
-  ports/               # CAD、LLM、slicer、renderer、repositories
-  infrastructure/      # SQLite、object store、provider adapters
-  runtime/             # worker、workflow、checkpoint、recovery
-
-apps/cad-runtime/forgecad_runtime/
-  compiler/            # FeatureGraph compiler、selectors、anchors
-  kernel/              # build123d backend、OCCT validators
-  exporters/           # STEP、3MF、STL、GLB
-  sandbox/             # limits、workspace、process lifecycle
+  api/                       # app factory、dependencies、thin routes、DTO
+  application/               # commands、queries、use cases
+  domain/
+    concepts/                # spec、module graph、change set、versions
+    modules/                 # module、connector、pack、compatibility
+    quality/                 # checks、reports、rulesets
+    jobs/                    # job、step、attempt、events
+  ports/                     # LLM、GLB、renderer、exporter、repositories
+  infrastructure/            # SQLite、object store、provider adapters
+  runtime/                   # worker、workflow、checkpoint、recovery
 
 apps/desktop/src/
   app/
-  features/new-design/
-  features/design-workbench/
+  features/projects/
+  features/concept-workbench/
   features/viewport/
-  features/feature-tree/
-  features/dfm/
-  features/print-doctor/
+  features/module-library/
+  features/assistant/
+  features/quality/
   features/versions/
-  features/jobs/
-  features/profiles/
+  features/exports/
 
-packages/design-spec/
-packages/cad-ir/
-packages/dfm-rules/
+packages/concept-spec/
+packages/module-graph/
+packages/model-quality/
 packages/test-fixtures/
+
+packs/weapon-concept/
+  pack.json
+  modules/
+  thumbnails/
+  prompts/
+  rules/
 ```
 
-迁移期间允许 `SQLiteAssetStore` 作为 Facade，但其内部必须委托 Repository、UoW 和 Use Case；新 CAD 业务不得直接回填这个 5210 行类。
+迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。
 
-## 6. 核心领域模型
+## 6. 核心领域合同
 
-### 6.1 DesignSpec@1
+### 6.1 WeaponConceptSpec@1
 
-DesignSpec 表达“要制造什么”和“哪些约束不可破坏”，不保存任意 CAD 代码。
+它表达“希望看到什么”，不包含真实武器工作机理。
 
 ```json
 {
-  "schema_version": "design-spec/1.0",
-  "design_id": "des_01...",
-  "name": "模块化未来手枪样机",
-  "part_type": "modular_weapon",
-  "units": "mm",
-  "purpose": "验证武器外形、组件接口、参数修改与制造工作流",
-  "coordinate_system": { "up_axis": "Z", "front_axis": "Y" },
-  "envelope": { "max_x": 256, "max_y": 256, "max_z": 256 },
-  "interfaces": [
-    {
-      "id": "barrel_receiver_interface",
-      "type": "component_interface",
-      "locked": true,
-      "parameters": {
-        "interface_width": 32,
-        "interface_height": 24,
-        "axis": "X"
-      }
-    }
-  ],
-  "critical_dimensions": [
-    { "id": "overall_length", "value": 230, "tolerance": 0.5, "locked": false },
-    { "id": "minimum_wall", "value": 2.5, "tolerance": 0.2, "locked": false }
-  ],
-  "manufacturing": {
-    "process": "fdm",
-    "printer_profile_id": "printer_256_04",
-    "material_profile_id": "prototype_material"
+  "schema_version": "weapon-concept-spec/1.0",
+  "project_id": "prj_01...",
+  "name": "寒地巡逻 S1",
+  "archetype": "future_modular_sidearm",
+  "intended_use": ["game_asset", "film_prop", "display_model"],
+  "style": {
+    "keywords": ["寒地", "工业", "紧凑", "硬表面"],
+    "palette": ["graphite", "gunmetal", "signal_red"],
+    "detail_density": 0.68
   },
-  "assumptions": [
-    "爆压、热载荷、疲劳、材料批次与法规条件尚未验证"
-  ],
-  "unknowns": [],
-  "risk_class": "R3"
+  "proportions": {
+    "overall_length_mm": 230,
+    "body_height_mm": 54,
+    "grip_angle_deg": 15
+  },
+  "required_slots": ["core", "front", "rear", "grip"],
+  "optional_slots": ["top", "left", "right", "bottom", "side_panels"],
+  "constraints": {
+    "symmetry": "mostly_symmetric",
+    "max_triangle_count": 180000
+  },
+  "assumptions": ["非功能性概念模型，不用于真实制造或使用"]
 }
 ```
 
-不变量：
-
-- 内部长度统一为 mm，边界负责单位转换；
-- critical dimension 和 interface 有稳定 ID；
-- locked 项不能被 AI 静默修改；
-- blocker unknown 存在时禁止生产导出；
-- 所有假设显式存入 `assumptions`。
-
-### 6.2 FeatureGraph@1
-
-FeatureGraph 是受限 CAD IR。首版允许：
-
-```text
-SketchRectangle / SketchCircle / SketchPolyline
-Extrude / Revolve / Hole / Shell / Rib
-Fillet / Chamfer
-LinearPattern / CircularPattern / Mirror
-Union / Difference
-```
+### 6.2 ModuleAsset@1
 
 ```json
 {
-  "schema_version": "feature-graph/1.0",
-  "parameters": {
-    "base_width": { "type": "length", "value": 100, "unit": "mm", "min": 40, "max": 300 },
-    "base_thickness": { "type": "length", "value": 5, "unit": "mm", "min": 2, "max": 20 }
-  },
-  "nodes": [
-    {
-      "id": "base_sketch",
-      "type": "SketchRectangle",
-      "inputs": { "width": "$base_width", "height": 60 }
-    },
-    {
-      "id": "base_extrude",
-      "type": "Extrude",
-      "depends_on": ["base_sketch"],
-      "inputs": { "distance": "$base_thickness" },
-      "semantic_tags": ["base", "top_mounting_surface"]
-    }
+  "schema_version": "module-asset/1.0",
+  "module_id": "core_shell_01",
+  "pack_id": "weapon-concept/1",
+  "category": "core_shell",
+  "asset_id": "ast_01...",
+  "sha256": "...",
+  "bounds_mm": [148, 56, 42],
+  "triangle_count": 28400,
+  "connectors": [
+    { "id": "core.front", "type": "shell_front", "position": [-74, 0, 0], "rotation": [0, 0, 0], "scale_range": [0.9, 1.1] },
+    { "id": "core.grip", "type": "grip_mount", "position": [32, -30, 0], "rotation": [0, 0, 0], "scale_range": [0.92, 1.08] }
   ]
 }
 ```
 
-Feature 不能使用不稳定的 `Face[7]` / `Edge[3]` 作为长期引用。选择器优先由 owner feature、几何类型、法向、相对位置、interface id 和 semantic tag 组成。
+首包使用九类视觉模块：
 
-### 6.3 BuildManifest@1
+1. 核心外壳；
+2. 前部外壳；
+3. 后部外壳；
+4. 握持外壳；
+5. 顶部附件；
+6. 侧部附件；
+7. 下部结构；
+8. 能源/储存视觉模块；
+9. 装甲或装饰面板。
 
-每个构建记录：
+首批只制作 8–12 个高质量、拓扑可靠的手工 GLB；闭环稳定后扩展到 24–30 个。
 
-```text
-design_spec_hash
-feature_graph_hash
-compiler_version
-build123d_version
-occt_version
-runtime_image_version
-printer/material/ruleset versions
-start/end/status
-artifact ids and sha256
-geometry metrics
-validation results
-```
-
-### 6.4 ChangeSet@1
-
-自然语言修改先形成可审计计划：
+### 6.3 ModuleGraph@1
 
 ```json
 {
-  "instruction": "底板加厚到 7 mm，孔距不变，并增加两个加强筋",
-  "parameter_changes": {
-    "base_thickness": { "before": 5, "after": 7 }
-  },
-  "feature_changes": [
-    { "operation": "add", "feature_type": "Rib", "count": 2 }
+  "schema_version": "module-graph/1.0",
+  "graph_id": "mg_01...",
+  "root_node_id": "node_core",
+  "nodes": [
+    { "id": "node_core", "module_id": "core_shell_01", "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }, "locked": true },
+    { "id": "node_front", "module_id": "front_shell_02", "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }, "locked": false }
   ],
-  "locked_interfaces_checked": ["base_mount"],
-  "requires_confirmation": false
+  "edges": [
+    { "from": "node_core:core.front", "to": "node_front:front.core", "status": "connected" }
+  ]
 }
 ```
 
-应用 ChangeSet 后必须创建子版本、重建、重测锁定接口并重跑 DFM。
+图不变量：
 
-### 6.5 DfmReport@1
+- 每个非根节点必须能沿 edge 到达根节点；
+- edge 两端连接器类型必须兼容；
+- 变换必须是有限值，缩放必须落在模块约束内；
+- 同一个非共享连接器只能占用一次；
+- 删除节点必须同时处理子节点或明确重连；
+- 保存前运行结构验证，失败图不能成为已确认版本。
 
-Finding 的严重度固定为 `blocker | high | suggestion | info`。每条 Finding 必须包含：
+### 6.4 DesignChangeSet@1
 
-- `rule_id` 与规则版本；
-- 实测值和推荐范围；
-- feature/face/region 位置；
-- printer/material profile 版本；
-- 是否支持自动修复及建议参数；
-- 置信度；
-- 说明它是确定性规则还是启发式风险提示。
-
-## 7. 工作流与状态机
-
-### 7.1 新设计
-
-```text
-ingest_input
-→ classify_risk
-→ classify_supported_part
-→ parse_requirements
-→ validate_units
-→ detect_unknowns
-→ request_clarifications
-→ select_template
-→ generate_design_spec
-→ generate_feature_graph
-→ compile_cad
-→ validate_brep
-→ verify_critical_dimensions
-→ tessellate_preview
-→ run_dfm
-→ await_review
-→ export
+```json
+{
+  "schema_version": "design-change-set/1.0",
+  "base_version_id": "ver_05",
+  "summary": "延长顶部轮廓并降低附件高度",
+  "operations": [
+    { "op": "replace_module", "node_id": "node_top", "module_id": "top_accessory_03" },
+    { "op": "set_transform", "node_id": "node_top", "scale": [1.12, 0.9, 1.0] },
+    { "op": "set_style", "path": "palette.accent", "value": "signal_red" }
+  ],
+  "protected_nodes": ["node_core"],
+  "status": "proposed"
+}
 ```
 
-状态：
+允许的操作首版固定为：`add_module`、`remove_module`、`replace_module`、`connect`、`disconnect`、`set_transform`、`set_style`、`set_parameter`。不接受任意脚本。
+
+### 6.5 ModelQualityReport@1
+
+检查项分为三类：
+
+- Graph：连接器不兼容、浮空节点、无根路径、重复占用、非法缩放；
+- Mesh：法线、非流形边、退化三角形、隐藏几何、密度、UV、LOD；
+- Assembly：模块相交、异常间隙、穿插、对称偏差、包围盒越界。
+
+每项必须包含 `check_id`、severity、status、node ids、实测值、阈值、可读建议和 ruleset version。`passed`、`warning`、`failed`、`not_run` 不得混用。
+
+## 7. 连接器系统
+
+Weapon Concept Pack 的标准槽位：
 
 ```text
-draft → interpreting → needs_input → ready_to_build
-→ building → validating → review_ready → exporting → exported
+core.front
+core.rear
+core.top
+core.bottom
+core.left
+core.right
+core.grip
+core.side_panel_left
+core.side_panel_right
 ```
 
-失败状态：
+连接器定义局部坐标系、兼容类型、允许缩放、占用规则和可选间隙。装配时以连接器矩阵求解子模块世界变换；不依赖名称猜测或人工拖到“差不多”的位置。
+
+## 8. 工作流与版本
+
+### 8.1 主闭环
 
 ```text
-build_failed / validation_failed / dfm_blocked
-provider_failed / cancelled
+新建 Weapon Concept 项目
+→ 输入 Brief / 参考图
+→ AI 生成 WeaponConceptSpec
+→ 用户确认风格、比例和必需模块
+→ AI 选择 2–3 组 ModuleGraph 方案
+→ 用户进入工作台组装/精修
+→ AI 提出 DesignChangeSet
+→ ghost preview + 影响摘要
+→ 用户确认并创建子版本
+→ Model Quality 检查
+→ 展示与导出
 ```
 
-### 7.2 澄清
+### 8.2 版本原则
 
-每轮最多 3 个 blocker，只问影响几何、接口、制造或风险判断的问题。颜色、命名和非关键外观不能形成无限追问。
+- 已确认版本不可原地覆盖；
+- ChangeSet 基于明确 `base_version_id`；
+- stale base 必须重新预览或显式 rebase；
+- 预览资产带 TTL，不作为正式版本；
+- 每个版本保存 spec、graph、asset references、quality summary 和父版本。
 
-### 7.3 构建修复
-
-```text
-Compiler error
-→ structured diagnostic
-→ Agent proposes graph correction
-→ schema and policy validation
-→ rebuild
-```
-
-自动重试上限 2–3 次。超过上限返回失败特征、局部测量、建议参数和可选模板，不继续无限尝试。
-
-## 8. API 设计
-
-新 API 使用 `/api/v1`，所有耗时操作返回 `job_id`，所有副作用请求支持 `Idempotency-Key`。
+## 9. API 草案
 
 ```http
-POST   /api/v1/designs
-GET    /api/v1/designs
-GET    /api/v1/designs/{design_id}
-DELETE /api/v1/designs/{design_id}
+POST   /api/v1/concept-projects
+GET    /api/v1/concept-projects/{project_id}
+POST   /api/v1/concept-projects/{project_id}/brief:interpret
+POST   /api/v1/concept-projects/{project_id}/variants:generate
 
-GET    /api/v1/designs/{design_id}/clarifications
-POST   /api/v1/designs/{design_id}/clarifications/{id}/answer
+GET    /api/v1/packs
+GET    /api/v1/packs/{pack_id}/modules
+GET    /api/v1/modules/{module_id}
 
-POST   /api/v1/designs/{design_id}/versions/{version_id}/builds
-GET    /api/v1/builds/{build_id}
+GET    /api/v1/concept-versions/{version_id}
+POST   /api/v1/concept-versions/{version_id}/changes:propose
+POST   /api/v1/change-sets/{change_set_id}:preview
+POST   /api/v1/change-sets/{change_set_id}:commit
 
-POST   /api/v1/designs/{design_id}/versions/{version_id}/change-plans
-POST   /api/v1/change-plans/{change_id}/confirm
-POST   /api/v1/change-plans/{change_id}/reject
-
-POST   /api/v1/builds/{build_id}/dfm-runs
-GET    /api/v1/dfm-runs/{dfm_run_id}
-
-POST   /api/v1/mesh-inspections
-GET    /api/v1/mesh-inspections/{inspection_id}
-POST   /api/v1/mesh-inspections/{inspection_id}/repairs
-
-POST   /api/v1/designs/{design_id}/versions/{version_id}/exports
-GET    /api/v1/exports/{export_id}
-
-GET    /api/v1/jobs
+POST   /api/v1/concept-versions/{version_id}/quality-jobs
+POST   /api/v1/concept-versions/{version_id}/render-jobs
+POST   /api/v1/concept-versions/{version_id}/export-jobs
 GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
-POST   /api/v1/jobs/{job_id}/cancel
-POST   /api/v1/jobs/{job_id}/retry
-GET    /api/v1/assets/{asset_id}
+POST   /api/v1/jobs/{job_id}:cancel
 ```
 
-路由只做解析、调用 Use Case、响应转换和错误映射。SQL、文件组装、CAD 和 Provider 调用不能出现在 route handler。
+幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 
-## 9. 数据设计
+## 10. 数据与资产
 
-保留并泛化：
+P0 主要表：
 
 ```text
+projects
+concept_specs
+concept_versions
+module_packs
+module_assets
+module_connectors
+module_graphs
+module_graph_nodes
+module_graph_edges
+change_sets
+quality_reports
+jobs
+job_steps
+job_attempts
+job_events
+assets
+artifact_links
 schema_migrations
-idempotency_records
-jobs / job_steps / job_events
-provider_configs / provider_tasks / runtime_checkpoints
-asset_files / export_packages
 ```
 
-新增：
+对象存储保存源 GLB、组合 GLB、缩略图、参考图、渲染图、爆炸图、导出包和报告。数据库只保存元数据、相对对象键和 SHA-256，不保存依赖工作站的绝对路径。
+
+## 11. 前端信息架构
+
+工作台沿用参考图的高密度九区布局，但产品语义调整为五阶段：
 
 ```text
-designs / design_versions / design_specs
-requirement_sessions / clarifications / change_sets
-feature_graphs / cad_builds / geometry_artifacts
-printer_profiles / material_profiles / process_profiles
-dfm_runs / dfm_findings / mesh_inspections
+概念 → 组装 → 精修 → 检查 → 展示
 ```
 
-关系：
+- 左栏：项目、版本、AI 助手和当前 Brief；
+- 顶部：文件操作、五阶段导航和视口工具；
+- 中央：Three.js 3D 视口；
+- 底部抽屉：组件、方案、版本、时间线；
+- 右侧检查器：参数、外观、连接、检查；
+- 状态栏：阶段、选择、连接状态、单位、任务和提示。
 
-```text
-design
-└─ design_version
-   ├─ design_spec
-   ├─ feature_graph
-   ├─ reference_assets
-   ├─ change_set
-   ├─ cad_build
-   │  ├─ STEP / 3MF / STL / GLB
-   │  └─ build_manifest
-   └─ dfm_run
-      └─ dfm_findings
-```
+核心交互必须真实可用：模块筛选/选择、阶段切换、参数修改、连接状态、AI 提交、预览/确认、版本切换、检查和导出格式选择。
 
-旧数据策略：
+## 12. AI 设计协议
 
-- tag 后的旧数据库只读；
-- Weapon 记录最多导入为 legacy project/reference asset；
-- CreativeWeaponGraph 和 SkillGraph 不转换为 FeatureGraph；
-- 新版本只写新表，不长期双写；
-- importer 是一次性、可重跑、带报告的工具。
+AI 输出必须过 Schema 校验。推荐分三步：
 
-## 10. CAD Runtime
+1. Brief Interpreter：产生 spec、缺失项和 2–3 个方向；
+2. Module Planner：根据 pack inventory 产生候选 ModuleGraph；
+3. Change Planner：根据当前 graph 和用户指令产生 DesignChangeSet。
 
-`CadRuntimePort`：
+Provider 不得看到本地绝对路径或密钥；日志保存清洗后的请求摘要、模型版本、延迟和 token 统计，不保存不必要的原始参考图。
 
-```python
-class CadRuntimePort(Protocol):
-    async def build(self, request: CadBuildRequest) -> CadBuildResult:
-        ...
-```
+## 13. 导出与交付包
 
-Runtime 必须：
+P0 导出：
 
-- 独立进程和临时工作目录；
-- 默认禁用网络；
-- 限制 CPU、内存、时间、特征数和输出大小；
-- 只读 Schema-valid FeatureGraph；
-- 不加载用户 Python；
-- 记录 stdout、stderr 与结构化诊断；
-- 超时或崩溃后由 Worker 回收；
-- 生产 STEP/3MF 完成回读验证后才登记为 validated artifact。
+- `model.glb`：组合模型和材质；
+- `model.obj`：通用网格交换；
+- `preview.png`：透明或场景预览；
+- `exploded.png`：爆炸结构图；
+- `turntable/`：转台帧或视频；
+- `module-manifest.json`：模块、连接器、变换和哈希；
+- `quality-report.json/html`：检查结果和已知限制。
 
-查看器数据除 GLB 外还要携带 topology map，将 triangle/edge range 映射到 face id、feature id 和 semantic tag。
+Manifest 中明确 `intended_use` 和“非功能性概念模型”声明。P0 不显示“制造就绪”。
 
-## 11. DFM、网格与切片
+## 14. 验证策略
 
-规则分三层：
+固定纵向样本为“寒地巡逻 S1”未来模块化短武器概念，至少覆盖：
 
-1. 几何确定性：有效实体、开放壳、自相交、零厚度、小边/面、STEP 回读。
-2. FDM 工艺：成型空间、壁厚、孔、间隙、悬垂、桥接、底面、空腔、方向。
-3. 机械启发式：应力集中、细长悬臂、孔边材料、层间方向、加强筋风险。
+- 8–12 个模块资产注册；
+- 9 个标准槽位中的核心、前部、后部、握持、顶部和侧板；
+- 两组候选方案；
+- 替换模块、调整比例、锁定核心、预览并提交；
+- 人工注入连接器不匹配、浮空、穿插和非法缩放；
+- GLB/OBJ/PNG/Manifest/报告导出；
+- 重启后恢复项目、版本和 Job 历史。
 
-第三层只输出“风险提示”，不输出认证结论。
+质量门定义见 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)，运行与故障处置见 [OPERATIONS.md](OPERATIONS.md)。
 
-工具职责：
+## 15. 已冻结决策
 
-- build123d/OCCT：权威 B-Rep、尺寸和拓扑验证；
-- trimesh：上传网格的场景、组件、水密、法线、体积、包围盒；
-- Manifold：适合输入上的网格布尔/规范化，不承诺修复所有坏 STL；
-- lib3mf：3MF 元数据、写入与回读；
-- PrusaSlicer Adapter：可选切片时间与耗材估算，缺失时可降级。
-
-## 12. 前端设计
-
-工作台布局：
-
-```text
-┌────────────────────────── 顶部命令栏 / 模式 ─────────────────────────┐
-├──────────────┬──────────────────────────────┬──────────────────────┤
-│ 项目/版本历史  │ 视口工具 + CAD Viewport       │ 属性/参数/材料         │
-│ AI 设计助手    │                              │ DFM 分析结果           │
-│ 参数化输入     ├──────────────────────────────┤ 输出与制造             │
-│ 对话输入       │ 组件库 / 搜索 / 分类 / 复用     │                      │
-├──────────────┴──────────────────────────────┴──────────────────────┤
-│ 状态栏：模式 / 选择 / 内核 / 单位 / 网格 / 操作提示                  │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-R1 工作台壳以 `#/cad` 交付，布局与视觉证据见仓库根目录 `design-qa.md`。该壳允许武器项目、参数、组件、视图、DFM 和导出状态交互，但在 R2–R5 完成前必须继续显示“内核规划中”，不得把 Three.js 原型几何声称为权威 B-Rep 或真实制造结果。
-
-状态归属：
-
-- URL：当前 design/version/job；
-- TanStack Query：designs、versions、jobs、profiles、reports；
-- Zustand 或 reducer：相机、选择、截面、测量和 viewport tool；
-- local state：未提交表单；
-- 后端：权威项目、任务、版本和构建状态。
-
-旧 Canvas 保留画笔、套索、缩放、图层和 undo/redo，但改为参考图比例标定、安装面、孔位、保留区、禁入区和尺寸锚点。参考图标注表达意图，不作为精确几何真值。
-
-## 13. 第三方依赖与许可证
-
-P0 直接依赖候选：
-
-- build123d（Apache-2.0）；
-- three-cad-viewer（MIT）；
-- three-mesh-bvh（MIT）；
-- trimesh（MIT）；
-- Manifold（Apache-2.0，按需）；
-- lib3mf（BSD-2-Clause）；
-- Instructor（MIT）；
-- CADGenBench（Apache-2.0，测试思路/依赖）。
-
-隔离或专项审查：
-
-- PrusaSlicer（AGPL-3.0）：外部 CLI Adapter，单独审查分发方式；
-- NopSCADlib（GPL-3.0）：仅参考 BOM/爆炸图思想；
-- Fusion 360 Gallery Dataset：非商业研究限制，不进入商业训练数据。
-
-每个依赖 PR 必须固定 tag/commit、保存许可证、记录是否修改、声明链接/进程方式并更新 SBOM。此处不是法律意见。
-
-## 14. 已冻结决策
-
-- 临时代号 ForgeCAD，品牌名后置；
-- 武器项目优先，单件或小型模块化组件先行；L 型支架仅作内核 calibration fixture；
-- build123d + OpenCascade 单内核；
-- 自有 DesignSpec + FeatureGraph，不执行任意代码；
-- 3MF 是默认打印交付，STEP 是工程交换，STL 保持兼容；
-- CAD Runtime 独立进程；
-- Print Doctor 与设计 DFM 共用 Profile 和 Finding；
-- 旧 Weapon/Skill/Unity 领域最终删除，不长期兼容；
-- LangGraph、复杂装配、FEA、CNC、注塑和通用 CAD 编辑器后置。
-
-## 15. 验证策略
-
-验证层级：
-
-```text
-contract and migration tests
-→ compiler unit tests
-→ 100+ template parameter builds
-→ geometry metrics regression
-→ STEP/3MF round-trip
-→ DFM truth set
-→ ChangeSet and locked-interface tests
-→ Job recovery and sandbox tests
-→ desktop E2E
-```
-
-详细阶段、质量门和 PR 顺序见 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)，真实运行与故障处理见 [OPERATIONS.md](OPERATIONS.md)。
+1. P0 是通用平台加 Weapon Concept Pack；
+2. 不按武器类别拒绝，但首版只承诺概念/游戏/影视/展示模型；
+3. P0 权威模型是 `WeaponConceptSpec + ModuleGraph + GLB`；
+4. AI 修改必须通过 `DesignChangeSet` 和用户确认；
+5. 首批模块少而精，先做 8–12 个；
+6. CAD/DFM 是独立后续 Engineering Pack；
+7. Tauri 是产品路径，浏览器只是开发壳；
+8. SQLite、对象存储、任务恢复和审计继续作为平台基础。
