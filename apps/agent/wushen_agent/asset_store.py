@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import base64
-import binascii
 import hashlib
 import json
 import math
@@ -24,10 +22,14 @@ from forgecad_agent.infrastructure.db import (
     MigrationError,
     SQLiteConnectionFactory,
     SQLiteMigrationRunner,
-    SQLiteUnitOfWork,
 )
 from forgecad_agent.infrastructure.storage import ContentAddressedStore, ObjectStoreError
 
+from .application.asset_uploads import (
+    AssetUploadError,
+    AssetUploadIdempotencyConflict,
+    LegacyAssetUploadService,
+)
 from .application.creative_recast import (
     CreativeRecastError,
     CreativeRecastIdempotencyConflict,
@@ -68,7 +70,6 @@ from .models import (
 from .providers.image import (
     ImageProvider,
     ImageProviderError,
-    image_dimensions,
     image_provider_from_env,
     image_provider_settings_from_env,
 )
@@ -121,6 +122,10 @@ class SQLiteAssetStore:
         self.library_root.mkdir(parents=True, exist_ok=True)
         self.connection_factory = SQLiteConnectionFactory(self.db_path)
         self.object_store = ContentAddressedStore(self.library_root)
+        self.asset_uploads = LegacyAssetUploadService(
+            self.connection_factory,
+            self.object_store,
+        )
         self.creative_recast = LegacyCreativeRecastService(self.connection_factory)
         self.job_commands = LegacyJobCommandService(
             self.connection_factory,
@@ -2393,97 +2398,21 @@ class SQLiteAssetStore:
             return self.get_job(job_id)
 
     def upload_asset(self, weapon_id: str, version_id: str, request: AssetUploadRequest, idempotency_key: str) -> AssetUploadResponse:
-        idempotency_scope = f"POST /api/weapons/{weapon_id}/versions/{version_id}/assets"
-        request_json = _canonical_json(request.model_dump())
-        request_hash = _sha256_bytes(request_json.encode("utf-8"))
-
-        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
-            conn = unit_of_work.require_connection()
-            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return AssetUploadResponse(**json.loads(existing.response_json))
-
-            version = conn.execute(
-                """
-                SELECT version_id
-                FROM weapon_versions
-                WHERE weapon_id = ? AND version_id = ? AND status = 'committed'
-                """,
-                (weapon_id, version_id),
-            ).fetchone()
-            if version is None:
-                raise AssetStoreError("VERSION_NOT_FOUND", "Target version was not found for this weapon.")
-
-            payload = _decode_base64_upload(request.data_base64)
-            if len(payload) > 32 * 1024 * 1024:
-                raise AssetStoreError("INVALID_REQUEST", "Uploaded asset is too large for the M4 local API.")
-
-            filename = _safe_filename(request.filename)
-            width: Optional[int] = None
-            height: Optional[int] = None
-            metadata: Dict[str, Any] = dict(request.metadata)
-            metadata["uploaded_via"] = "local_agent_api"
-
-            if request.role == "patch_mask":
-                if request.mime_type != "image/png":
-                    raise AssetStoreError("INVALID_REQUEST", "patch_mask upload must use image/png.")
-                try:
-                    width, height = image_dimensions(payload, mime_type=request.mime_type, filename=filename)
-                except ImageProviderError as exc:
-                    raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
-                metadata["mask_policy"] = "white_repaint_black_preserve"
-                ext = ".png"
-            elif request.role == "patch_manifest":
-                if request.mime_type != "application/json":
-                    raise AssetStoreError("INVALID_REQUEST", "patch_manifest upload must use application/json.")
-                try:
-                    manifest = validate_patch_manifest(json.loads(payload.decode("utf-8")), provider_id="asset_upload")
-                except (UnicodeDecodeError, json.JSONDecodeError, WeaponSpecValidationError) as exc:
-                    raise AssetStoreError("INVALID_REQUEST", f"Patch manifest is invalid: {exc}") from exc
-                if manifest["weapon_id"] != weapon_id:
-                    raise AssetStoreError("INVALID_REQUEST", "Patch manifest weapon_id does not match upload weapon_id.")
-                metadata["schema_version"] = "PatchManifest@1"
-                ext = ".json"
-            else:
-                raise AssetStoreError("INVALID_REQUEST", f"Unsupported upload role: {request.role}")
-
-            asset_id = self._write_asset(
-                conn,
-                weapon_id=weapon_id,
-                version_id=version_id,
-                job_id=None,
-                role=request.role,
-                logical_path=f"weapons/{weapon_id}/versions/{version_id}/uploads/{filename}",
-                payload=payload,
-                ext=ext,
-                mime_type=request.mime_type,
-                metadata=metadata,
-                width=width,
-                height=height,
+        try:
+            return self.asset_uploads.upload(
+                weapon_id,
+                version_id,
+                request,
+                idempotency_key,
             )
-            row = self._asset_row(conn, asset_id)
-            response = AssetUploadResponse(
-                weapon_id=weapon_id,
-                version_id=version_id,
-                asset_id=asset_id,
-                role=request.role,
-                logical_path=row["logical_path"],
-                sha256=row["sha256"],
-                byte_size=row["byte_size"],
-                mime_type=row["mime_type"],
-                width=row["width"],
-                height=row["height"],
-            )
-            unit_of_work.idempotency.add(
-                scope=idempotency_scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-                response_json=_canonical_json(response.model_dump()),
-                created_at=utc_now(),
-            )
-            return response
+        except AssetUploadIdempotencyConflict as exc:
+            raise IdempotencyConflictError(str(exc)) from exc
+        except AssetUploadError as exc:
+            raise AssetStoreError(
+                exc.code,
+                str(exc),
+                recoverable=exc.recoverable,
+            ) from exc
 
     def activate_version(self, weapon_id: str, version_id: str) -> WeaponDetail:
         with self._connect() as conn:
@@ -3467,31 +3396,22 @@ class SQLiteAssetStore:
         stored_object = self.object_store.put(payload, extension=ext)
 
         file_id = _new_id("file")
-        conn.execute(
-            """
-            INSERT INTO asset_files (
-              file_id, weapon_id, version_id, job_id, role, logical_path, object_path,
-              sha256, byte_size, mime_type, ext, width, height, metadata_json, created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                file_id,
-                weapon_id,
-                version_id,
-                job_id,
-                role,
-                logical_path,
-                stored_object.relative_path,
-                stored_object.sha256,
-                stored_object.byte_size,
-                mime_type,
-                ext.lstrip("."),
-                width,
-                height,
-                _canonical_json(metadata),
-                utc_now(),
-            ),
+        AssetRepository(conn).add(
+            file_id=file_id,
+            weapon_id=weapon_id,
+            version_id=version_id,
+            job_id=job_id,
+            role=role,
+            logical_path=logical_path,
+            object_path=stored_object.relative_path,
+            sha256=stored_object.sha256,
+            byte_size=stored_object.byte_size,
+            mime_type=mime_type,
+            ext=ext,
+            width=width,
+            height=height,
+            metadata=metadata,
+            created_at=utc_now(),
         )
         return file_id
 
@@ -3580,25 +3500,6 @@ def _open_asset_location(path: Path) -> None:
         subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError as exc:
         raise AssetStoreError("LOCAL_IO_ERROR", f"Failed to open asset location: {exc}") from exc
-
-
-def _decode_base64_upload(value: str) -> bytes:
-    try:
-        return base64.b64decode(value, validate=True)
-    except binascii.Error as exc:
-        raise AssetStoreError("INVALID_REQUEST", "Uploaded asset data_base64 is not valid base64.") from exc
-
-
-def _safe_filename(value: str) -> str:
-    name = Path(value).name.strip()
-    allowed = []
-    for char in name:
-        if char.isalnum() or char in {"-", "_", "."}:
-            allowed.append(char)
-    safe = "".join(allowed).strip(".")
-    if not safe:
-        raise AssetStoreError("INVALID_REQUEST", "Uploaded asset filename is invalid.")
-    return safe[:120]
 
 
 def _unity_manifest_file_entry(asset: sqlite3.Row, package_path: str) -> Dict[str, Any]:

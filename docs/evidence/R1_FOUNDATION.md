@@ -17,6 +17,7 @@
 - 旧资产裸读取统一改为内容寻址存储读取；
 - 将 Job detail/list/action/runtime/event 查询迁入 `LegacyJobQueryService`，并通过 Repository 统一读取；
 - 将 Job cancel/retry/retry-from-step 事务迁入 `LegacyJobCommandService`，包括 action audit、event、checkpoint 与 Provider cancel 协调；
+- 将 mask/manifest 上传验证、幂等与内容寻址写入迁入 `LegacyAssetUploadService`；所有通用资产 INSERT 经 `AssetRepository.add`；
 - 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
@@ -103,6 +104,16 @@ npm run agent:p0-generate3d-worker-loop-smoke
 ```
 
 结果：全部通过；Job command 提取后 provider task 取消/恢复与异步 3D worker 提交仍保持原行为。
+
+Asset Repository/上传提取后补充运行：
+
+```bash
+npm run agent:m2-smoke
+npm run agent:m4-patch-smoke
+npm run agent:m4-patch-http-smoke
+```
+
+结果：全部通过；内容寻址资产创建、mask/manifest 校验、上传幂等和 Patch 追加版本保持原合同。
 
 ## 尚未完成
 

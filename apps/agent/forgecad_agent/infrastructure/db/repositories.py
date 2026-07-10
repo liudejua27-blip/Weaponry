@@ -68,6 +68,67 @@ class AssetRepository:
             (file_id,),
         ).fetchone()
 
+    def committed_version_exists(self, weapon_id: str, version_id: str) -> bool:
+        return self.connection.execute(
+            """
+            SELECT 1
+            FROM weapon_versions
+            WHERE weapon_id = ? AND version_id = ? AND status = 'committed'
+            """,
+            (weapon_id, version_id),
+        ).fetchone() is not None
+
+    def add(
+        self,
+        *,
+        file_id: str,
+        weapon_id: str,
+        version_id: str,
+        job_id: Optional[str],
+        role: str,
+        logical_path: str,
+        object_path: str,
+        sha256: str,
+        byte_size: int,
+        mime_type: str,
+        ext: str,
+        width: Optional[int],
+        height: Optional[int],
+        metadata: Mapping[str, Any],
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO asset_files (
+              file_id, weapon_id, version_id, job_id, role, logical_path, object_path,
+              sha256, byte_size, mime_type, ext, width, height, metadata_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                file_id,
+                weapon_id,
+                version_id,
+                job_id,
+                role,
+                logical_path,
+                object_path,
+                sha256,
+                byte_size,
+                mime_type,
+                ext.lstrip("."),
+                width,
+                height,
+                json.dumps(
+                    metadata,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                created_at,
+            ),
+        )
+
 
 class JobRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:

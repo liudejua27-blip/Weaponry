@@ -9,7 +9,7 @@
 截至 2026-07-10，仓库真实状态是：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复与版本记录；
-- `asset_store.py` 已从约 5210 行降至约 4049 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询/命令和 Creative Recast 用例已提取，但剩余资产/Provider 写工作流和 SQL 仍待拆分；
+- `asset_store.py` 已从约 5210 行降至约 3950 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询/命令、资产上传和 Creative Recast 用例已提取；通用资产写入已通过 `AssetRepository`，剩余 Provider/版本工作流和 SQL 仍待拆分；
 - `App.tsx` 已从约 865 行降至约 702 行，AppShell、Hash route、RuntimeProvider、JobEventProvider、SelectionProvider 与懒加载 CAD 工作台已提取，旧任务恢复和页面业务组合仍待继续收敛；
 - `main.py` 已从约 458 行降至约 54 行，legacy asset/job/system/weapon routes、错误映射与 base app factory 已分模块；
 - 领域合同、表、API、UI 和发布门仍围绕 Weapon、Creative Recast、神经 3D 与 Unity；
