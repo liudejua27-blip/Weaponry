@@ -6,6 +6,7 @@ import type {
   ConceptProjectSummary,
   ConceptVersionDetail,
   ChangeSetTimelineItem,
+  DesignBriefRecord,
   DesignVariantRecord,
   ModuleAssetRecord,
   ModuleGraphRecord,
@@ -34,6 +35,7 @@ type ConceptWorkbenchState = {
   graphRecord: ModuleGraphRecord | null
   modules: ModuleAssetRecord[]
   variants: DesignVariantRecord[]
+  brief: DesignBriefRecord | null
   loading: boolean
   error: string | null
   statusMessage: string
@@ -52,6 +54,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   graphRecord: null,
   modules: [],
   variants: [],
+  brief: null,
   loading: true,
   error: null,
   statusMessage: '正在读取本地 Concept 数据…',
@@ -102,6 +105,7 @@ export function useConceptWorkbench() {
         graphRecord,
         modules: moduleResponse.items ?? [],
         variants: variantResponse.items ?? [],
+        brief: null,
         timeline: timelineResponse.items ?? [],
         timelineNextCursor: timelineResponse.next_cursor ?? null,
         timelineLoading: false,
@@ -142,6 +146,7 @@ export function useConceptWorkbench() {
           graphRecord: null,
           modules: [],
           variants: [],
+          brief: null,
           timeline: [],
           timelineNextCursor: null,
           timelineLoading: false,
@@ -193,6 +198,7 @@ export function useConceptWorkbench() {
         version,
         graphRecord,
         qualityRun: null,
+        brief: null,
         loading: false,
         statusMessage: graphRecord
           ? `已切换到 V${version.version_no} · ${graphRecord.graph.nodes.length} 个节点。`
@@ -290,6 +296,100 @@ export function useConceptWorkbench() {
       return null
     }
   }, [state.version])
+
+  const planBrief = useCallback(async (sourceText: string) => {
+    const project = state.project
+    if (!project || !state.version?.module_graph_id) {
+      setState((current) => ({
+        ...current,
+        error: '必须先加载带有效 ModuleGraph 的 Concept Project。',
+      }))
+      return null
+    }
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在解释 Brief 并生成 A/B/C 模块方案…',
+    }))
+    try {
+      const brief = await forgeApi.interpretDesignBrief(project.project_id, {
+        client_request_id: `desktop-brief-${suffix}`,
+        source_text: sourceText,
+        reference_asset_ids: [],
+        generator: 'auto',
+      })
+      const generated = await forgeApi.generateDesignVariants(project.project_id, {
+        client_request_id: `desktop-variants-${suffix}`,
+        brief_id: brief.brief_id,
+        count: 3,
+        generator: 'auto',
+      })
+      const provenance = brief.planner_provenance
+      setState((current) => ({
+        ...current,
+        loading: false,
+        brief,
+        variants: generated.items ?? [],
+        statusMessage: `Planner 完成 · ${provenance.generator} · ${generated.items?.length ?? 0} 个方案${
+          provenance.fallback_used ? ' · 已降级' : ''
+        }。`,
+      }))
+      return { brief, variants: generated.items ?? [] }
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: 'Brief/Module Planner 执行失败。',
+      }))
+      return null
+    }
+  }, [state.project, state.version])
+
+  const selectVariant = useCallback(async (variantId: string) => {
+    const project = state.project
+    const variant = state.variants.find((item) => item.variant_id === variantId)
+    if (!project || !variant || !state.graphRecord) return null
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在选择方案 ${variant.rank}…`,
+    }))
+    try {
+      const selected = await forgeApi.selectDesignVariant(project.project_id, variantId, {
+        client_request_id: `desktop-select-variant-${Date.now().toString(36)}`,
+      })
+      setState((current) => ({
+        ...current,
+        loading: false,
+        variants: current.variants.map((item) => ({
+          ...item,
+          status: item.variant_id === selected.variant_id ? 'selected' : 'rejected',
+        })),
+        graphRecord: current.graphRecord
+          ? {
+              ...current.graphRecord,
+              graph: selected.module_graph,
+              graph_sha256: `planner-preview:${selected.variant_id}`,
+            }
+          : null,
+        qualityRun: null,
+        statusMessage: `已选择 ${selected.name}；当前为 Planner 预览，尚未创建子版本。`,
+      }))
+      return selected
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '方案选择失败。',
+      }))
+      return null
+    }
+  }, [state.graphRecord, state.project, state.variants])
 
   const runQualityInspection = useCallback(async () => {
     const version = state.version
@@ -546,6 +646,8 @@ export function useConceptWorkbench() {
     selectVersion,
     createStarterProject,
     createExport,
+    planBrief,
+    selectVariant,
     runQualityInspection,
     replaceModule,
     setMirror,

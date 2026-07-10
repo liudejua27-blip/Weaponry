@@ -136,6 +136,16 @@ def _brief_error_response(exc: ConceptBriefError) -> JSONResponse:
         status_code = 409
     elif exc.code in {"INVALID_REQUEST", "VARIANT_GENERATION_FAILED"}:
         status_code = 400
+    elif exc.code in {
+        "PLANNER_BAD_OUTPUT",
+        "PLANNER_UNCONFIGURED",
+        "PLANNER_AUTH_FAILED",
+        "PLANNER_RATE_LIMITED",
+        "PLANNER_HTTP_ERROR",
+        "PLANNER_TIMEOUT",
+        "PLANNER_NO_EDITABLE_NODE",
+    }:
+        status_code = 502
     else:
         status_code = 500
     return _error_response(status_code, exc.code, str(exc))
@@ -148,7 +158,10 @@ def _error_response(status_code: int, code: str, message: str) -> JSONResponse:
             "error": {
                 "code": code,
                 "message": message,
-                "recoverable": status_code >= 500 or status_code == 409,
+                "recoverable": (
+                    (status_code >= 500 or status_code == 409)
+                    and code != "PLANNER_AUTH_FAILED"
+                ),
                 "details": {},
             }
         },

@@ -1108,6 +1108,123 @@
         "title": "ConceptJobRecord",
         "type": "object"
       },
+      "ConceptPlannerProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Model"
+          },
+          "attempted_provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Provider Id"
+          },
+          "attempted_provider_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "openai_compatible"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Provider Type"
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "generator": {
+            "enum": [
+              "deterministic_rules",
+              "openai_compatible"
+            ],
+            "title": "Generator",
+            "type": "string"
+          },
+          "input_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "output_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Output Sha256",
+            "type": "string"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_type": {
+            "enum": [
+              "deterministic",
+              "openai_compatible"
+            ],
+            "title": "Provider Type",
+            "type": "string"
+          },
+          "registry_module_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Registry Module Ids",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generator",
+          "provider_id",
+          "provider_type",
+          "input_sha256",
+          "output_sha256"
+        ],
+        "title": "ConceptPlannerProvenance",
+        "type": "object"
+      },
       "ConceptProjectDetail": {
         "additionalProperties": false,
         "properties": {
@@ -2315,6 +2432,9 @@
             ],
             "title": "Job Id"
           },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
           "project_id": {
             "title": "Project Id",
             "type": "string"
@@ -2351,6 +2471,7 @@
           "source_text",
           "interpreted_spec",
           "status",
+          "planner_provenance",
           "created_at",
           "updated_at"
         ],
@@ -2750,6 +2871,9 @@
             "title": "Name",
             "type": "string"
           },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
           "project_id": {
             "title": "Project Id",
             "type": "string"
@@ -2759,6 +2883,21 @@
             "minimum": 1.0,
             "title": "Rank",
             "type": "integer"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Rationale",
+            "type": "array"
+          },
+          "recommended_module_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommended Module Ids",
+            "type": "array"
           },
           "status": {
             "enum": [
@@ -2786,6 +2925,7 @@
           "name",
           "summary",
           "module_graph",
+          "planner_provenance",
           "status",
           "created_at"
         ],
@@ -3021,8 +3161,13 @@
             "type": "integer"
           },
           "generator": {
-            "const": "deterministic_template",
-            "default": "deterministic_template",
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
             "title": "Generator",
             "type": "string"
           }
@@ -3138,6 +3283,17 @@
             "maxLength": 120,
             "minLength": 1,
             "title": "Client Request Id",
+            "type": "string"
+          },
+          "generator": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
+            "title": "Generator",
             "type": "string"
           },
           "reference_asset_ids": {

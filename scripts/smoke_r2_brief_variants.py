@@ -33,6 +33,19 @@ def main() -> int:
         process = _start_agent(library_root, port)
         try:
             _wait_for_health(base_url, process)
+            provider_settings = _json_request(
+                base_url, "/api/provider-settings", method="GET"
+            )
+            concept_planner_settings = [
+                item
+                for item in provider_settings["providers"]
+                if item["provider_id"] == "deterministic_concept_rules"
+            ]
+            _assert(
+                len(concept_planner_settings) == 1
+                and concept_planner_settings[0]["status"] == "configured",
+                "Concept Planner provider settings missing",
+            )
             project = _json_request(
                 base_url,
                 "/api/v1/projects",
@@ -99,8 +112,9 @@ def main() -> int:
 
             brief_body = {
                 "client_request_id": "r2-brief-interpret",
-                "source_text": "寒地巡逻 S1：紧凑、工业、石墨灰，提供三种非功能展示比例方案。",
+                "source_text": "寒地巡逻 S1：紧凑、工业、石墨灰、精密细节，提供三种非功能展示比例方案。",
                 "reference_asset_ids": [],
+                "generator": "deterministic_rules",
             }
             brief = _json_request(
                 base_url,
@@ -111,7 +125,26 @@ def main() -> int:
             )
             _assert(brief["status"] == "interpreted", "brief status mismatch")
             _assert(brief["job_id"].startswith("job_"), "brief job id missing")
-            _assert(brief["interpreted_spec"] == bound["current_spec"], "brief spec trace mismatch")
+            _assert(
+                brief["interpreted_spec"]["proportions"]["overall_length_mm"] == 207.0,
+                "brief compact proportion was not interpreted",
+            )
+            _assert(
+                brief["interpreted_spec"]["style"]["detail_density"] == 0.82,
+                "brief detail density was not interpreted",
+            )
+            _assert(
+                brief["planner_provenance"]["generator"] == "deterministic_rules"
+                and brief["planner_provenance"]["provider_id"]
+                == "deterministic_concept_rules"
+                and brief["planner_provenance"]["fallback_used"] is False,
+                "brief planner provenance mismatch",
+            )
+            _assert(
+                len(brief["planner_provenance"]["input_sha256"]) == 64
+                and len(brief["planner_provenance"]["output_sha256"]) == 64,
+                "brief planner hashes missing",
+            )
             brief_replay = _json_request(
                 base_url,
                 f"/api/v1/projects/{project_id}/brief:interpret",
@@ -136,7 +169,7 @@ def main() -> int:
                     "client_request_id": "r2-variants-generate",
                     "brief_id": brief["brief_id"],
                     "count": 3,
-                    "generator": "deterministic_template",
+                    "generator": "deterministic_rules",
                 },
                 idempotency_key="r2-variants-generate",
             )
@@ -144,8 +177,28 @@ def main() -> int:
             _assert(variants["job_id"].startswith("job_"), "variant job id missing")
             graph_ids = {item["module_graph"]["graph_id"] for item in variants["items"]}
             scales = [item["module_graph"]["nodes"][1]["transform"]["scale"][0] for item in variants["items"]]
+            scale_vectors = [
+                item["module_graph"]["nodes"][1]["transform"]["scale"]
+                for item in variants["items"]
+            ]
             _assert(len(graph_ids) == 3, "variant graph ids were not unique")
             _assert(scales == [0.9, 1.0, 1.1], "A/B/C proportions were not distinct")
+            _assert(
+                scale_vectors == [[0.9, 0.96, 0.96], [1.0, 0.94, 1.0], [1.1, 1.04, 1.04]],
+                "A/B/C structural scale vectors mismatch",
+            )
+            registered_module_ids = {"module_core_shell_01", "module_front_shell_01"}
+            _assert(
+                all(
+                    item["recommended_module_ids"]
+                    and set(item["recommended_module_ids"]) <= registered_module_ids
+                    and item["rationale"]
+                    and item["planner_provenance"]["generator"]
+                    == "deterministic_rules"
+                    for item in variants["items"]
+                ),
+                "variant registry recommendations or provenance missing",
+            )
             _assert(all(item["status"] == "proposed" for item in variants["items"]), "variant proposal status mismatch")
             variant_events = _json_request(
                 base_url,
@@ -198,6 +251,7 @@ def main() -> int:
 
         database_path = library_root / "library.db"
         with sqlite3.connect(database_path) as connection:
+            connection.row_factory = sqlite3.Row
             brief_count = connection.execute("SELECT COUNT(*) FROM design_briefs").fetchone()[0]
             variant_count = connection.execute("SELECT COUNT(*) FROM design_variants").fetchone()[0]
             selected_count = connection.execute(
@@ -205,11 +259,40 @@ def main() -> int:
             ).fetchone()[0]
             job_count = connection.execute("SELECT COUNT(*) FROM concept_jobs").fetchone()[0]
             event_count = connection.execute("SELECT COUNT(*) FROM concept_job_events").fetchone()[0]
+            stored_brief = connection.execute(
+                "SELECT planner_provenance_json FROM design_briefs WHERE brief_id = ?",
+                (brief["brief_id"],),
+            ).fetchone()
+            stored_variants = connection.execute(
+                """
+                SELECT recommended_module_ids_json, rationale_json, planner_provenance_json
+                FROM design_variants
+                WHERE brief_id = ?
+                ORDER BY rank
+                """,
+                (brief["brief_id"],),
+            ).fetchall()
         _assert(brief_count == 1, "brief table count mismatch")
         _assert(variant_count == 3, "variant table count mismatch")
         _assert(selected_count == 1, "selected variant count mismatch")
         _assert(job_count == 3, "concept job count mismatch")
         _assert(event_count == 8, "concept JobEvent count mismatch")
+        _assert(
+            json.loads(stored_brief["planner_provenance_json"])["provider_id"]
+            == "deterministic_concept_rules",
+            "brief provenance was not persisted",
+        )
+        _assert(
+            len(stored_variants) == 3
+            and all(json.loads(row["recommended_module_ids_json"]) for row in stored_variants)
+            and all(json.loads(row["rationale_json"]) for row in stored_variants)
+            and all(
+                json.loads(row["planner_provenance_json"])["generator"]
+                == "deterministic_rules"
+                for row in stored_variants
+            ),
+            "variant planner metadata was not persisted",
+        )
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -225,6 +308,10 @@ def main() -> int:
                 [item["status"] for item in restored["items"]]
                 == ["rejected", "selected", "rejected"],
                 "restart did not restore variant selection",
+            )
+            _assert(
+                all(item["planner_provenance"]["input_sha256"] for item in restored["items"]),
+                "restart did not restore planner provenance",
             )
             restored_job = _json_request(
                 restart_url,
@@ -244,7 +331,10 @@ def main() -> int:
                     "variant_count": variant_count,
                     "selected_variant_id": selected_id,
                     "scales": scales,
-                    "generator": "deterministic_template",
+                    "generator": "deterministic_rules",
+                    "interpreted_overall_length_mm": 207.0,
+                    "planner_provenance_persisted": True,
+                    "provider_settings_visible": True,
                     "job_count": job_count,
                     "event_count": event_count,
                 },

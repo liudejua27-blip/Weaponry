@@ -183,6 +183,21 @@ export type ConceptJobRecord = {
   "events"?: Array<JobEventV2>
 }
 
+export type ConceptPlannerProvenance = {
+  "generator": "deterministic_rules" | "openai_compatible"
+  "provider_id": string
+  "provider_type": "deterministic" | "openai_compatible"
+  "model"?: string | null
+  "attempted_provider_id"?: string | null
+  "attempted_provider_type"?: "deterministic" | "openai_compatible" | null
+  "attempted_model"?: string | null
+  "fallback_used"?: boolean
+  "input_sha256": string
+  "output_sha256": string
+  "registry_module_ids"?: Array<string>
+  "warnings"?: Array<string>
+}
+
 export type ConceptProjectDetail = {
   "project_id": string
   "profile_id": string
@@ -402,6 +417,7 @@ export type DesignBriefRecord = {
   "reference_asset_ids"?: Array<string>
   "interpreted_spec": WeaponConceptSpec
   "status": "draft" | "interpreted" | "confirmed" | "failed"
+  "planner_provenance": ConceptPlannerProvenance
   "created_at": string
   "updated_at": string
   "job_id"?: string | null
@@ -462,6 +478,9 @@ export type DesignVariantRecord = {
   "name": string
   "summary": string
   "module_graph": ModuleGraph
+  "recommended_module_ids"?: Array<string>
+  "rationale"?: Array<string>
+  "planner_provenance": ConceptPlannerProvenance
   "status": "proposed" | "selected" | "rejected"
   "created_at": string
 }
@@ -514,7 +533,7 @@ export type GenerateDesignVariantsRequest = {
   "client_request_id": string
   "brief_id": string
   "count"?: 3
-  "generator"?: "deterministic_template"
+  "generator"?: "auto" | "configured_provider" | "deterministic_rules" | "deterministic_template"
 }
 
 export type GenerationOptions = {
@@ -544,6 +563,7 @@ export type InterpretDesignBriefRequest = {
   "client_request_id": string
   "source_text": string
   "reference_asset_ids"?: Array<string>
+  "generator"?: "auto" | "configured_provider" | "deterministic_rules" | "deterministic_template"
 }
 
 export type JobAcceptedResponse = {

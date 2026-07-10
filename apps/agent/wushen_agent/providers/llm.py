@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Protocol
 
 from ..models import CreateWeaponRequest, ProviderSettings, utc_now
+from forgecad_agent.application.concept_planner import concept_planner_from_env
 
 
 class LLMProviderError(Exception):
@@ -144,6 +145,8 @@ def llm_provider_settings_from_env() -> list[ProviderSettings]:
     api_key = read_secret_from_env("WUSHEN_LLM_API_KEY", "WUSHEN_LLM_API_KEY_FILE")
     model = os.environ.get("WUSHEN_LLM_MODEL", os.environ.get("WUSHEN_OPENAI_MODEL", ""))
     base_url = os.environ.get("WUSHEN_LLM_BASE_URL", os.environ.get("WUSHEN_OPENAI_BASE_URL", "https://api.openai.com/v1"))
+    planner = concept_planner_from_env()
+    planner_config = getattr(planner, "config", None)
     return [
         ProviderSettings(
             provider_id="mock_llm",
@@ -163,6 +166,26 @@ def llm_provider_settings_from_env() -> list[ProviderSettings]:
             status="configured" if api_key and model else "missing_config",
             base_url=base_url,
             has_secret=bool(api_key),
+            updated_at=utc_now(),
+        ),
+        ProviderSettings(
+            provider_id=planner.provider_id,
+            kind="llm",
+            type=planner.provider_type,
+            display_name="ForgeCAD Concept Brief / Module Planner",
+            enabled=True,
+            status=(
+                "configured"
+                if planner.provider_type == "deterministic"
+                or (
+                    planner_config is not None
+                    and planner_config.api_key
+                    and planner_config.model
+                )
+                else "missing_config"
+            ),
+            base_url=(planner_config.base_url if planner_config is not None else None),
+            has_secret=bool(planner_config and planner_config.api_key),
             updated_at=utc_now(),
         ),
     ]

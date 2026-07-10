@@ -23,6 +23,7 @@ from .concept_briefs import (
     ConceptBriefIdempotencyConflict,
     ConceptBriefService,
 )
+from .concept_planner import concept_planner_from_env
 from .concept_jobs import ConceptJobError, ConceptJobService
 from .concept_exports import (
     ConceptExportError,
@@ -46,6 +47,7 @@ __all__ = [
     "ConceptBriefError",
     "ConceptBriefIdempotencyConflict",
     "ConceptBriefService",
+    "concept_planner_from_env",
     "ConceptJobError",
     "ConceptJobService",
     "ConceptExportError",

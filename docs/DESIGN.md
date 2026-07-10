@@ -519,7 +519,11 @@ AI 输出必须过 Schema 校验。推荐分三步：
 2. Module Planner：根据 pack inventory 产生候选 ModuleGraph；
 3. Change Planner：根据当前 graph 和用户指令产生 DesignChangeSet。
 
-Provider 不得看到本地绝对路径或密钥；日志保存清洗后的请求摘要、模型版本、延迟和 token 统计，不保存不必要的原始参考图。
+Provider 不得看到本地绝对路径或密钥；当前 provenance 只保存 provider/model、清洗后输入/输出 hash、registry ids 与 warning，不保存密钥、绝对路径或原始参考图。真实 Provider 评测时还需补延迟与 token 统计。
+
+当前 Brief/Module Planner 已采用 `ConceptPlannerProvider` 边界。默认 `deterministic_rules` 不是 AI：它只把有限视觉词汇映射到有界 Spec 参数，并生成三个可重复结构方案。配置 `openai_compatible` 后，Brief 只返回 style/proportions/symmetry patch，Module Planner 只返回 rank/name/summary、已存在 target node、`0.85–1.15` scale、注册 module ids 和 rationale；服务端固定 project/profile/id、安全假设与 Graph 不变量，不直接执行模型文本。
+
+每条 Brief/Variant 保存 `ConceptPlannerProvenance`：实际 generator/provider/model、auto fallback 前尝试的 provider/model、fallback 标记、清洗后输入/输出 SHA-256、当时 registry module ids 和 warning。migration `0014` 为旧模板行写入明确的 legacy provenance。`auto` 可以显式降级；`configured_provider` 失败必须向调用方暴露，不能用规则结果伪装 AI 成功。Variant 选择当前只切换桌面预览并更新 selected/rejected，不创建 Version；下一步 Change Planner 才通过既有 `propose → preview → confirm` 创建子版本。
 
 ## 13. 导出与交付包
 

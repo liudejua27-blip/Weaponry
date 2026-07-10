@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict
 
+from forgecad_agent.domain.concepts.models import ModelQualityReport
+
 from smoke_r2_concept_projects import (
     _assert,
     _create_body,
@@ -202,7 +204,13 @@ def main() -> int:
                 f"/api/v1/quality-runs/{quality['quality_run_id']}",
                 method="GET",
             )
-            _assert(quality_read["report"] == quality_report, "quality report round-trip mismatch")
+            normalized_quality_report = ModelQualityReport.model_validate(
+                quality_report
+            ).model_dump(mode="json")
+            _assert(
+                quality_read["report"] == normalized_quality_report,
+                "quality report round-trip mismatch",
+            )
 
             protected = _change_set(project_id, version_3, "change_protected_core")
             protected["operations"][0]["node_id"] = "node_core"

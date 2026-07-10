@@ -288,10 +288,26 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     setParameters((current) => ({ ...current, [key]: value }))
   }
 
-  const submitAssistantInstruction = () => {
+  const submitAssistantInstruction = async () => {
     const instruction = chatInput.trim()
     if (!instruction) return
-    setAssistantNote(`修改计划已生成：“${instruction}”。关键组件接口保持锁定，确认后将创建新版本。`)
+    setAssistantNote(`正在解释 Brief：“${instruction}”`)
+    const result = await concept.planBrief(instruction)
+    if (!result) return
+    const provenance = result.brief.planner_provenance
+    const interpreted = result.brief.interpreted_spec
+    setParameters((current) => ({
+      ...current,
+      overallLength: interpreted.proportions.overall_length_mm,
+      bodyHeight: interpreted.proportions.body_height_mm,
+      gripAngle: interpreted.proportions.grip_angle_deg,
+      detailDensity: Math.round(interpreted.style.detail_density * 100),
+    }))
+    setAssistantNote(
+      `已生成 ${result.variants.length} 个注册表约束方案 · ${provenance.generator}`
+      + `${provenance.fallback_used ? ' · Provider 失败后已显式降级' : ''}。`,
+    )
+    setDrawerTab('variants')
     setChatInput('')
   }
 
@@ -393,17 +409,26 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
           <section className="cad-panel assistant-panel">
             <div className="cad-panel-title">
               <span><Sparkle size={16} weight="fill" /> AI 设计助手</span>
-              <span className="assistant-state">在线</span>
+              <span className="assistant-state">
+                {concept.brief?.planner_provenance.generator ?? '待输入'}
+              </span>
             </div>
             <div className="assistant-message">{concept.error ?? assistantNote}</div>
             <div className={`concept-runtime-state ${concept.error ? 'error' : ''}`}>
               {concept.loading ? '同步中 · ' : ''}{concept.statusMessage}
             </div>
             <div className="assistant-suggestions">
-              <button onClick={() => setAssistantNote('方案 A：短枪管与紧凑握把，强调模块化和便携性。')}>紧凑方案</button>
-              <button onClick={() => setAssistantNote('方案 B：延长上导轨与枪管护罩，提升未来工业感。')}>长导轨方案</button>
+              <button onClick={() => setChatInput('寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产')}>紧凑精密</button>
+              <button onClick={() => setChatInput('修长展示轮廓、未来工业、蓝色点缀的非功能影视道具')}>延展展示</button>
             </div>
-            <button className="secondary-action" disabled title="R4 Change Planner 待实现">R4 ChangeSet 待接入</button>
+            <button
+              className="secondary-action"
+              disabled={!chatInput.trim() || concept.loading}
+              onClick={() => submitAssistantInstruction()}
+            >
+              生成 A/B/C 方案
+            </button>
+            <small className="planner-boundary">只引用注册 Module；当前选择是预览，ChangeSet 提交仍需确认。</small>
           </section>
 
           <section className="cad-panel quick-parameters">
@@ -614,7 +639,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   {drawerTab === 'variants' && <>
                     <strong>候选方案</strong>
                     {concept.variants.map((variant) => (
-                      <button key={variant.variant_id}>{variant.rank}. {variant.name} · {variant.status}</button>
+                      <button
+                        key={variant.variant_id}
+                        data-variant-rank={variant.rank}
+                        className={variant.status === 'selected' ? 'selected' : ''}
+                        onClick={() => concept.selectVariant(variant.variant_id)}
+                        title={variant.summary}
+                      >
+                        <strong>{variant.rank}. {variant.name}</strong>
+                        <span>{variant.status} · {variant.planner_provenance.generator}</span>
+                        <small>建议 Module：{variant.recommended_module_ids?.length ?? 0}</small>
+                      </button>
                     ))}
                     {concept.variants.length === 0 && <span>当前项目尚无已持久化方案。</span>}
                   </>}

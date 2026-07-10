@@ -151,6 +151,7 @@ npm run r2:contracts-gate
 npm run r2:gate
 npm run r3:workbench-gate
 npm run r3:change-set-audit-gate
+npm run r4:planner-gate
 npm run r5:obj-gate
 npm run r5:render-gate
 npm run r5:multiview-gate
@@ -160,7 +161,7 @@ npm run r5:c07-localization-gate
 npm run r5:c07-policy-gate
 ```
 
-`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:presentation-gate` 增加轮廓抗锯齿、软接触阴影、确定性 MP4 与 DCC 可用性预检；`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3` 的实际 Spec/GLB/Assembly、隐藏几何、密度/预算、P0 LOD0、对称占位、Connector、精确穿插/provenance、工作台高亮及重启恢复。它仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、多 LOD 运行时、照片级渲染或真实 DCC round-trip。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module Planner Provider 边界、deterministic rules、fake OpenAI-compatible strict JSON Schema、auto/strict failure、provenance、注册模块建议和桌面 A/B/C 选择预览，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或真实 DCC round-trip。
 
 `r3:change-set-audit-gate` 专门验证 migration 0012、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、24 条桌面加载更多和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
@@ -300,9 +301,24 @@ export WUSHEN_MIGRATIONS_DIR="$PWD/migrations"
 
 ## 4. 当前 Provider
 
-默认 mock Provider 最适合迁移回归。
+Concept Brief/Module Planner 默认使用明确标注的确定性规则，适合离线开发与回归：
 
-旧 OpenAI-compatible Adapter：
+```bash
+export FORGECAD_CONCEPT_PLANNER_PROVIDER=deterministic_rules
+```
+
+接入 OpenAI-compatible Provider：
+
+```bash
+export FORGECAD_CONCEPT_PLANNER_PROVIDER=openai_compatible
+export FORGECAD_CONCEPT_PLANNER_BASE_URL=https://api.openai.com/v1
+export FORGECAD_CONCEPT_PLANNER_MODEL=<model-name>
+export FORGECAD_CONCEPT_PLANNER_API_KEY_FILE=/absolute/path/to/secret
+```
+
+`generator=auto` 允许外部失败后降级为 deterministic rules，并在 `planner_provenance` 记录 attempted provider、失败原因和 `fallback_used=true`。`generator=configured_provider` 禁止降级，用于真实 AI 评测与发布门。`/api/provider-settings` 会分别显示 legacy LLM 与 ForgeCAD Concept Planner，`missing_config` 不能被解释为可用。
+
+兼容期的旧 Weapon 流仍可使用：
 
 ```bash
 export WUSHEN_LLM_PROVIDER=openai_compatible
@@ -311,7 +327,7 @@ export WUSHEN_LLM_MODEL=<model-name>
 export WUSHEN_LLM_API_KEY=<secret>
 ```
 
-密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。
+密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。当前 Adapter 已有 fake HTTP/strict schema/safety prompt 证据；没有真实 Provider 调用证据时，不得声称 Brief ≥90% 或 AI 三方案质量达标。
 
 旧 ComfyUI 与神经 3D Provider 不进入 P0 权威模块链路。生成式图片可以作为风格参考，但不能成为 `ModuleGraph`。
 
@@ -333,6 +349,8 @@ export WUSHEN_LLM_API_KEY=<secret>
 ```
 
 验收物：一份 `WeaponConceptSpec` 示例 JSON、两张正交草图或参考图、模块清单。
+
+工作台底部输入框现在会真实调用 `brief:interpret → variants`，生成三条带 provenance、rationale 和注册 Module 建议的方案。选择方案只切换 Planner 预览并更新 selected/rejected；它不会绕过 ChangeSet 创建 Version。
 
 ### Day 2：做 8–12 个首批 GLB
 
@@ -451,10 +469,10 @@ GET /api/v1/readiness
 FORGECAD_LIBRARY_ROOT
 FORGECAD_MIGRATIONS_DIR
 FORGECAD_AGENT_PORT
-FORGECAD_LLM_PROVIDER
-FORGECAD_LLM_BASE_URL
-FORGECAD_LLM_MODEL
-FORGECAD_LLM_API_KEY / _FILE
+FORGECAD_CONCEPT_PLANNER_PROVIDER
+FORGECAD_CONCEPT_PLANNER_BASE_URL
+FORGECAD_CONCEPT_PLANNER_MODEL
+FORGECAD_CONCEPT_PLANNER_API_KEY / _FILE
 FORGECAD_RENDER_PROVIDER
 FORGECAD_WORKER_TIMEOUT_SECONDS
 FORGECAD_MAX_TRIANGLES
@@ -469,7 +487,7 @@ FORGECAD_WEAPON_PACK_ROOT
 创建 Weapon Concept 项目
 → 输入“寒地巡逻 S1”Brief
 → 生成并确认 WeaponConceptSpec
-→ 从 8–12 个模块生成两个方案
+→ 从 8–12 个模块生成 A/B/C 三个方案
 → 使用连接器组合 GLB
 → 以 DesignChangeSet 修改并保护锁定核心
 → 运行 Graph / Mesh / Assembly 检查

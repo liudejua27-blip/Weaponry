@@ -33,6 +33,11 @@ import type {
   ModuleAssetListResponse,
   ModuleGraphRecord,
   DesignVariantListResponse,
+  DesignVariantRecord,
+  InterpretDesignBriefRequest,
+  DesignBriefRecord,
+  GenerateDesignVariantsRequest,
+  SelectDesignVariantRequest,
   CreateConceptExportRequest,
   ConceptExportRecord,
   ProposeChangeSetRequest,
@@ -136,6 +141,55 @@ export class ForgeApiClient {
   async listDesignVariants(projectId: string): Promise<DesignVariantListResponse> {
     const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/variants`)
     return readJson<DesignVariantListResponse>(response)
+  }
+
+  async interpretDesignBrief(
+    projectId: string,
+    input: InterpretDesignBriefRequest,
+  ): Promise<DesignBriefRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/brief:interpret`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignBriefRecord>(response)
+  }
+
+  async generateDesignVariants(
+    projectId: string,
+    input: GenerateDesignVariantsRequest,
+  ): Promise<DesignVariantListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/variants`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignVariantListResponse>(response)
+  }
+
+  async selectDesignVariant(
+    projectId: string,
+    variantId: string,
+    input: SelectDesignVariantRequest,
+  ): Promise<DesignVariantRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${projectId}/variants/${variantId}:select`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<DesignVariantRecord>(response)
   }
 
   async createConceptExport(

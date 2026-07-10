@@ -213,10 +213,36 @@ class QualityRunRecord(StrictApiModel):
     job_id: Optional[str] = None
 
 
+PlannerGenerator = Literal[
+    "auto",
+    "configured_provider",
+    "deterministic_rules",
+    "deterministic_template",
+]
+
+
+class ConceptPlannerProvenance(StrictApiModel):
+    generator: Literal["deterministic_rules", "openai_compatible"]
+    provider_id: str = Field(min_length=1, max_length=120)
+    provider_type: Literal["deterministic", "openai_compatible"]
+    model: Optional[str] = Field(default=None, max_length=200)
+    attempted_provider_id: Optional[str] = Field(default=None, max_length=120)
+    attempted_provider_type: Optional[
+        Literal["deterministic", "openai_compatible"]
+    ] = None
+    attempted_model: Optional[str] = Field(default=None, max_length=200)
+    fallback_used: bool = False
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    registry_module_ids: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list, max_length=12)
+
+
 class InterpretDesignBriefRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     source_text: str = Field(min_length=3, max_length=4000)
     reference_asset_ids: List[str] = Field(default_factory=list, max_length=12)
+    generator: PlannerGenerator = "auto"
 
 
 class DesignBriefRecord(StrictApiModel):
@@ -226,6 +252,7 @@ class DesignBriefRecord(StrictApiModel):
     reference_asset_ids: List[str] = Field(default_factory=list)
     interpreted_spec: WeaponConceptSpec
     status: Literal["draft", "interpreted", "confirmed", "failed"]
+    planner_provenance: ConceptPlannerProvenance
     created_at: str
     updated_at: str
     job_id: Optional[str] = None
@@ -235,7 +262,7 @@ class GenerateDesignVariantsRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     brief_id: str
     count: Literal[3] = 3
-    generator: Literal["deterministic_template"] = "deterministic_template"
+    generator: PlannerGenerator = "auto"
 
 
 class DesignVariantRecord(StrictApiModel):
@@ -246,6 +273,9 @@ class DesignVariantRecord(StrictApiModel):
     name: str
     summary: str
     module_graph: ModuleGraph
+    recommended_module_ids: List[str] = Field(default_factory=list)
+    rationale: List[str] = Field(default_factory=list, max_length=12)
+    planner_provenance: ConceptPlannerProvenance
     status: Literal["proposed", "selected", "rejected"]
     created_at: str
 

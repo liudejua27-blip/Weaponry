@@ -906,6 +906,7 @@ class BriefVariantRepository:
         source_text: str,
         reference_asset_ids_json: str,
         interpreted_spec_json: str,
+        planner_provenance_json: str,
         status: str,
         created_at: str,
     ) -> None:
@@ -913,9 +914,10 @@ class BriefVariantRepository:
             """
             INSERT INTO design_briefs (
               brief_id, project_id, source_text, reference_asset_ids_json,
-              interpreted_spec_json, status, created_at, updated_at
+              interpreted_spec_json, planner_provenance_json,
+              status, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 brief_id,
@@ -923,6 +925,7 @@ class BriefVariantRepository:
                 source_text,
                 reference_asset_ids_json,
                 interpreted_spec_json,
+                planner_provenance_json,
                 status,
                 created_at,
                 created_at,
@@ -933,7 +936,8 @@ class BriefVariantRepository:
         return self.connection.execute(
             """
             SELECT brief_id, project_id, source_text, reference_asset_ids_json,
-                   interpreted_spec_json, status, created_at, updated_at
+                   interpreted_spec_json, planner_provenance_json,
+                   status, created_at, updated_at
             FROM design_briefs
             WHERE project_id = ? AND brief_id = ?
             """,
@@ -950,6 +954,9 @@ class BriefVariantRepository:
         name: str,
         summary: str,
         module_graph_json: str,
+        recommended_module_ids_json: str,
+        rationale_json: str,
+        planner_provenance_json: str,
         status: str,
         created_at: str,
     ) -> None:
@@ -957,9 +964,10 @@ class BriefVariantRepository:
             """
             INSERT INTO design_variants (
               variant_id, project_id, brief_id, rank, name, summary,
-              module_graph_json, status, created_at
+              module_graph_json, recommended_module_ids_json, rationale_json,
+              planner_provenance_json, status, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 variant_id,
@@ -969,6 +977,9 @@ class BriefVariantRepository:
                 name,
                 summary,
                 module_graph_json,
+                recommended_module_ids_json,
+                rationale_json,
+                planner_provenance_json,
                 status,
                 created_at,
             ),
@@ -984,7 +995,8 @@ class BriefVariantRepository:
             return self.connection.execute(
                 """
                 SELECT variant_id, project_id, brief_id, rank, name, summary,
-                       module_graph_json, status, created_at
+                       module_graph_json, recommended_module_ids_json, rationale_json,
+                       planner_provenance_json, status, created_at
                 FROM design_variants
                 WHERE project_id = ? AND brief_id = ?
                 ORDER BY rank ASC
@@ -994,7 +1006,8 @@ class BriefVariantRepository:
         return self.connection.execute(
             """
             SELECT variant_id, project_id, brief_id, rank, name, summary,
-                   module_graph_json, status, created_at
+                   module_graph_json, recommended_module_ids_json, rationale_json,
+                   planner_provenance_json, status, created_at
             FROM design_variants
             WHERE project_id = ?
             ORDER BY created_at DESC, rank ASC
@@ -1006,7 +1019,8 @@ class BriefVariantRepository:
         return self.connection.execute(
             """
             SELECT variant_id, project_id, brief_id, rank, name, summary,
-                   module_graph_json, status, created_at
+                   module_graph_json, recommended_module_ids_json, rationale_json,
+                   planner_provenance_json, status, created_at
             FROM design_variants
             WHERE project_id = ? AND variant_id = ?
             """,

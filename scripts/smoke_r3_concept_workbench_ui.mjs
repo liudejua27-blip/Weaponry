@@ -16,6 +16,7 @@ const FRONT_RENDER = join(OUTPUT_DIR, 'r5-concept-front.png')
 const TOP_RENDER = join(OUTPUT_DIR, 'r5-concept-top.png')
 const TURNTABLE_RENDER = join(OUTPUT_DIR, 'r5-concept-turntable-000.png')
 const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highlight.png')
+const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -38,6 +39,7 @@ async function main() {
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_CORS_ORIGINS: viteBaseUrl,
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
+          FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
@@ -71,6 +73,7 @@ async function main() {
           WUSHEN_LIBRARY_ROOT: libraryRoot,
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
+          FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
@@ -361,6 +364,75 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       throw new Error(`timeline operation filter failed: ${mirrorFilterResponse.status()}`)
     }
     await assertText(page.locator('.timeline-item'), ['set_mirror(node_grip)'])
+
+    const briefResponsePromise = page.waitForResponse(
+      (response) => response.url().endsWith('/brief:interpret')
+        && response.request().method() === 'POST',
+    )
+    const variantsResponsePromise = page.waitForResponse(
+      (response) => /\/api\/v1\/projects\/[^/]+\/variants$/.test(response.url())
+        && response.request().method() === 'POST',
+    )
+    await page.getByPlaceholder('输入设计需求…').fill(
+      '寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产',
+    )
+    await page.getByRole('button', { name: '发送设计需求' }).click()
+    const briefResponse = await briefResponsePromise
+    const variantsResponse = await variantsResponsePromise
+    if (!briefResponse.ok() || !variantsResponse.ok()) {
+      throw new Error(`planner API failed: brief=${briefResponse.status()} variants=${variantsResponse.status()}`)
+    }
+    const briefRecord = await briefResponse.json()
+    const variantRecords = await variantsResponse.json()
+    if (
+      briefRecord.interpreted_spec.proportions.overall_length_mm !== 207
+      || briefRecord.interpreted_spec.style.detail_density !== 0.82
+      || briefRecord.planner_provenance.generator !== 'deterministic_rules'
+      || briefRecord.planner_provenance.fallback_used
+    ) {
+      throw new Error(`planner brief interpretation mismatch: ${JSON.stringify(briefRecord)}`)
+    }
+    const plannerParameterValues = await page.locator('.quick-parameters input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (JSON.stringify(plannerParameterValues) !== JSON.stringify(['207', '120', '15', '82'])) {
+      throw new Error(`planner spec was not reflected in parameter UI: ${JSON.stringify(plannerParameterValues)}`)
+    }
+    if (
+      variantRecords.items?.length !== 3
+      || !variantRecords.items.every((variant) => (
+        variant.recommended_module_ids?.length
+        && variant.rationale?.length
+        && variant.planner_provenance?.input_sha256?.length === 64
+      ))
+    ) {
+      throw new Error(`planner variants missing provenance: ${JSON.stringify(variantRecords)}`)
+    }
+    await page.locator('[data-variant-rank]').first().waitFor()
+    if (await page.locator('[data-variant-rank]').count() !== 3) {
+      throw new Error('desktop planner did not render three variants')
+    }
+    const selectVariantResponsePromise = page.waitForResponse(
+      (response) => response.url().endsWith(':select')
+        && response.url().includes('/variants/')
+        && response.request().method() === 'POST',
+    )
+    await page.locator('[data-variant-rank="2"]').click()
+    const selectVariantResponse = await selectVariantResponsePromise
+    if (!selectVariantResponse.ok()) {
+      throw new Error(`variant selection failed: ${selectVariantResponse.status()}`)
+    }
+    await page.locator('[data-variant-rank="2"].selected').waitFor()
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('Planner 预览'),
+      { timeout: 20_000 },
+    )
+    await page.locator('.weapon-viewport[data-load-state="ready"]').waitFor()
+    await page.screenshot({ path: PLANNER_SCREENSHOT, fullPage: true })
+    if ((await stat(PLANNER_SCREENSHOT)).size < 20_000) {
+      throw new Error('planner variants screenshot is unexpectedly small')
+    }
+
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
     await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
@@ -562,6 +634,11 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       timeline_pagination_verified: true,
       timeline_search_filter_verified: true,
       timeline_rejected_diagnostic_verified: true,
+      planner_brief_interpretation_verified: true,
+      planner_variant_count: 3,
+      planner_provenance_verified: true,
+      planner_variant_selection_verified: true,
+      planner_screenshot: PLANNER_SCREENSHOT,
       geometry_quality_inspection_verified: true,
       quality_finding_focus_verified: true,
       quality_dual_node_highlight_verified: true,

@@ -13,7 +13,7 @@
 - `App.tsx` 已从约 706 行缩为 21 行组合根；AppShell、Hash route、Runtime/JobEvent/Selection Providers、旧工作台控制器/渲染、任务持久化、资产选择器和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；最终高质量资产、AI 方案质量、纹理交换和真实 DCC round-trip 尚未实现；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；真实模型 AI 质量指标、Change Planner、最终高质量资产、纹理交换和真实 DCC round-trip 尚未实现；
 - `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter、`.blend` metadata、只读 re-export 与真实构建入口已实现，但当前机器未配置 Blender，正式资产本身尚未生成；
 - 服务端 `weapon-concept-geometry/1.3` 已从版本绑定的 Spec、ModuleGraph 与内容寻址 GLB 计算 Mesh/Assembly Findings：除精确穿插、triangle provenance、Connector 对齐和保守表面间隙外，已覆盖重复面、内嵌封闭组件、组件间密度离群、项目总三角预算、P0 LOD0 合同和根中面对称占位偏差；桌面 Finding 会聚焦并高亮关联节点/局部 triangle。正式 Blender truth set、Tauri 大网格阈值与多 LOD 运行时尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
@@ -36,7 +36,7 @@
 | R2 module registry + graph | 第一切片完成 | immutable GLB registration、Connector compatibility、Graph persistence、restart smoke |
 | R2 ChangeSet + child Version | 第一切片完成 | proposed/previewed/confirmed、protected node、stale base、parent immutability smoke |
 | R2 QualityRun/Findings | 第一切片完成 | version-scoped report ingestion、finding persistence、idempotency、round-trip |
-| R2 Brief/Variant | 模板基线完成 | interpreted brief、A/B/C graph variants、selection、restart recovery |
+| R4 Brief/Module Planner | Provider 边界纵向切片完成 | deterministic rules、OpenAI-compatible strict JSON Schema、auto/strict failure semantics、migration 0014 provenance、registry recommendations、A/B/C structural variants、desktop selection preview、restart |
 | R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
@@ -216,6 +216,8 @@ Brief → Schema validation → A/B/C variants
 
 AI 只能引用 registry 中存在的 Module/Connector ID。组件库无法满足需求时，局部生成进入单独 Job，原始资产不覆盖。
 
+当前已完成 Brief Interpreter 与 Module Planner 边界：`deterministic_rules` 会实际解析紧凑/延展、细节密度、颜色和对称等视觉意图；`openai_compatible` 使用 strict JSON Schema，只能引用请求中提供的 node/module id。`auto` 模式外部 Provider 失败时显式降级并保存 attempted provider、错误、输入/输出 hash；`configured_provider` 失败直接返回错误。A/B/C 每个方案包含目标节点、结构 scale、注册模块建议和 rationale，并在服务端再次执行 lock/root/registry/Graph 校验。桌面可生成、查看和选择方案预览，但选择尚未创建子版本；自然语言 Change Planner 与真实模型质量评测仍待实现。
+
 退出条件：
 
 - Brief 解析成功率 ≥90%；
@@ -321,7 +323,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 3. 为 ChangeSet 审计增加 actor/provider provenance、批量报告导出和长期归档策略；分页、搜索、状态/操作过滤、rejected/stale diagnostic 与重启恢复已完成。
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；安装 Blender 或 Assimp 后执行真实只读 round-trip，再评估纹理交换与 glTF Transform/Meshopt。转台 MP4、确定性轮廓抗锯齿、软接触阴影和 DCC 预检代码已完成。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
-6. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
+6. 在已完成 Brief/Module Planner Provider 边界和桌面 A/B/C 预览基础上，实现自然语言 Change Planner → DesignChangeSet，并用真实配置 Provider 评测 Brief ≥90%、三方案差异度和锁定保持率；当前 fake-provider 通过不等于 AI 指标达标。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
 9. 完成 Tauri sidecar、签名、安装/卸载和干净机器验证。
