@@ -14,6 +14,19 @@ import type {
 
 const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
 
+export type ChangeSetTimelineFilters = {
+  query: string
+  status: '' | 'proposed' | 'previewed' | 'confirmed' | 'rejected' | 'stale'
+  operation: '' | 'add_module' | 'remove_module' | 'replace_module' | 'connect' | 'disconnect'
+    | 'set_transform' | 'set_mirror' | 'set_style' | 'set_parameter'
+}
+
+const EMPTY_TIMELINE_FILTERS: ChangeSetTimelineFilters = {
+  query: '',
+  status: '',
+  operation: '',
+}
+
 type ConceptWorkbenchState = {
   projects: ConceptProjectSummary[]
   project: ConceptProjectDetail | null
@@ -26,6 +39,9 @@ type ConceptWorkbenchState = {
   statusMessage: string
   lastExport: ConceptExportRecord | null
   timeline: ChangeSetTimelineItem[]
+  timelineNextCursor: string | null
+  timelineLoading: boolean
+  timelineFilters: ChangeSetTimelineFilters
   qualityRun: QualityRunRecord | null
 }
 
@@ -41,6 +57,9 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   statusMessage: '正在读取本地 Concept 数据…',
   lastExport: null,
   timeline: [],
+  timelineNextCursor: null,
+  timelineLoading: false,
+  timelineFilters: EMPTY_TIMELINE_FILTERS,
   qualityRun: null,
 }
 
@@ -68,7 +87,7 @@ export function useConceptWorkbench() {
       const [moduleResponse, variantResponse, timelineResponse, version] = await Promise.all([
         forgeApi.listModuleAssets(project.profile.pack_id),
         forgeApi.listDesignVariants(projectId),
-        forgeApi.listChangeSets(projectId),
+        forgeApi.listChangeSets(projectId, { limit: 20 }),
         versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
       ])
       const graphRecord = version?.module_graph_id
@@ -84,6 +103,9 @@ export function useConceptWorkbench() {
         modules: moduleResponse.items ?? [],
         variants: variantResponse.items ?? [],
         timeline: timelineResponse.items ?? [],
+        timelineNextCursor: timelineResponse.next_cursor ?? null,
+        timelineLoading: false,
+        timelineFilters: EMPTY_TIMELINE_FILTERS,
         qualityRun: null,
         loading: false,
         error: null,
@@ -121,6 +143,9 @@ export function useConceptWorkbench() {
           modules: [],
           variants: [],
           timeline: [],
+          timelineNextCursor: null,
+          timelineLoading: false,
+          timelineFilters: EMPTY_TIMELINE_FILTERS,
           qualityRun: null,
           loading: false,
           error: null,
@@ -452,6 +477,67 @@ export function useConceptWorkbench() {
     }
   }, [loadProject, state.graphRecord, state.project, state.version])
 
+  const searchTimeline = useCallback(async (filters: ChangeSetTimelineFilters) => {
+    const projectId = state.project?.project_id
+    if (!projectId) return
+    setState((current) => ({ ...current, timelineLoading: true, error: null }))
+    try {
+      const response = await forgeApi.listChangeSets(projectId, {
+        limit: 20,
+        q: filters.query.trim() || undefined,
+        status: filters.status || undefined,
+        operation: filters.operation || undefined,
+      })
+      setState((current) => ({
+        ...current,
+        timeline: response.items ?? [],
+        timelineNextCursor: response.next_cursor ?? null,
+        timelineLoading: false,
+        timelineFilters: filters,
+      }))
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        timelineLoading: false,
+        error: errorMessage(caught),
+      }))
+    }
+  }, [state.project?.project_id])
+
+  const loadMoreTimeline = useCallback(async () => {
+    const projectId = state.project?.project_id
+    const cursor = state.timelineNextCursor
+    if (!projectId || !cursor || state.timelineLoading) return
+    setState((current) => ({ ...current, timelineLoading: true, error: null }))
+    try {
+      const filters = state.timelineFilters
+      const response = await forgeApi.listChangeSets(projectId, {
+        cursor,
+        limit: 20,
+        q: filters.query.trim() || undefined,
+        status: filters.status || undefined,
+        operation: filters.operation || undefined,
+      })
+      setState((current) => ({
+        ...current,
+        timeline: [...current.timeline, ...(response.items ?? [])],
+        timelineNextCursor: response.next_cursor ?? null,
+        timelineLoading: false,
+      }))
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        timelineLoading: false,
+        error: errorMessage(caught),
+      }))
+    }
+  }, [
+    state.project?.project_id,
+    state.timelineFilters,
+    state.timelineLoading,
+    state.timelineNextCursor,
+  ])
+
   return {
     ...state,
     refresh,
@@ -462,6 +548,8 @@ export function useConceptWorkbench() {
     runQualityInspection,
     replaceModule,
     setMirror,
+    searchTimeline,
+    loadMoreTimeline,
   }
 }
 

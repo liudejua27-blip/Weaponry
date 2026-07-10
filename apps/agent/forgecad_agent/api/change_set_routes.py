@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Annotated, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from forgecad_agent.application.concept_change_sets import (
@@ -16,7 +16,7 @@ from forgecad_agent.application.concept_models import (
     ChangeSetTimelineResponse,
     ProposeChangeSetRequest,
 )
-from forgecad_agent.domain.concepts.models import DesignChangeSet
+from forgecad_agent.domain.concepts.models import ChangeOperationType, DesignChangeSet
 
 
 def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
@@ -28,9 +28,23 @@ def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
     )
     def list_change_sets(
         project_id: str,
+        cursor: Annotated[Optional[str], Query(max_length=1000)] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+        q: Annotated[Optional[str], Query(max_length=120)] = None,
+        status: Optional[
+            Literal["proposed", "previewed", "confirmed", "rejected", "stale"]
+        ] = None,
+        operation: Optional[ChangeOperationType] = None,
     ) -> Union[ChangeSetTimelineResponse, JSONResponse]:
         try:
-            return service.list_for_project(project_id)
+            return service.list_for_project(
+                project_id,
+                cursor=cursor,
+                limit=limit,
+                query=q,
+                status=status,
+                operation=operation,
+            )
         except ConceptChangeSetError as exc:
             return _change_set_error_response(exc)
 
@@ -72,6 +86,7 @@ def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
         except ConceptChangeSetIdempotencyConflict as exc:
             return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
         except ConceptChangeSetError as exc:
+            service.record_preview_rejection(change_set_id, exc)
             return _change_set_error_response(exc)
 
     @router.post(
@@ -117,7 +132,7 @@ def _change_set_error_response(exc: ConceptChangeSetError) -> JSONResponse:
         "CHANGE_SET_STALE",
     }:
         status_code = 409
-    elif exc.code in {"INVALID_REQUEST", "CHANGE_SET_INVALID"}:
+    elif exc.code in {"INVALID_REQUEST", "INVALID_CURSOR", "CHANGE_SET_INVALID"}:
         status_code = 400
     else:
         status_code = 500

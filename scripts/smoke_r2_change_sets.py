@@ -315,7 +315,7 @@ def main() -> int:
                 (change_set["change_set_id"],),
             ).fetchone()
             stale_row = connection.execute(
-                "SELECT status FROM design_change_sets WHERE change_set_id = ?",
+                "SELECT status, diagnostic_json FROM design_change_sets WHERE change_set_id = ?",
                 (stale_change["change_set_id"],),
             ).fetchone()
             version_count = connection.execute("SELECT COUNT(*) FROM project_versions").fetchone()[0]
@@ -325,7 +325,14 @@ def main() -> int:
             concept_job_count = connection.execute("SELECT COUNT(*) FROM concept_jobs").fetchone()[0]
             concept_event_count = connection.execute("SELECT COUNT(*) FROM concept_job_events").fetchone()[0]
         _assert(confirmed_row == ("confirmed", version_3), "confirmed ChangeSet trace mismatch")
-        _assert(stale_row == ("stale",), "stale ChangeSet was not persisted")
+        _assert(stale_row[0] == "stale", "stale ChangeSet was not persisted")
+        stale_diagnostic = json.loads(stale_row[1])
+        _assert(
+            stale_diagnostic["code"] == "CHANGE_SET_STALE"
+            and stale_diagnostic["stage"] == "confirm"
+            and stale_diagnostic["recoverable"] is True,
+            "stale ChangeSet diagnostic was not persisted",
+        )
         _assert(version_count == 4, "unexpected project version count")
         _assert(graph_count == 2, "preview should persist exactly one child graph on confirm")
         _assert(quality_run_count == 1, "quality run count mismatch")
@@ -342,6 +349,7 @@ def main() -> int:
                     "confirmed_version_id": version_3,
                     "confirmed_change_set_id": change_set["change_set_id"],
                     "stale_change_set_id": stale_change["change_set_id"],
+                    "stale_diagnostic_code": stale_diagnostic["code"],
                     "version_count": version_count,
                     "graph_count": graph_count,
                     "quality_run_count": quality_run_count,

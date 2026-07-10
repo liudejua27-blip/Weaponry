@@ -28,7 +28,7 @@ npm run r1:patch-gate
 4. ComfyUI source/mask upload、view retry 和 workflow provenance；
 5. child Patch Version 不覆盖 source Version；
 6. PatchPrompt、concept_patch、workflow、QualityReport、ProviderTask 与 Checkpoint；
-7. 11 个 migration 与内容寻址资产库无 blocker。
+7. 12 个 migration 与内容寻址资产库无 blocker。
 
 ## Facade 退出审计
 

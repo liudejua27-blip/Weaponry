@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import uuid
@@ -10,6 +12,7 @@ from pydantic import ValidationError
 
 from forgecad_agent.application.concept_models import (
     ChangeSetConfirmResponse,
+    ChangeSetDiagnostic,
     ChangeSetPreviewResponse,
     ChangeSetTimelineItem,
     ChangeSetTimelineResponse,
@@ -110,11 +113,46 @@ class ConceptChangeSetService:
             )
             return change_set
 
-    def list_for_project(self, project_id: str) -> ChangeSetTimelineResponse:
+    def list_for_project(
+        self,
+        project_id: str,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+        query: str | None = None,
+        status: str | None = None,
+        operation: str | None = None,
+    ) -> ChangeSetTimelineResponse:
+        normalized_query = query.strip().lower() if query and query.strip() else None
+        filter_hash = _hash_json(
+            {
+                "query": normalized_query,
+                "status": status,
+                "operation": operation,
+            }
+        )
+        decoded_cursor = _decode_timeline_cursor(cursor, filter_hash) if cursor else None
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
             if unit_of_work.concept_projects.get_active(project_id) is None:
                 raise ConceptChangeSetError("PROJECT_NOT_FOUND", "Concept project not found.")
-            rows = unit_of_work.change_sets.list_for_project(project_id)
+            rows = unit_of_work.change_sets.list_for_project(
+                project_id,
+                cursor=decoded_cursor,
+                limit=limit + 1,
+                query=normalized_query,
+                status=status,
+                operation=operation,
+            )
+            page = rows[:limit]
+            next_cursor = (
+                _encode_timeline_cursor(
+                    str(page[-1]["updated_at"]),
+                    str(page[-1]["change_set_id"]),
+                    filter_hash,
+                )
+                if len(rows) > limit and page
+                else None
+            )
             return ChangeSetTimelineResponse(
                 project_id=project_id,
                 items=[
@@ -132,6 +170,11 @@ class ConceptChangeSetService:
                             if row["preview_sha256"] is not None
                             else None
                         ),
+                        diagnostic=(
+                            ChangeSetDiagnostic.model_validate_json(row["diagnostic_json"])
+                            if row["diagnostic_json"] is not None
+                            else None
+                        ),
                         created_at=str(row["created_at"]),
                         updated_at=str(row["updated_at"]),
                         confirmed_at=(
@@ -140,8 +183,37 @@ class ConceptChangeSetService:
                             else None
                         ),
                     )
-                    for row in rows
+                    for row in page
                 ],
+                next_cursor=next_cursor,
+            )
+
+    def record_preview_rejection(
+        self,
+        change_set_id: str,
+        error: ConceptChangeSetError,
+    ) -> None:
+        if error.code != "CHANGE_SET_INVALID":
+            return
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            row = unit_of_work.change_sets.get(change_set_id)
+            if row is None or row["status"] not in {"proposed", "previewed"}:
+                return
+            change_set = DesignChangeSet.model_validate_json(row["change_set_json"])
+            rejected = change_set.model_copy(update={"status": "rejected"})
+            now = _utc_now()
+            diagnostic = _change_set_diagnostic(
+                rejected,
+                code=error.code,
+                message=str(error),
+                stage="preview",
+                recorded_at=now,
+            )
+            unit_of_work.change_sets.mark_rejected(
+                change_set_id,
+                change_set_json=_canonical_json(rejected.model_dump(mode="json")),
+                diagnostic_json=_canonical_json(diagnostic.model_dump(mode="json")),
+                updated_at=now,
             )
 
     def preview(
@@ -364,10 +436,23 @@ class ConceptChangeSetService:
             stale = DesignChangeSet.model_validate_json(row["change_set_json"]).model_copy(
                 update={"status": "stale"}
             )
+            now = _utc_now()
             unit_of_work.change_sets.mark_stale(
                 change_set_id,
                 change_set_json=_canonical_json(stale.model_dump(mode="json")),
-                updated_at=_utc_now(),
+                diagnostic_json=_canonical_json(
+                    _change_set_diagnostic(
+                        stale,
+                        code="CHANGE_SET_STALE",
+                        message=(
+                            "Project current version changed after preview; preview again on a "
+                            "new base."
+                        ),
+                        stage="confirm",
+                        recorded_at=now,
+                    ).model_dump(mode="json")
+                ),
+                updated_at=now,
             )
             return True
 
@@ -751,6 +836,71 @@ def _graph_nodes(graph: ModuleGraph) -> list[dict[str, Any]]:
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _change_set_diagnostic(
+    change_set: DesignChangeSet,
+    *,
+    code: str,
+    message: str,
+    stage: str,
+    recorded_at: str,
+) -> ChangeSetDiagnostic:
+    node_ids = set(change_set.protected_node_ids)
+    for operation in change_set.operations:
+        for node_id in (
+            operation.node_id,
+            operation.from_node_id,
+            operation.to_node_id,
+        ):
+            if node_id:
+                node_ids.add(node_id)
+    return ChangeSetDiagnostic(
+        code=code,
+        message=message,
+        stage=stage,
+        recoverable=True,
+        operation_ids=[operation.operation_id for operation in change_set.operations],
+        node_ids=sorted(node_ids),
+        recorded_at=recorded_at,
+    )
+
+
+def _encode_timeline_cursor(
+    updated_at: str,
+    change_set_id: str,
+    filter_hash: str,
+) -> str:
+    payload = _canonical_json(
+        {
+            "updated_at": updated_at,
+            "change_set_id": change_set_id,
+            "filter_hash": filter_hash,
+        }
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def _decode_timeline_cursor(
+    cursor: str,
+    expected_filter_hash: str,
+) -> tuple[str, str]:
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(cursor + padding).decode("utf-8"))
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ConceptChangeSetError("INVALID_CURSOR", "ChangeSet cursor is invalid.") from exc
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"updated_at", "change_set_id", "filter_hash"}
+        or not all(isinstance(value, str) and value for value in payload.values())
+        or payload["filter_hash"] != expected_filter_hash
+    ):
+        raise ConceptChangeSetError(
+            "INVALID_CURSOR",
+            "ChangeSet cursor does not match the current filters.",
+        )
+    return payload["updated_at"], payload["change_set_id"]
 
 
 def _hash_json(value: Any) -> str:

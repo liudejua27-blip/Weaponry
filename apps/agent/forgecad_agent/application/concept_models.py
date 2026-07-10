@@ -166,12 +166,23 @@ class ChangeSetConfirmResponse(StrictApiModel):
     project: ConceptProjectDetail
 
 
+class ChangeSetDiagnostic(StrictApiModel):
+    code: str
+    message: str
+    stage: Literal["preview", "confirm"]
+    recoverable: bool
+    operation_ids: List[str] = Field(default_factory=list)
+    node_ids: List[str] = Field(default_factory=list)
+    recorded_at: str
+
+
 class ChangeSetTimelineItem(StrictApiModel):
     change_set: "DesignChangeSet"
     base_version_id: str
     result_version_id: Optional[str] = None
-    status: str
+    status: Literal["proposed", "previewed", "confirmed", "rejected", "stale"]
     preview_sha256: Optional[str] = None
+    diagnostic: Optional[ChangeSetDiagnostic] = None
     created_at: str
     updated_at: str
     confirmed_at: Optional[str] = None
@@ -180,6 +191,7 @@ class ChangeSetTimelineItem(StrictApiModel):
 class ChangeSetTimelineResponse(StrictApiModel):
     project_id: str
     items: List[ChangeSetTimelineItem] = Field(default_factory=list)
+    next_cursor: Optional[str] = None
 
 
 class CreateQualityRunRequest(StrictApiModel):

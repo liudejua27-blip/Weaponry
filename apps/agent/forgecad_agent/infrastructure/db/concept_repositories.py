@@ -560,18 +560,62 @@ class ChangeSetRepository:
             (change_set_id,),
         ).fetchone()
 
-    def list_for_project(self, project_id: str) -> list[sqlite3.Row]:
+    def list_for_project(
+        self,
+        project_id: str,
+        *,
+        cursor: Optional[tuple[str, str]] = None,
+        limit: int = 21,
+        query: Optional[str] = None,
+        status: Optional[str] = None,
+        operation: Optional[str] = None,
+    ) -> list[sqlite3.Row]:
+        clauses = ["project_id = ?"]
+        parameters: list[Any] = [project_id]
+        if cursor is not None:
+            cursor_updated_at, cursor_change_set_id = cursor
+            clauses.append("(updated_at < ? OR (updated_at = ? AND change_set_id < ?))")
+            parameters.extend(
+                (cursor_updated_at, cursor_updated_at, cursor_change_set_id)
+            )
+        if query:
+            escaped = query.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
+            clauses.append(
+                """(
+                    lower(change_set_id) LIKE ? ESCAPE '\\'
+                    OR lower(change_set_json) LIKE ? ESCAPE '\\'
+                    OR lower(COALESCE(result_version_id, '')) LIKE ? ESCAPE '\\'
+                    OR lower(COALESCE(diagnostic_json, '')) LIKE ? ESCAPE '\\'
+                )"""
+            )
+            parameters.extend((pattern, pattern, pattern, pattern))
+        if status:
+            clauses.append("status = ?")
+            parameters.append(status)
+        if operation:
+            clauses.append(
+                """EXISTS (
+                    SELECT 1
+                    FROM json_each(design_change_sets.change_set_json, '$.operations') operation_row
+                    WHERE json_extract(operation_row.value, '$.op') = ?
+                )"""
+            )
+            parameters.append(operation)
+        parameters.append(limit)
         return list(
             self.connection.execute(
-                """
+                f"""
                 SELECT change_set_id, project_id, base_version_id, result_version_id,
                        schema_version, change_set_json, change_set_sha256, status,
-                       preview_sha256, created_at, updated_at, confirmed_at
+                       preview_sha256, diagnostic_json,
+                       created_at, updated_at, confirmed_at
                 FROM design_change_sets
-                WHERE project_id = ?
-                ORDER BY created_at ASC, change_set_id ASC
+                WHERE {' AND '.join(clauses)}
+                ORDER BY updated_at DESC, change_set_id DESC
+                LIMIT ?
                 """,
-                (project_id,),
+                parameters,
             ).fetchall()
         )
 
@@ -590,7 +634,7 @@ class ChangeSetRepository:
             UPDATE design_change_sets
             SET change_set_json = ?, status = 'previewed',
                 preview_spec_json = ?, preview_graph_json = ?,
-                preview_sha256 = ?, updated_at = ?
+                preview_sha256 = ?, diagnostic_json = NULL, updated_at = ?
             WHERE change_set_id = ?
             """,
             (
@@ -615,7 +659,8 @@ class ChangeSetRepository:
             """
             UPDATE design_change_sets
             SET change_set_json = ?, status = 'confirmed',
-                result_version_id = ?, confirmed_at = ?, updated_at = ?
+                result_version_id = ?, diagnostic_json = NULL,
+                confirmed_at = ?, updated_at = ?
             WHERE change_set_id = ?
             """,
             (
@@ -632,15 +677,35 @@ class ChangeSetRepository:
         change_set_id: str,
         *,
         change_set_json: str,
+        diagnostic_json: str,
         updated_at: str,
     ) -> None:
         self.connection.execute(
             """
             UPDATE design_change_sets
-            SET change_set_json = ?, status = 'stale', updated_at = ?
+            SET change_set_json = ?, status = 'stale',
+                diagnostic_json = ?, updated_at = ?
             WHERE change_set_id = ?
             """,
-            (change_set_json, updated_at, change_set_id),
+            (change_set_json, diagnostic_json, updated_at, change_set_id),
+        )
+
+    def mark_rejected(
+        self,
+        change_set_id: str,
+        *,
+        change_set_json: str,
+        diagnostic_json: str,
+        updated_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE design_change_sets
+            SET change_set_json = ?, status = 'rejected',
+                diagnostic_json = ?, updated_at = ?
+            WHERE change_set_id = ? AND status IN ('proposed', 'previewed')
+            """,
+            (change_set_json, diagnostic_json, updated_at, change_set_id),
         )
 
 

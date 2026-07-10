@@ -56,7 +56,7 @@ async function main() {
     )
     processes.push(vite)
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
-    const result = await runWorkbenchUi(viteBaseUrl, seeded)
+    const result = await runWorkbenchUi(viteBaseUrl, agentBaseUrl, seeded)
     await stopProcess(agent)
     const restartPort = await freePort()
     const restartBaseUrl = `http://127.0.0.1:${restartPort}`
@@ -173,7 +173,7 @@ async function seedConceptGraph(baseUrl) {
   }
 }
 
-async function runWorkbenchUi(baseUrl, seeded) {
+async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
   const browser = await launchSystemBrowser()
   const page = await browser.newPage({ viewport: { width: 1536, height: 1024 }, deviceScaleFactor: 1 })
   const browserErrors = []
@@ -303,13 +303,51 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.screenshot({ path: MIRROR_SCREENSHOT, fullPage: true })
     if ((await stat(MIRROR_SCREENSHOT)).size < 20_000) throw new Error('mirror screenshot is unexpectedly small')
     const lifecycle = await stressViewportLifecycle(page)
+    const timelineFixture = await seedTimelineAuditFixture(agentApiBaseUrl, seeded.project_id)
     await page.getByRole('button', { name: '时间线' }).click()
-    await assertText(page.locator('.drawer-placeholder'), [
+    await page.getByRole('button', { name: '重置' }).click()
+    await page.waitForFunction(
+      () => document.querySelectorAll('.timeline-item').length === 20,
+      { timeout: 20_000 },
+    )
+    await page.getByRole('button', { name: '加载更多' }).click()
+    await page.waitForFunction(
+      (expected) => document.querySelectorAll('.timeline-item').length === expected,
+      timelineFixture.total_count,
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('.timeline-drawer'), [
       'ChangeSet 操作时间线',
       'replace_module(node_front)',
       'set_mirror(node_grip)',
       'confirmed',
     ])
+    await page.getByPlaceholder('搜索 ChangeSet…').fill('ui_rejected_locked')
+    await page.getByLabel('ChangeSet 状态筛选').selectOption('rejected')
+    await page.getByRole('button', { name: '查询' }).click()
+    await page.waitForFunction(
+      () => document.querySelectorAll('.timeline-item').length === 1,
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('[data-testid="change-set-diagnostic"]'), [
+      'CHANGE_SET_INVALID',
+      'preview',
+      'Locked ModuleGraph node cannot be changed: node_core',
+      'nodes: node_core',
+    ])
+    await page.getByPlaceholder('搜索 ChangeSet…').fill('')
+    await page.getByLabel('ChangeSet 状态筛选').selectOption('')
+    await page.getByLabel('ChangeSet 操作筛选').selectOption('set_mirror')
+    const mirrorFilterResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/change-sets')
+        && response.url().includes('operation=set_mirror'),
+    )
+    await page.getByRole('button', { name: '查询' }).click()
+    const mirrorFilterResponse = await mirrorFilterResponsePromise
+    if (!mirrorFilterResponse.ok()) {
+      throw new Error(`timeline operation filter failed: ${mirrorFilterResponse.status()}`)
+    }
+    await assertText(page.locator('.timeline-item'), ['set_mirror(node_grip)'])
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
     await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
@@ -472,6 +510,9 @@ async function runWorkbenchUi(baseUrl, seeded) {
       mirror_screenshot: MIRROR_SCREENSHOT,
       viewport_lifecycle: lifecycle,
       operation_timeline_verified: true,
+      timeline_pagination_verified: true,
+      timeline_search_filter_verified: true,
+      timeline_rejected_diagnostic_verified: true,
       geometry_quality_inspection_verified: true,
       quality_finding_focus_verified: true,
       quality_run_id: qualityRecord.quality_run_id,
@@ -491,6 +532,71 @@ async function runWorkbenchUi(baseUrl, seeded) {
   } finally {
     await browser.close()
   }
+}
+
+async function seedTimelineAuditFixture(baseUrl, projectId) {
+  const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
+  const versionId = project.current_version_id
+  const rejectedId = 'change_ui_rejected_locked'
+  await jsonRequest(baseUrl, `/api/v1/versions/${versionId}/change-sets`, {
+    method: 'POST',
+    idempotencyKey: 'r3-ui-rejected-propose',
+    body: {
+      client_request_id: 'r3-ui-rejected-propose',
+      change_set: {
+        schema_version: 'DesignChangeSet@1',
+        change_set_id: rejectedId,
+        project_id: projectId,
+        base_version_id: versionId,
+        summary: 'UI rejected diagnostic fixture for a locked core node.',
+        operations: [{
+          operation_id: 'op_ui_rejected_locked',
+          op: 'set_transform',
+          node_id: 'node_core',
+          transform: { position: [1, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+        }],
+        protected_node_ids: [],
+        status: 'proposed',
+      },
+    },
+  })
+  const rejected = await jsonRequestAllowError(
+    baseUrl,
+    `/api/v1/change-sets/${rejectedId}:preview`,
+    {
+      method: 'POST',
+      idempotencyKey: 'r3-ui-rejected-preview',
+    },
+  )
+  if (rejected.status !== 400 || rejected.body.error?.code !== 'CHANGE_SET_INVALID') {
+    throw new Error(`UI rejected fixture was not rejected: ${JSON.stringify(rejected)}`)
+  }
+  for (let index = 1; index <= 21; index += 1) {
+    const suffix = String(index).padStart(2, '0')
+    await jsonRequest(baseUrl, `/api/v1/versions/${versionId}/change-sets`, {
+      method: 'POST',
+      idempotencyKey: `r3-ui-timeline-proposed-${suffix}`,
+      body: {
+        client_request_id: `r3-ui-timeline-proposed-${suffix}`,
+        change_set: {
+          schema_version: 'DesignChangeSet@1',
+          change_set_id: `change_ui_timeline_proposed_${suffix}`,
+          project_id: projectId,
+          base_version_id: versionId,
+          summary: `UI pagination fixture ${suffix}.`,
+          operations: [{
+            operation_id: `op_ui_timeline_proposed_${suffix}`,
+            op: 'set_style',
+            path: 'style.detail_density',
+            value: 0.5,
+          }],
+          protected_node_ids: [],
+          status: 'proposed',
+        },
+      },
+    })
+  }
+  return { rejected_id: rejectedId, total_count: 24 }
 }
 
 async function downloadDirect(page, url) {
@@ -606,6 +712,17 @@ async function verifyReplacement(baseUrl, projectId) {
   if (gripNode?.mirror_axis !== 'x') {
     throw new Error(`restart lost grip mirror state: ${gripNode?.mirror_axis}`)
   }
+  const rejectedTimeline = await jsonRequest(
+    baseUrl,
+    `/api/v1/projects/${projectId}/change-sets?status=rejected&q=ui_rejected_locked`,
+  )
+  if (rejectedTimeline.items?.length !== 1) {
+    throw new Error(`restart lost rejected ChangeSet search: ${JSON.stringify(rejectedTimeline)}`)
+  }
+  const diagnostic = rejectedTimeline.items[0].diagnostic
+  if (diagnostic?.code !== 'CHANGE_SET_INVALID' || !diagnostic.node_ids?.includes('node_core')) {
+    throw new Error(`restart lost rejected diagnostic: ${JSON.stringify(diagnostic)}`)
+  }
   return {
     version_id: version.version_id,
     graph_id: graph.graph.graph_id,
@@ -614,6 +731,8 @@ async function verifyReplacement(baseUrl, projectId) {
     position_mm: frontNode.transform.position,
     mirrored_node_id: gripNode.node_id,
     mirror_axis: gripNode.mirror_axis,
+    rejected_change_set_id: rejectedTimeline.items[0].change_set.change_set_id,
+    rejected_diagnostic_code: diagnostic.code,
   }
 }
 
@@ -699,6 +818,19 @@ async function jsonRequest(baseUrl, path, options = {}) {
   })
   if (!response.ok) throw new Error(`${options.method || 'GET'} ${path} failed: ${response.status} ${await response.text()}`)
   return response.json()
+}
+
+async function jsonRequestAllowError(baseUrl, path, options = {}) {
+  const response = await fetch(baseUrl + path, {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  })
+  const body = await response.json()
+  return { status: response.status, body }
 }
 
 async function waitForHttp(url, child, label) {

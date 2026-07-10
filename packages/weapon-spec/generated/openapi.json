@@ -409,6 +409,58 @@
         "title": "ChangeSetConfirmResponse",
         "type": "object"
       },
+      "ChangeSetDiagnostic": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operation Ids",
+            "type": "array"
+          },
+          "recorded_at": {
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "recoverable": {
+            "title": "Recoverable",
+            "type": "boolean"
+          },
+          "stage": {
+            "enum": [
+              "preview",
+              "confirm"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "stage",
+          "recoverable",
+          "recorded_at"
+        ],
+        "title": "ChangeSetDiagnostic",
+        "type": "object"
+      },
       "ChangeSetPreviewResponse": {
         "additionalProperties": false,
         "properties": {
@@ -467,6 +519,16 @@
             "title": "Created At",
             "type": "string"
           },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChangeSetDiagnostic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "preview_sha256": {
             "anyOf": [
               {
@@ -490,6 +552,13 @@
             "title": "Result Version Id"
           },
           "status": {
+            "enum": [
+              "proposed",
+              "previewed",
+              "confirmed",
+              "rejected",
+              "stale"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -517,6 +586,17 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           },
           "project_id": {
             "title": "Project Id",
@@ -7687,6 +7767,102 @@
             "schema": {
               "title": "Project Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 1000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "proposed",
+                    "previewed",
+                    "confirmed",
+                    "rejected",
+                    "stale"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "add_module",
+                    "remove_module",
+                    "replace_module",
+                    "connect",
+                    "disconnect",
+                    "set_transform",
+                    "set_mirror",
+                    "set_style",
+                    "set_parameter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operation"
             }
           }
         ],

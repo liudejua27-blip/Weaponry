@@ -66,7 +66,7 @@ npm run r1:foundation-gate
 
 覆盖：
 
-- 11 个 migrations 在新库首次应用；
+- 12 个 migrations 在新库首次应用；
 - 第二次 migration 无重复应用；
 - foreign keys 开启，busy timeout 为 5000 ms；
 - 相同 payload 使用同一个内容寻址路径；

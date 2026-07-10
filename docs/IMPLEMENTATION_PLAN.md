@@ -44,7 +44,7 @@
 | R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender starter/metadata/只读 re-export preflight 已完成，真实 `.blend` 与最终 art 待 Blender 环境 |
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
-| R3 operation timeline | 第一切片完成 | Project ChangeSet list API、operation/node/status/result Version、桌面回读与 restart smoke |
+| R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
 | R5 combined GLB | 第一切片完成 | static GLB merge、mm→m、Euler→quaternion、mirror scale、stable wrapper nodes、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
@@ -317,7 +317,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 1. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，先完成 core + 两个 front，再逐个替换 GLB 和缩略图。
 2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
-3. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
+3. 为 ChangeSet 审计增加 actor/provider provenance、批量报告导出和长期归档策略；分页、搜索、状态/操作过滤、rejected/stale diagnostic 与重启恢复已完成。
 4. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
 5. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
 6. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。

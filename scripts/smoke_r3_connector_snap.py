@@ -5,6 +5,7 @@ import json
 import math
 import sqlite3
 import tempfile
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -179,6 +180,11 @@ def main() -> int:
             ]
             _assert("replace_module" in timeline_operations, "timeline lost replacement")
             _assert("set_mirror" in timeline_operations, "timeline lost mirror")
+            timeline_query_evidence = _assert_timeline_query_features(
+                base_url,
+                project_id,
+                timeline,
+            )
         finally:
             _stop_agent(process)
 
@@ -187,8 +193,12 @@ def main() -> int:
             change_set_count = connection.execute(
                 "SELECT COUNT(*) FROM design_change_sets"
             ).fetchone()[0]
+            diagnostic_count = connection.execute(
+                "SELECT COUNT(*) FROM design_change_sets WHERE diagnostic_json IS NOT NULL"
+            ).fetchone()[0]
         _assert(graph_count == 6, "connector snap graph/version count mismatch")
         _assert(change_set_count == 6, "connector snap ChangeSet count mismatch")
+        _assert(diagnostic_count == 2, "rejected ChangeSet diagnostics were not persisted")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -215,6 +225,17 @@ def main() -> int:
                 method="GET",
             )
             _assert(len(restored_timeline["items"]) == 5, "restart lost ChangeSet timeline")
+            restored_rejected = _timeline_request(
+                restart_url,
+                project_id,
+                status="rejected",
+            )
+            _assert(len(restored_rejected["items"]) == 1, "restart lost rejected filter")
+            _assert(
+                restored_rejected["items"][0]["diagnostic"]["code"]
+                == "CHANGE_SET_INVALID",
+                "restart lost rejected diagnostic",
+            )
         finally:
             _stop_agent(restarted)
 
@@ -236,6 +257,8 @@ def main() -> int:
                     "locked_descendant_rejected": locked_descendant_rejected,
                     "restart_restored": True,
                     "timeline_restored": True,
+                    "timeline_query": timeline_query_evidence,
+                    "diagnostic_count": diagnostic_count,
                     "final_version_id": version_6,
                     "graph_count": graph_count,
                 },
@@ -629,6 +652,107 @@ def _assert_cycle_conflict_rejected(
         "incompatible cycle did not return a structured snap conflict",
     )
     return True
+
+
+def _assert_timeline_query_features(
+    base_url: str,
+    project_id: str,
+    full_timeline: dict[str, Any],
+) -> dict[str, Any]:
+    expected_ids = [
+        item["change_set"]["change_set_id"] for item in full_timeline["items"]
+    ]
+    collected_ids: list[str] = []
+    cursor = None
+    page_count = 0
+    while True:
+        page = _timeline_request(base_url, project_id, cursor=cursor, limit=2)
+        page_count += 1
+        collected_ids.extend(
+            item["change_set"]["change_set_id"] for item in page["items"]
+        )
+        cursor = page.get("next_cursor")
+        if not cursor:
+            break
+    _assert(collected_ids == expected_ids, "timeline cursor pages changed order or lost rows")
+    _assert(len(set(collected_ids)) == len(collected_ids), "timeline cursor duplicated rows")
+    _assert(page_count == 3, "timeline limit=2 did not produce three pages")
+
+    rejected = _timeline_request(base_url, project_id, status="rejected")
+    _assert(len(rejected["items"]) == 1, "rejected status filter mismatch")
+    rejected_item = rejected["items"][0]
+    _assert(
+        rejected_item["change_set"]["change_set_id"] == "change_snap_cycle_conflict",
+        "rejected filter returned the wrong ChangeSet",
+    )
+    diagnostic = rejected_item.get("diagnostic")
+    _assert(diagnostic is not None, "rejected ChangeSet lost diagnostic")
+    _assert(diagnostic["code"] == "CHANGE_SET_INVALID", "diagnostic code mismatch")
+    _assert(diagnostic["stage"] == "preview", "diagnostic stage mismatch")
+    _assert(
+        diagnostic["operation_ids"] == ["op_change_snap_cycle_conflict"],
+        "diagnostic operation context mismatch",
+    )
+    _assert("node_core" in diagnostic["node_ids"], "diagnostic node context mismatch")
+
+    searched = _timeline_request(base_url, project_id, q="cycle_conflict")
+    _assert(len(searched["items"]) == 1, "timeline search mismatch")
+    mirrors = _timeline_request(base_url, project_id, operation="set_mirror")
+    _assert(len(mirrors["items"]) == 1, "operation filter mismatch")
+
+    confirmed_page = _timeline_request(base_url, project_id, status="confirmed", limit=2)
+    _assert(confirmed_page.get("next_cursor"), "confirmed filter did not return a cursor")
+    mismatch_status, mismatch_body = _json_request_allow_error(
+        base_url,
+        f"/api/v1/projects/{project_id}/change-sets?"
+        + urllib.parse.urlencode(
+            {
+                "status": "rejected",
+                "cursor": confirmed_page["next_cursor"],
+            }
+        ),
+        method="GET",
+    )
+    _assert(mismatch_status == 400, "cursor/filter mismatch was accepted")
+    _assert(
+        mismatch_body["error"]["code"] == "INVALID_CURSOR",
+        "cursor/filter mismatch returned the wrong code",
+    )
+    invalid_status, invalid_body = _json_request_allow_error(
+        base_url,
+        f"/api/v1/projects/{project_id}/change-sets?cursor=not-a-cursor",
+        method="GET",
+    )
+    _assert(invalid_status == 400, "invalid cursor was accepted")
+    _assert(
+        invalid_body["error"]["code"] == "INVALID_CURSOR",
+        "invalid cursor returned the wrong code",
+    )
+    return {
+        "page_count": page_count,
+        "ordered_ids": collected_ids,
+        "search_verified": True,
+        "status_filter_verified": True,
+        "operation_filter_verified": True,
+        "cursor_filter_binding_verified": True,
+        "rejected_diagnostic_verified": True,
+    }
+
+
+def _timeline_request(
+    base_url: str,
+    project_id: str,
+    **parameters: Any,
+) -> dict[str, Any]:
+    query = urllib.parse.urlencode(
+        {key: value for key, value in parameters.items() if value is not None}
+    )
+    suffix = f"?{query}" if query else ""
+    return _json_request(
+        base_url,
+        f"/api/v1/projects/{project_id}/change-sets{suffix}",
+        method="GET",
+    )
 
 
 def _assert_locked_descendant_rejected(base_url: str) -> bool:

@@ -34,7 +34,10 @@ import {
 import { forgeApi } from '../../shared/api/forgeApi'
 import type { ModuleAssetRecord } from '../../shared/types'
 import { ModuleGraphViewport } from './ModuleGraphViewport'
-import { useConceptWorkbench } from './useConceptWorkbench'
+import {
+  useConceptWorkbench,
+  type ChangeSetTimelineFilters,
+} from './useConceptWorkbench'
 import './cad-workbench.css'
 
 type WorkspaceTab = 'concept' | 'assembly' | 'refine' | 'inspect' | 'showcase'
@@ -100,6 +103,11 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [explodeFactor, setExplodeFactor] = useState(0)
   const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
   const [componentQuery, setComponentQuery] = useState('')
+  const [timelineQuery, setTimelineQuery] = useState('')
+  const [timelineStatus, setTimelineStatus] = useState<ChangeSetTimelineFilters['status']>('')
+  const [timelineOperation, setTimelineOperation] = useState<
+    ChangeSetTimelineFilters['operation']
+  >('')
   const [chatInput, setChatInput] = useState('')
   const [assistantNote, setAssistantNote] = useState(
     '输入修改要求后，系统将生成结构化 DesignChangeSet 预览；确认前不会覆盖当前版本。',
@@ -113,6 +121,19 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     shellThickness: 2.5,
     detailDensity: 68,
   })
+
+  const applyTimelineFilters = () => concept.searchTimeline({
+    query: timelineQuery,
+    status: timelineStatus,
+    operation: timelineOperation,
+  })
+
+  const clearTimelineFilters = () => {
+    setTimelineQuery('')
+    setTimelineStatus('')
+    setTimelineOperation('')
+    concept.searchTimeline({ query: '', status: '', operation: '' })
+  }
 
   useEffect(() => {
     const spec = concept.version?.spec
@@ -490,9 +511,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <div className="component-search">
                 <MagnifyingGlass size={15} />
                 <input
-                  value={componentQuery}
-                  onChange={(event) => setComponentQuery(event.target.value)}
-                  placeholder="搜索组件…"
+                  value={drawerTab === 'timeline' ? timelineQuery : componentQuery}
+                  onChange={(event) => {
+                    if (drawerTab === 'timeline') setTimelineQuery(event.target.value)
+                    else setComponentQuery(event.target.value)
+                  }}
+                  onKeyDown={(event) => {
+                    if (drawerTab === 'timeline' && event.key === 'Enter') {
+                      applyTimelineFilters()
+                    }
+                  }}
+                  placeholder={drawerTab === 'timeline' ? '搜索 ChangeSet…' : '搜索组件…'}
                 />
                 <Funnel size={14} />
               </div>
@@ -562,7 +591,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   </div>
                 </>
               ) : (
-                <div className="drawer-placeholder">
+                <div className={`drawer-placeholder${drawerTab === 'timeline' ? ' timeline-drawer' : ''}`}>
                   {drawerTab === 'variants' && <>
                     <strong>候选方案</strong>
                     {concept.variants.map((variant) => (
@@ -579,17 +608,87 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                     ))}
                   </>}
                   {drawerTab === 'timeline' && <>
-                    <strong>ChangeSet 操作时间线</strong>
-                    {concept.timeline.slice().reverse().map((item) => (
-                      <span key={item.change_set.change_set_id}>
-                        {formatVersionTime(item.confirmed_at ?? item.updated_at)} · {item.status} ·{' '}
-                        {item.change_set.operations.map((operation) => (
-                          `${operation.op}${operation.node_id ? `(${operation.node_id})` : ''}`
-                        )).join(' + ')}
-                        {item.result_version_id ? ` → ${item.result_version_id}` : ''}
-                      </span>
-                    ))}
-                    {concept.timeline.length === 0 && <span>当前项目尚无持久化 ChangeSet。</span>}
+                    <div className="timeline-heading">
+                      <strong>ChangeSet 操作时间线</strong>
+                      <select
+                        aria-label="ChangeSet 状态筛选"
+                        value={timelineStatus}
+                        onChange={(event) => setTimelineStatus(
+                          event.target.value as ChangeSetTimelineFilters['status'],
+                        )}
+                      >
+                        <option value="">全部状态</option>
+                        <option value="confirmed">confirmed</option>
+                        <option value="rejected">rejected</option>
+                        <option value="stale">stale</option>
+                        <option value="previewed">previewed</option>
+                        <option value="proposed">proposed</option>
+                      </select>
+                      <select
+                        aria-label="ChangeSet 操作筛选"
+                        value={timelineOperation}
+                        onChange={(event) => setTimelineOperation(
+                          event.target.value as ChangeSetTimelineFilters['operation'],
+                        )}
+                      >
+                        <option value="">全部操作</option>
+                        <option value="replace_module">replace_module</option>
+                        <option value="set_mirror">set_mirror</option>
+                        <option value="set_transform">set_transform</option>
+                        <option value="add_module">add_module</option>
+                        <option value="remove_module">remove_module</option>
+                        <option value="connect">connect</option>
+                        <option value="disconnect">disconnect</option>
+                        <option value="set_style">set_style</option>
+                        <option value="set_parameter">set_parameter</option>
+                      </select>
+                      <button onClick={applyTimelineFilters} disabled={concept.timelineLoading}>
+                        查询
+                      </button>
+                      <button onClick={clearTimelineFilters} disabled={concept.timelineLoading}>
+                        重置
+                      </button>
+                    </div>
+                    <div className="timeline-items" aria-live="polite">
+                      {concept.timeline.map((item) => (
+                        <article
+                          className={`timeline-item status-${item.status}`}
+                          key={item.change_set.change_set_id}
+                        >
+                          <div>
+                            {formatVersionTime(item.confirmed_at ?? item.updated_at)} ·{' '}
+                            <b>{item.status}</b> · {item.change_set.change_set_id}
+                          </div>
+                          <div>
+                            {item.change_set.operations.map((operation) => (
+                              `${operation.op}${operation.node_id ? `(${operation.node_id})` : ''}`
+                            )).join(' + ')}
+                            {item.result_version_id ? ` → ${item.result_version_id}` : ''}
+                          </div>
+                          {item.diagnostic ? (
+                            <div className="timeline-diagnostic" data-testid="change-set-diagnostic">
+                              {item.diagnostic.code} · {item.diagnostic.stage} ·{' '}
+                              {item.diagnostic.message}
+                              {(item.diagnostic.node_ids ?? []).length > 0
+                                ? ` · nodes: ${(item.diagnostic.node_ids ?? []).join(', ')}`
+                                : ''}
+                            </div>
+                          ) : null}
+                        </article>
+                      ))}
+                      {concept.timeline.length === 0 ? (
+                        <div className="timeline-empty">没有符合条件的持久化 ChangeSet。</div>
+                      ) : null}
+                    </div>
+                    {concept.timelineNextCursor ? (
+                      <button
+                        className="timeline-more"
+                        onClick={concept.loadMoreTimeline}
+                        disabled={concept.timelineLoading}
+                      >
+                        {concept.timelineLoading ? '正在加载…' : '加载更多'}
+                      </button>
+                    ) : null}
                   </>}
                 </div>
               )}

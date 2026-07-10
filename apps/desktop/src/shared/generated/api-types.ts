@@ -75,6 +75,16 @@ export type ChangeSetConfirmResponse = {
   "project": ConceptProjectDetail
 }
 
+export type ChangeSetDiagnostic = {
+  "code": string
+  "message": string
+  "stage": "preview" | "confirm"
+  "recoverable": boolean
+  "operation_ids"?: Array<string>
+  "node_ids"?: Array<string>
+  "recorded_at": string
+}
+
 export type ChangeSetPreviewResponse = {
   "change_set": DesignChangeSet
   "preview_spec": WeaponConceptSpec
@@ -87,8 +97,9 @@ export type ChangeSetTimelineItem = {
   "change_set": DesignChangeSet
   "base_version_id": string
   "result_version_id"?: string | null
-  "status": string
+  "status": "proposed" | "previewed" | "confirmed" | "rejected" | "stale"
   "preview_sha256"?: string | null
+  "diagnostic"?: ChangeSetDiagnostic | null
   "created_at": string
   "updated_at": string
   "confirmed_at"?: string | null
@@ -97,6 +108,7 @@ export type ChangeSetTimelineItem = {
 export type ChangeSetTimelineResponse = {
   "project_id": string
   "items"?: Array<ChangeSetTimelineItem>
+  "next_cursor"?: string | null
 }
 
 export type ConceptConstraints = {

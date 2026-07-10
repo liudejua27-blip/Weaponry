@@ -22,7 +22,7 @@ npm run r1:create-weapon-gate
 
 1. AST 断言 facade 不包含 `plan_weapon_spec`、`generate_concept` 或资产写入；
 2. application service 必须包含 LLM、Image、3D、ProviderTask 和 JobEvent 编排；
-3. 11 个 migration 首次/重复运行、外键、busy timeout 与内容寻址存储不回归；
+3. 12 个 migration 首次/重复运行、外键、busy timeout 与内容寻址存储不回归；
 4. 默认创建与幂等 replay 保持同一 Job/Weapon，不同请求复用 key 返回 409；
 5. 创建结果保持 7 个事件，资产库校验无 blocker；
 6. mock LLM、ComfyUI 正常/重试路径继续通过；

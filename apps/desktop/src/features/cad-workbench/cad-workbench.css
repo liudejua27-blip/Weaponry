@@ -642,6 +642,71 @@
   background: #1b2734;
 }
 
+.timeline-drawer {
+  align-items: stretch;
+  padding: 7px 10px;
+  overflow: hidden;
+}
+
+.timeline-heading {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.timeline-heading select,
+.timeline-heading button,
+.timeline-more {
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 1px solid #2c3b4d;
+  border-radius: 4px;
+  color: #b7c5d5;
+  background: #172331;
+  font-size: 9px;
+}
+
+.timeline-items {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.timeline-item {
+  flex: 0 0 290px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 7px 9px;
+  border: 1px solid #2c3b4d;
+  border-radius: 5px;
+  color: #aebccd;
+  background: #1b2734;
+}
+
+.timeline-item.status-rejected,
+.timeline-item.status-stale {
+  border-color: #7e493f;
+}
+
+.timeline-diagnostic {
+  color: #ffb09d;
+  white-space: normal;
+}
+
+.timeline-empty {
+  align-self: center;
+  color: #8191a4;
+}
+
+.timeline-more {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
 .component-categories {
   display: grid;
   align-content: start;

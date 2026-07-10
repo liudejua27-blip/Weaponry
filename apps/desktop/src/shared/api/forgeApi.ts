@@ -204,8 +204,24 @@ export class ForgeApiClient {
     return readJson<DesignChangeSet>(response)
   }
 
-  async listChangeSets(projectId: string): Promise<ChangeSetTimelineResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/change-sets`)
+  async listChangeSets(
+    projectId: string,
+    input: {
+      cursor?: string
+      limit?: number
+      q?: string
+      status?: 'proposed' | 'previewed' | 'confirmed' | 'rejected' | 'stale'
+      operation?: 'add_module' | 'remove_module' | 'replace_module' | 'connect' | 'disconnect'
+        | 'set_transform' | 'set_mirror' | 'set_style' | 'set_parameter'
+    } = {},
+  ): Promise<ChangeSetTimelineResponse> {
+    const url = new URL(`${this.baseUrl}/api/v1/projects/${projectId}/change-sets`)
+    if (input.cursor) url.searchParams.set('cursor', input.cursor)
+    if (input.limit) url.searchParams.set('limit', String(input.limit))
+    if (input.q) url.searchParams.set('q', input.q)
+    if (input.status) url.searchParams.set('status', input.status)
+    if (input.operation) url.searchParams.set('operation', input.operation)
+    const response = await fetch(url)
     return readJson<ChangeSetTimelineResponse>(response)
   }
 

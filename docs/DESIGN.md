@@ -416,11 +416,24 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
 
+ChangeSet 审计查询使用：
+
+```http
+GET /api/v1/projects/{project_id}/change-sets
+    ?limit=20
+    &cursor=<opaque>
+    &q=<id|summary|node|diagnostic>
+    &status=<proposed|previewed|confirmed|rejected|stale>
+    &operation=<ChangeOperationType>
+```
+
+权威排序是 `updated_at DESC, change_set_id DESC`。cursor 同时绑定 query/status/operation 的 hash，不能跨过滤条件复用。preview 的合同、锁定节点、Connector remap/snap 或 Graph validation 失败会把已持久化 ChangeSet 更新为 `rejected`，并保存 code/message/stage/operation_ids/node_ids/recorded_at；confirm 前 current Version 漂移保存为 `stale` 与 confirm-stage diagnostic。HTTP 错误不是唯一审计来源。
+
 桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，显示规则集状态、Finding 消息和测量值；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。
 
 当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
 
-Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 operation、base/result Version、状态与时间戳；桌面时间线不再把 Version summary 冒充操作审计。
+Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。
 
 ### 9.1 坐标与 Connector 吸附
 

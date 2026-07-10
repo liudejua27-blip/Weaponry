@@ -43,6 +43,7 @@ npm run assets:module-pack-gate
 npm run assets:blender-authoring-preflight-gate
 npm run agent:r3-connector-snap-smoke
 npm run r3:workbench-gate
+npm run r3:change-set-audit-gate
 npm run r5:combined-glb-gate
 npm run r5:obj-gate
 npm run r5:render-gate
