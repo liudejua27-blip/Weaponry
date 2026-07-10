@@ -35,6 +35,7 @@
     "agent:m6-structure-recast-smoke": ".venv/bin/python scripts/smoke_m6_structure_recast.py",
     "agent:r1-foundation-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r1_foundation.py",
     "agent:r2-concept-contracts-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_concept_contracts.py",
+    "agent:r2-concept-projects-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_concept_projects.py",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
@@ -63,7 +64,8 @@
     "m6:gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:m6-structure-recast-smoke && npm run desktop:typecheck",
     "r1:foundation-gate": "npm run agent:r1-foundation-smoke && npm run m6:gate",
     "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke",
-    "r2:contracts-gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:r2-concept-contracts-smoke"
+    "r2:contracts-gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:r2-concept-contracts-smoke",
+    "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke"
   },
   "engines": {
     "node": ">=20",

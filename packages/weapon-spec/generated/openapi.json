@@ -1,6 +1,38 @@
 {
   "components": {
     "schemas": {
+      "AppendConceptVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "parent_version_id": {
+            "title": "Parent Version Id",
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "parent_version_id",
+          "summary",
+          "spec"
+        ],
+        "title": "AppendConceptVersionRequest",
+        "type": "object"
+      },
       "AssetFileResponse": {
         "properties": {
           "asset_id": {
@@ -347,6 +379,403 @@
           "mime_type"
         ],
         "title": "AssetUploadResponse",
+        "type": "object"
+      },
+      "ConceptConstraints": {
+        "additionalProperties": false,
+        "properties": {
+          "max_triangle_count": {
+            "maximum": 2000000.0,
+            "minimum": 1000.0,
+            "title": "Max Triangle Count",
+            "type": "integer"
+          },
+          "symmetry": {
+            "enum": [
+              "symmetric",
+              "mostly_symmetric",
+              "asymmetric"
+            ],
+            "title": "Symmetry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symmetry",
+          "max_triangle_count"
+        ],
+        "title": "ConceptConstraints",
+        "type": "object"
+      },
+      "ConceptProjectDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "domain_type": {
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/DesignDomainProfile"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptVersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "domain_type",
+          "name",
+          "status",
+          "created_at",
+          "updated_at",
+          "profile",
+          "current_spec"
+        ],
+        "title": "ConceptProjectDetail",
+        "type": "object"
+      },
+      "ConceptProjectListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptProjectSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "ConceptProjectListResponse",
+        "type": "object"
+      },
+      "ConceptProjectSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "domain_type": {
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "domain_type",
+          "name",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConceptProjectSummary",
+        "type": "object"
+      },
+      "ConceptProportions": {
+        "additionalProperties": false,
+        "properties": {
+          "body_height_mm": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Body Height Mm",
+            "type": "number"
+          },
+          "grip_angle_deg": {
+            "maximum": 45.0,
+            "minimum": -45.0,
+            "title": "Grip Angle Deg",
+            "type": "number"
+          },
+          "overall_length_mm": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Overall Length Mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "overall_length_mm",
+          "body_height_mm",
+          "grip_angle_deg"
+        ],
+        "title": "ConceptProportions",
+        "type": "object"
+      },
+      "ConceptStyle": {
+        "additionalProperties": false,
+        "properties": {
+          "detail_density": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Detail Density",
+            "type": "number"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Keywords",
+            "type": "array"
+          },
+          "palette": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Palette",
+            "type": "array"
+          }
+        },
+        "required": [
+          "keywords",
+          "palette",
+          "detail_density"
+        ],
+        "title": "ConceptStyle",
+        "type": "object"
+      },
+      "ConceptVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Set Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "spec_schema_version": {
+            "title": "Spec Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_no",
+          "status",
+          "summary",
+          "spec_schema_version",
+          "spec_sha256",
+          "created_at"
+        ],
+        "title": "ConceptVersionSummary",
+        "type": "object"
+      },
+      "CreateConceptProjectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/ConceptConstraints"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Optional Slots",
+            "type": "array"
+          },
+          "profile_id": {
+            "default": "profile_weapon_concept_v1",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "proportions": {
+            "$ref": "#/components/schemas/ConceptProportions"
+          },
+          "required_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "style": {
+            "$ref": "#/components/schemas/ConceptStyle"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "name",
+          "intended_uses",
+          "style",
+          "proportions",
+          "constraints"
+        ],
+        "title": "CreateConceptProjectRequest",
         "type": "object"
       },
       "CreateWeaponRequest": {
@@ -993,6 +1422,120 @@
           "created_at"
         ],
         "title": "CreativeWeaponGraphPayload",
+        "type": "object"
+      },
+      "DesignDomainProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "domain_type": {
+            "const": "weapon_concept",
+            "default": "weapon_concept",
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "export_profiles": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Export Profiles",
+            "type": "array"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "module_categories": {
+            "items": {
+              "enum": [
+                "core_shell",
+                "front_shell",
+                "rear_shell",
+                "grip_shell",
+                "top_accessory",
+                "side_accessory",
+                "lower_structure",
+                "storage_visual",
+                "armor_panel"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Module Categories",
+            "type": "array"
+          },
+          "non_functional_only": {
+            "const": true,
+            "default": true,
+            "title": "Non Functional Only",
+            "type": "boolean"
+          },
+          "optional_connectors": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            "title": "Optional Connectors",
+            "type": "array"
+          },
+          "pack_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "required_connectors": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Connectors",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DesignDomainProfile@1",
+            "default": "DesignDomainProfile@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "display_name",
+          "pack_id",
+          "intended_uses",
+          "module_categories",
+          "required_connectors",
+          "export_profiles"
+        ],
+        "title": "DesignDomainProfile",
         "type": "object"
       },
       "ErrorEnvelope": {
@@ -2583,6 +3126,98 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "WeaponConceptSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "archetype": {
+            "const": "future_modular_sidearm",
+            "default": "future_modular_sidearm",
+            "title": "Archetype",
+            "type": "string"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/ConceptConstraints"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Optional Slots",
+            "type": "array"
+          },
+          "profile_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "proportions": {
+            "$ref": "#/components/schemas/ConceptProportions"
+          },
+          "required_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "WeaponConceptSpec@1",
+            "default": "WeaponConceptSpec@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "style": {
+            "$ref": "#/components/schemas/ConceptStyle"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "name",
+          "intended_uses",
+          "style",
+          "proportions",
+          "required_slots",
+          "constraints",
+          "assumptions"
+        ],
+        "title": "WeaponConceptSpec",
+        "type": "object"
+      },
       "WeaponDetail": {
         "properties": {
           "current_model": {
@@ -3548,6 +4183,194 @@
           }
         },
         "summary": "Runtime Work Once"
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "list_projects_api_v1_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects",
+        "tags": [
+          "concept-projects"
+        ]
+      },
+      "post": {
+        "operationId": "create_project_api_v1_projects_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConceptProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Project",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_api_v1_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/versions": {
+      "post": {
+        "operationId": "append_project_version_api_v1_projects__project_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendConceptVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append Project Version",
+        "tags": [
+          "concept-projects"
+        ]
       }
     },
     "/api/weapons": {

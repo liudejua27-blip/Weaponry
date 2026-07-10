@@ -65,6 +65,22 @@ def check_sqlite_migration() -> None:
             "agent_events",
             "models_3d",
             "export_packages",
+            "domain_profiles",
+            "projects",
+            "project_versions",
+            "concept_assets",
+            "module_assets",
+            "module_connectors",
+            "module_graphs",
+            "module_graph_nodes",
+            "module_graph_edges",
+            "design_briefs",
+            "design_variants",
+            "design_change_sets",
+            "quality_runs",
+            "quality_findings",
+            "export_packages_v2",
+            "artifact_links",
         }
         missing = required - tables
         if missing:

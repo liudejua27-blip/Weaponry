@@ -143,8 +143,9 @@ core.side_panel_left / core.side_panel_right
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
-| WeaponConceptSpec / ModuleGraph | v1 合同与生成类型已实现 | 数据库、API 和运行时进入 R2 后续切片 |
-| Connector / 模块吸附 / 爆炸视图 | Connector 合同已实现，交互未实现 | P0 核心技术阶段 |
+| Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | ModuleGraph 持久化仍在 R2 |
+| WeaponConceptSpec / ModuleGraph | v1 合同与生成类型已实现 | Project API 已使用 WeaponConceptSpec；ModuleGraph API 待实现 |
+| Connector / 模块吸附 / 爆炸视图 | Connector 合同和数据表已实现，Repository/API/交互未实现 | P0 核心技术阶段 |
 | AI Brief / ChangeSet 幽灵预览 | 未实现 | 模块系统稳定后接入 |
 | ModelQualityReport | 未实现 | P0 Mesh/资产检查 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
@@ -239,6 +240,7 @@ python3 -m venv .venv
 .venv/bin/pip install -e "apps/agent[dev]"
 npm run r1:gate
 npm run r2:contracts-gate
+npm run r2:gate
 ```
 
 当前新工作台开发入口：

@@ -5,6 +5,7 @@ from types import TracebackType
 from typing import Optional, Type
 
 from .connection import SQLiteConnectionFactory
+from .concept_repositories import ConceptProjectRepository, DomainProfileRepository
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
 
 
@@ -18,6 +19,8 @@ class SQLiteUnitOfWork:
         self.checkpoints: CheckpointRepository
         self.idempotency: IdempotencyRepository
         self.jobs: JobRepository
+        self.concept_projects: ConceptProjectRepository
+        self.domain_profiles: DomainProfileRepository
 
     def __enter__(self) -> "SQLiteUnitOfWork":
         connection = self.connection_factory.connect()
@@ -26,6 +29,8 @@ class SQLiteUnitOfWork:
         self.checkpoints = CheckpointRepository(connection)
         self.idempotency = IdempotencyRepository(connection)
         self.jobs = JobRepository(connection)
+        self.concept_projects = ConceptProjectRepository(connection)
+        self.domain_profiles = DomainProfileRepository(connection)
         return self
 
     def __exit__(

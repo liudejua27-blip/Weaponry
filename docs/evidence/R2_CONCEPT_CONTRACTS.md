@@ -1,7 +1,7 @@
 # R2 Concept Contracts Evidence
 
 日期：2026-07-10  
-范围：R2 第一切片，仅证明合同、生成类型和核心内存不变量；不证明数据库、API、GLB 模块或桌面 E2E。
+范围：R2 当前切片，证明合同、生成类型、Concept 数据迁移和 Project/Version 最小 API；不证明 ModuleGraph API、GLB 模块或桌面 E2E。
 
 ## 产物
 
@@ -10,6 +10,9 @@
 - `forgecad_agent.domain.concepts` Pydantic 合同；
 - 生成的 TypeScript 与 Python schema registry；
 - `r2:contracts-gate` 和正/负向合同 smoke。
+- migration `0009_r2_concept_domain.sql`；
+- Project/Profile/Version Repository/UoW、application service 和 `/api/v1/projects`；
+- 创建、列表、详情、追加版本、幂等冲突和重启恢复 HTTP smoke。
 
 ## 已验证不变量
 
@@ -28,6 +31,12 @@ npm run r2:contracts-gate
 
 结果：通过。合同 smoke 验证 7 个正向合同和 4 个负向不变量。
 
+```bash
+npm run r2:gate
+```
+
+结果：通过。fresh database 应用 9 个 migration；HTTP smoke 创建 `weapon_concept` Project、追加不可覆盖父版本的 V2、验证幂等 replay/conflict，并在 Agent 重启后恢复项目与版本历史。新表不存在指向 `weapons`、`weapon_versions`、`creative_weapon_graphs` 或 `skill_graphs` 的外键。
+
 Legacy 重启恢复提取另由以下命令验证：
 
 ```bash
@@ -38,8 +47,7 @@ Legacy 重启恢复提取另由以下命令验证：
 
 ## 未完成
 
-- R2 migration、Repository/UoW 和 `/api/v1/projects`；
-- Module/Connector registry 持久化；
+- Module/Connector Repository、注册与列表 API；
 - Version DAG、ChangeSet preview/commit；
 - GLB fixture、工作台真实 ModuleGraph 绑定；
 - C01–C10 完整发布门。

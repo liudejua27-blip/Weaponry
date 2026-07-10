@@ -142,9 +142,10 @@ R1 当前完整回归：
 ```bash
 npm run r1:gate
 npm run r2:contracts-gate
+npm run r2:gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Concept Schema、Pydantic 不变量和生成类型一致，仍不证明数据库、API 或 R3–R6 能力。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Concept Schema、Pydantic 不变量和生成类型一致；`r2:gate` 进一步证明 fresh/repeat migration、Project 创建/查询、追加版本、幂等冲突和重启恢复，但仍不证明 ModuleGraph、GLB 或 R3–R6 能力。
 
 ### 2.3 Tauri 检查
 

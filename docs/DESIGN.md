@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-10）
-状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 合同已落地，数据库与 API 尚未实现。
+状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 合同及 Project/Profile/Version 数据与 API 第一切片已落地。
 
 ## 1. 产品定义
 
@@ -338,6 +338,8 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 POST   /api/v1/jobs/{job_id}:cancel
 ```
+
+当前实现先使用 `/api/v1/projects`、`/api/v1/projects/{project_id}` 和 `/api/v1/projects/{project_id}/versions` 完成通用 Project/Version 闭环；其余端点仍是 R2–R5 目标契约。
 
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 

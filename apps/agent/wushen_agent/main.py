@@ -4,7 +4,12 @@ import asyncio
 import os
 
 from fastapi import FastAPI
-from forgecad_agent.api import LocalApiSettings, create_local_api
+from forgecad_agent.api import (
+    LocalApiSettings,
+    build_concept_project_router,
+    create_local_api,
+)
+from forgecad_agent.application import ConceptProjectService
 
 from .api.asset_routes import build_asset_router
 from .api.errors import register_error_handlers
@@ -20,11 +25,13 @@ def create_app() -> FastAPI:
         LocalApiSettings.from_env(title="Wushen Forge Agent", version="0.1.0")
     )
     store = SQLiteAssetStore.from_env()
+    concept_projects = ConceptProjectService(store.connection_factory)
     register_error_handlers(app)
     app.include_router(build_asset_router(store))
     app.include_router(build_job_router(store))
     app.include_router(build_system_router(store))
     app.include_router(build_weapon_router(store))
+    app.include_router(build_concept_project_router(concept_projects))
 
     @app.on_event("startup")
     async def recover_interrupted_jobs_on_startup() -> None:
