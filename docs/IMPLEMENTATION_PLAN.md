@@ -9,7 +9,7 @@
 截至 2026-07-10，仓库真实状态是：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复与版本记录；
-- `asset_store.py` 已从约 5210 行降至约 3950 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询/命令、资产上传和 Creative Recast 用例已提取；通用资产写入已通过 `AssetRepository`，剩余 Provider/版本工作流和 SQL 仍待拆分；
+- `asset_store.py` 已从约 5210 行降至约 3717 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询/命令、资产上传、库/版本查询和 Creative Recast 用例已提取；通用资产写入已通过 `AssetRepository`，剩余 Provider worker、创建/Patch/导出工作流和 SQL 仍待拆分；
 - `App.tsx` 已从约 865 行降至约 702 行，AppShell、Hash route、RuntimeProvider、JobEventProvider、SelectionProvider 与懒加载 CAD 工作台已提取，旧任务恢复和页面业务组合仍待继续收敛；
 - `main.py` 已从约 458 行降至约 54 行，legacy asset/job/system/weapon routes、错误映射与 base app factory 已分模块；
 - 领域合同、表、API、UI 和发布门仍围绕 Weapon、Creative Recast、神经 3D 与 Unity；
@@ -26,7 +26,7 @@
 | R0 ADR | 完成 | `docs/ADR/0001`–`0005` |
 | R0 门禁快照 | 完成 | `docs/evidence/R0_BASELINE.md` |
 | R1 SQLite / migration / object store | 完成首个切片 | `apps/agent/forgecad_agent/infrastructure` |
-| R1 Repository / UoW | 部分完成 | Idempotency、Asset、Job exists、Checkpoint 已提取 |
+| R1 Repository / UoW | 主要通用切片完成 | Idempotency、Asset、Job 查询/命令、Checkpoint、Library/Version facade 已提取 |
 | R1 API factory | 完成当前切片 | CORS/settings/app factory 与四组 legacy route modules 已提取 |
 | R1 frontend shell | 完成当前切片 | AppShell、routing、Runtime/JobEvent/Selection Providers 已提取 |
 | R1 CAD workbench shell | 完成参考图切片 | `#/cad`、`CadWorkbenchPanel`、`design-qa.md` |

@@ -18,6 +18,7 @@
 - 将 Job detail/list/action/runtime/event 查询迁入 `LegacyJobQueryService`，并通过 Repository 统一读取；
 - 将 Job cancel/retry/retry-from-step 事务迁入 `LegacyJobCommandService`，包括 action audit、event、checkpoint 与 Provider cancel 协调；
 - 将 mask/manifest 上传验证、幂等与内容寻址写入迁入 `LegacyAssetUploadService`；所有通用资产 INSERT 经 `AssetRepository.add`；
+- 将版本激活、武器库 read model、资产元数据和安全文件解析迁入 `LegacyLibraryService`；
 - 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
@@ -115,9 +116,19 @@ npm run agent:m4-patch-http-smoke
 
 结果：全部通过；内容寻址资产创建、mask/manifest 校验、上传幂等和 Patch 追加版本保持原合同。
 
+Library/Version 提取后补充运行：
+
+```bash
+npm run agent:p1-asset-reveal-smoke
+npm run desktop:p1-deeplink-smoke
+npm run desktop:p0-context-continuity-smoke
+```
+
+结果：全部通过；版本激活、资产 SHA/路径验证、Finder reveal dry-run、版本深链和 Library 同步保持原合同。
+
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- Asset 写侧、异步 Provider worker 编排和其余业务工作流仍待提取；
+- 异步 Provider worker 编排、创建/Patch/Unity 导出等其余 legacy 工作流仍待提取；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - 尚未进入 R2 新 CAD 合同和数据库。
