@@ -148,9 +148,50 @@ class ModuleGraphRecord(StrictApiModel):
     updated_at: str
 
 
+PlannerGenerator = Literal[
+    "auto",
+    "configured_provider",
+    "deterministic_rules",
+    "deterministic_template",
+]
+
+
+class ConceptPlannerProvenance(StrictApiModel):
+    generator: Literal["deterministic_rules", "openai_compatible"]
+    provider_id: str = Field(min_length=1, max_length=120)
+    provider_type: Literal["deterministic", "openai_compatible"]
+    model: Optional[str] = Field(default=None, max_length=200)
+    attempted_provider_id: Optional[str] = Field(default=None, max_length=120)
+    attempted_provider_type: Optional[
+        Literal["deterministic", "openai_compatible"]
+    ] = None
+    attempted_model: Optional[str] = Field(default=None, max_length=200)
+    fallback_used: bool = False
+    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    registry_module_ids: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list, max_length=12)
+
+
 class ProposeChangeSetRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     change_set: "DesignChangeSet"
+
+
+class PlanDesignChangeSetRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    instruction: str = Field(min_length=3, max_length=2000)
+    generator: PlannerGenerator = "auto"
+    selected_node_id: Optional[str] = Field(default=None, max_length=160)
+    selected_module_id: Optional[str] = Field(default=None, max_length=160)
+
+
+class PlannedChangeSetRecord(StrictApiModel):
+    change_set: "DesignChangeSet"
+    instruction: str
+    rationale: List[str] = Field(default_factory=list, max_length=12)
+    planner_provenance: ConceptPlannerProvenance
+    job_id: str
 
 
 class ChangeSetPreviewResponse(StrictApiModel):
@@ -181,6 +222,11 @@ class ChangeSetTimelineItem(StrictApiModel):
     base_version_id: str
     result_version_id: Optional[str] = None
     status: Literal["proposed", "previewed", "confirmed", "rejected", "stale"]
+    actor_type: Literal["user", "planner"] = "user"
+    planner_instruction: Optional[str] = None
+    planner_rationale: List[str] = Field(default_factory=list, max_length=12)
+    planner_provenance: Optional["ConceptPlannerProvenance"] = None
+    planner_job_id: Optional[str] = None
     preview_sha256: Optional[str] = None
     diagnostic: Optional[ChangeSetDiagnostic] = None
     created_at: str
@@ -211,31 +257,6 @@ class QualityRunRecord(StrictApiModel):
     report: ModelQualityReport
     created_at: str
     job_id: Optional[str] = None
-
-
-PlannerGenerator = Literal[
-    "auto",
-    "configured_provider",
-    "deterministic_rules",
-    "deterministic_template",
-]
-
-
-class ConceptPlannerProvenance(StrictApiModel):
-    generator: Literal["deterministic_rules", "openai_compatible"]
-    provider_id: str = Field(min_length=1, max_length=120)
-    provider_type: Literal["deterministic", "openai_compatible"]
-    model: Optional[str] = Field(default=None, max_length=200)
-    attempted_provider_id: Optional[str] = Field(default=None, max_length=120)
-    attempted_provider_type: Optional[
-        Literal["deterministic", "openai_compatible"]
-    ] = None
-    attempted_model: Optional[str] = Field(default=None, max_length=200)
-    fallback_used: bool = False
-    input_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    registry_module_ids: List[str] = Field(default_factory=list)
-    warnings: List[str] = Field(default_factory=list, max_length=12)
 
 
 class InterpretDesignBriefRequest(StrictApiModel):

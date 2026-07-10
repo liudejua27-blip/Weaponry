@@ -6,7 +6,7 @@ import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import ValidationError
 
@@ -16,9 +16,20 @@ from forgecad_agent.application.concept_models import (
     ChangeSetPreviewResponse,
     ChangeSetTimelineItem,
     ChangeSetTimelineResponse,
+    ConceptPlannerProvenance,
+    PlanDesignChangeSetRequest,
+    PlannedChangeSetRecord,
     ProposeChangeSetRequest,
 )
+from forgecad_agent.application.concept_planner import (
+    ConceptChangePlan,
+    ConceptPlannerError,
+    ConceptPlannerProvider,
+    DeterministicConceptPlanner,
+    planner_provenance,
+)
 from forgecad_agent.application.concept_modules import validate_registered_graph
+from forgecad_agent.application.concept_jobs import record_completed_job
 from forgecad_agent.application.concept_projects import project_detail_from_uow
 from forgecad_agent.domain.concepts.models import (
     DesignChangeOperation,
@@ -47,8 +58,243 @@ class ConceptChangeSetIdempotencyConflict(RuntimeError):
 class ConceptChangeSetService:
     """Propose, preview, and commit auditable Concept changes."""
 
-    def __init__(self, connection_factory: SQLiteConnectionFactory) -> None:
+    def __init__(
+        self,
+        connection_factory: SQLiteConnectionFactory,
+        planner: Optional[ConceptPlannerProvider] = None,
+    ) -> None:
         self.connection_factory = connection_factory
+        self.planner = planner or DeterministicConceptPlanner()
+        self.deterministic_planner = DeterministicConceptPlanner()
+
+    def plan(
+        self,
+        version_id: str,
+        request: PlanDesignChangeSetRequest,
+        idempotency_key: str,
+    ) -> PlannedChangeSetRecord:
+        scope = f"POST /api/v1/versions/{version_id}/change-sets:plan"
+        request_hash = _hash_json(request.model_dump(mode="json"))
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            replay = unit_of_work.idempotency.get(scope, idempotency_key)
+            if replay is not None:
+                if replay.request_hash != request_hash:
+                    raise ConceptChangeSetIdempotencyConflict(
+                        "Idempotency-Key was reused with a different request body."
+                    )
+                return PlannedChangeSetRecord.model_validate_json(replay.response_json)
+
+            version = unit_of_work.concept_projects.find_version(version_id)
+            if version is None:
+                raise ConceptChangeSetError("VERSION_NOT_FOUND", "Base version not found.")
+            if version["module_graph_id"] is None:
+                raise ConceptChangeSetError(
+                    "MODULE_GRAPH_NOT_FOUND",
+                    "Base version does not have a validated ModuleGraph.",
+                )
+            project_id = str(version["project_id"])
+            project = unit_of_work.concept_projects.get_active(project_id)
+            if project is None:
+                raise ConceptChangeSetError("PROJECT_NOT_FOUND", "Concept project not found.")
+            graph_row = unit_of_work.modules.get_graph(str(version["module_graph_id"]))
+            if graph_row is None:
+                raise ConceptChangeSetError(
+                    "MODULE_GRAPH_NOT_FOUND", "Base version ModuleGraph not found."
+                )
+            current_spec = WeaponConceptSpec.model_validate_json(version["spec_json"])
+            base_graph = ModuleGraph.model_validate_json(graph_row["graph_json"])
+            module_catalog = _change_planner_module_catalog(
+                unit_of_work, profile_id=str(project["profile_id"])
+            )
+            _validate_planner_context(
+                request,
+                base_graph=base_graph,
+                registry_module_ids={item["module_id"] for item in module_catalog},
+            )
+            (
+                provider,
+                plan,
+                fallback_used,
+                warnings,
+                attempted_provider,
+            ) = self._change_plan_with_provider(
+                request=request,
+                current_spec=current_spec,
+                base_graph=base_graph,
+                module_catalog=module_catalog,
+            )
+            change_set = _change_set_from_plan(
+                plan,
+                project_id=project_id,
+                version_id=version_id,
+                base_graph=base_graph,
+            )
+            _apply_change_set(current_spec, base_graph, change_set)
+            provenance = planner_provenance(
+                provider,
+                input_payload={
+                    "instruction": request.instruction,
+                    "current_spec": current_spec.model_dump(mode="json"),
+                    "base_graph": base_graph.model_dump(mode="json"),
+                    "selected_node_id": request.selected_node_id,
+                    "selected_module_id": request.selected_module_id,
+                },
+                output_payload=plan.model_dump(mode="json"),
+                registry_module_ids=[item["module_id"] for item in module_catalog],
+                attempted_provider=attempted_provider,
+                fallback_used=fallback_used,
+                warnings=warnings,
+            )
+            rationale = list(
+                dict.fromkeys(
+                    [*plan.rationale, *(item.rationale for item in plan.operations)]
+                )
+            )[:12]
+            now = _utc_now()
+            job_id = record_completed_job(
+                unit_of_work,
+                project_id=project_id,
+                version_id=version_id,
+                job_type="concept_change_plan",
+                input_payload={
+                    "instruction": request.instruction,
+                    "generator": request.generator,
+                    "selected_node_id": request.selected_node_id,
+                    "selected_module_id": request.selected_module_id,
+                },
+                output_payload={
+                    "change_set_id": change_set.change_set_id,
+                    "operation_count": len(change_set.operations),
+                    "provider_id": provenance.provider_id,
+                    "generator": provenance.generator,
+                    "fallback_used": provenance.fallback_used,
+                },
+                steps=(
+                    (
+                        "load_change_context",
+                        "Current immutable Spec, ModuleGraph, and registry loaded.",
+                        0.25,
+                        {"graph_id": base_graph.graph_id},
+                    ),
+                    (
+                        "plan_change_set",
+                        "Natural-language instruction converted to bounded operations.",
+                        0.7,
+                        {
+                            "provider_id": provenance.provider_id,
+                            "generator": provenance.generator,
+                            "fallback_used": provenance.fallback_used,
+                        },
+                    ),
+                    (
+                        "validate_change_set",
+                        "Planner IDs, paths, locks, and operation contracts validated.",
+                        1.0,
+                        {"operation_count": len(change_set.operations)},
+                    ),
+                ),
+            )
+            change_set_json = _canonical_json(change_set.model_dump(mode="json"))
+            unit_of_work.change_sets.add(
+                change_set_id=change_set.change_set_id,
+                project_id=change_set.project_id,
+                base_version_id=change_set.base_version_id,
+                schema_version=change_set.schema_version,
+                change_set_json=change_set_json,
+                change_set_sha256=hashlib.sha256(
+                    change_set_json.encode("utf-8")
+                ).hexdigest(),
+                status=change_set.status,
+                created_at=now,
+                actor_type="planner",
+                planner_instruction=request.instruction,
+                planner_rationale_json=_canonical_json(rationale),
+                planner_provenance_json=_canonical_json(
+                    provenance.model_dump(mode="json")
+                ),
+                planner_job_id=job_id,
+            )
+            response = PlannedChangeSetRecord(
+                change_set=change_set,
+                instruction=request.instruction,
+                rationale=rationale,
+                planner_provenance=provenance,
+                job_id=job_id,
+            )
+            response_json = _canonical_json(response.model_dump(mode="json"))
+            unit_of_work.idempotency.add(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=response_json,
+                created_at=now,
+            )
+            return response
+
+    def _change_plan_with_provider(
+        self,
+        *,
+        request: PlanDesignChangeSetRequest,
+        current_spec: WeaponConceptSpec,
+        base_graph: ModuleGraph,
+        module_catalog: list[dict[str, str]],
+    ) -> tuple[
+        ConceptPlannerProvider,
+        ConceptChangePlan,
+        bool,
+        list[str],
+        Optional[ConceptPlannerProvider],
+    ]:
+        provider = (
+            self.deterministic_planner
+            if request.generator in {"deterministic_rules", "deterministic_template"}
+            else self.planner
+        )
+        registry_module_ids = {item["module_id"] for item in module_catalog}
+        try:
+            plan = provider.plan_change_set(
+                instruction=request.instruction,
+                current_spec=current_spec,
+                base_graph=base_graph,
+                module_catalog=module_catalog,
+                selected_node_id=request.selected_node_id,
+                selected_module_id=request.selected_module_id,
+            )
+            _validate_change_plan(
+                plan,
+                current_spec=current_spec,
+                base_graph=base_graph,
+                module_catalog=module_catalog,
+                registry_module_ids=registry_module_ids,
+            )
+            return provider, plan, False, [], None
+        except (ConceptPlannerError, ConceptChangeSetError, ValidationError) as exc:
+            if request.generator == "auto" and provider.provider_type != "deterministic":
+                warning = _change_planner_warning(exc)
+                try:
+                    plan = self.deterministic_planner.plan_change_set(
+                        instruction=request.instruction,
+                        current_spec=current_spec,
+                        base_graph=base_graph,
+                        module_catalog=module_catalog,
+                        selected_node_id=request.selected_node_id,
+                        selected_module_id=request.selected_module_id,
+                    )
+                    _validate_change_plan(
+                        plan,
+                        current_spec=current_spec,
+                        base_graph=base_graph,
+                        module_catalog=module_catalog,
+                        registry_module_ids=registry_module_ids,
+                    )
+                except (
+                    ConceptPlannerError,
+                    ConceptChangeSetError,
+                    ValidationError,
+                ) as fallback_error:
+                    raise _change_planner_error(fallback_error) from fallback_error
+                return self.deterministic_planner, plan, True, [warning], provider
+            raise _change_planner_error(exc) from exc
 
     def propose(
         self,
@@ -165,6 +411,29 @@ class ConceptChangeSetService:
                             else None
                         ),
                         status=str(row["status"]),
+                        actor_type=str(row["actor_type"]),
+                        planner_instruction=(
+                            str(row["planner_instruction"])
+                            if row["planner_instruction"] is not None
+                            else None
+                        ),
+                        planner_rationale=(
+                            json.loads(row["planner_rationale_json"])
+                            if row["planner_rationale_json"] is not None
+                            else []
+                        ),
+                        planner_provenance=(
+                            ConceptPlannerProvenance.model_validate_json(
+                                row["planner_provenance_json"]
+                            )
+                            if row["planner_provenance_json"] is not None
+                            else None
+                        ),
+                        planner_job_id=(
+                            str(row["planner_job_id"])
+                            if row["planner_job_id"] is not None
+                            else None
+                        ),
                         preview_sha256=(
                             str(row["preview_sha256"])
                             if row["preview_sha256"] is not None
@@ -215,6 +484,51 @@ class ConceptChangeSetService:
                 diagnostic_json=_canonical_json(diagnostic.model_dump(mode="json")),
                 updated_at=now,
             )
+
+    def reject(self, change_set_id: str, idempotency_key: str) -> DesignChangeSet:
+        scope = f"POST /api/v1/change-sets/{change_set_id}:reject"
+        request_hash = _hash_json({"change_set_id": change_set_id})
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            replay = unit_of_work.idempotency.get(scope, idempotency_key)
+            if replay is not None:
+                if replay.request_hash != request_hash:
+                    raise ConceptChangeSetIdempotencyConflict(
+                        "Idempotency-Key was reused with different reject input."
+                    )
+                return DesignChangeSet.model_validate_json(replay.response_json)
+            row = unit_of_work.change_sets.get(change_set_id)
+            if row is None:
+                raise ConceptChangeSetError("CHANGE_SET_NOT_FOUND", "DesignChangeSet not found.")
+            if row["status"] not in {"proposed", "previewed"}:
+                raise ConceptChangeSetError(
+                    "CHANGE_SET_STATE_CONFLICT",
+                    f"Cannot reject a {row['status']} DesignChangeSet.",
+                )
+            current = DesignChangeSet.model_validate_json(row["change_set_json"])
+            rejected = current.model_copy(update={"status": "rejected"})
+            now = _utc_now()
+            diagnostic = _change_set_diagnostic(
+                rejected,
+                code="CHANGE_SET_DISCARDED",
+                message="User discarded the ghost preview before confirmation.",
+                stage="preview",
+                recorded_at=now,
+            )
+            response_json = _canonical_json(rejected.model_dump(mode="json"))
+            unit_of_work.change_sets.mark_rejected(
+                change_set_id,
+                change_set_json=response_json,
+                diagnostic_json=_canonical_json(diagnostic.model_dump(mode="json")),
+                updated_at=now,
+            )
+            unit_of_work.idempotency.add(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=response_json,
+                created_at=now,
+            )
+            return rejected
 
     def preview(
         self,
@@ -455,6 +769,240 @@ class ConceptChangeSetService:
                 updated_at=now,
             )
             return True
+
+
+def _change_set_from_plan(
+    plan: ConceptChangePlan,
+    *,
+    project_id: str,
+    version_id: str,
+    base_graph: ModuleGraph,
+) -> DesignChangeSet:
+    suffix = uuid.uuid4().hex[:12]
+    protected_node_ids = list(
+        dict.fromkeys(
+            [
+                base_graph.root_node_id,
+                *(node.node_id for node in base_graph.nodes if node.locked),
+            ]
+        )
+    )
+    operations = [
+        DesignChangeOperation(
+            operation_id=f"op_plan_{suffix}_{index}",
+            op=item.op,
+            node_id=item.node_id,
+            module_id=item.module_id,
+            path=item.path,
+            value=item.value,
+            mirror_axis=item.mirror_axis,
+        )
+        for index, item in enumerate(plan.operations, start=1)
+    ]
+    return DesignChangeSet(
+        change_set_id=f"change_plan_{suffix}",
+        project_id=project_id,
+        base_version_id=version_id,
+        summary=plan.summary,
+        operations=operations,
+        protected_node_ids=protected_node_ids,
+        status="proposed",
+    )
+
+
+def _validate_planner_context(
+    request: PlanDesignChangeSetRequest,
+    *,
+    base_graph: ModuleGraph,
+    registry_module_ids: set[str],
+) -> None:
+    node_ids = {node.node_id for node in base_graph.nodes}
+    if request.selected_node_id and request.selected_node_id not in node_ids:
+        raise ConceptChangeSetError(
+            "INVALID_REQUEST",
+            f"Selected node does not exist in the base graph: {request.selected_node_id}",
+        )
+    if request.selected_module_id and request.selected_module_id not in registry_module_ids:
+        raise ConceptChangeSetError(
+            "INVALID_REQUEST",
+            f"Selected module is not registered for the project Profile: {request.selected_module_id}",
+        )
+
+
+def _validate_change_plan(
+    plan: ConceptChangePlan,
+    *,
+    current_spec: WeaponConceptSpec,
+    base_graph: ModuleGraph,
+    module_catalog: list[dict[str, str]],
+    registry_module_ids: set[str],
+) -> None:
+    nodes = {node.node_id: node for node in base_graph.nodes}
+    module_categories = {
+        item["module_id"]: item["category"] for item in module_catalog
+    }
+    seen_targets: set[tuple[str, str]] = set()
+    current_spec_payload = current_spec.model_dump(mode="json")
+    allowed_style_paths = {
+        "style.keywords",
+        "style.palette",
+        "style.detail_density",
+    }
+    allowed_parameter_paths = {
+        "proportions.overall_length_mm",
+        "proportions.body_height_mm",
+        "proportions.grip_angle_deg",
+    }
+    for operation in plan.operations:
+        target_key = operation.path or operation.node_id or ""
+        signature = (operation.op, target_key)
+        if signature in seen_targets:
+            raise ConceptChangeSetError(
+                "PLANNER_BAD_OUTPUT",
+                f"Planner returned duplicate operations for {operation.op}:{target_key}.",
+            )
+        seen_targets.add(signature)
+        if operation.op in {"replace_module", "set_mirror"}:
+            node = nodes.get(operation.node_id or "")
+            if (
+                node is None
+                or node.node_id == base_graph.root_node_id
+                or node.locked
+            ):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner target must be an editable non-root node: {operation.node_id}",
+                )
+            if operation.op == "set_mirror" and operation.mirror_axis == node.mirror_axis:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner mirror operation is a no-op for {node.node_id}.",
+                )
+        if operation.op == "replace_module":
+            module_id = operation.module_id or ""
+            if module_id not in registry_module_ids:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner referenced an unregistered module: {module_id}",
+                )
+            node = nodes[operation.node_id or ""]
+            if node.module_id == module_id:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner replacement is a no-op for {node.node_id}.",
+                )
+            if module_categories.get(node.module_id) != module_categories.get(module_id):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    "Planner replacement must use a registered module from the same category.",
+                )
+        elif operation.op == "set_style":
+            if operation.path not in allowed_style_paths:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner used an unsupported style path: {operation.path}",
+                )
+            section, key = operation.path.split(".")
+            current_value = current_spec_payload[section][key]
+            if operation.value == current_value:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner style operation is a no-op: {operation.path}",
+                )
+            if key == "detail_density" and not (
+                isinstance(operation.value, (int, float))
+                and not isinstance(operation.value, bool)
+                and 0 <= float(operation.value) <= 1
+            ):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", "style.detail_density must be inside [0, 1]."
+                )
+            if key in {"keywords", "palette"} and not (
+                isinstance(operation.value, list)
+                and operation.value
+                and all(isinstance(value, str) and value for value in operation.value)
+            ):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", f"{operation.path} must be a non-empty string list."
+                )
+            if key == "keywords" and isinstance(operation.value, list) and len(
+                operation.value
+            ) > 12:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", "style.keywords cannot exceed 12 values."
+                )
+            if key == "palette" and isinstance(operation.value, list) and len(
+                operation.value
+            ) > 8:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", "style.palette cannot exceed 8 values."
+                )
+        elif operation.op == "set_parameter":
+            if operation.path not in allowed_parameter_paths:
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner used an unsupported parameter path: {operation.path}",
+                )
+            if not isinstance(operation.value, (int, float)) or isinstance(
+                operation.value, bool
+            ):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", f"{operation.path} must be numeric."
+                )
+            section, key = operation.path.split(".")
+            if float(operation.value) == float(current_spec_payload[section][key]):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner parameter operation is a no-op: {operation.path}",
+                )
+            numeric_value = float(operation.value)
+            if key in {"overall_length_mm", "body_height_mm"} and not (
+                0 < numeric_value <= 1000
+            ):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", f"{operation.path} must be inside (0, 1000]."
+                )
+            if key == "grip_angle_deg" and not (-45 <= numeric_value <= 45):
+                raise ConceptChangeSetError(
+                    "PLANNER_BAD_OUTPUT", "proportions.grip_angle_deg must be inside [-45, 45]."
+                )
+
+
+def _change_planner_module_catalog(
+    unit_of_work: SQLiteUnitOfWork, *, profile_id: str
+) -> list[dict[str, str]]:
+    profile = unit_of_work.domain_profiles.get_active(profile_id)
+    if profile is None:
+        raise ConceptChangeSetError(
+            "DOMAIN_PROFILE_NOT_FOUND", "The project domain profile is unavailable."
+        )
+    return [
+        {"module_id": str(row["module_id"]), "category": str(row["category"])}
+        for row in unit_of_work.modules.list_manifests(
+            pack_id=str(profile["pack_id"]), limit=500
+        )
+    ]
+
+
+def _change_planner_error(
+    exc: ConceptPlannerError | ConceptChangeSetError | ValidationError,
+) -> ConceptChangeSetError:
+    if isinstance(exc, ConceptChangeSetError):
+        return exc
+    if isinstance(exc, ConceptPlannerError):
+        return ConceptChangeSetError(exc.code, str(exc))
+    return ConceptChangeSetError(
+        "PLANNER_BAD_OUTPUT",
+        f"Change Planner output failed validation: {exc.errors()[0]['msg']}",
+    )
+
+
+def _change_planner_warning(
+    exc: ConceptPlannerError | ConceptChangeSetError | ValidationError,
+) -> str:
+    if isinstance(exc, (ConceptPlannerError, ConceptChangeSetError)):
+        return f"{exc.code}: {exc}"
+    return f"PLANNER_BAD_OUTPUT: {exc.errors()[0]['msg']}"
 
 
 def _apply_change_set(

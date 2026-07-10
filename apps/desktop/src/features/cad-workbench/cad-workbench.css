@@ -282,6 +282,7 @@
 .assistant-panel {
   flex: 1;
   min-height: 225px;
+  overflow-y: auto;
 }
 
 .cad-panel-title {
@@ -299,6 +300,29 @@
 .assistant-state {
   color: #6fd18a;
   font-size: 9px;
+}
+
+.assistant-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+
+.assistant-mode-tabs button {
+  padding: 5px;
+  border: 1px solid #304156;
+  border-radius: 5px;
+  color: #8091a7;
+  background: #111a25;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.assistant-mode-tabs button.active {
+  color: #e9f5ff;
+  border-color: #238ae8;
+  background: #173656;
 }
 
 .assistant-message {
@@ -347,6 +371,56 @@
   color: #71849a;
   font-size: 8px;
   line-height: 1.4;
+}
+
+.change-preview-card {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #238fc0;
+  border-radius: 7px;
+  background: linear-gradient(145deg, rgb(15 65 85 / 78%), rgb(16 31 43 / 92%));
+}
+
+.change-preview-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.change-preview-card strong { color: #70dcff; font-size: 10px; }
+.change-preview-card span,
+.change-preview-card small { color: #9fb3c6; font-size: 8px; line-height: 1.4; }
+
+.change-preview-card ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 15px;
+  color: #d6e6f2;
+  font-size: 8px;
+}
+
+.change-preview-actions {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 5px;
+}
+
+.change-preview-actions button {
+  padding: 6px 4px;
+  border: 1px solid #405269;
+  border-radius: 5px;
+  color: #b8c8d7;
+  background: #1a2633;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.change-preview-actions button.confirm {
+  color: #fff;
+  border-color: #1f97cd;
+  background: #0c74aa;
 }
 
 .primary-action {
@@ -503,6 +577,22 @@
   top: 9px;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.ghost-preview-badge {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  left: 14px;
+  padding: 6px 9px;
+  border: 1px solid #27b8e8;
+  border-radius: 999px;
+  color: #c9f5ff;
+  background: rgb(8 75 101 / 88%);
+  box-shadow: 0 8px 24px rgb(0 144 200 / 22%);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 .viewport-viewbar {
@@ -723,6 +813,11 @@
 .timeline-item.status-rejected,
 .timeline-item.status-stale {
   border-color: #7e493f;
+}
+
+.timeline-planner-meta {
+  color: #67c8ea;
+  white-space: normal;
 }
 
 .timeline-diagnostic {

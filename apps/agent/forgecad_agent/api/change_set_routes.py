@@ -14,6 +14,8 @@ from forgecad_agent.application.concept_models import (
     ChangeSetConfirmResponse,
     ChangeSetPreviewResponse,
     ChangeSetTimelineResponse,
+    PlanDesignChangeSetRequest,
+    PlannedChangeSetRecord,
     ProposeChangeSetRequest,
 )
 from forgecad_agent.domain.concepts.models import ChangeOperationType, DesignChangeSet
@@ -45,6 +47,27 @@ def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
                 status=status,
                 operation=operation,
             )
+        except ConceptChangeSetError as exc:
+            return _change_set_error_response(exc)
+
+    @router.post(
+        "/versions/{version_id}/change-sets:plan",
+        response_model=PlannedChangeSetRecord,
+        status_code=201,
+    )
+    def plan_change_set(
+        version_id: str,
+        request: PlanDesignChangeSetRequest,
+        idempotency_key: Annotated[
+            Optional[str],
+            Header(alias="Idempotency-Key"),
+        ] = None,
+    ) -> Union[PlannedChangeSetRecord, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        try:
+            return service.plan(version_id, request, key)
+        except ConceptChangeSetIdempotencyConflict as exc:
+            return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
         except ConceptChangeSetError as exc:
             return _change_set_error_response(exc)
 
@@ -90,6 +113,25 @@ def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
             return _change_set_error_response(exc)
 
     @router.post(
+        "/change-sets/{change_set_id}:reject",
+        response_model=DesignChangeSet,
+    )
+    def reject_change_set(
+        change_set_id: str,
+        idempotency_key: Annotated[
+            Optional[str],
+            Header(alias="Idempotency-Key"),
+        ] = None,
+    ) -> Union[DesignChangeSet, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        try:
+            return service.reject(change_set_id, key)
+        except ConceptChangeSetIdempotencyConflict as exc:
+            return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
+        except ConceptChangeSetError as exc:
+            return _change_set_error_response(exc)
+
+    @router.post(
         "/change-sets/{change_set_id}:confirm",
         response_model=ChangeSetConfirmResponse,
     )
@@ -132,21 +174,43 @@ def _change_set_error_response(exc: ConceptChangeSetError) -> JSONResponse:
         "CHANGE_SET_STALE",
     }:
         status_code = 409
-    elif exc.code in {"INVALID_REQUEST", "INVALID_CURSOR", "CHANGE_SET_INVALID"}:
+    elif exc.code in {
+        "INVALID_REQUEST",
+        "INVALID_CURSOR",
+        "CHANGE_SET_INVALID",
+        "PLANNER_NO_ACTION",
+    }:
         status_code = 400
+    elif exc.code.startswith("PLANNER_"):
+        status_code = 502
     else:
         status_code = 500
-    return _error_response(status_code, exc.code, str(exc))
+    return _error_response(
+        status_code,
+        exc.code,
+        str(exc),
+        recoverable=False if exc.code == "PLANNER_AUTH_FAILED" else None,
+    )
 
 
-def _error_response(status_code: int, code: str, message: str) -> JSONResponse:
+def _error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    *,
+    recoverable: Optional[bool] = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={
             "error": {
                 "code": code,
                 "message": message,
-                "recoverable": status_code >= 500 or status_code == 409,
+                "recoverable": (
+                    status_code >= 500 or status_code == 409
+                    if recoverable is None
+                    else recoverable
+                ),
                 "details": {},
             }
         },

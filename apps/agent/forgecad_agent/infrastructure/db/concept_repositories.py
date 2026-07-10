@@ -525,15 +525,21 @@ class ChangeSetRepository:
         change_set_sha256: str,
         status: str,
         created_at: str,
+        actor_type: str = "user",
+        planner_instruction: Optional[str] = None,
+        planner_rationale_json: Optional[str] = None,
+        planner_provenance_json: Optional[str] = None,
+        planner_job_id: Optional[str] = None,
     ) -> None:
         self.connection.execute(
             """
             INSERT INTO design_change_sets (
               change_set_id, project_id, base_version_id, result_version_id,
               schema_version, change_set_json, change_set_sha256, status,
-              created_at, updated_at
+              actor_type, planner_instruction, planner_rationale_json,
+              planner_provenance_json, planner_job_id, created_at, updated_at
             )
-            VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 change_set_id,
@@ -543,6 +549,11 @@ class ChangeSetRepository:
                 change_set_json,
                 change_set_sha256,
                 status,
+                actor_type,
+                planner_instruction,
+                planner_rationale_json,
+                planner_provenance_json,
+                planner_job_id,
                 created_at,
                 created_at,
             ),
@@ -554,6 +565,8 @@ class ChangeSetRepository:
             SELECT change_set_id, project_id, base_version_id, result_version_id,
                    schema_version, change_set_json, change_set_sha256, status,
                    preview_spec_json, preview_graph_json, preview_sha256,
+                   actor_type, planner_instruction, planner_rationale_json,
+                   planner_provenance_json, planner_job_id,
                    created_at, updated_at, confirmed_at
             FROM design_change_sets
             WHERE change_set_id = ?
@@ -588,9 +601,10 @@ class ChangeSetRepository:
                     OR lower(change_set_json) LIKE ? ESCAPE '\\'
                     OR lower(COALESCE(result_version_id, '')) LIKE ? ESCAPE '\\'
                     OR lower(COALESCE(diagnostic_json, '')) LIKE ? ESCAPE '\\'
+                    OR lower(COALESCE(planner_instruction, '')) LIKE ? ESCAPE '\\'
                 )"""
             )
-            parameters.extend((pattern, pattern, pattern, pattern))
+            parameters.extend((pattern, pattern, pattern, pattern, pattern))
         if status:
             clauses.append("status = ?")
             parameters.append(status)
@@ -610,6 +624,8 @@ class ChangeSetRepository:
                 SELECT change_set_id, project_id, base_version_id, result_version_id,
                        schema_version, change_set_json, change_set_sha256, status,
                        preview_sha256, diagnostic_json,
+                       actor_type, planner_instruction, planner_rationale_json,
+                       planner_provenance_json, planner_job_id,
                        created_at, updated_at, confirmed_at
                 FROM design_change_sets
                 WHERE {' AND '.join(clauses)}

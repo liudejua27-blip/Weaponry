@@ -23,6 +23,7 @@ type ModuleGraphViewportProps = {
   qualityGeometryRefs: NonNullable<QualityFinding['geometry_refs']>
   showConnectors: boolean
   explodeFactor: number
+  ghostPreview: boolean
   getModuleFileUrl: (moduleId: string) => string
   onSelectNode: (nodeId: string) => void
   onDropModule: (nodeId: string, moduleId: string) => void
@@ -41,6 +42,7 @@ export function ModuleGraphViewport({
   qualityGeometryRefs,
   showConnectors,
   explodeFactor,
+  ghostPreview,
   getModuleFileUrl,
   onSelectNode,
   onDropModule,
@@ -155,17 +157,26 @@ export function ModuleGraphViewport({
             const materials = sourceMaterials.map((material) => {
               const clone = material.clone()
               if ('wireframe' in clone) clone.wireframe = wireframe
+              if (ghostPreview) {
+                clone.transparent = true
+                clone.opacity = 0.58
+                clone.depthWrite = false
+              }
               if (clone instanceof THREE.MeshStandardMaterial || clone instanceof THREE.MeshPhysicalMaterial) {
                 const qualityHighlighted = qualityHighlightNodeIds.includes(node.node_id)
                 clone.emissive.set(
                   qualityHighlighted
                     ? '#b62424'
+                    : ghostPreview
+                    ? '#087ea8'
                     : node.node_id === selectedNodeId
                     ? '#1f64a8'
                     : '#000000',
                 )
                 clone.emissiveIntensity = qualityHighlighted
                   ? 0.72
+                  : ghostPreview
+                  ? 0.48
                   : node.node_id === selectedNodeId
                   ? 0.42
                   : 0
@@ -322,6 +333,7 @@ export function ModuleGraphViewport({
     focusNodeId,
     getModuleFileUrl,
     graphRecord,
+    ghostPreview,
     hiddenNodeIds,
     modules,
     onSelectNode,
@@ -341,6 +353,7 @@ export function ModuleGraphViewport({
         ref={hostRef}
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
+        data-preview-mode={ghostPreview ? 'ghost' : 'committed'}
         data-focus-node-id={focusNodeId ?? ''}
         data-quality-node-ids={qualityHighlightNodeIds.join(',')}
         data-quality-triangle-count={qualityGeometryRefs.reduce(

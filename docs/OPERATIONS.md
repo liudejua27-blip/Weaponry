@@ -161,7 +161,7 @@ npm run r5:c07-localization-gate
 npm run r5:c07-policy-gate
 ```
 
-`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module Planner Provider 边界、deterministic rules、fake OpenAI-compatible strict JSON Schema、auto/strict failure、provenance、注册模块建议和桌面 A/B/C 选择预览，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或真实 DCC round-trip。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module/Change Planner Provider 边界、deterministic rules、fake OpenAI-compatible strict JSON Schema、auto/strict failure、provenance、注册模块建议、A/B/C 选择、受限操作、ghost preview、discard/confirm、actor/provider 时间线和重启恢复，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或真实 DCC round-trip。
 
 `r3:change-set-audit-gate` 专门验证 migration 0012、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、24 条桌面加载更多和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
@@ -301,7 +301,7 @@ export WUSHEN_MIGRATIONS_DIR="$PWD/migrations"
 
 ## 4. 当前 Provider
 
-Concept Brief/Module Planner 默认使用明确标注的确定性规则，适合离线开发与回归：
+Concept Brief/Module/Change Planner 默认使用明确标注的确定性规则，适合离线开发与回归：
 
 ```bash
 export FORGECAD_CONCEPT_PLANNER_PROVIDER=deterministic_rules
@@ -327,7 +327,7 @@ export WUSHEN_LLM_MODEL=<model-name>
 export WUSHEN_LLM_API_KEY=<secret>
 ```
 
-密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。当前 Adapter 已有 fake HTTP/strict schema/safety prompt 证据；没有真实 Provider 调用证据时，不得声称 Brief ≥90% 或 AI 三方案质量达标。
+密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。当前 Adapter 已有 Brief/Variant/Change fake HTTP、strict schema 与安全提示证据；没有真实 Provider truth set 时，不得声称 Brief ≥90%、AI 修改 ≥85%、锁定保持率 ≥95% 或三方案质量达标。
 
 旧 ComfyUI 与神经 3D Provider 不进入 P0 权威模块链路。生成式图片可以作为风格参考，但不能成为 `ModuleGraph`。
 
@@ -421,7 +421,7 @@ core.side_panel_right
 → 保存为新版本
 ```
 
-### Day 5：接 AI ChangeSet
+### Day 5：使用 AI ChangeSet
 
 先只支持三类语句：
 
@@ -429,7 +429,32 @@ core.side_panel_right
 - “换一个更低的顶部附件”；
 - “增加红色装饰并保持核心外壳不变”。
 
-AI 必须返回结构化操作，先 ghost preview，再由用户确认。
+当前工作台已支持这条链路。切换“修改预览”，输入指令后只会创建 proposed ChangeSet 并显示半透明 ghost；核对操作列表与参数后，选择“确认并创建新版本”或“放弃预览”。确认前当前 Version 不变，放弃会保存 `CHANGE_SET_DISCARDED` 审计记录。
+
+直接调用 API 时，严格按以下顺序；`<change_set_id>` 来自第一步响应：
+
+```bash
+curl --fail -X POST \
+  "http://127.0.0.1:8000/api/v1/versions/<version_id>/change-sets:plan" \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: day5-plan-001' \
+  -d '{"client_request_id":"day5-plan-001","instruction":"整体长度调整为 218 mm，细节密度调整为 84%","generator":"auto"}'
+
+curl --fail -X POST \
+  "http://127.0.0.1:8000/api/v1/change-sets/<change_set_id>:preview" \
+  -H 'Idempotency-Key: day5-preview-001'
+
+# 人工核对 preview_spec、preview_graph 和操作列表后，二选一：
+curl --fail -X POST \
+  "http://127.0.0.1:8000/api/v1/change-sets/<change_set_id>:confirm" \
+  -H 'Idempotency-Key: day5-confirm-001'
+
+curl --fail -X POST \
+  "http://127.0.0.1:8000/api/v1/change-sets/<change_set_id>:reject" \
+  -H 'Idempotency-Key: day5-reject-001'
+```
+
+不得对同一 preview 同时执行 confirm 和 reject。`configured_provider` 用于真实评测，失败时不会静默降级；日常 `auto` 降级会在时间线显示 attempted provider 与 `fallback_used=true`。
 
 ### Day 6：做模型检查与导出
 
@@ -437,7 +462,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 7：桌面回归
 
-从干净临时库完整走一遍：新建 → Brief → 方案 → 替换 → ChangeSet → 检查 → 导出 → 重启恢复。
+从干净临时库完整走一遍：新建 → Brief → A/B/C → 选择 → 自然语言修改 → ghost preview → confirm/reject → 子版本 → 检查 → 导出 → 重启恢复。
 
 ## 6. P0 目标运行契约
 

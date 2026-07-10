@@ -41,6 +41,8 @@ import type {
   CreateConceptExportRequest,
   ConceptExportRecord,
   ProposeChangeSetRequest,
+  PlanDesignChangeSetRequest,
+  PlannedChangeSetRecord,
   DesignChangeSet,
   ChangeSetPreviewResponse,
   ChangeSetConfirmResponse,
@@ -262,6 +264,21 @@ export class ForgeApiClient {
     return readJson<DesignChangeSet>(response)
   }
 
+  async planChangeSet(
+    versionId: string,
+    input: PlanDesignChangeSetRequest,
+  ): Promise<PlannedChangeSetRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/change-sets:plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<PlannedChangeSetRecord>(response)
+  }
+
   async listChangeSets(
     projectId: string,
     input: {
@@ -297,6 +314,14 @@ export class ForgeApiClient {
       headers: { 'Idempotency-Key': idempotencyKey },
     })
     return readJson<ChangeSetConfirmResponse>(response)
+  }
+
+  async rejectChangeSet(changeSetId: string, idempotencyKey: string): Promise<DesignChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:reject`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<DesignChangeSet>(response)
   }
 
   async createWeapon(input: CreateWeaponRequest): Promise<CreateWeaponResponse> {

@@ -497,6 +497,15 @@
       "ChangeSetTimelineItem": {
         "additionalProperties": false,
         "properties": {
+          "actor_type": {
+            "default": "user",
+            "enum": [
+              "user",
+              "planner"
+            ],
+            "title": "Actor Type",
+            "type": "string"
+          },
           "base_version_id": {
             "title": "Base Version Id",
             "type": "string"
@@ -528,6 +537,46 @@
                 "type": "null"
               }
             ]
+          },
+          "planner_instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planner Instruction"
+          },
+          "planner_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planner Job Id"
+          },
+          "planner_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConceptPlannerProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planner_rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Planner Rationale",
+            "type": "array"
           },
           "preview_sha256": {
             "anyOf": [
@@ -4825,6 +4874,99 @@
         "title": "PatchWeaponRequest",
         "type": "object"
       },
+      "PlanDesignChangeSetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "generator": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
+            "title": "Generator",
+            "type": "string"
+          },
+          "instruction": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Instruction",
+            "type": "string"
+          },
+          "selected_module_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Module Id"
+          },
+          "selected_node_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Node Id"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "instruction"
+        ],
+        "title": "PlanDesignChangeSetRequest",
+        "type": "object"
+      },
+      "PlannedChangeSetRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "instruction": {
+            "title": "Instruction",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Rationale",
+            "type": "array"
+          }
+        },
+        "required": [
+          "change_set",
+          "instruction",
+          "planner_provenance",
+          "job_id"
+        ],
+        "title": "PlannedChangeSetRecord",
+        "type": "object"
+      },
       "ProposeChangeSetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6882,6 +7024,64 @@
         ]
       }
     },
+    "/api/v1/change-sets/{change_set_id}:reject": {
+      "post": {
+        "operationId": "reject_change_set_api_v1_change_sets__change_set_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
     "/api/v1/exports/{export_id}": {
       "get": {
         "operationId": "get_export_api_v1_exports__export_id__get",
@@ -8590,6 +8790,74 @@
           }
         },
         "summary": "Propose Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/change-sets:plan": {
+      "post": {
+        "operationId": "plan_change_set_api_v1_versions__version_id__change_sets_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanDesignChangeSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannedChangeSetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan Change Set",
         "tags": [
           "concept-change-sets"
         ]

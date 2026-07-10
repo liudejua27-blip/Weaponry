@@ -5,11 +5,13 @@ import type {
   ConceptProjectDetail,
   ConceptProjectSummary,
   ConceptVersionDetail,
+  ChangeSetPreviewResponse,
   ChangeSetTimelineItem,
   DesignBriefRecord,
   DesignVariantRecord,
   ModuleAssetRecord,
   ModuleGraphRecord,
+  PlannedChangeSetRecord,
   QualityRunRecord,
 } from '../../shared/types'
 
@@ -36,6 +38,8 @@ type ConceptWorkbenchState = {
   modules: ModuleAssetRecord[]
   variants: DesignVariantRecord[]
   brief: DesignBriefRecord | null
+  pendingChange: PlannedChangeSetRecord | null
+  pendingPreview: ChangeSetPreviewResponse | null
   loading: boolean
   error: string | null
   statusMessage: string
@@ -55,6 +59,8 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   modules: [],
   variants: [],
   brief: null,
+  pendingChange: null,
+  pendingPreview: null,
   loading: true,
   error: null,
   statusMessage: '正在读取本地 Concept 数据…',
@@ -106,6 +112,8 @@ export function useConceptWorkbench() {
         modules: moduleResponse.items ?? [],
         variants: variantResponse.items ?? [],
         brief: null,
+        pendingChange: null,
+        pendingPreview: null,
         timeline: timelineResponse.items ?? [],
         timelineNextCursor: timelineResponse.next_cursor ?? null,
         timelineLoading: false,
@@ -147,6 +155,8 @@ export function useConceptWorkbench() {
           modules: [],
           variants: [],
           brief: null,
+          pendingChange: null,
+          pendingPreview: null,
           timeline: [],
           timelineNextCursor: null,
           timelineLoading: false,
@@ -199,6 +209,8 @@ export function useConceptWorkbench() {
         graphRecord,
         qualityRun: null,
         brief: null,
+        pendingChange: null,
+        pendingPreview: null,
         loading: false,
         statusMessage: graphRecord
           ? `已切换到 V${version.version_no} · ${graphRecord.graph.nodes.length} 个节点。`
@@ -390,6 +402,136 @@ export function useConceptWorkbench() {
       return null
     }
   }, [state.graphRecord, state.project, state.variants])
+
+  const planChange = useCallback(async (
+    instruction: string,
+    context: { selectedNodeId?: string; selectedModuleId?: string } = {},
+  ) => {
+    const project = state.project
+    const version = state.version
+    if (!project || !version?.module_graph_id) {
+      setState((current) => ({
+        ...current,
+        error: '必须先加载带有效 ModuleGraph 的 Concept Version。',
+      }))
+      return null
+    }
+    const suffix = Date.now().toString(36)
+    const clientRequestId = `desktop-change-plan-${suffix}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在规划受限 DesignChangeSet 并执行 ghost preview…',
+    }))
+    try {
+      const planned = await forgeApi.planChangeSet(version.version_id, {
+        client_request_id: clientRequestId,
+        instruction,
+        generator: 'auto',
+        selected_node_id: context.selectedNodeId || null,
+        selected_module_id: context.selectedModuleId || null,
+      })
+      const preview = await forgeApi.previewChangeSet(
+        planned.change_set.change_set_id,
+        `${clientRequestId}-preview`,
+      )
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingChange: planned,
+        pendingPreview: preview,
+        graphRecord: current.graphRecord
+          ? {
+              ...current.graphRecord,
+              graph: preview.preview_graph,
+              graph_sha256: `ghost-preview:${preview.preview_sha256}`,
+            }
+          : null,
+        qualityRun: null,
+        statusMessage: `幽灵预览就绪 · ${planned.planner_provenance.generator} · ${planned.change_set.operations.length} 个操作；等待确认。`,
+      }))
+      return { planned, preview }
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingChange: null,
+        pendingPreview: null,
+        error: errorMessage(caught),
+        statusMessage: '自然语言 Change Planner 或 ghost preview 失败。',
+      }))
+      return null
+    }
+  }, [state.project, state.version])
+
+  const confirmPlannedChange = useCallback(async () => {
+    const project = state.project
+    const pending = state.pendingChange
+    if (!project || !pending) return null
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在确认 ghost preview 并创建不可变子版本…',
+    }))
+    try {
+      const confirmed = await forgeApi.confirmChangeSet(
+        pending.change_set.change_set_id,
+        `desktop-change-confirm-${suffix}`,
+      )
+      const nextVersionId = confirmed.project.current_version_id ?? undefined
+      await loadProject(project.project_id, nextVersionId)
+      setState((current) => ({
+        ...current,
+        statusMessage: `AI 修改已确认并创建新版本：${nextVersionId ?? 'unknown'}。`,
+      }))
+      return confirmed
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: 'ChangeSet 确认失败；当前版本未被覆盖。',
+      }))
+      return null
+    }
+  }, [loadProject, state.pendingChange, state.project])
+
+  const discardPlannedChange = useCallback(async () => {
+    const project = state.project
+    const version = state.version
+    const pending = state.pendingChange
+    if (!project || !version || !pending) return null
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在放弃 ghost preview…',
+    }))
+    try {
+      const rejected = await forgeApi.rejectChangeSet(
+        pending.change_set.change_set_id,
+        `desktop-change-reject-${suffix}`,
+      )
+      await loadProject(project.project_id, version.version_id)
+      setState((current) => ({
+        ...current,
+        statusMessage: '已放弃 AI 修改预览；当前版本保持不变。',
+      }))
+      return rejected
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '放弃 ChangeSet 预览失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.pendingChange, state.project, state.version])
 
   const runQualityInspection = useCallback(async () => {
     const version = state.version
@@ -648,6 +790,9 @@ export function useConceptWorkbench() {
     createExport,
     planBrief,
     selectVariant,
+    planChange,
+    confirmPlannedChange,
+    discardPlannedChange,
     runQualityInspection,
     replaceModule,
     setMirror,

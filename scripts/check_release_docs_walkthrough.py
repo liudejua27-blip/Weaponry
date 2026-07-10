@@ -2,8 +2,9 @@
 """Release docs walkthrough gate for Wushen Forge.
 
 The gate verifies that a new open-source user can find the startup, provider
-configuration, asset loop, Unity export, and release commands in committed docs,
-and that referenced npm scripts exist.
+configuration, Concept asset loop, legacy compatibility references, and release
+commands in committed docs, and that referenced npm scripts exist. QUICKSTART is
+intentionally an index into OPERATIONS rather than a duplicate legacy manual.
 """
 
 from __future__ import annotations
@@ -32,46 +33,34 @@ REQUIRED_SCRIPTS = [
     "release:packaging-readiness",
     "release:license-sbom",
     "release:gate",
+    "r4:planner-gate",
+    "agent:r4-change-planner-smoke",
+    "agent:r4-change-planner-api-smoke",
 ]
 
 DOC_REQUIREMENTS: dict[str, list[str]] = {
     "README.md": [
         "docs/QUICKSTART.md",
-        "npm run release:docs-walkthrough",
-        "npm run release:packaging-readiness",
+        "docs/OPERATIONS.md",
+        "npm run r4:planner-gate",
         "npm run release:gate",
         "虚构游戏美术资产",
         "非制造说明",
+        "不输出可用于现实制造武器的精确图纸",
     ],
     "docs/QUICKSTART.md": [
         "npm install",
         "python3 -m venv .venv",
-        ".venv/bin/pip install -e apps/agent",
-        ".venv/bin/python -m uvicorn wushen_agent.main:create_app --factory --host 127.0.0.1 --port 8000",
+        ".venv/bin/pip install -e \"apps/agent[dev]\"",
+        ".venv/bin/python -m uvicorn wushen_agent.main:create_app",
+        "--factory --host 127.0.0.1 --port 8000",
         "npm run desktop:dev",
         "VITE_FORGE_API_BASE_URL",
-        "POST /api/weapons",
-        "POST /api/weapons/{weapon_id}/patch",
-        "POST /api/weapons/{weapon_id}/generate-3d",
-        "POST /api/weapons/{weapon_id}/export-unity",
-        "GET /api/jobs/{job_id}/events",
-        "GET /api/weapons/{weapon_id}",
-        "Idempotency-Key",
-        "WUSHEN_LLM_PROVIDER=openai_compatible",
-        "WUSHEN_LLM_BASE_URL",
-        "WUSHEN_LLM_MODEL",
-        "WUSHEN_LLM_API_KEY",
-        "WUSHEN_IMAGE_PROVIDER=comfyui",
-        "WUSHEN_COMFYUI_BASE_URL",
-        "WUSHEN_COMFYUI_WORKFLOW_TEMPLATE",
-        "WUSHEN_COMFYUI_PATCH_WORKFLOW_TEMPLATE",
-        "WUSHEN_3D_PROVIDER=local_http",
-        "WUSHEN_3D_HTTP_BASE_URL",
-        "scripts/wushen_local_3d_runtime.py --backend mock",
-        "WUSHEN_UNITY_EXECUTABLE",
-        "npm run unity:preflight",
-        "npm run unity:import:gate",
-        "npm run m5:gate",
+        "OPERATIONS.md",
+        "MODULE_ASSET_GUIDE.md",
+        "npm run r2:gate",
+        "npm run r3:workbench-gate",
+        "npm run r4:planner-gate",
         "npm run release:safety-scope",
         "npm run release:secrets-files",
         "npm run release:prompt-quality",
@@ -79,9 +68,8 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "npm run release:packaging-readiness",
         "npm run release:license-sbom",
         "npm run release:gate",
-        "fictional Unity game-art assets",
-        "non-manufacturing",
-        "360-degree exhibition rig",
+        "半透明 ghost",
+        "真实模型 AI 指标",
     ],
     "docs/API.md": [
         "POST /api/weapons",

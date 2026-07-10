@@ -32,7 +32,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react'
 import { forgeApi } from '../../shared/api/forgeApi'
-import type { ModuleAssetRecord, QualityFinding } from '../../shared/types'
+import type { DesignChangeSet, ModuleAssetRecord, QualityFinding } from '../../shared/types'
 import { ModuleGraphViewport } from './ModuleGraphViewport'
 import {
   useConceptWorkbench,
@@ -45,6 +45,7 @@ type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type DrawerTab = 'components' | 'variants' | 'versions' | 'timeline'
 type Tool = 'select' | 'move' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
+type AssistantMode = 'brief' | 'change'
 
 type WeaponParameters = {
   overallLength: number
@@ -113,6 +114,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     ChangeSetTimelineFilters['operation']
   >('')
   const [chatInput, setChatInput] = useState('')
+  const [assistantMode, setAssistantMode] = useState<AssistantMode>('brief')
   const [assistantNote, setAssistantNote] = useState(
     '输入修改要求后，系统将生成结构化 DesignChangeSet 预览；确认前不会覆盖当前版本。',
   )
@@ -311,6 +313,35 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     setChatInput('')
   }
 
+  const previewChangeInstruction = async () => {
+    const instruction = chatInput.trim()
+    if (!instruction) return
+    setAssistantNote(`正在规划修改：“${instruction}”`)
+    const result = await concept.planChange(instruction, {
+      selectedNodeId: selectedNode?.node_id,
+      selectedModuleId: selectedLibraryModule?.manifest.module_id,
+    })
+    if (!result) return
+    const previewSpec = result.preview.preview_spec
+    setParameters((current) => ({
+      ...current,
+      overallLength: previewSpec.proportions.overall_length_mm,
+      bodyHeight: previewSpec.proportions.body_height_mm,
+      gripAngle: previewSpec.proportions.grip_angle_deg,
+      detailDensity: Math.round(previewSpec.style.detail_density * 100),
+    }))
+    setAssistantNote(
+      `已生成 ${result.planned.change_set.operations.length} 个受限操作；当前仅为幽灵预览。`,
+    )
+    setChatInput('')
+  }
+
+  const runAssistantAction = () => (
+    assistantMode === 'brief'
+      ? submitAssistantInstruction()
+      : previewChangeInstruction()
+  )
+
   return (
     <div className="cad-workbench" data-testid="cad-workbench">
       <header className="cad-command-bar">
@@ -410,25 +441,72 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             <div className="cad-panel-title">
               <span><Sparkle size={16} weight="fill" /> AI 设计助手</span>
               <span className="assistant-state">
-                {concept.brief?.planner_provenance.generator ?? '待输入'}
+                {concept.pendingChange?.planner_provenance.generator
+                  ?? concept.brief?.planner_provenance.generator
+                  ?? '待输入'}
               </span>
+            </div>
+            <div className="assistant-mode-tabs" aria-label="AI 设计助手模式">
+              <button
+                className={assistantMode === 'brief' ? 'active' : ''}
+                onClick={() => setAssistantMode('brief')}
+              >概念方案</button>
+              <button
+                className={assistantMode === 'change' ? 'active' : ''}
+                onClick={() => setAssistantMode('change')}
+              >修改预览</button>
             </div>
             <div className="assistant-message">{concept.error ?? assistantNote}</div>
             <div className={`concept-runtime-state ${concept.error ? 'error' : ''}`}>
               {concept.loading ? '同步中 · ' : ''}{concept.statusMessage}
             </div>
             <div className="assistant-suggestions">
-              <button onClick={() => setChatInput('寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产')}>紧凑精密</button>
-              <button onClick={() => setChatInput('修长展示轮廓、未来工业、蓝色点缀的非功能影视道具')}>延展展示</button>
+              {assistantMode === 'brief' ? <>
+                <button onClick={() => setChatInput('寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产')}>紧凑精密</button>
+                <button onClick={() => setChatInput('修长展示轮廓、未来工业、蓝色点缀的非功能影视道具')}>延展展示</button>
+              </> : <>
+                <button onClick={() => setChatInput('将选中节点替换为候选模块，整体长度调整为 218 mm，细节密度调整为 84%')}>替换并调比例</button>
+                <button onClick={() => setChatInput('整体更紧凑，增加精密细节，并使用信号蓝点缀配色')}>紧凑与配色</button>
+              </>}
             </div>
             <button
               className="secondary-action"
               disabled={!chatInput.trim() || concept.loading}
-              onClick={() => submitAssistantInstruction()}
+              onClick={() => runAssistantAction()}
             >
-              生成 A/B/C 方案
+              {assistantMode === 'brief' ? '生成 A/B/C 方案' : '生成修改预览'}
             </button>
-            <small className="planner-boundary">只引用注册 Module；当前选择是预览，ChangeSet 提交仍需确认。</small>
+            {concept.pendingChange && concept.pendingPreview && (
+              <div className="change-preview-card" data-testid="change-preview-card">
+                <div>
+                  <strong>幽灵预览 · 待确认</strong>
+                  <span>{concept.pendingChange.change_set.summary}</span>
+                </div>
+                <ul>
+                  {concept.pendingChange.change_set.operations.map((operation) => (
+                    <li key={operation.operation_id}>
+                      {formatChangeOperation(operation)}
+                    </li>
+                  ))}
+                </ul>
+                <small>
+                  {concept.pendingChange.planner_provenance.provider_id}
+                  {concept.pendingChange.planner_provenance.fallback_used ? ' · 已显式降级' : ''}
+                </small>
+                <div className="change-preview-actions">
+                  <button
+                    onClick={() => concept.discardPlannedChange()}
+                    disabled={concept.loading}
+                  >放弃预览</button>
+                  <button
+                    className="confirm"
+                    onClick={() => concept.confirmPlannedChange()}
+                    disabled={concept.loading}
+                  >确认并创建新版本</button>
+                </div>
+              </div>
+            )}
+            <small className="planner-boundary">只引用注册 Module；修改先生成 ghost preview，确认后才创建子版本。</small>
           </section>
 
           <section className="cad-panel quick-parameters">
@@ -467,10 +545,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             <input
               value={chatInput}
               onChange={(event) => setChatInput(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && submitAssistantInstruction()}
+              onKeyDown={(event) => event.key === 'Enter' && runAssistantAction()}
               placeholder="输入设计需求…"
             />
-            <button onClick={submitAssistantInstruction} aria-label="发送设计需求">
+            <button onClick={runAssistantAction} aria-label="发送设计需求">
               <PaperPlaneRight size={16} weight="fill" />
             </button>
           </div>
@@ -515,10 +593,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               qualityGeometryRefs={qualityGeometryRefs}
               showConnectors={showConnectors}
               explodeFactor={explodeFactor}
+              ghostPreview={Boolean(concept.pendingPreview)}
               getModuleFileUrl={getModuleFileUrl}
               onSelectNode={selectGraphNode}
               onDropModule={handleModuleDrop}
             />
+            {concept.pendingPreview && (
+              <div className="ghost-preview-badge" data-testid="ghost-preview-badge">
+                幽灵预览 · 尚未写入版本
+              </div>
+            )}
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
               <IconButton icon={House} label="等轴" active={cameraView === 'iso'} onClick={() => setCameraView('iso')} />
@@ -719,6 +803,13 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                             )).join(' + ')}
                             {item.result_version_id ? ` → ${item.result_version_id}` : ''}
                           </div>
+                          {item.actor_type === 'planner' ? (
+                            <div className="timeline-planner-meta" data-testid="change-set-planner-meta">
+                              planner · {item.planner_provenance?.provider_id ?? 'unknown provider'}
+                              {item.planner_provenance?.fallback_used ? ' · fallback' : ''}
+                              {item.planner_instruction ? ` · ${item.planner_instruction}` : ''}
+                            </div>
+                          ) : null}
                           {item.diagnostic ? (
                             <div className="timeline-diagnostic" data-testid="change-set-diagnostic">
                               {item.diagnostic.code} · {item.diagnostic.stage} ·{' '}
@@ -1064,6 +1155,22 @@ function DfmRow({ label, value, ok }: { label: string; value: string; ok: boolea
 function qualityStatusLabel(status?: 'passed' | 'warning' | 'failed' | 'not_run') {
   if (!status || status === 'not_run') return '未运行'
   return ({ passed: '通过', warning: '需复核', failed: '失败' } as const)[status]
+}
+
+function formatChangeOperation(operation: DesignChangeSet['operations'][number]): string {
+  if (operation.op === 'replace_module') {
+    return `替换 ${operation.node_id} → ${operation.module_id}`
+  }
+  if (operation.op === 'set_mirror') {
+    return `镜像 ${operation.node_id} → ${operation.mirror_axis}`
+  }
+  if (operation.op === 'set_parameter' || operation.op === 'set_style') {
+    const value = Array.isArray(operation.value)
+      ? operation.value.join(', ')
+      : String(operation.value)
+    return `${operation.path} → ${value}`
+  }
+  return operation.op
 }
 
 function componentIconFor(category: ModuleCategory) {

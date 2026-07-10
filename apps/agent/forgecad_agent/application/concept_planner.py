@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Optional, Protocol, Sequence
+from typing import Any, Literal, Optional, Protocol, Sequence, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -44,6 +45,18 @@ class ConceptPlannerProvider(Protocol):
         base_graph: ModuleGraph,
         module_catalog: Sequence[dict[str, str]],
     ) -> list["ConceptVariantPlan"]:
+        ...
+
+    def plan_change_set(
+        self,
+        *,
+        instruction: str,
+        current_spec: WeaponConceptSpec,
+        base_graph: ModuleGraph,
+        module_catalog: Sequence[dict[str, str]],
+        selected_node_id: Optional[str],
+        selected_module_id: Optional[str],
+    ) -> "ConceptChangePlan":
         ...
 
 
@@ -87,6 +100,34 @@ class ConceptVariantPlanBatch(_StrictPlannerModel):
         if sorted(item.rank for item in self.variants) != [1, 2, 3]:
             raise ValueError("variant ranks must be exactly 1, 2, 3")
         return self
+
+
+class ConceptChangeOperationPlan(_StrictPlannerModel):
+    op: Literal["replace_module", "set_mirror", "set_style", "set_parameter"]
+    node_id: Optional[str]
+    module_id: Optional[str]
+    path: Optional[str]
+    value: Optional[Union[float, str, list[str]]]
+    mirror_axis: Optional[Literal["none", "x", "y", "z"]]
+    rationale: str = Field(min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> "ConceptChangeOperationPlan":
+        if self.op == "replace_module" and (not self.node_id or not self.module_id):
+            raise ValueError("replace_module requires node_id and module_id")
+        if self.op == "set_mirror" and (not self.node_id or self.mirror_axis is None):
+            raise ValueError("set_mirror requires node_id and mirror_axis")
+        if self.op in {"set_style", "set_parameter"} and (
+            not self.path or self.value is None
+        ):
+            raise ValueError(f"{self.op} requires path and value")
+        return self
+
+
+class ConceptChangePlan(_StrictPlannerModel):
+    summary: str = Field(min_length=1, max_length=500)
+    operations: list[ConceptChangeOperationPlan] = Field(min_length=1, max_length=8)
+    rationale: list[str] = Field(min_length=1, max_length=12)
 
 
 class DeterministicConceptPlanner:
@@ -221,6 +262,280 @@ class DeterministicConceptPlanner:
             )
         return plans
 
+    def plan_change_set(
+        self,
+        *,
+        instruction: str,
+        current_spec: WeaponConceptSpec,
+        base_graph: ModuleGraph,
+        module_catalog: Sequence[dict[str, str]],
+        selected_node_id: Optional[str],
+        selected_module_id: Optional[str],
+    ) -> ConceptChangePlan:
+        normalized = instruction.lower()
+        operations: list[ConceptChangeOperationPlan] = []
+        current_spec_payload = current_spec.model_dump(mode="json")
+        graph_nodes = {node.node_id: node for node in base_graph.nodes}
+        catalog_by_id = {item["module_id"]: item for item in module_catalog}
+        current_categories = {
+            node.node_id: catalog_by_id.get(node.module_id, {}).get("category", "")
+            for node in base_graph.nodes
+        }
+
+        target_node_id = selected_node_id if selected_node_id in graph_nodes else None
+        requested_module_id = next(
+            (
+                item["module_id"]
+                for item in module_catalog
+                if item["module_id"].lower() in normalized
+            ),
+            None,
+        )
+        replacement_requested = any(
+            token in normalized
+            for token in ("替换", "换成", "换为", "候选模块", "replace")
+        )
+        if replacement_requested:
+            replacement_module_id = requested_module_id or selected_module_id
+            if (
+                target_node_id
+                and replacement_module_id
+                and graph_nodes[target_node_id].module_id != replacement_module_id
+            ):
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="replace_module",
+                        node_id=target_node_id,
+                        module_id=replacement_module_id,
+                        path=None,
+                        value=None,
+                        mirror_axis=None,
+                        rationale="使用当前选中节点与注册表候选模块形成可审计替换。",
+                    )
+                )
+            else:
+                category = _mentioned_category(normalized)
+                category_node = next(
+                    (
+                        node
+                        for node in base_graph.nodes
+                        if current_categories.get(node.node_id) == category
+                        and node.node_id != base_graph.root_node_id
+                        and not node.locked
+                    ),
+                    None,
+                )
+                alternative = next(
+                    (
+                        item["module_id"]
+                        for item in module_catalog
+                        if item["category"] == category
+                        and category_node is not None
+                        and item["module_id"] != category_node.module_id
+                    ),
+                    None,
+                )
+                if category_node is not None and alternative is not None:
+                    operations.append(
+                        ConceptChangeOperationPlan(
+                            op="replace_module",
+                            node_id=category_node.node_id,
+                            module_id=alternative,
+                            path=None,
+                            value=None,
+                            mirror_axis=None,
+                            rationale="按指令中的模块类别选择同类别注册替代件。",
+                        )
+                    )
+
+        explicit_parameters = (
+            (
+                "proportions.overall_length_mm",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:整体)?长度[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm|毫米)",
+                        r"overall\s+length[^0-9]{0,12}(\d+(?:\.\d+)?)",
+                    ),
+                ),
+                "整体长度",
+            ),
+            (
+                "proportions.body_height_mm",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:主体|机身|本体)(?:高度|高)[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm|毫米)",
+                        r"body\s+height[^0-9]{0,12}(\d+(?:\.\d+)?)",
+                    ),
+                ),
+                "主体高度",
+            ),
+            (
+                "proportions.grip_angle_deg",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:握把|握持)(?:角度|角)[^0-9-]{0,12}(-?\d+(?:\.\d+)?)\s*(?:°|度)?",
+                        r"grip\s+angle[^0-9-]{0,12}(-?\d+(?:\.\d+)?)",
+                    ),
+                ),
+                "握持角",
+            ),
+        )
+        parameter_paths = set()
+        for path, value, label in explicit_parameters:
+            if value is None:
+                continue
+            section, key = path.split(".")
+            if float(current_spec_payload[section][key]) == value:
+                continue
+            parameter_paths.add(path)
+            operations.append(
+                ConceptChangeOperationPlan(
+                    op="set_parameter",
+                    node_id=None,
+                    module_id=None,
+                    path=path,
+                    value=value,
+                    mirror_axis=None,
+                    rationale=f"将{label}设置为指令中的明确数值。",
+                )
+            )
+
+        if "proportions.overall_length_mm" not in parameter_paths:
+            current_length = current_spec.proportions.overall_length_mm
+            if any(token in normalized for token in ("更紧凑", "缩短", "shorter")):
+                next_length = max(1.0, round(current_length * 0.95, 6))
+                if next_length != current_length:
+                    operations.append(
+                        _numeric_change(
+                            "proportions.overall_length_mm",
+                            next_length,
+                            "按视觉指令将整体长度缩短 5%。",
+                        )
+                    )
+            elif any(token in normalized for token in ("更修长", "延长", "longer")):
+                next_length = min(1000.0, round(current_length * 1.05, 6))
+                if next_length != current_length:
+                    operations.append(
+                        _numeric_change(
+                            "proportions.overall_length_mm",
+                            next_length,
+                            "按视觉指令将整体长度延长 5%。",
+                        )
+                    )
+
+        detail_density = _extract_number(
+            normalized,
+            (
+                r"(?:细节密度|细节)[^0-9]{0,12}(\d+(?:\.\d+)?)\s*%",
+                r"detail\s+density[^0-9]{0,12}(\d+(?:\.\d+)?)\s*%?",
+            ),
+        )
+        if detail_density is not None:
+            next_density = round(detail_density / 100.0, 6)
+            if next_density != current_spec.style.detail_density:
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="set_style",
+                        node_id=None,
+                        module_id=None,
+                        path="style.detail_density",
+                        value=next_density,
+                        mirror_axis=None,
+                        rationale="将细节密度设置为指令中的百分比。",
+                    )
+                )
+        elif any(token in normalized for token in ("增加细节", "更精密", "更细致")):
+            next_density = min(1.0, round(current_spec.style.detail_density + 0.1, 6))
+            if next_density != current_spec.style.detail_density:
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="set_style",
+                        node_id=None,
+                        module_id=None,
+                        path="style.detail_density",
+                        value=next_density,
+                        mirror_axis=None,
+                        rationale="按视觉指令提高细节密度 0.1。",
+                    )
+                )
+        elif any(token in normalized for token in ("减少细节", "更简洁", "低细节")):
+            next_density = max(0.0, round(current_spec.style.detail_density - 0.1, 6))
+            if next_density != current_spec.style.detail_density:
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="set_style",
+                        node_id=None,
+                        module_id=None,
+                        path="style.detail_density",
+                        value=next_density,
+                        mirror_axis=None,
+                        rationale="按视觉指令降低细节密度 0.1。",
+                    )
+                )
+
+        palette_additions = _recognized_palette(normalized)
+        if palette_additions and any(
+            token in normalized for token in ("颜色", "配色", "点缀", "palette", "color")
+        ):
+            next_palette = _unique_limited(
+                list(current_spec.style.palette) + palette_additions, 8
+            )
+            if next_palette != current_spec.style.palette:
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="set_style",
+                        node_id=None,
+                        module_id=None,
+                        path="style.palette",
+                        value=next_palette,
+                        mirror_axis=None,
+                        rationale="仅使用识别出的展示配色更新概念资产调色板。",
+                    )
+                )
+
+        mirror_requested = "镜像" in normalized or "mirror" in normalized
+        if mirror_requested and target_node_id:
+            axis: Literal["none", "x", "y", "z"] = "none"
+            if not any(token in normalized for token in ("取消镜像", "清除镜像", "unmirror")):
+                axis = (
+                    "y"
+                    if re.search(r"(?:^|\s)y(?:\s|$)|y\s*轴", normalized)
+                    else "z"
+                    if re.search(r"(?:^|\s)z(?:\s|$)|z\s*轴", normalized)
+                    else "x"
+                )
+            if graph_nodes[target_node_id].mirror_axis != axis:
+                operations.append(
+                    ConceptChangeOperationPlan(
+                        op="set_mirror",
+                        node_id=target_node_id,
+                        module_id=None,
+                        path=None,
+                        value=None,
+                        mirror_axis=axis,
+                        rationale=f"对选中节点设置 {axis.upper()} 镜像状态。",
+                    )
+                )
+
+        if not operations:
+            raise ConceptPlannerError(
+                "PLANNER_NO_ACTION",
+                "Instruction did not contain a supported visual parameter, style, mirror, or registry replacement change.",
+                False,
+            )
+        return ConceptChangePlan(
+            summary=f"自然语言修改：{instruction.strip()[:420]}",
+            operations=operations,
+            rationale=[
+                "只生成 DesignChangeSet@1 支持的受限视觉操作。",
+                "锁定节点、注册模块和 Connector 约束由服务端再次校验。",
+                "确认前只生成 ghost preview，不覆盖当前版本。",
+            ],
+        )
+
 
 @dataclass(frozen=True)
 class OpenAICompatibleConceptPlannerConfig:
@@ -307,6 +622,52 @@ class OpenAICompatibleConceptPlanner:
             )
         )
         return sorted(batch.variants, key=lambda item: item.rank)
+
+    def plan_change_set(
+        self,
+        *,
+        instruction: str,
+        current_spec: WeaponConceptSpec,
+        base_graph: ModuleGraph,
+        module_catalog: Sequence[dict[str, str]],
+        selected_node_id: Optional[str],
+        selected_module_id: Optional[str],
+    ) -> ConceptChangePlan:
+        return ConceptChangePlan.model_validate(
+            self._chat(
+                schema_name="forgecad_concept_change_plan",
+                schema=ConceptChangePlan.model_json_schema(),
+                system=(
+                    "You are ForgeCAD Change Planner for fictional future weapon concepts, game "
+                    "assets, film props, and non-functional display models. Convert the request "
+                    "into a small, explainable visual DesignChangeSet plan. You may only use "
+                    "replace_module, set_mirror, set_style, or set_parameter. Reference only "
+                    "supplied node and module IDs. Never change a locked/root node. Never provide "
+                    "functional weapon engineering, mechanisms, ammunition, performance, machining, "
+                    "assembly, or manufacturing instructions. Return only the requested JSON."
+                ),
+                user=_canonical_json(
+                    {
+                        "instruction": instruction,
+                        "current_spec": current_spec.model_dump(mode="json"),
+                        "base_graph": base_graph.model_dump(mode="json"),
+                        "registered_modules": list(module_catalog),
+                        "selected_node_id": selected_node_id,
+                        "selected_module_id": selected_module_id,
+                        "allowed_style_paths": [
+                            "style.keywords",
+                            "style.palette",
+                            "style.detail_density",
+                        ],
+                        "allowed_parameter_paths": [
+                            "proportions.overall_length_mm",
+                            "proportions.body_height_mm",
+                            "proportions.grip_angle_deg",
+                        ],
+                    }
+                ),
+            )
+        )
 
     def _chat(
         self,
@@ -440,6 +801,64 @@ def planner_provenance(
         registry_module_ids=list(registry_module_ids),
         warnings=list(warnings),
     )
+
+
+def _numeric_change(
+    path: str, value: float, rationale: str
+) -> ConceptChangeOperationPlan:
+    return ConceptChangeOperationPlan(
+        op="set_parameter",
+        node_id=None,
+        module_id=None,
+        path=path,
+        value=value,
+        mirror_axis=None,
+        rationale=rationale,
+    )
+
+
+def _extract_number(text: str, patterns: Sequence[str]) -> Optional[float]:
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
+    return None
+
+
+def _mentioned_category(text: str) -> Optional[str]:
+    categories = (
+        (("前部", "前端", "front"), "front_shell"),
+        (("后部", "后端", "rear"), "rear_shell"),
+        (("握持", "握把", "grip"), "grip_shell"),
+        (("顶部", "top"), "top_accessory"),
+        (("侧部", "侧板", "side"), "side_accessory"),
+        (("下部", "lower"), "lower_structure"),
+        (("储存", "能源", "storage"), "storage_visual"),
+        (("装甲", "armor"), "armor_panel"),
+    )
+    for tokens, category in categories:
+        if any(token in text for token in tokens):
+            return category
+    return None
+
+
+def _recognized_palette(text: str) -> list[str]:
+    color_tokens = (
+        (("石墨", "graphite"), "graphite"),
+        (("枪灰", "gunmetal"), "gunmetal"),
+        (("红", "red"), "signal_red"),
+        (("蓝", "blue"), "signal_blue"),
+        (("白", "white"), "arctic_white"),
+        (("黑", "black"), "black_metal"),
+    )
+    return [
+        color
+        for tokens, color in color_tokens
+        if any(token in text for token in tokens)
+    ]
 
 
 def _unique_limited(values: Sequence[str], limit: int) -> list[str]:

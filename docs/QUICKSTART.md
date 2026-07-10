@@ -54,9 +54,16 @@ npm run r5:quality-gate
 npm run r5:c07-intersection-gate
 npm run r5:c07-localization-gate
 npm run r5:c07-policy-gate
+npm run release:safety-scope
+npm run release:secrets-files
+npm run release:prompt-quality
+npm run release:docs-walkthrough
+npm run release:packaging-readiness
+npm run release:license-sbom
+npm run release:gate
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 验证 10 模块参考 Pack、替换/吸附/镜像、Undo/Redo、爆炸视图和视口生命周期；`r4:planner-gate` 验证真实 Brief API、确定性解释、OpenAI-compatible strict JSON Schema Adapter、显式降级/provenance、注册模块建议、A/B/C 桌面生成与选择预览；它不代表真实模型 AI 指标已达标。R5 各门继续验证 GLB/OBJ/PNG/MP4、展示交付和 `weapon-concept-geometry/1.3`。Tauri GPU profiling、正式 Blender truth set、多 LOD、Change Planner 和真实 DCC round-trip 仍按计划实施。
+当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 验证 10 模块参考 Pack、替换/吸附/镜像、Undo/Redo、爆炸视图和视口生命周期；`r4:planner-gate` 验证真实 Brief API、确定性解释、OpenAI-compatible strict JSON Schema Adapter、显式降级/provenance、注册模块建议、A/B/C，以及自然语言受限 ChangeSet、半透明 ghost、discard/confirm、actor/provider 时间线与重启恢复。它不代表真实模型 AI 指标已达标。R5 各门继续验证 GLB/OBJ/PNG/MP4、展示交付和 `weapon-concept-geometry/1.3`。Tauri GPU profiling、正式 Blender truth set、多 LOD 和真实 DCC round-trip 仍按计划实施。
 
 MP4 依赖 `ffmpeg`。如果不在 PATH，可设置 `FORGECAD_FFMPEG_EXECUTABLE`。DCC 环境先运行 `npm run assets:dcc-roundtrip-preflight`；只有带 `--input-glb` 的检查返回 `dcc_roundtrip_validated` 才能声称 Blender/Assimp 往返已通过。
 

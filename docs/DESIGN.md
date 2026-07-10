@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-10）
-状态：R0 已完成，R1 当前退出边界已完成；R2 Concept 数据/API 已落地；R3 已完成真实 Project/Version/ModuleGraph/GLB 的首个桌面读取与选择切片。
+状态：R0–R3 当前纵向切片已落地；R4 已完成 Brief/Module/Change Planner、A/B/C、ghost preview 与显式确认链，真实 Provider 指标仍待评测。
 
 ## 1. 产品定义
 
@@ -39,6 +39,8 @@ ForgeCAD 通用 3D 设计平台
 - 导出 GLB、OBJ、PNG、爆炸图、转台图、Module Manifest 和检查报告。
 
 ### 2.2 P0 不承诺
+
+当前交付按未来概念、影视道具和虚构游戏美术资产处理。项目不生成现实可制造武器的精确图纸，也不输出制造尺寸、材料配方或加工流程；这项非制造边界不妨碍对武器外观、比例、模块、材质和展示细节进行精密设计。
 
 - 可发射、可承压或具有真实工作机构的武器设计；
 - 枪机、闭锁、供弹、击发、膛压、热载荷或弹道工程；
@@ -396,8 +398,10 @@ POST   /api/v1/module-graphs/{graph_id}/validate
 GET    /api/v1/module-graphs/{graph_id}
 
 POST   /api/v1/versions/{version_id}/change-sets
+POST   /api/v1/versions/{version_id}/change-sets:plan
 GET    /api/v1/projects/{project_id}/change-sets
 POST   /api/v1/change-sets/{change_set_id}:preview
+POST   /api/v1/change-sets/{change_set_id}:reject
 POST   /api/v1/change-sets/{change_set_id}:confirm
 
 POST   /api/v1/versions/{version_id}/quality-runs
@@ -430,13 +434,13 @@ GET /api/v1/projects/{project_id}/change-sets
     &operation=<ChangeOperationType>
 ```
 
-权威排序是 `updated_at DESC, change_set_id DESC`。cursor 同时绑定 query/status/operation 的 hash，不能跨过滤条件复用。preview 的合同、锁定节点、Connector remap/snap 或 Graph validation 失败会把已持久化 ChangeSet 更新为 `rejected`，并保存 code/message/stage/operation_ids/node_ids/recorded_at；confirm 前 current Version 漂移保存为 `stale` 与 confirm-stage diagnostic。HTTP 错误不是唯一审计来源。
+权威排序是 `updated_at DESC, change_set_id DESC`。cursor 同时绑定 query/status/operation 的 hash，不能跨过滤条件复用。migration `0015` 为每条记录增加 `user|planner` actor；Planner 行同时保存原始 instruction、rationale、`ConceptPlannerProvenance` 和 `concept_change_plan` Job ID。preview 的合同、锁定节点、Connector remap/snap 或 Graph validation 失败会把已持久化 ChangeSet 更新为 `rejected`，并保存 code/message/stage/operation_ids/node_ids/recorded_at；用户放弃 ghost preview 保存 `CHANGE_SET_DISCARDED`，confirm 前 current Version 漂移保存为 `stale` 与 confirm-stage diagnostic。HTTP 错误不是唯一审计来源。
 
 桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，显示规则集状态、Finding 消息和测量值；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。
 
-当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
+当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Change Planner、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选；自然语言修改也可生成受限 DesignChangeSet，但两者都必须先 preview，AI 链路以半透明青色 ghost 显示，显式确认后才创建子版本，放弃只更新审计状态。Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
 
-Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。
+Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 actor、Provider provenance、instruction、operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。
 
 ### 9.1 坐标与 Connector 吸附
 
@@ -521,9 +525,9 @@ AI 输出必须过 Schema 校验。推荐分三步：
 
 Provider 不得看到本地绝对路径或密钥；当前 provenance 只保存 provider/model、清洗后输入/输出 hash、registry ids 与 warning，不保存密钥、绝对路径或原始参考图。真实 Provider 评测时还需补延迟与 token 统计。
 
-当前 Brief/Module Planner 已采用 `ConceptPlannerProvider` 边界。默认 `deterministic_rules` 不是 AI：它只把有限视觉词汇映射到有界 Spec 参数，并生成三个可重复结构方案。配置 `openai_compatible` 后，Brief 只返回 style/proportions/symmetry patch，Module Planner 只返回 rank/name/summary、已存在 target node、`0.85–1.15` scale、注册 module ids 和 rationale；服务端固定 project/profile/id、安全假设与 Graph 不变量，不直接执行模型文本。
+当前 Brief/Module/Change Planner 共用 `ConceptPlannerProvider` 边界。默认 `deterministic_rules` 不是 AI：它只把有限视觉词汇映射到有界 Spec 参数，生成三个可重复结构方案，并将明确数值/有限相对词、展示配色、选中候选替换或镜像映射为受限操作。配置 `openai_compatible` 后，Brief 只返回 style/proportions/symmetry patch，Module Planner 只返回 rank/name/summary、已存在 target node、`0.85–1.15` scale、注册 module ids 和 rationale；Change Planner 只能返回 `replace_module/set_mirror/set_style/set_parameter`，路径白名单固定，所有 nullable 字段在 strict JSON Schema 中仍为 required。服务端固定 project/profile/id、安全假设与 Graph 不变量，不直接执行模型文本。
 
-每条 Brief/Variant 保存 `ConceptPlannerProvenance`：实际 generator/provider/model、auto fallback 前尝试的 provider/model、fallback 标记、清洗后输入/输出 SHA-256、当时 registry module ids 和 warning。migration `0014` 为旧模板行写入明确的 legacy provenance。`auto` 可以显式降级；`configured_provider` 失败必须向调用方暴露，不能用规则结果伪装 AI 成功。Variant 选择当前只切换桌面预览并更新 selected/rejected，不创建 Version；下一步 Change Planner 才通过既有 `propose → preview → confirm` 创建子版本。
+每条 Brief/Variant/Planner ChangeSet 保存 `ConceptPlannerProvenance`：实际 generator/provider/model、auto fallback 前尝试的 provider/model、fallback 标记、清洗后输入/输出 SHA-256、当时 registry module ids 和 warning。migration `0014` 为旧 Brief/Variant 模板行写入明确的 legacy provenance；migration `0015` 为 ChangeSet 增加 actor/instruction/rationale/provenance/Job。`auto` 可以显式降级；`configured_provider` 失败必须向调用方暴露，不能用规则结果伪装 AI 成功。Variant 选择只切换桌面预览并更新 selected/rejected，不创建 Version；Change Planner 则产生 proposed 记录并复用既有 `preview → confirm`，只有 confirm 才创建子版本。
 
 ## 13. 导出与交付包
 

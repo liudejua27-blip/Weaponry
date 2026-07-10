@@ -17,6 +17,7 @@ const TOP_RENDER = join(OUTPUT_DIR, 'r5-concept-top.png')
 const TURNTABLE_RENDER = join(OUTPUT_DIR, 'r5-concept-turntable-000.png')
 const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highlight.png')
 const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
+const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -433,6 +434,81 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       throw new Error('planner variants screenshot is unexpectedly small')
     }
 
+    await page.getByRole('button', { name: '修改预览', exact: true }).click()
+    await page.getByPlaceholder('输入设计需求…').fill(
+      '整体长度调整为 218 mm，细节密度调整为 84%',
+    )
+    const changePlanResponsePromise = page.waitForResponse(
+      (response) => (response.url().includes('change-sets%3Aplan')
+        || response.url().includes('change-sets:plan'))
+        && response.request().method() === 'POST',
+    )
+    const changePreviewResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':preview')
+        && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '生成修改预览', exact: true }).click()
+    const changePlanResponse = await changePlanResponsePromise
+    const changePreviewResponse = await changePreviewResponsePromise
+    if (!changePlanResponse.ok() || !changePreviewResponse.ok()) {
+      throw new Error(
+        `Change Planner API failed: plan=${changePlanResponse.status()} preview=${changePreviewResponse.status()}`,
+      )
+    }
+    const plannedChange = await changePlanResponse.json()
+    const previewedChange = await changePreviewResponse.json()
+    if (
+      plannedChange.change_set.operations?.length !== 2
+      || plannedChange.planner_provenance.generator !== 'deterministic_rules'
+      || plannedChange.planner_provenance.fallback_used
+      || previewedChange.preview_spec.proportions.overall_length_mm !== 218
+      || previewedChange.preview_spec.style.detail_density !== 0.84
+    ) {
+      throw new Error(`Change Planner response mismatch: ${JSON.stringify(plannedChange)}`)
+    }
+    await page.locator('[data-testid="change-preview-card"]').waitFor()
+    await page.locator('[data-testid="ghost-preview-badge"]').waitFor()
+    await page.locator('.weapon-viewport[data-preview-mode="ghost"]').waitFor()
+    await assertText(page.locator('[data-testid="change-preview-card"]'), [
+      '幽灵预览 · 待确认',
+      'proportions.overall_length_mm → 218',
+      'style.detail_density → 0.84',
+      '确认并创建新版本',
+    ])
+    const changePreviewParameterValues = await page.locator('.quick-parameters input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (JSON.stringify(changePreviewParameterValues) !== JSON.stringify(['218', '120', '15', '84'])) {
+      throw new Error(`Change Planner preview was not reflected in parameter UI: ${JSON.stringify(changePreviewParameterValues)}`)
+    }
+    await page.screenshot({ path: CHANGE_PLANNER_SCREENSHOT, fullPage: true })
+    if ((await stat(CHANGE_PLANNER_SCREENSHOT)).size < 20_000) {
+      throw new Error('Change Planner ghost preview screenshot is unexpectedly small')
+    }
+    const changeConfirmResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':confirm')
+        && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '确认并创建新版本', exact: true }).click()
+    const changeConfirmResponse = await changeConfirmResponsePromise
+    if (!changeConfirmResponse.ok()) {
+      throw new Error(`Change Planner confirm failed: ${changeConfirmResponse.status()}`)
+    }
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('AI 修改已确认并创建新版本'),
+      { timeout: 20_000 },
+    )
+    await page.locator('.weapon-viewport[data-preview-mode="committed"]').waitFor()
+    await assertText(page.locator('.cad-left-rail'), ['V5', 'ChangeSet: change_plan_'])
+    await page.getByRole('button', { name: '时间线', exact: true }).click()
+    await page.locator('[data-testid="change-set-planner-meta"]').first().waitFor()
+    await assertText(page.locator('[data-testid="change-set-planner-meta"]').first(), [
+      'planner · deterministic_concept_rules',
+      '整体长度调整为 218 mm',
+    ])
+
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
     await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
@@ -639,6 +715,10 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       planner_provenance_verified: true,
       planner_variant_selection_verified: true,
       planner_screenshot: PLANNER_SCREENSHOT,
+      change_planner_ghost_preview_verified: true,
+      change_planner_confirmation_verified: true,
+      change_planner_timeline_provenance_verified: true,
+      change_planner_screenshot: CHANGE_PLANNER_SCREENSHOT,
       geometry_quality_inspection_verified: true,
       quality_finding_focus_verified: true,
       quality_dual_node_highlight_verified: true,
@@ -822,8 +902,8 @@ async function performanceMetric(session, name) {
 
 async function verifyReplacement(baseUrl, projectId) {
   const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
-  if ((project.versions ?? []).length !== 4) {
-    throw new Error(`replacement and mirror should create V4, got ${(project.versions ?? []).length} versions`)
+  if ((project.versions ?? []).length !== 5) {
+    throw new Error(`replacement, mirror, and Change Planner should create V5, got ${(project.versions ?? []).length} versions`)
   }
   const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
   const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
@@ -841,6 +921,12 @@ async function verifyReplacement(baseUrl, projectId) {
   }
   if (gripNode?.mirror_axis !== 'x') {
     throw new Error(`restart lost grip mirror state: ${gripNode?.mirror_axis}`)
+  }
+  if (
+    version.spec.proportions.overall_length_mm !== 218
+    || version.spec.style.detail_density !== 0.84
+  ) {
+    throw new Error(`restart lost confirmed Change Planner parameters: ${JSON.stringify(version.spec)}`)
   }
   const rejectedTimeline = await jsonRequest(
     baseUrl,
@@ -861,6 +947,8 @@ async function verifyReplacement(baseUrl, projectId) {
     position_mm: frontNode.transform.position,
     mirrored_node_id: gripNode.node_id,
     mirror_axis: gripNode.mirror_axis,
+    planner_overall_length_mm: version.spec.proportions.overall_length_mm,
+    planner_detail_density: version.spec.style.detail_density,
     rejected_change_set_id: rejectedTimeline.items[0].change_set.change_set_id,
     rejected_diagnostic_code: diagnostic.code,
   }

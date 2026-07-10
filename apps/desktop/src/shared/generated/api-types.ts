@@ -98,6 +98,11 @@ export type ChangeSetTimelineItem = {
   "base_version_id": string
   "result_version_id"?: string | null
   "status": "proposed" | "previewed" | "confirmed" | "rejected" | "stale"
+  "actor_type"?: "user" | "planner"
+  "planner_instruction"?: string | null
+  "planner_rationale"?: Array<string>
+  "planner_provenance"?: ConceptPlannerProvenance | null
+  "planner_job_id"?: string | null
   "preview_sha256"?: string | null
   "diagnostic"?: ChangeSetDiagnostic | null
   "created_at": string
@@ -811,6 +816,22 @@ export type PatchWeaponRequest = {
   "strength"?: "subtle" | "medium" | "strong"
   "regenerate_3d"?: boolean
   "provider_id"?: string
+}
+
+export type PlanDesignChangeSetRequest = {
+  "client_request_id": string
+  "instruction": string
+  "generator"?: "auto" | "configured_provider" | "deterministic_rules" | "deterministic_template"
+  "selected_node_id"?: string | null
+  "selected_module_id"?: string | null
+}
+
+export type PlannedChangeSetRecord = {
+  "change_set": DesignChangeSet
+  "instruction": string
+  "rationale"?: Array<string>
+  "planner_provenance": ConceptPlannerProvenance
+  "job_id": string
 }
 
 export type ProposeChangeSetRequest = {
