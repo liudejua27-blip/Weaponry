@@ -24,6 +24,10 @@
           "node_id": { "$ref": "common.schema.json#/$defs/id" },
           "module_id": { "$ref": "common.schema.json#/$defs/id" },
           "edge_id": { "$ref": "common.schema.json#/$defs/id" },
+          "from_node_id": { "$ref": "common.schema.json#/$defs/id" },
+          "from_connector_id": { "$ref": "common.schema.json#/$defs/id" },
+          "to_node_id": { "$ref": "common.schema.json#/$defs/id" },
+          "to_connector_id": { "$ref": "common.schema.json#/$defs/id" },
           "path": { "type": "string", "minLength": 1 },
           "value": {},
           "transform": { "$ref": "common.schema.json#/$defs/transform" }

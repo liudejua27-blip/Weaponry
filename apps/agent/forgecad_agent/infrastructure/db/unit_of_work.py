@@ -7,6 +7,7 @@ from typing import Optional, Type
 from .connection import SQLiteConnectionFactory
 from .concept_repositories import (
     ConceptAssetRepository,
+    ChangeSetRepository,
     ConceptProjectRepository,
     DomainProfileRepository,
     ModuleRepository,
@@ -28,6 +29,7 @@ class SQLiteUnitOfWork:
         self.domain_profiles: DomainProfileRepository
         self.concept_assets: ConceptAssetRepository
         self.modules: ModuleRepository
+        self.change_sets: ChangeSetRepository
 
     def __enter__(self) -> "SQLiteUnitOfWork":
         connection = self.connection_factory.connect()
@@ -40,6 +42,7 @@ class SQLiteUnitOfWork:
         self.domain_profiles = DomainProfileRepository(connection)
         self.concept_assets = ConceptAssetRepository(connection)
         self.modules = ModuleRepository(connection)
+        self.change_sets = ChangeSetRepository(connection)
         return self
 
     def __exit__(

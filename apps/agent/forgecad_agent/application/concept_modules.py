@@ -191,7 +191,7 @@ class ConceptModuleService:
                 )
             profile_pack_id = str(profile["pack_id"])
 
-            issues = _validate_registered_graph(
+            issues = validate_registered_graph(
                 unit_of_work,
                 graph=request.graph,
                 profile_pack_id=profile_pack_id,
@@ -211,6 +211,7 @@ class ConceptModuleService:
                     unit_of_work.modules.add_graph(
                         graph_id=graph_id,
                         project_id=request.graph.project_id,
+                        version_id=None,
                         root_node_id=request.graph.root_node_id,
                         schema_version=request.graph.schema_version,
                         graph_json=graph_json,
@@ -261,7 +262,7 @@ class ConceptModuleService:
             )
 
 
-def _validate_registered_graph(
+def validate_registered_graph(
     unit_of_work: SQLiteUnitOfWork,
     *,
     graph: ModuleGraph,

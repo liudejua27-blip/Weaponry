@@ -8,6 +8,7 @@ from forgecad_agent.domain.concepts.models import (
     ConceptConstraints,
     ConceptProportions,
     ConceptStyle,
+    DesignChangeSet,
     DesignDomainProfile,
     IntendedUse,
     ModuleAssetManifest,
@@ -47,6 +48,7 @@ class AppendConceptVersionRequest(StrictApiModel):
     parent_version_id: str
     summary: str = Field(min_length=1, max_length=500)
     spec: WeaponConceptSpec
+    module_graph_id: Optional[str] = None
 
 
 class ConceptVersionSummary(StrictApiModel):
@@ -135,3 +137,21 @@ class ModuleGraphRecord(StrictApiModel):
     validation_status: str
     created_at: str
     updated_at: str
+
+
+class ProposeChangeSetRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    change_set: "DesignChangeSet"
+
+
+class ChangeSetPreviewResponse(StrictApiModel):
+    change_set: "DesignChangeSet"
+    preview_spec: WeaponConceptSpec
+    preview_graph: ModuleGraph
+    preview_sha256: str
+    issues: List[ModuleGraphValidationIssue] = Field(default_factory=list)
+
+
+class ChangeSetConfirmResponse(StrictApiModel):
+    change_set: "DesignChangeSet"
+    project: ConceptProjectDetail

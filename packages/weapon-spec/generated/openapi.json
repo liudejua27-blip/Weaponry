@@ -10,6 +10,17 @@
             "title": "Client Request Id",
             "type": "string"
           },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
           "parent_version_id": {
             "title": "Parent Version Id",
             "type": "string"
@@ -379,6 +390,56 @@
           "mime_type"
         ],
         "title": "AssetUploadResponse",
+        "type": "object"
+      },
+      "ChangeSetConfirmResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ConceptProjectDetail"
+          }
+        },
+        "required": [
+          "change_set",
+          "project"
+        ],
+        "title": "ChangeSetConfirmResponse",
+        "type": "object"
+      },
+      "ChangeSetPreviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "preview_graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "preview_sha256": {
+            "title": "Preview Sha256",
+            "type": "string"
+          },
+          "preview_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          }
+        },
+        "required": [
+          "change_set",
+          "preview_spec",
+          "preview_graph",
+          "preview_sha256"
+        ],
+        "title": "ChangeSetPreviewResponse",
         "type": "object"
       },
       "ConceptConstraints": {
@@ -1422,6 +1483,213 @@
           "created_at"
         ],
         "title": "CreativeWeaponGraphPayload",
+        "type": "object"
+      },
+      "DesignChangeOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "edge_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Id"
+          },
+          "from_connector_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Connector Id"
+          },
+          "from_node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Node Id"
+          },
+          "module_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "op": {
+            "enum": [
+              "add_module",
+              "remove_module",
+              "replace_module",
+              "connect",
+              "disconnect",
+              "set_transform",
+              "set_style",
+              "set_parameter"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "operation_id": {
+            "pattern": "^op_[A-Za-z0-9_\\-]+$",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "to_connector_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Connector Id"
+          },
+          "to_node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Node Id"
+          },
+          "transform": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Transform"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "operation_id",
+          "op"
+        ],
+        "title": "DesignChangeOperation",
+        "type": "object"
+      },
+      "DesignChangeSet": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "change_set_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Change Set Id",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/DesignChangeOperation"
+            },
+            "minItems": 1,
+            "title": "Operations",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "protected_node_ids": {
+            "items": {
+              "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "title": "Protected Node Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DesignChangeSet@1",
+            "default": "DesignChangeSet@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "previewed",
+              "confirmed",
+              "rejected",
+              "stale"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_set_id",
+          "project_id",
+          "base_version_id",
+          "summary",
+          "operations"
+        ],
+        "title": "DesignChangeSet",
         "type": "object"
       },
       "DesignDomainProfile": {
@@ -3041,6 +3309,26 @@
           "instruction"
         ],
         "title": "PatchWeaponRequest",
+        "type": "object"
+      },
+      "ProposeChangeSetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "change_set"
+        ],
+        "title": "ProposeChangeSetRequest",
         "type": "object"
       },
       "ProviderSettings": {
@@ -4757,6 +5045,122 @@
         "summary": "Runtime Work Once"
       }
     },
+    "/api/v1/change-sets/{change_set_id}:confirm": {
+      "post": {
+        "operationId": "confirm_change_set_api_v1_change_sets__change_set_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/change-sets/{change_set_id}:preview": {
+      "post": {
+        "operationId": "preview_change_set_api_v1_change_sets__change_set_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
     "/api/v1/module-assets": {
       "get": {
         "operationId": "list_module_assets_api_v1_module_assets_get",
@@ -5185,6 +5589,74 @@
         "summary": "Append Project Version",
         "tags": [
           "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/change-sets": {
+      "post": {
+        "operationId": "propose_change_set_api_v1_versions__version_id__change_sets_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeChangeSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Change Set",
+        "tags": [
+          "concept-change-sets"
         ]
       }
     },

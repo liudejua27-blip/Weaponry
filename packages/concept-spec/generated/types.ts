@@ -33,6 +33,10 @@ export type DesignChangeSet = {
   "node_id"?: Id
   "module_id"?: Id
   "edge_id"?: Id
+  "from_node_id"?: Id
+  "from_connector_id"?: Id
+  "to_node_id"?: Id
+  "to_connector_id"?: Id
   "path"?: string
   "value"?: unknown
   "transform"?: Transform

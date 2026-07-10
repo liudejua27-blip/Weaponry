@@ -128,7 +128,7 @@ class ConceptProjectService:
                 version_id=version_id,
                 updated_at=now,
             )
-            response = _project_detail(
+            response = project_detail_from_uow(
                 unit_of_work,
                 project_id=project_id,
             )
@@ -149,7 +149,7 @@ class ConceptProjectService:
 
     def get_project(self, project_id: str) -> ConceptProjectDetail:
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
-            return _project_detail(unit_of_work, project_id=project_id)
+            return project_detail_from_uow(unit_of_work, project_id=project_id)
 
     def append_version(
         self,
@@ -190,6 +190,18 @@ class ConceptProjectService:
                     "INVALID_REQUEST",
                     "WeaponConceptSpec profile_id cannot change inside a project.",
                 )
+            if request.module_graph_id:
+                graph = unit_of_work.modules.get_graph(request.module_graph_id)
+                if graph is None or graph["project_id"] != project_id:
+                    raise ConceptProjectError(
+                        "MODULE_GRAPH_NOT_FOUND",
+                        "Validated ModuleGraph was not found in this project.",
+                    )
+                if graph["validation_status"] != "valid":
+                    raise ConceptProjectError(
+                        "INVALID_REQUEST",
+                        "Only a valid ModuleGraph can be attached to a version.",
+                    )
 
             now = _utc_now()
             version_id = _new_id("ver")
@@ -204,7 +216,7 @@ class ConceptProjectService:
                 spec_schema_version=request.spec.schema_version,
                 spec_json=spec_json,
                 spec_sha256=_sha256_text(spec_json),
-                module_graph_id=None,
+                module_graph_id=request.module_graph_id,
                 change_set_id=None,
                 created_at=now,
             )
@@ -213,7 +225,13 @@ class ConceptProjectService:
                 version_id=version_id,
                 updated_at=now,
             )
-            response = _project_detail(unit_of_work, project_id=project_id)
+            if request.module_graph_id:
+                unit_of_work.modules.bind_graph_to_version(
+                    request.module_graph_id,
+                    version_id,
+                    updated_at=now,
+                )
+            response = project_detail_from_uow(unit_of_work, project_id=project_id)
             unit_of_work.idempotency.add(
                 scope=scope,
                 key=idempotency_key,
@@ -254,7 +272,7 @@ def default_weapon_concept_profile() -> DesignDomainProfile:
     )
 
 
-def _project_detail(
+def project_detail_from_uow(
     unit_of_work: SQLiteUnitOfWork,
     *,
     project_id: str,

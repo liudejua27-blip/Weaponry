@@ -81,7 +81,12 @@ def _require_idempotency_key(value: Optional[str]) -> str:
 
 
 def _concept_error_response(exc: ConceptProjectError) -> JSONResponse:
-    if exc.code in {"PROJECT_NOT_FOUND", "VERSION_NOT_FOUND", "DOMAIN_PROFILE_NOT_FOUND"}:
+    if exc.code in {
+        "PROJECT_NOT_FOUND",
+        "VERSION_NOT_FOUND",
+        "DOMAIN_PROFILE_NOT_FOUND",
+        "MODULE_GRAPH_NOT_FOUND",
+    }:
         status_code = 404
     elif exc.code == "INVALID_REQUEST":
         status_code = 400

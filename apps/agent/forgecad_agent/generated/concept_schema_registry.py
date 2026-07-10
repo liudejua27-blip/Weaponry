@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 SCHEMA_HASHES: Dict[str, str] = {
   "common.schema.json": "5b22b12248fc819fcde369e10298fb62c6abf6723ab5fb4105188e90602f0727",
-  "design-change-set.schema.json": "0d65900cac05f55ec487796dc432ebceba7096e5460dbf8cb52afb4dcc12bce9",
+  "design-change-set.schema.json": "8b18274fd49404fd63fd97de5fbcbc335a50ee5fcd681246f868465c029fb620",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "model-quality-report.schema.json": "f9d6ab460ab015fd300be40dd8027481c7d5f366885f66f660eacdaef4cd3ce3",
@@ -107,6 +107,12 @@ SCHEMAS: Dict[str, Dict[str, Any]] = {
             "edge_id": {
               "$ref": "common.schema.json#/$defs/id"
             },
+            "from_connector_id": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "from_node_id": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
             "module_id": {
               "$ref": "common.schema.json#/$defs/id"
             },
@@ -133,6 +139,12 @@ SCHEMAS: Dict[str, Dict[str, Any]] = {
             "path": {
               "minLength": 1,
               "type": "string"
+            },
+            "to_connector_id": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "to_node_id": {
+              "$ref": "common.schema.json#/$defs/id"
             },
             "transform": {
               "$ref": "common.schema.json#/$defs/transform"

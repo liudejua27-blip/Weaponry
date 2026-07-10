@@ -243,6 +243,10 @@ class DesignChangeOperation(StrictContractModel):
     node_id: Optional[ContractId] = None
     module_id: Optional[ContractId] = None
     edge_id: Optional[ContractId] = None
+    from_node_id: Optional[ContractId] = None
+    from_connector_id: Optional[ContractId] = None
+    to_node_id: Optional[ContractId] = None
+    to_connector_id: Optional[ContractId] = None
     path: Optional[str] = None
     value: Any = None
     transform: Optional[Transform] = None
@@ -254,12 +258,23 @@ class DesignChangeOperation(StrictContractModel):
             raise ValueError(f"{self.op} requires node_id")
         if self.op in {"add_module", "replace_module"} and not self.module_id:
             raise ValueError(f"{self.op} requires module_id")
+        if self.op == "add_module" and (not self.node_id or self.transform is None):
+            raise ValueError("add_module requires node_id and transform")
         if self.op == "set_transform" and self.transform is None:
             raise ValueError("set_transform requires transform")
         if self.op in {"set_style", "set_parameter"} and not self.path:
             raise ValueError(f"{self.op} requires path")
         if self.op in {"connect", "disconnect"} and not self.edge_id:
             raise ValueError(f"{self.op} requires edge_id")
+        if self.op == "connect" and not all(
+            (
+                self.from_node_id,
+                self.from_connector_id,
+                self.to_node_id,
+                self.to_connector_id,
+            )
+        ):
+            raise ValueError("connect requires both node and connector endpoints")
         return self
 
 

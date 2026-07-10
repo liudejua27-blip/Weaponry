@@ -6,6 +6,7 @@ export type AppendConceptVersionRequest = {
   "parent_version_id": string
   "summary": string
   "spec": WeaponConceptSpec
+  "module_graph_id"?: string | null
 }
 
 export type AssetFileResponse = {
@@ -67,6 +68,19 @@ export type AssetUploadResponse = {
   "mime_type": string
   "width"?: number | null
   "height"?: number | null
+}
+
+export type ChangeSetConfirmResponse = {
+  "change_set": DesignChangeSet
+  "project": ConceptProjectDetail
+}
+
+export type ChangeSetPreviewResponse = {
+  "change_set": DesignChangeSet
+  "preview_spec": WeaponConceptSpec
+  "preview_graph": ModuleGraph
+  "preview_sha256": string
+  "issues"?: Array<ModuleGraphValidationIssue>
 }
 
 export type ConceptConstraints = {
@@ -253,6 +267,32 @@ export type CreativeWeaponGraphPayload = {
   "unity_handoff"?: Record<string, unknown>
   "non_manufacturing_asset"?: true
   "created_at": string
+}
+
+export type DesignChangeOperation = {
+  "operation_id": string
+  "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_style" | "set_parameter"
+  "node_id"?: string | null
+  "module_id"?: string | null
+  "edge_id"?: string | null
+  "from_node_id"?: string | null
+  "from_connector_id"?: string | null
+  "to_node_id"?: string | null
+  "to_connector_id"?: string | null
+  "path"?: string | null
+  "value"?: unknown
+  "transform"?: Transform | null
+}
+
+export type DesignChangeSet = {
+  "schema_version"?: "DesignChangeSet@1"
+  "change_set_id": string
+  "project_id": string
+  "base_version_id": string
+  "summary": string
+  "operations": Array<DesignChangeOperation>
+  "protected_node_ids"?: Array<string>
+  "status"?: "proposed" | "previewed" | "confirmed" | "rejected" | "stale"
 }
 
 export type DesignDomainProfile = {
@@ -529,6 +569,11 @@ export type PatchWeaponRequest = {
   "strength"?: "subtle" | "medium" | "strong"
   "regenerate_3d"?: boolean
   "provider_id"?: string
+}
+
+export type ProposeChangeSetRequest = {
+  "client_request_id": string
+  "change_set": DesignChangeSet
 }
 
 export type ProviderSettings = {

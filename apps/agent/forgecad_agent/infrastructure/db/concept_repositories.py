@@ -176,6 +176,18 @@ class ConceptProjectRepository:
             (project_id, version_id),
         ).fetchone()
 
+    def find_version(self, version_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT version_id, project_id, parent_version_id, version_no, status,
+                   summary, spec_schema_version, spec_json, spec_sha256,
+                   module_graph_id, change_set_id, created_at
+            FROM project_versions
+            WHERE version_id = ? AND status != 'soft_deleted'
+            """,
+            (version_id,),
+        ).fetchone()
+
     def list_versions(self, project_id: str) -> list[sqlite3.Row]:
         return self.connection.execute(
             """
@@ -396,6 +408,7 @@ class ModuleRepository:
         *,
         graph_id: str,
         project_id: str,
+        version_id: Optional[str],
         root_node_id: str,
         schema_version: str,
         graph_json: str,
@@ -411,11 +424,12 @@ class ModuleRepository:
               graph_id, project_id, version_id, root_node_id, schema_version,
               graph_json, graph_sha256, validation_status, created_at, updated_at
             )
-            VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 graph_id,
                 project_id,
+                version_id,
                 root_node_id,
                 schema_version,
                 graph_json,
@@ -472,3 +486,133 @@ class ModuleRepository:
             """,
             (graph_id,),
         ).fetchone()
+
+    def bind_graph_to_version(self, graph_id: str, version_id: str, *, updated_at: str) -> None:
+        self.connection.execute(
+            """
+            UPDATE module_graphs
+            SET version_id = ?, updated_at = ?
+            WHERE graph_id = ? AND validation_status = 'valid'
+            """,
+            (version_id, updated_at, graph_id),
+        )
+
+
+class ChangeSetRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add(
+        self,
+        *,
+        change_set_id: str,
+        project_id: str,
+        base_version_id: str,
+        schema_version: str,
+        change_set_json: str,
+        change_set_sha256: str,
+        status: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO design_change_sets (
+              change_set_id, project_id, base_version_id, result_version_id,
+              schema_version, change_set_json, change_set_sha256, status,
+              created_at, updated_at
+            )
+            VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                change_set_id,
+                project_id,
+                base_version_id,
+                schema_version,
+                change_set_json,
+                change_set_sha256,
+                status,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def get(self, change_set_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT change_set_id, project_id, base_version_id, result_version_id,
+                   schema_version, change_set_json, change_set_sha256, status,
+                   preview_spec_json, preview_graph_json, preview_sha256,
+                   created_at, updated_at, confirmed_at
+            FROM design_change_sets
+            WHERE change_set_id = ?
+            """,
+            (change_set_id,),
+        ).fetchone()
+
+    def save_preview(
+        self,
+        *,
+        change_set_id: str,
+        change_set_json: str,
+        preview_spec_json: str,
+        preview_graph_json: str,
+        preview_sha256: str,
+        updated_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE design_change_sets
+            SET change_set_json = ?, status = 'previewed',
+                preview_spec_json = ?, preview_graph_json = ?,
+                preview_sha256 = ?, updated_at = ?
+            WHERE change_set_id = ?
+            """,
+            (
+                change_set_json,
+                preview_spec_json,
+                preview_graph_json,
+                preview_sha256,
+                updated_at,
+                change_set_id,
+            ),
+        )
+
+    def confirm(
+        self,
+        *,
+        change_set_id: str,
+        change_set_json: str,
+        result_version_id: str,
+        confirmed_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE design_change_sets
+            SET change_set_json = ?, status = 'confirmed',
+                result_version_id = ?, confirmed_at = ?, updated_at = ?
+            WHERE change_set_id = ?
+            """,
+            (
+                change_set_json,
+                result_version_id,
+                confirmed_at,
+                confirmed_at,
+                change_set_id,
+            ),
+        )
+
+    def mark_stale(
+        self,
+        change_set_id: str,
+        *,
+        change_set_json: str,
+        updated_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE design_change_sets
+            SET change_set_json = ?, status = 'stale', updated_at = ?
+            WHERE change_set_id = ?
+            """,
+            (change_set_json, updated_at, change_set_id),
+        )

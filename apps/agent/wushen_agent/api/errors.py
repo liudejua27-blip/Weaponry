@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -27,7 +27,7 @@ def register_error_handlers(app: FastAPI) -> None:
             422,
             "INVALID_REQUEST",
             "Request validation failed.",
-            details={"errors": exc.errors()},
+            details={"errors": _serializable_validation_errors(exc.errors())},
         )
 
 
@@ -94,3 +94,23 @@ def error_response(
             }
         },
     )
+
+
+def _serializable_validation_errors(
+    errors: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    sanitized: list[dict[str, Any]] = []
+    for error in errors:
+        item = dict(error)
+        if "ctx" in item:
+            item["ctx"] = {
+                str(key): str(value)
+                for key, value in dict(item["ctx"] or {}).items()
+            }
+        if "input" in item and not isinstance(
+            item["input"],
+            (str, int, float, bool, list, dict, type(None)),
+        ):
+            item["input"] = str(item["input"])
+        sanitized.append(item)
+    return sanitized

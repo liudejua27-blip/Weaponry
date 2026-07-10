@@ -8,6 +8,11 @@ from .concept_modules import (
     ConceptModuleIdempotencyConflict,
     ConceptModuleService,
 )
+from .concept_change_sets import (
+    ConceptChangeSetError,
+    ConceptChangeSetIdempotencyConflict,
+    ConceptChangeSetService,
+)
 
 __all__ = [
     "ConceptProjectError",
@@ -16,4 +21,7 @@ __all__ = [
     "ConceptModuleError",
     "ConceptModuleIdempotencyConflict",
     "ConceptModuleService",
+    "ConceptChangeSetError",
+    "ConceptChangeSetIdempotencyConflict",
+    "ConceptChangeSetService",
 ]
