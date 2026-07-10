@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 legacy Patch 的输入验证、Image Provider、质量门和追加版本 workflow 已从 `SQLiteAssetStore` 迁入 application service，并完成后端 facade workflow 退出审计。它不代表 R1 整体完成，因为前端 `App.tsx` 仍未达到组合根边界。
+范围：证明 legacy Patch 的输入验证、Image Provider、质量门和追加版本 workflow 已从 `SQLiteAssetStore` 迁入 application service，并完成后端 facade workflow 退出审计。前端 `App.tsx` 组合根边界随后完成，见 `R1_FRONTEND_COMPOSITION.md`。
 
 ## 边界变化
 
@@ -36,6 +36,6 @@ npm run r1:patch-gate
 
 ## 未证明
 
-- `App.tsx` 已只做应用组合；
+- 本专项门本身不证明 `App.tsx` 组合边界；该边界由后续 `r1:frontend-composition-gate` 证明；
 - 正式图像 Provider 的视觉质量；
 - 新 Concept Change Planner 或制造级 CAD/DFM。

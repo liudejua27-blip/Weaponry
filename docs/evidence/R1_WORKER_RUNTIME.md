@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 legacy worker 的 job claim、lease、dispatch 与 Generate-3D Provider 执行已从 `SQLiteAssetStore` 迁入 application service，同时保持 Generate-3D 和 Unity Export worker 行为。Unity 打包 handler 随后已迁入 `LegacyUnityExportService`，见 `R1_UNITY_EXPORT_SERVICE.md`；R1 仍未完成。
+范围：证明 legacy worker 的 job claim、lease、dispatch 与 Generate-3D Provider 执行已从 `SQLiteAssetStore` 迁入 application service，同时保持 Generate-3D 和 Unity Export worker 行为。Unity 打包 handler 随后已迁入 `LegacyUnityExportService`，前端边界见 `R1_FRONTEND_COMPOSITION.md`。
 
 ## 边界变化
 
@@ -34,6 +34,6 @@ npm run r1:worker-gate
 
 ## 未证明
 
-- `App.tsx` 前端业务控制器拆分；
+- 本专项门本身不证明前端组合边界；该边界由后续 `r1:frontend-composition-gate` 证明；
 - 多进程高并发 worker 和正式压力阈值；
 - 新 Concept jobs 的异步 worker 化。

@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明迁移前 `POST /api/weapons` 的同步 Provider workflow 已从 `SQLiteAssetStore` 聚合类迁入 application service，同时保持旧 HTTP、Job、Asset 和幂等合同。它不代表 R1 完成，也不把旧 WeaponDesignSpec 变成新的 Concept 合同。
+范围：证明迁移前 `POST /api/weapons` 的同步 Provider workflow 已从 `SQLiteAssetStore` 聚合类迁入 application service，同时保持旧 HTTP、Job、Asset 和幂等合同。它不把旧 WeaponDesignSpec 变成新的 Concept 合同；R1 前端边界随后完成，见 `R1_FRONTEND_COMPOSITION.md`。
 
 ## 边界变化
 
@@ -32,5 +32,5 @@ npm run r1:create-weapon-gate
 
 - 异步 generate-3d worker 的 application-service 边界；
 - Patch、Unity export 与剩余 SQL/helper 的迁移；
-- `App.tsx` 旧业务控制器拆分；
+- 本专项门本身不证明 `App.tsx` 组合边界；该边界由后续 `r1:frontend-composition-gate` 证明；
 - 新 Weapon Concept Pack 的 R4 AI 方案质量。

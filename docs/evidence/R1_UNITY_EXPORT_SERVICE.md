@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 legacy Unity Export 的同步、排队、worker、Manifest 和 ZIP builder 已从 `SQLiteAssetStore` 迁入 application service，并保持旧游戏美术交接合同。它不证明 Unity Editor 已实际导入，也不代表 R1 完成。
+范围：证明 legacy Unity Export 的同步、排队、worker、Manifest 和 ZIP builder 已从 `SQLiteAssetStore` 迁入 application service，并保持旧游戏美术交接合同。它不证明 Unity Editor 已实际导入；R1 前端边界见 `R1_FRONTEND_COMPOSITION.md`。
 
 ## 边界变化
 
@@ -38,6 +38,6 @@ npm run r1:unity-export-gate
 ## 未证明
 
 - Unity Editor batchmode 实际导入；
-- `App.tsx` 前端业务控制器拆分；
+- 本专项门本身不证明前端组合边界；该边界由后续 `r1:frontend-composition-gate` 证明；
 - 新 Concept Export 的 DCC round-trip；
 - 制造级 CAD/DFM。

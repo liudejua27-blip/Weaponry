@@ -35,6 +35,7 @@ npm run r1:generate3d-gate
 npm run r1:worker-gate
 npm run r1:unity-export-gate
 npm run r1:patch-gate
+npm run r1:frontend-composition-gate
 npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate

@@ -1,7 +1,7 @@
 # R1 通用基础设施证据
 
 日期：2026-07-10
-状态：进行中；后端 facade workflow 边界已完成，前端 `App.tsx` 控制器仍待拆分，因此不代表 R1 整体完成。
+状态：当前 R1 退出边界完成；后端完整 workflows 已迁出 facade，前端 `App.tsx` 已成为 21 行组合根。
 
 ## 已完成切片
 
@@ -38,6 +38,10 @@
 - 提取 JobEventProvider，统一事件合并、游标、SSE 和 stream status；
 - 提取 SelectionProvider，统一当前 weapon/version/detail；
 - 提取 AppShell，统一导航和桌面顶栏。
+- 将旧工作台任务恢复、轮询、命令和派生状态迁入 `useLegacyAppController`；
+- 将 Hash route/listener、最近任务与桌面通知持久化、资产选择器分别迁入 `useAppRouting`、`jobPersistence` 和 `assetSelectors`；
+- 将旧页面 JSX 迁入无本地 state/effect 的 `LegacyWorkbench`，保留 `Preview3DPanel` 动态导入；
+- `App.tsx` 从约 706 行降至 21 行，只组合 controller、legacy workbench 和独立 lazy CAD route；
 - 新增懒加载 `#/cad` 工作台：九区布局、参数化武器 Three.js 视口、组件分类/选择、视图工具、DFM 与导出状态；
 - 使用 Phosphor 统一图标并补充 license ledger；
 - 完成 1536 × 1024 参考图对照与交互 QA，证据见仓库根目录 `design-qa.md`。
@@ -75,7 +79,7 @@ npm run r1:foundation-gate
 npm run desktop:build
 ```
 
-结果：通过。Vite 报告旧 `Preview3DPanel` chunk 超过 500 kB；这是 R4 查看器替换前的已知旧前端负债，不影响本次 R1 correctness。
+结果：通过。Vite 报告 `GLTFLoader` chunk 超过 500 kB；CAD 与 Preview3D 动态导入仍独立成块，该告警是后续 bundle 优化项，不影响本次 R1 correctness。
 
 ```bash
 npm run desktop:p0-context-continuity-smoke
@@ -91,7 +95,15 @@ npm run desktop:p0-context-continuity-smoke
 npm run r1:gate
 ```
 
-结果：通过。它覆盖 R1 foundation smoke、完整 M6 gate、桌面生产构建和上下文连续性 UI smoke。
+结果：通过。它覆盖 R1 foundation、完整 M6 gate、类型检查、桌面生产构建、上下文连续性、运行时交接、深链恢复和 CAD 工作台 UI smoke。
+
+前端组合专项门：
+
+```bash
+npm run r1:frontend-composition-gate
+```
+
+结果：通过。结构断言固定 `App.tsx` 为 21 行组合根并禁止 `useState`、`useEffect`、任务 API、定时器和 `localStorage` 回流；四条桌面 E2E 证明旧创作链、任务交接、URL 恢复和 lazy CAD route 保持工作。详细证据见 [R1_FRONTEND_COMPOSITION.md](R1_FRONTEND_COMPOSITION.md)。
 
 Job 查询/动作/恢复提取后补充运行：
 
@@ -172,8 +184,8 @@ npm run desktop:p0-context-continuity-smoke
 
 结果：全部通过；版本激活、资产 SHA/路径验证、Finder reveal dry-run、版本深链和 Library 同步保持原合同。
 
-## 尚未完成
+## 当前边界之外
 
 - `asset_store.py` 仍保留共享资产/模型质量/事件写入 helper，可继续下沉为 repository/adapter，但已不承担完整业务 workflow；
-- `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
-- R2 Concept 数据链已经独立落地，但 R1 legacy facade 边界仍未全部完成。
+- `useLegacyAppController` 仍是 413 行 legacy 应用控制器；它已经与组合根、路由监听、持久化、选择器和渲染分离，后续可按 Job/Selection 继续拆分，但不阻塞当前 R1 退出条件；
+- R2–R6 的正式资产、AI 指标、完整质量规则、Beta 和发布仍必须使用各阶段证据，不因 R1 完成而自动完成。

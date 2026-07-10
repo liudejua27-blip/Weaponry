@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-10）
-状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 数据/API 已落地；R3 已完成真实 Project/Version/ModuleGraph/GLB 的首个桌面读取与选择切片。
+状态：R0 已完成，R1 当前退出边界已完成；R2 Concept 数据/API 已落地；R3 已完成真实 Project/Version/ModuleGraph/GLB 的首个桌面读取与选择切片。
 
 ## 1. 产品定义
 
@@ -480,6 +480,20 @@ schema_migrations
 - 状态栏：阶段、选择、连接状态、单位、任务和提示。
 
 核心交互必须真实可用：模块筛选/选择、阶段切换、参数修改、连接状态、AI 提交、预览/确认、版本切换、检查和导出格式选择。
+
+桌面应用组合边界固定为：
+
+```text
+App.tsx（route-level composition，21 行）
+├─ useLegacyAppController（旧工作台应用状态与任务命令）
+│  ├─ useAppRouting（Hash URL 与唯一 hashchange listener）
+│  ├─ jobPersistence（最近任务与桌面通知持久化）
+│  └─ assetSelectors（Version/Asset 派生选择）
+├─ LegacyWorkbench（无本地 state/effect 的页面渲染组合）
+└─ CadWorkbenchPanel（独立 lazy route）
+```
+
+`Preview3DPanel` 继续由 `LegacyWorkbench` 动态导入，避免把 Three.js 查看器并回基础 bundle。`App.tsx` 不得持有任务轮询、恢复、通知、`localStorage` 或页面业务状态；`scripts/smoke_r1_foundation.py` 对该边界做静态断言，桌面 E2E 再验证行为连续性。
 
 ## 12. AI 设计协议
 

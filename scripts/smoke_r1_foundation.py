@@ -88,6 +88,7 @@ def main() -> None:
         unity_export_boundary = _assert_unity_export_boundary()
         patch_workflow_boundary = _assert_patch_workflow_boundary()
         asset_store_facade_boundary = _assert_asset_store_facade_boundary()
+        frontend_composition_boundary = _assert_frontend_composition_boundary()
 
     print(
         {
@@ -101,6 +102,7 @@ def main() -> None:
             "unity_export_workflow": unity_export_boundary,
             "patch_workflow": patch_workflow_boundary,
             "asset_store_facade": asset_store_facade_boundary,
+            "frontend_composition": frontend_composition_boundary,
         }
     )
 
@@ -390,6 +392,74 @@ def _assert_asset_store_facade_boundary() -> dict[str, int | bool]:
         "workflow_facade_count": len(workflow_methods),
         "maximum_facade_method_lines": max(method_lines.values()),
         "asset_store_lines": len(facade_source.splitlines()),
+    }
+
+
+def _assert_frontend_composition_boundary() -> dict[str, int | bool]:
+    app_path = ROOT / "apps" / "desktop" / "src" / "app" / "App.tsx"
+    controller_path = (
+        ROOT
+        / "apps"
+        / "desktop"
+        / "src"
+        / "app"
+        / "useLegacyAppController.ts"
+    )
+    routing_path = ROOT / "apps" / "desktop" / "src" / "app" / "useAppRouting.ts"
+    render_path = ROOT / "apps" / "desktop" / "src" / "app" / "LegacyWorkbench.tsx"
+    persistence_path = (
+        ROOT / "apps" / "desktop" / "src" / "app" / "jobPersistence.ts"
+    )
+    selectors_path = ROOT / "apps" / "desktop" / "src" / "app" / "assetSelectors.ts"
+
+    app_source = app_path.read_text(encoding="utf-8")
+    controller_source = controller_path.read_text(encoding="utf-8")
+    routing_source = routing_path.read_text(encoding="utf-8")
+    render_source = render_path.read_text(encoding="utf-8")
+    persistence_source = persistence_path.read_text(encoding="utf-8")
+    selectors_source = selectors_path.read_text(encoding="utf-8")
+
+    app_lines = len(app_source.splitlines())
+    assert app_lines <= 30, f"App composition root expanded to {app_lines} lines"
+    for required in (
+        "useLegacyAppController",
+        "LegacyWorkbench",
+        "lazy(() => import('../features/cad-workbench/CadWorkbenchPanel')",
+    ):
+        assert required in app_source, f"App composition root lost boundary: {required}"
+    for forbidden in ("useEffect", "useState", "localStorage", "getJob", "setInterval"):
+        assert forbidden not in app_source, (
+            f"App composition root regained runtime responsibility: {forbidden}"
+        )
+
+    for required in ("restoreJob", "getJobRuntime", "retryJob", "cancelJob"):
+        assert required in controller_source, (
+            f"Legacy controller lost application responsibility: {required}"
+        )
+    assert "localStorage" not in controller_source, (
+        "Legacy controller regained persistence responsibility: localStorage"
+    )
+    for required in ("hashchange", "parseHashRoute", "writeHashRoute"):
+        assert required in routing_source, f"Routing hook lost boundary: {required}"
+    assert "lazy(() => import('../features/preview3d/Preview3DPanel')" in render_source
+    for forbidden in ("useEffect", "useState", "localStorage"):
+        assert forbidden not in render_source, (
+            f"Legacy workbench regained state responsibility: {forbidden}"
+        )
+    for required in ("localStorage", "Notification"):
+        assert required in persistence_source, (
+            f"Job persistence lost desktop responsibility: {required}"
+        )
+    for required in ("findAssetByRole", "findLatestAssetByRole"):
+        assert required in selectors_source, f"Asset selector boundary lost: {required}"
+
+    return {
+        "composition_only": True,
+        "dynamic_imports_preserved": True,
+        "app_lines": app_lines,
+        "controller_lines": len(controller_source.splitlines()),
+        "render_lines": len(render_source.splitlines()),
+        "routing_lines": len(routing_source.splitlines()),
     }
 
 

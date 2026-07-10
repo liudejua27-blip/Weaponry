@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明旧 `POST /api/weapons/{weapon_id}/generate-3d` 的 runtime 选择、同步编排和排队事务已从 `SQLiteAssetStore` 迁入 application service，并保持追加版本、ProviderTask、Checkpoint、JobEvent 和错误合同。异步 worker 随后已迁入 `LegacyWorkerService`，见 `R1_WORKER_RUNTIME.md`；R1 仍未完成。
+范围：证明旧 `POST /api/weapons/{weapon_id}/generate-3d` 的 runtime 选择、同步编排和排队事务已从 `SQLiteAssetStore` 迁入 application service，并保持追加版本、ProviderTask、Checkpoint、JobEvent 和错误合同。异步 worker 随后已迁入 `LegacyWorkerService`，前端边界见 `R1_FRONTEND_COMPOSITION.md`。
 
 ## 边界变化
 
@@ -32,5 +32,5 @@ npm run r1:generate3d-gate
 
 ## 未证明
 
-- `App.tsx` 前端业务控制器拆分；
+- 本专项门本身不证明前端组合边界；该边界由后续 `r1:frontend-composition-gate` 证明；
 - 正式 GPU 模型生成质量或制造级 CAD/DFM。

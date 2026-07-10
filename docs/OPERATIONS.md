@@ -138,9 +138,10 @@ npm run r1:worker-gate
 npm run r1:unity-export-gate
 npm run r1:patch-gate
 npm run r1:foundation-gate
+npm run r1:frontend-composition-gate
 ```
 
-`r1:create-weapon-gate` 验证创建 Provider 编排；`r1:generate3d-gate` 验证同步/排队入口与 3D Provider；`r1:worker-gate` 固定 claim/lease/dispatch、恢复和 JobAction；`r1:unity-export-gate` 验证 Manifest/ZIP 与包预检；`r1:patch-gate` 验证 mask/manifest、ComfyUI、负例、追加版本和质量报告。`r1:foundation-gate` 汇总上述门、执行 `m6:gate`，并通过 AST 证明 `asset_store.py` 的完整 workflows 已全部迁出。未配置 Unity executable 时仍只证明 preflight，不证明编辑器 batchmode import。
+`r1:create-weapon-gate` 验证创建 Provider 编排；`r1:generate3d-gate` 验证同步/排队入口与 3D Provider；`r1:worker-gate` 固定 claim/lease/dispatch、恢复和 JobAction；`r1:unity-export-gate` 验证 Manifest/ZIP 与包预检；`r1:patch-gate` 验证 mask/manifest、ComfyUI、负例、追加版本和质量报告。`r1:foundation-gate` 汇总上述门、执行 `m6:gate`，并通过 AST 证明 `asset_store.py` 的完整 workflows 已全部迁出、`App.tsx` 只保留应用组合。`r1:frontend-composition-gate` 执行类型检查、生产构建、上下文连续性、运行时交接、深链和 CAD 工作台 E2E。未配置 Unity executable 时仍只证明 preflight，不证明编辑器 batchmode import。
 
 R1 当前完整回归：
 
@@ -156,7 +157,7 @@ npm run r5:quality-gate
 npm run r5:c07-intersection-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、转台视频或 DCC round-trip。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、转台视频或 DCC round-trip。
 
 专项 Connector 门：
 
