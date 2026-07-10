@@ -37,6 +37,7 @@ from .application.creative_recast import (
 )
 from .application.job_commands import JobCommandError, LegacyJobCommandService
 from .application.job_queries import JobQueryError, LegacyJobQueryService
+from .application.job_recovery import LegacyJobRecoveryService
 from .application.library import LegacyLibraryService, LibraryError
 from .models import (
     AssetUploadRequest,
@@ -59,7 +60,6 @@ from .models import (
     JobRuntimeStateResponse,
     PatchWeaponRequest,
     ProviderSettings,
-    RuntimeRecoveryItem,
     RuntimeRecoveryResponse,
     RuntimeWorkOnceResponse,
     WeaponDetail,
@@ -131,6 +131,7 @@ class SQLiteAssetStore:
             self.three_d_provider,
         )
         self.job_queries = LegacyJobQueryService(self.connection_factory)
+        self.job_recovery = LegacyJobRecoveryService(self.connection_factory)
         self.library = LegacyLibraryService(
             self.connection_factory,
             self.object_store,
@@ -2681,120 +2682,10 @@ class SQLiteAssetStore:
         return self.job_queries.get_job_runtime_state(job_id)
 
     def recover_interrupted_jobs(self, reason: str = "manual", *, include_queued: bool = True) -> RuntimeRecoveryResponse:
-        recoverable_statuses = {"created", "queued", "running", "waiting_provider", "retrying"}
-        items: List[RuntimeRecoveryItem] = []
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT job_id, weapon_id, status, current_step, provider_task_id
-                FROM generation_jobs
-                WHERE status IN ('created', 'queued', 'running', 'waiting_provider', 'retrying')
-                ORDER BY updated_at ASC
-                """
-            ).fetchall()
-            now = utc_now()
-            for row in rows:
-                previous_status = str(row["status"])
-                if previous_status not in recoverable_statuses:
-                    continue
-                if not include_queued and previous_status in {"queued", "retrying"}:
-                    continue
-                job_id = str(row["job_id"])
-                current_step = row["current_step"] or "request_guard"
-                provider_task = conn.execute(
-                    """
-                    SELECT task_record_id, provider_task_id
-                    FROM provider_tasks
-                    WHERE job_id = ? AND step_name = ?
-                    ORDER BY attempt DESC, updated_at DESC
-                    LIMIT 1
-                    """,
-                    (job_id, current_step),
-                ).fetchone()
-                provider_task_id = provider_task["provider_task_id"] if provider_task else row["provider_task_id"]
-                if provider_task is not None:
-                    conn.execute(
-                        """
-                        UPDATE provider_tasks
-                        SET status = CASE
-                              WHEN status IN ('submitted', 'polling') THEN 'unknown'
-                              ELSE status
-                            END,
-                            updated_at = ?
-                        WHERE task_record_id = ?
-                        """,
-                        (now, provider_task["task_record_id"]),
-                    )
-                event_id = self._insert_job_action_event(
-                    conn,
-                    job_id=job_id,
-                    weapon_id=row["weapon_id"],
-                    step=current_step,
-                    status="waiting_user",
-                    level="warning",
-                    message=f"Agent restart recovery paused job at step {current_step}.",
-                    metadata={
-                        "previous_status": previous_status,
-                        "recovery_reason": reason,
-                        "resume_from": current_step,
-                        "provider_task_id": provider_task_id,
-                    },
-                    created_at=now,
-                )
-                conn.execute(
-                    """
-                    UPDATE generation_jobs
-                    SET status = 'waiting_user',
-                        current_step = ?,
-                        checkpoint_json = ?,
-                        updated_at = ?,
-                        finished_at = NULL
-                    WHERE job_id = ?
-                    """,
-                    (
-                        current_step,
-                        _canonical_json(
-                            {
-                                "recovery_reason": reason,
-                                "previous_status": previous_status,
-                                "resume_from": current_step,
-                                "provider_task_id": provider_task_id,
-                            }
-                        ),
-                        now,
-                        job_id,
-                    ),
-                )
-                self._upsert_checkpoint(
-                    conn,
-                    job_id=job_id,
-                    step_name=current_step,
-                    attempt=_latest_step_attempt(conn, job_id, current_step),
-                    status="ready",
-                    resume_policy="manual_review",
-                    provider_task_record_id=provider_task["task_record_id"] if provider_task else None,
-                    state={
-                        "recovery_reason": reason,
-                        "previous_status": previous_status,
-                        "resume_from": current_step,
-                        "provider_task_id": provider_task_id,
-                    },
-                    updated_at=now,
-                )
-                items.append(
-                    RuntimeRecoveryItem(
-                        job_id=job_id,
-                        weapon_id=row["weapon_id"],
-                        previous_status=previous_status,  # type: ignore[arg-type]
-                        status="waiting_user",
-                        resume_from_step=current_step,
-                        provider_task_id=provider_task_id,
-                        event_id=event_id,
-                        message=f"Agent restart recovery paused job at step {current_step}.",
-                    )
-                )
-            conn.commit()
-        return RuntimeRecoveryResponse(recovered_count=len(items), items=items)
+        return self.job_recovery.recover_interrupted_jobs(
+            reason=reason,
+            include_queued=include_queued,
+        )
 
     def list_events(self, job_id: str, after: Optional[str] = None) -> List[JobEvent]:
         try:
