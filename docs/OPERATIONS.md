@@ -280,17 +280,50 @@ WushenForgeLibrary/
   objects/sha256/
 ```
 
-数据库和对象目录必须一起备份。
+数据库和对象目录必须作为同一快照备份。ChangeSet 审计归档也遵守这一规则：`change_set_audit_exports`/`concept_assets` 只保存元数据和相对对象键，ZIP 位于 `objects/sha256/`。只复制 `library.db` 会得到无法下载的归档，只复制对象目录则无法恢复筛选、记录数、Job 与 artifact link。
 
-ChangeSet 审计归档也遵守这一规则：`change_set_audit_exports`/`concept_assets` 只保存元数据和相对对象键，ZIP 位于 `objects/sha256/`。只复制 `library.db` 会得到无法下载的归档，只复制对象目录则无法恢复筛选、记录数、Job 与 artifact link。`project_lifetime` 表示应用无单包删除入口，不代表异地副本、WORM 或 legal hold。
+正式备份使用 SQLite Backup API，不直接复制活动中的 `library.db-wal/-shm`。备份输出必须位于源 Library 之外；发布/迁移前仍应先停止 Agent、worker 和 Tauri supervisor，再执行：
 
-安全备份：
+```bash
+npm run library:backup -- \
+  --library-root "$PWD/WushenForgeLibrary" \
+  --output "$PWD/backups/forgecad-<timestamp>"
 
-1. 停止 Agent、worker 和 Tauri supervisor；
-2. 确认数据库没有写入；
-3. 复制整个 `WushenForgeLibrary`；
-4. 校验数据库、WAL/SHM（若存在）和对象目录；
-5. 正式工具落地后优先使用 SQLite backup API。
+npm run library:verify-backup -- \
+  --backup "$PWD/backups/forgecad-<timestamp>"
+```
+
+CLI 在新目录中生成：
+
+```text
+forgecad-<timestamp>/
+  library.db
+  backup-manifest.json
+  objects/sha256/<aa>/<bb>/<sha256>.<ext>
+```
+
+`library.db` 固定为独立 `journal_mode=DELETE` 快照。Manifest 保存 migration、关键表行数、数据库和对象 hash/size、引用/唯一对象数量、逻辑/物理/去重字节、源对象存储容量及未引用候选容量。它只复制快照中 `asset_files`/`concept_assets` 真正引用的对象；soft-deleted row 仍是引用。Provider secret/config、WAL/SHM、trash/cache 和未引用候选不进入备份，未引用候选也不会被自动删除。
+
+恢复必须使用备份目录之外、尚不存在的新目录；工具拒绝嵌套或覆盖：
+
+```bash
+npm run library:restore -- \
+  --backup "$PWD/backups/forgecad-<timestamp>" \
+  --destination "$PWD/WushenForgeLibrary-restored"
+
+export WUSHEN_LIBRARY_ROOT="$PWD/WushenForgeLibrary-restored"
+export WUSHEN_MIGRATIONS_DIR="$PWD/migrations"
+```
+
+恢复先在临时目录重新验证 SQLite integrity/FK、引用集合及所有 SHA-256/size，成功后才原子落位；来源 Manifest 保存到 `backups/manifests/`。恢复后重新配置 Provider secret file，再启动 Agent 并检查 Project、Module、Job 和审计归档。备份目录未加密，应放在受访问控制/磁盘加密的介质；`project_lifetime` 和本地备份都不代表异地副本、WORM 或 legal hold。
+
+专项演练：
+
+```bash
+npm run r3:library-backup-gate
+```
+
+它验证篡改失败、禁止覆盖、去重/未引用容量、密钥与 WAL/SHM 排除，并在恢复 Agent 上下载同一 SHA-256 的审计 ZIP。当前容量数值来自隔离 fixture，不是正式资产库性能结论。
 
 测试使用独立库：
 

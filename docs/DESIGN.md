@@ -444,6 +444,10 @@ GET /api/v1/projects/{project_id}/change-sets
 
 当前唯一保留类别是 `project_lifetime`：应用不提供单个归档或对象删除接口，Project 仍存在时记录与内容寻址对象必须保留；删除整个 Project 时数据库外键元数据随之删除，对象垃圾回收仍必须遵循资产引用规则。它是产品内不可变快照，不是法规级 WORM、legal hold、防篡改外部账本或独立灾备。备份时必须同时复制 SQLite 与 `objects/sha256`。
 
+Library backup 使用 `ForgeCADLibraryBackupManifest@1`，不是复制正在变化的 `library.db-wal/-shm`：CLI 先通过 SQLite Backup API 取得完整快照，再归一化为独立 `journal_mode=DELETE` 数据库，从该快照读取 `asset_files` 与 `concept_assets` 的全部引用并按 object path 去重复制。Manifest 保存 migration 列表、关键表行数、数据库/对象 SHA-256 与 size、引用行数、唯一对象数、逻辑/物理/去重字节、源对象存储容量和未引用候选容量。验证必须重新运行 `integrity_check`、`foreign_key_check`，并证明数据库引用集合、Manifest 集合和实际文件集合完全相等；未来 migration 若增加未知 `object_path` 表，旧备份器必须失败而不是静默漏备。
+
+备份输出只包含权威数据库、快照实际引用的对象和 Manifest；Provider secret/config、WAL/SHM、trash/cache 与未引用候选不进入备份。未引用候选只计数，不自动删除。恢复目标必须不存在，CLI 在临时目录完成 hash/FK/integrity/引用集合校验后才原子改名，并把来源 Manifest 保存到 `backups/manifests/`。备份目录本身未加密，不能替代系统级磁盘加密、异地复制、WORM 或 legal hold；恢复后 Provider 凭据必须从环境或 secret file 重新配置。
+
 桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，显示规则集状态、Finding 消息和测量值；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。
 
 当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Change Planner、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选；自然语言修改也可生成受限 DesignChangeSet，但两者都必须先 preview，AI 链路以半透明青色 ghost 显示，显式确认后才创建子版本，放弃只更新审计状态。Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。

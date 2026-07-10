@@ -214,24 +214,42 @@ Exit codes:
 
 ## Backup Manifest
 
-Backups must include a manifest:
+当前实现使用 `scripts/library_backup.py` 和 `ForgeCADLibraryBackupManifest@1`。备份由 SQLite Backup API 快照、快照实际引用的 legacy/Concept 对象和 Manifest 构成；不复制 WAL/SHM、Provider secret/config、trash/cache 或未引用对象候选。
 
 ```json
 {
-  "backup_id": "backup_20260704_0001",
-  "library_schema_version": 1,
-  "created_at": "2026-07-04T22:00:00+08:00",
-  "db_sha256": "sha256...",
-  "files": [
+  "schema_version": "ForgeCADLibraryBackupManifest@1",
+  "backup_id": "backup_20260710T150708Z_3c7601b6cd07",
+  "created_at": "2026-07-10T15:07:08+00:00",
+  "database": {
+    "path": "library.db",
+    "sha256": "<64 hex>",
+    "byte_size": 659456,
+    "journal_mode": "delete",
+    "schema_versions": ["0001", "...", "0016"],
+    "table_counts": {"projects": 1, "concept_assets": 4, "asset_files": 1}
+  },
+  "objects": [
     {
-      "logical_path": "weapons/weapon_001/versions/v0001/concept.png",
-      "object_path": "objects/sha256/aa/bb/hash.png",
-      "sha256": "sha256...",
-      "byte_size": 123456
+      "path": "objects/sha256/aa/bb/<sha256>.zip",
+      "sha256": "<64 hex>",
+      "byte_size": 2758,
+      "reference_count": 1,
+      "source_tables": ["concept_assets"]
     }
-  ]
+  ],
+  "capacity": {
+    "reference_rows": 5,
+    "unique_object_count": 4,
+    "logical_object_bytes": 3248,
+    "unique_object_bytes": 3088,
+    "deduplicated_bytes": 160,
+    "unreferenced_candidate_count": 1
+  }
 }
 ```
+
+验证器要求数据库引用集合、Manifest object 集合和实际文件集合一致，并重新计算 SHA-256/size、capacity、`integrity_check` 与 `foreign_key_check`。恢复目标必须不存在；成功恢复会把 Manifest 保存到新库的 `backups/manifests/`。
 
 ## Migration Rules
 

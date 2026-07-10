@@ -39,6 +39,6 @@ output/playwright/r3-change-set-audit-export.png
 ## 未覆盖
 
 - `project_lifetime` 是应用级不可变快照，不是 WORM、legal hold、防篡改外部账本或独立灾备；
-- 整库离线 backup/restore 演练、容量/保留成本与 Project 删除后的对象垃圾回收策略；
+- 正式资产库上的容量/恢复耗时、保留成本与 Project 删除后的 reference-aware 对象垃圾回收策略；隔离整库恢复演练见 [R3_LIBRARY_BACKUP_RESTORE.md](R3_LIBRARY_BACKUP_RESTORE.md)；
 - HTML/PDF 人工签署报告；
 - AI Change Planner 的真实模型准确率和解释质量。
