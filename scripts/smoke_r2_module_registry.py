@@ -146,6 +146,14 @@ def main() -> int:
             )
             _assert(validated["valid"] is True, "valid graph was rejected")
             _assert(validated["persisted"] is True, "valid graph was not persisted")
+            _assert(validated["job_id"].startswith("job_"), "graph validation job id missing")
+            validation_job = _json_request(
+                base_url,
+                f"/api/v1/jobs/{validated['job_id']}",
+                method="GET",
+            )
+            _assert(validation_job["type"] == "validate_graph", "graph job type mismatch")
+            _assert(len(validation_job["events"]) == 3, "graph JobEvent count mismatch")
             graph_record = _json_request(
                 base_url,
                 f"/api/v1/module-graphs/{graph['graph_id']}",
@@ -169,6 +177,7 @@ def main() -> int:
             _assert(invalid["valid"] is False, "unknown module graph was accepted")
             _assert(invalid["persisted"] is False, "invalid graph was persisted")
             _assert(invalid["issues"][0]["code"] == "MODULE_NOT_FOUND", "invalid graph issue mismatch")
+            _assert(invalid["job_id"].startswith("job_"), "invalid graph job id missing")
         finally:
             _stop_agent(process)
 
@@ -177,9 +186,13 @@ def main() -> int:
             module_count = connection.execute("SELECT COUNT(*) FROM module_assets").fetchone()[0]
             connector_count = connection.execute("SELECT COUNT(*) FROM module_connectors").fetchone()[0]
             graph_count = connection.execute("SELECT COUNT(*) FROM module_graphs").fetchone()[0]
+            concept_job_count = connection.execute("SELECT COUNT(*) FROM concept_jobs").fetchone()[0]
+            concept_event_count = connection.execute("SELECT COUNT(*) FROM concept_job_events").fetchone()[0]
         _assert(module_count == 2, "module table count mismatch")
         _assert(connector_count == 3, "connector table count mismatch")
         _assert(graph_count == 1, "only the valid graph should be persisted")
+        _assert(concept_job_count == 2, "graph validation jobs were not persisted")
+        _assert(concept_event_count == 6, "graph validation events were not persisted")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -198,6 +211,12 @@ def main() -> int:
             )
             _assert(len(restored_modules["items"]) == 2, "restart did not restore module registry")
             _assert(restored_graph["validation_status"] == "valid", "restart did not restore graph")
+            restored_validation_job = _json_request(
+                restart_url,
+                f"/api/v1/jobs/{validated['job_id']}",
+                method="GET",
+            )
+            _assert(len(restored_validation_job["events"]) == 3, "restart lost graph events")
         finally:
             _stop_agent(restarted_process)
 
@@ -210,6 +229,8 @@ def main() -> int:
                     "connector_count": connector_count,
                     "graph_count": graph_count,
                     "invalid_graph_persisted": False,
+                    "concept_job_count": concept_job_count,
+                    "concept_event_count": concept_event_count,
                 },
                 ensure_ascii=False,
                 indent=2,

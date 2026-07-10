@@ -721,6 +721,7 @@ export type ModuleGraphValidationResponse = {
   "persisted": boolean
   "graph_sha256": string
   "issues"?: Array<ModuleGraphValidationIssue>
+  "job_id"?: string | null
 }
 
 export type PatchWeaponRequest = {
@@ -793,6 +794,7 @@ export type QualityRunRecord = {
   "version_id": string
   "report": ModelQualityReport
   "created_at": string
+  "job_id"?: string | null
 }
 
 export type RegisterModuleAssetRequest = {

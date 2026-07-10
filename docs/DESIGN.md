@@ -363,7 +363,7 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
 
-当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay 和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；后端按相同 slot/type 重映射 edge 并创建子版本。Undo/Redo 是不可变 parent/child 版本导航。完整自动吸附、镜像和正式资产质量仍属于后续 R3。
+当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay 和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；Undo/Redo 是不可变 parent/child 版本导航。完整自动吸附、镜像和正式资产质量仍属于后续 R3。
 
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 

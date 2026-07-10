@@ -9,6 +9,7 @@ from forgecad_agent.application.concept_models import (
     CreateQualityRunRequest,
     QualityRunRecord,
 )
+from forgecad_agent.application.concept_jobs import record_completed_job
 from forgecad_agent.domain.concepts.models import ModelQualityReport
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 
@@ -101,6 +102,43 @@ class ConceptQualityService:
                 report=report,
                 created_at=now,
             )
+            job_id = record_completed_job(
+                unit_of_work,
+                project_id=report.project_id,
+                version_id=report.version_id,
+                job_type="quality_run",
+                input_payload={
+                    "quality_run_id": report.report_id,
+                    "ruleset_version": report.ruleset_version,
+                },
+                output_payload={
+                    "quality_run_id": report.report_id,
+                    "report_id": report.report_id,
+                    "status": report.status,
+                    "finding_count": len(report.findings),
+                },
+                steps=[
+                    (
+                        "load_version_graph",
+                        "Loaded version-scoped ModuleGraph context.",
+                        0.3,
+                        {"version_id": report.version_id},
+                    ),
+                    (
+                        "persist_findings",
+                        "Persisted quality findings.",
+                        0.75,
+                        {"finding_count": len(report.findings)},
+                    ),
+                    (
+                        "finalize_report",
+                        "Stored ModelQualityReport@1.",
+                        1.0,
+                        {"status": report.status},
+                    ),
+                ],
+            )
+            response = response.model_copy(update={"job_id": job_id})
             unit_of_work.idempotency.add(
                 scope=scope,
                 key=idempotency_key,

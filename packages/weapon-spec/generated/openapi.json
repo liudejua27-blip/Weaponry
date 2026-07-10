@@ -4154,6 +4154,17 @@
             "title": "Issues",
             "type": "array"
           },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
           "persisted": {
             "title": "Persisted",
             "type": "boolean"
@@ -4556,6 +4567,17 @@
           "created_at": {
             "title": "Created At",
             "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
           },
           "project_id": {
             "title": "Project Id",

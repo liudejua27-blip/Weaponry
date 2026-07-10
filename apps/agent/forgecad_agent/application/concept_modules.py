@@ -17,6 +17,7 @@ from forgecad_agent.application.concept_models import (
     RegisterModuleAssetRequest,
     ValidateModuleGraphRequest,
 )
+from forgecad_agent.application.concept_jobs import record_completed_job
 from forgecad_agent.domain.concepts.models import ModuleAssetManifest, ModuleCategory, ModuleGraph
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 from forgecad_agent.infrastructure.storage import ContentAddressedStore
@@ -240,6 +241,45 @@ class ConceptModuleService:
                 graph_sha256=graph_sha256,
                 issues=issues,
             )
+            job_id = record_completed_job(
+                unit_of_work,
+                project_id=request.graph.project_id,
+                version_id=None,
+                job_type="validate_graph",
+                input_payload={
+                    "graph_id": graph_id,
+                    "graph_sha256": graph_sha256,
+                    "persist_requested": request.persist,
+                },
+                output_payload={
+                    "graph_id": graph_id,
+                    "valid": response.valid,
+                    "persisted": response.persisted,
+                    "graph_sha256": graph_sha256,
+                    "issue_count": len(issues),
+                },
+                steps=[
+                    (
+                        "resolve_modules",
+                        "Resolved registered modules and connector metadata.",
+                        0.35,
+                        {"node_count": len(request.graph.nodes)},
+                    ),
+                    (
+                        "validate_graph",
+                        "ModuleGraph validation completed.",
+                        0.8,
+                        {"valid": response.valid, "issue_count": len(issues)},
+                    ),
+                    (
+                        "persist_graph",
+                        "Stored validation result and immutable graph when valid.",
+                        1.0,
+                        {"persisted": response.persisted},
+                    ),
+                ],
+            )
+            response = response.model_copy(update={"job_id": job_id})
             unit_of_work.idempotency.add(
                 scope=scope,
                 key=idempotency_key,

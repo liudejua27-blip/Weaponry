@@ -35,7 +35,7 @@
 | R2 ChangeSet + child Version | 第一切片完成 | proposed/previewed/confirmed、protected node、stale base、parent immutability smoke |
 | R2 QualityRun/Findings | 第一切片完成 | version-scoped report ingestion、finding persistence、idempotency、round-trip |
 | R2 Brief/Variant | 模板基线完成 | interpreted brief、A/B/C graph variants、selection、restart recovery |
-| R2 Concept JobEvent@2 | 基础链完成 | independent jobs/events、JSON cursor replay、SSE、restart recovery |
+| R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 三个纵向切片完成 | 4 GLB fixture、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace、Undo/Redo、explode、restart |
 
@@ -303,13 +303,13 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 1. 将剩余 Provider workflow 从 `asset_store.py` 提取为 application services。
 2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
-3. 将 QualityRun 和 ModuleGraph validate 也接入 Concept JobEvent@2。
-4. 制定 Module/Connector/材质/UV/LOD 命名规范。
-5. 准备第一套 8–12 个高质量 GLB fixture 与 Manifest。
-6. 完成镜像和更完整的 Connector 自动吸附；拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成。
-7. 实现吸附、锁定、爆炸视图、保存与恢复。
-8. 实现 combined GLB，再补 OBJ/PNG/爆炸图导出。
-9. 跑通“替换模块→ChangeSet→新版本→检查→combined GLB+Manifest 导出”。
-10. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
+3. 制定 Module/Connector/材质/UV/LOD 命名规范。
+4. 准备第一套 8–12 个高质量 GLB fixture 与 Manifest。
+5. 完成镜像和更完整的 Connector 自动吸附；拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成。
+6. 实现持久化操作时间线和更强 GPU 生命周期压力门。
+7. 实现 combined GLB，再补 OBJ/PNG/爆炸图导出。
+8. 跑通“替换模块→ChangeSet→新版本→检查→combined GLB+Manifest 导出”。
+9. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
+10. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 
 第 9 步的数据闭环通过后再执行第 10 步；AI 指标达标后才进入局部组件生成与 Beta。CAD/DFM Engineering Pack 不提前占用 P0 主链。

@@ -180,6 +180,14 @@ def main() -> int:
                 idempotency_key="r2-quality-v3",
             )
             _assert(quality["report"]["status"] == "warning", "quality report status mismatch")
+            _assert(quality["job_id"].startswith("job_"), "quality job id missing")
+            quality_job = _json_request(
+                base_url,
+                f"/api/v1/jobs/{quality['job_id']}",
+                method="GET",
+            )
+            _assert(quality_job["type"] == "quality_run", "quality job type mismatch")
+            _assert(len(quality_job["events"]) == 3, "quality JobEvent count mismatch")
             quality_replay = _json_request(
                 base_url,
                 f"/api/v1/versions/{version_3}/quality-runs",
@@ -188,6 +196,7 @@ def main() -> int:
                 idempotency_key="r2-quality-v3",
             )
             _assert(quality_replay["quality_run_id"] == quality["quality_run_id"], "quality replay mismatch")
+            _assert(quality_replay["job_id"] == quality["job_id"], "quality job replay mismatch")
             quality_read = _json_request(
                 base_url,
                 f"/api/v1/quality-runs/{quality['quality_run_id']}",
@@ -285,12 +294,16 @@ def main() -> int:
             graph_count = connection.execute("SELECT COUNT(*) FROM module_graphs").fetchone()[0]
             quality_run_count = connection.execute("SELECT COUNT(*) FROM quality_runs").fetchone()[0]
             finding_count = connection.execute("SELECT COUNT(*) FROM quality_findings").fetchone()[0]
+            concept_job_count = connection.execute("SELECT COUNT(*) FROM concept_jobs").fetchone()[0]
+            concept_event_count = connection.execute("SELECT COUNT(*) FROM concept_job_events").fetchone()[0]
         _assert(confirmed_row == ("confirmed", version_3), "confirmed ChangeSet trace mismatch")
         _assert(stale_row == ("stale",), "stale ChangeSet was not persisted")
         _assert(version_count == 4, "unexpected project version count")
         _assert(graph_count == 2, "preview should persist exactly one child graph on confirm")
         _assert(quality_run_count == 1, "quality run count mismatch")
         _assert(finding_count == 1, "quality finding count mismatch")
+        _assert(concept_job_count == 2, "graph/quality jobs were not persisted")
+        _assert(concept_event_count == 6, "graph/quality events were not persisted")
 
         print(
             json.dumps(
@@ -305,6 +318,8 @@ def main() -> int:
                     "graph_count": graph_count,
                     "quality_run_count": quality_run_count,
                     "finding_count": finding_count,
+                    "concept_job_count": concept_job_count,
+                    "concept_event_count": concept_event_count,
                 },
                 ensure_ascii=False,
                 indent=2,

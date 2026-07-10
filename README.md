@@ -137,7 +137,7 @@ core.side_panel_left / core.side_panel_right
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
 | Job / Step / Event / SSE | 已实现 | 直接复用 |
-| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Export 已留痕 | Quality 与 Graph validate 继续接入该主链 |
+| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
 | `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；完整吸附、镜像和正式 8–12 模块待完成 |

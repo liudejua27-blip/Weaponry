@@ -137,6 +137,7 @@ class ModuleGraphValidationResponse(StrictApiModel):
     persisted: bool
     graph_sha256: str
     issues: List[ModuleGraphValidationIssue] = Field(default_factory=list)
+    job_id: Optional[str] = None
 
 
 class ModuleGraphRecord(StrictApiModel):
@@ -176,6 +177,7 @@ class QualityRunRecord(StrictApiModel):
     version_id: str
     report: ModelQualityReport
     created_at: str
+    job_id: Optional[str] = None
 
 
 class InterpretDesignBriefRequest(StrictApiModel):

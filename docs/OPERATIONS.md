@@ -146,7 +146,7 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据与源包。`r3:workbench-gate` 注册 4 个可渲染 GLB，验证加载、选择、隐藏/显示、聚焦、Connector overlay、拖拽候选、兼容替换、版本 Undo/Redo、爆炸视图、ZIP 下载和 Agent 重启恢复。它仍不证明 8–12 个正式模块、完整吸附/镜像、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个可渲染 GLB，验证真实工作台交互和 Agent 重启恢复。它仍不证明 8–12 个正式模块、完整吸附/镜像、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
 
 ### 2.3 Tauri 检查
 

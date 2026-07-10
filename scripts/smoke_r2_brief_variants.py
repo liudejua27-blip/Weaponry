@@ -208,8 +208,8 @@ def main() -> int:
         _assert(brief_count == 1, "brief table count mismatch")
         _assert(variant_count == 3, "variant table count mismatch")
         _assert(selected_count == 1, "selected variant count mismatch")
-        _assert(job_count == 2, "concept job count mismatch")
-        _assert(event_count == 5, "concept JobEvent count mismatch")
+        _assert(job_count == 3, "concept job count mismatch")
+        _assert(event_count == 8, "concept JobEvent count mismatch")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
