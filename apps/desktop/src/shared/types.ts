@@ -48,6 +48,8 @@ export type DesignChangeSet = Api.DesignChangeSet
 export type ProposeChangeSetRequest = Api.ProposeChangeSetRequest
 export type ChangeSetPreviewResponse = Api.ChangeSetPreviewResponse
 export type ChangeSetConfirmResponse = Api.ChangeSetConfirmResponse
+export type ChangeSetTimelineResponse = Api.ChangeSetTimelineResponse
+export type ChangeSetTimelineItem = Api.ChangeSetTimelineItem
 
 export type ApiErrorEnvelope = {
   error: {

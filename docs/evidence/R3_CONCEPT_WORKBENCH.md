@@ -1,7 +1,7 @@
 # R3 Concept Workbench Evidence
 
 日期：2026-07-10
-范围：R3 当前六个纵向切片；证明真实 Concept/GLB、兼容替换/吸附、显式镜像、版本化桌面交互、浏览器资源释放和 Module Pack 工具链，不证明正式模块资产指标或 R3 完成。
+范围：R3 当前七个纵向切片；证明真实 Concept/GLB、兼容替换/吸附、显式镜像、操作时间线、版本化桌面交互、浏览器资源释放和 Module Pack 工具链，不证明正式模块资产指标或 R3 完成。
 
 ## 已实现
 
@@ -26,6 +26,7 @@
 - replace preview 在 Connector remap 后执行 rooted 子树吸附；root/child 替换、后代重定位和循环冲突拒绝均由服务端完成并进入子版本。
 - `set_mirror` 将 `mirror_axis` 写入不可变 Graph 子版本，视口、Connector 吸附、检查器、Concept Export Manifest 和重启回读使用同一状态；locked 节点或 locked 后代不能被镜像/自动重定位绕过。
 - 视口 cleanup 显式释放 GLTF texture、geometry/material、skeleton、controls、renderer 和 WebGL context，并暴露只读 E2E 诊断计数。
+- `GET /api/v1/projects/{project_id}/change-sets` 返回权威 operation/node/status/base/result Version 与时间戳；桌面“时间线”消费该 API，并在重启后保持 replace/mirror 记录。
 
 ## 自动验证
 
@@ -50,6 +51,7 @@ npm run agent:r3-connector-snap-smoke
 11. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
 12. 浏览器没有未处理 page error。
 13. 连续切换 V3↔V4 20 轮，始终只有 1 个 canvas/1 个 active context；一次基准运行触发 80 renderer generations，GC 后 heap 增长约 3.4 MB，最终 7 geometries/3 textures。
+14. 操作时间线显示 `replace_module(node_front)`、`set_mirror(node_grip)`、confirmed 状态和结果 Version。
 
 Module Pack smoke 另用 9 个含 triangle/UV/material 的最小 GLB 覆盖九类资产，验证 dry-run、release 门、批量注册、幂等重放和重启恢复；并确认哈希篡改、越界路径、缺许可证、跨模块重复 Connector 和 pack_id 不一致会失败。
 

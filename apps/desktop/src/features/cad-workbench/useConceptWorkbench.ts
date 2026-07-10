@@ -5,6 +5,7 @@ import type {
   ConceptProjectDetail,
   ConceptProjectSummary,
   ConceptVersionDetail,
+  ChangeSetTimelineItem,
   DesignVariantRecord,
   ModuleAssetRecord,
   ModuleGraphRecord,
@@ -23,6 +24,7 @@ type ConceptWorkbenchState = {
   error: string | null
   statusMessage: string
   lastExport: ConceptExportRecord | null
+  timeline: ChangeSetTimelineItem[]
 }
 
 const INITIAL_STATE: ConceptWorkbenchState = {
@@ -36,6 +38,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   error: null,
   statusMessage: '正在读取本地 Concept 数据…',
   lastExport: null,
+  timeline: [],
 }
 
 export function useConceptWorkbench() {
@@ -59,9 +62,10 @@ export function useConceptWorkbench() {
         && versions.some((item) => item.version_id === preferredVersionId)
         ? preferredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
-      const [moduleResponse, variantResponse, version] = await Promise.all([
+      const [moduleResponse, variantResponse, timelineResponse, version] = await Promise.all([
         forgeApi.listModuleAssets(project.profile.pack_id),
         forgeApi.listDesignVariants(projectId),
+        forgeApi.listChangeSets(projectId),
         versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
       ])
       const graphRecord = version?.module_graph_id
@@ -76,6 +80,7 @@ export function useConceptWorkbench() {
         graphRecord,
         modules: moduleResponse.items ?? [],
         variants: variantResponse.items ?? [],
+        timeline: timelineResponse.items ?? [],
         loading: false,
         error: null,
         statusMessage: graphRecord
@@ -111,6 +116,7 @@ export function useConceptWorkbench() {
           graphRecord: null,
           modules: [],
           variants: [],
+          timeline: [],
           loading: false,
           error: null,
           statusMessage: '尚无 Concept Project。创建“寒地巡逻 S1”开始设计。',

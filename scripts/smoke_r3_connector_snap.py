@@ -152,6 +152,19 @@ def main() -> int:
                 version_id=version_6,
             )
             locked_descendant_rejected = _assert_locked_descendant_rejected(base_url)
+            timeline = _json_request(
+                base_url,
+                f"/api/v1/projects/{project_id}/change-sets",
+                method="GET",
+            )
+            _assert(len(timeline["items"]) == 5, "ChangeSet timeline count mismatch")
+            timeline_operations = [
+                operation["op"]
+                for item in timeline["items"]
+                for operation in item["change_set"]["operations"]
+            ]
+            _assert("replace_module" in timeline_operations, "timeline lost replacement")
+            _assert("set_mirror" in timeline_operations, "timeline lost mirror")
         finally:
             _stop_agent(process)
 
@@ -182,6 +195,12 @@ def main() -> int:
             _assert_vector(restored_nodes["node_front"]["transform"]["position"], [84, 16, 0])
             _assert_vector(restored_nodes["node_top"]["transform"]["position"], [86, 33, 0])
             _assert(restored_nodes["node_top"]["mirror_axis"] == "x", "restart lost mirror")
+            restored_timeline = _json_request(
+                restart_url,
+                f"/api/v1/projects/{project_id}/change-sets",
+                method="GET",
+            )
+            _assert(len(restored_timeline["items"]) == 5, "restart lost ChangeSet timeline")
         finally:
             _stop_agent(restarted)
 
@@ -201,6 +220,7 @@ def main() -> int:
                     "cycle_conflict_rejected": cycle_conflict_rejected,
                     "locked_descendant_rejected": locked_descendant_rejected,
                     "restart_restored": True,
+                    "timeline_restored": True,
                     "final_version_id": version_6,
                     "graph_count": graph_count,
                 },

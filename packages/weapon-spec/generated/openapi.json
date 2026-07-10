@@ -442,6 +442,93 @@
         "title": "ChangeSetPreviewResponse",
         "type": "object"
       },
+      "ChangeSetTimelineItem": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version_id": {
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "preview_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Sha256"
+          },
+          "result_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Version Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_set",
+          "base_version_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ChangeSetTimelineItem",
+        "type": "object"
+      },
+      "ChangeSetTimelineResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetTimelineItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ChangeSetTimelineResponse",
+        "type": "object"
+      },
       "ConceptConstraints": {
         "additionalProperties": false,
         "properties": {
@@ -7083,6 +7170,48 @@
         "summary": "Get Brief",
         "tags": [
           "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/change-sets": {
+      "get": {
+        "operationId": "list_change_sets_api_v1_projects__project_id__change_sets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetTimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Change Sets",
+        "tags": [
+          "concept-change-sets"
         ]
       }
     },

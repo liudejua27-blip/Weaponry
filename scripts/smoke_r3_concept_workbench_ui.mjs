@@ -339,6 +339,13 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.screenshot({ path: MIRROR_SCREENSHOT, fullPage: true })
     if ((await stat(MIRROR_SCREENSHOT)).size < 20_000) throw new Error('mirror screenshot is unexpectedly small')
     const lifecycle = await stressViewportLifecycle(page)
+    await page.getByRole('button', { name: '时间线' }).click()
+    await assertText(page.locator('.drawer-placeholder'), [
+      'ChangeSet 操作时间线',
+      'replace_module(node_front)',
+      'set_mirror(node_grip)',
+      'confirmed',
+    ])
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
 
@@ -365,6 +372,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
       mirror_version_verified: true,
       mirror_screenshot: MIRROR_SCREENSHOT,
       viewport_lifecycle: lifecycle,
+      operation_timeline_verified: true,
       export_downloaded: true,
     }
   } finally {

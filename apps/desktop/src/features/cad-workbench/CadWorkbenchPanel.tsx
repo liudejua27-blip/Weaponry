@@ -552,10 +552,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                     ))}
                   </>}
                   {drawerTab === 'timeline' && <>
-                    <strong>设计时间线</strong>
-                    {(concept.project?.versions ?? []).slice().reverse().map((version) => (
-                      <span key={version.version_id}>{formatVersionTime(version.created_at)} · V{version.version_no} {version.summary}</span>
+                    <strong>ChangeSet 操作时间线</strong>
+                    {concept.timeline.slice().reverse().map((item) => (
+                      <span key={item.change_set.change_set_id}>
+                        {formatVersionTime(item.confirmed_at ?? item.updated_at)} · {item.status} ·{' '}
+                        {item.change_set.operations.map((operation) => (
+                          `${operation.op}${operation.node_id ? `(${operation.node_id})` : ''}`
+                        )).join(' + ')}
+                        {item.result_version_id ? ` → ${item.result_version_id}` : ''}
+                      </span>
                     ))}
+                    {concept.timeline.length === 0 && <span>当前项目尚无持久化 ChangeSet。</span>}
                   </>}
                 </div>
               )}

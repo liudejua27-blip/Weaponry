@@ -13,6 +13,7 @@ from forgecad_agent.application.concept_change_sets import (
 from forgecad_agent.application.concept_models import (
     ChangeSetConfirmResponse,
     ChangeSetPreviewResponse,
+    ChangeSetTimelineResponse,
     ProposeChangeSetRequest,
 )
 from forgecad_agent.domain.concepts.models import DesignChangeSet
@@ -20,6 +21,18 @@ from forgecad_agent.domain.concepts.models import DesignChangeSet
 
 def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
     router = APIRouter(prefix="/api/v1", tags=["concept-change-sets"])
+
+    @router.get(
+        "/projects/{project_id}/change-sets",
+        response_model=ChangeSetTimelineResponse,
+    )
+    def list_change_sets(
+        project_id: str,
+    ) -> Union[ChangeSetTimelineResponse, JSONResponse]:
+        try:
+            return service.list_for_project(project_id)
+        except ConceptChangeSetError as exc:
+            return _change_set_error_response(exc)
 
     @router.post(
         "/versions/{version_id}/change-sets",

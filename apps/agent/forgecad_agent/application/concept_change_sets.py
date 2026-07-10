@@ -11,6 +11,8 @@ from pydantic import ValidationError
 from forgecad_agent.application.concept_models import (
     ChangeSetConfirmResponse,
     ChangeSetPreviewResponse,
+    ChangeSetTimelineItem,
+    ChangeSetTimelineResponse,
     ProposeChangeSetRequest,
 )
 from forgecad_agent.application.concept_modules import validate_registered_graph
@@ -107,6 +109,40 @@ class ConceptChangeSetService:
                 created_at=now,
             )
             return change_set
+
+    def list_for_project(self, project_id: str) -> ChangeSetTimelineResponse:
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            if unit_of_work.concept_projects.get_active(project_id) is None:
+                raise ConceptChangeSetError("PROJECT_NOT_FOUND", "Concept project not found.")
+            rows = unit_of_work.change_sets.list_for_project(project_id)
+            return ChangeSetTimelineResponse(
+                project_id=project_id,
+                items=[
+                    ChangeSetTimelineItem(
+                        change_set=DesignChangeSet.model_validate_json(row["change_set_json"]),
+                        base_version_id=str(row["base_version_id"]),
+                        result_version_id=(
+                            str(row["result_version_id"])
+                            if row["result_version_id"] is not None
+                            else None
+                        ),
+                        status=str(row["status"]),
+                        preview_sha256=(
+                            str(row["preview_sha256"])
+                            if row["preview_sha256"] is not None
+                            else None
+                        ),
+                        created_at=str(row["created_at"]),
+                        updated_at=str(row["updated_at"]),
+                        confirmed_at=(
+                            str(row["confirmed_at"])
+                            if row["confirmed_at"] is not None
+                            else None
+                        ),
+                    )
+                    for row in rows
+                ],
+            )
 
     def preview(
         self,

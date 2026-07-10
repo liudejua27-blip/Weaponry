@@ -166,6 +166,22 @@ class ChangeSetConfirmResponse(StrictApiModel):
     project: ConceptProjectDetail
 
 
+class ChangeSetTimelineItem(StrictApiModel):
+    change_set: "DesignChangeSet"
+    base_version_id: str
+    result_version_id: Optional[str] = None
+    status: str
+    preview_sha256: Optional[str] = None
+    created_at: str
+    updated_at: str
+    confirmed_at: Optional[str] = None
+
+
+class ChangeSetTimelineResponse(StrictApiModel):
+    project_id: str
+    items: List[ChangeSetTimelineItem] = Field(default_factory=list)
+
+
 class CreateQualityRunRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     report: ModelQualityReport

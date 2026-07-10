@@ -83,6 +83,22 @@ export type ChangeSetPreviewResponse = {
   "issues"?: Array<ModuleGraphValidationIssue>
 }
 
+export type ChangeSetTimelineItem = {
+  "change_set": DesignChangeSet
+  "base_version_id": string
+  "result_version_id"?: string | null
+  "status": string
+  "preview_sha256"?: string | null
+  "created_at": string
+  "updated_at": string
+  "confirmed_at"?: string | null
+}
+
+export type ChangeSetTimelineResponse = {
+  "project_id": string
+  "items"?: Array<ChangeSetTimelineItem>
+}
+
 export type ConceptConstraints = {
   "symmetry": "symmetric" | "mostly_symmetric" | "asymmetric"
   "max_triangle_count": number

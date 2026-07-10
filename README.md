@@ -152,6 +152,7 @@ core.side_panel_left / core.side_panel_right
 | Connector / 模块吸附 / 镜像 / 爆炸视图 | Connector 合同、注册、兼容校验、替换 remap、rooted 子树自动重定位、显式镜像 ChangeSet、冲突/lock 拒绝、overlay 和爆炸视图已实现 | 合成 100 组为 100%；正式资产替换矩阵 ≥95% 仍待验证 |
 | Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
+| ChangeSet 操作时间线 | Project 级只读 API、operation/node/status/result Version 与桌面时间线已实现 | 搜索、分页与 rejected 原因进入后续审计增强 |
 | ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |
 | Concept Export | `ConceptExportManifest@1`、源 GLB/Spec/Graph/Quality ZIP、hash、JobEvent、下载与重启恢复已实现 | 当前不是 combined GLB；OBJ/PNG/爆炸图进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |

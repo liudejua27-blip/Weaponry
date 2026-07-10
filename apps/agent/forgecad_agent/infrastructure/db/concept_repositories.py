@@ -560,6 +560,21 @@ class ChangeSetRepository:
             (change_set_id,),
         ).fetchone()
 
+    def list_for_project(self, project_id: str) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                """
+                SELECT change_set_id, project_id, base_version_id, result_version_id,
+                       schema_version, change_set_json, change_set_sha256, status,
+                       preview_sha256, created_at, updated_at, confirmed_at
+                FROM design_change_sets
+                WHERE project_id = ?
+                ORDER BY created_at ASC, change_set_id ASC
+                """,
+                (project_id,),
+            ).fetchall()
+        )
+
     def save_preview(
         self,
         *,

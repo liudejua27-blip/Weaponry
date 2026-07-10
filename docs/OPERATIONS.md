@@ -154,6 +154,8 @@ npm run r3:workbench-gate
 npm run agent:r3-connector-snap-smoke
 ```
 
+该门同时验证 `GET /api/v1/projects/{project_id}/change-sets` 的 replace/mirror 操作时间线与 Agent 重启回读。
+
 ### 2.3 Tauri 检查
 
 ```bash

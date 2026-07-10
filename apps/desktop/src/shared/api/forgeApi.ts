@@ -39,6 +39,7 @@ import type {
   DesignChangeSet,
   ChangeSetPreviewResponse,
   ChangeSetConfirmResponse,
+  ChangeSetTimelineResponse,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -152,6 +153,11 @@ export class ForgeApiClient {
       body: JSON.stringify(input),
     })
     return readJson<DesignChangeSet>(response)
+  }
+
+  async listChangeSets(projectId: string): Promise<ChangeSetTimelineResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/change-sets`)
+    return readJson<ChangeSetTimelineResponse>(response)
   }
 
   async previewChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetPreviewResponse> {

@@ -388,6 +388,7 @@ POST   /api/v1/module-graphs/{graph_id}/validate
 GET    /api/v1/module-graphs/{graph_id}
 
 POST   /api/v1/versions/{version_id}/change-sets
+GET    /api/v1/projects/{project_id}/change-sets
 POST   /api/v1/change-sets/{change_set_id}:preview
 POST   /api/v1/change-sets/{change_set_id}:confirm
 
@@ -401,6 +402,8 @@ GET    /api/v1/jobs/{job_id}/events
 ```
 
 当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
+
+Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 operation、base/result Version、状态与时间戳；桌面时间线不再把 Version summary 冒充操作审计。
 
 ### 9.1 坐标与 Connector 吸附
 
