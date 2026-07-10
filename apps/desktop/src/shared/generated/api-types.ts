@@ -129,6 +129,8 @@ export type ConceptExportRecord = {
   "package_asset_id": string
   "package_sha256": string
   "package_byte_size": number
+  "combined_glb_sha256": string
+  "combined_glb_byte_size": number
   "manifest": ConceptExportManifest
   "created_at": string
 }
@@ -230,6 +232,7 @@ export type CreateConceptExportRequest = {
   "client_request_id": string
   "profile": "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
   "include_modules"?: true
+  "include_combined_glb"?: true
   "include_quality_report"?: boolean
 }
 

@@ -653,6 +653,15 @@
       "ConceptExportRecord": {
         "additionalProperties": false,
         "properties": {
+          "combined_glb_byte_size": {
+            "minimum": 0.0,
+            "title": "Combined Glb Byte Size",
+            "type": "integer"
+          },
+          "combined_glb_sha256": {
+            "title": "Combined Glb Sha256",
+            "type": "string"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -720,6 +729,8 @@
           "package_asset_id",
           "package_sha256",
           "package_byte_size",
+          "combined_glb_sha256",
+          "combined_glb_byte_size",
           "manifest",
           "created_at"
         ],
@@ -1254,6 +1265,12 @@
             "minLength": 1,
             "title": "Client Request Id",
             "type": "string"
+          },
+          "include_combined_glb": {
+            "const": true,
+            "default": true,
+            "title": "Include Combined Glb",
+            "type": "boolean"
           },
           "include_modules": {
             "const": true,
@@ -6434,6 +6451,46 @@
           }
         },
         "summary": "Get Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.glb": {
+      "get": {
+        "operationId": "download_combined_glb_api_v1_exports__export_id__combined_glb_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Glb",
         "tags": [
           "concept-exports"
         ]

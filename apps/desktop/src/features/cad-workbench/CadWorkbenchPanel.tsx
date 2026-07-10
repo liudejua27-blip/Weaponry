@@ -189,8 +189,13 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
 
   const handleCreateExport = useCallback(async () => {
     const result = await concept.createExport()
-    if (result) window.location.assign(forgeApi.getConceptExportFileUrl(result.export_id))
-  }, [concept])
+    if (!result) return
+    window.location.assign(
+      exportFormat === 'GLB'
+        ? forgeApi.getConceptCombinedGlbUrl(result.export_id)
+        : forgeApi.getConceptExportFileUrl(result.export_id),
+    )
+  }, [concept, exportFormat])
 
   const handleReplaceSelected = useCallback(() => {
     if (!selectedNode || !selectedLibraryModule) return
@@ -663,7 +668,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             <div className="export-formats">
               {[
                 { id: 'SOURCE ZIP', enabled: true },
-                { id: 'GLB', enabled: false },
+                { id: 'GLB', enabled: true },
                 { id: 'OBJ', enabled: false },
                 { id: 'PNG', enabled: false },
               ].map((format) => (
@@ -690,7 +695,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               onClick={handleCreateExport}
               disabled={!concept.version?.module_graph_id || concept.loading}
             >
-              <FileArrowDown size={16} /> 创建并下载概念源包
+              <FileArrowDown size={16} /> {exportFormat === 'GLB' ? '创建并下载 combined GLB' : '创建并下载概念源包'}
             </button>
           </section>
         </aside>

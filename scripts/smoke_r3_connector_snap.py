@@ -5,6 +5,7 @@ import json
 import math
 import sqlite3
 import tempfile
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from forgecad_agent.domain.concepts.connector_snapping import (
     connector_alignment_error,
     snap_child_transform,
 )
+from forgecad_agent.application.combined_glb import read_glb
 from forgecad_agent.domain.concepts.models import Transform
 from smoke_r2_concept_projects import (
     _assert,
@@ -141,6 +143,18 @@ def main() -> int:
                 item for item in mirror_export["manifest"]["modules"] if item["node_id"] == "node_top"
             )
             _assert(exported_top["mirror_axis"] == "x", "export manifest lost mirror state")
+            with urllib.request.urlopen(
+                f"{base_url}/api/v1/exports/{mirror_export['export_id']}/combined.glb",
+                timeout=10,
+            ) as response:
+                combined_document, _ = read_glb(response.read())
+            top_wrapper = next(
+                node
+                for node in combined_document["nodes"]
+                if node.get("extras", {}).get("forgecad_node_id") == "node_top"
+            )
+            _assert_vector(top_wrapper["translation"], [0.086, 0.033, 0])
+            _assert(top_wrapper["scale"][0] == -1, "combined GLB lost X mirror scale")
             version_6 = _connect_cycle_constraint(
                 base_url,
                 project_id=project_id,
@@ -216,6 +230,7 @@ def main() -> int:
                     "connector_remap_verified": True,
                     "mirror_version_verified": True,
                     "mirror_export_verified": True,
+                    "combined_transform_verified": True,
                     "idempotent_replay": True,
                     "cycle_conflict_rejected": cycle_conflict_rejected,
                     "locked_descendant_rejected": locked_descendant_rejected,

@@ -62,6 +62,21 @@ def build_export_router(service: ConceptExportService) -> APIRouter:
             },
         )
 
+    @router.get("/exports/{export_id}/combined.glb", response_model=None)
+    def download_combined_glb(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_combined_glb(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="model/gltf-binary",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
     return router
 
 

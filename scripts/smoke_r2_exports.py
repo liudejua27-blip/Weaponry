@@ -10,6 +10,15 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from forgecad_agent.application.combined_glb import (
+    CombinedGlbError,
+    CombinedGlbSource,
+    build_combined_glb,
+    read_glb,
+    write_glb,
+)
+from forgecad_agent.domain.concepts.models import ModuleGraph
+
 from smoke_r2_concept_projects import (
     _assert,
     _create_body,
@@ -112,6 +121,7 @@ def main() -> int:
                 "client_request_id": "r2-export-create",
                 "profile": "game_asset",
                 "include_modules": True,
+                "include_combined_glb": True,
                 "include_quality_report": True,
             }
             created = _json_request(
@@ -149,6 +159,7 @@ def main() -> int:
                     "Graphs/module-graph.json",
                     "Modules/node_core.glb",
                     "Modules/node_front.glb",
+                    "Model/combined.glb",
                     "Quality/model-quality-report.json",
                     "README.txt",
                 }
@@ -157,9 +168,38 @@ def main() -> int:
                 _assert(manifest == created["manifest"], "ZIP manifest mismatch")
                 _assert(archive.read("Modules/node_core.glb") == core_payload, "core GLB changed")
                 _assert(archive.read("Modules/node_front.glb") == front_payload, "front GLB changed")
+                combined_payload = archive.read("Model/combined.glb")
+                combined_document, _ = read_glb(combined_payload)
+                wrapper_names = {
+                    node.get("name")
+                    for node in combined_document["nodes"]
+                    if str(node.get("name", "")).startswith("NODE_")
+                }
+                _assert(
+                    wrapper_names
+                    == {
+                        "NODE_node_core__module_core_shell_01",
+                        "NODE_node_front__module_front_shell_01",
+                    },
+                    "combined GLB wrapper nodes mismatch",
+                )
+                _assert(
+                    hashlib.sha256(combined_payload).hexdigest()
+                    == created["combined_glb_sha256"],
+                    "combined GLB hash mismatch",
+                )
+                _assert(
+                    len(combined_payload) == created["combined_glb_byte_size"],
+                    "combined GLB size mismatch",
+                )
                 for entry in manifest["files"]:
                     payload = archive.read(entry["path"])
                     _assert(hashlib.sha256(payload).hexdigest() == entry["sha256"], "file hash mismatch")
+            _assert(
+                _download_combined(base_url, created["export_id"]) == combined_payload,
+                "direct combined GLB download mismatch",
+            )
+            _assert_unsupported_static_feature_rejected(ModuleGraph.model_validate(graph))
 
             replay = _json_request(
                 base_url,
@@ -206,6 +246,10 @@ def main() -> int:
             )
             _assert(restored["package_sha256"] == created["package_sha256"], "restart export mismatch")
             _assert(_download(restart_url, created["export_id"]) == package_payload, "restart download mismatch")
+            _assert(
+                _download_combined(restart_url, created["export_id"]) == combined_payload,
+                "restart combined GLB mismatch",
+            )
         finally:
             _stop_agent(restarted_process)
 
@@ -218,6 +262,8 @@ def main() -> int:
                     "package_sha256": created["package_sha256"],
                     "module_count": len(created["manifest"]["modules"]),
                     "quality_report_included": True,
+                    "combined_glb_sha256": created["combined_glb_sha256"],
+                    "unsupported_feature_rejected": True,
                     "restart_restored": True,
                 },
                 ensure_ascii=False,
@@ -245,6 +291,37 @@ def _download(base_url: str, export_id: str) -> bytes:
         _assert(response.status == 200, "export download failed")
         _assert(response.headers.get_content_type() == "application/zip", "export MIME mismatch")
         return response.read()
+
+
+def _download_combined(base_url: str, export_id: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/combined.glb",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, "combined GLB download failed")
+        _assert(response.headers.get_content_type() == "model/gltf-binary", "GLB MIME mismatch")
+        return response.read()
+
+
+def _assert_unsupported_static_feature_rejected(graph: ModuleGraph) -> None:
+    unsupported = write_glb(
+        {
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{"name": "animated", "mesh": 0}],
+            "meshes": [{"primitives": []}],
+            "animations": [{"channels": [], "samplers": []}],
+            "buffers": [],
+        },
+        b"",
+    )
+    try:
+        build_combined_glb([CombinedGlbSource(node=graph.nodes[0], payload=unsupported)])
+    except CombinedGlbError as exc:
+        _assert("animations" in str(exc), "unsupported feature error was not specific")
+        return
+    raise AssertionError("combined GLB accepted an unsupported animation")
 
 
 if __name__ == "__main__":

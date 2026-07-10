@@ -236,6 +236,7 @@ export function useConceptWorkbench() {
         client_request_id: `desktop-export-${Date.now()}`,
         profile: 'game_asset',
         include_modules: true,
+        include_combined_glb: true,
         include_quality_report: true,
       })
       setState((current) => ({

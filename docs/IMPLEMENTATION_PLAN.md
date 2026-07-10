@@ -13,7 +13,7 @@
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE 和可追溯概念源包导出已实现；首批高质量模块资产、AI 方案质量、combined GLB/OBJ/PNG 导出尚未实现；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE、可追溯源包与 combined GLB 已实现；最终高质量资产、AI 方案质量、OBJ/PNG 导出尚未实现；
 - `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；正式 Blender 资产本身尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
@@ -44,6 +44,7 @@
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 第一切片完成 | Project ChangeSet list API、operation/node/status/result Version、桌面回读与 restart smoke |
+| R5 combined GLB | 第一切片完成 | static GLB merge、mm→m、Euler→quaternion、mirror scale、stable wrapper nodes、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 
 ## 2. 执行硬规则
 
@@ -313,8 +314,8 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 4. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
 5. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
 6. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
-7. 实现 combined GLB，再补 OBJ/PNG/爆炸图导出。
-8. 跑通“替换模块→ChangeSet→新版本→检查→combined GLB+Manifest 导出”。
+7. 在已完成 combined GLB 基础上补 OBJ/PNG/爆炸图，并评估 glTF Transform/Meshopt 优化。
+8. 在已完成“替换/镜像→ChangeSet→新版本→combined GLB+Manifest”基础上接入实际检查器，形成完整 R5 闭环。
 9. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
 10. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 

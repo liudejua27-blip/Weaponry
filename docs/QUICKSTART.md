@@ -36,9 +36,10 @@ npm run r2:gate
 npm run agent:r3-module-pack-smoke
 npm run agent:r3-connector-snap-smoke
 npm run r3:workbench-gate
+npm run r5:combined-glb-gate
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类资产、17 Connector、9-node Graph、替换/吸附/镜像、操作时间线、Undo/Redo、爆炸视图、20 轮加载/卸载和重启恢复。100 组合成 Connector/镜像样本全部通过，但不代表人工 Blender 最终资产已达到 ≥95%。Tauri GPU profiling、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
+当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类资产、17 Connector、9-node Graph、替换/吸附/镜像、操作时间线、Undo/Redo、爆炸视图、20 轮加载/卸载和重启恢复。`r5:combined-glb-gate` 另验证单一 GLB、Manifest、直接下载和重启回读。Tauri GPU profiling、实际 Mesh 检查和 OBJ/PNG 仍按 R3–R5 实施。
 
 开始制作首包前先读 [MODULE_ASSET_GUIDE.md](MODULE_ASSET_GUIDE.md)。资产 CLI 默认只做 dry-run；只有显式传入 `--import` 才会注册到本地 Agent。
 

@@ -18,7 +18,7 @@
 - 兼容模块替换走 ChangeSet preview/confirm，edge Connector 按相同 slot/type 自动重映射；
 - `locked` Graph 节点由服务端保护，即使客户端省略 `protected_node_ids` 也不能绕过；
 - 页面不再用程序化武器模型冒充真实 ModuleGraph；没有 Graph 或 Module 时显示明确空状态；
-- 当前仅可创建 `SOURCE ZIP`，GLB/OBJ/PNG 显式标记为 R5 未实现。
+- 当前可创建 `SOURCE ZIP` 与 combined `GLB`；OBJ/PNG 仍显式标记为 R5 未实现。
 - `ModulePackManifest@1` 固定包坐标、用途、许可证和模块文件索引；
 - 仓库参考 Pack 含 10 个真实 GLB、九类、17 Connector、UV0/normal/三材质、512×512 缩略图与许可证；生成器 `--check` 防止二进制/Manifest/hash 漂移；
 - Module Pack CLI 校验安全路径、九类 release 覆盖、GLB 2.0、UV0、材质、三角数、毫米 bounds、identity Transform、缩略图、哈希和许可证；

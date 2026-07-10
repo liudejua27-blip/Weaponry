@@ -9,6 +9,11 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from forgecad_agent.application.concept_jobs import record_completed_job
+from forgecad_agent.application.combined_glb import (
+    CombinedGlbError,
+    CombinedGlbSource,
+    build_combined_glb,
+)
 from forgecad_agent.application.concept_models import (
     ConceptExportRecord,
     CreateConceptExportRequest,
@@ -92,6 +97,7 @@ class ConceptExportService:
             files["Graphs/module-graph.json"] = (graph_payload, "application/json")
 
             module_entries: list[ExportModuleEntry] = []
+            combined_sources: list[CombinedGlbSource] = []
             for node in graph.nodes:
                 module_row = unit_of_work.modules.get_manifest(node.module_id)
                 if module_row is None:
@@ -118,6 +124,7 @@ class ConceptExportService:
                     ) from exc
                 logical_path = f"Modules/{node.node_id}.glb"
                 files[logical_path] = (payload, "model/gltf-binary")
+                combined_sources.append(CombinedGlbSource(node=node, payload=payload))
                 module_entries.append(
                     ExportModuleEntry(
                         node_id=node.node_id,
@@ -129,6 +136,16 @@ class ConceptExportService:
                         transform=node.transform,
                     )
                 )
+
+            try:
+                combined_glb = build_combined_glb(combined_sources)
+            except CombinedGlbError as exc:
+                raise ConceptExportError(
+                    "INVALID_REQUEST",
+                    f"Combined GLB could not be created: {exc}",
+                ) from exc
+            combined_glb_sha256 = hashlib.sha256(combined_glb).hexdigest()
+            files["Model/combined.glb"] = (combined_glb, "model/gltf-binary")
 
             quality_report_id: Optional[str] = None
             if request.include_quality_report:
@@ -226,8 +243,9 @@ class ConceptExportService:
                     "package_sha256": stored.sha256,
                 },
                 steps=[
-                    ("collect", "Collected immutable concept sources.", 0.35, {}),
-                    ("manifest", "Validated ConceptExportManifest@1.", 0.7, {}),
+                    ("collect", "Collected immutable concept sources.", 0.25, {}),
+                    ("combine", "Built a static combined GLB.", 0.55, {"sha256": combined_glb_sha256}),
+                    ("manifest", "Validated ConceptExportManifest@1.", 0.75, {}),
                     ("package", "Stored concept export package.", 1.0, {"export_id": export_id}),
                 ],
                 artifact_asset_id=package_asset_id,
@@ -242,6 +260,8 @@ class ConceptExportService:
                 package_asset_id=package_asset_id,
                 package_sha256=stored.sha256,
                 package_byte_size=stored.byte_size,
+                combined_glb_sha256=combined_glb_sha256,
+                combined_glb_byte_size=len(combined_glb),
                 manifest=manifest,
                 created_at=created_at,
             )
@@ -278,8 +298,27 @@ class ConceptExportService:
                 ) from exc
             return payload, f"{export_id}.zip", str(row["package_sha256"])
 
+    def read_combined_glb(self, export_id: str) -> tuple[bytes, str, str]:
+        package, _, _ = self.read_export(export_id)
+        try:
+            with zipfile.ZipFile(io.BytesIO(package)) as archive:
+                payload = archive.read("Model/combined.glb")
+        except (zipfile.BadZipFile, KeyError) as exc:
+            raise ConceptExportError(
+                "EXPORT_PACKAGE_UNAVAILABLE",
+                "Combined GLB is missing from the immutable export package.",
+            ) from exc
+        return payload, f"{export_id}.glb", hashlib.sha256(payload).hexdigest()
+
 
 def _record_from_row(row: Any) -> ConceptExportRecord:
+    manifest = ConceptExportManifest.model_validate_json(row["manifest_json"])
+    combined = next((entry for entry in manifest.files if entry.path == "Model/combined.glb"), None)
+    if combined is None:
+        raise ConceptExportError(
+            "EXPORT_PACKAGE_UNAVAILABLE",
+            "Export manifest does not contain Model/combined.glb.",
+        )
     return ConceptExportRecord(
         export_id=row["export_id"],
         project_id=row["project_id"],
@@ -290,7 +329,9 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         package_asset_id=row["package_asset_id"],
         package_sha256=row["package_sha256"],
         package_byte_size=row["package_byte_size"],
-        manifest=ConceptExportManifest.model_validate_json(row["manifest_json"]),
+        combined_glb_sha256=combined.sha256,
+        combined_glb_byte_size=combined.byte_size,
+        manifest=manifest,
         created_at=row["created_at"],
     )
 

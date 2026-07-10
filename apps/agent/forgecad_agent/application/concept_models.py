@@ -270,6 +270,7 @@ class CreateConceptExportRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     profile: IntendedUse
     include_modules: Literal[True] = True
+    include_combined_glb: Literal[True] = True
     include_quality_report: bool = True
 
 
@@ -283,5 +284,7 @@ class ConceptExportRecord(StrictApiModel):
     package_asset_id: str
     package_sha256: str
     package_byte_size: int = Field(ge=0)
+    combined_glb_sha256: str
+    combined_glb_byte_size: int = Field(ge=0)
     manifest: ConceptExportManifest
     created_at: str

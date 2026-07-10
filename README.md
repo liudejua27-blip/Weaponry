@@ -155,10 +155,10 @@ core.side_panel_left / core.side_panel_right
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ChangeSet 操作时间线 | Project 级只读 API、operation/node/status/result Version 与桌面时间线已实现 | 搜索、分页与 rejected 原因进入后续审计增强 |
 | ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |
-| Concept Export | `ConceptExportManifest@1`、源 GLB/Spec/Graph/Quality ZIP、hash、JobEvent、下载与重启恢复已实现 | 当前不是 combined GLB；OBJ/PNG/爆炸图进入 R5 |
+| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、Manifest hash、JobEvent、独立下载与重启恢复已实现 | OBJ/PNG/爆炸图继续进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。旧 Weapon/Unity 主链继续作为回归 baseline；当前 R3 仍不能证明正式模块资产矩阵、combined GLB、实际网格检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。combined GLB 已能烘焙 Graph 毫米 Transform 与镜像状态。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明最终资产矩阵、OBJ/PNG、实际网格检查或 CAD/DFM 已完成。
 
 正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 

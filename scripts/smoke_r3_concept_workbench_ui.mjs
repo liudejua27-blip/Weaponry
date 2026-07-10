@@ -311,6 +311,21 @@ async function runWorkbenchUi(baseUrl, seeded) {
     const downloadPath = await download.path()
     if (!downloadPath || (await stat(downloadPath)).size < 500) throw new Error('concept export download is empty')
     await assertText(page.locator('.export-panel'), ['export_', 'SOURCE ZIP'])
+    await page.getByRole('button', { name: 'GLB', exact: true }).click()
+    const glbDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '创建并下载 combined GLB' }).click()
+    const glbDownload = await glbDownloadPromise
+    if (!glbDownload.suggestedFilename().endsWith('.glb')) {
+      throw new Error(`unexpected combined GLB filename: ${glbDownload.suggestedFilename()}`)
+    }
+    const glbDownloadPath = await glbDownload.path()
+    if (!glbDownloadPath || (await stat(glbDownloadPath)).size < 5_000) {
+      throw new Error('combined GLB download is unexpectedly small')
+    }
+    const glbHeader = await readFile(glbDownloadPath)
+    if (glbHeader.subarray(0, 4).toString('ascii') !== 'glTF') {
+      throw new Error('combined GLB download has an invalid header')
+    }
 
     if (browserErrors.length) throw new Error(`browser page errors: ${browserErrors.join(' | ')}`)
     return {
@@ -327,6 +342,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
       viewport_lifecycle: lifecycle,
       operation_timeline_verified: true,
       export_downloaded: true,
+      combined_glb_downloaded: true,
     }
   } finally {
     await browser.close()

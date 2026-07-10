@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、QualityRun 与概念源包导出 API 已实现；桌面真实装配、combined GLB 和正式 R5 导出器尚未实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、QualityRun、概念源包和 combined GLB 导出 API 已实现；OBJ/PNG/爆炸图和完整 R5 检查器尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -146,15 +146,18 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。它仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:combined-glb-gate` 验证单一 GLB；仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 OBJ/PNG。
 
 专项 Connector 门：
 
 ```bash
 npm run agent:r3-connector-snap-smoke
+npm run r5:combined-glb-gate
 ```
 
 该门同时验证 `GET /api/v1/projects/{project_id}/change-sets` 的 replace/mirror 操作时间线与 Agent 重启回读。
+
+combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
 
 ### 2.3 Tauri 检查
 

@@ -140,6 +140,10 @@ export class ForgeApiClient {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/file`
   }
 
+  getConceptCombinedGlbUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.glb`
+  }
+
   async proposeChangeSet(
     versionId: string,
     input: ProposeChangeSetRequest,
