@@ -23,6 +23,7 @@ from .concept_briefs import (
     ConceptBriefIdempotencyConflict,
     ConceptBriefService,
 )
+from .concept_jobs import ConceptJobError, ConceptJobService
 
 __all__ = [
     "ConceptProjectError",
@@ -40,4 +41,6 @@ __all__ = [
     "ConceptBriefError",
     "ConceptBriefIdempotencyConflict",
     "ConceptBriefService",
+    "ConceptJobError",
+    "ConceptJobService",
 ]

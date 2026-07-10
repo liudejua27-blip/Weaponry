@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,6 +11,7 @@ from forgecad_agent.domain.concepts.models import (
     DesignChangeSet,
     DesignDomainProfile,
     IntendedUse,
+    JobEventV2,
     ModuleAssetManifest,
     ModuleCategory,
     ModuleGraph,
@@ -186,6 +187,7 @@ class DesignBriefRecord(StrictApiModel):
     status: Literal["draft", "interpreted", "confirmed", "failed"]
     created_at: str
     updated_at: str
+    job_id: Optional[str] = None
 
 
 class GenerateDesignVariantsRequest(StrictApiModel):
@@ -210,7 +212,31 @@ class DesignVariantRecord(StrictApiModel):
 class DesignVariantListResponse(StrictApiModel):
     items: List[DesignVariantRecord] = Field(default_factory=list)
     next_cursor: Optional[str] = None
+    job_id: Optional[str] = None
 
 
 class SelectDesignVariantRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
+
+
+class ConceptJobRecord(StrictApiModel):
+    job_id: str
+    project_id: str
+    version_id: Optional[str] = None
+    type: str
+    status: str
+    current_step: Optional[str] = None
+    input_hash: str
+    input: Dict[str, Any] = Field(default_factory=dict)
+    outputs: Dict[str, Any] = Field(default_factory=dict)
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: str
+    updated_at: str
+    finished_at: Optional[str] = None
+    events: List[JobEventV2] = Field(default_factory=list)
+
+
+class ConceptJobEventListResponse(StrictApiModel):
+    items: List[JobEventV2] = Field(default_factory=list)
+    next_cursor: Optional[str] = None

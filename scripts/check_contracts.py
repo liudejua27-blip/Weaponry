@@ -81,6 +81,8 @@ def check_sqlite_migration() -> None:
             "quality_findings",
             "export_packages_v2",
             "artifact_links",
+            "concept_jobs",
+            "concept_job_events",
         }
         missing = required - tables
         if missing:

@@ -88,6 +88,29 @@ export type ConceptConstraints = {
   "max_triangle_count": number
 }
 
+export type ConceptJobEventListResponse = {
+  "items"?: Array<JobEventV2>
+  "next_cursor"?: string | null
+}
+
+export type ConceptJobRecord = {
+  "job_id": string
+  "project_id": string
+  "version_id"?: string | null
+  "type": string
+  "status": string
+  "current_step"?: string | null
+  "input_hash": string
+  "input"?: Record<string, unknown>
+  "outputs"?: Record<string, unknown>
+  "error_code"?: string | null
+  "error_message"?: string | null
+  "created_at": string
+  "updated_at": string
+  "finished_at"?: string | null
+  "events"?: Array<JobEventV2>
+}
+
 export type ConceptProjectDetail = {
   "project_id": string
   "profile_id": string
@@ -283,6 +306,7 @@ export type DesignBriefRecord = {
   "status": "draft" | "interpreted" | "confirmed" | "failed"
   "created_at": string
   "updated_at": string
+  "job_id"?: string | null
 }
 
 export type DesignChangeOperation = {
@@ -328,6 +352,7 @@ export type DesignDomainProfile = {
 export type DesignVariantListResponse = {
   "items"?: Array<DesignVariantRecord>
   "next_cursor"?: string | null
+  "job_id"?: string | null
 }
 
 export type DesignVariantRecord = {
@@ -477,6 +502,23 @@ export type JobEvent = {
   "progress"?: number | null
   "metadata"?: Record<string, unknown>
   "created_at"?: string
+}
+
+export type JobEventV2 = {
+  "schema_version"?: "JobEvent@2"
+  "event_id": string
+  "job_id": string
+  "seq": number
+  "project_id": string
+  "version_id"?: string | null
+  "step": string
+  "level"?: "info" | "warning" | "error"
+  "status": "created" | "queued" | "running" | "waiting_provider" | "waiting_user" | "retrying" | "succeeded" | "failed" | "cancelled" | "partial_succeeded"
+  "message": string
+  "progress": number
+  "artifact_asset_id"?: string | null
+  "metadata"?: Record<string, unknown>
+  "created_at": string
 }
 
 export type JobListResponse = {

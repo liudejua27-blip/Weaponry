@@ -842,3 +842,141 @@ class BriefVariantRepository:
             """,
             (project_id, brief_id),
         )
+
+
+class ConceptJobRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add_job(
+        self,
+        *,
+        job_id: str,
+        project_id: str,
+        version_id: Optional[str],
+        job_type: str,
+        status: str,
+        current_step: str,
+        input_hash: str,
+        input_json: str,
+        output_json: str,
+        created_at: str,
+        finished_at: Optional[str],
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO concept_jobs (
+              job_id, project_id, version_id, job_type, status, current_step,
+              input_hash, input_json, output_json, created_at, updated_at, finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job_id,
+                project_id,
+                version_id,
+                job_type,
+                status,
+                current_step,
+                input_hash,
+                input_json,
+                output_json,
+                created_at,
+                created_at,
+                finished_at,
+            ),
+        )
+
+    def add_event(
+        self,
+        *,
+        event_id: str,
+        job_id: str,
+        seq: int,
+        project_id: str,
+        version_id: Optional[str],
+        step: str,
+        level: str,
+        status: str,
+        message: str,
+        progress: float,
+        artifact_asset_id: Optional[str],
+        metadata_json: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO concept_job_events (
+              event_id, job_id, seq, project_id, version_id, step, level,
+              status, message, progress, artifact_asset_id, metadata_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                job_id,
+                seq,
+                project_id,
+                version_id,
+                step,
+                level,
+                status,
+                message,
+                progress,
+                artifact_asset_id,
+                metadata_json,
+                created_at,
+            ),
+        )
+
+    def get_job(self, job_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT job_id, project_id, version_id, job_type, status, current_step,
+                   input_hash, input_json, output_json, error_code, error_message,
+                   created_at, updated_at, finished_at
+            FROM concept_jobs
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+
+    def event_seq(self, job_id: str, event_id: str) -> Optional[int]:
+        row = self.connection.execute(
+            """
+            SELECT seq FROM concept_job_events
+            WHERE job_id = ? AND event_id = ?
+            """,
+            (job_id, event_id),
+        ).fetchone()
+        return int(row["seq"]) if row is not None else None
+
+    def events(
+        self,
+        job_id: str,
+        *,
+        after_seq: Optional[int] = None,
+    ) -> list[sqlite3.Row]:
+        if after_seq is None:
+            return self.connection.execute(
+                """
+                SELECT event_id, job_id, seq, project_id, version_id, step,
+                       level, status, message, progress, artifact_asset_id,
+                       metadata_json, created_at
+                FROM concept_job_events
+                WHERE job_id = ?
+                ORDER BY seq ASC
+                """,
+                (job_id,),
+            ).fetchall()
+        return self.connection.execute(
+            """
+            SELECT event_id, job_id, seq, project_id, version_id, step,
+                   level, status, message, progress, artifact_asset_id,
+                   metadata_json, created_at
+            FROM concept_job_events
+            WHERE job_id = ? AND seq > ?
+            ORDER BY seq ASC
+            """,
+            (job_id, after_seq),
+        ).fetchall()

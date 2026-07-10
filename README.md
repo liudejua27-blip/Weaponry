@@ -137,6 +137,7 @@ core.side_panel_left / core.side_panel_right
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
 | Job / Step / Event / SSE | 已实现 | 直接复用 |
+| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现 | Export/Quality 等继续接入该主链 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
 | `#/cad` 工作台原型 | 已切换为五阶段 Weapon Concept Workbench | 当前仍是前端交互与程序化 Three.js 模型，尚未接真实 ModuleGraph |

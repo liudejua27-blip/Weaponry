@@ -145,7 +145,7 @@ npm run r2:contracts-gate
 npm run r2:gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Project/Version、模块/Graph、ChangeSet、QualityRun、Brief 和确定性 A/B/C Variant 的幂等、选择与重启恢复。它仍不证明 AI 方案质量、实际 Mesh 检查器、R3 工作台交互或正式模块资产质量。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Project/Version、模块/Graph、ChangeSet、QualityRun、Brief/Variant、Concept JobEvent@2、cursor replay 与 SSE。它仍不证明 AI 方案质量、实际 Mesh 检查器、R3 工作台交互或正式模块资产质量。
 
 ### 2.3 Tauri 检查
 

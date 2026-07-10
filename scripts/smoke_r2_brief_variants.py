@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import tempfile
+import urllib.request
 from pathlib import Path
 
 from smoke_r2_concept_projects import (
@@ -109,6 +110,7 @@ def main() -> int:
                 idempotency_key="r2-brief-interpret",
             )
             _assert(brief["status"] == "interpreted", "brief status mismatch")
+            _assert(brief["job_id"].startswith("job_"), "brief job id missing")
             _assert(brief["interpreted_spec"] == bound["current_spec"], "brief spec trace mismatch")
             brief_replay = _json_request(
                 base_url,
@@ -118,6 +120,13 @@ def main() -> int:
                 idempotency_key="r2-brief-interpret",
             )
             _assert(brief_replay["brief_id"] == brief["brief_id"], "brief replay mismatch")
+            brief_job = _json_request(
+                base_url,
+                f"/api/v1/jobs/{brief['job_id']}",
+                method="GET",
+            )
+            _assert(brief_job["status"] == "succeeded", "brief job status mismatch")
+            _assert(len(brief_job["events"]) == 2, "brief JobEvent count mismatch")
 
             variants = _json_request(
                 base_url,
@@ -132,11 +141,35 @@ def main() -> int:
                 idempotency_key="r2-variants-generate",
             )
             _assert(len(variants["items"]) == 3, "variant count mismatch")
+            _assert(variants["job_id"].startswith("job_"), "variant job id missing")
             graph_ids = {item["module_graph"]["graph_id"] for item in variants["items"]}
             scales = [item["module_graph"]["nodes"][1]["transform"]["scale"][0] for item in variants["items"]]
             _assert(len(graph_ids) == 3, "variant graph ids were not unique")
             _assert(scales == [0.9, 1.0, 1.1], "A/B/C proportions were not distinct")
             _assert(all(item["status"] == "proposed" for item in variants["items"]), "variant proposal status mismatch")
+            variant_events = _json_request(
+                base_url,
+                f"/api/v1/jobs/{variants['job_id']}/events.json",
+                method="GET",
+            )
+            _assert(len(variant_events["items"]) == 3, "variant JobEvent count mismatch")
+            _assert(
+                all(event["schema_version"] == "JobEvent@2" for event in variant_events["items"]),
+                "variant events did not use JobEvent@2",
+            )
+            resumed_events = _json_request(
+                base_url,
+                f"/api/v1/jobs/{variants['job_id']}/events.json?after={variant_events['items'][0]['event_id']}",
+                method="GET",
+            )
+            _assert(len(resumed_events["items"]) == 2, "event cursor replay mismatch")
+            with urllib.request.urlopen(
+                f"{base_url}/api/v1/jobs/{variants['job_id']}/events",
+                timeout=10,
+            ) as response:
+                sse_payload = response.read().decode("utf-8")
+            _assert("event: concept.job.event" in sse_payload, "Concept SSE event type missing")
+            _assert("JobEvent@2" in sse_payload, "Concept SSE payload schema missing")
 
             selected_id = variants["items"][1]["variant_id"]
             selected = _json_request(
@@ -170,9 +203,13 @@ def main() -> int:
             selected_count = connection.execute(
                 "SELECT COUNT(*) FROM design_variants WHERE status = 'selected'"
             ).fetchone()[0]
+            job_count = connection.execute("SELECT COUNT(*) FROM concept_jobs").fetchone()[0]
+            event_count = connection.execute("SELECT COUNT(*) FROM concept_job_events").fetchone()[0]
         _assert(brief_count == 1, "brief table count mismatch")
         _assert(variant_count == 3, "variant table count mismatch")
         _assert(selected_count == 1, "selected variant count mismatch")
+        _assert(job_count == 2, "concept job count mismatch")
+        _assert(event_count == 5, "concept JobEvent count mismatch")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -189,6 +226,12 @@ def main() -> int:
                 == ["rejected", "selected", "rejected"],
                 "restart did not restore variant selection",
             )
+            restored_job = _json_request(
+                restart_url,
+                f"/api/v1/jobs/{variants['job_id']}",
+                method="GET",
+            )
+            _assert(len(restored_job["events"]) == 3, "restart did not restore Concept Job events")
         finally:
             _stop_agent(restarted_process)
 
@@ -202,6 +245,8 @@ def main() -> int:
                     "selected_variant_id": selected_id,
                     "scales": scales,
                     "generator": "deterministic_template",
+                    "job_count": job_count,
+                    "event_count": event_count,
                 },
                 ensure_ascii=False,
                 indent=2,

@@ -15,6 +15,7 @@ from forgecad_agent.application.concept_models import (
     SelectDesignVariantRequest,
 )
 from forgecad_agent.application.concept_modules import validate_registered_graph
+from forgecad_agent.application.concept_jobs import record_completed_job
 from forgecad_agent.domain.concepts.models import ModuleGraph, WeaponConceptSpec
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 
@@ -87,6 +88,28 @@ class ConceptBriefService:
                 status="interpreted",
                 created_at=now,
             )
+            job_id = record_completed_job(
+                unit_of_work,
+                project_id=project_id,
+                version_id=str(current_version_id),
+                job_type="interpret_brief",
+                input_payload=request.model_dump(mode="json"),
+                output_payload={"brief_id": brief_id, "status": "interpreted"},
+                steps=(
+                    (
+                        "load_current_spec",
+                        "Current WeaponConceptSpec loaded for brief interpretation.",
+                        0.35,
+                        {"version_id": current_version_id},
+                    ),
+                    (
+                        "interpret_brief",
+                        "Deterministic R2 brief interpretation completed.",
+                        1.0,
+                        {"brief_id": brief_id, "generator": "deterministic_template"},
+                    ),
+                ),
+            )
             response = DesignBriefRecord(
                 brief_id=brief_id,
                 project_id=project_id,
@@ -96,6 +119,7 @@ class ConceptBriefService:
                 status="interpreted",
                 created_at=now,
                 updated_at=now,
+                job_id=job_id,
             )
             unit_of_work.idempotency.add(
                 scope=scope,
@@ -141,9 +165,30 @@ class ConceptBriefService:
                 brief_id=request.brief_id,
             )
             if existing:
+                job_id = record_completed_job(
+                    unit_of_work,
+                    project_id=project_id,
+                    version_id=str(project["current_version_id"]),
+                    job_type="generate_variants",
+                    input_payload=request.model_dump(mode="json"),
+                    output_payload={
+                        "brief_id": request.brief_id,
+                        "variant_ids": [row["variant_id"] for row in existing],
+                        "reused": True,
+                    },
+                    steps=(
+                        (
+                            "reuse_variants",
+                            "Existing deterministic variants reused.",
+                            1.0,
+                            {"variant_count": len(existing)},
+                        ),
+                    ),
+                )
                 response = DesignVariantListResponse(
                     items=[_variant_record(row) for row in existing],
                     next_cursor=None,
+                    job_id=job_id,
                 )
                 unit_of_work.idempotency.add(
                     scope=scope,
@@ -217,7 +262,43 @@ class ConceptBriefService:
                     created_at=now,
                 )
                 items.append(variant)
-            response = DesignVariantListResponse(items=items, next_cursor=None)
+            job_id = record_completed_job(
+                unit_of_work,
+                project_id=project_id,
+                version_id=str(project["current_version_id"]),
+                job_type="generate_variants",
+                input_payload=request.model_dump(mode="json"),
+                output_payload={
+                    "brief_id": request.brief_id,
+                    "variant_ids": [item.variant_id for item in items],
+                    "generator": request.generator,
+                },
+                steps=(
+                    (
+                        "load_module_graph",
+                        "Validated base ModuleGraph loaded.",
+                        0.25,
+                        {"graph_id": base_graph.graph_id},
+                    ),
+                    (
+                        "generate_variants",
+                        "Three deterministic graph variants generated.",
+                        0.75,
+                        {"variant_count": len(items)},
+                    ),
+                    (
+                        "validate_variants",
+                        "All A/B/C variants passed connector validation.",
+                        1.0,
+                        {"variant_ids": [item.variant_id for item in items]},
+                    ),
+                ),
+            )
+            response = DesignVariantListResponse(
+                items=items,
+                next_cursor=None,
+                job_id=job_id,
+            )
             unit_of_work.idempotency.add(
                 scope=scope,
                 key=idempotency_key,
