@@ -468,6 +468,177 @@
         "title": "ConceptConstraints",
         "type": "object"
       },
+      "ConceptExportManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "export_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Export Id",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ExportFileEntry"
+            },
+            "minItems": 1,
+            "title": "Files",
+            "type": "array"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ExportModuleEntry"
+            },
+            "minItems": 1,
+            "title": "Modules",
+            "type": "array"
+          },
+          "non_functional_only": {
+            "const": true,
+            "default": true,
+            "title": "Non Functional Only",
+            "type": "boolean"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality_report_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Report Id"
+          },
+          "schema_version": {
+            "const": "ConceptExportManifest@1",
+            "default": "ConceptExportManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "project_id",
+          "version_id",
+          "profile",
+          "spec_sha256",
+          "graph_sha256",
+          "modules",
+          "files",
+          "created_at"
+        ],
+        "title": "ConceptExportManifest",
+        "type": "object"
+      },
+      "ConceptExportRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ConceptExportManifest"
+          },
+          "package_asset_id": {
+            "title": "Package Asset Id",
+            "type": "string"
+          },
+          "package_byte_size": {
+            "minimum": 0.0,
+            "title": "Package Byte Size",
+            "type": "integer"
+          },
+          "package_sha256": {
+            "title": "Package Sha256",
+            "type": "string"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "project_id",
+          "version_id",
+          "profile",
+          "status",
+          "package_asset_id",
+          "package_sha256",
+          "package_byte_size",
+          "manifest",
+          "created_at"
+        ],
+        "title": "ConceptExportRecord",
+        "type": "object"
+      },
       "ConceptJobEventListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -900,6 +1071,44 @@
           "created_at"
         ],
         "title": "ConceptVersionSummary",
+        "type": "object"
+      },
+      "CreateConceptExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "include_modules": {
+            "const": true,
+            "default": true,
+            "title": "Include Modules",
+            "type": "boolean"
+          },
+          "include_quality_report": {
+            "default": true,
+            "title": "Include Quality Report",
+            "type": "boolean"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "profile"
+        ],
+        "title": "CreateConceptExportRequest",
         "type": "object"
       },
       "CreateConceptProjectRequest": {
@@ -2156,6 +2365,78 @@
           "message"
         ],
         "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "ExportFileEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "mime_type": {
+            "minLength": 1,
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "byte_size",
+          "mime_type"
+        ],
+        "title": "ExportFileEntry",
+        "type": "object"
+      },
+      "ExportModuleEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          }
+        },
+        "required": [
+          "node_id",
+          "module_id",
+          "asset_id",
+          "sha256",
+          "logical_path",
+          "transform"
+        ],
+        "title": "ExportModuleEntry",
         "type": "object"
       },
       "ExportUnityRequest": {
@@ -5878,6 +6159,88 @@
         ]
       }
     },
+    "/api/v1/exports/{export_id}": {
+      "get": {
+        "operationId": "get_export_api_v1_exports__export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/file": {
+      "get": {
+        "operationId": "download_export_api_v1_exports__export_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
     "/api/v1/jobs/{job_id}": {
       "get": {
         "operationId": "get_job_api_v1_jobs__job_id__get",
@@ -6908,6 +7271,74 @@
         "summary": "Propose Change Set",
         "tags": [
           "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/exports": {
+      "post": {
+        "operationId": "create_export_api_v1_versions__version_id__exports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConceptExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Export",
+        "tags": [
+          "concept-exports"
         ]
       }
     },

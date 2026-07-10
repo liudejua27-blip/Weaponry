@@ -65,6 +65,7 @@ def record_completed_job(
     input_payload: dict[str, Any],
     output_payload: dict[str, Any],
     steps: Iterable[tuple[str, str, float, dict[str, Any]]],
+    artifact_asset_id: Optional[str] = None,
 ) -> str:
     job_id = _new_id("job")
     now = _utc_now()
@@ -84,6 +85,7 @@ def record_completed_job(
     )
     step_list = list(steps)
     for seq, (step, message, progress, metadata) in enumerate(step_list, start=1):
+        event_artifact_asset_id = artifact_asset_id if seq == len(step_list) else None
         event = JobEventV2(
             event_id=f"evt_{job_id}_{seq:04d}",
             job_id=job_id,
@@ -95,7 +97,7 @@ def record_completed_job(
             status="succeeded",
             message=message,
             progress=progress,
-            artifact_asset_id=None,
+            artifact_asset_id=event_artifact_asset_id,
             metadata=metadata,
             created_at=now,
         )
@@ -110,7 +112,7 @@ def record_completed_job(
             status=event.status,
             message=message,
             progress=progress,
-            artifact_asset_id=None,
+            artifact_asset_id=event_artifact_asset_id,
             metadata_json=_canonical_json(metadata),
             created_at=now,
         )

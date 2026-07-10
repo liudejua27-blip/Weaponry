@@ -9,6 +9,8 @@ export type Sha256 = string
 
 export type HexColor = string
 
+export type RelativePath = string
+
 export type Vec3 = Array<number>
 
 export type Transform = {
@@ -20,6 +22,33 @@ export type Transform = {
 export type ModuleCategory = "core_shell" | "front_shell" | "rear_shell" | "grip_shell" | "top_accessory" | "side_accessory" | "lower_structure" | "storage_visual" | "armor_panel"
 
 export type IntendedUse = "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
+
+export type ConceptExportManifest = {
+  "schema_version": "ConceptExportManifest@1"
+  "export_id": Id
+  "project_id": Id
+  "version_id": Id
+  "profile": IntendedUse
+  "non_functional_only": true
+  "spec_sha256": Sha256
+  "graph_sha256": Sha256
+  "modules": Array<{
+  "node_id": Id
+  "module_id": Id
+  "asset_id": Id
+  "sha256": Sha256
+  "logical_path": RelativePath
+  "transform": Transform
+}>
+  "quality_report_id"?: Id | null
+  "files": Array<{
+  "path": RelativePath
+  "sha256": Sha256
+  "byte_size": number
+  "mime_type": string
+}>
+  "created_at": IsoDatetime
+}
 
 export type DesignChangeSet = {
   "schema_version": "DesignChangeSet@1"

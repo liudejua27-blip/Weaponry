@@ -699,6 +699,97 @@ class QualityRepository:
             (quality_run_id,),
         ).fetchone()
 
+    def latest_report(self, version_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT quality_run_id, project_id, version_id, report_asset_id,
+                   ruleset_version, status, report_json, created_at
+            FROM quality_runs
+            WHERE version_id = ?
+            ORDER BY created_at DESC, quality_run_id DESC
+            LIMIT 1
+            """,
+            (version_id,),
+        ).fetchone()
+
+
+class ExportRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add(
+        self,
+        *,
+        export_id: str,
+        project_id: str,
+        version_id: str,
+        profile: str,
+        package_asset_id: str,
+        manifest_json: str,
+        status: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO export_packages_v2 (
+              export_id, project_id, version_id, profile, package_asset_id,
+              manifest_json, status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                export_id,
+                project_id,
+                version_id,
+                profile,
+                package_asset_id,
+                manifest_json,
+                status,
+                created_at,
+            ),
+        )
+
+    def add_artifact_link(
+        self,
+        *,
+        project_id: str,
+        version_id: str,
+        asset_id: str,
+        relation: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO artifact_links (
+              project_id, version_id, asset_id, relation, created_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (project_id, version_id, asset_id, relation, created_at),
+        )
+
+    def get(self, export_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT ep.export_id, ep.project_id, ep.version_id, ep.profile,
+                   ep.package_asset_id, ep.manifest_json, ep.status, ep.created_at,
+                   ca.logical_path, ca.object_path, ca.sha256 AS package_sha256,
+                   ca.byte_size AS package_byte_size, ca.mime_type,
+                   (
+                     SELECT cj.job_id
+                     FROM concept_jobs cj
+                     WHERE json_extract(cj.output_json, '$.export_id') = ep.export_id
+                     ORDER BY cj.created_at DESC
+                     LIMIT 1
+                   ) AS job_id
+            FROM export_packages_v2 ep
+            JOIN concept_assets ca ON ca.asset_id = ep.package_asset_id
+            WHERE ep.export_id = ? AND ep.status != 'soft_deleted'
+              AND ca.soft_deleted_at IS NULL
+            """,
+            (export_id,),
+        ).fetchone()
+
 
 class BriefVariantRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:

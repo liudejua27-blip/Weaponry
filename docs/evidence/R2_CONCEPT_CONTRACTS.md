@@ -1,12 +1,12 @@
 # R2 Concept Contracts Evidence
 
 日期：2026-07-10  
-范围：R2 当前切片，证明合同、生成类型、Concept 数据迁移和 Project/Version 最小 API；不证明 ModuleGraph API、GLB 模块或桌面 E2E。
+范围：R2 当前切片，证明合同、Concept 数据迁移、Project/Version、ModuleGraph、ChangeSet、QualityRun、Brief/Variant、JobEvent@2 与概念源包 API；不证明桌面 E2E、combined GLB 或制造级 CAD。
 
 ## 产物
 
 - 独立 `packages/concept-spec`，没有机械改名旧 `weapon-spec`；
-- 七份 JSON Schema：Domain Profile、Concept Spec、Module Asset、Module Graph、ChangeSet、Quality Report、JobEvent@2；
+- 八份 JSON Schema：Domain Profile、Concept Spec、Module Asset、Module Graph、ChangeSet、Quality Report、JobEvent@2、Concept Export Manifest；
 - `forgecad_agent.domain.concepts` Pydantic 合同；
 - 生成的 TypeScript 与 Python schema registry；
 - `r2:contracts-gate` 和正/负向合同 smoke。
@@ -22,6 +22,7 @@
 - version-scoped QualityRun/Findings 持久化、幂等 replay 和报告 round-trip。
 - Brief interpreted/confirmed 状态、确定性 A/B/C Graph variant、唯一选择和重启恢复。
 - 独立 Concept Job/Event 表、JobEvent@2、JSON cursor replay、SSE 和重启恢复。
+- `ConceptExportManifest@1`、源模块/Spec/Graph/Quality ZIP、逐文件 hash、artifact link、下载和重启恢复。
 
 ## 已验证不变量
 
@@ -30,6 +31,7 @@
 - ModuleGraph 的 root 必须存在，所有节点必须可达，Connector endpoint 不能重复占用；
 - ChangeSet 不能删除、替换或变换受保护节点；
 - Finding 失败时 QualityReport 不能声称通过；
+- 导出路径不得绝对化或包含 traversal，模块与文件条目不得重复；
 - Python、TypeScript 与 schema registry 生成物可重复生成且无漂移。
 
 ## 命令与结果
@@ -38,13 +40,13 @@
 npm run r2:contracts-gate
 ```
 
-结果：通过。合同 smoke 验证 7 个正向合同和 4 个负向不变量。
+结果：通过。合同 smoke 验证 8 个正向合同和 5 个负向不变量。
 
 ```bash
 npm run r2:gate
 ```
 
-结果：通过。fresh database 应用 10 个 migration；HTTP smoke 创建 `weapon_concept` Project、追加不可覆盖父版本的 V2、验证幂等 replay/conflict，并在 Agent 重启后恢复项目与版本历史。新表不存在指向 `weapons`、`weapon_versions`、`creative_weapon_graphs` 或 `skill_graphs` 的外键。
+结果：通过。fresh database 应用 11 个 migration；HTTP smoke 创建 `weapon_concept` Project、追加不可覆盖父版本的 V2、验证幂等 replay/conflict，并在 Agent 重启后恢复项目与版本历史。新表不存在指向 `weapons`、`weapon_versions`、`creative_weapon_graphs` 或 `skill_graphs` 的外键。
 
 同一门还注册 2 个 R2 GLB envelope fixture 和 3 个 Connector，持久化 1 个有效 ModuleGraph，拒绝并不保存引用缺失模块的无效 Graph；重启后 registry 和 Graph 均可回读。R2 fixture 只验证存储与引用协议，不代表 R3 的高质量美术资产。
 
@@ -56,6 +58,8 @@ Brief/Variant smoke 基于当前已验证 Graph 生成 X 比例分别为 `0.9 / 
 
 同一 smoke 写入 2 个 completed Concept Job 和 5 个 `JobEvent@2`，验证完整查询、事件 cursor 续读、SSE `concept.job.event` 格式以及 Agent 重启后的事件恢复。它不使用旧 `generation_jobs`/`agent_events` 表。
 
+Export smoke 为绑定 ModuleGraph 的版本生成 1 个 validated ZIP，包含 2 个不可变 GLB、Spec、Graph、最新 QualityReport、README 和 `ConceptExportManifest@1`。逐文件与整包 SHA-256、幂等 replay/conflict、artifact link、末事件 `artifact_asset_id`、下载和重启后回读均通过。该包尚不含 combined GLB、OBJ、PNG 或爆炸图。
+
 Legacy 重启恢复提取另由以下命令验证：
 
 ```bash
@@ -66,7 +70,7 @@ Legacy 重启恢复提取另由以下命令验证：
 
 ## 未完成
 
-- Concept Export Job 与 Manifest；
-- Version DAG、ChangeSet preview/commit；
-- GLB fixture、工作台真实 ModuleGraph 绑定；
+- QualityRun 与 ModuleGraph validate 的 JobEvent@2 接入；
+- 高质量 GLB fixture、工作台真实 ModuleGraph 绑定；
+- combined GLB、OBJ、PNG、爆炸图与实际 Mesh 检查器；
 - C01–C10 完整发布门。

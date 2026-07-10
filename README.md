@@ -137,22 +137,23 @@ core.side_panel_left / core.side_panel_right
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
 | Job / Step / Event / SSE | 已实现 | 直接复用 |
-| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现 | Export/Quality 等继续接入该主链 |
+| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Export 已留痕 | Quality 与 Graph validate 继续接入该主链 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
 | `#/cad` 工作台原型 | 已切换为五阶段 Weapon Concept Workbench | 当前仍是前端交互与程序化 Three.js 模型，尚未接真实 ModuleGraph |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
-| Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | ModuleGraph 持久化仍在 R2 |
-| WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化和回读 API 已实现 | Version 绑定与桌面真实渲染待实现 |
+| Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | 桌面项目管理与版本切换待接入 |
+| WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化、Version 绑定和回读 API 已实现 | 桌面真实渲染待实现 |
 | Connector / 模块吸附 / 爆炸视图 | Connector 合同、数据表、注册和兼容校验已实现；交互未实现 | P0 核心技术阶段 |
 | Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |
+| Concept Export | `ConceptExportManifest@1`、源 GLB/Spec/Graph/Quality ZIP、hash、JobEvent、下载与重启恢复已实现 | 当前不是 combined GLB；OBJ/PNG/爆炸图进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-当前主数据链仍是旧 Weapon/Unity baseline；新工作台只是交互原型，不能据此声称 P0 模块系统或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，但桌面工作台仍是交互原型，尚未绑定真实 ModuleGraph。旧 Weapon/Unity 主链继续作为回归 baseline；不能据此声称 R3 工作台、combined GLB、实际网格检查或 CAD/DFM 已完成。
 
 ## P0 架构
 

@@ -6,6 +6,7 @@ from .concept_repositories import (
     ConceptJobRepository,
     ConceptProjectRepository,
     DomainProfileRepository,
+    ExportRepository,
     ModuleRepository,
     QualityRepository,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "BriefVariantRepository",
     "ConceptJobRepository",
     "DomainProfileRepository",
+    "ExportRepository",
     "IdempotencyRepository",
     "JobRepository",
     "ModuleRepository",

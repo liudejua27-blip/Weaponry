@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。这表示迁移基线可运行，不表示 Concept API、模块装配或新导出器已经实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、QualityRun 与概念源包导出 API 已实现；桌面真实装配、combined GLB 和正式 R5 导出器尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -145,7 +145,7 @@ npm run r2:contracts-gate
 npm run r2:gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Project/Version、模块/Graph、ChangeSet、QualityRun、Brief/Variant、Concept JobEvent@2、cursor replay 与 SSE。它仍不证明 AI 方案质量、实际 Mesh 检查器、R3 工作台交互或正式模块资产质量。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Project/Version、模块/Graph、ChangeSet、QualityRun、Brief/Variant、Concept JobEvent@2、cursor replay/SSE，以及带逐文件 hash 的概念源包创建、下载和重启恢复。它仍不证明 AI 方案质量、实际 Mesh 检查器、R3 工作台交互、combined GLB/OBJ/PNG 或正式模块资产质量。
 
 ### 2.3 Tauri 检查
 

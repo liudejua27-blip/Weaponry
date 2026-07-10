@@ -1,5 +1,6 @@
 from .models import (
     DesignChangeSet,
+    ConceptExportManifest,
     DesignDomainProfile,
     JobEventV2,
     ModelQualityReport,
@@ -10,6 +11,7 @@ from .models import (
 
 __all__ = [
     "DesignChangeSet",
+    "ConceptExportManifest",
     "DesignDomainProfile",
     "JobEventV2",
     "ModelQualityReport",

@@ -19,6 +19,18 @@
       "type": "string",
       "pattern": "^#[0-9A-Fa-f]{6}$"
     },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          { "pattern": "^/" },
+          { "pattern": "^[A-Za-z]:" },
+          { "pattern": "\\.\\." },
+          { "pattern": "^[a-zA-Z][a-zA-Z0-9+.-]*://" }
+        ]
+      }
+    },
     "vec3": {
       "type": "array",
       "minItems": 3,

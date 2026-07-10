@@ -20,6 +20,7 @@ def check_json_schemas() -> None:
     )
     required_concept_schemas = {
         "common.schema.json",
+        "concept-export-manifest.schema.json",
         "design-domain-profile.schema.json",
         "weapon-concept-spec.schema.json",
         "module-asset-manifest.schema.json",

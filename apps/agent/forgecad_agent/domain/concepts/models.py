@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import PurePosixPath
 from typing import Annotated, Any, Dict, List, Literal, Optional, Set, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -366,6 +367,57 @@ class JobEventV2(StrictContractModel):
     created_at: str
 
 
+class ExportModuleEntry(StrictContractModel):
+    node_id: ContractId
+    module_id: ContractId
+    asset_id: ContractId
+    sha256: str
+    logical_path: str
+    transform: Transform
+
+    @model_validator(mode="after")
+    def validate_entry(self) -> "ExportModuleEntry":
+        _validate_sha256(self.sha256)
+        _validate_relative_path(self.logical_path)
+        return self
+
+
+class ExportFileEntry(StrictContractModel):
+    path: str
+    sha256: str
+    byte_size: int = Field(ge=0)
+    mime_type: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_entry(self) -> "ExportFileEntry":
+        _validate_sha256(self.sha256)
+        _validate_relative_path(self.path)
+        return self
+
+
+class ConceptExportManifest(StrictContractModel):
+    schema_version: Literal["ConceptExportManifest@1"] = "ConceptExportManifest@1"
+    export_id: ContractId
+    project_id: ContractId
+    version_id: ContractId
+    profile: IntendedUse
+    non_functional_only: Literal[True] = True
+    spec_sha256: str
+    graph_sha256: str
+    modules: List[ExportModuleEntry] = Field(min_length=1)
+    quality_report_id: Optional[ContractId] = None
+    files: List[ExportFileEntry] = Field(min_length=1)
+    created_at: str
+
+    @model_validator(mode="after")
+    def validate_manifest(self) -> "ConceptExportManifest":
+        _validate_sha256(self.spec_sha256)
+        _validate_sha256(self.graph_sha256)
+        _require_unique("export node ids", [item.node_id for item in self.modules])
+        _require_unique("export file paths", [item.path for item in self.files])
+        return self
+
+
 def _require_unique(label: str, values: List[Any]) -> None:
     rendered = [str(value) for value in values]
     if len(rendered) != len(set(rendered)):
@@ -382,3 +434,14 @@ def _reachable_nodes(adjacency: Dict[str, Set[str]], root_node_id: str) -> Set[s
         visited.add(node_id)
         pending.extend(adjacency[node_id] - visited)
     return visited
+
+
+def _validate_sha256(value: str) -> None:
+    if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
+        raise ValueError("sha256 must be a lowercase hexadecimal digest")
+
+
+def _validate_relative_path(value: str) -> None:
+    path = PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts or "://" in value:
+        raise ValueError("path must be a traversal-free relative path")

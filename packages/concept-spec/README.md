@@ -13,6 +13,7 @@ Contracts:
 - `DesignChangeSet@1`
 - `ModelQualityReport@1`
 - `JobEvent@2`
+- `ConceptExportManifest@1`
 
 Regenerate after schema changes:
 

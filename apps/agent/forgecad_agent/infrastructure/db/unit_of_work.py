@@ -12,6 +12,7 @@ from .concept_repositories import (
     ConceptJobRepository,
     ConceptProjectRepository,
     DomainProfileRepository,
+    ExportRepository,
     ModuleRepository,
     QualityRepository,
 )
@@ -34,6 +35,7 @@ class SQLiteUnitOfWork:
         self.modules: ModuleRepository
         self.change_sets: ChangeSetRepository
         self.quality: QualityRepository
+        self.exports: ExportRepository
         self.brief_variants: BriefVariantRepository
         self.concept_jobs: ConceptJobRepository
 
@@ -50,6 +52,7 @@ class SQLiteUnitOfWork:
         self.modules = ModuleRepository(connection)
         self.change_sets = ChangeSetRepository(connection)
         self.quality = QualityRepository(connection)
+        self.exports = ExportRepository(connection)
         self.brief_variants = BriefVariantRepository(connection)
         self.concept_jobs = ConceptJobRepository(connection)
         return self

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from forgecad_agent.domain.concepts.models import (
+    ConceptExportManifest,
     ConceptConstraints,
     ConceptProportions,
     ConceptStyle,
@@ -240,3 +241,24 @@ class ConceptJobRecord(StrictApiModel):
 class ConceptJobEventListResponse(StrictApiModel):
     items: List[JobEventV2] = Field(default_factory=list)
     next_cursor: Optional[str] = None
+
+
+class CreateConceptExportRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    profile: IntendedUse
+    include_modules: Literal[True] = True
+    include_quality_report: bool = True
+
+
+class ConceptExportRecord(StrictApiModel):
+    export_id: str
+    project_id: str
+    version_id: str
+    profile: IntendedUse
+    status: str
+    job_id: Optional[str] = None
+    package_asset_id: str
+    package_sha256: str
+    package_byte_size: int = Field(ge=0)
+    manifest: ConceptExportManifest
+    created_at: str

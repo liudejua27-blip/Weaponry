@@ -88,6 +88,35 @@ export type ConceptConstraints = {
   "max_triangle_count": number
 }
 
+export type ConceptExportManifest = {
+  "schema_version"?: "ConceptExportManifest@1"
+  "export_id": string
+  "project_id": string
+  "version_id": string
+  "profile": "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
+  "non_functional_only"?: true
+  "spec_sha256": string
+  "graph_sha256": string
+  "modules": Array<ExportModuleEntry>
+  "quality_report_id"?: string | null
+  "files": Array<ExportFileEntry>
+  "created_at": string
+}
+
+export type ConceptExportRecord = {
+  "export_id": string
+  "project_id": string
+  "version_id": string
+  "profile": "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
+  "status": string
+  "job_id"?: string | null
+  "package_asset_id": string
+  "package_sha256": string
+  "package_byte_size": number
+  "manifest": ConceptExportManifest
+  "created_at": string
+}
+
 export type ConceptJobEventListResponse = {
   "items"?: Array<JobEventV2>
   "next_cursor"?: string | null
@@ -164,6 +193,13 @@ export type ConceptVersionSummary = {
   "module_graph_id"?: string | null
   "change_set_id"?: string | null
   "created_at": string
+}
+
+export type CreateConceptExportRequest = {
+  "client_request_id": string
+  "profile": "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
+  "include_modules"?: true
+  "include_quality_report"?: boolean
 }
 
 export type CreateConceptProjectRequest = {
@@ -372,6 +408,22 @@ export type ErrorEnvelope = {
   "message": string
   "recoverable"?: boolean
   "details"?: Record<string, unknown>
+}
+
+export type ExportFileEntry = {
+  "path": string
+  "sha256": string
+  "byte_size": number
+  "mime_type": string
+}
+
+export type ExportModuleEntry = {
+  "node_id": string
+  "module_id": string
+  "asset_id": string
+  "sha256": string
+  "logical_path": string
+  "transform": Transform
 }
 
 export type ExportUnityRequest = {

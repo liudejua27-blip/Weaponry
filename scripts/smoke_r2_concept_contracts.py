@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from referencing import Registry, Resource
 
 from forgecad_agent.domain.concepts import (
+    ConceptExportManifest,
     DesignChangeSet,
     DesignDomainProfile,
     JobEventV2,
@@ -44,6 +45,11 @@ def main() -> int:
         ("design-change-set.schema.json", DesignChangeSet, _change_set()),
         ("model-quality-report.schema.json", ModelQualityReport, _quality_report()),
         ("job-event-v2.schema.json", JobEventV2, _job_event()),
+        (
+            "concept-export-manifest.schema.json",
+            ConceptExportManifest,
+            _export_manifest(),
+        ),
     ]
 
     validated: list[str] = []
@@ -60,6 +66,7 @@ def main() -> int:
     _assert_rejects_disconnected_graph()
     _assert_rejects_protected_node_change()
     _assert_rejects_inconsistent_quality_summary()
+    _assert_rejects_unsafe_export_path()
 
     print(
         json.dumps(
@@ -72,6 +79,7 @@ def main() -> int:
                     "disconnected_graph",
                     "protected_node_change",
                     "quality_summary",
+                    "unsafe_export_path",
                 ],
             },
             ensure_ascii=False,
@@ -286,6 +294,45 @@ def _job_event() -> Dict[str, Any]:
     }
 
 
+def _export_manifest() -> Dict[str, Any]:
+    return {
+        "schema_version": "ConceptExportManifest@1",
+        "export_id": "export_arctic_patrol_v1",
+        "project_id": "prj_arctic_patrol_s1",
+        "version_id": "ver_arctic_patrol_v1",
+        "profile": "game_asset",
+        "non_functional_only": True,
+        "spec_sha256": "b" * 64,
+        "graph_sha256": "c" * 64,
+        "modules": [
+            {
+                "node_id": "node_core",
+                "module_id": "module_core_shell_01",
+                "asset_id": "asset_core_shell_01",
+                "sha256": "a" * 64,
+                "logical_path": "Modules/node_core.glb",
+                "transform": _transform(),
+            }
+        ],
+        "quality_report_id": "quality_arctic_patrol_v1",
+        "files": [
+            {
+                "path": "Specs/weapon-concept-spec.json",
+                "sha256": "b" * 64,
+                "byte_size": 1024,
+                "mime_type": "application/json",
+            },
+            {
+                "path": "Modules/node_core.glb",
+                "sha256": "a" * 64,
+                "byte_size": 2048,
+                "mime_type": "model/gltf-binary",
+            },
+        ],
+        "created_at": "2026-07-10T12:00:00+00:00",
+    }
+
+
 def _assert_rejects_unknown_field() -> None:
     payload = {**_concept_spec(), "manufacturing_ready": True}
     _expect_validation_error(WeaponConceptSpec, payload)
@@ -307,6 +354,12 @@ def _assert_rejects_inconsistent_quality_summary() -> None:
     payload = _quality_report()
     payload["status"] = "passed"
     _expect_validation_error(ModelQualityReport, payload)
+
+
+def _assert_rejects_unsafe_export_path() -> None:
+    payload = _export_manifest()
+    payload["files"][0]["path"] = "../outside.json"
+    _expect_validation_error(ConceptExportManifest, payload)
 
 
 def _expect_validation_error(model_type: Type[BaseModel], payload: Dict[str, Any]) -> None:
