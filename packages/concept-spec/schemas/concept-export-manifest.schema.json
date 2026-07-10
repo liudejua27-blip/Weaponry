@@ -30,6 +30,7 @@
           "asset_id": { "$ref": "common.schema.json#/$defs/id" },
           "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
           "logical_path": { "$ref": "common.schema.json#/$defs/relative_path" },
+          "mirror_axis": { "type": "string", "enum": ["none", "x", "y", "z"], "default": "none" },
           "transform": { "$ref": "common.schema.json#/$defs/transform" }
         }
       }

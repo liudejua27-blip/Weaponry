@@ -114,16 +114,44 @@ def main() -> int:
                 front_replay["project"]["current_version_id"] == version_4,
                 "connector snap confirmation replay was not idempotent",
             )
-            version_5 = _connect_cycle_constraint(
+            mirror_preview, mirror_confirmed = _set_mirror(
                 base_url,
                 project_id=project_id,
                 version_id=version_4,
+                node_id="node_top",
+                mirror_axis="x",
             )
-            cycle_conflict_rejected = _assert_cycle_conflict_rejected(
+            mirror_nodes = _nodes(mirror_preview["preview_graph"])
+            _assert(mirror_nodes["node_top"]["mirror_axis"] == "x", "mirror state missing")
+            _assert_vector(mirror_nodes["node_top"]["transform"]["position"], [86, 33, 0])
+            version_5 = mirror_confirmed["project"]["current_version_id"]
+            mirror_export = _json_request(
+                base_url,
+                f"/api/v1/versions/{version_5}/exports",
+                method="POST",
+                body={
+                    "client_request_id": "r3-snap-mirror-export",
+                    "profile": "game_asset",
+                    "include_modules": True,
+                    "include_quality_report": False,
+                },
+                idempotency_key="r3-snap-mirror-export",
+            )
+            exported_top = next(
+                item for item in mirror_export["manifest"]["modules"] if item["node_id"] == "node_top"
+            )
+            _assert(exported_top["mirror_axis"] == "x", "export manifest lost mirror state")
+            version_6 = _connect_cycle_constraint(
                 base_url,
                 project_id=project_id,
                 version_id=version_5,
             )
+            cycle_conflict_rejected = _assert_cycle_conflict_rejected(
+                base_url,
+                project_id=project_id,
+                version_id=version_6,
+            )
+            locked_descendant_rejected = _assert_locked_descendant_rejected(base_url)
         finally:
             _stop_agent(process)
 
@@ -132,8 +160,8 @@ def main() -> int:
             change_set_count = connection.execute(
                 "SELECT COUNT(*) FROM design_change_sets"
             ).fetchone()[0]
-        _assert(graph_count == 4, "connector snap graph/version count mismatch")
-        _assert(change_set_count == 4, "connector snap ChangeSet count mismatch")
+        _assert(graph_count == 6, "connector snap graph/version count mismatch")
+        _assert(change_set_count == 6, "connector snap ChangeSet count mismatch")
 
         restart_port = _free_port()
         restart_url = f"http://127.0.0.1:{restart_port}"
@@ -142,7 +170,7 @@ def main() -> int:
             _wait_for_health(restart_url, restarted)
             restored_version = _json_request(
                 restart_url,
-                f"/api/v1/versions/{version_5}",
+                f"/api/v1/versions/{version_6}",
                 method="GET",
             )
             restored_graph = _json_request(
@@ -153,6 +181,7 @@ def main() -> int:
             restored_nodes = _nodes(restored_graph["graph"])
             _assert_vector(restored_nodes["node_front"]["transform"]["position"], [84, 16, 0])
             _assert_vector(restored_nodes["node_top"]["transform"]["position"], [86, 33, 0])
+            _assert(restored_nodes["node_top"]["mirror_axis"] == "x", "restart lost mirror")
         finally:
             _stop_agent(restarted)
 
@@ -166,10 +195,13 @@ def main() -> int:
                     "root_replacement_relocated_children": True,
                     "child_replacement_relocated_descendants": True,
                     "connector_remap_verified": True,
+                    "mirror_version_verified": True,
+                    "mirror_export_verified": True,
                     "idempotent_replay": True,
                     "cycle_conflict_rejected": cycle_conflict_rejected,
+                    "locked_descendant_rejected": locked_descendant_rejected,
                     "restart_restored": True,
-                    "final_version_id": version_5,
+                    "final_version_id": version_6,
                     "graph_count": graph_count,
                 },
                 ensure_ascii=False,
@@ -214,12 +246,16 @@ def _run_math_corpus() -> int:
                 0.94 + (index % 5) * 0.025,
             ],
             child_connector=child_connector,
+            parent_mirror_axis=("x", "y", "z", "none")[index % 4],
+            child_mirror_axis=("none", "z", "x", "y")[index % 4],
         )
         distance_mm, rotation_degrees = connector_alignment_error(
             first_transform=parent,
             first_connector=parent_connector,
             second_transform=snapped,
             second_connector=child_connector,
+            first_mirror_axis=("x", "y", "z", "none")[index % 4],
+            second_mirror_axis=("none", "z", "x", "y")[index % 4],
         )
         if distance_mm <= 1e-7 and rotation_degrees <= 1e-5:
             successes += 1
@@ -466,6 +502,54 @@ def _connect_cycle_constraint(
     return str(confirmed["project"]["current_version_id"])
 
 
+def _set_mirror(
+    base_url: str,
+    *,
+    project_id: str,
+    version_id: str,
+    node_id: str,
+    mirror_axis: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    change_set_id = "change_snap_mirror_top"
+    change_set = {
+        "schema_version": "DesignChangeSet@1",
+        "change_set_id": change_set_id,
+        "project_id": project_id,
+        "base_version_id": version_id,
+        "summary": f"Mirror {node_id} on {mirror_axis}.",
+        "operations": [
+            {
+                "operation_id": "op_change_snap_mirror_top",
+                "op": "set_mirror",
+                "node_id": node_id,
+                "mirror_axis": mirror_axis,
+            }
+        ],
+        "protected_node_ids": [],
+        "status": "proposed",
+    }
+    _json_request(
+        base_url,
+        f"/api/v1/versions/{version_id}/change-sets",
+        method="POST",
+        body={"client_request_id": "r3-propose-mirror", "change_set": change_set},
+        idempotency_key="r3-propose-mirror",
+    )
+    preview = _json_request(
+        base_url,
+        f"/api/v1/change-sets/{change_set_id}:preview",
+        method="POST",
+        idempotency_key="r3-preview-mirror",
+    )
+    confirmed = _json_request(
+        base_url,
+        f"/api/v1/change-sets/{change_set_id}:confirm",
+        method="POST",
+        idempotency_key="r3-confirm-mirror",
+    )
+    return preview, confirmed
+
+
 def _assert_cycle_conflict_rejected(
     base_url: str,
     *,
@@ -512,11 +596,86 @@ def _assert_cycle_conflict_rejected(
     return True
 
 
+def _assert_locked_descendant_rejected(base_url: str) -> bool:
+    project_body = _create_body()
+    project_body["client_request_id"] = "r3-snap-locked-project"
+    project_body["name"] = "Connector locked descendant fixture"
+    project = _json_request(
+        base_url,
+        "/api/v1/projects",
+        method="POST",
+        body=project_body,
+        idempotency_key="r3-snap-locked-project",
+    )
+    graph = _base_graph(project["project_id"])
+    graph["graph_id"] = "mg_r3_connector_locked"
+    next(node for node in graph["nodes"] if node["node_id"] == "node_grip")["locked"] = True
+    _json_request(
+        base_url,
+        f"/api/v1/module-graphs/{graph['graph_id']}/validate",
+        method="POST",
+        body={"client_request_id": "r3-snap-locked-graph", "graph": graph, "persist": True},
+        idempotency_key="r3-snap-locked-graph",
+    )
+    bound = _json_request(
+        base_url,
+        f"/api/v1/projects/{project['project_id']}/versions",
+        method="POST",
+        body={
+            "client_request_id": "r3-snap-locked-bind",
+            "parent_version_id": project["current_version_id"],
+            "summary": "Bind locked descendant fixture.",
+            "spec": project["current_spec"],
+            "module_graph_id": graph["graph_id"],
+        },
+        idempotency_key="r3-snap-locked-bind",
+    )
+    change_set_id = "change_snap_locked_descendant"
+    change_set = {
+        "schema_version": "DesignChangeSet@1",
+        "change_set_id": change_set_id,
+        "project_id": project["project_id"],
+        "base_version_id": bound["current_version_id"],
+        "summary": "Parent replacement must not move a locked descendant.",
+        "operations": [
+            {
+                "operation_id": "op_change_snap_locked_descendant",
+                "op": "replace_module",
+                "node_id": "node_core",
+                "module_id": "module_core_shell_02",
+            }
+        ],
+        "protected_node_ids": ["node_grip"],
+        "status": "proposed",
+    }
+    _json_request(
+        base_url,
+        f"/api/v1/versions/{bound['current_version_id']}/change-sets",
+        method="POST",
+        body={"client_request_id": "r3-propose-locked-descendant", "change_set": change_set},
+        idempotency_key="r3-propose-locked-descendant",
+    )
+    status, body = _json_request_allow_error(
+        base_url,
+        f"/api/v1/change-sets/{change_set_id}:preview",
+        method="POST",
+        idempotency_key="r3-preview-locked-descendant",
+    )
+    _assert(status == 400, f"locked descendant preview returned {status}")
+    _assert(
+        body["error"]["code"] == "CHANGE_SET_INVALID"
+        and "Locked ModuleGraph node cannot be repositioned" in body["error"]["message"],
+        "parent replacement moved a locked descendant",
+    )
+    return True
+
+
 def _node(node_id: str, module_id: str, position: list[float]) -> dict[str, Any]:
     return {
         "node_id": node_id,
         "module_id": module_id,
         "transform": {"position": position, "rotation": [0, 0, 0], "scale": [1, 1, 1]},
+        "mirror_axis": "none",
         "locked": False,
         "visible": True,
     }

@@ -125,6 +125,7 @@ class ConceptExportService:
                         asset_id=manifest.asset_id,
                         sha256=str(asset_row["sha256"]),
                         logical_path=logical_path,
+                        mirror_axis=node.mirror_axis,
                         transform=node.transform,
                     )
                 )

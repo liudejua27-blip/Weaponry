@@ -25,6 +25,7 @@ IntendedUse = Literal[
     "non_functional_display",
 ]
 QualityStatus = Literal["passed", "warning", "failed", "not_run"]
+MirrorAxis = Literal["none", "x", "y", "z"]
 ContractId = Annotated[
     str,
     StringConstraints(
@@ -237,6 +238,7 @@ class ModuleGraphNode(StrictContractModel):
     node_id: ContractId
     module_id: ContractId
     transform: Transform
+    mirror_axis: MirrorAxis = "none"
     locked: bool = False
     visible: bool = True
 
@@ -300,6 +302,7 @@ ChangeOperationType = Literal[
     "connect",
     "disconnect",
     "set_transform",
+    "set_mirror",
     "set_style",
     "set_parameter",
 ]
@@ -317,11 +320,12 @@ class DesignChangeOperation(StrictContractModel):
     to_connector_id: Optional[ContractId] = None
     path: Optional[str] = None
     value: Any = None
+    mirror_axis: Optional[MirrorAxis] = None
     transform: Optional[Transform] = None
 
     @model_validator(mode="after")
     def validate_operation_payload(self) -> "DesignChangeOperation":
-        node_ops = {"remove_module", "replace_module", "set_transform"}
+        node_ops = {"remove_module", "replace_module", "set_transform", "set_mirror"}
         if self.op in node_ops and not self.node_id:
             raise ValueError(f"{self.op} requires node_id")
         if self.op in {"add_module", "replace_module"} and not self.module_id:
@@ -330,6 +334,8 @@ class DesignChangeOperation(StrictContractModel):
             raise ValueError("add_module requires node_id and transform")
         if self.op == "set_transform" and self.transform is None:
             raise ValueError("set_transform requires transform")
+        if self.op == "set_mirror" and self.mirror_axis is None:
+            raise ValueError("set_mirror requires mirror_axis")
         if self.op in {"set_style", "set_parameter"} and not self.path:
             raise ValueError(f"{self.op} requires path")
         if self.op in {"connect", "disconnect"} and not self.edge_id:
@@ -361,7 +367,7 @@ class DesignChangeSet(StrictContractModel):
         _require_unique("operation ids", [operation.operation_id for operation in self.operations])
         _require_unique("protected node ids", self.protected_node_ids)
         protected = set(self.protected_node_ids)
-        destructive_ops = {"remove_module", "replace_module", "set_transform"}
+        destructive_ops = {"remove_module", "replace_module", "set_transform", "set_mirror"}
         conflicts = [
             operation.operation_id
             for operation in self.operations
@@ -440,6 +446,7 @@ class ExportModuleEntry(StrictContractModel):
     asset_id: ContractId
     sha256: str
     logical_path: str
+    mirror_axis: MirrorAxis = "none"
     transform: Transform
 
     @model_validator(mode="after")

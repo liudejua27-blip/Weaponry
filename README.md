@@ -148,7 +148,7 @@ core.side_panel_left / core.side_panel_right
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
 | Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | 桌面项目管理与版本切换待接入 |
 | WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化、Version 绑定和回读 API 已实现 | 桌面真实渲染待实现 |
-| Connector / 模块吸附 / 爆炸视图 | Connector 合同、注册、兼容校验、替换 remap、rooted 子树自动重定位、冲突拒绝、overlay 和爆炸视图已实现 | 合成 100 组为 100%；正式资产 ≥95% 与镜像仍待验证 |
+| Connector / 模块吸附 / 镜像 / 爆炸视图 | Connector 合同、注册、兼容校验、替换 remap、rooted 子树自动重定位、显式镜像 ChangeSet、冲突/lock 拒绝、overlay 和爆炸视图已实现 | 合成 100 组为 100%；正式资产替换矩阵 ≥95% 仍待验证 |
 | Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |

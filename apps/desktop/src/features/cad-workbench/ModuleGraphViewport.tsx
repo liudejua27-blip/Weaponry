@@ -111,6 +111,12 @@ export function ModuleGraphViewport({
           const [px = 0, py = 0, pz = 0] = node.transform.position
           const [rx = 0, ry = 0, rz = 0] = node.transform.rotation
           const [sx = 1, sy = 1, sz = 1] = node.transform.scale
+          const mirrorAxis = node.mirror_axis ?? 'none'
+          const mirrorScale = {
+            x: mirrorAxis === 'x' ? -1 : 1,
+            y: mirrorAxis === 'y' ? -1 : 1,
+            z: mirrorAxis === 'z' ? -1 : 1,
+          }
           object.position.set(px, py, pz)
           if (explodeFactor > 0 && node.node_id !== graph?.root_node_id) {
             const direction = object.position.clone().sub(rootPosition)
@@ -122,7 +128,11 @@ export function ModuleGraphViewport({
             object.position.add(direction.normalize().multiplyScalar(extent * explodeFactor))
           }
           object.rotation.set(rx, ry, rz)
-          object.scale.set(sx, sy, sz)
+          object.scale.set(
+            sx * mirrorScale.x,
+            sy * mirrorScale.y,
+            sz * mirrorScale.z,
+          )
           object.visible = node.visible !== false && !hiddenNodeIds.includes(node.node_id)
           object.traverse((child) => {
             child.userData.nodeId = node.node_id

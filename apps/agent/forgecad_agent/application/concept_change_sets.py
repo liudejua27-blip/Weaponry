@@ -363,7 +363,7 @@ def _assert_locked_nodes_unchanged(
     change_set: DesignChangeSet,
 ) -> None:
     locked_node_ids = {node.node_id for node in base_graph.nodes if node.locked}
-    protected_operations = {"remove_module", "replace_module", "set_transform"}
+    protected_operations = {"remove_module", "replace_module", "set_transform", "set_mirror"}
     for operation in change_set.operations:
         if operation.op in protected_operations and operation.node_id in locked_node_ids:
             raise ConceptChangeSetError(
@@ -452,12 +452,12 @@ def _snap_graph_after_replacements(
     graph: ModuleGraph,
     change_set: DesignChangeSet,
 ) -> ModuleGraph:
-    replaced_node_ids = {
+    changed_node_ids = {
         str(operation.node_id)
         for operation in change_set.operations
-        if operation.op == "replace_module" and operation.node_id
+        if operation.op in {"replace_module", "set_mirror"} and operation.node_id
     }
-    if not replaced_node_ids:
+    if not changed_node_ids:
         return graph
 
     payload = graph.model_dump(mode="json")
@@ -471,8 +471,8 @@ def _snap_graph_after_replacements(
         parent_id, _ = parent_edges[child_id]
         descendants[parent_id].add(child_id)
         descendants[parent_id].update(descendants[child_id])
-    affected = set(replaced_node_ids)
-    for node_id in replaced_node_ids:
+    affected = set(changed_node_ids)
+    for node_id in changed_node_ids:
         affected.update(descendants.get(node_id, set()))
     affected.discard(graph.root_node_id)
 
@@ -497,12 +497,23 @@ def _snap_graph_after_replacements(
         )
         parent_transform = Transform.model_validate(nodes[parent_id]["transform"])
         child_transform = Transform.model_validate(nodes[child_id]["transform"])
-        nodes[child_id]["transform"] = snap_child_transform(
+        snapped_transform = snap_child_transform(
             parent_transform=parent_transform,
             parent_connector=parent_connector,
+            parent_mirror_axis=str(nodes[parent_id].get("mirror_axis", "none")),
             child_scale=child_transform.scale,
             child_connector=child_connector,
-        ).model_dump(mode="json")
+            child_mirror_axis=str(nodes[child_id].get("mirror_axis", "none")),
+        )
+        if nodes[child_id]["locked"] and _transforms_differ(
+            snapped_transform,
+            child_transform,
+        ):
+            raise ConceptChangeSetError(
+                "CHANGE_SET_INVALID",
+                f"Locked ModuleGraph node cannot be repositioned by Connector snap: {child_id}",
+            )
+        nodes[child_id]["transform"] = snapped_transform.model_dump(mode="json")
 
     snapped = ModuleGraph.model_validate(payload)
     snapped_nodes = {node.node_id: node for node in snapped.nodes}
@@ -522,8 +533,10 @@ def _snap_graph_after_replacements(
         distance_mm, rotation_degrees = connector_alignment_error(
             first_transform=snapped_nodes[edge.from_node_id].transform,
             first_connector=first_connector,
+            first_mirror_axis=snapped_nodes[edge.from_node_id].mirror_axis,
             second_transform=snapped_nodes[edge.to_node_id].transform,
             second_connector=second_connector,
+            second_mirror_axis=snapped_nodes[edge.to_node_id].mirror_axis,
         )
         if distance_mm > 0.1 or rotation_degrees > 0.1:
             raise ConceptChangeSetError(
@@ -561,6 +574,16 @@ def _rooted_parent_edges(
             traversal.append(child_id)
             pending.append(child_id)
     return parent_edges, traversal
+
+
+def _transforms_differ(first: Transform, second: Transform) -> bool:
+    return any(
+        abs(left - right) > 1e-7
+        for left, right in zip(
+            [*first.position, *first.rotation, *first.scale],
+            [*second.position, *second.rotation, *second.scale],
+        )
+    )
 
 
 def _edge_connector_ids(
@@ -629,6 +652,9 @@ def _apply_operation(
     elif operation.op == "set_transform":
         node = _require_node(nodes, operation.node_id)
         node["transform"] = operation.transform.model_dump(mode="json")
+    elif operation.op == "set_mirror":
+        node = _require_node(nodes, operation.node_id)
+        node["mirror_axis"] = operation.mirror_axis
     elif operation.op == "connect":
         if any(edge["edge_id"] == operation.edge_id for edge in edges):
             raise ConceptChangeSetError("CHANGE_SET_INVALID", "connect edge_id already exists.")

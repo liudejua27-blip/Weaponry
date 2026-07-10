@@ -38,6 +38,7 @@ export type ConceptExportManifest = {
   "asset_id": Id
   "sha256": Sha256
   "logical_path": RelativePath
+  "mirror_axis"?: "none" | "x" | "y" | "z"
   "transform": Transform
 }>
   "quality_report_id"?: Id | null
@@ -58,7 +59,7 @@ export type DesignChangeSet = {
   "summary": string
   "operations": Array<{
   "operation_id": string
-  "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_style" | "set_parameter"
+  "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_mirror" | "set_style" | "set_parameter"
   "node_id"?: Id
   "module_id"?: Id
   "edge_id"?: Id
@@ -68,6 +69,7 @@ export type DesignChangeSet = {
   "to_connector_id"?: Id
   "path"?: string
   "value"?: unknown
+  "mirror_axis"?: "none" | "x" | "y" | "z"
   "transform"?: Transform
 }>
   "protected_node_ids": Array<Id>
@@ -156,6 +158,7 @@ export type ModuleGraph = {
   "node_id": Id
   "module_id": Id
   "transform": Transform
+  "mirror_axis"?: "none" | "x" | "y" | "z"
   "locked": boolean
   "visible": boolean
 }>

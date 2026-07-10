@@ -362,7 +362,7 @@ export type DesignBriefRecord = {
 
 export type DesignChangeOperation = {
   "operation_id": string
-  "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_style" | "set_parameter"
+  "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_mirror" | "set_style" | "set_parameter"
   "node_id"?: string | null
   "module_id"?: string | null
   "edge_id"?: string | null
@@ -372,6 +372,7 @@ export type DesignChangeOperation = {
   "to_connector_id"?: string | null
   "path"?: string | null
   "value"?: unknown
+  "mirror_axis"?: "none" | "x" | "y" | "z" | null
   "transform"?: Transform | null
 }
 
@@ -438,6 +439,7 @@ export type ExportModuleEntry = {
   "asset_id": string
   "sha256": string
   "logical_path": string
+  "mirror_axis"?: "none" | "x" | "y" | "z"
   "transform": Transform
 }
 
@@ -695,6 +697,7 @@ export type ModuleGraphNode = {
   "node_id": string
   "module_id": string
   "transform": Transform
+  "mirror_axis"?: "none" | "x" | "y" | "z"
   "locked"?: boolean
   "visible"?: boolean
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowsClockwise,
+  ArrowsLeftRight,
   ArrowsOutCardinal,
   CaretDown,
   ChartLineUp,
@@ -196,6 +197,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     concept.replaceModule(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
       .catch(() => undefined)
   }, [concept, selectedLibraryModule, selectedNode])
+
+  const handleToggleMirrorX = useCallback(() => {
+    if (!selectedNode) return
+    const nextAxis = selectedNode.mirror_axis === 'x' ? 'none' : 'x'
+    concept.setMirror(selectedNode.node_id, nextAxis).catch(() => undefined)
+  }, [concept, selectedNode])
 
   const toggleSelectedNodeVisibility = useCallback(() => {
     if (!selectedNode) return
@@ -584,6 +591,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 <button className={showConnectors ? 'active' : ''} onClick={() => setShowConnectors((current) => !current)}>
                   <ShareNetwork size={13} /> Connector
                 </button>
+                <button
+                  className={selectedNode?.mirror_axis === 'x' ? 'active' : ''}
+                  onClick={handleToggleMirrorX}
+                  disabled={!selectedNode || selectedNode.locked || concept.loading}
+                  title={selectedNode?.locked ? '锁定节点不能镜像' : '通过 ChangeSet 创建 X 轴镜像子版本'}
+                >
+                  <ArrowsLeftRight size={13} /> {selectedNode?.mirror_axis === 'x' ? '取消镜像' : 'X 镜像'}
+                </button>
               </div>
               <div className="axis-group"><span>位置</span><div>
                 <AxisField axis="X" value={formatAxis(selectedNode?.transform.position[0])} />
@@ -595,6 +610,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 <AxisField axis="Y" value={formatAxis(selectedNode?.transform.rotation[1])} />
                 <AxisField axis="Z" value={formatAxis(selectedNode?.transform.rotation[2])} />
               </div></div>
+              <label className="wide-field"><span>镜像轴</span><input value={selectedNode?.mirror_axis ?? 'none'} readOnly /></label>
               <div className="property-divider" />
               <div className="property-heading">概念比例 <CaretDown size={13} /></div>
               <PropertyNumber label="整体长度" value={parameters.overallLength} unit="mm" onChange={(value) => updateParameter('overallLength', value)} />

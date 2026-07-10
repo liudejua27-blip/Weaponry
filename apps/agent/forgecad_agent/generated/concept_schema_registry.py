@@ -7,13 +7,13 @@ from typing import Any, Dict
 SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
 {
   "common.schema.json": "b23eef139a99d6bf9d69e926bcfcc90280e730e5986527803b5f3c0fd4df6d23",
-  "concept-export-manifest.schema.json": "eea63092e4f0397210e5c023e097a82bd7e767fd486c012a9747fda4dc05e648",
-  "design-change-set.schema.json": "8b18274fd49404fd63fd97de5fbcbc335a50ee5fcd681246f868465c029fb620",
+  "concept-export-manifest.schema.json": "cdc78963c4f8fc04a7a6a18387899611bd8f91bb2d94f77c6c58d67030112b44",
+  "design-change-set.schema.json": "167a0417615eafcfb16a01a5aa04e3156827b7521ec6b8b32011a959343936fb",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "model-quality-report.schema.json": "f9d6ab460ab015fd300be40dd8027481c7d5f366885f66f660eacdaef4cd3ce3",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
-  "module-graph.schema.json": "1d6e15eb1fc2d4d35e002b69502aa7233060604cdc171a29c7e7876318169692",
+  "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
@@ -173,6 +173,16 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "logical_path": {
               "$ref": "common.schema.json#/$defs/relative_path"
             },
+            "mirror_axis": {
+              "default": "none",
+              "enum": [
+                "none",
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
             "module_id": {
               "$ref": "common.schema.json#/$defs/id"
             },
@@ -268,6 +278,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "from_node_id": {
               "$ref": "common.schema.json#/$defs/id"
             },
+            "mirror_axis": {
+              "enum": [
+                "none",
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
             "module_id": {
               "$ref": "common.schema.json#/$defs/id"
             },
@@ -282,6 +301,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "connect",
                 "disconnect",
                 "set_transform",
+                "set_mirror",
                 "set_style",
                 "set_parameter"
               ],
@@ -818,6 +838,16 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "properties": {
             "locked": {
               "type": "boolean"
+            },
+            "mirror_axis": {
+              "default": "none",
+              "enum": [
+                "none",
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
             },
             "module_id": {
               "$ref": "common.schema.json#/$defs/id"

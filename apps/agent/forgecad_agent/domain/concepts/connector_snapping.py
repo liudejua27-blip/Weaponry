@@ -16,6 +16,8 @@ def snap_child_transform(
     parent_connector: Transform,
     child_scale: Iterable[float],
     child_connector: Transform,
+    parent_mirror_axis: str = "none",
+    child_mirror_axis: str = "none",
 ) -> Transform:
     """Place a child node so both connector frames coincide in millimeter world space."""
 
@@ -37,7 +39,7 @@ def snap_child_transform(
         _rotate(
             parent_rotation,
             _multiply_components(
-                _vector(parent_transform.scale),
+                _signed_scale(parent_transform.scale, parent_mirror_axis),
                 _vector(parent_connector.position),
             ),
         ),
@@ -45,7 +47,10 @@ def snap_child_transform(
     child_scale_vector = _vector(child_scale)
     child_offset = _rotate(
         child_rotation,
-        _multiply_components(child_scale_vector, _vector(child_connector.position)),
+        _multiply_components(
+            _signed_scale(child_scale_vector, child_mirror_axis),
+            _vector(child_connector.position),
+        ),
     )
     child_position = _subtract(parent_anchor, child_offset)
     return Transform(
@@ -61,16 +66,20 @@ def connector_alignment_error(
     first_connector: Transform,
     second_transform: Transform,
     second_connector: Transform,
+    first_mirror_axis: str = "none",
+    second_mirror_axis: str = "none",
 ) -> tuple[float, float]:
     """Return connector origin distance in mm and frame rotation error in degrees."""
 
     first_position, first_rotation = _connector_world_frame(
         first_transform,
         first_connector,
+        first_mirror_axis,
     )
     second_position, second_rotation = _connector_world_frame(
         second_transform,
         second_connector,
+        second_mirror_axis,
     )
     distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first_position, second_position)))
     dot = abs(sum(a * b for a, b in zip(first_rotation, second_rotation)))
@@ -82,6 +91,7 @@ def connector_alignment_error(
 def _connector_world_frame(
     node_transform: Transform,
     connector_transform: Transform,
+    mirror_axis: str,
 ) -> tuple[Vector3, Quaternion]:
     node_rotation = _quaternion_from_euler(node_transform.rotation)
     position = _add(
@@ -89,7 +99,7 @@ def _connector_world_frame(
         _rotate(
             node_rotation,
             _multiply_components(
-                _vector(node_transform.scale),
+                _signed_scale(node_transform.scale, mirror_axis),
                 _vector(connector_transform.position),
             ),
         ),
@@ -101,6 +111,15 @@ def _connector_world_frame(
         )
     )
     return position, rotation
+
+
+def _signed_scale(value: Iterable[float], mirror_axis: str) -> Vector3:
+    scale = list(_vector(value))
+    if mirror_axis not in {"none", "x", "y", "z"}:
+        raise ValueError(f"unsupported mirror axis: {mirror_axis}")
+    if mirror_axis != "none":
+        scale[{"x": 0, "y": 1, "z": 2}[mirror_axis]] *= -1
+    return tuple(scale)  # type: ignore[return-value]
 
 
 def _quaternion_from_euler(rotation: Iterable[float]) -> Quaternion:

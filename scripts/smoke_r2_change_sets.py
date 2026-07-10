@@ -240,6 +240,34 @@ def main() -> int:
                 "service allowed a client to bypass a locked Graph node",
             )
 
+            locked_mirror = _change_set(project_id, version_3, "change_locked_mirror")
+            locked_mirror["operations"] = [
+                {
+                    "operation_id": "op_locked_mirror",
+                    "op": "set_mirror",
+                    "node_id": "node_core",
+                    "mirror_axis": "x",
+                }
+            ]
+            locked_mirror["protected_node_ids"] = []
+            _json_request(
+                base_url,
+                f"/api/v1/versions/{version_3}/change-sets",
+                method="POST",
+                body={"client_request_id": "r2-locked-mirror", "change_set": locked_mirror},
+                idempotency_key="r2-locked-mirror",
+            )
+            mirror_status, mirror_body = _json_request_allow_error(
+                base_url,
+                f"/api/v1/change-sets/{locked_mirror['change_set_id']}:preview",
+                method="POST",
+                idempotency_key="r2-locked-mirror-preview",
+            )
+            _assert(
+                mirror_status == 400 and mirror_body["error"]["code"] == "CHANGE_SET_INVALID",
+                "service allowed mirror on a locked Graph node",
+            )
+
             stale_change = _change_set(project_id, version_3, "change_stale_front")
             _json_request(
                 base_url,

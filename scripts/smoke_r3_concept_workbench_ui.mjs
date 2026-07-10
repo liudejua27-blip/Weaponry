@@ -10,6 +10,7 @@ import { chromium } from 'playwright-core'
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright')
 const SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-workbench.png')
+const MIRROR_SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-mirror.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -316,8 +317,29 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.getByRole('button', { name: '爆炸视图' }).click()
     await page.waitForSelector('.viewport-viewbar button.active[aria-label="爆炸视图"]')
     await page.getByRole('button', { name: '爆炸视图' }).click()
+    await page.getByRole('button', { name: /module_grip_shell_01/ }).click()
+    const mirrorConfirmPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
+    )
+    await page.getByRole('button', { name: 'X 镜像' }).click()
+    const mirrorConfirmResponse = await mirrorConfirmPromise
+    if (!mirrorConfirmResponse.ok()) throw new Error(`mirror ChangeSet confirm failed: ${mirrorConfirmResponse.status()}`)
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('镜像已确认并创建新版本'),
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('.cad-left-rail'), ['V4', 'ChangeSet: change_desktop_mirror_'])
+    const mirrorInspectorValues = await page.locator('.properties-panel .wide-field input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (!mirrorInspectorValues.includes('node_grip') || !mirrorInspectorValues.includes('x')) {
+      throw new Error(`mirror state was not reflected in inspector: ${JSON.stringify(mirrorInspectorValues)}`)
+    }
+    await page.getByRole('button', { name: '取消镜像' }).waitFor()
+    await page.screenshot({ path: MIRROR_SCREENSHOT, fullPage: true })
+    if ((await stat(MIRROR_SCREENSHOT)).size < 20_000) throw new Error('mirror screenshot is unexpectedly small')
     await page.getByRole('button', { name: '连接' }).click()
-    await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
+    await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
 
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
@@ -339,6 +361,8 @@ async function runWorkbenchUi(baseUrl, seeded) {
       exploded_view_verified: true,
       drag_candidate_verified: true,
       connector_snap_verified: true,
+      mirror_version_verified: true,
+      mirror_screenshot: MIRROR_SCREENSHOT,
       export_downloaded: true,
     }
   } finally {
@@ -348,12 +372,13 @@ async function runWorkbenchUi(baseUrl, seeded) {
 
 async function verifyReplacement(baseUrl, projectId) {
   const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
-  if ((project.versions ?? []).length !== 3) {
-    throw new Error(`replacement should create V3, got ${(project.versions ?? []).length} versions`)
+  if ((project.versions ?? []).length !== 4) {
+    throw new Error(`replacement and mirror should create V4, got ${(project.versions ?? []).length} versions`)
   }
   const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
   const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
   const frontNode = graph.graph.nodes.find((node) => node.node_id === 'node_front')
+  const gripNode = graph.graph.nodes.find((node) => node.node_id === 'node_grip')
   const frontEdge = graph.graph.edges.find((edge) => edge.to_node_id === 'node_front')
   if (frontNode?.module_id !== 'module_front_shell_02') {
     throw new Error(`restart restored wrong front module: ${frontNode?.module_id}`)
@@ -364,12 +389,17 @@ async function verifyReplacement(baseUrl, projectId) {
   if (JSON.stringify(frontNode?.transform.position) !== JSON.stringify([-69, 17, 0])) {
     throw new Error(`replacement node was not snapped after restart: ${JSON.stringify(frontNode?.transform.position)}`)
   }
+  if (gripNode?.mirror_axis !== 'x') {
+    throw new Error(`restart lost grip mirror state: ${gripNode?.mirror_axis}`)
+  }
   return {
     version_id: version.version_id,
     graph_id: graph.graph.graph_id,
     module_id: frontNode.module_id,
     connector_id: frontEdge.to_connector_id,
     position_mm: frontNode.transform.position,
+    mirrored_node_id: gripNode.node_id,
+    mirror_axis: gripNode.mirror_axis,
   }
 }
 
@@ -389,6 +419,7 @@ function graphNode(nodeId, moduleId, position, locked = false) {
     node_id: nodeId,
     module_id: moduleId,
     transform: { position, rotation: [0, 0, 0], scale: [1, 1, 1] },
+    mirror_axis: 'none',
     locked,
     visible: true,
   }

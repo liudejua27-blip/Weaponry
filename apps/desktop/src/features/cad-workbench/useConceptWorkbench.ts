@@ -323,6 +323,79 @@ export function useConceptWorkbench() {
     }
   }, [loadProject, state.graphRecord, state.project, state.version])
 
+  const setMirror = useCallback(async (
+    nodeId: string,
+    mirrorAxis: 'none' | 'x' | 'y' | 'z',
+  ) => {
+    const project = state.project
+    const version = state.version
+    const graph = state.graphRecord?.graph
+    if (!project || !version || !graph) {
+      setState((current) => ({ ...current, error: '必须先加载 Project、Version 与 ModuleGraph。' }))
+      return null
+    }
+    const node = graph.nodes.find((item) => item.node_id === nodeId)
+    if (!node) {
+      setState((current) => ({ ...current, error: `Graph 节点不存在：${nodeId}` }))
+      return null
+    }
+    if (node.locked) {
+      setState((current) => ({ ...current, error: `节点 ${nodeId} 已锁定，不能镜像。` }))
+      return null
+    }
+    if ((node.mirror_axis ?? 'none') === mirrorAxis) return null
+
+    const suffix = Date.now().toString(36)
+    const clientRequestId = `desktop-mirror-${suffix}`
+    const changeSetId = `change_desktop_mirror_${suffix}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在预览 ${nodeId} 的 ${mirrorAxis.toUpperCase()} 镜像…`,
+    }))
+    try {
+      const proposed = await forgeApi.proposeChangeSet(version.version_id, {
+        client_request_id: clientRequestId,
+        change_set: {
+          schema_version: 'DesignChangeSet@1',
+          change_set_id: changeSetId,
+          project_id: project.project_id,
+          base_version_id: version.version_id,
+          summary: `Set ${nodeId} mirror axis to ${mirrorAxis}.`,
+          operations: [{
+            operation_id: `op_mirror_${suffix}`,
+            op: 'set_mirror',
+            node_id: nodeId,
+            mirror_axis: mirrorAxis,
+          }],
+          protected_node_ids: graph.nodes.filter((item) => item.locked).map((item) => item.node_id),
+          status: 'proposed',
+        },
+      })
+      await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
+      const confirmed = await forgeApi.confirmChangeSet(
+        proposed.change_set_id,
+        `${clientRequestId}-confirm`,
+      )
+      const nextVersionId = confirmed.project.current_version_id ?? undefined
+      await loadProject(project.project_id, nextVersionId)
+      setState((current) => ({
+        ...current,
+        statusMessage: `镜像已确认并创建新版本：${nextVersionId ?? 'unknown'}。`,
+      }))
+      return confirmed
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '模块镜像 preview/confirm 失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.graphRecord, state.project, state.version])
+
   return {
     ...state,
     refresh,
@@ -331,6 +404,7 @@ export function useConceptWorkbench() {
     createStarterProject,
     createExport,
     replaceModule,
+    setMirror,
   }
 }
 

@@ -2047,6 +2047,23 @@
             ],
             "title": "From Node Id"
           },
+          "mirror_axis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "x",
+                  "y",
+                  "z"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mirror Axis"
+          },
           "module_id": {
             "anyOf": [
               {
@@ -2079,6 +2096,7 @@
               "connect",
               "disconnect",
               "set_transform",
+              "set_mirror",
               "set_style",
               "set_parameter"
             ],
@@ -2494,6 +2512,17 @@
           },
           "logical_path": {
             "title": "Logical Path",
+            "type": "string"
+          },
+          "mirror_axis": {
+            "default": "none",
+            "enum": [
+              "none",
+              "x",
+              "y",
+              "z"
+            ],
+            "title": "Mirror Axis",
             "type": "string"
           },
           "module_id": {
@@ -4034,6 +4063,17 @@
             "default": false,
             "title": "Locked",
             "type": "boolean"
+          },
+          "mirror_axis": {
+            "default": "none",
+            "enum": [
+              "none",
+              "x",
+              "y",
+              "z"
+            ],
+            "title": "Mirror Axis",
+            "type": "string"
           },
           "module_id": {
             "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",

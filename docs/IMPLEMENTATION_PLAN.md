@@ -40,7 +40,7 @@
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
 | R3 Module Pack tooling | 完成 | 九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
-| R3 Connector snap | 合成与 API 基线完成 | 100/100 数学样本、root/child 子树重定位、remap、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
+| R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 
 ## 2. 执行硬规则
 
@@ -308,7 +308,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
 3. 制定 Module/Connector/材质/UV/LOD 命名规范。
 4. 准备第一套 8–12 个高质量 GLB fixture 与 Manifest。
-5. 完成镜像并用正式资产测量 Connector ≥95%；自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API 基线。
+5. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
 6. 实现持久化操作时间线和更强 GPU 生命周期压力门。
 7. 实现 combined GLB，再补 OBJ/PNG/爆炸图导出。
 8. 跑通“替换模块→ChangeSet→新版本→检查→combined GLB+Manifest 导出”。
