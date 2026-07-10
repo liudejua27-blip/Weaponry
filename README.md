@@ -146,7 +146,8 @@ core.side_panel_left / core.side_panel_right
 | Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | ModuleGraph 持久化仍在 R2 |
 | WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化和回读 API 已实现 | Version 绑定与桌面真实渲染待实现 |
 | Connector / 模块吸附 / 爆炸视图 | Connector 合同、数据表、注册和兼容校验已实现；交互未实现 | P0 核心技术阶段 |
-| DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Brief 生成仍待 R4 |
+| Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
+| DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ModelQualityReport | 合同、QualityRun/Findings 持久化与 API 已实现 | Graph/Mesh/Assembly 实际检查器进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 

@@ -339,7 +339,7 @@ GET    /api/v1/jobs/{job_id}/events
 POST   /api/v1/jobs/{job_id}:cancel
 ```
 
-当前实现已使用 `/api/v1/projects`、`/api/v1/projects/{project_id}` 和 `/api/v1/projects/{project_id}/versions` 完成 Project/Version 闭环，实现 `/api/v1/module-assets`、ModuleGraph 校验/持久化，并实现 `/api/v1/versions/{version_id}/change-sets` 与 preview/confirm；Brief variants、QualityRun、Export Job 等仍是 R2–R5 目标契约。
+当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun，并通过 `/brief:interpret`、`/variants` 和 `:select` 完成确定性 A/B/C 数据闭环。当前 Variant generator 是 R2 模板基线，不代表 R4 的 AI Brief/方案质量；Concept JobEvent 与 Export Job 仍是后续契约。
 
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 

@@ -274,6 +274,17 @@ export type CreativeWeaponGraphPayload = {
   "created_at": string
 }
 
+export type DesignBriefRecord = {
+  "brief_id": string
+  "project_id": string
+  "source_text": string
+  "reference_asset_ids"?: Array<string>
+  "interpreted_spec": WeaponConceptSpec
+  "status": "draft" | "interpreted" | "confirmed" | "failed"
+  "created_at": string
+  "updated_at": string
+}
+
 export type DesignChangeOperation = {
   "operation_id": string
   "op": "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_style" | "set_parameter"
@@ -314,6 +325,23 @@ export type DesignDomainProfile = {
   "non_functional_only"?: true
 }
 
+export type DesignVariantListResponse = {
+  "items"?: Array<DesignVariantRecord>
+  "next_cursor"?: string | null
+}
+
+export type DesignVariantRecord = {
+  "variant_id": string
+  "project_id": string
+  "brief_id": string
+  "rank": number
+  "name": string
+  "summary": string
+  "module_graph": ModuleGraph
+  "status": "proposed" | "selected" | "rejected"
+  "created_at": string
+}
+
 export type ErrorEnvelope = {
   "code": string
   "message": string
@@ -341,6 +369,13 @@ export type Generate3DRequest = {
   "build_unity_export"?: boolean
 }
 
+export type GenerateDesignVariantsRequest = {
+  "client_request_id": string
+  "brief_id": string
+  "count"?: 3
+  "generator"?: "deterministic_template"
+}
+
 export type GenerationOptions = {
   "concept_count"?: number
   "seed"?: number | null
@@ -357,6 +392,12 @@ export type HealthResponse = {
   "status": string
   "service": string
   "mode": string
+}
+
+export type InterpretDesignBriefRequest = {
+  "client_request_id": string
+  "source_text": string
+  "reference_asset_ids"?: Array<string>
 }
 
 export type JobAcceptedResponse = {
@@ -674,6 +715,10 @@ export type RuntimeWorkOnceResponse = {
   "job_type"?: string | null
   "status"?: "created" | "queued" | "running" | "waiting_provider" | "waiting_user" | "retrying" | "succeeded" | "failed" | "cancelled" | "partial_succeeded" | null
   "message": string
+}
+
+export type SelectDesignVariantRequest = {
+  "client_request_id": string
 }
 
 export type SkillCard = {

@@ -18,6 +18,11 @@ from .concept_quality import (
     ConceptQualityIdempotencyConflict,
     ConceptQualityService,
 )
+from .concept_briefs import (
+    ConceptBriefError,
+    ConceptBriefIdempotencyConflict,
+    ConceptBriefService,
+)
 
 __all__ = [
     "ConceptProjectError",
@@ -32,4 +37,7 @@ __all__ = [
     "ConceptQualityError",
     "ConceptQualityIdempotencyConflict",
     "ConceptQualityService",
+    "ConceptBriefError",
+    "ConceptBriefIdempotencyConflict",
+    "ConceptBriefService",
 ]

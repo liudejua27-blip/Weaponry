@@ -271,6 +271,17 @@ class ConceptAssetRepository:
             ),
         )
 
+    def get_active(self, asset_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT asset_id, project_id, version_id, role, logical_path, object_path,
+                   sha256, byte_size, mime_type, metadata_json, created_at
+            FROM concept_assets
+            WHERE asset_id = ? AND soft_deleted_at IS NULL
+            """,
+            (asset_id,),
+        ).fetchone()
+
 
 class ModuleRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -687,3 +698,147 @@ class QualityRepository:
             """,
             (quality_run_id,),
         ).fetchone()
+
+
+class BriefVariantRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add_brief(
+        self,
+        *,
+        brief_id: str,
+        project_id: str,
+        source_text: str,
+        reference_asset_ids_json: str,
+        interpreted_spec_json: str,
+        status: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO design_briefs (
+              brief_id, project_id, source_text, reference_asset_ids_json,
+              interpreted_spec_json, status, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                brief_id,
+                project_id,
+                source_text,
+                reference_asset_ids_json,
+                interpreted_spec_json,
+                status,
+                created_at,
+                created_at,
+            ),
+        )
+
+    def get_brief(self, project_id: str, brief_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT brief_id, project_id, source_text, reference_asset_ids_json,
+                   interpreted_spec_json, status, created_at, updated_at
+            FROM design_briefs
+            WHERE project_id = ? AND brief_id = ?
+            """,
+            (project_id, brief_id),
+        ).fetchone()
+
+    def add_variant(
+        self,
+        *,
+        variant_id: str,
+        project_id: str,
+        brief_id: str,
+        rank: int,
+        name: str,
+        summary: str,
+        module_graph_json: str,
+        status: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO design_variants (
+              variant_id, project_id, brief_id, rank, name, summary,
+              module_graph_json, status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                variant_id,
+                project_id,
+                brief_id,
+                rank,
+                name,
+                summary,
+                module_graph_json,
+                status,
+                created_at,
+            ),
+        )
+
+    def list_variants(
+        self,
+        project_id: str,
+        *,
+        brief_id: Optional[str] = None,
+    ) -> list[sqlite3.Row]:
+        if brief_id:
+            return self.connection.execute(
+                """
+                SELECT variant_id, project_id, brief_id, rank, name, summary,
+                       module_graph_json, status, created_at
+                FROM design_variants
+                WHERE project_id = ? AND brief_id = ?
+                ORDER BY rank ASC
+                """,
+                (project_id, brief_id),
+            ).fetchall()
+        return self.connection.execute(
+            """
+            SELECT variant_id, project_id, brief_id, rank, name, summary,
+                   module_graph_json, status, created_at
+            FROM design_variants
+            WHERE project_id = ?
+            ORDER BY created_at DESC, rank ASC
+            """,
+            (project_id,),
+        ).fetchall()
+
+    def get_variant(self, project_id: str, variant_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT variant_id, project_id, brief_id, rank, name, summary,
+                   module_graph_json, status, created_at
+            FROM design_variants
+            WHERE project_id = ? AND variant_id = ?
+            """,
+            (project_id, variant_id),
+        ).fetchone()
+
+    def select_variant(
+        self,
+        *,
+        project_id: str,
+        brief_id: str,
+        variant_id: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE design_variants
+            SET status = CASE WHEN variant_id = ? THEN 'selected' ELSE 'rejected' END
+            WHERE project_id = ? AND brief_id = ?
+            """,
+            (variant_id, project_id, brief_id),
+        )
+        self.connection.execute(
+            """
+            UPDATE design_briefs
+            SET status = 'confirmed', updated_at = datetime('now')
+            WHERE project_id = ? AND brief_id = ?
+            """,
+            (project_id, brief_id),
+        )

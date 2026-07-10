@@ -1505,6 +1505,62 @@
         "title": "CreativeWeaponGraphPayload",
         "type": "object"
       },
+      "DesignBriefRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "interpreted_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "source_text": {
+            "title": "Source Text",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "interpreted",
+              "confirmed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "brief_id",
+          "project_id",
+          "source_text",
+          "interpreted_spec",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DesignBriefRecord",
+        "type": "object"
+      },
       "DesignChangeOperation": {
         "additionalProperties": false,
         "properties": {
@@ -1826,6 +1882,91 @@
         "title": "DesignDomainProfile",
         "type": "object"
       },
+      "DesignVariantListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DesignVariantRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "DesignVariantListResponse",
+        "type": "object"
+      },
+      "DesignVariantRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "rank": {
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "selected",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "project_id",
+          "brief_id",
+          "rank",
+          "name",
+          "summary",
+          "module_graph",
+          "status",
+          "created_at"
+        ],
+        "title": "DesignVariantRecord",
+        "type": "object"
+      },
       "ErrorEnvelope": {
         "properties": {
           "code": {
@@ -1952,6 +2093,39 @@
         "title": "Generate3DRequest",
         "type": "object"
       },
+      "GenerateDesignVariantsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "count": {
+            "const": 3,
+            "default": 3,
+            "title": "Count",
+            "type": "integer"
+          },
+          "generator": {
+            "const": "deterministic_template",
+            "default": "deterministic_template",
+            "title": "Generator",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "brief_id"
+        ],
+        "title": "GenerateDesignVariantsRequest",
+        "type": "object"
+      },
       "GenerationOptions": {
         "properties": {
           "concept_count": {
@@ -2025,6 +2199,37 @@
           "mode"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InterpretDesignBriefRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "source_text": {
+            "maxLength": 4000,
+            "minLength": 3,
+            "title": "Source Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "source_text"
+        ],
+        "title": "InterpretDesignBriefRequest",
         "type": "object"
       },
       "JobAcceptedResponse": {
@@ -3935,6 +4140,22 @@
         "title": "RuntimeWorkOnceResponse",
         "type": "object"
       },
+      "SelectDesignVariantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "SelectDesignVariantRequest",
+        "type": "object"
+      },
       "SkillCard": {
         "properties": {
           "anchor_point": {
@@ -5735,6 +5956,326 @@
         "summary": "Get Project",
         "tags": [
           "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/brief:interpret": {
+      "post": {
+        "operationId": "interpret_brief_api_v1_projects__project_id__brief_interpret_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretDesignBriefRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignBriefRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Interpret Brief",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/briefs/{brief_id}": {
+      "get": {
+        "operationId": "get_brief_api_v1_projects__project_id__briefs__brief_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignBriefRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Brief",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/variants": {
+      "get": {
+        "operationId": "list_variants_api_v1_projects__project_id__variants_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "brief_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Variants",
+        "tags": [
+          "concept-briefs"
+        ]
+      },
+      "post": {
+        "operationId": "generate_variants_api_v1_projects__project_id__variants_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDesignVariantsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Variants",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/variants/{variant_id}:select": {
+      "post": {
+        "operationId": "select_variant_api_v1_projects__project_id__variants__variant_id__select_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "title": "Variant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectDesignVariantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Variant",
+        "tags": [
+          "concept-briefs"
         ]
       }
     },

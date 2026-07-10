@@ -8,6 +8,7 @@ from .connection import SQLiteConnectionFactory
 from .concept_repositories import (
     ConceptAssetRepository,
     ChangeSetRepository,
+    BriefVariantRepository,
     ConceptProjectRepository,
     DomainProfileRepository,
     ModuleRepository,
@@ -32,6 +33,7 @@ class SQLiteUnitOfWork:
         self.modules: ModuleRepository
         self.change_sets: ChangeSetRepository
         self.quality: QualityRepository
+        self.brief_variants: BriefVariantRepository
 
     def __enter__(self) -> "SQLiteUnitOfWork":
         connection = self.connection_factory.connect()
@@ -46,6 +48,7 @@ class SQLiteUnitOfWork:
         self.modules = ModuleRepository(connection)
         self.change_sets = ChangeSetRepository(connection)
         self.quality = QualityRepository(connection)
+        self.brief_variants = BriefVariantRepository(connection)
         return self
 
     def __exit__(

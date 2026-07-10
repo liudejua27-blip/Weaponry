@@ -38,6 +38,7 @@
     "agent:r2-concept-projects-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_concept_projects.py",
     "agent:r2-module-registry-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_module_registry.py",
     "agent:r2-change-sets-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_change_sets.py",
+    "agent:r2-brief-variants-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_brief_variants.py",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
@@ -67,7 +68,7 @@
     "r1:foundation-gate": "npm run agent:r1-foundation-smoke && npm run m6:gate",
     "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke",
     "r2:contracts-gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:r2-concept-contracts-smoke",
-    "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke && npm run agent:r2-module-registry-smoke && npm run agent:r2-change-sets-smoke"
+    "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke && npm run agent:r2-module-registry-smoke && npm run agent:r2-change-sets-smoke && npm run agent:r2-brief-variants-smoke"
   },
   "engines": {
     "node": ">=20",

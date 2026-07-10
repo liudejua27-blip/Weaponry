@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -169,3 +169,48 @@ class QualityRunRecord(StrictApiModel):
     version_id: str
     report: ModelQualityReport
     created_at: str
+
+
+class InterpretDesignBriefRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    source_text: str = Field(min_length=3, max_length=4000)
+    reference_asset_ids: List[str] = Field(default_factory=list, max_length=12)
+
+
+class DesignBriefRecord(StrictApiModel):
+    brief_id: str
+    project_id: str
+    source_text: str
+    reference_asset_ids: List[str] = Field(default_factory=list)
+    interpreted_spec: WeaponConceptSpec
+    status: Literal["draft", "interpreted", "confirmed", "failed"]
+    created_at: str
+    updated_at: str
+
+
+class GenerateDesignVariantsRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    brief_id: str
+    count: Literal[3] = 3
+    generator: Literal["deterministic_template"] = "deterministic_template"
+
+
+class DesignVariantRecord(StrictApiModel):
+    variant_id: str
+    project_id: str
+    brief_id: str
+    rank: int = Field(ge=1, le=3)
+    name: str
+    summary: str
+    module_graph: ModuleGraph
+    status: Literal["proposed", "selected", "rejected"]
+    created_at: str
+
+
+class DesignVariantListResponse(StrictApiModel):
+    items: List[DesignVariantRecord] = Field(default_factory=list)
+    next_cursor: Optional[str] = None
+
+
+class SelectDesignVariantRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
