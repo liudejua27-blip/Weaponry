@@ -50,6 +50,9 @@ export type ChangeSetPreviewResponse = Api.ChangeSetPreviewResponse
 export type ChangeSetConfirmResponse = Api.ChangeSetConfirmResponse
 export type ChangeSetTimelineResponse = Api.ChangeSetTimelineResponse
 export type ChangeSetTimelineItem = Api.ChangeSetTimelineItem
+export type InspectConceptVersionRequest = Api.InspectConceptVersionRequest
+export type QualityRunRecord = Api.QualityRunRecord
+export type QualityFinding = Api.QualityFinding
 
 export type ApiErrorEnvelope = {
   error: {

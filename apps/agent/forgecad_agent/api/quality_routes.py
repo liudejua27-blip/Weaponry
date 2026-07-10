@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from forgecad_agent.application.concept_models import (
     CreateQualityRunRequest,
+    InspectConceptVersionRequest,
     QualityRunRecord,
 )
 from forgecad_agent.application.concept_quality import (
@@ -40,6 +41,27 @@ def build_quality_router(service: ConceptQualityService) -> APIRouter:
         except ConceptQualityError as exc:
             return _quality_error_response(exc)
 
+    @router.post(
+        "/versions/{version_id}/quality-runs:inspect",
+        response_model=QualityRunRecord,
+        status_code=201,
+    )
+    def inspect_concept_version(
+        version_id: str,
+        request: InspectConceptVersionRequest,
+        idempotency_key: Annotated[
+            Optional[str],
+            Header(alias="Idempotency-Key"),
+        ] = None,
+    ) -> Union[QualityRunRecord, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        try:
+            return service.inspect_version(version_id, request, key)
+        except ConceptQualityIdempotencyConflict as exc:
+            return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
+        except ConceptQualityError as exc:
+            return _quality_error_response(exc)
+
     @router.get("/quality-runs/{quality_run_id}", response_model=QualityRunRecord)
     def get_quality_run(
         quality_run_id: str,
@@ -65,6 +87,8 @@ def _quality_error_response(exc: ConceptQualityError) -> JSONResponse:
         status_code = 409
     elif exc.code == "INVALID_REQUEST":
         status_code = 400
+    elif exc.code in {"MODULE_ASSET_UNAVAILABLE", "QUALITY_INSPECTOR_UNAVAILABLE"}:
+        status_code = 503
     else:
         status_code = 500
     return _error_response(status_code, exc.code, str(exc))

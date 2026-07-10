@@ -9,6 +9,7 @@ import type {
   DesignVariantRecord,
   ModuleAssetRecord,
   ModuleGraphRecord,
+  QualityRunRecord,
 } from '../../shared/types'
 
 const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
@@ -25,6 +26,7 @@ type ConceptWorkbenchState = {
   statusMessage: string
   lastExport: ConceptExportRecord | null
   timeline: ChangeSetTimelineItem[]
+  qualityRun: QualityRunRecord | null
 }
 
 const INITIAL_STATE: ConceptWorkbenchState = {
@@ -39,6 +41,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   statusMessage: '正在读取本地 Concept 数据…',
   lastExport: null,
   timeline: [],
+  qualityRun: null,
 }
 
 export function useConceptWorkbench() {
@@ -81,6 +84,7 @@ export function useConceptWorkbench() {
         modules: moduleResponse.items ?? [],
         variants: variantResponse.items ?? [],
         timeline: timelineResponse.items ?? [],
+        qualityRun: null,
         loading: false,
         error: null,
         statusMessage: graphRecord
@@ -117,6 +121,7 @@ export function useConceptWorkbench() {
           modules: [],
           variants: [],
           timeline: [],
+          qualityRun: null,
           loading: false,
           error: null,
           statusMessage: '尚无 Concept Project。创建“寒地巡逻 S1”开始设计。',
@@ -162,6 +167,7 @@ export function useConceptWorkbench() {
         ...current,
         version,
         graphRecord,
+        qualityRun: null,
         loading: false,
         statusMessage: graphRecord
           ? `已切换到 V${version.version_no} · ${graphRecord.graph.nodes.length} 个节点。`
@@ -252,6 +258,46 @@ export function useConceptWorkbench() {
         loading: false,
         error: errorMessage(caught),
         statusMessage: '概念交付包创建失败。',
+      }))
+      return null
+    }
+  }, [state.version])
+
+  const runQualityInspection = useCallback(async () => {
+    const version = state.version
+    if (!version?.module_graph_id) {
+      setState((current) => ({
+        ...current,
+        error: '当前版本没有已验证 ModuleGraph，不能运行几何检查。',
+      }))
+      return null
+    }
+    const clientRequestId = `desktop-quality-${Date.now()}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在读取不可变 GLB 并执行 Mesh/Assembly 检查…',
+    }))
+    try {
+      const result = await forgeApi.inspectConceptVersion(version.version_id, {
+        client_request_id: clientRequestId,
+        ruleset_version: 'weapon-concept-geometry/1.0',
+      })
+      const findingCount = result.report.findings?.length ?? 0
+      setState((current) => ({
+        ...current,
+        loading: false,
+        qualityRun: result,
+        statusMessage: `检查完成 · ${result.report.status} · ${findingCount} 项结果。`,
+      }))
+      return result
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: 'Mesh/Assembly 检查失败。',
       }))
       return null
     }
@@ -410,6 +456,7 @@ export function useConceptWorkbench() {
     selectVersion,
     createStarterProject,
     createExport,
+    runQualityInspection,
     replaceModule,
     setMirror,
   }

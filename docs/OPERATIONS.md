@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、QualityRun、概念源包和 combined GLB 导出 API 已实现；OBJ/PNG/爆炸图和完整 R5 检查器尚未实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包和 combined GLB 导出 API 已实现；OBJ/PNG/爆炸图和完整 R5 检查矩阵尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -144,20 +144,33 @@ npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
 npm run r3:workbench-gate
+npm run r5:quality-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:combined-glb-gate` 验证单一 GLB；仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查、负例、桌面触发和重启回读。它仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD 或 OBJ/PNG。
 
 专项 Connector 门：
 
 ```bash
 npm run agent:r3-connector-snap-smoke
 npm run r5:combined-glb-gate
+npm run agent:r5-mesh-assembly-quality-smoke
 ```
 
 该门同时验证 `GET /api/v1/projects/{project_id}/change-sets` 的 replace/mirror 操作时间线与 Agent 重启回读。
 
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
+
+实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/versions/VER_ID/quality-runs:inspect" \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: manual-quality-001' \
+  -d '{"client_request_id":"manual-quality-001","ruleset_version":"weapon-concept-geometry/1.0"}'
+```
+
+报告状态为 `warning` 时可以继续概念评审，但必须复核 Findings；`failed` 表示确定性几何或 Connector 门失败。两者都不代表结构强度、制造可行性或使用安全结论。
 
 ### 2.3 Tauri 检查
 
@@ -324,7 +337,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-人工构造四个失败样本：连接器不兼容、浮空模块、模块穿插、非法缩放。导出至少覆盖 GLB、PNG、Manifest 和 JSON 报告。
+首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。继续补精确相交、对称、隐藏几何和 LOD 样本；导出继续补 PNG、OBJ 与 HTML 报告。
 
 ### Day 7：桌面回归
 

@@ -2864,6 +2864,28 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "InspectConceptVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "ruleset_version": {
+            "const": "weapon-concept-geometry/1.0",
+            "default": "weapon-concept-geometry/1.0",
+            "title": "Ruleset Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "InspectConceptVersionRequest",
+        "type": "object"
+      },
       "InterpretDesignBriefRequest": {
         "additionalProperties": false,
         "properties": {
@@ -7824,6 +7846,74 @@
           }
         },
         "summary": "Create Quality Run",
+        "tags": [
+          "concept-quality"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/quality-runs:inspect": {
+      "post": {
+        "operationId": "inspect_concept_version_api_v1_versions__version_id__quality_runs_inspect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectConceptVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inspect Concept Version",
         "tags": [
           "concept-quality"
         ]

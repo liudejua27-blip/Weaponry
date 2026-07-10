@@ -657,9 +657,27 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <DfmRow label="Graph 状态" value={concept.graphRecord?.validation_status ?? '未运行'} ok={concept.graphRecord?.validation_status === 'valid'} />
               <DfmRow label="模块节点" value={String(concept.graphRecord?.graph.nodes.length ?? 0)} ok={Boolean(concept.graphRecord)} />
               <DfmRow label="连接边" value={String(concept.graphRecord?.graph.edges?.length ?? 0)} ok={Boolean(concept.graphRecord)} />
-              <DfmRow label="Mesh 检查" value="R5 待实现" ok={false} />
-              <div className="dfm-suggestion"><WarningCircle size={15} /> 提示：当前是非功能性概念模型，不代表制造或安全验证。</div>
-              <button className="secondary-action" disabled title="R5 实际检查器待实现">R5 检查报告待实现</button>
+              <DfmRow
+                label="Mesh/Assembly"
+                value={qualityStatusLabel(concept.qualityRun?.report.status)}
+                ok={concept.qualityRun?.report.status === 'passed'}
+              />
+              {(concept.qualityRun?.report.findings ?? []).slice(0, 4).map((finding) => (
+                <div className={`quality-finding ${finding.severity}`} key={finding.finding_id}>
+                  <strong>{finding.check_id}</strong>
+                  <span>{finding.message}</span>
+                  {finding.measured_value != null && <small>测量值：{String(finding.measured_value)}</small>}
+                </div>
+              ))}
+              <div className="dfm-suggestion"><WarningCircle size={15} /> 几何检查不代表结构强度、制造可行性或使用安全验证。</div>
+              <button
+                className="secondary-action"
+                disabled={concept.loading || !concept.version?.module_graph_id}
+                onClick={() => concept.runQualityInspection()}
+                title="检查索引、退化面、法线、UV0、拓扑、Connector 对齐与快速包围盒穿插"
+              >
+                {concept.loading ? '检查中…' : '运行实际几何检查'}
+              </button>
             </>}
           </section>
 
@@ -800,6 +818,11 @@ function DfmRow({ label, value, ok }: { label: string; value: string; ok: boolea
       {ok ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}
     </div>
   )
+}
+
+function qualityStatusLabel(status?: 'passed' | 'warning' | 'failed' | 'not_run') {
+  if (!status || status === 'not_run') return '未运行'
+  return ({ passed: '通过', warning: '需复核', failed: '失败' } as const)[status]
 }
 
 function componentIconFor(category: ModuleCategory) {

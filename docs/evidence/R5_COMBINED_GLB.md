@@ -42,6 +42,6 @@ npm run r5:combined-glb-gate
 - glTF Transform prune/dedupe/meshopt 与纹理合并；
 - textured GLB、skin、animation；
 - OBJ、PNG、爆炸图；
-- actual Mesh/Assembly quality gate；
+- 精确 triangle/BVH intersection、对称、隐藏几何与 LOD quality gate（首版实际 Mesh/Assembly 规则集见 `R5_MESH_ASSEMBLY_QUALITY.md`）；
 - Unity/其他引擎的 combined GLB round-trip；
 - 最终 Blender 资产的大小、draw call 和视觉验收。

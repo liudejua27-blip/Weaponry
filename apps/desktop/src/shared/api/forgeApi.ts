@@ -40,6 +40,8 @@ import type {
   ChangeSetPreviewResponse,
   ChangeSetConfirmResponse,
   ChangeSetTimelineResponse,
+  InspectConceptVersionRequest,
+  QualityRunRecord,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -114,6 +116,21 @@ export class ForgeApiClient {
   async getModuleGraph(graphId: string): Promise<ModuleGraphRecord> {
     const response = await fetch(`${this.baseUrl}/api/v1/module-graphs/${graphId}`)
     return readJson<ModuleGraphRecord>(response)
+  }
+
+  async inspectConceptVersion(
+    versionId: string,
+    input: InspectConceptVersionRequest,
+  ): Promise<QualityRunRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/quality-runs:inspect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<QualityRunRecord>(response)
   }
 
   async listDesignVariants(projectId: string): Promise<DesignVariantListResponse> {

@@ -301,6 +301,22 @@ async function runWorkbenchUi(baseUrl, seeded) {
     ])
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
+    await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
+    const qualityResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('quality-runs') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '运行实际几何检查' }).click()
+    const qualityResponse = await qualityResponsePromise
+    if (!qualityResponse.ok()) throw new Error(`geometry quality inspection failed: ${qualityResponse.status()}`)
+    const qualityRecord = await qualityResponse.json()
+    if (qualityRecord.report.status !== 'passed' || (qualityRecord.report.findings ?? []).length !== 1) {
+      throw new Error(`unexpected geometry quality report: ${JSON.stringify(qualityRecord.report)}`)
+    }
+    await assertText(page.locator('.properties-panel'), [
+      'Mesh/Assembly',
+      '通过',
+      '几何检查不代表结构强度、制造可行性或使用安全验证',
+    ])
 
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
@@ -341,6 +357,8 @@ async function runWorkbenchUi(baseUrl, seeded) {
       mirror_screenshot: MIRROR_SCREENSHOT,
       viewport_lifecycle: lifecycle,
       operation_timeline_verified: true,
+      geometry_quality_inspection_verified: true,
+      quality_run_id: qualityRecord.quality_run_id,
       export_downloaded: true,
       combined_glb_downloaded: true,
     }

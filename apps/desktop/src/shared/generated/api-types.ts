@@ -507,6 +507,11 @@ export type HealthResponse = {
   "mode": string
 }
 
+export type InspectConceptVersionRequest = {
+  "client_request_id": string
+  "ruleset_version"?: "weapon-concept-geometry/1.0"
+}
+
 export type InterpretDesignBriefRequest = {
   "client_request_id": string
   "source_text": string

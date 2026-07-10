@@ -42,7 +42,7 @@ def create_app() -> FastAPI:
     concept_projects = ConceptProjectService(store.connection_factory)
     concept_modules = ConceptModuleService(store.connection_factory, store.object_store)
     concept_change_sets = ConceptChangeSetService(store.connection_factory)
-    concept_quality = ConceptQualityService(store.connection_factory)
+    concept_quality = ConceptQualityService(store.connection_factory, store.object_store)
     concept_briefs = ConceptBriefService(store.connection_factory)
     concept_jobs = ConceptJobService(store.connection_factory)
     concept_exports = ConceptExportService(store.connection_factory, store.object_store)

@@ -187,6 +187,13 @@ class CreateQualityRunRequest(StrictApiModel):
     report: ModelQualityReport
 
 
+class InspectConceptVersionRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    ruleset_version: Literal["weapon-concept-geometry/1.0"] = (
+        "weapon-concept-geometry/1.0"
+    )
+
+
 class QualityRunRecord(StrictApiModel):
     quality_run_id: str
     project_id: str
