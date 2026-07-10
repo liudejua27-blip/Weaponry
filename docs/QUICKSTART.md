@@ -30,6 +30,7 @@ VITE_FORGE_API_BASE_URL=http://127.0.0.1:8000 npm run desktop:dev
 npm run desktop:typecheck
 npm run desktop:build
 npm run desktop:p0-context-continuity-smoke
+npm run r1:create-weapon-gate
 npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate

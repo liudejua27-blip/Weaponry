@@ -20,6 +20,8 @@
 - 将 mask/manifest 上传验证、幂等与内容寻址写入迁入 `LegacyAssetUploadService`；所有通用资产 INSERT 经 `AssetRepository.add`；
 - 将版本激活、武器库 read model、资产元数据和安全文件解析迁入 `LegacyLibraryService`；
 - 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
+- 将旧同步 Create Weapon 的 LLM → Image → 3D → Quality → JobEvent 编排迁入 `LegacyCreateWeaponService`；`SQLiteAssetStore.create_weapon` 只保留代理与幂等异常映射；
+- `asset_store.py` 从约 3608 行降至 3272 行；结构 smoke 禁止 Provider 调用重新回流 facade；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
 - `main.py` 从约 458 行降至约 54 行，只保留应用组装和 worker 生命周期。
@@ -56,7 +58,7 @@ npm run r1:foundation-gate
 
 覆盖：
 
-- 8 个旧 migrations 在新库首次应用；
+- 11 个 migrations 在新库首次应用；
 - 第二次 migration 无重复应用；
 - foreign keys 开启，busy timeout 为 5000 ms；
 - 相同 payload 使用同一个内容寻址路径；
@@ -116,6 +118,14 @@ npm run agent:m4-patch-http-smoke
 
 结果：全部通过；内容寻址资产创建、mask/manifest 校验、上传幂等和 Patch 追加版本保持原合同。
 
+Create Weapon Provider workflow 提取后补充运行：
+
+```bash
+npm run r1:create-weapon-gate
+```
+
+结果：通过。结构门确认 facade 不再包含 `plan_weapon_spec`、`generate_concept`、资产写入或事件编排；行为门覆盖默认 Provider、幂等 replay/409 conflict、LLM adapter、ComfyUI 首次成功/重试和可解析 GLB/质量报告，仍产生 7 个 JobEvent 与 11 个内容寻址资产。
+
 Library/Version 提取后补充运行：
 
 ```bash
@@ -129,6 +139,6 @@ npm run desktop:p0-context-continuity-smoke
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- 异步 Provider worker 编排、创建/Patch/Unity 导出等其余 legacy 工作流仍待提取；
+- 异步 Provider worker 编排、generate-3d、Patch、Unity 导出等其余 legacy 工作流仍待提取；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
-- 尚未进入 R2 新 CAD 合同和数据库。
+- R2 Concept 数据链已经独立落地，但 R1 legacy facade 边界仍未全部完成。

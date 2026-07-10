@@ -132,10 +132,11 @@ npm run m6:gate
 R1 基础设施：
 
 ```bash
+npm run r1:create-weapon-gate
 npm run r1:foundation-gate
 ```
 
-它验证 migration 幂等、SQLite 约束、内容寻址去重、路径越界与哈希篡改检测，再执行 `m6:gate`。
+`r1:create-weapon-gate` 验证 facade 只代理、同步 Provider 编排位于 application service，并回归默认创建、幂等冲突、LLM、ComfyUI 和 GLB/质量资产链。`r1:foundation-gate` 在此基础上验证 migration 幂等、SQLite 约束、内容寻址去重、路径越界与哈希篡改检测，再执行 `m6:gate`。
 
 R1 当前完整回归：
 
