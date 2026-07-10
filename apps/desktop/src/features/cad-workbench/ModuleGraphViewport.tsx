@@ -309,6 +309,7 @@ export function ModuleGraphViewport({
         ref={hostRef}
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
+        data-focus-node-id={focusNodeId ?? ''}
       />
       {loadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">

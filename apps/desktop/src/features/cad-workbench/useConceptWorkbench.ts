@@ -284,7 +284,7 @@ export function useConceptWorkbench() {
     try {
       const result = await forgeApi.inspectConceptVersion(version.version_id, {
         client_request_id: clientRequestId,
-        ruleset_version: 'weapon-concept-geometry/1.0',
+        ruleset_version: 'weapon-concept-geometry/1.1',
       })
       const findingCount = result.report.findings?.length ?? 0
       setState((current) => ({

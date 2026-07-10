@@ -964,16 +964,23 @@
 
 .quality-finding {
   display: grid;
+  width: 100%;
   gap: 2px;
   margin-top: 5px;
   padding: 6px;
   border: 1px solid #34465a;
   border-radius: 5px;
   background: #172230;
+  color: inherit;
+  font-family: inherit;
   font-size: 8px;
   line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
 }
 
+.quality-finding:disabled { cursor: default; opacity: 0.8; }
+.quality-finding:not(:disabled):hover { background: #1b2a3b; }
 .quality-finding strong { color: #d5e0ed; }
 .quality-finding span { color: #9eacbd; }
 .quality-finding small { color: #718298; }

@@ -187,6 +187,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     if (node) setSelectedLibraryModuleId(node.module_id)
   }, [concept.graphRecord])
 
+  const focusQualityFinding = useCallback((nodeIds: string[] | undefined) => {
+    const nodeId = nodeIds?.find((candidate) => (
+      concept.graphRecord?.graph.nodes.some((node) => node.node_id === candidate)
+    ))
+    if (!nodeId) return
+    selectGraphNode(nodeId)
+    setFocusedNodeId(nodeId)
+  }, [concept.graphRecord, selectGraphNode])
+
   const handleCreateExport = useCallback(async () => {
     const currentExport = concept.lastExport?.version_id === concept.version?.version_id
       ? concept.lastExport
@@ -676,18 +685,25 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 ok={concept.qualityRun?.report.status === 'passed'}
               />
               {(concept.qualityRun?.report.findings ?? []).slice(0, 4).map((finding) => (
-                <div className={`quality-finding ${finding.severity}`} key={finding.finding_id}>
+                <button
+                  type="button"
+                  className={`quality-finding ${finding.severity}`}
+                  key={finding.finding_id}
+                  disabled={!finding.node_ids?.length}
+                  onClick={() => focusQualityFinding(finding.node_ids)}
+                  title={finding.node_ids?.length ? `选择并聚焦 ${finding.node_ids.join(', ')}` : undefined}
+                >
                   <strong>{finding.check_id}</strong>
                   <span>{finding.message}</span>
                   {finding.measured_value != null && <small>测量值：{String(finding.measured_value)}</small>}
-                </div>
+                </button>
               ))}
               <div className="dfm-suggestion"><WarningCircle size={15} /> 几何检查不代表结构强度、制造可行性或使用安全验证。</div>
               <button
                 className="secondary-action"
                 disabled={concept.loading || !concept.version?.module_graph_id}
                 onClick={() => concept.runQualityInspection()}
-                title="检查索引、退化面、法线、UV0、拓扑、Connector 对齐与快速包围盒穿插"
+                title="检查索引、退化面、法线、UV0、拓扑、Connector 对齐与未连接组件精确穿插"
               >
                 {concept.loading ? '检查中…' : '运行实际几何检查'}
               </button>

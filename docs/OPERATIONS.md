@@ -148,9 +148,10 @@ npm run r5:obj-gate
 npm run r5:render-gate
 npm run r5:multiview-gate
 npm run r5:quality-gate
+npm run r5:c07-intersection-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD、转台视频或 DCC round-trip。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 与 `r5:c07-intersection-gate` 验证实际 GLB Mesh/Assembly、triangle BVH/SAT/containment 和 Finding 点击聚焦。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、异常间隙、对称/隐藏几何/LOD、转台视频或 DCC round-trip。
 
 专项 Connector 门：
 
@@ -200,10 +201,10 @@ Renders/render-set.zip
 curl -X POST "http://127.0.0.1:8000/api/v1/versions/VER_ID/quality-runs:inspect" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: manual-quality-001' \
-  -d '{"client_request_id":"manual-quality-001","ruleset_version":"weapon-concept-geometry/1.0"}'
+  -d '{"client_request_id":"manual-quality-001","ruleset_version":"weapon-concept-geometry/1.1"}'
 ```
 
-报告状态为 `warning` 时可以继续概念评审，但必须复核 Findings；`failed` 表示确定性几何或 Connector 门失败。两者都不代表结构强度、制造可行性或使用安全结论。
+报告状态为 `warning` 时可以继续概念评审，但必须复核 Findings；`assembly.unconnected_triangle_intersection` 的测量值包含 `surface_pairs`、`containment`、`tested_pairs` 和 `capped`。点击桌面 Finding 会选择并聚焦第一个关联节点。`failed` 表示确定性几何或 Connector 门失败。两者都不代表结构强度、制造可行性或使用安全结论。
 
 ### 2.3 Tauri 检查
 
@@ -370,7 +371,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。OBJ/MTL、透明/爆炸 PNG、三正交视图和 8 帧 turntable 已完成首版；继续补精确相交、对称、隐藏几何和 LOD 样本，以及转台视频、正式渲染性能与 HTML 报告。
+自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位、未连接组件 triangle BVH/SAT 穿插与封闭网格包含，浏览器也验证 Finding 点击聚焦。OBJ/MTL、透明/爆炸 PNG、三正交视图和 8 帧 turntable 已完成首版；继续补异常间隙、对称、隐藏几何和 LOD 样本，以及转台视频、正式渲染性能与 HTML 报告。
 
 ### Day 7：桌面回归
 

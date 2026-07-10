@@ -325,7 +325,11 @@ packs/weapon-concept/
 
 每项必须包含 `check_id`、severity、status、node ids、实测值、阈值、可读建议和 ruleset version。`passed`、`warning`、`failed`、`not_run` 不得混用。
 
-当前服务端规则集 `weapon-concept-geometry/1.0` 读取 Version 绑定的不可变 ModuleGraph 与内容寻址 GLB，不接受客户端替它声明“已通过”。它解码内嵌 glTF accessor，检查索引范围、三角形计数、退化面、法线长度、UV0、焊接后的开放/非流形边和清单 bounds；装配层复用 Connector 世界 frame 计算 `0.1 mm / 0.1°` 对齐误差，并对未直连节点做世界 AABB 穿插筛查。AABB 只产生需人工复核的 warning；精确 triangle/BVH intersection、对称、隐藏几何、LOD 与强度/制造分析不在该规则集内。
+当前服务端规则集 `weapon-concept-geometry/1.1` 读取 Version 绑定的不可变 ModuleGraph 与内容寻址 GLB，不接受客户端替它声明“已通过”。它解码内嵌 glTF accessor，检查索引范围、三角形计数、退化面、法线长度、UV0、焊接后的开放/非流形边和清单 bounds；装配层复用 Connector 世界 frame 计算 `0.1 mm / 0.1°` 对齐误差。`1.0` 是历史 AABB 筛查语义；精确穿插行为必须记录为 `1.1`，不能用旧版本号写入新报告。
+
+未直接相连的节点会把模块局部三角形按 Graph TRS 与 mirror 转到毫米世界空间，以每叶最多 8 个三角形的确定性 BVH 做 broad phase；候选对用三角形法向量、边叉积与共面分离轴做 SAT narrow phase，接触按相交处理，最多记录 128 个表面对。两个网格均无开放/非流形边且没有表面交叉时，再以三条稳定射线的多数奇偶规则检查完整包含。直接 Connector 相连的模块可能在接口处有设计允许的接触或嵌合，不进入该穿插规则；其正确性由 Connector 对齐规则约束。Finding 记录关联 node ids、表面对数、containment、实际窄相位次数和截断状态。
+
+桌面 Finding 点击会选择并聚焦第一个有效关联节点；当前还没有定位到具体相交三角形。异常间隙、对称、隐藏几何、LOD 与强度/制造分析不在该规则集内。
 
 ## 7. 连接器系统
 
@@ -412,7 +416,7 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
 
-桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，并显示规则集状态、Finding 消息和测量值；这不是仅在 API 中存在的占位能力。
+桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，显示规则集状态、Finding 消息和测量值；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。
 
 当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选，显式确认后才走 `DesignChangeSet → preview → confirm`；Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
 

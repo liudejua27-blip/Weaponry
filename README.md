@@ -154,7 +154,7 @@ core.side_panel_left / core.side_panel_right
 | Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ChangeSet 操作时间线 | Project 级只读 API、operation/node/status/result Version 与桌面时间线已实现 | 搜索、分页与 rejected 原因进入后续审计增强 |
-| ModelQualityReport | 服务端从版本绑定的不可变 GLB 检查索引、退化面、法线、UV0、开放/非流形边、清单 bounds/triangle、Connector 对齐和未直连 AABB 穿插；报告、Finding、JobEvent、桌面触发与重启恢复已实现 | 首版是确定性几何筛查；对称、隐藏几何、精确三角相交、LOD 与点击定位继续进入 R5，不代表强度/DFM/安全证明 |
+| ModelQualityReport | 服务端从版本绑定的不可变 GLB 检查索引、退化面、法线、UV0、开放/非流形边、清单 bounds/triangle、Connector 对齐；未直连组件使用世界三角形 BVH、SAT 窄相位与封闭网格包含检查，Finding 可点击选择并聚焦节点；报告、Finding、JobEvent 与重启恢复已实现 | 首版是确定性几何筛查；异常间隙、对称、隐藏几何、LOD 与三角形局部高亮继续进入 R5，不代表强度/DFM/安全证明 |
 | Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable、render-set ZIP、Manifest hash、JobEvent、独立下载与重启恢复已实现 | 转台视频、抗锯齿/阴影、纹理交换与 DCC round-trip 继续进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 

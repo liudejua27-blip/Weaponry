@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
 from forgecad_agent.application.combined_glb import CombinedGlbError, read_glb
+from forgecad_agent.application.triangle_intersections import (
+    Triangle3,
+    inspect_triangle_mesh_intersection,
+)
 from forgecad_agent.domain.concepts.connector_snapping import connector_alignment_error
 from forgecad_agent.domain.concepts.models import (
     ModuleAssetManifest,
@@ -20,7 +24,6 @@ DEGENERATE_AREA_EPSILON_MM2 = 1e-8
 NORMAL_LENGTH_TOLERANCE = 0.05
 CONNECTOR_DISTANCE_TOLERANCE_MM = 0.1
 CONNECTOR_ROTATION_TOLERANCE_DEG = 0.1
-UNCONNECTED_OVERLAP_RATIO_WARNING = 0.02
 
 _COMPONENT_FORMATS = {
     5120: ("b", 1),
@@ -46,6 +49,9 @@ class MeshInspection:
     minimum_mm: tuple[float, float, float]
     maximum_mm: tuple[float, float, float]
     triangle_count: int
+    triangles_mm: tuple[Triangle3, ...]
+    boundary_edge_count: int
+    non_manifold_edge_count: int
 
 
 def inspect_concept_geometry(
@@ -60,7 +66,7 @@ def inspect_concept_geometry(
         inspections[source.node_id] = inspection
         findings.extend(inspection.findings)
     findings.extend(_inspect_connector_alignment(graph, sources))
-    findings.extend(_inspect_unconnected_overlaps(graph, inspections))
+    findings.extend(_inspect_unconnected_intersections(graph, inspections))
     if not findings:
         findings.append(
             _finding(
@@ -119,7 +125,10 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
                     index_accessor = document["accessors"][int(primitive["indices"])]
                     if int(index_accessor["componentType"]) not in {5121, 5123, 5125}:
                         raise ValueError("indices 必须使用无符号整数 componentType")
-                    indices = [int(value[0]) for value in _accessor(document, binary, int(primitive["indices"]))]
+                    indices = [
+                        int(value[0])
+                        for value in _accessor(document, binary, int(primitive["indices"]))
+                    ]
                 else:
                     indices = list(range(len(positions)))
                 if len(indices) % 3:
@@ -130,10 +139,11 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
                     if any(index < 0 or index >= len(positions) for index in triangle):
                         invalid_index_count += 1
                         continue
-                    topology_triangles.append(
-                        tuple(vertex_offset + index for index in triangle)
-                    )
-                    if _triangle_area_squared(*(positions[index] for index in triangle)) <= DEGENERATE_AREA_EPSILON_MM2**2:
+                    topology_triangles.append(tuple(vertex_offset + index for index in triangle))
+                    if (
+                        _triangle_area_squared(*(positions[index] for index in triangle))
+                        <= DEGENERATE_AREA_EPSILON_MM2**2
+                    ):
                         degenerate_count += 1
                 if "NORMAL" not in attributes:
                     missing_normal_primitives += 1
@@ -163,28 +173,167 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
         maximum = tuple(max(point[axis] for point in all_positions) * 1000 for axis in range(3))
         expected_triangles = source.manifest.triangle_count
         if triangle_count != expected_triangles:
-            findings.append(_finding(1, "mesh.triangle_manifest", "mesh", "error", "failed", node_ids, "GLB 三角形数量与模块清单不一致。", triangle_count, expected_triangles, "重新生成清单并以内容哈希固定资产。"))
+            findings.append(
+                _finding(
+                    1,
+                    "mesh.triangle_manifest",
+                    "mesh",
+                    "error",
+                    "failed",
+                    node_ids,
+                    "GLB 三角形数量与模块清单不一致。",
+                    triangle_count,
+                    expected_triangles,
+                    "重新生成清单并以内容哈希固定资产。",
+                )
+            )
         if invalid_index_count:
-            findings.append(_finding(2, "mesh.invalid_indices", "mesh", "error", "failed", node_ids, "检测到越界或不完整的三角形索引。", invalid_index_count, 0, "修复索引缓冲后重新导入模块。"))
+            findings.append(
+                _finding(
+                    2,
+                    "mesh.invalid_indices",
+                    "mesh",
+                    "error",
+                    "failed",
+                    node_ids,
+                    "检测到越界或不完整的三角形索引。",
+                    invalid_index_count,
+                    0,
+                    "修复索引缓冲后重新导入模块。",
+                )
+            )
         if degenerate_count:
-            findings.append(_finding(3, "mesh.degenerate_triangles", "mesh", "error", "failed", node_ids, "检测到退化三角形。", degenerate_count, 0, "删除零面积面并重新三角化。"))
+            findings.append(
+                _finding(
+                    3,
+                    "mesh.degenerate_triangles",
+                    "mesh",
+                    "error",
+                    "failed",
+                    node_ids,
+                    "检测到退化三角形。",
+                    degenerate_count,
+                    0,
+                    "删除零面积面并重新三角化。",
+                )
+            )
         if non_manifold_count:
-            findings.append(_finding(4, "mesh.non_manifold_edges", "mesh", "error", "failed", node_ids, "检测到被三个以上三角形共享的非流形边。", non_manifold_count, 0, "修复重叠面或内部面。"))
+            findings.append(
+                _finding(
+                    4,
+                    "mesh.non_manifold_edges",
+                    "mesh",
+                    "error",
+                    "failed",
+                    node_ids,
+                    "检测到被三个以上三角形共享的非流形边。",
+                    non_manifold_count,
+                    0,
+                    "修复重叠面或内部面。",
+                )
+            )
         if boundary_count:
-            findings.append(_finding(5, "mesh.boundary_edges", "mesh", "warning", "warning", node_ids, "网格包含开放边界；展示资产可以继续，但不是封闭实体。", boundary_count, 0, "如需封闭模型，请补面并焊接边界顶点。"))
+            findings.append(
+                _finding(
+                    5,
+                    "mesh.boundary_edges",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "网格包含开放边界；展示资产可以继续，但不是封闭实体。",
+                    boundary_count,
+                    0,
+                    "如需封闭模型，请补面并焊接边界顶点。",
+                )
+            )
         if missing_normal_primitives or invalid_normal_count:
-            findings.append(_finding(6, "mesh.normals", "mesh", "warning", "warning", node_ids, "法线缺失或未归一化，可能导致查看器明暗异常。", missing_normal_primitives + invalid_normal_count, 0, "重新计算并导出顶点法线。"))
+            findings.append(
+                _finding(
+                    6,
+                    "mesh.normals",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "法线缺失或未归一化，可能导致查看器明暗异常。",
+                    missing_normal_primitives + invalid_normal_count,
+                    0,
+                    "重新计算并导出顶点法线。",
+                )
+            )
         if missing_uv_primitives or invalid_uv_count:
-            findings.append(_finding(7, "mesh.uv0", "mesh", "warning", "warning", node_ids, "UV0 缺失或包含非法数值。", missing_uv_primitives + invalid_uv_count, 0, "为所有可见 primitive 提供有效 UV0。"))
+            findings.append(
+                _finding(
+                    7,
+                    "mesh.uv0",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "UV0 缺失或包含非法数值。",
+                    missing_uv_primitives + invalid_uv_count,
+                    0,
+                    "为所有可见 primitive 提供有效 UV0。",
+                )
+            )
         declared_bounds = source.manifest.bounds_mm
         actual_bounds = [maximum[index] - minimum[index] for index in range(3)]
-        max_bound_error = max(abs(actual_bounds[index] - declared_bounds[index]) for index in range(3))
+        max_bound_error = max(
+            abs(actual_bounds[index] - declared_bounds[index]) for index in range(3)
+        )
         if max_bound_error > 0.1:
-            findings.append(_finding(8, "mesh.bounds_manifest", "mesh", "warning", "warning", node_ids, "GLB 包围盒与模块清单不一致。", round(max_bound_error, 6), 0.1, "重新生成模块 bounds_mm。"))
-        return MeshInspection(findings, minimum, maximum, triangle_count)
+            findings.append(
+                _finding(
+                    8,
+                    "mesh.bounds_manifest",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "GLB 包围盒与模块清单不一致。",
+                    round(max_bound_error, 6),
+                    0.1,
+                    "重新生成模块 bounds_mm。",
+                )
+            )
+        triangles_mm = tuple(
+            tuple(
+                tuple(all_positions[index][axis] * 1000 for axis in range(3)) for index in triangle
+            )
+            for triangle in topology_triangles
+        )
+        return MeshInspection(
+            findings,
+            minimum,
+            maximum,
+            triangle_count,
+            triangles_mm,
+            boundary_count,
+            non_manifold_count,
+        )
     except (CombinedGlbError, KeyError, IndexError, TypeError, ValueError, struct.error) as exc:
-        findings.append(_finding(9, "mesh.asset_readable", "mesh", "error", "failed", node_ids, f"无法检查模块 GLB：{exc}", suggestion="重新导出静态、内嵌 Buffer 的 glTF 2.0 GLB。"))
-        return MeshInspection(findings, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 0)
+        findings.append(
+            _finding(
+                9,
+                "mesh.asset_readable",
+                "mesh",
+                "error",
+                "failed",
+                node_ids,
+                f"无法检查模块 GLB：{exc}",
+                suggestion="重新导出静态、内嵌 Buffer 的 glTF 2.0 GLB。",
+            )
+        )
+        return MeshInspection(
+            findings,
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            0,
+            (),
+            0,
+            0,
+        )
 
 
 def _inspect_connector_alignment(
@@ -196,10 +345,35 @@ def _inspect_connector_alignment(
     findings: list[QualityFinding] = []
     for edge in graph.edges:
         first_node, second_node = nodes[edge.from_node_id], nodes[edge.to_node_id]
-        first = next((item for item in manifests[first_node.module_id].connectors if item.connector_id == edge.from_connector_id), None)
-        second = next((item for item in manifests[second_node.module_id].connectors if item.connector_id == edge.to_connector_id), None)
+        first = next(
+            (
+                item
+                for item in manifests[first_node.module_id].connectors
+                if item.connector_id == edge.from_connector_id
+            ),
+            None,
+        )
+        second = next(
+            (
+                item
+                for item in manifests[second_node.module_id].connectors
+                if item.connector_id == edge.to_connector_id
+            ),
+            None,
+        )
         if first is None or second is None:
-            findings.append(_finding(10, "assembly.connector_resolved", "assembly", "error", "failed", [first_node.node_id, second_node.node_id], "装配边引用了不存在的 Connector。", suggestion="重新验证 ModuleGraph。"))
+            findings.append(
+                _finding(
+                    10,
+                    "assembly.connector_resolved",
+                    "assembly",
+                    "error",
+                    "failed",
+                    [first_node.node_id, second_node.node_id],
+                    "装配边引用了不存在的 Connector。",
+                    suggestion="重新验证 ModuleGraph。",
+                )
+            )
             continue
         distance, rotation = connector_alignment_error(
             first_transform=first_node.transform,
@@ -209,40 +383,91 @@ def _inspect_connector_alignment(
             first_mirror_axis=first_node.mirror_axis,
             second_mirror_axis=second_node.mirror_axis,
         )
-        if distance > CONNECTOR_DISTANCE_TOLERANCE_MM or rotation > CONNECTOR_ROTATION_TOLERANCE_DEG:
-            findings.append(_finding(11, "assembly.connector_alignment", "assembly", "error", "failed", [first_node.node_id, second_node.node_id], "Connector 世界坐标未对齐，组件处于错位或悬空状态。", f"{distance:.6f} mm / {rotation:.6f} deg", f"<= {CONNECTOR_DISTANCE_TOLERANCE_MM} mm / {CONNECTOR_ROTATION_TOLERANCE_DEG} deg", "重新执行 Connector snap。"))
+        if (
+            distance > CONNECTOR_DISTANCE_TOLERANCE_MM
+            or rotation > CONNECTOR_ROTATION_TOLERANCE_DEG
+        ):
+            findings.append(
+                _finding(
+                    11,
+                    "assembly.connector_alignment",
+                    "assembly",
+                    "error",
+                    "failed",
+                    [first_node.node_id, second_node.node_id],
+                    "Connector 世界坐标未对齐，组件处于错位或悬空状态。",
+                    f"{distance:.6f} mm / {rotation:.6f} deg",
+                    f"<= {CONNECTOR_DISTANCE_TOLERANCE_MM} mm / {CONNECTOR_ROTATION_TOLERANCE_DEG} deg",
+                    "重新执行 Connector snap。",
+                )
+            )
     return findings
 
 
-def _inspect_unconnected_overlaps(
+def _inspect_unconnected_intersections(
     graph: ModuleGraph,
     inspections: dict[str, MeshInspection],
 ) -> list[QualityFinding]:
     nodes = {node.node_id: node for node in graph.nodes}
     connected = {frozenset((edge.from_node_id, edge.to_node_id)) for edge in graph.edges}
-    bounds = {
-        node_id: _world_aabb(nodes[node_id].transform, nodes[node_id].mirror_axis, inspection.minimum_mm, inspection.maximum_mm)
+    world_triangles = {
+        node_id: tuple(
+            tuple(
+                _world_point(nodes[node_id].transform, nodes[node_id].mirror_axis, point)
+                for point in triangle
+            )
+            for triangle in inspection.triangles_mm
+        )
         for node_id, inspection in inspections.items()
-        if inspection.maximum_mm != inspection.minimum_mm
+        if inspection.triangles_mm
     }
     findings: list[QualityFinding] = []
-    node_ids = sorted(bounds)
+    node_ids = sorted(world_triangles)
     for first_index, first_id in enumerate(node_ids):
         for second_id in node_ids[first_index + 1 :]:
             if frozenset((first_id, second_id)) in connected:
                 continue
-            overlap = _overlap_volume(bounds[first_id], bounds[second_id])
-            if overlap <= 0:
-                continue
-            first_volume = _aabb_volume(bounds[first_id])
-            second_volume = _aabb_volume(bounds[second_id])
-            ratio = overlap / min(first_volume, second_volume) if min(first_volume, second_volume) > 0 else 0
-            if ratio > UNCONNECTED_OVERLAP_RATIO_WARNING:
-                findings.append(_finding(12, "assembly.unconnected_aabb_overlap", "assembly", "warning", "warning", [first_id, second_id], "未直接连接的组件包围盒发生明显穿插。", round(ratio, 6), UNCONNECTED_OVERLAP_RATIO_WARNING, "检查组件位置；包围盒仅是快速筛查，必要时在 3D 视图人工复核。"))
+            first_inspection = inspections[first_id]
+            second_inspection = inspections[second_id]
+            result = inspect_triangle_mesh_intersection(
+                world_triangles[first_id],
+                world_triangles[second_id],
+                first_is_closed=(
+                    first_inspection.boundary_edge_count == 0
+                    and first_inspection.non_manifold_edge_count == 0
+                ),
+                second_is_closed=(
+                    second_inspection.boundary_edge_count == 0
+                    and second_inspection.non_manifold_edge_count == 0
+                ),
+            )
+            if result.intersection_count or result.containment:
+                measured = (
+                    f"surface_pairs={result.intersection_count}"
+                    f"; containment={str(result.containment).lower()}"
+                    f"; tested_pairs={result.tested_triangle_pairs}"
+                    f"; capped={str(result.capped).lower()}"
+                )
+                findings.append(
+                    _finding(
+                        12,
+                        "assembly.unconnected_triangle_intersection",
+                        "assembly",
+                        "warning",
+                        "warning",
+                        [first_id, second_id],
+                        "未直接连接的组件发生三角形表面相交或封闭网格包含。",
+                        measured,
+                        "surface_pairs=0; containment=false",
+                        "点击本条结果聚焦组件，并调整位置或建立正确的 Connector 连接。",
+                    )
+                )
     return findings
 
 
-def _accessor(document: dict[str, Any], binary: bytes, accessor_index: int) -> list[tuple[float | int, ...]]:
+def _accessor(
+    document: dict[str, Any], binary: bytes, accessor_index: int
+) -> list[tuple[float | int, ...]]:
     accessor = document["accessors"][accessor_index]
     if accessor.get("sparse"):
         raise ValueError("首版检查器不支持 sparse accessor")
@@ -282,21 +507,31 @@ def _assert_baked_node_transforms(document: dict[str, Any]) -> None:
             raise ValueError("模块 GLB 必须烘焙 node scale")
 
 
-def _vectors(document: dict[str, Any], binary: bytes, accessor_index: int, width: int) -> list[tuple[Any, ...]]:
+def _vectors(
+    document: dict[str, Any], binary: bytes, accessor_index: int, width: int
+) -> list[tuple[Any, ...]]:
     values = _accessor(document, binary, accessor_index)
     if any(len(value) != width for value in values):
         raise ValueError(f"accessor 必须是 VEC{width}")
     return values
 
 
-def _triangle_area_squared(first: Sequence[float], second: Sequence[float], third: Sequence[float]) -> float:
+def _triangle_area_squared(
+    first: Sequence[float], second: Sequence[float], third: Sequence[float]
+) -> float:
     ab = [second[index] - first[index] for index in range(3)]
     ac = [third[index] - first[index] for index in range(3)]
-    cross = (ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0])
+    cross = (
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    )
     return sum(value * value for value in cross) * 0.25 * 1_000_000_000_000
 
 
-def _edge_counts(positions: Sequence[Sequence[float]], triangles: Iterable[tuple[int, int, int]]) -> tuple[int, int]:
+def _edge_counts(
+    positions: Sequence[Sequence[float]], triangles: Iterable[tuple[int, int, int]]
+) -> tuple[int, int]:
     welded: dict[tuple[int, int, int], int] = {}
     vertex_ids: list[int] = []
     for point in positions:
@@ -307,13 +542,19 @@ def _edge_counts(positions: Sequence[Sequence[float]], triangles: Iterable[tuple
     counts: dict[tuple[int, int], int] = {}
     for triangle in triangles:
         rendered = [vertex_ids[index] for index in triangle]
-        for first, second in ((rendered[0], rendered[1]), (rendered[1], rendered[2]), (rendered[2], rendered[0])):
+        for first, second in (
+            (rendered[0], rendered[1]),
+            (rendered[1], rendered[2]),
+            (rendered[2], rendered[0]),
+        ):
             edge = tuple(sorted((first, second)))
             counts[edge] = counts.get(edge, 0) + 1
     return sum(value == 1 for value in counts.values()), sum(value > 2 for value in counts.values())
 
 
-def _world_aabb(transform: Transform, mirror_axis: str, minimum: Sequence[float], maximum: Sequence[float]) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+def _world_point(
+    transform: Transform, mirror_axis: str, point: Sequence[float]
+) -> tuple[float, float, float]:
     x, y, z = transform.rotation
     cx, cy, cz = math.cos(x), math.cos(y), math.cos(z)
     sx, sy, sz = math.sin(x), math.sin(y), math.sin(z)
@@ -325,22 +566,11 @@ def _world_aabb(transform: Transform, mirror_axis: str, minimum: Sequence[float]
     scale = list(transform.scale)
     if mirror_axis != "none":
         scale[{"x": 0, "y": 1, "z": 2}[mirror_axis]] *= -1
-    corners = []
-    for px in (minimum[0], maximum[0]):
-        for py in (minimum[1], maximum[1]):
-            for pz in (minimum[2], maximum[2]):
-                local = (px * scale[0], py * scale[1], pz * scale[2])
-                corners.append(tuple(transform.position[row] + sum(matrix[row][column] * local[column] for column in range(3)) for row in range(3)))
-    return tuple(min(point[axis] for point in corners) for axis in range(3)), tuple(max(point[axis] for point in corners) for axis in range(3))
-
-
-def _overlap_volume(first: tuple[Sequence[float], Sequence[float]], second: tuple[Sequence[float], Sequence[float]]) -> float:
-    extents = [max(0.0, min(first[1][axis], second[1][axis]) - max(first[0][axis], second[0][axis])) for axis in range(3)]
-    return extents[0] * extents[1] * extents[2]
-
-
-def _aabb_volume(bounds: tuple[Sequence[float], Sequence[float]]) -> float:
-    return math.prod(maximum - minimum for minimum, maximum in zip(bounds[0], bounds[1]))
+    local = tuple(point[axis] * scale[axis] for axis in range(3))
+    return tuple(
+        transform.position[row] + sum(matrix[row][column] * local[column] for column in range(3))
+        for row in range(3)
+    )
 
 
 def _finding(

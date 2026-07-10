@@ -3000,8 +3000,8 @@
             "type": "string"
           },
           "ruleset_version": {
-            "const": "weapon-concept-geometry/1.0",
-            "default": "weapon-concept-geometry/1.0",
+            "const": "weapon-concept-geometry/1.1",
+            "default": "weapon-concept-geometry/1.1",
             "title": "Ruleset Version",
             "type": "string"
           }

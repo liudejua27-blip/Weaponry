@@ -328,6 +328,10 @@ async function runWorkbenchUi(baseUrl, seeded) {
       '通过',
       '几何检查不代表结构强度、制造可行性或使用安全验证',
     ])
+    const qualityFinding = page.locator('.quality-finding').first()
+    await qualityFinding.click()
+    await page.locator('.cad-status-bar').getByText('选择：node_core', { exact: true }).waitFor()
+    await page.locator('.weapon-viewport[data-focus-node-id="node_core"]').waitFor()
 
     const exportResponsePromise = page.waitForResponse(
       (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
@@ -469,6 +473,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
       viewport_lifecycle: lifecycle,
       operation_timeline_verified: true,
       geometry_quality_inspection_verified: true,
+      quality_finding_focus_verified: true,
       quality_run_id: qualityRecord.quality_run_id,
       export_downloaded: true,
       combined_glb_downloaded: true,
