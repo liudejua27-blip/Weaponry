@@ -80,6 +80,18 @@ def main() -> int:
                 pack_root, temporary_root, "duplicate_connector"
             ),
             "pack_mismatch": _negative_case(pack_root, temporary_root, "pack_mismatch"),
+            "invalid_module_name": _negative_case(
+                pack_root, temporary_root, "invalid_module_name"
+            ),
+            "invalid_asset_name": _negative_case(
+                pack_root, temporary_root, "invalid_asset_name"
+            ),
+            "invalid_connector_name": _negative_case(
+                pack_root, temporary_root, "invalid_connector_name"
+            ),
+            "invalid_material_name": _negative_case(
+                pack_root, temporary_root, "invalid_material_name"
+            ),
         }
         _assert(all(negative_results.values()), "one or more invalid packs were accepted")
 
@@ -238,8 +250,8 @@ def _create_pack(root: Path) -> None:
         module_id = f"module_{category}_{index:02d}"
         module_root = root / "modules" / module_id
         module_root.mkdir(parents=True)
-        material_name = f"mat_{category}"
-        payload = _triangle_glb(material_name)
+        material_name = "MAT_primary"
+        payload = _triangle_glb(material_name, module_id)
         slot_prefix = category.removesuffix("_shell").removesuffix("_accessory").removesuffix(
             "_structure"
         ).removesuffix("_visual").removesuffix("_panel")
@@ -333,6 +345,24 @@ def _negative_case(source: Path, temporary_root: Path, case: str) -> bool:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["pack_id"] = "pack_wrong_v1"
         _write_json(manifest_path, manifest)
+    elif case == "invalid_module_name":
+        first_entry["module_id"] = "module_CoreShell_01"
+        _write_json(pack_path, pack)
+    elif case == "invalid_asset_name":
+        manifest_path = target / first_entry["manifest_path"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["asset_id"] = "asset_CoreShell_01"
+        _write_json(manifest_path, manifest)
+    elif case == "invalid_connector_name":
+        manifest_path = target / first_entry["manifest_path"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["connectors"][0]["connector_id"] = "connector_Core_front"
+        _write_json(manifest_path, manifest)
+    elif case == "invalid_material_name":
+        manifest_path = target / first_entry["manifest_path"]
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["material_slots"] = ["mat_primary"]
+        _write_json(manifest_path, manifest)
     else:
         raise AssertionError(f"unknown negative case: {case}")
     try:
@@ -342,7 +372,12 @@ def _negative_case(source: Path, temporary_root: Path, case: str) -> bool:
     return False
 
 
-def _triangle_glb(material_name: str) -> bytes:
+def _triangle_glb(
+    material_name: str,
+    module_id: str | None = None,
+) -> bytes:
+    node_name = f"GEO_{module_id}_LOD0" if module_id else "module_root"
+    mesh_name = f"MESH_{module_id}_LOD0" if module_id else "module_mesh"
     positions = struct.pack(
         "<9f",
         -0.05,
@@ -363,10 +398,10 @@ def _triangle_glb(material_name: str) -> bytes:
         "asset": {"version": "2.0", "generator": "ForgeCAD module-pack smoke"},
         "scene": 0,
         "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "module_root", "mesh": 0}],
+        "nodes": [{"name": node_name, "mesh": 0}],
         "meshes": [
             {
-                "name": "module_mesh",
+                "name": mesh_name,
                 "primitives": [
                     {
                         "attributes": {"POSITION": 0, "TEXCOORD_0": 1},

@@ -162,6 +162,7 @@ npm run r5:c07-intersection-gate
 专项 Connector 门：
 
 ```bash
+npm run assets:module-pack-gate
 npm run agent:r3-connector-snap-smoke
 npm run r5:combined-glb-gate
 npm run agent:r5-mesh-assembly-quality-smoke

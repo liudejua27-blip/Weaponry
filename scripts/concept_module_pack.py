@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 import json
+import re
 import struct
 import sys
 import urllib.error
@@ -41,6 +42,18 @@ REQUIRED_RELEASE_CATEGORIES = {
     "storage_visual",
     "armor_panel",
 }
+MODULE_SEQUENCE = r"(?:0[1-9]|[1-9][0-9])"
+MODULE_ID_PATTERN = re.compile(
+    rf"^module_({'|'.join(sorted(REQUIRED_RELEASE_CATEGORIES))})_{MODULE_SEQUENCE}$"
+)
+ASSET_ID_PATTERN = re.compile(
+    rf"^asset_({'|'.join(sorted(REQUIRED_RELEASE_CATEGORIES))})_{MODULE_SEQUENCE}$"
+)
+PACK_ID_PATTERN = re.compile(r"^pack_[a-z][a-z0-9_]*_v[0-9]+$")
+CONNECTOR_ID_PATTERN = re.compile(r"^connector_[a-z][a-z0-9]*(?:_[a-z0-9]+)+$")
+MATERIAL_SLOT_PATTERN = re.compile(
+    r"^MAT_(?:primary|secondary|accent|emissive|transparent)(?:_[a-z0-9]+)*$"
+)
 
 
 class ModulePackValidationError(RuntimeError):
@@ -99,6 +112,8 @@ def validate_module_pack(pack_root: Path, *, release: bool = False) -> Validated
         pack = ModulePackManifest.model_validate(raw_pack)
     except ValidationError as exc:
         raise ModulePackValidationError([f"pack.json: {item}" for item in _pydantic_errors(exc)]) from exc
+
+    _validate_pack_naming(pack, errors)
 
     _require_text_file(root, pack.license.license_path, "pack license", errors)
     modules: list[ValidatedModule] = []
@@ -210,6 +225,7 @@ def _validate_entry(
         )
     if entry.lod != "LOD0":
         errors.append(f"{entry.module_id}: P0 registry imports only LOD0, found {entry.lod}")
+    _validate_manifest_naming(manifest, errors)
 
     try:
         payload = glb_path.read_bytes()
@@ -272,6 +288,30 @@ def _validate_gltf(
     if not meshes:
         errors.append(f"{prefix}: GLB must contain at least one mesh")
         return
+
+    mesh_name_pattern = re.compile(
+        rf"^MESH_{re.escape(manifest.module_id)}_LOD0(?:_[0-9]{{2}})?$"
+    )
+    for mesh_index, mesh in enumerate(meshes):
+        mesh_name = mesh.get("name")
+        if not isinstance(mesh_name, str) or not mesh_name_pattern.fullmatch(mesh_name):
+            errors.append(
+                f"{prefix}: mesh {mesh_index} name must follow "
+                f"MESH_{manifest.module_id}_LOD0[_NN]"
+            )
+
+    node_name_pattern = re.compile(
+        rf"^GEO_{re.escape(manifest.module_id)}_LOD0(?:_[0-9]{{2}})?$"
+    )
+    for node_index, node in enumerate(gltf.get("nodes") or []):
+        if "mesh" not in node:
+            continue
+        node_name = node.get("name")
+        if not isinstance(node_name, str) or not node_name_pattern.fullmatch(node_name):
+            errors.append(
+                f"{prefix}: mesh node {node_index} name must follow "
+                f"GEO_{manifest.module_id}_LOD0[_NN]"
+            )
 
     triangle_count = 0
     used_material_names: set[str] = set()
@@ -346,6 +386,57 @@ def _validate_gltf(
             errors.append(f"{prefix}: node {node_index} has unapplied rotation")
         if node.get("scale", [1, 1, 1]) != [1, 1, 1]:
             errors.append(f"{prefix}: node {node_index} has unapplied scale")
+
+
+def _validate_pack_naming(pack: ModulePackManifest, errors: list[str]) -> None:
+    if not PACK_ID_PATTERN.fullmatch(pack.pack_id):
+        errors.append(
+            f"pack: pack_id must follow pack_<name>_v<N>, found {pack.pack_id}"
+        )
+    for entry in pack.modules:
+        if not MODULE_ID_PATTERN.fullmatch(entry.module_id):
+            errors.append(
+                f"{entry.module_id}: module_id must follow "
+                "module_<category>_<NN> with a registered P0 category"
+            )
+
+
+def _validate_manifest_naming(
+    manifest: ModuleAssetManifest,
+    errors: list[str],
+) -> None:
+    expected_module_id = f"module_{manifest.category}_"
+    if not MODULE_ID_PATTERN.fullmatch(manifest.module_id) or not manifest.module_id.startswith(
+        expected_module_id
+    ):
+        errors.append(
+            f"{manifest.module_id}: module_id category must match {manifest.category}"
+        )
+    match = MODULE_ID_PATTERN.fullmatch(manifest.module_id)
+    expected_asset_id = (
+        f"asset_{manifest.category}_{manifest.module_id.rsplit('_', 1)[-1]}"
+        if match
+        else None
+    )
+    if not ASSET_ID_PATTERN.fullmatch(manifest.asset_id) or (
+        expected_asset_id is not None and manifest.asset_id != expected_asset_id
+    ):
+        errors.append(
+            f"{manifest.module_id}: asset_id must be {expected_asset_id or 'asset_<category>_<NN>'}, "
+            f"found {manifest.asset_id}"
+        )
+    for connector in manifest.connectors:
+        if not CONNECTOR_ID_PATTERN.fullmatch(connector.connector_id):
+            errors.append(
+                f"{manifest.module_id}: connector_id must follow connector_<owner>_<interface>, "
+                f"found {connector.connector_id}"
+            )
+    for material_slot in manifest.material_slots:
+        if not MATERIAL_SLOT_PATTERN.fullmatch(material_slot):
+            errors.append(
+                f"{manifest.module_id}: material slot must use a ForgeCAD semantic MAT_ name, "
+                f"found {material_slot}"
+            )
 
 
 def _accessor(

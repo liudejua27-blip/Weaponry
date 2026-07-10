@@ -40,7 +40,7 @@
 | R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
-| R3 Module Pack tooling | 完成 | 九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
+| R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
 | R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；最终 Blender art 待完成 |
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
@@ -315,15 +315,15 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 ## 8. 最近十个可执行动作
 
-1. 制定 Module/Connector/材质/UV/LOD 命名规范。
-2. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
-3. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
-4. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
-5. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
-6. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
-7. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
-8. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
-9. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
-10. 完成 Tauri 打包、干净机器验证和 C01–C10 发布审计。
+1. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，先完成 core + 两个 front，再逐个替换 GLB 和缩略图。
+2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
+3. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
+4. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
+5. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
+6. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
+7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
+8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
+9. 完成 Tauri sidecar、签名、安装/卸载和干净机器验证。
+10. 执行 C01–C10 发布审计并清理 legacy 生产入口。
 
-第 7 步的数据闭环通过后再执行第 8 步；AI 指标达标后才扩展第 9 步，第 10 步必须使用真实发布环境证据。CAD/DFM Engineering Pack 不提前占用 P0 主链。
+第 6 步的数据闭环通过后再执行第 7 步；AI 指标达标后才扩展第 8 步，第 9–10 步必须使用真实发布环境证据。CAD/DFM Engineering Pack 不提前占用 P0 主链。
