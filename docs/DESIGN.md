@@ -325,11 +325,13 @@ packs/weapon-concept/
 
 每项必须包含 `check_id`、severity、status、node ids、实测值、阈值、可读建议和 ruleset version。`passed`、`warning`、`failed`、`not_run` 不得混用。
 
-当前服务端规则集 `weapon-concept-geometry/1.2` 读取 Version 绑定的不可变 ModuleGraph 与内容寻址 GLB，不接受客户端替它声明“已通过”。它解码内嵌 glTF accessor，检查索引范围、三角形计数、退化面、法线长度、UV0、焊接后的开放/非流形边和清单 bounds；装配层复用 Connector 世界 frame 计算 `0.1 mm / 0.1°` 对齐误差。`1.0` 是历史 AABB 筛查语义；`1.1` 增加精确穿插但没有局部 provenance 与间隙规则；包含精确定位与已连接组件间隙的新报告必须记录为 `1.2`。
+当前服务端规则集 `weapon-concept-geometry/1.3` 读取 Version 绑定的不可变 WeaponConceptSpec、ModuleGraph 与内容寻址 GLB，不接受客户端替它声明“已通过”。它解码内嵌 glTF accessor，检查索引范围、三角形计数、退化面、法线长度、UV0、焊接后的开放/非流形边、清单 bounds、重复面、内嵌封闭组件、密度离群、总三角预算和 P0 LOD0 名称；装配层复用 Connector 世界 frame 计算 `0.1 mm / 0.1°` 对齐误差，并检查 Spec 对称目标。`1.0` 是历史 AABB 筛查；`1.1` 增加精确穿插；`1.2` 增加 provenance 与间隙；包含新策略规则的报告必须记录为 `1.3`。
 
 未直接相连的节点会把模块局部三角形按 Graph TRS 与 mirror 转到毫米世界空间，以每叶最多 8 个三角形的确定性 BVH 做 broad phase；候选对用三角形法向量、边叉积与共面分离轴做 SAT narrow phase，接触按相交处理，最多记录 128 个表面对。两个网格均无开放/非流形边且没有表面交叉时，再以三条稳定射线的多数奇偶规则检查完整包含。Finding 除 node ids、表面对数、containment、实际窄相位次数和截断状态外，还记录最多 16 组每节点的 triangle index 与毫米世界坐标。直接 Connector 相连的模块可能在接口处有设计允许的接触或嵌合，不进入穿插规则；在 Connector 对齐之外，`1.2` 以两个世界 AABB 的分离距离作为保守表面间隙，超过 `2 mm` 生成 warning。这个距离不是精确网格最近点，不能解释为装配公差或制造结论。
 
-桌面 Finding 点击会选择首个有效关联节点、框选全部关联节点，并以红色 emissive 与不受深度遮挡的线框叠加高亮双方和局部相交三角形。对称、隐藏几何、密度、LOD 与强度/制造分析不在该规则集内。
+隐藏几何首版只对两个可证明的情况下结论：焊接后顶点集合完全相同的重复 triangle，以及一个断开的封闭组件被另一个断开的封闭组件严格包裹且没有表面相交。密度定义为 `triangle / 1000 mm²` 实际表面积；至少三个模块时，超过装配中位数 8 倍生成 warning，所有情况下都执行 Spec `max_triangle_count` 总预算。P0 LOD 规则验证 `MESH_/GEO_<module_id>_LOD0[_NN]`，LOD1/LOD2 仍被拒绝，不代表多 LOD 切换已经实现。
+
+对称首版是模块占位代理：以 root 的局部 Z 中面为基准，中心跨中面的 AABB 自配对，离开中面的 AABB 只与同 category、尺寸和镜像中心均在容差内的模块配对；`symmetric` 最多允许 5% 未配对模块，`mostly_symmetric` 允许 35%，`asymmetric` 跳过。它不能发现 AABB 内部的细节不对称。桌面 Finding 点击会选择首个有效关联节点、框选全部关联节点，并以红色 emissive 与不受深度遮挡的线框叠加高亮双方和局部相交三角形。强度/制造分析不在该规则集内。
 
 ## 7. 连接器系统
 

@@ -42,6 +42,6 @@ npm run r5:combined-glb-gate
 - glTF Transform prune/dedupe/meshopt 与纹理合并；
 - textured GLB、skin、animation；
 - 多视图、转台和照片级渲染；
-- 对称、隐藏几何与 LOD quality gate（triangle/BVH/SAT/containment 已见 `R5_EXACT_INTERSECTION.md`）；
+- 正式 Blender 资产上的对称/隐藏几何/密度 truth set 与多 LOD 运行时；合成策略规则已见 `R5_C07_POLICY_RULES.md`；
 - Unity/其他引擎的 combined GLB round-trip；
 - 最终 Blender 资产的大小、draw call 和视觉验收。

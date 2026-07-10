@@ -100,7 +100,8 @@
     "r5:presentation-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run assets:dcc-roundtrip-preflight && npm run agent:r2-exports-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:quality-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
     "r5:c07-intersection-gate": "npm run contracts:types:check && npm run agent:check && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
-    "r5:c07-localization-gate": "npm run contracts:types:check && npm run agent:check && npm run agent:r1-foundation-smoke && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke"
+    "r5:c07-localization-gate": "npm run contracts:types:check && npm run agent:check && npm run agent:r1-foundation-smoke && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke",
+    "r5:c07-policy-gate": "npm run contracts:types:check && npm run agent:check && npm run agent:r1-foundation-smoke && npm run assets:reference-pack:check && npm run agent:r5-mesh-assembly-quality-smoke && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke"
   },
   "engines": {
     "node": ">=20",

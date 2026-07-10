@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import math
+import re
 import struct
 from dataclasses import dataclass
+from statistics import median
 from typing import Any, Iterable, Sequence
 
 from forgecad_agent.application.combined_glb import CombinedGlbError, read_glb
@@ -18,6 +20,7 @@ from forgecad_agent.domain.concepts.models import (
     QualityFinding,
     QualityGeometryReference,
     Transform,
+    WeaponConceptSpec,
 )
 
 
@@ -28,6 +31,8 @@ CONNECTOR_DISTANCE_TOLERANCE_MM = 0.1
 CONNECTOR_ROTATION_TOLERANCE_DEG = 0.1
 CONNECTED_SURFACE_GAP_TOLERANCE_MM = 2.0
 MAX_HIGHLIGHT_TRIANGLES_PER_NODE = 16
+MESH_DENSITY_OUTLIER_FACTOR = 8.0
+SYMMETRY_THRESHOLDS_PERCENT = {"symmetric": 5.0, "mostly_symmetric": 35.0}
 
 _COMPONENT_FORMATS = {
     5120: ("b", 1),
@@ -54,6 +59,7 @@ class MeshInspection:
     maximum_mm: tuple[float, float, float]
     triangle_count: int
     triangles_mm: tuple[Triangle3, ...]
+    surface_area_mm2: float
     boundary_edge_count: int
     non_manifold_edge_count: int
 
@@ -62,6 +68,7 @@ def inspect_concept_geometry(
     *,
     graph: ModuleGraph,
     sources: Sequence[ModuleInspectionSource],
+    spec: WeaponConceptSpec | None = None,
 ) -> list[QualityFinding]:
     findings: list[QualityFinding] = []
     inspections: dict[str, MeshInspection] = {}
@@ -69,6 +76,8 @@ def inspect_concept_geometry(
         inspection = inspect_module_mesh(source)
         inspections[source.node_id] = inspection
         findings.extend(inspection.findings)
+    findings.extend(_inspect_mesh_density(graph, inspections, spec))
+    findings.extend(_inspect_assembly_symmetry(graph, sources, inspections, spec))
     findings.extend(_inspect_connector_alignment(graph, sources))
     findings.extend(_inspect_connected_surface_gaps(graph, inspections))
     findings.extend(_inspect_unconnected_intersections(graph, inspections))
@@ -103,6 +112,9 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
         meshes = document.get("meshes", [])
         if not meshes:
             raise ValueError("GLB 不包含 mesh")
+        lod_contract_issue_count = _lod0_contract_issue_count(
+            document, source.manifest.module_id
+        )
         all_positions: list[tuple[float, float, float]] = []
         topology_triangles: list[tuple[int, int, int]] = []
         triangle_count = 0
@@ -176,6 +188,17 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
         )
         minimum = tuple(min(point[axis] for point in all_positions) * 1000 for axis in range(3))
         maximum = tuple(max(point[axis] for point in all_positions) * 1000 for axis in range(3))
+        triangles_mm = tuple(
+            tuple(
+                tuple(all_positions[index][axis] * 1000 for axis in range(3)) for index in triangle
+            )
+            for triangle in topology_triangles
+        )
+        surface_area_mm2 = sum(_triangle_area_mm2(triangle) for triangle in triangles_mm)
+        duplicate_triangle_indices = _duplicate_triangle_indices(
+            all_positions, topology_triangles
+        )
+        hidden_component_indices = _hidden_closed_component_indices(triangles_mm)
         expected_triangles = source.manifest.triangle_count
         if triangle_count != expected_triangles:
             findings.append(
@@ -302,18 +325,58 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
                     "重新生成模块 bounds_mm。",
                 )
             )
-        triangles_mm = tuple(
-            tuple(
-                tuple(all_positions[index][axis] * 1000 for axis in range(3)) for index in triangle
+        if duplicate_triangle_indices:
+            findings.append(
+                _finding(
+                    14,
+                    "mesh.duplicate_triangles",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "检测到完全重合的重复三角形，可能形成隐藏面或闪烁。",
+                    len(duplicate_triangle_indices),
+                    0,
+                    "删除重复面并重新计算拓扑。",
+                )
             )
-            for triangle in topology_triangles
-        )
+        if hidden_component_indices:
+            findings.append(
+                _finding(
+                    15,
+                    "mesh.enclosed_components",
+                    "mesh",
+                    "warning",
+                    "warning",
+                    node_ids,
+                    "检测到被另一封闭子组件完全包裹的隐藏几何。",
+                    len(hidden_component_indices),
+                    0,
+                    "删除不可见的内部封闭组件，或将其明确拆分为需要保留的资产。",
+                )
+            )
+        if lod_contract_issue_count:
+            findings.append(
+                _finding(
+                    16,
+                    "mesh.lod0_contract",
+                    "mesh",
+                    "error",
+                    "failed",
+                    node_ids,
+                    "GLB Mesh/Node 名称不符合当前只支持 LOD0 的发布合同。",
+                    lod_contract_issue_count,
+                    0,
+                    "按 MESH_/GEO_<module_id>_LOD0[_NN] 重命名；不要发布尚未支持的 LOD1/LOD2。",
+                )
+            )
         return MeshInspection(
             findings,
             minimum,
             maximum,
             triangle_count,
             triangles_mm,
+            surface_area_mm2,
             boundary_count,
             non_manifold_count,
         )
@@ -336,9 +399,162 @@ def inspect_module_mesh(source: ModuleInspectionSource) -> MeshInspection:
             (0.0, 0.0, 0.0),
             0,
             (),
+            0.0,
             0,
             0,
         )
+
+
+def _inspect_mesh_density(
+    graph: ModuleGraph,
+    inspections: dict[str, MeshInspection],
+    spec: WeaponConceptSpec | None,
+) -> list[QualityFinding]:
+    if spec is None:
+        return []
+    findings: list[QualityFinding] = []
+    node_ids = [node.node_id for node in graph.nodes if node.node_id in inspections]
+    total_triangles = sum(inspections[node_id].triangle_count for node_id in node_ids)
+    if total_triangles > spec.constraints.max_triangle_count:
+        findings.append(
+            _finding(
+                17,
+                "mesh.triangle_budget",
+                "mesh",
+                "error",
+                "failed",
+                node_ids,
+                "装配实际三角形总数超过 WeaponConceptSpec 预算。",
+                total_triangles,
+                spec.constraints.max_triangle_count,
+                "降低模块面数、替换高密度模块，或显式调整概念资产预算。",
+            )
+        )
+    densities = {
+        node_id: inspections[node_id].triangle_count
+        / (inspections[node_id].surface_area_mm2 / 1000.0)
+        for node_id in node_ids
+        if inspections[node_id].surface_area_mm2 > 1e-9
+    }
+    if len(densities) < 3:
+        return findings
+    baseline = float(median(densities.values()))
+    if baseline <= 0:
+        return findings
+    threshold = baseline * MESH_DENSITY_OUTLIER_FACTOR
+    for node_id, density in sorted(densities.items()):
+        if density <= threshold:
+            continue
+        findings.append(
+            _finding(
+                18,
+                "mesh.density_outlier",
+                "mesh",
+                "warning",
+                "warning",
+                [node_id],
+                "模块单位表面积三角形密度明显高于当前装配中位数。",
+                f"{density:.6f} triangles/1000mm2; median={baseline:.6f}",
+                f"<= {threshold:.6f} triangles/1000mm2",
+                "检查不可见细分、重复面或与其他模块不一致的细节级别。",
+            )
+        )
+    return findings
+
+
+def _inspect_assembly_symmetry(
+    graph: ModuleGraph,
+    sources: Sequence[ModuleInspectionSource],
+    inspections: dict[str, MeshInspection],
+    spec: WeaponConceptSpec | None,
+) -> list[QualityFinding]:
+    if spec is None or spec.constraints.symmetry == "asymmetric":
+        return []
+    nodes = {node.node_id: node for node in graph.nodes}
+    root = nodes.get(graph.root_node_id)
+    if root is None:
+        return []
+    world_triangles = _world_triangles(nodes, inspections)
+    if not world_triangles:
+        return []
+    origin = _world_point(root.transform, root.mirror_axis, (0.0, 0.0, 0.0))
+    normal_point = _world_point(root.transform, root.mirror_axis, (0.0, 0.0, 1.0))
+    normal_vector = tuple(normal_point[index] - origin[index] for index in range(3))
+    normal_length = math.sqrt(sum(value * value for value in normal_vector))
+    if normal_length <= 1e-9:
+        return []
+    normal = tuple(value / normal_length for value in normal_vector)
+    bounds_by_node = {
+        node_id: mesh_bounds(triangles) for node_id, triangles in world_triangles.items()
+    }
+    assembly_minimum = tuple(
+        min(bounds[0][axis] for bounds in bounds_by_node.values()) for axis in range(3)
+    )
+    assembly_maximum = tuple(
+        max(bounds[1][axis] for bounds in bounds_by_node.values()) for axis in range(3)
+    )
+    assembly_diagonal = math.dist(assembly_minimum, assembly_maximum)
+    center_tolerance = max(2.0, assembly_diagonal * 0.02)
+    categories = {source.node_id: source.manifest.category for source in sources}
+    records: dict[str, tuple[tuple[float, float, float], tuple[float, float, float], float]] = {}
+    for node_id, (minimum, maximum) in bounds_by_node.items():
+        center = tuple((minimum[axis] + maximum[axis]) * 0.5 for axis in range(3))
+        size = tuple(maximum[axis] - minimum[axis] for axis in range(3))
+        distance = sum((center[axis] - origin[axis]) * normal[axis] for axis in range(3))
+        records[node_id] = (center, size, distance)
+
+    unmatched = set(records)
+    for node_id, (_center, size, distance) in records.items():
+        projected_radius = 0.5 * sum(abs(normal[axis]) * size[axis] for axis in range(3))
+        if abs(distance) <= center_tolerance and projected_radius + center_tolerance >= abs(
+            distance
+        ):
+            unmatched.discard(node_id)
+
+    for node_id in sorted(tuple(unmatched)):
+        if node_id not in unmatched:
+            continue
+        center, size, distance = records[node_id]
+        mirrored_center = tuple(
+            center[axis] - 2.0 * distance * normal[axis] for axis in range(3)
+        )
+        best: tuple[float, str] | None = None
+        for candidate_id in sorted(unmatched - {node_id}):
+            if categories.get(candidate_id) != categories.get(node_id):
+                continue
+            candidate_center, candidate_size, _candidate_distance = records[candidate_id]
+            size_tolerance = max(2.0, max(size + candidate_size) * 0.08)
+            if max(
+                abs(size[axis] - candidate_size[axis]) for axis in range(3)
+            ) > size_tolerance:
+                continue
+            center_error = math.dist(mirrored_center, candidate_center)
+            if center_error > center_tolerance:
+                continue
+            if best is None or center_error < best[0]:
+                best = (center_error, candidate_id)
+        if best is not None:
+            unmatched.discard(node_id)
+            unmatched.discard(best[1])
+
+    deviation = len(unmatched) * 100.0 / len(records)
+    threshold = SYMMETRY_THRESHOLDS_PERCENT[spec.constraints.symmetry]
+    if deviation <= threshold:
+        return []
+    return [
+        _finding(
+            19,
+            "assembly.symmetry_deviation",
+            "assembly",
+            "warning",
+            "warning",
+            sorted(unmatched),
+            "模块占位相对根节点局部中面超出目标对称偏差。",
+            f"{deviation:.6f}% unmatched_modules={len(unmatched)}",
+            f"<= {threshold:.6f}%",
+            "检查未配对的侧面模块，或把设计约束显式改为 mostly_symmetric/asymmetric。",
+        )
+    ]
 
 
 def _inspect_connector_alignment(
@@ -621,9 +837,33 @@ def _triangle_area_squared(
     return sum(value * value for value in cross) * 0.25 * 1_000_000_000_000
 
 
-def _edge_counts(
-    positions: Sequence[Sequence[float]], triangles: Iterable[tuple[int, int, int]]
-) -> tuple[int, int]:
+def _triangle_area_mm2(triangle: Triangle3) -> float:
+    first, second, third = triangle
+    ab = tuple(second[index] - first[index] for index in range(3))
+    ac = tuple(third[index] - first[index] for index in range(3))
+    cross = (
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    )
+    return 0.5 * math.sqrt(sum(value * value for value in cross))
+
+
+def _lod0_contract_issue_count(document: dict[str, Any], module_id: str) -> int:
+    mesh_pattern = re.compile(rf"^MESH_{re.escape(module_id)}_LOD0(?:_[0-9]{{2}})?$")
+    node_pattern = re.compile(rf"^GEO_{re.escape(module_id)}_LOD0(?:_[0-9]{{2}})?$")
+    mesh_names = [str(mesh.get("name", "")) for mesh in document.get("meshes", [])]
+    mesh_node_names = [
+        str(node.get("name", ""))
+        for node in document.get("nodes", [])
+        if "mesh" in node
+    ]
+    return sum(not mesh_pattern.fullmatch(name) for name in mesh_names) + sum(
+        not node_pattern.fullmatch(name) for name in mesh_node_names
+    )
+
+
+def _welded_vertex_ids(positions: Sequence[Sequence[float]]) -> list[int]:
     welded: dict[tuple[int, int, int], int] = {}
     vertex_ids: list[int] = []
     for point in positions:
@@ -631,6 +871,116 @@ def _edge_counts(
         if key not in welded:
             welded[key] = len(welded)
         vertex_ids.append(welded[key])
+    return vertex_ids
+
+
+def _duplicate_triangle_indices(
+    positions: Sequence[Sequence[float]], triangles: Sequence[tuple[int, int, int]]
+) -> list[int]:
+    vertex_ids = _welded_vertex_ids(positions)
+    seen: set[tuple[int, int, int]] = set()
+    duplicates: list[int] = []
+    for triangle_index, triangle in enumerate(triangles):
+        rendered = tuple(sorted(vertex_ids[index] for index in triangle))
+        if rendered in seen:
+            duplicates.append(triangle_index)
+        else:
+            seen.add(rendered)
+    return duplicates
+
+
+def _hidden_closed_component_indices(triangles: Sequence[Triangle3]) -> list[int]:
+    components = _triangle_components(triangles)
+    closed: list[
+        tuple[
+            list[int],
+            tuple[Triangle3, ...],
+            tuple[tuple[float, float, float], tuple[float, float, float]],
+        ]
+    ] = []
+    for component in components:
+        component_triangles = tuple(triangles[index] for index in component)
+        if len(component_triangles) < 4 or not _triangles_form_closed_component(
+            component_triangles
+        ):
+            continue
+        closed.append((component, component_triangles, mesh_bounds(component_triangles)))
+    hidden: set[int] = set()
+    for first_index, first in enumerate(closed):
+        for second in closed[first_index + 1 :]:
+            if _bounds_strictly_contains(first[2], second[2]):
+                outer, inner = first, second
+            elif _bounds_strictly_contains(second[2], first[2]):
+                outer, inner = second, first
+            else:
+                continue
+            result = inspect_triangle_mesh_intersection(
+                outer[1], inner[1], first_is_closed=True, second_is_closed=True
+            )
+            if result.intersection_count == 0 and result.containment:
+                hidden.update(inner[0])
+    return sorted(hidden)
+
+
+def _triangle_components(triangles: Sequence[Triangle3]) -> list[list[int]]:
+    point_to_triangles: dict[tuple[int, int, int], list[int]] = {}
+    for triangle_index, triangle in enumerate(triangles):
+        for point in triangle:
+            point_to_triangles.setdefault(_point_key_mm(point), []).append(triangle_index)
+    adjacency = [set() for _ in triangles]
+    for related in point_to_triangles.values():
+        for triangle_index in related:
+            adjacency[triangle_index].update(related)
+    components: list[list[int]] = []
+    remaining = set(range(len(triangles)))
+    while remaining:
+        seed = min(remaining)
+        stack = [seed]
+        component: list[int] = []
+        remaining.remove(seed)
+        while stack:
+            current = stack.pop()
+            component.append(current)
+            for neighbor in sorted(adjacency[current] & remaining, reverse=True):
+                remaining.remove(neighbor)
+                stack.append(neighbor)
+        components.append(sorted(component))
+    return components
+
+
+def _triangles_form_closed_component(triangles: Sequence[Triangle3]) -> bool:
+    counts: dict[tuple[tuple[int, int, int], tuple[int, int, int]], int] = {}
+    for triangle in triangles:
+        points = [_point_key_mm(point) for point in triangle]
+        for first, second in (
+            (points[0], points[1]),
+            (points[1], points[2]),
+            (points[2], points[0]),
+        ):
+            edge = tuple(sorted((first, second)))
+            counts[edge] = counts.get(edge, 0) + 1
+    return bool(counts) and all(count == 2 for count in counts.values())
+
+
+def _point_key_mm(point: Sequence[float]) -> tuple[int, int, int]:
+    return tuple(round(value / POSITION_WELD_TOLERANCE_MM) for value in point)
+
+
+def _bounds_strictly_contains(
+    outer: tuple[tuple[float, float, float], tuple[float, float, float]],
+    inner: tuple[tuple[float, float, float], tuple[float, float, float]],
+) -> bool:
+    return all(
+        outer[0][axis] + POSITION_WELD_TOLERANCE_MM < inner[0][axis]
+        and outer[1][axis] - POSITION_WELD_TOLERANCE_MM > inner[1][axis]
+        for axis in range(3)
+    )
+
+
+def _edge_counts(
+    positions: Sequence[Sequence[float]], triangles: Iterable[tuple[int, int, int]]
+) -> tuple[int, int]:
+    vertex_ids = _welded_vertex_ids(positions)
     counts: dict[tuple[int, int], int] = {}
     for triangle in triangles:
         rendered = [vertex_ids[index] for index in triangle]

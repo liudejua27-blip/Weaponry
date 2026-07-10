@@ -154,7 +154,7 @@ core.side_panel_left / core.side_panel_right
 | Brief / A-B-C Variant | Brief 入库、确定性三方案、选择与恢复已实现 | 当前是模板基线，不冒充 R4 AI 生成质量 |
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ChangeSet 操作时间线 | Project 级逆序 cursor API、搜索、状态/操作过滤、operation/node/result Version、rejected/stale diagnostic、桌面加载更多与重启回读已实现 | 后续扩展用户/AI actor、批量导出和长期归档策略 |
-| ModelQualityReport | `weapon-concept-geometry/1.2` 从版本绑定的不可变 GLB 检查 Mesh、Connector 对齐、已连接组件 AABB 表面间隙，以及未直连组件的世界三角形 BVH/SAT/containment；精确命中的 triangle index/世界坐标会持久化，Finding 点击同时高亮双方节点与局部三角形；报告、Finding、JobEvent 与重启恢复已实现 | 当前仍是确定性几何筛查；对称、隐藏几何、密度与 LOD 继续进入 R5，不代表强度/DFM/安全证明 |
+| ModelQualityReport | `weapon-concept-geometry/1.3` 从版本绑定的 Spec、ModuleGraph 与不可变 GLB 检查 Mesh、重复/内嵌隐藏几何、组件间密度离群、项目三角预算、P0 LOD0 命名、根中面对称占位、Connector 对齐/间隙，以及未直连组件的世界三角形 BVH/SAT/containment；局部 triangle provenance、工作台高亮、JobEvent 与重启恢复已实现 | 当前仍是确定性概念资产筛查；正式 Blender truth set、Tauri 大网格阈值和多 LOD 运行时尚未完成，不代表强度/DFM/安全证明 |
 | Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable、确定性 MP4、轮廓抗锯齿/软接触阴影、render-set ZIP、Manifest hash、JobEvent、独立下载与重启恢复已实现 | 纹理交换、正式资产渲染性能与真实 Blender/Assimp round-trip 继续进入 R5；当前机器的 DCC 预检如实阻塞 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 

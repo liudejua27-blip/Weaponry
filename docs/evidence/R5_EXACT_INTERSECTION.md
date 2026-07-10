@@ -39,8 +39,12 @@ npm run r5:c07-intersection-gate
 - 已连接组件异常间隙的保守 AABB 距离规则；
 - 相交 triangle id、双方节点框选与局部高亮。
 
-## 仍未完成
+## 当时剩余、现由 1.3 完成
 
-- 对称、隐藏几何、密度与 LOD truth set；
+- 对称占位、隐藏几何、密度/预算与 P0 LOD0 truth set。
+
+## 仍需发布证据
+
 - 正式 Blender 资产和 Tauri 大网格性能阈值；
+- LOD1/LOD2 运行时与导出合同；
 - HTML 报告、规则配置 UI 和安全自动修复。

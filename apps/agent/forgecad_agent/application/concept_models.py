@@ -201,7 +201,7 @@ class CreateQualityRunRequest(StrictApiModel):
 
 class InspectConceptVersionRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
-    ruleset_version: Literal["weapon-concept-geometry/1.2"] = "weapon-concept-geometry/1.2"
+    ruleset_version: Literal["weapon-concept-geometry/1.3"] = "weapon-concept-geometry/1.3"
 
 
 class QualityRunRecord(StrictApiModel):

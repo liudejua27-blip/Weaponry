@@ -20,6 +20,7 @@ from forgecad_agent.domain.concepts.models import (
     ModelQualityReport,
     ModuleAssetManifest,
     ModuleGraph,
+    WeaponConceptSpec,
 )
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 from forgecad_agent.infrastructure.storage import ContentAddressedStore, ObjectStoreError
@@ -210,6 +211,7 @@ class ConceptQualityService:
                     "The version ModuleGraph is unavailable.",
                 )
             graph = ModuleGraph.model_validate_json(graph_row["graph_json"])
+            spec = WeaponConceptSpec.model_validate_json(version["spec_json"])
             sources: list[ModuleInspectionSource] = []
             for node in graph.nodes:
                 module_row = unit_of_work.modules.get_manifest(node.module_id)
@@ -241,7 +243,9 @@ class ConceptQualityService:
             now = _utc_now()
             findings = [
                 finding.model_copy(update={"finding_id": f"finding_{uuid4().hex}"})
-                for finding in inspect_concept_geometry(graph=graph, sources=sources)
+                for finding in inspect_concept_geometry(
+                    graph=graph, sources=sources, spec=spec
+                )
             ]
             finding_statuses = {finding.status for finding in findings}
             status = (
@@ -295,13 +299,16 @@ class ConceptQualityService:
                     ),
                     (
                         "inspect_meshes",
-                        "Checked indices, triangles, normals, UV0, topology, and bounds.",
+                        "Checked indices, triangles, normals, UV0, topology, hidden geometry, density, LOD0, and bounds.",
                         0.62,
-                        {"module_count": len(sources)},
+                        {
+                            "module_count": len(sources),
+                            "triangle_budget": spec.constraints.max_triangle_count,
+                        },
                     ),
                     (
                         "inspect_assembly",
-                        "Checked Connector alignment, connected surface gaps, and exact unconnected intersections.",
+                        "Checked symmetry, Connector alignment, connected surface gaps, and exact unconnected intersections.",
                         0.86,
                         {
                             "edge_count": len(graph.edges),

@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 `weapon-concept-geometry/1.2` 已为精确穿插 Finding 保存可回读的局部几何引用，在桌面同时高亮双方节点与相交三角形，并为已通过 Connector 对齐的组件增加保守表面间隙提示。它不是结构强度、制造可行性、装配公差或使用安全证明。
+范围：证明当时的 `weapon-concept-geometry/1.2` 已为精确穿插 Finding 保存可回读的局部几何引用，在桌面同时高亮双方节点与相交三角形，并为已通过 Connector 对齐的组件增加保守表面间隙提示。这是历史证据；当前策略规则见 `R5_C07_POLICY_RULES.md` 和 `1.3`。它不是结构强度、制造可行性、装配公差或使用安全证明。
 
 ## 数据与规则
 
@@ -40,9 +40,13 @@ npm run r5:c07-localization-gate
 
 `output/playwright/r5-quality-triangle-highlight.png`
 
-## 剩余 C07
+## 当时剩余、现由 1.3 完成
 
-- 对称、隐藏几何、网格密度与 LOD 的规则和失败样本；
+- 对称占位、隐藏几何、网格密度/预算与 P0 LOD0 的规则和失败样本。
+
+## 仍需发布证据
+
 - 正式 10–12 个 Blender 资产的完整质量 truth set 与 Tauri GPU/大网格阈值；
+- LOD1/LOD2 运行时切换与导出合同；
 - HTML 报告、可配置规则和仅对安全几何编辑开放的自动修复；
 - B-Rep、STEP、3MF、强度、切片与制造 DFM 属于后续 Engineering Pack。
