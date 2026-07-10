@@ -10,7 +10,7 @@
 - service 通过注入的 connection factory 与明确写入端口复用当前 SQLite/AssetStore 基础设施；
 - `SQLiteAssetStore.create_weapon` 只代理 service，并把 `CreateWeaponIdempotencyConflict` 映射为旧 `IdempotencyConflictError`；
 - FastAPI route、请求/响应模型、数据库 schema、资产路径、角色、hash 和事件顺序均未改动；
-- `asset_store.py` 从约 3608 行降至 3272 行；后续仍需迁移 generate-3d、Patch 和 Unity export。
+- 本切片时 `asset_store.py` 从约 3608 行降至 3272 行；Generate-3D 同步/排队入口随后已迁移，见 `R1_GENERATE3D_SERVICE.md`，当前仍需迁移 worker 执行、Patch 和 Unity export。
 
 ## 自动门
 

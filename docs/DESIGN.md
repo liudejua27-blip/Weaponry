@@ -147,7 +147,7 @@ packs/weapon-concept/
   rules/
 ```
 
-迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。旧 `POST /api/weapons` 的同步 LLM → Image → 3D → Quality → JobEvent 编排已迁入 `wushen_agent.application.create_weapon.LegacyCreateWeaponService`，facade 只代理并把 service 幂等冲突映射回旧异常合同；它仍是冻结兼容链，不是 Concept 新架构。剩余 generate-3d、Patch 和 Unity export 继续按相同 use-case 边界迁移。
+迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。旧 `POST /api/weapons` 的同步 LLM → Image → 3D → Quality → JobEvent 编排已迁入 `wushen_agent.application.create_weapon.LegacyCreateWeaponService`；`POST /generate-3d` 的 sync/worker runtime 选择、同步追加版本和排队事务已迁入 `wushen_agent.application.generate_3d.LegacyGenerate3DService`。facade 只代理并把 service 错误映射回旧异常合同；这些仍是冻结兼容链，不是 Concept 新架构。Generate-3D worker 执行、Patch 和 Unity export 继续按相同 use-case 边界迁移。
 
 ## 6. 核心领域合同
 

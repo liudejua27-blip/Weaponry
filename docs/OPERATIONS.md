@@ -133,10 +133,11 @@ R1 基础设施：
 
 ```bash
 npm run r1:create-weapon-gate
+npm run r1:generate3d-gate
 npm run r1:foundation-gate
 ```
 
-`r1:create-weapon-gate` 验证 facade 只代理、同步 Provider 编排位于 application service，并回归默认创建、幂等冲突、LLM、ComfyUI 和 GLB/质量资产链。`r1:foundation-gate` 在此基础上验证 migration 幂等、SQLite 约束、内容寻址去重、路径越界与哈希篡改检测，再执行 `m6:gate`。
+`r1:create-weapon-gate` 验证 facade 只代理、同步 Provider 编排位于 application service，并回归默认创建、幂等冲突、LLM、ComfyUI 和 GLB/质量资产链。`r1:generate3d-gate` 验证同步/排队入口、幂等、追加版本、worker 恢复、submit/poll/fetch/cancel、常驻循环、Local HTTP Provider 和本地 runtime wrapper。`r1:foundation-gate` 在此基础上验证 migration 幂等、SQLite 约束、内容寻址去重、路径越界与哈希篡改检测，再执行 `m6:gate`。
 
 R1 当前完整回归：
 

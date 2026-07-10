@@ -31,6 +31,7 @@ npm run desktop:typecheck
 npm run desktop:build
 npm run desktop:p0-context-continuity-smoke
 npm run r1:create-weapon-gate
+npm run r1:generate3d-gate
 npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate

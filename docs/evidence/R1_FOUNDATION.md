@@ -21,7 +21,8 @@
 - 将版本激活、武器库 read model、资产元数据和安全文件解析迁入 `LegacyLibraryService`；
 - 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
 - 将旧同步 Create Weapon 的 LLM → Image → 3D → Quality → JobEvent 编排迁入 `LegacyCreateWeaponService`；`SQLiteAssetStore.create_weapon` 只保留代理与幂等异常映射；
-- `asset_store.py` 从约 3608 行降至 3272 行；结构 smoke 禁止 Provider 调用重新回流 facade；
+- 将 Generate-3D 的 runtime 选择、同步执行与排队事务迁入 `LegacyGenerate3DService`；worker claim/poll/commit 仍保留在 facade 等待下一切片；
+- `asset_store.py` 从约 3608 行降至 3052 行；结构 smoke 禁止 Provider 编排重新回流 facade；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
 - `main.py` 从约 458 行降至约 54 行，只保留应用组装和 worker 生命周期。
@@ -126,6 +127,14 @@ npm run r1:create-weapon-gate
 
 结果：通过。结构门确认 facade 不再包含 `plan_weapon_spec`、`generate_concept`、资产写入或事件编排；行为门覆盖默认 Provider、幂等 replay/409 conflict、LLM adapter、ComfyUI 首次成功/重试和可解析 GLB/质量报告，仍产生 7 个 JobEvent 与 11 个内容寻址资产。
 
+Generate-3D 入口提取后补充运行：
+
+```bash
+npm run r1:generate3d-gate
+```
+
+结果：通过。结构门确认 sync/queue facade 只代理；行为门覆盖同步 HTTP、异步排队、恢复、Provider submit/poll/fetch/cancel、常驻 worker、Local HTTP 3D Provider 和本地 runtime wrapper，且父版本不覆盖、幂等 replay/409、ProviderTask、Checkpoint 与内容寻址资产合同不变。
+
 Library/Version 提取后补充运行：
 
 ```bash
@@ -139,6 +148,6 @@ npm run desktop:p0-context-continuity-smoke
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- 异步 Provider worker 编排、generate-3d、Patch、Unity 导出等其余 legacy 工作流仍待提取；
+- 异步 Generate-3D worker claim/poll/commit、Patch、Unity 导出等其余 legacy 工作流仍待提取；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - R2 Concept 数据链已经独立落地，但 R1 legacy facade 边界仍未全部完成。

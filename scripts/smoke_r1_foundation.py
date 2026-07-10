@@ -83,6 +83,7 @@ def main() -> None:
         assert create_local_api(api_settings).title == "ForgeCAD Local Agent"
 
         create_workflow_boundary = _assert_create_weapon_workflow_boundary()
+        generate_3d_workflow_boundary = _assert_generate_3d_workflow_boundary()
 
     print(
         {
@@ -91,6 +92,7 @@ def main() -> None:
             "fresh_applied": first_apply,
             "object_sha256": expected_hash,
             "create_weapon_workflow": create_workflow_boundary,
+            "generate_3d_workflow": generate_3d_workflow_boundary,
         }
     )
 
@@ -131,6 +133,66 @@ def _assert_create_weapon_workflow_boundary() -> dict[str, int | bool]:
     return {
         "facade_delegates": True,
         "provider_orchestration_in_service": True,
+        "asset_store_lines": facade_lines,
+        "service_lines": len(service_source.splitlines()),
+    }
+
+
+def _assert_generate_3d_workflow_boundary() -> dict[str, int | bool]:
+    facade_path = ROOT / "apps" / "agent" / "wushen_agent" / "asset_store.py"
+    service_path = (
+        ROOT / "apps" / "agent" / "wushen_agent" / "application" / "generate_3d.py"
+    )
+    facade_source = facade_path.read_text(encoding="utf-8")
+    service_source = service_path.read_text(encoding="utf-8")
+    facade_generate = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "generate_3d",
+    )
+    facade_enqueue = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "enqueue_generate_3d",
+    )
+    service_generate = _class_method_source(
+        service_source,
+        "LegacyGenerate3DService",
+        "generate_3d",
+    )
+    service_enqueue = _class_method_source(
+        service_source,
+        "LegacyGenerate3DService",
+        "enqueue_generate_3d",
+    )
+    assert "generate_3d_workflow.generate_3d" in facade_generate
+    assert "generate_3d_workflow.enqueue_generate_3d" in facade_enqueue
+    for forbidden in (
+        "WUSHEN_GENERATE3D",
+        "_write_rough_model_assets",
+        "_insert_event",
+    ):
+        assert forbidden not in facade_generate
+        assert forbidden not in facade_enqueue
+    for required in (
+        "WUSHEN_GENERATE3D_RUNTIME",
+        "enqueue_generate_3d",
+        "_write_rough_model_assets",
+        "_record_provider_task",
+        "_insert_event",
+    ):
+        assert required in service_generate, (
+            f"generate-3d workflow lost orchestration step: {required}"
+        )
+    for required in ("_validate_source", "queued", "_insert_step", "_insert_event"):
+        assert required in service_enqueue, (
+            f"generate-3d queue lost orchestration step: {required}"
+        )
+    facade_lines = len(facade_source.splitlines())
+    assert facade_lines <= 3075, f"AssetStore facade expanded to {facade_lines} lines"
+    return {
+        "facade_delegates_sync_and_queue": True,
+        "runtime_selection_in_service": True,
         "asset_store_lines": facade_lines,
         "service_lines": len(service_source.splitlines()),
     }
