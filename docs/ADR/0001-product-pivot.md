@@ -1,6 +1,6 @@
 # ADR-0001：从武神 Forge 转向 ForgeCAD
 
-- 状态：Accepted
+- 状态：Accepted；第 6 项已由 ADR-0006 取代
 - 日期：2026-07-10
 - 决策者：项目维护者
 

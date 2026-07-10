@@ -15,6 +15,7 @@ __pycache__/
 .ruff_cache/
 .playwright-cli/
 output/playwright/
+artifacts/design-qa/
 *.db
 *.db-shm
 *.db-wal

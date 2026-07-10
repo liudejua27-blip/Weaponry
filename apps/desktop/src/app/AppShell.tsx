@@ -13,6 +13,7 @@ type AppShellProps = {
 }
 
 const NAV_ITEMS: Array<{ view: View; label: string }> = [
+  { view: 'cad', label: 'CAD 工作台' },
   { view: 'forge', label: 'Forge 工作台' },
   { view: 'patch', label: 'Patch Mode' },
   { view: 'library', label: '资产库' },

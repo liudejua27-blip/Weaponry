@@ -15,6 +15,8 @@
 - 建立 transaction-scoped `SQLiteUnitOfWork`；
 - 旧 `SQLiteAssetStore` 作为 Facade 使用新基础设施；
 - 旧资产裸读取统一改为内容寻址存储读取；
+- 将 Job detail/list/action/runtime/event 查询迁入 `LegacyJobQueryService`，并通过 Repository 统一读取；
+- 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
 - `main.py` 从约 458 行降至约 54 行，只保留应用组装和 worker 生命周期。
@@ -27,6 +29,9 @@
 - 提取 JobEventProvider，统一事件合并、游标、SSE 和 stream status；
 - 提取 SelectionProvider，统一当前 weapon/version/detail；
 - 提取 AppShell，统一导航和桌面顶栏。
+- 新增懒加载 `#/cad` 工作台：九区布局、参数化武器 Three.js 视口、组件分类/选择、视图工具、DFM 与导出状态；
+- 使用 Phosphor 统一图标并补充 license ledger；
+- 完成 1536 × 1024 参考图对照与交互 QA，证据见仓库根目录 `design-qa.md`。
 
 ## 验证结果
 
@@ -69,6 +74,8 @@ npm run desktop:p0-context-continuity-smoke
 
 结果：通过。旧创建、Patch、3D、Unity、版本切换和资产库同步链路在 Provider/AppShell 重构后保持连续。
 
+应用内浏览器验证 `#/cad`：模式、工具、组件分类/选择、参数输入、AI 指令和导出格式均产生可观察状态变化；console error/warn 为 0。
+
 聚合命令：
 
 ```bash
@@ -77,9 +84,19 @@ npm run r1:gate
 
 结果：通过。它覆盖 R1 foundation smoke、完整 M6 gate、桌面生产构建和上下文连续性 UI smoke。
 
+Job 查询/动作/恢复提取后补充运行：
+
+```bash
+npm run agent:p0-job-history-search-smoke
+npm run agent:p0-job-actions-smoke
+npm run agent:p0-runtime-recovery-smoke
+```
+
+结果：全部通过。搜索/分页、action audit、cancel/retry、event cursor、provider task/checkpoint 和重启恢复保持原合同。
+
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- Job query/action/event Repository 尚未完整提取；
+- Job 写侧 action/cancel/retry、Asset 写侧和其余业务工作流仍待提取；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - 尚未进入 R2 新 CAD 合同和数据库。

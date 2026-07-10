@@ -1,4 +1,4 @@
-export type View = 'forge' | 'patch' | 'library' | 'jobs' | 'settings'
+export type View = 'cad' | 'forge' | 'patch' | 'library' | 'jobs' | 'settings'
 
 export type AppRoute =
   | { kind: 'none' }
@@ -62,6 +62,7 @@ export function routeHasResource(route: AppRoute): boolean {
 
 function isView(value: string | undefined): value is View {
   return value === 'forge'
+    || value === 'cad'
     || value === 'patch'
     || value === 'library'
     || value === 'jobs'

@@ -33,6 +33,7 @@ type DesktopJobNotification = {
 }
 
 const Preview3DPanel = lazy(() => import('../features/preview3d/Preview3DPanel').then((module) => ({ default: module.Preview3DPanel })))
+const CadWorkbenchPanel = lazy(() => import('../features/cad-workbench/CadWorkbenchPanel').then((module) => ({ default: module.CadWorkbenchPanel })))
 
 export function App() {
   const {
@@ -332,6 +333,14 @@ export function App() {
     writeHashRoute({ kind: 'job', jobId })
     return restoreJob(jobId)
   }, [restoreJob])
+
+  if (view === 'cad') {
+    return (
+      <Suspense fallback={<div className="panel-section"><p className="muted">正在加载 CAD 工作台...</p></div>}>
+        <CadWorkbenchPanel onOpenLegacy={() => navigateToView('forge')} />
+      </Suspense>
+    )
+  }
 
   return (
     <AppShell

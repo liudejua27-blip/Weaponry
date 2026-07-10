@@ -9,10 +9,11 @@
 截至 2026-07-10，仓库真实状态是：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复与版本记录；
-- `asset_store.py` 已从约 5210 行降至约 5116 行，SQLite connection、migration、内容寻址存储及首批 Repository/UoW 已提取，但业务工作流和大量 SQL 仍待拆分；
-- `App.tsx` 已从约 865 行降至约 697 行，AppShell、Hash route、RuntimeProvider、JobEventProvider 与 SelectionProvider 已提取，旧任务恢复和页面业务组合仍待继续收敛；
+- `asset_store.py` 已从约 5210 行降至约 4457 行，SQLite connection、migration、内容寻址存储、Repository/UoW、Job 查询和 Creative Recast 用例已提取，但剩余写工作流和 SQL 仍待拆分；
+- `App.tsx` 已从约 865 行降至约 702 行，AppShell、Hash route、RuntimeProvider、JobEventProvider、SelectionProvider 与懒加载 CAD 工作台已提取，旧任务恢复和页面业务组合仍待继续收敛；
 - `main.py` 已从约 458 行降至约 54 行，legacy asset/job/system/weapon routes、错误映射与 base app factory 已分模块；
 - 领域合同、表、API、UI 和发布门仍围绕 Weapon、Creative Recast、神经 3D 与 Unity；
+- `#/cad` 已有武器设计工作台交互壳，覆盖九区布局、参数联动、组件筛选、Three.js 视口、DFM/导出状态；它尚未连接真实 Design/Version/CAD Build 数据；
 - build123d、OpenCascade CAD Runtime、DesignSpec、FeatureGraph、STEP/3MF、DFM 和 Print Doctor 尚未实现。
 
 旧代码是迁移输入，不是新产品完成度。
@@ -28,6 +29,7 @@
 | R1 Repository / UoW | 部分完成 | Idempotency、Asset、Job exists、Checkpoint 已提取 |
 | R1 API factory | 完成当前切片 | CORS/settings/app factory 与四组 legacy route modules 已提取 |
 | R1 frontend shell | 完成当前切片 | AppShell、routing、Runtime/JobEvent/Selection Providers 已提取 |
+| R1 CAD workbench shell | 完成参考图切片 | `#/cad`、`CadWorkbenchPanel`、`design-qa.md` |
 
 R1 当前证据见 `docs/evidence/R1_FOUNDATION.md`。
 
@@ -42,7 +44,7 @@ R1 当前证据见 `docs/evidence/R1_FOUNDATION.md`。
 7. 每个阶段以证据和质量门退出，不以“页面看起来完成”退出。
 8. 每个副作用 API 保留幂等语义；每个耗时动作进入 Job。
 9. 旧数据只读导入，不长期双写新旧领域。
-10. 首个产品里程碑是 L 型支架完整纵向切片，不是品牌换肤或新首页。
+10. 首个产品里程碑是模块化武器 CAD 样机完整纵向切片；L 型支架只作为内核几何校准样本，不作为产品主场景。
 
 ## 3. 里程碑总览
 
@@ -51,10 +53,10 @@ R1 当前证据见 `docs/evidence/R1_FOUNDATION.md`。
 | R0 | 冻结与决策 | tag、分支、ADR、旧门禁快照 | 2–3 天 | 旧基线可恢复 |
 | R1 | 通用基础设施解耦 | Repository、UoW、App Factory、前端壳 | 2 周 | 旧 smoke 不回归 |
 | R2 | 新合同与新数据 | DesignSpec、FeatureGraph、migration、`/api/v1` | 2 周 | 合同/数据库门通过 |
-| R3 | L 型支架 CAD 纵向切片 | build123d、B-Rep、STEP/3MF/STL/GLB | 3 周 | 几何与 STEP 回读门通过 |
+| R3 | 模块化武器 CAD 纵向切片 | build123d、B-Rep、稳定组件接口、STEP/3MF/STL/GLB | 3–4 周 | 几何、接口与 STEP 回读门通过 |
 | R4 | CAD 查看器与工作台 | selection、measurement、feature tree、version diff | 2–3 周 | 桌面 CAD E2E 通过 |
 | R5 | DFM 与 Print Doctor | profiles、trimesh、findings、slicer adapter | 2–3 周 | DFM 真值集通过 |
-| R6 | 结构化 AI 与 Beta | clarification、ChangeSet、五类模板、清理旧域 | 2–3 周 | Beta 发布门通过 |
+| R6 | 结构化 AI 与 Beta | clarification、ChangeSet、武器组件与通用功能件模板集、清理旧域 | 2–3 周 | Beta 发布门通过 |
 
 参考总周期为 14–17 周，按 3–5 名核心工程人员估算。实际推进以质量门为准。
 
@@ -138,14 +140,16 @@ R1 当前证据见 `docs/evidence/R1_FOUNDATION.md`。
 
 ### R3：第一个 CAD 纵向切片
 
-只实现 L 型安装支架模板。支持：
+产品主样本实现模块化未来手枪 CAD 样机。支持：
 
-- 底板长、宽、厚；
-- 立板高度与厚度；
-- 四孔孔径和两个方向孔距；
-- 圆角与倒角；
-- 两个三角加强筋；
-- 打印方向和最大包围盒。
+- 整体长度、主体高度、枪管模块长度和最小壁厚；
+- 握把角度、导轨长度和瞄具安装位置；
+- 主体、枪管、握把、导轨、瞄具和供弹模块的稳定接口；
+- 圆角、倒角、壳体、孔、阵列和布尔特征；
+- 材料/制造 Profile、打印方向和最大包围盒；
+- 爆压、热载荷、材料强度与法规条件的显式未验证标记。
+
+同时保留一个 L 型支架 calibration fixture，只用于快速验证 Extrude/Hole/Rib/Fillet、关键尺寸和 STEP/3MF round-trip；它不替代武器产品纵向切片。
 
 链路：
 
@@ -171,9 +175,10 @@ DesignSpec
 
 退出条件：
 
-- 至少 100 组参数组合测试；
+- 武器主样本与支架 calibration fixture 合计至少 100 组参数组合测试；
 - 支持范围内有效实体率 ≥95%；
 - 关键尺寸自动核验率 100%；
+- 所有锁定组件接口回归通过率 100%；
 - 生产 STEP 回读率 100%；
 - 所有失败返回 feature id、错误码与结构化诊断。
 
@@ -234,7 +239,7 @@ DesignSpec
 - 关键尺寸缺失时禁止生产导出；
 - locked interface 修改保持率 ≥95%；
 - 所有修改创建子版本，父版本不可变；
-- 五类模板的支持范围、失败边界和 DFM 证据明确；
+- 武器组件与通用功能件模板集的支持范围、失败边界和 DFM 证据明确；
 - 新桌面安装包可脱离源码目录运行。
 
 ## 5. 推荐 PR 顺序
@@ -246,7 +251,7 @@ DesignSpec
 3. **API / Models / App Shell**：app factory、routes、DTO、Providers、前端壳。
 4. **新合同与数据库**：DesignSpec、FeatureGraph、migration、generated types。
 5. **隔离 CAD Runtime**：build123d backend、compiler、sandbox、B-Rep validator。
-6. **L 型支架纵向切片**：STEP/3MF/STL/GLB、尺寸与 round-trip gate。
+6. **模块化武器纵向切片**：稳定组件接口、STEP/3MF/STL/GLB、尺寸与 round-trip gate；L 型支架仅作 calibration fixture。
 7. **CAD Viewer**：three-cad-viewer、BVH、拓扑映射、测量、截面。
 8. **DFM / Print Doctor**：profiles、trimesh、findings、truth set。
 9. **结构化 AI 修改闭环**：clarification、ChangeSet、locked interface。
@@ -296,6 +301,6 @@ DesignSpec
 7. 将 `App.tsx` 拆为 AppShell、router 与 Providers。
 8. 新增五个核心 Schema 和类型生成管线。
 9. 新增 Design/Version/CAD Build migrations 与 `/api/v1/designs`。
-10. 实现隔离 build123d Runtime 的 L 型支架最小构建，不接 LLM。
+10. 实现隔离 build123d Runtime 的模块化武器样机最小构建，不接 LLM；并保留 L 型支架 calibration fixture 做快速内核回归。
 
 第 10 步通过后，再开始 three-cad-viewer、DFM 和 AI 修改闭环。

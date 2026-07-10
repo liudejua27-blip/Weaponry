@@ -2,7 +2,7 @@
   "name": "wushen-forge",
   "private": true,
   "version": "0.1.0",
-  "description": "Open-source desktop Agent for 3D-toon Chinese fantasy weapon asset generation.",
+  "description": "Local-first AI CAD and DFM desktop agent for weapon, precision mechanical, and 3D-print design workflows.",
   "workspaces": [
     "apps/desktop"
   ],

@@ -21,7 +21,6 @@ from typing import Any, Dict, Iterable, List, Optional
 from forgecad_agent.infrastructure.db import (
     AssetRepository,
     CheckpointRepository,
-    JobRepository,
     MigrationError,
     SQLiteConnectionFactory,
     SQLiteMigrationRunner,
@@ -29,6 +28,12 @@ from forgecad_agent.infrastructure.db import (
 )
 from forgecad_agent.infrastructure.storage import ContentAddressedStore, ObjectStoreError
 
+from .application.creative_recast import (
+    CreativeRecastError,
+    CreativeRecastIdempotencyConflict,
+    LegacyCreativeRecastService,
+)
+from .application.job_queries import JobQueryError, LegacyJobQueryService
 from .models import (
     AssetUploadRequest,
     AssetUploadResponse,
@@ -36,39 +41,29 @@ from .models import (
     AssetFileSummary,
     AssetRevealResponse,
     CreativeGraphResponse,
-    CreativeInterpretationCandidate,
     CreativeInterpretationRequest,
     CreativeInterpretationResponse,
     CreativeRecastConfirmRequest,
     CreativeRecastConfirmResponse,
-    CreativeWeaponGraphPayload,
     CreateWeaponRequest,
-    ErrorEnvelope,
     ExportUnityRequest,
     Generate3DRequest,
-    JobActionAuditEntry,
     JobActionListResponse,
     JobActionResponse,
-    JobCheckpointSummary,
     JobDetail,
     JobEvent,
     JobListResponse,
     JobRuntimeStateResponse,
-    JobSummary,
     PatchWeaponRequest,
-    ProviderTaskSummary,
     ProviderSettings,
     RuntimeRecoveryItem,
     RuntimeRecoveryResponse,
     RuntimeWorkOnceResponse,
-    SkillCard,
-    SkillGraphPayload,
     WeaponDetail,
     WeaponSummary,
     WeaponVersionSummary,
     utc_now,
 )
-from .providers.creative_recast import build_mock_interpretation_candidates, stable_seed_for_text
 from .providers.image import (
     ImageProvider,
     ImageProviderError,
@@ -125,6 +120,8 @@ class SQLiteAssetStore:
         self.library_root.mkdir(parents=True, exist_ok=True)
         self.connection_factory = SQLiteConnectionFactory(self.db_path)
         self.object_store = ContentAddressedStore(self.library_root)
+        self.creative_recast = LegacyCreativeRecastService(self.connection_factory)
+        self.job_queries = LegacyJobQueryService(self.connection_factory)
         self._migrate()
 
     @classmethod
@@ -505,90 +502,16 @@ class SQLiteAssetStore:
         request: CreativeInterpretationRequest,
         idempotency_key: str,
     ) -> CreativeInterpretationResponse:
-        idempotency_scope = f"POST /api/weapons/{weapon_id}/interpretation"
-        request_json = _canonical_json(request.model_dump())
-        request_hash = _sha256_bytes(request_json.encode("utf-8"))
-
-        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
-            conn = unit_of_work.require_connection()
-            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return CreativeInterpretationResponse(**json.loads(existing.response_json))
-
-            if not self._has_weapon_row(conn, weapon_id):
-                raise AssetStoreError("WEAPON_NOT_FOUND", "Weapon not found.")
-
-            now = utc_now()
-            interpretation_id = _new_id("interp")
-            stable_seed = stable_seed_for_text(weapon_id, request.source_object, request.raw_description)
-            candidates = build_mock_interpretation_candidates(request, stable_seed=stable_seed, interpretation_id=interpretation_id)
-            valid_candidates = candidates[:3]
-            affordance_axes = {tuple(candidate.combat_affordances) for candidate in valid_candidates}
-            status = "ready"
-            failure_code = None
-            failure_reason = None
-            if len(valid_candidates) < 2 or len(affordance_axes) < 2:
-                status = "failed"
-                failure_code = "PROVIDER_BAD_OUTPUT"
-                failure_reason = "Interpretation did not produce 2 distinct candidate affordance directions."
-
-            candidates_payload = [candidate.model_dump() for candidate in valid_candidates]
-            snapshot_hash = _sha256_bytes(_canonical_json(candidates_payload).encode("utf-8"))
-            response = CreativeInterpretationResponse(
-                interpretation_id=interpretation_id,
-                weapon_id=weapon_id,
-                source_object=request.source_object,
-                raw_description=request.raw_description,
-                status=status,  # type: ignore[arg-type]
-                needs_confirm=status != "failed",
-                candidate_count=len(valid_candidates),
-                candidates=valid_candidates,
-                stable_seed=stable_seed,
-                resample_attempted=False,
-                preserved_candidate_id=valid_candidates[0].candidate_id if valid_candidates else None,
-                candidate_snapshot_hash=snapshot_hash,
-                failure_code=failure_code,
-                failure_reason=failure_reason,
-                created_at=now,
+        try:
+            return self.creative_recast.create_interpretation(
+                weapon_id,
+                request,
+                idempotency_key,
             )
-            conn.execute(
-                """
-                INSERT INTO structure_interpretations (
-                  interpretation_id, weapon_id, source_object, raw_description, status,
-                  candidate_count, candidates_json, request_hash, stable_seed,
-                  resample_attempted, preserved_candidate_id, candidate_snapshot_hash,
-                  failure_code, failure_reason, created_at, updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    interpretation_id,
-                    weapon_id,
-                    request.source_object,
-                    request.raw_description,
-                    status,
-                    len(valid_candidates),
-                    _canonical_json(candidates_payload),
-                    request_hash,
-                    stable_seed,
-                    response.preserved_candidate_id,
-                    snapshot_hash,
-                    failure_code,
-                    failure_reason,
-                    now,
-                    now,
-                ),
-            )
-            unit_of_work.idempotency.add(
-                scope=idempotency_scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-                response_json=_canonical_json(response.model_dump()),
-                created_at=now,
-            )
-            return response
+        except CreativeRecastIdempotencyConflict as exc:
+            raise IdempotencyConflictError(str(exc)) from exc
+        except CreativeRecastError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def confirm_recast(
         self,
@@ -596,184 +519,22 @@ class SQLiteAssetStore:
         request: CreativeRecastConfirmRequest,
         idempotency_key: str,
     ) -> CreativeRecastConfirmResponse:
-        idempotency_scope = f"POST /api/weapons/{weapon_id}/recast/confirm"
-        request_json = _canonical_json(request.model_dump())
-        request_hash = _sha256_bytes(request_json.encode("utf-8"))
-
-        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
-            conn = unit_of_work.require_connection()
-            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return CreativeRecastConfirmResponse(**json.loads(existing.response_json))
-
-            interpretation = conn.execute(
-                """
-                SELECT interpretation_id, weapon_id, source_object, raw_description, status,
-                       candidates_json, created_at
-                FROM structure_interpretations
-                WHERE interpretation_id = ? AND weapon_id = ?
-                """,
-                (request.interpretation_id, weapon_id),
-            ).fetchone()
-            if interpretation is None:
-                raise AssetStoreError("INVALID_INTERPRETATION_ID", "Interpretation does not belong to this weapon.")
-            if interpretation["status"] == "failed":
-                raise AssetStoreError("PROVIDER_BAD_OUTPUT", "Failed interpretation cannot be confirmed.", recoverable=True)
-
-            candidates = [CreativeInterpretationCandidate(**item) for item in json.loads(interpretation["candidates_json"] or "[]")]
-            selected = next(
-                (
-                    candidate
-                    for candidate in candidates
-                    if candidate.candidate_id == request.selected_candidate_id and candidate.rank == request.selected_candidate_rank
-                ),
-                None,
+        try:
+            return self.creative_recast.confirm_recast(
+                weapon_id,
+                request,
+                idempotency_key,
             )
-            if selected is None:
-                raise AssetStoreError("INVALID_INTERPRETATION_CANDIDATE", "Selected candidate was not found in this interpretation.")
-
-            now = utc_now()
-            creative_graph_id = _new_id("cg")
-            skill_graph_id = _new_id("sg")
-            creative_graph = CreativeWeaponGraphPayload(
-                creative_graph_id=creative_graph_id,
-                weapon_id=weapon_id,
-                source_interpretation_id=request.interpretation_id,
-                selected_candidate_id=selected.candidate_id,
-                selected_candidate_rank=selected.rank,
-                source_object=str(interpretation["source_object"]),
-                recast_summary=request.recast_choice_text or selected.recast_summary,
-                combat_affordances=selected.combat_affordances,
-                structure_graph=selected.structure_graph,
-                anchor_points=selected.anchor_points,
-                protected_regions=selected.protected_regions,
-                skill_anchor_points=selected.skill_anchor_points,
-                unity_handoff={
-                    "socket": selected.anchor_points[0],
-                    "scale_policy": "normalized_game_asset_scale",
-                    "axis_hint": "+Y long axis, +Z forward for Unity preview",
-                },
-                created_at=now,
-            )
-            skill_graph = SkillGraphPayload(
-                skill_graph_id=skill_graph_id,
-                weapon_id=weapon_id,
-                origin_graph_id=creative_graph_id,
-                source_interpretation_id=request.interpretation_id,
-                skills=_skill_cards_for_candidate(selected),
-                created_at=now,
-            )
-            conn.execute(
-                """
-                INSERT INTO creative_weapon_graphs (
-                  creative_graph_id, weapon_id, origin_interpretation_id,
-                  selected_candidate_id, selected_candidate_rank, graph_json, graph_parent_id, created_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, NULL, ?)
-                """,
-                (
-                    creative_graph_id,
-                    weapon_id,
-                    request.interpretation_id,
-                    selected.candidate_id,
-                    selected.rank,
-                    _canonical_json(creative_graph.model_dump()),
-                    now,
-                ),
-            )
-            conn.execute(
-                """
-                INSERT INTO skill_graphs (
-                  skill_graph_id, weapon_id, origin_graph_id, origin_interpretation_id,
-                  skill_graph_json, created_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    skill_graph_id,
-                    weapon_id,
-                    creative_graph_id,
-                    request.interpretation_id,
-                    _canonical_json(skill_graph.model_dump()),
-                    now,
-                ),
-            )
-            conn.execute(
-                """
-                UPDATE structure_interpretations
-                SET status = 'confirmed',
-                    confirmed_candidate_id = ?,
-                    confirmed_at = ?,
-                    updated_at = ?
-                WHERE interpretation_id = ?
-                """,
-                (selected.candidate_id, now, now, request.interpretation_id),
-            )
-            conn.execute(
-                """
-                UPDATE weapon_versions
-                SET structure_interpretation_id = ?,
-                    creative_graph_id = ?,
-                    skill_graph_id = ?
-                WHERE weapon_id = ?
-                  AND version_id = (SELECT current_version_id FROM weapons WHERE weapon_id = ?)
-                """,
-                (request.interpretation_id, creative_graph_id, skill_graph_id, weapon_id, weapon_id),
-            )
-            response = CreativeRecastConfirmResponse(
-                weapon_id=weapon_id,
-                interpretation_id=request.interpretation_id,
-                selected_candidate_id=selected.candidate_id,
-                selected_candidate_rank=selected.rank,
-                creative_graph_id=creative_graph_id,
-                skill_graph_id=skill_graph_id,
-                creative_graph=creative_graph,
-                skill_graph=skill_graph,
-                created_at=now,
-            )
-            unit_of_work.idempotency.add(
-                scope=idempotency_scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-                response_json=_canonical_json(response.model_dump()),
-                created_at=now,
-            )
-            return response
+        except CreativeRecastIdempotencyConflict as exc:
+            raise IdempotencyConflictError(str(exc)) from exc
+        except CreativeRecastError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def get_creative_graph(self, weapon_id: str) -> CreativeGraphResponse:
-        with self._connect() as conn:
-            graph = conn.execute(
-                """
-                SELECT creative_graph_id, origin_interpretation_id, graph_json
-                FROM creative_weapon_graphs
-                WHERE weapon_id = ?
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (weapon_id,),
-            ).fetchone()
-            if graph is None:
-                raise AssetStoreError("INTERPRETATION_NOT_CONFIRMED", "No confirmed CreativeWeaponGraph exists for this weapon.")
-            skill = conn.execute(
-                """
-                SELECT skill_graph_id, skill_graph_json
-                FROM skill_graphs
-                WHERE origin_graph_id = ?
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (graph["creative_graph_id"],),
-            ).fetchone()
-            return CreativeGraphResponse(
-                weapon_id=weapon_id,
-                creative_graph_id=graph["creative_graph_id"],
-                skill_graph_id=skill["skill_graph_id"] if skill else None,
-                interpretation_id=graph["origin_interpretation_id"],
-                creative_graph=CreativeWeaponGraphPayload(**json.loads(graph["graph_json"])),
-                skill_graph=SkillGraphPayload(**json.loads(skill["skill_graph_json"])) if skill else None,
-            )
+        try:
+            return self.creative_recast.get_creative_graph(weapon_id)
+        except CreativeRecastError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def _write_rough_model_assets(
         self,
@@ -3174,58 +2935,7 @@ class SQLiteAssetStore:
         }
 
     def get_job(self, job_id: str) -> JobDetail:
-        with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT job_id, weapon_id, job_type, status, current_step,
-                       created_at, updated_at, error_code, error_message
-                FROM generation_jobs
-                WHERE job_id = ?
-                """,
-                (job_id,),
-            ).fetchone()
-            if row is None:
-                raise KeyError(job_id)
-
-            assets = conn.execute(
-                """
-                SELECT file_id, role
-                FROM asset_files
-                WHERE job_id = ? AND soft_deleted_at IS NULL
-                ORDER BY created_at ASC
-                """,
-                (job_id,),
-            ).fetchall()
-            version = conn.execute(
-                "SELECT version_id FROM weapon_versions WHERE job_id = ? ORDER BY version_no DESC LIMIT 1",
-                (job_id,),
-            ).fetchone()
-            model = conn.execute(
-                "SELECT model_id FROM models_3d WHERE job_id = ? ORDER BY created_at DESC LIMIT 1",
-                (job_id,),
-            ).fetchone()
-
-            return JobDetail(
-                job_id=row["job_id"],
-                weapon_id=row["weapon_id"],
-                type=row["job_type"],
-                status=row["status"],
-                current_step=row["current_step"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                outputs={
-                    "current_version_id": version["version_id"] if version else None,
-                    "current_model_id": model["model_id"] if model else None,
-                    "asset_ids": [asset["file_id"] for asset in assets],
-                    "asset_roles": {asset["file_id"]: asset["role"] for asset in assets},
-                },
-                error=ErrorEnvelope(
-                    code=row["error_code"],
-                    message=row["error_message"] or row["error_code"],
-                    recoverable=True,
-                ) if row["error_code"] else None,
-                events=self.list_events(job_id),
-            )
+        return self.job_queries.get_job(job_id)
 
     def list_jobs(
         self,
@@ -3237,249 +2947,30 @@ class SQLiteAssetStore:
         cursor: Optional[str] = None,
         limit: int = 25,
     ) -> JobListResponse:
-        page_size = max(1, min(limit, 100))
-        clauses = ["1 = 1"]
-        params: List[Any] = []
-        if status:
-            clauses.append("j.status = ?")
-            params.append(status)
-        if job_type:
-            clauses.append("j.job_type = ?")
-            params.append(job_type)
-        if error_code:
-            clauses.append("j.error_code = ?")
-            params.append(error_code)
-        if query:
-            needle = f"%{query.strip()}%"
-            clauses.append(
-                """
-                (
-                  j.job_id LIKE ?
-                  OR j.weapon_id LIKE ?
-                  OR j.current_step LIKE ?
-                  OR j.error_code LIKE ?
-                  OR j.error_message LIKE ?
-                  OR w.name LIKE ?
-                )
-                """
+        try:
+            return self.job_queries.list_jobs(
+                query=query,
+                status=status,
+                job_type=job_type,
+                error_code=error_code,
+                cursor=cursor,
+                limit=limit,
             )
-            params.extend([needle, needle, needle, needle, needle, needle])
-        if cursor:
-            try:
-                cursor_updated_at, cursor_job_id = cursor.split("|", 1)
-            except ValueError as exc:
-                raise AssetStoreError("INVALID_REQUEST", "Invalid jobs cursor.", recoverable=False) from exc
-            clauses.append("(j.updated_at < ? OR (j.updated_at = ? AND j.job_id < ?))")
-            params.extend([cursor_updated_at, cursor_updated_at, cursor_job_id])
-
-        where_sql = " AND ".join(clauses)
-        with self._connect() as conn:
-            rows = conn.execute(
-                f"""
-                WITH event_rollup AS (
-                  SELECT
-                    e.job_id,
-                    COUNT(*) AS event_count,
-                    (
-                      SELECT e2.status
-                      FROM agent_events e2
-                      WHERE e2.job_id = e.job_id
-                      ORDER BY e2.seq DESC
-                      LIMIT 1
-                    ) AS latest_event_status,
-                    (
-                      SELECT e2.message
-                      FROM agent_events e2
-                      WHERE e2.job_id = e.job_id
-                      ORDER BY e2.seq DESC
-                      LIMIT 1
-                    ) AS latest_event_message,
-                    (
-                      SELECT e2.created_at
-                      FROM agent_events e2
-                      WHERE e2.job_id = e.job_id
-                      ORDER BY e2.seq DESC
-                      LIMIT 1
-                    ) AS latest_event_created_at
-                  FROM agent_events e
-                  GROUP BY e.job_id
-                ),
-                action_rollup AS (
-                  SELECT job_id, COUNT(*) AS action_count
-                  FROM job_actions
-                  GROUP BY job_id
-                ),
-                latest_versions AS (
-                  SELECT job_id, version_id
-                  FROM weapon_versions
-                  WHERE job_id IS NOT NULL
-                    AND version_id IN (
-                      SELECT version_id
-                      FROM weapon_versions vv
-                      WHERE vv.job_id = weapon_versions.job_id
-                      ORDER BY version_no DESC
-                      LIMIT 1
-                    )
-                ),
-                latest_models AS (
-                  SELECT job_id, model_id
-                  FROM models_3d
-                  WHERE job_id IS NOT NULL
-                    AND model_id IN (
-                      SELECT model_id
-                      FROM models_3d mm
-                      WHERE mm.job_id = models_3d.job_id
-                      ORDER BY created_at DESC, model_id DESC
-                      LIMIT 1
-                    )
-                )
-                SELECT
-                  j.job_id, j.weapon_id, w.name AS weapon_name, j.job_type, j.status,
-                  j.current_step, j.error_code, j.error_message, j.created_at,
-                  j.updated_at, j.finished_at,
-                  COALESCE(er.event_count, 0) AS event_count,
-                  COALESCE(ar.action_count, 0) AS action_count,
-                  er.latest_event_status, er.latest_event_message, er.latest_event_created_at,
-                  lv.version_id AS output_version_id,
-                  lm.model_id AS output_model_id
-                FROM generation_jobs j
-                LEFT JOIN weapons w ON w.weapon_id = j.weapon_id
-                LEFT JOIN event_rollup er ON er.job_id = j.job_id
-                LEFT JOIN action_rollup ar ON ar.job_id = j.job_id
-                LEFT JOIN latest_versions lv ON lv.job_id = j.job_id
-                LEFT JOIN latest_models lm ON lm.job_id = j.job_id
-                WHERE {where_sql}
-                ORDER BY j.updated_at DESC, j.job_id DESC
-                LIMIT ?
-                """,
-                (*params, page_size + 1),
-            ).fetchall()
-        page_rows = rows[:page_size]
-        next_cursor = None
-        if len(rows) > page_size and page_rows:
-            last = page_rows[-1]
-            next_cursor = f"{last['updated_at']}|{last['job_id']}"
-        return JobListResponse(
-            items=[
-                JobSummary(
-                    job_id=row["job_id"],
-                    weapon_id=row["weapon_id"],
-                    weapon_name=row["weapon_name"],
-                    type=row["job_type"],
-                    status=row["status"],  # type: ignore[arg-type]
-                    current_step=row["current_step"],
-                    error_code=row["error_code"],
-                    error_message=row["error_message"],
-                    event_count=int(row["event_count"]),
-                    action_count=int(row["action_count"]),
-                    latest_event_status=row["latest_event_status"],
-                    latest_event_message=row["latest_event_message"],
-                    latest_event_created_at=row["latest_event_created_at"],
-                    output_version_id=row["output_version_id"],
-                    output_model_id=row["output_model_id"],
-                    created_at=row["created_at"],
-                    updated_at=row["updated_at"],
-                    finished_at=row["finished_at"],
-                )
-                for row in page_rows
-            ],
-            next_cursor=next_cursor,
-        )
+        except JobQueryError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def list_job_actions(self, job_id: str, *, cursor: Optional[str] = None, limit: int = 50) -> JobActionListResponse:
-        if not self.has_job(job_id):
-            raise KeyError(job_id)
-        page_size = max(1, min(limit, 100))
-        clauses = ["job_id = ?"]
-        params: List[Any] = [job_id]
-        if cursor:
-            try:
-                cursor_created_at, cursor_action_id = cursor.split("|", 1)
-            except ValueError as exc:
-                raise AssetStoreError("INVALID_REQUEST", "Invalid job actions cursor.", recoverable=False) from exc
-            clauses.append("(created_at < ? OR (created_at = ? AND action_id < ?))")
-            params.extend([cursor_created_at, cursor_created_at, cursor_action_id])
-        with self._connect() as conn:
-            rows = conn.execute(
-                f"""
-                SELECT action_id, job_id, action_type, requested_step, status,
-                       previous_job_status, resulting_job_status, event_id,
-                       message, metadata_json, created_at
-                FROM job_actions
-                WHERE {" AND ".join(clauses)}
-                ORDER BY created_at DESC, action_id DESC
-                LIMIT ?
-                """,
-                (*params, page_size + 1),
-            ).fetchall()
-        page_rows = rows[:page_size]
-        next_cursor = None
-        if len(rows) > page_size and page_rows:
-            last = page_rows[-1]
-            next_cursor = f"{last['created_at']}|{last['action_id']}"
-        return JobActionListResponse(
-            items=[
-                JobActionAuditEntry(
-                    action_id=row["action_id"],
-                    job_id=row["job_id"],
-                    action_type=row["action_type"],  # type: ignore[arg-type]
-                    requested_step=row["requested_step"],
-                    status=row["status"],  # type: ignore[arg-type]
-                    previous_job_status=row["previous_job_status"],
-                    resulting_job_status=row["resulting_job_status"],
-                    event_id=row["event_id"],
-                    message=row["message"],
-                    metadata=json.loads(row["metadata_json"] or "{}"),
-                    created_at=row["created_at"],
-                )
-                for row in page_rows
-            ],
-            next_cursor=next_cursor,
-        )
+        try:
+            return self.job_queries.list_job_actions(
+                job_id,
+                cursor=cursor,
+                limit=limit,
+            )
+        except JobQueryError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def get_job_runtime_state(self, job_id: str) -> JobRuntimeStateResponse:
-        with self._connect() as conn:
-            job = conn.execute(
-                """
-                SELECT job_id, status, current_step
-                FROM generation_jobs
-                WHERE job_id = ?
-                """,
-                (job_id,),
-            ).fetchone()
-            if job is None:
-                raise KeyError(job_id)
-            task_rows = conn.execute(
-                """
-                SELECT task_record_id, job_id, step_name, attempt, provider_kind,
-                       provider_id, provider_task_id, status, cancel_requested_at,
-                       last_seen_at, metadata_json, created_at, updated_at
-                FROM provider_tasks
-                WHERE job_id = ?
-                ORDER BY created_at ASC, attempt ASC
-                """,
-                (job_id,),
-            ).fetchall()
-            checkpoint_rows = conn.execute(
-                """
-                SELECT checkpoint_id, job_id, step_name, attempt, status, resume_policy,
-                       provider_task_record_id, state_json, created_at, updated_at
-                FROM job_checkpoints
-                WHERE job_id = ?
-                ORDER BY attempt ASC, created_at ASC
-                """,
-                (job_id,),
-            ).fetchall()
-        status = str(job["status"])
-        return JobRuntimeStateResponse(
-            job_id=str(job["job_id"]),
-            status=status,  # type: ignore[arg-type]
-            current_step=job["current_step"],
-            resumable=status in {"failed", "partial_succeeded", "waiting_user"},
-            cancellable=status in {"created", "queued", "running", "waiting_provider", "waiting_user", "retrying"},
-            provider_tasks=[_provider_task_from_row(row) for row in task_rows],
-            checkpoints=[_checkpoint_from_row(row) for row in checkpoint_rows],
-        )
+        return self.job_queries.get_job_runtime_state(job_id)
 
     def recover_interrupted_jobs(self, reason: str = "manual", *, include_queued: bool = True) -> RuntimeRecoveryResponse:
         recoverable_statuses = {"created", "queued", "running", "waiting_provider", "retrying"}
@@ -3598,47 +3089,19 @@ class SQLiteAssetStore:
         return RuntimeRecoveryResponse(recovered_count=len(items), items=items)
 
     def list_events(self, job_id: str, after: Optional[str] = None) -> List[JobEvent]:
-        with self._connect() as conn:
-            if after:
-                cursor = conn.execute(
-                    "SELECT seq FROM agent_events WHERE job_id = ? AND event_id = ?",
-                    (job_id, after),
-                ).fetchone()
-                if cursor is None:
-                    raise AssetStoreError("INVALID_EVENT_CURSOR", f"Unknown event cursor for this job: {after}", recoverable=False)
-                rows = conn.execute(
-                    """
-                    SELECT event_id, seq, job_id, weapon_id, step, level, status, message,
-                           artifact_asset_id, metadata_json, created_at
-                    FROM agent_events
-                    WHERE job_id = ?
-                      AND seq > ?
-                    ORDER BY seq ASC
-                    """,
-                    (job_id, cursor["seq"]),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    """
-                    SELECT event_id, seq, job_id, weapon_id, step, level, status, message,
-                           artifact_asset_id, metadata_json, created_at
-                    FROM agent_events
-                    WHERE job_id = ?
-                    ORDER BY seq ASC
-                    """,
-                    (job_id,),
-                ).fetchall()
-        return [_event_from_row(row) for row in rows]
+        try:
+            return self.job_queries.list_events(job_id, after=after)
+        except JobQueryError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def iter_events(self, job_id: str, after: Optional[str] = None) -> Iterable[JobEvent]:
-        return iter(self.list_events(job_id, after=after))
+        try:
+            return self.job_queries.iter_events(job_id, after=after)
+        except JobQueryError as exc:
+            raise AssetStoreError(exc.code, str(exc), recoverable=exc.recoverable) from exc
 
     def has_event(self, job_id: str, event_id: str) -> bool:
-        with self._connect() as conn:
-            return conn.execute(
-                "SELECT 1 FROM agent_events WHERE job_id = ? AND event_id = ?",
-                (job_id, event_id),
-            ).fetchone() is not None
+        return self.job_queries.has_event(job_id, event_id)
 
     def cancel_job(self, job_id: str) -> JobActionResponse:
         with self._connect() as conn:
@@ -3778,8 +3241,7 @@ class SQLiteAssetStore:
             return self._request_retry(conn, row=row, retry_from=step_name, action_type="retry_from_step")
 
     def has_job(self, job_id: str) -> bool:
-        with self._connect() as conn:
-            return JobRepository(conn).exists(job_id)
+        return self.job_queries.has_job(job_id)
 
     def has_weapon(self, weapon_id: str) -> bool:
         with self._connect() as conn:
@@ -4482,127 +3944,6 @@ class SQLiteAssetStore:
                 created_at,
             ),
         )
-
-
-def _skill_cards_for_candidate(candidate: CreativeInterpretationCandidate) -> List[SkillCard]:
-    primary = candidate.combat_affordances[0]
-    secondary = candidate.combat_affordances[1] if len(candidate.combat_affordances) > 1 else primary
-    anchors = candidate.skill_anchor_points or candidate.anchor_points
-    anchor = anchors[0]
-    secondary_anchor = anchors[1] if len(anchors) > 1 else anchor
-    return [
-        SkillCard(
-            slot="normal",
-            name=f"{candidate.name}·试锋",
-            trigger="轻击",
-            effect=f"沿 {anchor} 释放短促{primary}效果。",
-            anchor_point=anchor,
-            combat_affordances=[primary],
-            cooldown_hint="short",
-            cost_hint="low",
-        ),
-        SkillCard(
-            slot="heavy",
-            name=f"{candidate.name}·蓄势",
-            trigger="重击蓄力",
-            effect=f"把结构能量汇入 {secondary_anchor}，形成强化{secondary}。",
-            anchor_point=secondary_anchor,
-            combat_affordances=[secondary],
-            cooldown_hint="medium",
-            cost_hint="medium",
-        ),
-        SkillCard(
-            slot="mobility_or_defense",
-            name=f"{candidate.name}·护步",
-            trigger="闪避或防御",
-            effect="短时展开护体边界，同时保留角色持握或穿戴姿态。",
-            anchor_point=anchor,
-            combat_affordances=["defense" if "defense" in candidate.combat_affordances else "mobility"],
-            cooldown_hint="medium",
-            cost_hint="medium",
-        ),
-        SkillCard(
-            slot="control",
-            name=f"{candidate.name}·锁域",
-            trigger="长按技能",
-            effect="围绕受保护区域生成控制节点，限制敌方移动或投射路径。",
-            anchor_point=secondary_anchor,
-            combat_affordances=["area_control" if "area_control" in candidate.combat_affordances else "seal"],
-            cooldown_hint="long",
-            cost_hint="medium",
-        ),
-        SkillCard(
-            slot="passive",
-            name=f"{candidate.name}·灵纹回路",
-            trigger="被动",
-            effect="当结构节点保持完整时提升视觉能量层级和回收稳定性。",
-            anchor_point=anchor,
-            combat_affordances=["recover"],
-            cooldown_hint="passive",
-            cost_hint="none",
-        ),
-        SkillCard(
-            slot="ultimate",
-            name=f"{candidate.name}·神兵显化",
-            trigger="终结技",
-            effect=f"完整展开 {candidate.name} 的重诠释形态，组合{primary}与{secondary}形成大范围表现。",
-            anchor_point=secondary_anchor,
-            combat_affordances=list(dict.fromkeys([primary, secondary, "transform"])),  # type: ignore[list-item]
-            cooldown_hint="ultimate",
-            cost_hint="high",
-        ),
-    ]
-
-
-def _event_from_row(row: sqlite3.Row) -> JobEvent:
-    metadata = json.loads(row["metadata_json"] or "{}")
-    return JobEvent(
-        id=row["event_id"],
-        seq=row["seq"],
-        job_id=row["job_id"],
-        weapon_id=row["weapon_id"],
-        step=row["step"],
-        level=row["level"],
-        status=row["status"],
-        message=row["message"],
-        artifact_asset_id=row["artifact_asset_id"],
-        progress=metadata.get("progress"),
-        metadata=metadata,
-        created_at=row["created_at"],
-    )
-
-
-def _provider_task_from_row(row: sqlite3.Row) -> ProviderTaskSummary:
-    return ProviderTaskSummary(
-        task_record_id=row["task_record_id"],
-        job_id=row["job_id"],
-        step=row["step_name"],
-        attempt=row["attempt"],
-        provider_kind=row["provider_kind"],
-        provider_id=row["provider_id"],
-        provider_task_id=row["provider_task_id"],
-        status=row["status"],
-        cancel_requested_at=row["cancel_requested_at"],
-        last_seen_at=row["last_seen_at"],
-        metadata=json.loads(row["metadata_json"] or "{}"),
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
-    )
-
-
-def _checkpoint_from_row(row: sqlite3.Row) -> JobCheckpointSummary:
-    return JobCheckpointSummary(
-        checkpoint_id=row["checkpoint_id"],
-        job_id=row["job_id"],
-        step=row["step_name"],
-        attempt=row["attempt"],
-        status=row["status"],
-        resume_policy=row["resume_policy"],
-        provider_task_record_id=row["provider_task_record_id"],
-        state=json.loads(row["state_json"] or "{}"),
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
-    )
 
 
 def _latest_step_attempt(conn: sqlite3.Connection, job_id: str, step_name: str) -> int:
