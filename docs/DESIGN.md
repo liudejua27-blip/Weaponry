@@ -413,6 +413,8 @@ scale = dimensionless
 
 桌面加载器在 GLB asset scene 上应用固定 `×1000`，Graph node Transform 仍保持毫米。服务端吸附使用 Connector 局部毫米坐标计算世界 frame：非 root 替换固定其父节点，root 替换固定 root；后代沿确定性 BFS tree 递归重定位。`mirror_axis` 是独立的 `none/x/y/z` Graph 状态，视口将其转换为渲染 scale 符号，Connector 位置使用同一镜像轴参与吸附；Transform 本身继续只允许正 scale。树外约束边必须在 `0.1 mm / 0.1°` 容差内同时成立，否则 ChangeSet preview 失败。该算法不修改父版本，只写入 preview Graph 和确认后的子版本。
 
+视口卸载必须释放 cloned material、geometry、GLTF texture、SkinnedMesh skeleton、OrbitControls、renderer 和 WebGL context。浏览器压力门连续切换 V3/V4，读取 renderer memory、DOM canvas/context 计数和 GC 后 JS heap；它证明合成 fixture 的释放行为，不替代正式资产或 Tauri 窗口中的 GPU profiling。
+
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 
 ## 10. 数据与资产

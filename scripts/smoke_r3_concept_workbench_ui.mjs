@@ -338,6 +338,7 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.getByRole('button', { name: '取消镜像' }).waitFor()
     await page.screenshot({ path: MIRROR_SCREENSHOT, fullPage: true })
     if ((await stat(MIRROR_SCREENSHOT)).size < 20_000) throw new Error('mirror screenshot is unexpectedly small')
+    const lifecycle = await stressViewportLifecycle(page)
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
 
@@ -363,11 +364,79 @@ async function runWorkbenchUi(baseUrl, seeded) {
       connector_snap_verified: true,
       mirror_version_verified: true,
       mirror_screenshot: MIRROR_SCREENSHOT,
+      viewport_lifecycle: lifecycle,
       export_downloaded: true,
     }
   } finally {
     await browser.close()
   }
+}
+
+async function stressViewportLifecycle(page) {
+  const session = await page.context().newCDPSession(page)
+  await session.send('Performance.enable')
+  await session.send('HeapProfiler.collectGarbage')
+  const before = await performanceMetric(session, 'JSHeapUsedSize')
+  const host = page.locator('.weapon-viewport')
+  const initialGeneration = Number(await host.getAttribute('data-renderer-generation') || '0')
+  let currentGeneration = initialGeneration
+  const cycles = 20
+  for (let index = 0; index < cycles; index += 1) {
+    currentGeneration = await switchVersionAndWait(page, 'V3', currentGeneration)
+    currentGeneration = await switchVersionAndWait(page, 'V4', currentGeneration)
+    const canvasCount = await page.locator('.weapon-viewport canvas').count()
+    const activeContexts = Number(await host.getAttribute('data-active-webgl-contexts') || '0')
+    if (canvasCount !== 1 || activeContexts !== 1) {
+      throw new Error(`viewport lifecycle leak at cycle ${index}: canvases=${canvasCount}, contexts=${activeContexts}`)
+    }
+  }
+  await session.send('HeapProfiler.collectGarbage')
+  const after = await performanceMetric(session, 'JSHeapUsedSize')
+  const finalGeneration = Number(await host.getAttribute('data-renderer-generation') || '0')
+  const generationDelta = finalGeneration - initialGeneration
+  const heapGrowth = after - before
+  if (generationDelta < cycles * 2) {
+    throw new Error(`viewport lifecycle did not exercise enough renderer generations: ${generationDelta}`)
+  }
+  if (heapGrowth > 64 * 1024 * 1024) {
+    throw new Error(`viewport JS heap grew by ${heapGrowth} bytes after GC`)
+  }
+  const geometries = Number(await host.getAttribute('data-renderer-geometries') || '0')
+  const textures = Number(await host.getAttribute('data-renderer-textures') || '0')
+  if (geometries > 32 || textures > 32) {
+    throw new Error(`viewport GPU resource counts are unbounded: geometries=${geometries}, textures=${textures}`)
+  }
+  await session.detach()
+  return {
+    cycles,
+    renderer_generations: generationDelta,
+    active_contexts: 1,
+    canvas_count: 1,
+    heap_growth_bytes_after_gc: heapGrowth,
+    geometries,
+    textures,
+  }
+}
+
+async function switchVersionAndWait(page, versionLabel, previousGeneration) {
+  await page.getByRole('button', { name: new RegExp(`^${versionLabel}\\b`) }).click()
+  await page.waitForFunction(
+    ({ label, generation }) => {
+      const activeVersion = document.querySelector('.version-list button.active')
+      const viewport = document.querySelector('.weapon-viewport')
+      return activeVersion?.textContent?.trim().startsWith(label)
+        && Number(viewport?.dataset.rendererGeneration || '0') > generation
+        && viewport?.dataset.loadState === 'ready'
+    },
+    { label: versionLabel, generation: previousGeneration },
+    { timeout: 20_000 },
+  )
+  return Number(await page.locator('.weapon-viewport').getAttribute('data-renderer-generation') || '0')
+}
+
+async function performanceMetric(session, name) {
+  const result = await session.send('Performance.getMetrics')
+  return result.metrics.find((metric) => metric.name === name)?.value ?? 0
 }
 
 async function verifyReplacement(baseUrl, projectId) {

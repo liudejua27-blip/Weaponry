@@ -146,7 +146,7 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个米制可渲染 GLB 验证真实工作台交互，用 9 个含 triangle/UV/material 的最小 GLB 验证 Module Pack，并用 100 组含镜像数学样本及 API Graph 验证 Connector 重定位、mirror Version/Export、冲突/lock 拒绝、幂等和重启恢复。它仍不证明正式 Blender 资产矩阵上的 ≥95%、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个米制可渲染 GLB 验证真实工作台交互，用 9 个含 triangle/UV/material 的最小 GLB 验证 Module Pack，用 100 组含镜像数学样本及 API Graph 验证 Connector，并连续切换 V3/V4 20 轮检查 canvas、WebGL context、renderer resource 和 GC heap。它仍不证明正式 Blender 资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
 
 专项 Connector 门：
 

@@ -141,7 +141,8 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
-| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；完整吸附、镜像和正式 8–12 模块待完成 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；正式 10–12 模块及其替换矩阵待完成 |
+| 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
 | Module Pack 资产门 | `ModulePackManifest@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现 | 工具链完成；正式 10–12 个 Blender GLB 仍需制作 |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
@@ -155,7 +156,7 @@ core.side_panel_left / core.side_panel_right
 | Concept Export | `ConceptExportManifest@1`、源 GLB/Spec/Graph/Quality ZIP、hash、JobEvent、下载与重启恢复已实现 | 当前不是 combined GLB；OBJ/PNG/爆炸图进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换兼容模块、自动重映射 Connector 后创建子版本。旧 Weapon/Unity 主链继续作为回归 baseline；当前 R3 仍不能证明正式模块资产、拖放/完整吸附、combined GLB、实际网格检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。旧 Weapon/Unity 主链继续作为回归 baseline；当前 R3 仍不能证明正式模块资产矩阵、combined GLB、实际网格检查或 CAD/DFM 已完成。
 
 正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 

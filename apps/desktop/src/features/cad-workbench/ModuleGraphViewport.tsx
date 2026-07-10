@@ -7,6 +7,8 @@ import type { ModuleAssetRecord, ModuleGraphRecord } from '../../shared/types'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
+let viewportRendererGeneration = 0
+let activeViewportContexts = 0
 
 type ModuleGraphViewportProps = {
   graphRecord: ModuleGraphRecord | null
@@ -56,6 +58,10 @@ export function ModuleGraphViewport({
     scene.background = new THREE.Color('#101823')
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    viewportRendererGeneration += 1
+    activeViewportContexts += 1
+    host.dataset.rendererGeneration = String(viewportRendererGeneration)
+    host.dataset.activeWebglContexts = String(activeViewportContexts)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.shadowMap.enabled = true
@@ -259,6 +265,8 @@ export function ModuleGraphViewport({
     const render = () => {
       controls.update()
       renderer.render(scene, camera)
+      host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
+      host.dataset.rendererTextures = String(renderer.info.memory.textures)
       animationFrame = requestAnimationFrame(render)
     }
     render()
@@ -273,6 +281,9 @@ export function ModuleGraphViewport({
       controls.dispose()
       disposeObject(scene)
       renderer.dispose()
+      renderer.forceContextLoss()
+      activeViewportContexts = Math.max(0, activeViewportContexts - 1)
+      host.dataset.activeWebglContexts = String(activeViewportContexts)
       renderer.domElement.remove()
     }
   }, [
@@ -293,7 +304,12 @@ export function ModuleGraphViewport({
 
   return (
     <div className="weapon-viewport-shell">
-      <div className="weapon-viewport" ref={hostRef} aria-label="真实 ModuleGraph 三维视口" />
+      <div
+        className="weapon-viewport"
+        ref={hostRef}
+        aria-label="真实 ModuleGraph 三维视口"
+        data-load-state={loadState}
+      />
       {loadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
           <strong>{loadState === 'loading' ? '加载 ModuleGraph' : loadState === 'failed' ? 'GLB 无法显示' : '等待模块组合'}</strong>
@@ -329,10 +345,19 @@ function frameCamera(
 }
 
 function disposeObject(root: THREE.Object3D) {
+  const textures = new Set<THREE.Texture>()
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return
     object.geometry?.dispose()
     const materials = Array.isArray(object.material) ? object.material : [object.material]
-    materials.forEach((material) => material?.dispose())
+    materials.forEach((material) => {
+      if (!material) return
+      Object.values(material).forEach((value) => {
+        if (value instanceof THREE.Texture) textures.add(value)
+      })
+      material.dispose()
+    })
+    if (object instanceof THREE.SkinnedMesh) object.skeleton.dispose()
   })
+  textures.forEach((texture) => texture.dispose())
 }
