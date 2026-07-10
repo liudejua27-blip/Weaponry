@@ -147,7 +147,7 @@ packs/weapon-concept/
   rules/
 ```
 
-迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。旧 Create、Generate-3D、Worker Runtime 已分别迁入 application services；Unity Export 的 sync/queue/worker、输入验证、Manifest 与 ZIP builder 已迁入 `LegacyUnityExportService`，Worker Runtime 直接注入其 worker handler，不再回调 facade 业务方法。facade 只做组装、代理和旧错误映射。这些仍是冻结兼容链，不是 Concept 新架构；最后的 Patch workflow 继续按相同 use-case 边界迁移。
+迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。旧 Create、Patch、Generate-3D、Worker Runtime 与 Unity Export 已分别迁入 application services；facade 只做依赖组装、代理、旧错误映射，以及共享资产/质量/事件 adapter。AST 门要求 10 个 workflow facade 方法均不超过 30 行，并禁止高层 Provider/ZIP 编排回流。这些仍是冻结兼容链，不是 Concept 新架构。
 
 ## 6. 核心领域合同
 

@@ -34,6 +34,6 @@ npm run r1:worker-gate
 
 ## 未证明
 
-- Patch workflow 迁出 facade；
+- `App.tsx` 前端业务控制器拆分；
 - 多进程高并发 worker 和正式压力阈值；
 - 新 Concept jobs 的异步 worker 化。

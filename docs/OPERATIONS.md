@@ -136,10 +136,11 @@ npm run r1:create-weapon-gate
 npm run r1:generate3d-gate
 npm run r1:worker-gate
 npm run r1:unity-export-gate
+npm run r1:patch-gate
 npm run r1:foundation-gate
 ```
 
-`r1:create-weapon-gate` 验证 facade 只代理、同步 Provider 编排位于 application service，并回归默认创建、幂等冲突、LLM、ComfyUI 和 GLB/质量资产链。`r1:generate3d-gate` 验证同步/排队入口、幂等、追加版本、worker 恢复、submit/poll/fetch/cancel、常驻循环、Local HTTP Provider 和本地 runtime wrapper。`r1:worker-gate` 固定 claim/lease/dispatch、Generate-3D commit、Unity worker dispatch、恢复和 JobAction 协作。`r1:unity-export-gate` 验证同步/异步导出、Manifest/ZIP、资产 reveal 和包结构预检；未配置 Unity executable 时只证明 preflight，不证明编辑器 batchmode import。`r1:foundation-gate` 汇总上述门并执行 `m6:gate`。
+`r1:create-weapon-gate` 验证创建 Provider 编排；`r1:generate3d-gate` 验证同步/排队入口与 3D Provider；`r1:worker-gate` 固定 claim/lease/dispatch、恢复和 JobAction；`r1:unity-export-gate` 验证 Manifest/ZIP 与包预检；`r1:patch-gate` 验证 mask/manifest、ComfyUI、负例、追加版本和质量报告。`r1:foundation-gate` 汇总上述门、执行 `m6:gate`，并通过 AST 证明 `asset_store.py` 的完整 workflows 已全部迁出。未配置 Unity executable 时仍只证明 preflight，不证明编辑器 batchmode import。
 
 R1 当前完整回归：
 

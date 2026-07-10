@@ -32,5 +32,5 @@ npm run r1:generate3d-gate
 
 ## 未证明
 
-- Patch application-service 边界；
+- `App.tsx` 前端业务控制器拆分；
 - 正式 GPU 模型生成质量或制造级 CAD/DFM。

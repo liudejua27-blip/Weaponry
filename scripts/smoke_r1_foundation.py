@@ -86,6 +86,8 @@ def main() -> None:
         generate_3d_workflow_boundary = _assert_generate_3d_workflow_boundary()
         worker_runtime_boundary = _assert_worker_runtime_boundary()
         unity_export_boundary = _assert_unity_export_boundary()
+        patch_workflow_boundary = _assert_patch_workflow_boundary()
+        asset_store_facade_boundary = _assert_asset_store_facade_boundary()
 
     print(
         {
@@ -97,6 +99,8 @@ def main() -> None:
             "generate_3d_workflow": generate_3d_workflow_boundary,
             "worker_runtime": worker_runtime_boundary,
             "unity_export_workflow": unity_export_boundary,
+            "patch_workflow": patch_workflow_boundary,
+            "asset_store_facade": asset_store_facade_boundary,
         }
     )
 
@@ -296,6 +300,96 @@ def _assert_unity_export_boundary() -> dict[str, int | bool]:
         "manifest_zip_in_service": True,
         "asset_store_lines": facade_lines,
         "service_lines": len(service_source.splitlines()),
+    }
+
+
+def _assert_patch_workflow_boundary() -> dict[str, int | bool]:
+    facade_path = ROOT / "apps" / "agent" / "wushen_agent" / "asset_store.py"
+    service_path = (
+        ROOT / "apps" / "agent" / "wushen_agent" / "application" / "patch_workflow.py"
+    )
+    facade_source = facade_path.read_text(encoding="utf-8")
+    service_source = service_path.read_text(encoding="utf-8")
+    facade_patch = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "patch_weapon",
+    )
+    service_patch = _class_method_source(
+        service_source,
+        "LegacyPatchService",
+        "patch_weapon",
+    )
+    assert "patch_workflow.patch_weapon" in facade_patch
+    for forbidden in ("generate_patch", "validate_patch_manifest", "mask_png_has_ink"):
+        assert forbidden not in facade_patch
+    for required in (
+        "generate_patch",
+        "validate_patch_manifest",
+        "mask_png_has_ink",
+        "_record_provider_task",
+        "_upsert_checkpoint",
+        "_patch_quality_report",
+    ):
+        assert required in service_patch or required in service_source, (
+            f"Patch service lost workflow responsibility: {required}"
+        )
+    assert "def _mock_patch_svg" not in facade_source
+    assert "def _mock_patch_svg" not in service_source
+    facade_lines = len(facade_source.splitlines())
+    assert facade_lines <= 1475, f"AssetStore facade expanded to {facade_lines} lines"
+    return {
+        "facade_delegates": True,
+        "mask_manifest_provider_in_service": True,
+        "dead_mock_svg_removed": True,
+        "asset_store_lines": facade_lines,
+        "service_lines": len(service_source.splitlines()),
+    }
+
+
+def _assert_asset_store_facade_boundary() -> dict[str, int | bool]:
+    facade_path = ROOT / "apps" / "agent" / "wushen_agent" / "asset_store.py"
+    facade_source = facade_path.read_text(encoding="utf-8")
+    workflow_methods = (
+        "create_weapon",
+        "create_interpretation",
+        "confirm_recast",
+        "generate_3d",
+        "enqueue_generate_3d",
+        "run_worker_once",
+        "export_unity",
+        "enqueue_export_unity",
+        "patch_weapon",
+        "upload_asset",
+    )
+    method_lines: dict[str, int] = {}
+    for method_name in workflow_methods:
+        source = _class_method_source(
+            facade_source,
+            "SQLiteAssetStore",
+            method_name,
+        )
+        method_lines[method_name] = len(source.splitlines())
+        assert method_lines[method_name] <= 30, (
+            f"AssetStore workflow facade grew: {method_name}={method_lines[method_name]}"
+        )
+    for forbidden in (
+        "plan_weapon_spec(",
+        "generate_concept(",
+        "generate_patch(",
+        "submit_rough_model(",
+        "poll_rough_model(",
+        "fetch_rough_model(",
+        "zipfile.ZipFile(",
+    ):
+        assert forbidden not in facade_source, (
+            f"Complete workflow responsibility returned to AssetStore: {forbidden}"
+        )
+    return {
+        "complete_workflows_extracted": True,
+        "workflow_facade_count": len(workflow_methods),
+        "maximum_facade_method_lines": max(method_lines.values()),
+        "asset_store_lines": len(facade_source.splitlines()),
     }
 
 

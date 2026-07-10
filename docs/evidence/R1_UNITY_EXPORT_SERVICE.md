@@ -38,6 +38,6 @@ npm run r1:unity-export-gate
 ## 未证明
 
 - Unity Editor batchmode 实际导入；
-- Patch workflow 已迁出 facade；
+- `App.tsx` 前端业务控制器拆分；
 - 新 Concept Export 的 DCC round-trip；
 - 制造级 CAD/DFM。

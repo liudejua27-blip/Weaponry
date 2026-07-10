@@ -9,7 +9,7 @@
 截至 2026-07-10：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
-- `asset_store.py` 已从约 5210 行降至约 1819 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Generate-3D、Worker Runtime 和 Unity Export 已提取；
+- `asset_store.py` 已从约 5210 行降至约 1449 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime 和 Unity Export 已提取；10 个 workflow facade 方法最长 20 行；
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
@@ -27,7 +27,7 @@
 | R0 tag / branch | 完成 | `legacy-wushen-v0.1`、`codex/refactor-cad-dfm-agent` |
 | R0 ADR / baseline | 完成 | `docs/ADR`、`docs/evidence/R0_BASELINE.md` |
 | R1 infrastructure | 主要通用切片完成 | `forgecad_agent/infrastructure` |
-| R1 application services | 进行中 | Job query/command/recovery、Asset、Library、Creative Recast、Create Weapon、Generate-3D、Worker Runtime、Unity Export services；Patch 仍待提取 |
+| R1 application services | 后端 workflow 边界完成 | Job query/command/recovery、Asset、Library、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime、Unity Export services；facade 仅保留组合/adapter/helper |
 | R1 API factory | 完成当前切片 | legacy routes + base app factory |
 | R1 frontend shell | 完成当前切片 | router、AppShell、Providers |
 | R1 workbench reference | 五阶段语义已完成 | `#/cad`、`design-qa.md`；真实 ModuleGraph/Connector 进入 R2–R3 |
@@ -97,8 +97,8 @@ CAD/DFM Engineering Pack 在 R6 首轮 Beta 证明产品价值后进入独立路
 
 - 提取 connection、migration、content-addressed store；
 - 提取 Job、Asset、Idempotency、Checkpoint repositories 和 UoW；
-- 提取 legacy Job、Library、Asset Upload、Creative Recast、Create Weapon、Generate-3D、Worker Runtime 和 Unity Export services；
-- 将剩余 Patch workflow 移出 `asset_store.py`；
+- 提取 legacy Job、Library、Asset Upload、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime 和 Unity Export services；
+- `asset_store.py` 不再包含完整 workflow；共享资产/质量/事件 helper 作为注入端口保留，后续可继续下沉但不阻塞当前 R1 后端退出条件；
 - 保持 route handler 不写 SQL、不组文件、不直接调用 Provider。
 
 前端：
@@ -315,15 +315,15 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 ## 8. 最近十个可执行动作
 
-1. 在已提取 Create Weapon、Generate-3D、Worker Runtime 与 Unity Export 基础上，将最后的 Patch workflow 从 `asset_store.py` 提取为 application service，再审计 facade 是否只剩通用 helper/adapter。
-2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
-3. 制定 Module/Connector/材质/UV/LOD 命名规范。
-4. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
-5. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
-6. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
-7. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
-8. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
-9. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
-10. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
+1. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 前端边界。
+2. 制定 Module/Connector/材质/UV/LOD 命名规范。
+3. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
+4. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
+5. 增强 ChangeSet 操作时间线的分页、搜索与 rejected diagnostic；基础 API/桌面回读、版本时间线和浏览器 GPU 生命周期压力门已完成，正式资产/Tauri profiling 待补。
+6. 在已完成 combined GLB、OBJ/MTL、preview/exploded、front/side/top 与 8 帧 turntable 基础上补转台视频、抗锯齿/阴影，并评估 glTF Transform/Meshopt 优化及 Blender/Assimp round-trip。
+7. 在已完成 triangle BVH/SAT/containment 与 Finding 节点聚焦基础上补异常间隙、对称/隐藏几何/LOD、相交三角形局部高亮，并形成完整 C07 truth set。
+8. 接入 AI Brief/Module Planner/Change Planner 并验证三方案差异度。
+9. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
+10. AI 指标达标后扩展到 24–30 模块，执行首轮 Beta、打包与 C01–C10 发布审计。
 
-第 9 步的数据闭环通过后再执行第 10 步；AI 指标达标后才进入局部组件生成与 Beta。CAD/DFM Engineering Pack 不提前占用 P0 主链。
+第 8 步的数据闭环通过后再执行第 9 步；AI 指标达标后才执行第 10 步。CAD/DFM Engineering Pack 不提前占用 P0 主链。

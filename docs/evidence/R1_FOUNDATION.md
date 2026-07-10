@@ -1,7 +1,7 @@
 # R1 通用基础设施证据
 
 日期：2026-07-10
-状态：进行中，本文只证明首个基础设施切片，不代表 R1 完成。
+状态：进行中；后端 facade workflow 边界已完成，前端 `App.tsx` 控制器仍待拆分，因此不代表 R1 整体完成。
 
 ## 已完成切片
 
@@ -24,7 +24,8 @@
 - 将 Generate-3D 的 runtime 选择、同步执行与排队事务迁入 `LegacyGenerate3DService`；worker claim/poll/commit 随后继续迁入下一条 service；
 - 将 worker claim/lease/dispatch、Generate-3D draft/submit/poll/fetch/cancel/commit 迁入 `LegacyWorkerService`；Unity worker handler 作为注入端口保持兼容；
 - 将 Unity Export 的 sync/queue/worker、输入验证、Manifest 与 ZIP builder 迁入 `LegacyUnityExportService`，Worker Runtime 直接注入 export handler；
-- `asset_store.py` 从约 3608 行降至 1819 行；结构 smoke 禁止 Provider/worker/export 编排重新回流 facade；
+- 将 Patch 的 mask/manifest、Image Provider、质量报告、ProviderTask、Checkpoint 与 child Version 编排迁入 `LegacyPatchService`；删除未调用的 mock SVG helper；
+- `asset_store.py` 从约 3608 行降至 1449 行；10 个 workflow facade 方法最长 20 行，结构 smoke 禁止 Provider/worker/export/patch 编排重新回流；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
 - `main.py` 从约 458 行降至约 54 行，只保留应用组装和 worker 生命周期。
@@ -153,6 +154,14 @@ npm run r1:unity-export-gate
 
 结果：通过。同步/排队/worker、幂等 replay/409、相对 ZIP 路径、Manifest hash、6 项 package preflight 和资产 reveal 保持；本机未配置 Unity executable，因此真实 batchmode import 仍是明确环境阻塞。
 
+Patch 提取后补充运行：
+
+```bash
+npm run r1:patch-gate
+```
+
+结果：通过。Store/HTTP/ComfyUI、mask 空白/尺寸、manifest 引用、幂等、追加版本、ProviderTask、Checkpoint 与质量报告合同保持；AST facade 审计确认所有完整 legacy workflows 已迁出。
+
 Library/Version 提取后补充运行：
 
 ```bash
@@ -165,7 +174,6 @@ npm run desktop:p0-context-continuity-smoke
 
 ## 尚未完成
 
-- `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- Patch 是 `asset_store.py` 中最后仍待提取的完整 legacy workflow；
+- `asset_store.py` 仍保留共享资产/模型质量/事件写入 helper，可继续下沉为 repository/adapter，但已不承担完整业务 workflow；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - R2 Concept 数据链已经独立落地，但 R1 legacy facade 边界仍未全部完成。
