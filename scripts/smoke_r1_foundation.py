@@ -85,6 +85,7 @@ def main() -> None:
         create_workflow_boundary = _assert_create_weapon_workflow_boundary()
         generate_3d_workflow_boundary = _assert_generate_3d_workflow_boundary()
         worker_runtime_boundary = _assert_worker_runtime_boundary()
+        unity_export_boundary = _assert_unity_export_boundary()
 
     print(
         {
@@ -95,6 +96,7 @@ def main() -> None:
             "create_weapon_workflow": create_workflow_boundary,
             "generate_3d_workflow": generate_3d_workflow_boundary,
             "worker_runtime": worker_runtime_boundary,
+            "unity_export_workflow": unity_export_boundary,
         }
     )
 
@@ -243,6 +245,55 @@ def _assert_worker_runtime_boundary() -> dict[str, int | bool]:
         "facade_delegates": True,
         "claim_lease_dispatch_in_service": True,
         "generate_provider_commit_in_service": True,
+        "asset_store_lines": facade_lines,
+        "service_lines": len(service_source.splitlines()),
+    }
+
+
+def _assert_unity_export_boundary() -> dict[str, int | bool]:
+    facade_path = ROOT / "apps" / "agent" / "wushen_agent" / "asset_store.py"
+    service_path = (
+        ROOT / "apps" / "agent" / "wushen_agent" / "application" / "unity_export.py"
+    )
+    facade_source = facade_path.read_text(encoding="utf-8")
+    service_source = service_path.read_text(encoding="utf-8")
+    facade_enqueue = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "enqueue_export_unity",
+    )
+    facade_export = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "export_unity",
+    )
+    facade_init = _class_method_source(
+        facade_source,
+        "SQLiteAssetStore",
+        "__init__",
+    )
+    assert "unity_export_workflow.enqueue_export_unity" in facade_enqueue
+    assert "unity_export_workflow.export_unity" in facade_export
+    assert "unity_export_workflow.complete_worker_job" in facade_init
+    assert "def _complete_export_unity_worker_job" not in facade_source
+    for forbidden in ("export_packages", "_build_unity_export_zip", "zipfile"):
+        assert forbidden not in facade_enqueue
+        assert forbidden not in facade_export
+    for method_name in (
+        "enqueue_export_unity",
+        "export_unity",
+        "complete_worker_job",
+        "_validate_unity_export_inputs",
+        "_unity_export_manifest",
+        "_build_unity_export_zip",
+    ):
+        _class_method_source(service_source, "LegacyUnityExportService", method_name)
+    facade_lines = len(facade_source.splitlines())
+    assert facade_lines <= 1850, f"AssetStore facade expanded to {facade_lines} lines"
+    return {
+        "facade_delegates_sync_and_queue": True,
+        "worker_handler_in_service": True,
+        "manifest_zip_in_service": True,
         "asset_store_lines": facade_lines,
         "service_lines": len(service_source.splitlines()),
     }

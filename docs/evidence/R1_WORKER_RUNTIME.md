@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 legacy worker 的 job claim、lease、dispatch 与 Generate-3D Provider 执行已从 `SQLiteAssetStore` 迁入 application service，同时保持 Generate-3D 和 Unity Export worker 行为。Unity 的具体打包 handler 仍作为注入端口留在 facade，因而不代表 R1 完成。
+范围：证明 legacy worker 的 job claim、lease、dispatch 与 Generate-3D Provider 执行已从 `SQLiteAssetStore` 迁入 application service，同时保持 Generate-3D 和 Unity Export worker 行为。Unity 打包 handler 随后已迁入 `LegacyUnityExportService`，见 `R1_UNITY_EXPORT_SERVICE.md`；R1 仍未完成。
 
 ## 边界变化
 
@@ -11,7 +11,7 @@
 - Generate-3D handler 管理 draft Version、模型输入、Provider submit/poll/fetch/cancel、ProviderTask、Checkpoint、质量资产与唯一 commit；
 - `waiting_provider` 会释放 runner/lease，后续 poll 从持久化 task/checkpoint 恢复；
 - 取消请求在 fetch 和 commit 前重复检查，避免取消后写入模型或提交 Version；
-- Unity worker handler 作为显式 callable port 注入，下一切片迁入 Export service；
+- Unity worker handler 通过显式 callable port 注入，现由 `LegacyUnityExportService` 提供；
 - `SQLiteAssetStore.run_worker_once` 只剩单行 service 代理；
 - `asset_store.py` 从 3052 行降至 2413 行。
 
@@ -34,7 +34,6 @@ npm run r1:worker-gate
 
 ## 未证明
 
-- Unity export handler/ZIP builder 迁出 facade；
 - Patch workflow 迁出 facade；
 - 多进程高并发 worker 和正式压力阈值；
 - 新 Concept jobs 的异步 worker 化。

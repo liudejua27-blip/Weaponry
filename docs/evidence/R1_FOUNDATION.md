@@ -23,7 +23,8 @@
 - 将旧同步 Create Weapon 的 LLM → Image → 3D → Quality → JobEvent 编排迁入 `LegacyCreateWeaponService`；`SQLiteAssetStore.create_weapon` 只保留代理与幂等异常映射；
 - 将 Generate-3D 的 runtime 选择、同步执行与排队事务迁入 `LegacyGenerate3DService`；worker claim/poll/commit 随后继续迁入下一条 service；
 - 将 worker claim/lease/dispatch、Generate-3D draft/submit/poll/fetch/cancel/commit 迁入 `LegacyWorkerService`；Unity worker handler 作为注入端口保持兼容；
-- `asset_store.py` 从约 3608 行降至 2413 行；结构 smoke 禁止 Provider/worker 编排重新回流 facade；
+- 将 Unity Export 的 sync/queue/worker、输入验证、Manifest 与 ZIP builder 迁入 `LegacyUnityExportService`，Worker Runtime 直接注入 export handler；
+- `asset_store.py` 从约 3608 行降至 1819 行；结构 smoke 禁止 Provider/worker/export 编排重新回流 facade；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
 - `main.py` 从约 458 行降至约 54 行，只保留应用组装和 worker 生命周期。
@@ -144,6 +145,14 @@ npm run r1:worker-gate
 
 结果：通过。结构门确认 `run_worker_once` facade 只代理；行为门覆盖 claim/lease、等待 Provider 重入、唯一 commit、取消抑制、Unity worker dispatch、runtime recovery 与 JobAction 协作。
 
+Unity Export 提取后补充运行：
+
+```bash
+npm run r1:unity-export-gate
+```
+
+结果：通过。同步/排队/worker、幂等 replay/409、相对 ZIP 路径、Manifest hash、6 项 package preflight 和资产 reveal 保持；本机未配置 Unity executable，因此真实 batchmode import 仍是明确环境阻塞。
+
 Library/Version 提取后补充运行：
 
 ```bash
@@ -157,6 +166,6 @@ npm run desktop:p0-context-continuity-smoke
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- Patch 与 Unity export handler 等其余 legacy 工作流仍待提取；
+- Patch 是 `asset_store.py` 中最后仍待提取的完整 legacy workflow；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - R2 Concept 数据链已经独立落地，但 R1 legacy facade 边界仍未全部完成。

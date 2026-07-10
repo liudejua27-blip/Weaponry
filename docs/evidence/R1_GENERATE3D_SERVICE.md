@@ -32,5 +32,5 @@ npm run r1:generate3d-gate
 
 ## 未证明
 
-- Patch 与 Unity export application-service 边界；
+- Patch application-service 边界；
 - 正式 GPU 模型生成质量或制造级 CAD/DFM。

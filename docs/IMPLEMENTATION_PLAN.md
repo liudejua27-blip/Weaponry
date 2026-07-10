@@ -9,7 +9,7 @@
 截至 2026-07-10：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
-- `asset_store.py` 已从约 5210 行降至约 2413 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Generate-3D 入口，以及 worker claim/lease/dispatch 与 Generate-3D provider commit 已提取；
+- `asset_store.py` 已从约 5210 行降至约 1819 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Generate-3D、Worker Runtime 和 Unity Export 已提取；
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
@@ -27,7 +27,7 @@
 | R0 tag / branch | 完成 | `legacy-wushen-v0.1`、`codex/refactor-cad-dfm-agent` |
 | R0 ADR / baseline | 完成 | `docs/ADR`、`docs/evidence/R0_BASELINE.md` |
 | R1 infrastructure | 主要通用切片完成 | `forgecad_agent/infrastructure` |
-| R1 application services | 进行中 | Job query/command/recovery、Asset、Library、Creative Recast、Create Weapon、Generate-3D entry、Worker Runtime services；Patch/Unity export handler 仍待提取 |
+| R1 application services | 进行中 | Job query/command/recovery、Asset、Library、Creative Recast、Create Weapon、Generate-3D、Worker Runtime、Unity Export services；Patch 仍待提取 |
 | R1 API factory | 完成当前切片 | legacy routes + base app factory |
 | R1 frontend shell | 完成当前切片 | router、AppShell、Providers |
 | R1 workbench reference | 五阶段语义已完成 | `#/cad`、`design-qa.md`；真实 ModuleGraph/Connector 进入 R2–R3 |
@@ -97,8 +97,8 @@ CAD/DFM Engineering Pack 在 R6 首轮 Beta 证明产品价值后进入独立路
 
 - 提取 connection、migration、content-addressed store；
 - 提取 Job、Asset、Idempotency、Checkpoint repositories 和 UoW；
-- 提取 legacy Job、Library、Asset Upload、Creative Recast、Create Weapon、Generate-3D 入口和完整 worker dispatcher/Generate-3D provider execution services；
-- 将剩余 Patch 和 Unity export handler workflows 移出 `asset_store.py`；
+- 提取 legacy Job、Library、Asset Upload、Creative Recast、Create Weapon、Generate-3D、Worker Runtime 和 Unity Export services；
+- 将剩余 Patch workflow 移出 `asset_store.py`；
 - 保持 route handler 不写 SQL、不组文件、不直接调用 Provider。
 
 前端：
@@ -315,7 +315,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 ## 8. 最近十个可执行动作
 
-1. 在已提取 Create Weapon、Generate-3D 与 Worker Runtime 基础上，继续将 Patch 和 Unity export handler workflow 从 `asset_store.py` 提取为 application services。
+1. 在已提取 Create Weapon、Generate-3D、Worker Runtime 与 Unity Export 基础上，将最后的 Patch workflow 从 `asset_store.py` 提取为 application service，再审计 facade 是否只剩通用 helper/adapter。
 2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
 3. 制定 Module/Connector/材质/UV/LOD 命名规范。
 4. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，逐个替换 GLB、缩略图并运行正式替换矩阵。
