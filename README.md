@@ -155,10 +155,10 @@ core.side_panel_left / core.side_panel_right
 | DesignChangeSet 幽灵预览 | proposed/previewed/confirmed、stale base、锁定保护和子版本提交已实现 | AI Change Planner 仍待 R4 |
 | ChangeSet 操作时间线 | Project 级只读 API、operation/node/status/result Version 与桌面时间线已实现 | 搜索、分页与 rejected 原因进入后续审计增强 |
 | ModelQualityReport | 服务端从版本绑定的不可变 GLB 检查索引、退化面、法线、UV0、开放/非流形边、清单 bounds/triangle、Connector 对齐和未直连 AABB 穿插；报告、Finding、JobEvent、桌面触发与重启恢复已实现 | 首版是确定性几何筛查；对称、隐藏几何、精确三角相交、LOD 与点击定位继续进入 R5，不代表强度/DFM/安全证明 |
-| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、扁平化 OBJ/MTL、透明 preview PNG、exploded PNG、Manifest hash、JobEvent、独立下载与重启恢复已实现 | 多正交视图、转台、纹理交换与 DCC round-trip 继续进入 R5 |
+| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable、render-set ZIP、Manifest hash、JobEvent、独立下载与重启恢复已实现 | 转台视频、抗锯齿/阴影、纹理交换与 DCC round-trip 继续进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。combined GLB、OBJ 与确定性 PNG 都读取同一 Graph/资产真相，首版 Mesh/Assembly 检查也已落地。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明最终资产矩阵、多视图/转台、DCC round-trip、完整 R5 检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换、吸附和镜像兼容模块后创建子版本。combined GLB、OBJ、正交图和 8 帧 turntable 都读取同一 Graph/资产真相，首版 Mesh/Assembly 检查也已落地。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明最终资产矩阵、转台视频/照片级渲染、DCC round-trip、完整 R5 检查或 CAD/DFM 已完成。
 
 正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 

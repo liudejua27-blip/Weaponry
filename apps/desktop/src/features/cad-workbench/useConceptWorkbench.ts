@@ -291,6 +291,7 @@ export function useConceptWorkbench() {
         ...current,
         loading: false,
         qualityRun: result,
+        lastExport: null,
         statusMessage: `检查完成 · ${result.report.status} · ${findingCount} 项结果。`,
       }))
       return result

@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL/preview PNG/exploded PNG 导出 API 已实现；多视图/转台和完整 R5 检查矩阵尚未实现。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top 和 8 帧 turntable 导出 API 已实现；转台视频、正式渲染性能和完整 R5 检查矩阵尚未实现。
 
 ### 1.4 打开参考工作台
 
@@ -146,10 +146,11 @@ npm run r2:gate
 npm run r3:workbench-gate
 npm run r5:obj-gate
 npm run r5:render-gate
+npm run r5:multiview-gate
 npm run r5:quality-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG、像素、哈希、视觉工件与重启；`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD、多视图/转台或 DCC round-trip。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 导入 10 模块参考 Pack，验证九类/17 Connector/9-node Graph、真实桌面交互和 20 轮 GPU 生命周期；另用 100 组含镜像数学样本验证 Connector。`r5:obj-gate` 验证 OBJ/MTL；`r5:render-gate` 验证透明/爆炸 PNG；`r5:multiview-gate` 验证三个正交视图、8 帧 turntable、render-set ZIP 和单 Export 复用；`r5:quality-gate` 验证实际 GLB Mesh/Assembly 检查。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、Tauri GPU profiling、AI 质量、精确三角相交、对称/LOD、转台视频或 DCC round-trip。
 
 专项 Connector 门：
 
@@ -180,6 +181,18 @@ GET /api/v1/exports/{export_id}/exploded.png
 ```
 
 当前固定 640×640 RGBA8 三分之四技术预览。透明背景是 PNG alpha，不应以查看器显示的黑/白底判断失败；使用 alpha 像素或支持透明棋盘格的查看器确认。exploded 图的临时位移不创建新 Version。它不替代 Blender/Cycles、实时 Three.js 工作室渲染或正式营销图。
+
+同一 Export 还包含：
+
+```text
+Renders/views/front.png
+Renders/views/side.png
+Renders/views/top.png
+Renders/turntable/frame-000.png ... frame-007.png
+Renders/render-set.zip
+```
+
+直接接口为 `/views/{view}.png`、`/turntable/{frame}.png` 和 `/renders.zip`。front 从 +Z 看向原点，side 从 +X，top 从 +Y；turntable 绕 Y 轴均匀采样 8 个方向。工作台首次创建完整交付包后，同一 Version 的格式下载复用该 Export；执行新 QualityRun 会清空桌面缓存的最近 Export，下一次下载自动创建包含新报告的包。
 
 实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
 
@@ -357,7 +370,7 @@ AI 必须返回结构化操作，先 ghost preview，再由用户确认。
 
 ### Day 6：做模型检查与导出
 
-首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。OBJ/MTL、透明 PNG 和爆炸 PNG 已完成首版；继续补精确相交、对称、隐藏几何和 LOD 样本，以及多视图、转台与 HTML 报告。
+首版自动门已覆盖退化面、开放/非流形边、法线缺失、Connector 5 mm 错位与 AABB 穿插筛查。OBJ/MTL、透明/爆炸 PNG、三正交视图和 8 帧 turntable 已完成首版；继续补精确相交、对称、隐藏几何和 LOD 样本，以及转台视频、正式渲染性能与 HTML 报告。
 
 ### Day 7：桌面回归
 

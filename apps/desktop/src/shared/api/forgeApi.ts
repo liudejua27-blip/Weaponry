@@ -177,6 +177,18 @@ export class ForgeApiClient {
     return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/exploded.png`
   }
 
+  getConceptRenderSetUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/renders.zip`
+  }
+
+  getConceptRenderViewUrl(exportId: string, viewName: 'front' | 'side' | 'top'): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/views/${viewName}.png`
+  }
+
+  getConceptTurntableFrameUrl(exportId: string, frameIndex: number): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/turntable/${frameIndex}.png`
+  }
+
   async proposeChangeSet(
     versionId: string,
     input: ProposeChangeSetRequest,

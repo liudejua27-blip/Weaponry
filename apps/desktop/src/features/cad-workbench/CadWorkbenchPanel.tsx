@@ -188,7 +188,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   }, [concept.graphRecord])
 
   const handleCreateExport = useCallback(async () => {
-    const result = await concept.createExport()
+    const currentExport = concept.lastExport?.version_id === concept.version?.version_id
+      ? concept.lastExport
+      : null
+    const reusable = currentExport && (
+      exportFormat === 'SOURCE ZIP'
+      || exportFormat === 'GLB'
+      || (exportFormat === 'OBJ' && currentExport.combined_obj_sha256)
+      || (exportFormat === 'PNG' && currentExport.preview_png_sha256)
+    )
+    const result = reusable ? currentExport : await concept.createExport()
     if (!result) return
     window.location.assign(
       exportFormat === 'GLB'
@@ -738,14 +747,24 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               </button>
             )}
             {exportFormat === 'PNG' && concept.lastExport && (
-              <button
-                className="secondary-action"
-                onClick={() => window.location.assign(
-                  forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
-                )}
-              >
-                下载 exploded.png
-              </button>
+              <>
+                <button
+                  className="secondary-action"
+                  onClick={() => window.location.assign(
+                    forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
+                  )}
+                >
+                  下载 exploded.png
+                </button>
+                <button
+                  className="secondary-action"
+                  onClick={() => window.location.assign(
+                    forgeApi.getConceptRenderSetUrl(concept.lastExport!.export_id),
+                  )}
+                >
+                  下载正交视图与转台 ZIP
+                </button>
+              </>
             )}
           </section>
         </aside>

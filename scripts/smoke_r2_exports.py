@@ -198,9 +198,16 @@ def main() -> int:
                     "Model/combined.mtl",
                     "Renders/preview.png",
                     "Renders/exploded.png",
+                    "Renders/render-set.zip",
                     "Quality/model-quality-report.json",
                     "README.txt",
                 }
+                required.update(
+                    f"Renders/views/{name}.png" for name in ("front", "side", "top")
+                )
+                required.update(
+                    f"Renders/turntable/frame-{index:03d}.png" for index in range(8)
+                )
                 _assert(
                     required <= names,
                     f"export package files missing: {sorted(required - names)}",
@@ -310,6 +317,72 @@ def main() -> int:
                     len(exploded_png) == created["exploded_png_byte_size"],
                     "exploded PNG size mismatch",
                 )
+                view_pngs = {
+                    name: archive.read(f"Renders/views/{name}.png")
+                    for name in ("front", "side", "top")
+                }
+                turntable_frames = [
+                    archive.read(f"Renders/turntable/frame-{index:03d}.png")
+                    for index in range(8)
+                ]
+                for name, payload in view_pngs.items():
+                    stats = _png_stats(payload)
+                    _assert(
+                        stats[0:2] == (640, 640), f"{name} view dimensions mismatch"
+                    )
+                    _assert(stats[3] > 0, f"{name} view transparency mismatch")
+                _assert(
+                    _png_stats(view_pngs["front"])[2] > 0,
+                    "front view contains no model pixels",
+                )
+                _assert(
+                    len(set(view_pngs.values())) >= 2,
+                    "orthographic views are not distinct",
+                )
+                for index, payload in enumerate(turntable_frames):
+                    stats = _png_stats(payload)
+                    _assert(
+                        stats[0:2] == (640, 640),
+                        f"turntable {index} dimensions mismatch",
+                    )
+                _assert(
+                    len(set(turntable_frames)) == 8,
+                    "turntable frames are not all distinct",
+                )
+                render_set = archive.read("Renders/render-set.zip")
+                _assert(
+                    hashlib.sha256(render_set).hexdigest()
+                    == created["render_set_sha256"],
+                    "render set hash mismatch",
+                )
+                _assert(
+                    len(render_set) == created["render_set_byte_size"],
+                    "render set size mismatch",
+                )
+                _assert(created["render_view_count"] == 3, "render view count mismatch")
+                _assert(
+                    created["turntable_frame_count"] == 8, "turntable count mismatch"
+                )
+                with zipfile.ZipFile(io.BytesIO(render_set)) as render_archive:
+                    _assert(
+                        render_archive.read("preview.png") == preview_png,
+                        "render set preview mismatch",
+                    )
+                    _assert(
+                        render_archive.read("exploded.png") == exploded_png,
+                        "render set exploded mismatch",
+                    )
+                    for name, payload in view_pngs.items():
+                        _assert(
+                            render_archive.read(f"views/{name}.png") == payload,
+                            f"render set {name} mismatch",
+                        )
+                    for index, payload in enumerate(turntable_frames):
+                        _assert(
+                            render_archive.read(f"turntable/frame-{index:03d}.png")
+                            == payload,
+                            f"render set frame {index} mismatch",
+                        )
                 rerendered = render_concept_pngs(combined_payload)
                 _assert(
                     rerendered.preview_png == preview_png,
@@ -318,6 +391,14 @@ def main() -> int:
                 _assert(
                     rerendered.exploded_png == exploded_png,
                     "exploded render is not deterministic",
+                )
+                _assert(
+                    rerendered.orthographic_pngs == view_pngs,
+                    "orthographic render is not deterministic",
+                )
+                _assert(
+                    list(rerendered.turntable_frames) == turntable_frames,
+                    "turntable render is not deterministic",
                 )
                 for entry in manifest["files"]:
                     payload = archive.read(entry["path"])
@@ -345,6 +426,40 @@ def main() -> int:
                 _download_png(base_url, created["export_id"], "exploded")
                 == exploded_png,
                 "direct exploded PNG download mismatch",
+            )
+            _assert(
+                _download_render_set(base_url, created["export_id"]) == render_set,
+                "direct render set download mismatch",
+            )
+            for name, payload in view_pngs.items():
+                _assert(
+                    _download_view(base_url, created["export_id"], name) == payload,
+                    f"direct {name} view mismatch",
+                )
+            _assert(
+                _download_turntable_frame(base_url, created["export_id"], 3)
+                == turntable_frames[3],
+                "direct turntable frame mismatch",
+            )
+            invalid_status, invalid_view = _json_request_allow_error(
+                base_url,
+                f"/api/v1/exports/{created['export_id']}/views/diagonal.png",
+                method="GET",
+            )
+            _assert(
+                invalid_status == 400
+                and invalid_view["error"]["code"] == "INVALID_REQUEST",
+                "unknown render view was not rejected",
+            )
+            invalid_status, invalid_frame = _json_request_allow_error(
+                base_url,
+                f"/api/v1/exports/{created['export_id']}/turntable/8.png",
+                method="GET",
+            )
+            _assert(
+                invalid_status == 400
+                and invalid_frame["error"]["code"] == "INVALID_REQUEST",
+                "out-of-range turntable frame was not rejected",
             )
             _assert_unsupported_static_feature_rejected(
                 ModuleGraph.model_validate(graph)
@@ -437,6 +552,20 @@ def main() -> int:
                 == exploded_png,
                 "restart exploded PNG mismatch",
             )
+            _assert(
+                _download_render_set(restart_url, created["export_id"]) == render_set,
+                "restart render set mismatch",
+            )
+            _assert(
+                _download_view(restart_url, created["export_id"], "top")
+                == view_pngs["top"],
+                "restart top view mismatch",
+            )
+            _assert(
+                _download_turntable_frame(restart_url, created["export_id"], 7)
+                == turntable_frames[7],
+                "restart turntable frame mismatch",
+            )
         finally:
             _stop_agent(restarted_process)
 
@@ -456,6 +585,9 @@ def main() -> int:
                     "preview_png_sha256": created["preview_png_sha256"],
                     "exploded_png_sha256": created["exploded_png_sha256"],
                     "transparent_png_verified": True,
+                    "orthographic_views": sorted(view_pngs),
+                    "turntable_frame_count": len(turntable_frames),
+                    "render_set_sha256": created["render_set_sha256"],
                     "unsupported_feature_rejected": True,
                     "restart_restored": True,
                 },
@@ -531,6 +663,44 @@ def _download_png(base_url: str, export_id: str, kind: str) -> bytes:
     ) as response:
         _assert(response.status == 200, f"{kind} PNG download failed")
         _assert(response.headers.get_content_type() == "image/png", "PNG MIME mismatch")
+        return response.read()
+
+
+def _download_render_set(base_url: str, export_id: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/renders.zip",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, "render set download failed")
+        _assert(
+            response.headers.get_content_type() == "application/zip",
+            "render ZIP MIME mismatch",
+        )
+        return response.read()
+
+
+def _download_view(base_url: str, export_id: str, view_name: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/views/{view_name}.png",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, f"{view_name} view download failed")
+        _assert(
+            response.headers.get_content_type() == "image/png", "view PNG MIME mismatch"
+        )
+        return response.read()
+
+
+def _download_turntable_frame(base_url: str, export_id: str, frame_index: int) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/turntable/{frame_index}.png",
+        timeout=10,
+    ) as response:
+        _assert(response.status == 200, "turntable frame download failed")
+        _assert(
+            response.headers.get_content_type() == "image/png",
+            "frame PNG MIME mismatch",
+        )
         return response.read()
 
 

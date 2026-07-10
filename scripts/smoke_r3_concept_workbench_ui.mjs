@@ -12,6 +12,9 @@ const SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-workbench.png')
 const MIRROR_SCREENSHOT = join(OUTPUT_DIR, 'r3-concept-mirror.png')
 const PREVIEW_RENDER = join(OUTPUT_DIR, 'r5-concept-preview.png')
 const EXPLODED_RENDER = join(OUTPUT_DIR, 'r5-concept-exploded.png')
+const FRONT_RENDER = join(OUTPUT_DIR, 'r5-concept-front.png')
+const TOP_RENDER = join(OUTPUT_DIR, 'r5-concept-top.png')
+const TURNTABLE_RENDER = join(OUTPUT_DIR, 'r5-concept-turntable-000.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -174,7 +177,13 @@ async function runWorkbenchUi(baseUrl, seeded) {
   const browser = await launchSystemBrowser()
   const page = await browser.newPage({ viewport: { width: 1536, height: 1024 }, deviceScaleFactor: 1 })
   const browserErrors = []
+  let conceptExportPosts = 0
   page.on('pageerror', (error) => browserErrors.push(error.message))
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(request.url())) {
+      conceptExportPosts += 1
+    }
+  })
   try {
     await mkdir(OUTPUT_DIR, { recursive: true })
     await page.goto(`${baseUrl}/#/cad`, { waitUntil: 'networkidle' })
@@ -320,8 +329,16 @@ async function runWorkbenchUi(baseUrl, seeded) {
       '几何检查不代表结构强度、制造可行性或使用安全验证',
     ])
 
+    const exportResponsePromise = page.waitForResponse(
+      (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
+        && response.request().method() === 'POST',
+    )
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
+    const exportResponse = await exportResponsePromise
+    if (!exportResponse.ok()) throw new Error(`delivery export failed: ${exportResponse.status()}`)
+    const deliveryRecord = await exportResponse.json()
+    const agentBaseUrl = new URL(exportResponse.url()).origin
     const download = await downloadPromise
     if (!download.suggestedFilename().endsWith('.zip')) {
       throw new Error(`unexpected export filename: ${download.suggestedFilename()}`)
@@ -406,6 +423,36 @@ async function runWorkbenchUi(baseUrl, seeded) {
     assertPng(explodedBytes, 'exploded')
     if (previewBytes.equals(explodedBytes)) throw new Error('preview and exploded PNG are identical')
     await copyFile(explodedDownloadPath, EXPLODED_RENDER)
+    const renderSetDownloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载正交视图与转台 ZIP' }).click()
+    const renderSetDownload = await renderSetDownloadPromise
+    if (!renderSetDownload.suggestedFilename().endsWith('-renders.zip')) {
+      throw new Error(`unexpected render set filename: ${renderSetDownload.suggestedFilename()}`)
+    }
+    const renderSetPath = await renderSetDownload.path()
+    if (!renderSetPath || (await stat(renderSetPath)).size < 20_000) {
+      throw new Error('render set ZIP is unexpectedly small')
+    }
+    const renderSetHeader = await readFile(renderSetPath)
+    if (renderSetHeader.subarray(0, 2).toString('ascii') !== 'PK') {
+      throw new Error('render set ZIP header is invalid')
+    }
+    const visualArtifacts = [
+      ['front', `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/views/front.png`, FRONT_RENDER],
+      ['top', `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/views/top.png`, TOP_RENDER],
+      ['turntable', `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/turntable/0.png`, TURNTABLE_RENDER],
+    ]
+    for (const [label, url, destination] of visualArtifacts) {
+      const artifact = await downloadDirect(page, url)
+      const artifactPath = await artifact.path()
+      if (!artifactPath) throw new Error(`${label} render download has no path`)
+      const bytes = await readFile(artifactPath)
+      assertPng(bytes, label)
+      await copyFile(artifactPath, destination)
+    }
+    if (conceptExportPosts !== 1) {
+      throw new Error(`format downloads created ${conceptExportPosts} exports instead of reusing one`)
+    }
 
     if (browserErrors.length) throw new Error(`browser page errors: ${browserErrors.join(' | ')}`)
     return {
@@ -431,10 +478,27 @@ async function runWorkbenchUi(baseUrl, seeded) {
       exploded_png_downloaded: true,
       preview_render: PREVIEW_RENDER,
       exploded_render: EXPLODED_RENDER,
+      render_set_downloaded: true,
+      export_reuse_verified: true,
+      orthographic_renders: { front: FRONT_RENDER, top: TOP_RENDER },
+      turntable_render: TURNTABLE_RENDER,
     }
   } finally {
     await browser.close()
   }
+}
+
+async function downloadDirect(page, url) {
+  const promise = page.waitForEvent('download')
+  await page.evaluate((target) => {
+    const anchor = document.createElement('a')
+    anchor.href = target
+    anchor.download = ''
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  }, url)
+  return promise
 }
 
 function assertPng(bytes, label) {

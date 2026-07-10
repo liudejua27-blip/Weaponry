@@ -299,5 +299,9 @@ class ConceptExportRecord(StrictApiModel):
     preview_png_byte_size: Optional[int] = Field(default=None, ge=0)
     exploded_png_sha256: Optional[str] = None
     exploded_png_byte_size: Optional[int] = Field(default=None, ge=0)
+    render_set_sha256: Optional[str] = None
+    render_set_byte_size: Optional[int] = Field(default=None, ge=0)
+    render_view_count: Optional[int] = Field(default=None, ge=0)
+    turntable_frame_count: Optional[int] = Field(default=None, ge=0)
     manifest: ConceptExportManifest
     created_at: str

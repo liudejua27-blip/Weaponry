@@ -22,12 +22,20 @@ class ConceptRenderError(ValueError):
 
 Vector3 = tuple[float, float, float]
 Color4 = tuple[float, float, float, float]
+TURNTABLE_FRAME_COUNT = 8
+ORTHOGRAPHIC_VIEWS: dict[str, tuple[Vector3, Vector3]] = {
+    "front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
+    "side": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+    "top": ((0.0, 1.0, 0.0), (0.0, 0.0, -1.0)),
+}
 
 
 @dataclass(frozen=True)
 class ConceptRenderResult:
     preview_png: bytes
     exploded_png: bytes
+    orthographic_pngs: dict[str, bytes]
+    turntable_frames: tuple[bytes, ...]
     width: int
     height: int
     triangle_count: int
@@ -54,9 +62,47 @@ def render_concept_pngs(
         exploded_obj = build_combined_obj(exploded_glb)
         preview_triangles = _triangles_from_obj(preview_obj)
         exploded_triangles = _triangles_from_obj(exploded_obj)
+        orthographic_pngs = {
+            name: _render_png(
+                preview_triangles,
+                width,
+                height,
+                camera_vector=camera,
+                up_hint=up,
+            )
+            for name, (camera, up) in ORTHOGRAPHIC_VIEWS.items()
+        }
+        turntable_frames = tuple(
+            _render_png(
+                preview_triangles,
+                width,
+                height,
+                camera_vector=(
+                    math.cos(2 * math.pi * index / TURNTABLE_FRAME_COUNT),
+                    0.42,
+                    math.sin(2 * math.pi * index / TURNTABLE_FRAME_COUNT),
+                ),
+                up_hint=(0.0, 1.0, 0.0),
+            )
+            for index in range(TURNTABLE_FRAME_COUNT)
+        )
         return ConceptRenderResult(
-            preview_png=_render_png(preview_triangles, width, height),
-            exploded_png=_render_png(exploded_triangles, width, height),
+            preview_png=_render_png(
+                preview_triangles,
+                width,
+                height,
+                camera_vector=(1.0, 0.72, 1.0),
+                up_hint=(0.0, 1.0, 0.0),
+            ),
+            exploded_png=_render_png(
+                exploded_triangles,
+                width,
+                height,
+                camera_vector=(1.0, 0.72, 1.0),
+                up_hint=(0.0, 1.0, 0.0),
+            ),
+            orthographic_pngs=orthographic_pngs,
+            turntable_frames=turntable_frames,
             width=width,
             height=height,
             triangle_count=len(preview_triangles),
@@ -147,9 +193,16 @@ def _parse_mtl(text: str) -> dict[str, Color4]:
     }
 
 
-def _render_png(triangles: Sequence[_RenderTriangle], width: int, height: int) -> bytes:
-    camera = _normalize((1.0, 0.72, 1.0))
-    right = _normalize(_cross((0.0, 1.0, 0.0), camera))
+def _render_png(
+    triangles: Sequence[_RenderTriangle],
+    width: int,
+    height: int,
+    *,
+    camera_vector: Vector3,
+    up_hint: Vector3,
+) -> bytes:
+    camera = _normalize(camera_vector)
+    right = _normalize(_cross(up_hint, camera))
     screen_up = _normalize(_cross(camera, right))
     projected_points = [
         (

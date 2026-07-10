@@ -405,6 +405,9 @@ GET    /api/v1/exports/{export_id}/combined.obj
 GET    /api/v1/exports/{export_id}/combined.mtl
 GET    /api/v1/exports/{export_id}/preview.png
 GET    /api/v1/exports/{export_id}/exploded.png
+GET    /api/v1/exports/{export_id}/views/{front|side|top}.png
+GET    /api/v1/exports/{export_id}/turntable/{0..7}.png
+GET    /api/v1/exports/{export_id}/renders.zip
 GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
@@ -504,7 +507,7 @@ combined GLB 第一切片合并静态 GLB 的 bufferView/accessor/mesh/material/
 
 combined OBJ 第一切片以同一份 combined GLB 为输入，递归扁平化 scene graph，将节点 matrix/TRS、非均匀缩放和镜像烘焙进顶点；法线使用逆转置矩阵并归一化，负行列式变换翻转三角面序。OBJ 固定声明米制，保留 `NODE_{node_id}__{module_id}` 路径、`v/vt/vn/f` 和稳定 material 名；PBR factor 确定性投影为配套 MTL。OBJ/MTL 进入同一不可变 ZIP 和 Manifest，并提供独立下载。该转换不支持 sparse accessor、非 TRIANGLES primitive、morph、skin、animation 或贴图搬运；MTL 是有损交换格式，不替代源 GLB。
 
-PNG 第一切片继续以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 Agent 内软件光栅化。固定输出 640×640 RGBA8、透明背景、三分之四正交投影、自动取景、z-buffer、基础材质颜色和简单方向光。exploded render 只复制 GLB JSON，在临时 wrapper translation 上按装配中心径向增加确定性距离；中心重合时用 node ID hash 生成稳定方向，不修改 ModuleGraph、Version 或源 GLB。当前渲染器是可追溯技术预览，不是照片级渲染；不含阴影、贴图、多正交视图、抗锯齿或转台。
+PNG 第一切片继续以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 Agent 内软件光栅化。固定输出 640×640 RGBA8、透明背景、三分之四正交投影、自动取景、z-buffer、基础材质颜色和简单方向光。exploded render 只复制 GLB JSON，在临时 wrapper translation 上按装配中心径向增加确定性距离；中心重合时用 node ID hash 生成稳定方向，不修改 ModuleGraph、Version 或源 GLB。第二切片增加固定 `front(+Z) / side(+X) / top(+Y)` 三个正交视图和绕 Y 轴均匀采样的 8 帧 turntable；13 张图与 `render-set.zip` 全部进入同一 Manifest。桌面在 Version 未变化且所需工件存在时复用最近 Export，避免各格式形成不同交付真相。当前渲染器仍是可追溯技术预览，不是照片级渲染；不含阴影、贴图、抗锯齿或转台视频。
 
 ## 14. 验证策略
 

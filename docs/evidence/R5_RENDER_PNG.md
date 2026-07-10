@@ -2,7 +2,7 @@
 
 日期：2026-07-10
 
-范围：证明 Weapon Concept combined GLB 可以在本地 Agent 内确定性生成透明技术预览和爆炸 PNG；不证明照片级渲染、多正交视图、转台、正式资产性能或制造 CAD。
+范围：证明 Weapon Concept combined GLB 可以在本地 Agent 内确定性生成透明技术预览和爆炸 PNG；front/side/top 与 turntable 证据已拆到 `R5_MULTIVIEW_TURNTABLE.md`，本页不证明照片级渲染、正式资产性能或制造 CAD。
 
 ## 实现
 
@@ -43,9 +43,8 @@ npm run r5:render-gate
 
 ## 未完成
 
-- front/side/top 等正交视图；
 - 抗锯齿、阴影、环境光照、贴图与照片级材质；
-- turntable 帧或视频；
+- turntable 视频；
 - 最终 10–12 个 Blender 资产的时间/内存性能门；
 - Blender/Cycles、Three.js GPU renderer 或其他 DCC 的像素等价；
 - 任何 B-Rep、STEP、3MF、强度、切片或制造 DFM 结论。

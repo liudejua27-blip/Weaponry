@@ -780,9 +780,56 @@
             "title": "Project Id",
             "type": "string"
           },
+          "render_set_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render Set Byte Size"
+          },
+          "render_set_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render Set Sha256"
+          },
+          "render_view_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render View Count"
+          },
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "turntable_frame_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Frame Count"
           },
           "version_id": {
             "title": "Version Id",
@@ -6792,6 +6839,144 @@
           }
         },
         "summary": "Download Preview Png",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/renders.zip": {
+      "get": {
+        "operationId": "download_render_set_api_v1_exports__export_id__renders_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Render Set",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/turntable/{frame_index}.png": {
+      "get": {
+        "operationId": "download_turntable_frame_api_v1_exports__export_id__turntable__frame_index__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "frame_index",
+            "required": true,
+            "schema": {
+              "title": "Frame Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Turntable Frame",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/views/{view_name}.png": {
+      "get": {
+        "operationId": "download_render_view_api_v1_exports__export_id__views__view_name__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view_name",
+            "required": true,
+            "schema": {
+              "title": "View Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Render View",
         "tags": [
           "concept-exports"
         ]

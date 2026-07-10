@@ -137,6 +137,10 @@ export type ConceptExportRecord = {
   "preview_png_byte_size"?: number | null
   "exploded_png_sha256"?: string | null
   "exploded_png_byte_size"?: number | null
+  "render_set_sha256"?: string | null
+  "render_set_byte_size"?: number | null
+  "render_view_count"?: number | null
+  "turntable_frame_count"?: number | null
   "manifest": ConceptExportManifest
   "created_at": string
 }

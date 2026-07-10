@@ -137,6 +137,63 @@ def build_export_router(service: ConceptExportService) -> APIRouter:
             },
         )
 
+    @router.get("/exports/{export_id}/renders.zip", response_model=None)
+    def download_render_set(export_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_render_set(export_id)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
+    @router.get("/exports/{export_id}/views/{view_name}.png", response_model=None)
+    def download_render_view(
+        export_id: str,
+        view_name: str,
+    ) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_render_view(export_id, view_name)
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
+    @router.get(
+        "/exports/{export_id}/turntable/{frame_index}.png",
+        response_model=None,
+    )
+    def download_turntable_frame(
+        export_id: str,
+        frame_index: int,
+    ) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_turntable_frame(
+                export_id,
+                frame_index,
+            )
+        except ConceptExportError as exc:
+            return _export_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+            },
+        )
+
     return router
 
 

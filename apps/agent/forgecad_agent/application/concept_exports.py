@@ -24,6 +24,7 @@ from forgecad_agent.application.concept_models import (
 )
 from forgecad_agent.application.concept_renderer import (
     ConceptRenderError,
+    TURNTABLE_FRAME_COUNT,
     render_concept_pngs,
 )
 from forgecad_agent.domain.concepts.models import (
@@ -175,6 +176,8 @@ class ConceptExportService:
                 files["Model/combined.obj"] = (combined_obj.obj, "model/obj")
                 files["Model/combined.mtl"] = (combined_obj.mtl, "model/mtl")
             render_result = None
+            render_set_payload: Optional[bytes] = None
+            render_set_sha256: Optional[str] = None
             preview_png_sha256: Optional[str] = None
             exploded_png_sha256: Optional[str] = None
             if request.include_render_png:
@@ -187,8 +190,26 @@ class ConceptExportService:
                     ) from exc
                 preview_png_sha256 = hashlib.sha256(render_result.preview_png).hexdigest()
                 exploded_png_sha256 = hashlib.sha256(render_result.exploded_png).hexdigest()
-                files["Renders/preview.png"] = (render_result.preview_png, "image/png")
-                files["Renders/exploded.png"] = (render_result.exploded_png, "image/png")
+                render_files: dict[str, tuple[bytes, str]] = {
+                    "preview.png": (render_result.preview_png, "image/png"),
+                    "exploded.png": (render_result.exploded_png, "image/png"),
+                    **{
+                        f"views/{name}.png": (payload, "image/png")
+                        for name, payload in render_result.orthographic_pngs.items()
+                    },
+                    **{
+                        f"turntable/frame-{index:03d}.png": (payload, "image/png")
+                        for index, payload in enumerate(render_result.turntable_frames)
+                    },
+                }
+                for path, artifact in render_files.items():
+                    files[f"Renders/{path}"] = artifact
+                render_set_payload = _build_zip(render_files)
+                render_set_sha256 = hashlib.sha256(render_set_payload).hexdigest()
+                files["Renders/render-set.zip"] = (
+                    render_set_payload,
+                    "application/zip",
+                )
 
             quality_report_id: Optional[str] = None
             if request.include_quality_report:
@@ -267,6 +288,8 @@ class ConceptExportService:
                                 "render_height": render_result.height,
                                 "render_triangle_count": render_result.triangle_count,
                                 "exploded_distance_m": render_result.exploded_distance_m,
+                                "orthographic_view_count": len(render_result.orthographic_pngs),
+                                "turntable_frame_count": len(render_result.turntable_frames),
                             }
                             if render_result is not None
                             else {}
@@ -329,6 +352,9 @@ class ConceptExportService:
                             "height": render_result.height,
                             "triangle_count": render_result.triangle_count,
                             "exploded_distance_m": render_result.exploded_distance_m,
+                            "orthographic_views": sorted(render_result.orthographic_pngs),
+                            "turntable_frame_count": len(render_result.turntable_frames),
+                            "render_set_sha256": render_set_sha256,
                         },
                     )
                 )
@@ -375,6 +401,16 @@ class ConceptExportService:
                 exploded_png_sha256=exploded_png_sha256,
                 exploded_png_byte_size=(
                     len(render_result.exploded_png) if render_result is not None else None
+                ),
+                render_set_sha256=render_set_sha256,
+                render_set_byte_size=(
+                    len(render_set_payload) if render_set_payload is not None else None
+                ),
+                render_view_count=(
+                    len(render_result.orthographic_pngs) if render_result is not None else None
+                ),
+                turntable_frame_count=(
+                    len(render_result.turntable_frames) if render_result is not None else None
                 ),
                 manifest=manifest,
                 created_at=created_at,
@@ -432,6 +468,45 @@ class ConceptExportService:
         payload = self._read_package_entry(export_id, "Renders/exploded.png", "Exploded PNG")
         return payload, f"{export_id}-exploded.png", hashlib.sha256(payload).hexdigest()
 
+    def read_render_set(self, export_id: str) -> tuple[bytes, str, str]:
+        payload = self._read_package_entry(
+            export_id,
+            "Renders/render-set.zip",
+            "Render set ZIP",
+        )
+        return payload, f"{export_id}-renders.zip", hashlib.sha256(payload).hexdigest()
+
+    def read_render_view(self, export_id: str, view_name: str) -> tuple[bytes, str, str]:
+        if view_name not in {"front", "side", "top"}:
+            raise ConceptExportError("INVALID_REQUEST", "Unknown orthographic view.")
+        payload = self._read_package_entry(
+            export_id,
+            f"Renders/views/{view_name}.png",
+            f"{view_name} view PNG",
+        )
+        return payload, f"{export_id}-{view_name}.png", hashlib.sha256(payload).hexdigest()
+
+    def read_turntable_frame(
+        self,
+        export_id: str,
+        frame_index: int,
+    ) -> tuple[bytes, str, str]:
+        if not 0 <= frame_index < TURNTABLE_FRAME_COUNT:
+            raise ConceptExportError(
+                "INVALID_REQUEST",
+                f"Turntable frame index must be 0–{TURNTABLE_FRAME_COUNT - 1}.",
+            )
+        payload = self._read_package_entry(
+            export_id,
+            f"Renders/turntable/frame-{frame_index:03d}.png",
+            "Turntable frame PNG",
+        )
+        return (
+            payload,
+            f"{export_id}-turntable-{frame_index:03d}.png",
+            hashlib.sha256(payload).hexdigest(),
+        )
+
     def _read_package_entry(self, export_id: str, path: str, label: str) -> bytes:
         package, _, _ = self.read_export(export_id)
         try:
@@ -459,6 +534,14 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         (entry for entry in manifest.files if entry.path == "Renders/exploded.png"),
         None,
     )
+    render_set = next(
+        (entry for entry in manifest.files if entry.path == "Renders/render-set.zip"),
+        None,
+    )
+    render_view_count = sum(entry.path.startswith("Renders/views/") for entry in manifest.files)
+    turntable_frame_count = sum(
+        entry.path.startswith("Renders/turntable/") for entry in manifest.files
+    )
     if combined is None:
         raise ConceptExportError(
             "EXPORT_PACKAGE_UNAVAILABLE",
@@ -482,6 +565,10 @@ def _record_from_row(row: Any) -> ConceptExportRecord:
         preview_png_byte_size=preview_png.byte_size if preview_png else None,
         exploded_png_sha256=exploded_png.sha256 if exploded_png else None,
         exploded_png_byte_size=exploded_png.byte_size if exploded_png else None,
+        render_set_sha256=render_set.sha256 if render_set else None,
+        render_set_byte_size=render_set.byte_size if render_set else None,
+        render_view_count=render_view_count if render_set else None,
+        turntable_frame_count=turntable_frame_count if render_set else None,
         manifest=manifest,
         created_at=row["created_at"],
     )
