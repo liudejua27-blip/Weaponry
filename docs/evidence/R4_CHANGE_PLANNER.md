@@ -41,7 +41,7 @@ output/playwright/r4-change-planner-ghost-preview.png
 ## 未证明
 
 - fake Provider 和确定性规则不证明真实模型理解质量。
-- 尚未用固定真实 Provider truth set 证明 Brief ≥90%、AI 修改成功率 ≥85%、锁定模块保持率 ≥95% 或三方案差异度。
+- 固定 truth set 和 deterministic baseline 已完成，但尚未在真实 Provider 上证明 Brief ≥90%、AI 修改成功率 ≥85%、锁定模块保持率 ≥95% 或三方案差异度。
 - Change Planner 不允许 AI 自由生成 add/remove/connect/disconnect/set_transform；这些操作仍只能走显式结构化客户端或后续经过单独约束设计。
 - 方案 Variant 选择仍是 Planner 预览，不自动提交为 Version。
 - 本证据不证明功能性武器工程、制造可行性、结构强度、弹道、安全认证、STEP/3MF 或完整 DFM。

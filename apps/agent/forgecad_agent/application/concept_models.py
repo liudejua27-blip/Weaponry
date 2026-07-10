@@ -171,6 +171,10 @@ class ConceptPlannerProvenance(StrictApiModel):
     output_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     registry_module_ids: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list, max_length=12)
+    latency_ms: Optional[int] = Field(default=None, ge=0)
+    input_tokens: Optional[int] = Field(default=None, ge=0)
+    output_tokens: Optional[int] = Field(default=None, ge=0)
+    total_tokens: Optional[int] = Field(default=None, ge=0)
 
 
 class ProposeChangeSetRequest(StrictApiModel):

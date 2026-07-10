@@ -59,7 +59,14 @@ class _ChangePlannerHandler(BaseHTTPRequestHandler):
             ],
         }
         body = json.dumps(
-            {"choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]}
+            {
+                "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}],
+                "usage": {
+                    "input_tokens": 140,
+                    "output_tokens": 45,
+                    "total_tokens": 185,
+                },
+            }
         ).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -127,6 +134,14 @@ def main() -> int:
             "provider change operations mismatch",
         )
         _assert(len(_ChangePlannerHandler.requests) == 1, "change provider request count mismatch")
+        _assert(
+            provider.last_call_metrics is not None
+            and provider.last_call_metrics.latency_ms >= 0
+            and provider.last_call_metrics.input_tokens == 140
+            and provider.last_call_metrics.output_tokens == 45
+            and provider.last_call_metrics.total_tokens == 185,
+            "Change Planner usage telemetry mismatch",
+        )
         request = _ChangePlannerHandler.requests[0]
         _assert(
             request["response_format"]["type"] == "json_schema"
@@ -241,6 +256,7 @@ def main() -> int:
                     "openai_compatible_requests": len(_ChangePlannerHandler.requests),
                     "structured_output_verified": True,
                     "safety_prompt_verified": True,
+                    "provider_telemetry_verified": True,
                     "provider_operation_count": len(plan.operations),
                     "auto_fallback_verified": True,
                     "configured_provider_failure_preserved": True,

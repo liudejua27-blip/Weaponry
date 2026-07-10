@@ -201,6 +201,10 @@ export type ConceptPlannerProvenance = {
   "output_sha256": string
   "registry_module_ids"?: Array<string>
   "warnings"?: Array<string>
+  "latency_ms"?: number | null
+  "input_tokens"?: number | null
+  "output_tokens"?: number | null
+  "total_tokens"?: number | null
 }
 
 export type ConceptProjectDetail = {

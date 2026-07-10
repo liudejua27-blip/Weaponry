@@ -327,7 +327,31 @@ export WUSHEN_LLM_MODEL=<model-name>
 export WUSHEN_LLM_API_KEY=<secret>
 ```
 
-密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。当前 Adapter 已有 Brief/Variant/Change fake HTTP、strict schema 与安全提示证据；没有真实 Provider truth set 时，不得声称 Brief ≥90%、AI 修改 ≥85%、锁定保持率 ≥95% 或三方案质量达标。
+密钥只能来自环境变量或 secret file，不得进入源码、日志、Job event、资产或导出包。当前 Adapter 已有 Brief/Variant/Change fake HTTP、strict schema、安全提示及 latency/token usage 解析证据；没有真实 Provider truth set 时，不得声称 Brief ≥90%、AI 修改 ≥85%、锁定保持率 ≥95% 或三方案质量达标。
+
+### 4.1 R4 Planner 评测
+
+离线回归不会调用模型，也不能作为 AI 指标：
+
+```bash
+npm run agent:r4-evaluation-baseline
+```
+
+它固定执行 20 Brief、20 Variant、20 Change、20 lock probes，报告写到：
+
+```text
+output/evaluations/r4_planner_metrics.json
+```
+
+当前 deterministic baseline 四项均为 `1.0`，但报告必须保持 `live_provider_run=false`、`calls_with_token_usage=0`、`real_provider_evidence_eligible=false`。
+
+真实 Provider 评测可能产生 **80 次付费 API 调用**。先配置本节环境变量并确认 `/api/provider-settings` 不再是 `missing_config`，再由操作者明确运行：
+
+```bash
+npm run agent:r4-evaluation-live
+```
+
+该命令内置 `configured_provider + --confirm-live-provider + --require-thresholds`：不允许 fallback，不允许缺少 token usage，不允许缩减数据集。未配置时返回 `EVAL_PROVIDER_NOT_CONFIGURED`；未显式授权时返回 `EVAL_LIVE_CONFIRMATION_REQUIRED`；任一阈值或证据完整性不满足时以非零状态退出。报告不得包含 API key、base URL、绝对路径或原始模型响应。
 
 旧 ComfyUI 与神经 3D Provider 不进入 P0 权威模块链路。生成式图片可以作为风格参考，但不能成为 `ModuleGraph`。
 

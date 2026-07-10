@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ class ConceptPlannerProvider(Protocol):
     provider_id: str
     provider_type: Literal["deterministic", "openai_compatible"]
     model_name: Optional[str]
+    last_call_metrics: Optional["PlannerCallMetrics"]
 
     def interpret_brief(
         self,
@@ -62,6 +64,14 @@ class ConceptPlannerProvider(Protocol):
 
 class _StrictPlannerModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+@dataclass(frozen=True)
+class PlannerCallMetrics:
+    latency_ms: int
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
 
 
 class ConceptBriefPatch(_StrictPlannerModel):
@@ -134,6 +144,7 @@ class DeterministicConceptPlanner:
     provider_id = "deterministic_concept_rules"
     provider_type: Literal["deterministic"] = "deterministic"
     model_name: Optional[str] = None
+    last_call_metrics: Optional[PlannerCallMetrics] = None
 
     def interpret_brief(
         self,
@@ -165,6 +176,64 @@ class DeterministicConceptPlanner:
             payload["style"]["detail_density"] = min(
                 0.45, payload["style"]["detail_density"]
             )
+
+        explicit_values = (
+            (
+                "overall_length_mm",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:整体)?长度[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm|毫米)",
+                        r"overall\s+length[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm)?",
+                    ),
+                ),
+                0.0,
+                1000.0,
+            ),
+            (
+                "body_height_mm",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:主体|机身|本体)(?:高度|高)[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm|毫米)",
+                        r"body\s+height[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:mm)?",
+                    ),
+                ),
+                0.0,
+                1000.0,
+            ),
+            (
+                "grip_angle_deg",
+                _extract_number(
+                    normalized,
+                    (
+                        r"(?:握把|握持)(?:角度|角)[^0-9-]{0,12}(-?\d+(?:\.\d+)?)\s*(?:°|度)?",
+                        r"grip\s+angle[^0-9-]{0,12}(-?\d+(?:\.\d+)?)\s*(?:degrees?)?",
+                    ),
+                ),
+                -45.0,
+                45.0,
+            ),
+        )
+        for key, value, minimum, maximum in explicit_values:
+            if value is None:
+                continue
+            within_range = (
+                minimum < value <= maximum
+                if minimum == 0
+                else minimum <= value <= maximum
+            )
+            if within_range:
+                proportions[key] = value
+        explicit_density = _extract_number(
+            normalized,
+            (
+                r"(?:细节密度|细节)[^0-9]{0,12}(\d+(?:\.\d+)?)\s*%",
+                r"detail\s+density[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:%|percent)",
+            ),
+        )
+        if explicit_density is not None and 0 <= explicit_density <= 100:
+            payload["style"]["detail_density"] = round(explicit_density / 100.0, 6)
         if any(token in normalized for token in ("非对称", "asymmetric")):
             payload["constraints"]["symmetry"] = "asymmetric"
         elif any(token in normalized for token in ("严格对称", "左右对称", "symmetric")):
@@ -552,6 +621,7 @@ class OpenAICompatibleConceptPlanner:
     def __init__(self, config: OpenAICompatibleConceptPlannerConfig) -> None:
         self.config = config
         self.model_name = config.model or None
+        self.last_call_metrics: Optional[PlannerCallMetrics] = None
 
     def interpret_brief(
         self,
@@ -677,6 +747,7 @@ class OpenAICompatibleConceptPlanner:
         system: str,
         user: str,
     ) -> dict[str, Any]:
+        self.last_call_metrics = None
         if not self.config.api_key:
             raise ConceptPlannerError(
                 "PLANNER_UNCONFIGURED", "Concept Planner API key is not configured."
@@ -704,12 +775,16 @@ class OpenAICompatibleConceptPlanner:
         )
         request.add_header("Content-Type", "application/json")
         request.add_header("Authorization", f"Bearer {self.config.api_key}")
+        started_at = time.perf_counter()
         try:
             with urllib.request.urlopen(
                 request, timeout=self.config.timeout_seconds
             ) as response:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
+            self.last_call_metrics = PlannerCallMetrics(
+                latency_ms=_elapsed_milliseconds(started_at)
+            )
             if exc.code in {401, 403}:
                 raise ConceptPlannerError(
                     "PLANNER_AUTH_FAILED", "Concept Planner rejected the API key.", False
@@ -722,9 +797,15 @@ class OpenAICompatibleConceptPlanner:
                 "PLANNER_HTTP_ERROR", f"Concept Planner HTTP error {exc.code}."
             ) from exc
         except Exception as exc:  # noqa: BLE001 - provider failures cross this boundary.
+            self.last_call_metrics = PlannerCallMetrics(
+                latency_ms=_elapsed_milliseconds(started_at)
+            )
             raise ConceptPlannerError(
                 "PLANNER_TIMEOUT", "Concept Planner request failed."
             ) from exc
+        self.last_call_metrics = _planner_call_metrics(
+            data, latency_ms=_elapsed_milliseconds(started_at)
+        )
         try:
             content = data["choices"][0]["message"]["content"]
             return json.loads(content)
@@ -777,6 +858,7 @@ def planner_provenance(
     fallback_used: bool = False,
     warnings: Sequence[str] = (),
 ) -> ConceptPlannerProvenance:
+    metrics = getattr(provider, "last_call_metrics", None)
     return ConceptPlannerProvenance(
         generator=(
             "openai_compatible"
@@ -800,7 +882,46 @@ def planner_provenance(
         output_sha256=_sha256_json(output_payload),
         registry_module_ids=list(registry_module_ids),
         warnings=list(warnings),
+        latency_ms=metrics.latency_ms if metrics is not None else None,
+        input_tokens=metrics.input_tokens if metrics is not None else None,
+        output_tokens=metrics.output_tokens if metrics is not None else None,
+        total_tokens=metrics.total_tokens if metrics is not None else None,
     )
+
+
+def _planner_call_metrics(
+    response_payload: Any, *, latency_ms: int
+) -> PlannerCallMetrics:
+    usage = response_payload.get("usage", {}) if isinstance(response_payload, dict) else {}
+    input_tokens = _optional_nonnegative_int(
+        usage.get("prompt_tokens", usage.get("input_tokens"))
+    )
+    output_tokens = _optional_nonnegative_int(
+        usage.get("completion_tokens", usage.get("output_tokens"))
+    )
+    total_tokens = _optional_nonnegative_int(usage.get("total_tokens"))
+    if total_tokens is None and input_tokens is not None and output_tokens is not None:
+        total_tokens = input_tokens + output_tokens
+    return PlannerCallMetrics(
+        latency_ms=latency_ms,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=total_tokens,
+    )
+
+
+def _elapsed_milliseconds(started_at: float) -> int:
+    return max(0, round((time.perf_counter() - started_at) * 1000))
+
+
+def _optional_nonnegative_int(value: Any) -> Optional[int]:
+    if isinstance(value, bool):
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
 
 
 def _numeric_change(

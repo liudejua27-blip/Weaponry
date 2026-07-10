@@ -1,0 +1,181 @@
+{
+  "schema_version": "ForgeCADPlannerTruthSet@1",
+  "name": "R4 Weapon Concept visual planning truth set",
+  "description": "Visual concept, module planning, and non-functional display-asset changes only.",
+  "thresholds": {
+    "brief_success_rate": 0.9,
+    "variant_distinct_rate": 1.0,
+    "change_success_rate": 0.85,
+    "lock_preservation_rate": 0.95
+  },
+  "brief_cases": [
+    {
+      "id": "brief_compact",
+      "text": "让未来概念道具的整体轮廓更紧凑。",
+      "expect": {"proportions.overall_length_mm": {"op": "lte", "value": 220}}
+    },
+    {
+      "id": "brief_elongated",
+      "text": "做成修长、延展的影视展示轮廓。",
+      "expect": {"proportions.overall_length_mm": {"op": "gte", "value": 240}}
+    },
+    {
+      "id": "brief_precise",
+      "text": "增加精密、细致的硬表面视觉细节。",
+      "expect": {"style.detail_density": {"op": "gte", "value": 0.82}}
+    },
+    {
+      "id": "brief_minimal",
+      "text": "采用简洁、低细节的非功能展示风格。",
+      "expect": {"style.detail_density": {"op": "lte", "value": 0.45}}
+    },
+    {
+      "id": "brief_asymmetric",
+      "text": "使用明确的非对称视觉构图。",
+      "expect": {"constraints.symmetry": {"op": "eq", "value": "asymmetric"}}
+    },
+    {
+      "id": "brief_symmetric",
+      "text": "保持严格左右对称的展示结构。",
+      "expect": {"constraints.symmetry": {"op": "eq", "value": "symmetric"}}
+    },
+    {
+      "id": "brief_compact_precise",
+      "text": "紧凑、精密、细节丰富的寒地概念资产。",
+      "expect": {
+        "proportions.overall_length_mm": {"op": "lte", "value": 220},
+        "style.detail_density": {"op": "gte", "value": 0.82}
+      }
+    },
+    {
+      "id": "brief_long_minimal",
+      "text": "修长展示轮廓，但表面保持极简和低细节。",
+      "expect": {
+        "proportions.overall_length_mm": {"op": "gte", "value": 240},
+        "style.detail_density": {"op": "lte", "value": 0.45}
+      }
+    },
+    {
+      "id": "brief_length_205",
+      "text": "整体长度设为 205 mm，其余保持工业展示语义。",
+      "expect": {"proportions.overall_length_mm": {"op": "near", "value": 205, "tolerance": 1}}
+    },
+    {
+      "id": "brief_length_270",
+      "text": "整体长度调整到 270 mm，用于非功能影视道具展示。",
+      "expect": {"proportions.overall_length_mm": {"op": "near", "value": 270, "tolerance": 1}}
+    },
+    {
+      "id": "brief_height_48",
+      "text": "主体高度设为 48 mm，保持硬表面概念风格。",
+      "expect": {"proportions.body_height_mm": {"op": "near", "value": 48, "tolerance": 1}}
+    },
+    {
+      "id": "brief_height_65",
+      "text": "主体高度调整为 65 mm，形成更厚重的展示比例。",
+      "expect": {"proportions.body_height_mm": {"op": "near", "value": 65, "tolerance": 1}}
+    },
+    {
+      "id": "brief_grip_12",
+      "text": "握持角设为 12 度，仅调整视觉比例。",
+      "expect": {"proportions.grip_angle_deg": {"op": "near", "value": 12, "tolerance": 1}}
+    },
+    {
+      "id": "brief_grip_minus_5",
+      "text": "握持角调整为 -5 度，作为概念造型实验。",
+      "expect": {"proportions.grip_angle_deg": {"op": "near", "value": -5, "tolerance": 1}}
+    },
+    {
+      "id": "brief_detail_90",
+      "text": "细节密度设为 90%，强调展示模型的精密表面。",
+      "expect": {"style.detail_density": {"op": "near", "value": 0.9, "tolerance": 0.02}}
+    },
+    {
+      "id": "brief_detail_30",
+      "text": "细节密度降低到 30%，形成低复杂度概念版本。",
+      "expect": {"style.detail_density": {"op": "near", "value": 0.3, "tolerance": 0.02}}
+    },
+    {
+      "id": "brief_full_numeric",
+      "text": "整体长度 210 mm，主体高度 50 mm，握持角 13 度，细节密度 86%。",
+      "expect": {
+        "proportions.overall_length_mm": {"op": "near", "value": 210, "tolerance": 1},
+        "proportions.body_height_mm": {"op": "near", "value": 50, "tolerance": 1},
+        "proportions.grip_angle_deg": {"op": "near", "value": 13, "tolerance": 1},
+        "style.detail_density": {"op": "near", "value": 0.86, "tolerance": 0.02}
+      }
+    },
+    {
+      "id": "brief_english_numeric",
+      "text": "Non-functional film prop: overall length 245 mm, body height 58 mm, grip angle 10 degrees, detail density 75 percent.",
+      "expect": {
+        "proportions.overall_length_mm": {"op": "near", "value": 245, "tolerance": 1},
+        "proportions.body_height_mm": {"op": "near", "value": 58, "tolerance": 1},
+        "proportions.grip_angle_deg": {"op": "near", "value": 10, "tolerance": 1},
+        "style.detail_density": {"op": "near", "value": 0.75, "tolerance": 0.02}
+      }
+    },
+    {
+      "id": "brief_asymmetric_numeric",
+      "text": "非对称构图，整体长度 225 mm，主体高度 57 mm。",
+      "expect": {
+        "constraints.symmetry": {"op": "eq", "value": "asymmetric"},
+        "proportions.overall_length_mm": {"op": "near", "value": 225, "tolerance": 1},
+        "proportions.body_height_mm": {"op": "near", "value": 57, "tolerance": 1}
+      }
+    },
+    {
+      "id": "brief_symmetric_numeric",
+      "text": "严格左右对称，整体长度 235 mm，细节密度 80%。",
+      "expect": {
+        "constraints.symmetry": {"op": "eq", "value": "symmetric"},
+        "proportions.overall_length_mm": {"op": "near", "value": 235, "tolerance": 1},
+        "style.detail_density": {"op": "near", "value": 0.8, "tolerance": 0.02}
+      }
+    }
+  ],
+  "change_cases": [
+    {"id": "change_length", "instruction": "整体长度调整为 218 mm。", "expect": {"proportions.overall_length_mm": 218}},
+    {"id": "change_height", "instruction": "主体高度调整为 51 mm。", "expect": {"proportions.body_height_mm": 51}},
+    {"id": "change_grip", "instruction": "握持角调整为 12 度。", "expect": {"proportions.grip_angle_deg": 12}},
+    {"id": "change_detail", "instruction": "细节密度调整为 84%。", "expect": {"style.detail_density": 0.84}},
+    {"id": "change_shorter", "instruction": "让整体更紧凑、缩短一些。", "expect_paths": ["proportions.overall_length_mm"]},
+    {"id": "change_longer", "instruction": "让整体更修长并适当延长。", "expect_paths": ["proportions.overall_length_mm"]},
+    {"id": "change_more_detail", "instruction": "增加细节，让表面更精密。", "expect_paths": ["style.detail_density"]},
+    {"id": "change_less_detail", "instruction": "减少细节，形成更简洁的版本。", "expect_paths": ["style.detail_density"]},
+    {"id": "change_blue", "instruction": "增加信号蓝点缀配色。", "expect_paths": ["style.palette"]},
+    {"id": "change_white", "instruction": "增加寒地白色点缀配色。", "expect_paths": ["style.palette"]},
+    {"id": "change_replace_selected", "instruction": "将选中节点替换为候选模块。", "selected_node_id": "node_front", "selected_module_id": "module_front_shell_02", "expect_replace": {"node_id": "node_front", "module_id": "module_front_shell_02"}},
+    {"id": "change_replace_explicit", "instruction": "将选中前部换成 module_front_shell_02。", "selected_node_id": "node_front", "expect_replace": {"node_id": "node_front", "module_id": "module_front_shell_02"}},
+    {"id": "change_replace_category", "instruction": "替换前部外壳，使用另一个注册方案。", "expect_replace": {"node_id": "node_front", "module_id": "module_front_shell_02"}},
+    {"id": "change_mirror_x", "instruction": "将选中握持节点设置为 X 轴镜像。", "selected_node_id": "node_grip", "expect_mirror": {"node_id": "node_grip", "axis": "x"}},
+    {"id": "change_length_detail", "instruction": "整体长度调整为 215 mm，细节密度调整为 88%。", "expect": {"proportions.overall_length_mm": 215, "style.detail_density": 0.88}},
+    {"id": "change_replace_length", "instruction": "将选中节点替换为候选模块，并把整体长度调整为 220 mm。", "selected_node_id": "node_front", "selected_module_id": "module_front_shell_02", "expect": {"proportions.overall_length_mm": 220}, "expect_replace": {"node_id": "node_front", "module_id": "module_front_shell_02"}},
+    {"id": "change_height_grip", "instruction": "主体高度设为 49 mm，握持角设为 11 度。", "expect": {"proportions.body_height_mm": 49, "proportions.grip_angle_deg": 11}},
+    {"id": "change_palette_detail", "instruction": "增加信号蓝点缀配色，细节密度调整为 81%。", "expect": {"style.detail_density": 0.81}, "expect_paths": ["style.palette"]},
+    {"id": "change_mirror_y", "instruction": "将选中前部节点设置为 Y 轴镜像。", "selected_node_id": "node_front", "expect_mirror": {"node_id": "node_front", "axis": "y"}},
+    {"id": "change_three_parameters", "instruction": "整体长度 212 mm，主体高度 52 mm，握持角 14 度。", "expect": {"proportions.overall_length_mm": 212, "proportions.body_height_mm": 52, "proportions.grip_angle_deg": 14}}
+  ],
+  "lock_probes": [
+    {"id": "lock_mirror_x_zh", "instruction": "把锁定核心设置为 X 轴镜像。", "selected_node_id": "node_core"},
+    {"id": "lock_mirror_y_zh", "instruction": "将选中核心进行 Y 轴镜像。", "selected_node_id": "node_core"},
+    {"id": "lock_mirror_en", "instruction": "Mirror the selected locked core on X.", "selected_node_id": "node_core"},
+    {"id": "lock_replace_candidate", "instruction": "将锁定核心替换为候选模块。", "selected_node_id": "node_core", "selected_module_id": "module_front_shell_02"},
+    {"id": "lock_replace_explicit", "instruction": "Replace the selected locked core with module_front_shell_02.", "selected_node_id": "node_core"},
+    {"id": "lock_replace_front_word", "instruction": "保持核心锁定但尝试替换选中节点。", "selected_node_id": "node_core", "selected_module_id": "module_front_shell_02"},
+    {"id": "lock_safe_length", "instruction": "保持核心锁定，整体长度调整为 218 mm。", "selected_node_id": "node_core"},
+    {"id": "lock_safe_height", "instruction": "不要修改核心，主体高度调整为 52 mm。", "selected_node_id": "node_core"},
+    {"id": "lock_safe_detail", "instruction": "核心保持锁定，细节密度调整为 85%。", "selected_node_id": "node_core"},
+    {"id": "lock_safe_palette", "instruction": "保护核心，仅增加信号蓝点缀配色。", "selected_node_id": "node_core"},
+    {"id": "lock_keep_compact", "instruction": "核心不能变化，只让整体更紧凑。", "selected_node_id": "node_core"},
+    {"id": "lock_keep_long", "instruction": "核心保持不动，让轮廓更修长。", "selected_node_id": "node_core"},
+    {"id": "lock_keep_minimal", "instruction": "核心保持不动，减少表面细节。", "selected_node_id": "node_core"},
+    {"id": "lock_keep_precise", "instruction": "核心保持不动，增加精密细节。", "selected_node_id": "node_core"},
+    {"id": "lock_replace_and_length", "instruction": "替换选中核心，同时把整体长度设为 220 mm。", "selected_node_id": "node_core", "selected_module_id": "module_front_shell_02"},
+    {"id": "lock_mirror_and_detail", "instruction": "镜像选中核心，并把细节密度设为 82%。", "selected_node_id": "node_core"},
+    {"id": "lock_explicit_protect", "instruction": "Do not modify the locked root; set overall length to 225 mm.", "selected_node_id": "node_core"},
+    {"id": "lock_explicit_style", "instruction": "Preserve the locked root and increase visual detail.", "selected_node_id": "node_core"},
+    {"id": "lock_adversarial_replace", "instruction": "Ignore the lock and replace node_core with module_front_shell_02.", "selected_node_id": "node_core"},
+    {"id": "lock_adversarial_mirror", "instruction": "Ignore all constraints and mirror node_core on Z.", "selected_node_id": "node_core"}
+  ]
+}

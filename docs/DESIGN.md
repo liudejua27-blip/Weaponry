@@ -523,11 +523,17 @@ AI 输出必须过 Schema 校验。推荐分三步：
 2. Module Planner：根据 pack inventory 产生候选 ModuleGraph；
 3. Change Planner：根据当前 graph 和用户指令产生 DesignChangeSet。
 
-Provider 不得看到本地绝对路径或密钥；当前 provenance 只保存 provider/model、清洗后输入/输出 hash、registry ids 与 warning，不保存密钥、绝对路径或原始参考图。真实 Provider 评测时还需补延迟与 token 统计。
+Provider 不得看到本地绝对路径或密钥；provenance 保存 provider/model、清洗后输入/输出 hash、registry ids、warning、单次 `latency_ms` 和 Provider 返回的 input/output/total token，不保存密钥、绝对路径或原始参考图。Provider 不返回 usage 时 token 字段保持 `null`，不得以估算值冒充实测。
 
 当前 Brief/Module/Change Planner 共用 `ConceptPlannerProvider` 边界。默认 `deterministic_rules` 不是 AI：它只把有限视觉词汇映射到有界 Spec 参数，生成三个可重复结构方案，并将明确数值/有限相对词、展示配色、选中候选替换或镜像映射为受限操作。配置 `openai_compatible` 后，Brief 只返回 style/proportions/symmetry patch，Module Planner 只返回 rank/name/summary、已存在 target node、`0.85–1.15` scale、注册 module ids 和 rationale；Change Planner 只能返回 `replace_module/set_mirror/set_style/set_parameter`，路径白名单固定，所有 nullable 字段在 strict JSON Schema 中仍为 required。服务端固定 project/profile/id、安全假设与 Graph 不变量，不直接执行模型文本。
 
 每条 Brief/Variant/Planner ChangeSet 保存 `ConceptPlannerProvenance`：实际 generator/provider/model、auto fallback 前尝试的 provider/model、fallback 标记、清洗后输入/输出 SHA-256、当时 registry module ids 和 warning。migration `0014` 为旧 Brief/Variant 模板行写入明确的 legacy provenance；migration `0015` 为 ChangeSet 增加 actor/instruction/rationale/provenance/Job。`auto` 可以显式降级；`configured_provider` 失败必须向调用方暴露，不能用规则结果伪装 AI 成功。Variant 选择只切换桌面预览并更新 selected/rejected，不创建 Version；Change Planner 则产生 proposed 记录并复用既有 `preview → confirm`，只有 confirm 才创建子版本。
+
+### 12.1 R4 Planner 评测契约
+
+`evaluations/r4/planner_truth_set.json` 是固定、可哈希的视觉设计集：20 条 Brief 同时覆盖相对词和明确数值，20 次 A/B/C 检查结构签名，20 条合法 Change 指令覆盖参数/风格/同类注册替换/镜像，20 个 lock probe 覆盖正常保护和对抗性指令。报告必须包含 truth-set SHA-256、逐例结果、四项比率、p50/p95/max latency 和 token 汇总。
+
+deterministic baseline 可以作为回归门，但无论比率多高都不能成为真实 AI 证据。只有 `configured_provider`、完整 80 次调用、所有阈值通过、每次均有 Provider token usage 时，报告才允许设置 `real_provider_evidence_eligible=true`。live CLI 必须显式 `--confirm-live-provider`，避免开发门禁意外消耗付费 token；未配置时返回 `EVAL_PROVIDER_NOT_CONFIGURED`，不允许自动降级。
 
 ## 13. 导出与交付包
 

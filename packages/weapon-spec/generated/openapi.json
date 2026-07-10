@@ -1217,6 +1217,30 @@
             "title": "Input Sha256",
             "type": "string"
           },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
           "model": {
             "anyOf": [
               {
@@ -1233,6 +1257,18 @@
             "pattern": "^[0-9a-f]{64}$",
             "title": "Output Sha256",
             "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
           },
           "provider_id": {
             "maxLength": 120,
@@ -1254,6 +1290,18 @@
             },
             "title": "Registry Module Ids",
             "type": "array"
+          },
+          "total_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Tokens"
           },
           "warnings": {
             "items": {

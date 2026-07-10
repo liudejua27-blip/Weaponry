@@ -32,7 +32,7 @@ npm run r4:planner-gate
 
 ## 未完成
 
-- 使用真实配置 Provider 建立 ≥90% Brief 解析集、三方案差异/有效性评分、延迟和 token 成本证据；
+- 固定 20/20/20/20 truth set、评测器和 latency/token 采集已见 `R4_PLANNER_EVALUATION.md`；仍需在真实配置 Provider 上运行并达到 ≥90% Brief 等发布阈值；
 - Change Planner 把自然语言修改编译成 DesignChangeSet，并复用现有 ghost preview、lock、stale 与 confirm 子版本链；
 - 当前 module recommendation 是已注册候选列表，不会自动替换模块；不满足需求时的局部生成 Job 仍未接入；
 - Provider 调用尚未 worker 化，也没有取消、重试、partial success 与 readiness；

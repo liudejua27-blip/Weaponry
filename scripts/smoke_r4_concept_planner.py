@@ -16,6 +16,7 @@ from forgecad_agent.application.concept_planner import (
     ConceptVariantPlan,
     OpenAICompatibleConceptPlanner,
     OpenAICompatibleConceptPlannerConfig,
+    planner_provenance,
 )
 from forgecad_agent.domain.concepts.models import ModuleGraph, WeaponConceptSpec
 from smoke_r2_concept_contracts import _concept_spec
@@ -50,7 +51,14 @@ class _PlannerHandler(BaseHTTPRequestHandler):
                 ]
             }
         body = json.dumps(
-            {"choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]}
+            {
+                "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}],
+                "usage": {
+                    "prompt_tokens": 120,
+                    "completion_tokens": 40,
+                    "total_tokens": 160,
+                },
+            }
         ).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -135,6 +143,27 @@ def main() -> int:
             "provider module recommendations mismatch",
         )
         _assert(len(_PlannerHandler.requests) == 2, "provider HTTP request count mismatch")
+        _assert(
+            provider.last_call_metrics is not None
+            and provider.last_call_metrics.latency_ms >= 0
+            and provider.last_call_metrics.input_tokens == 120
+            and provider.last_call_metrics.output_tokens == 40
+            and provider.last_call_metrics.total_tokens == 160,
+            "provider usage telemetry mismatch",
+        )
+        provenance = planner_provenance(
+            provider,
+            input_payload={"brief": "寒地、精密、蓝色点缀的紧凑非功能概念资产"},
+            output_payload=[item.model_dump(mode="json") for item in plans],
+            registry_module_ids=[item["module_id"] for item in catalog],
+        )
+        _assert(
+            provenance.latency_ms is not None
+            and provenance.input_tokens == 120
+            and provenance.output_tokens == 40
+            and provenance.total_tokens == 160,
+            "planner provenance did not retain provider telemetry",
+        )
         _assert(
             all(
                 request["response_format"]["type"] == "json_schema"
@@ -237,6 +266,7 @@ def main() -> int:
                     "openai_compatible_requests": len(_PlannerHandler.requests),
                     "structured_output_verified": True,
                     "safety_prompt_verified": True,
+                    "provider_telemetry_verified": True,
                     "provider_variant_count": len(plans),
                     "auto_fallback_verified": True,
                     "configured_provider_failure_preserved": True,

@@ -38,6 +38,7 @@
 | R2 QualityRun/Findings | 第一切片完成 | version-scoped report ingestion、finding persistence、idempotency、round-trip |
 | R4 Brief/Module Planner | Provider 边界纵向切片完成 | deterministic rules、OpenAI-compatible strict JSON Schema、auto/strict failure semantics、migration 0014 provenance、registry recommendations、A/B/C structural variants、desktop selection preview、restart |
 | R4 Change Planner | 可确认纵向切片完成 | `docs/evidence/R4_CHANGE_PLANNER.md`；migration 0015 actor/provider provenance、受限操作、registry/lock/path/no-op validation、JobEvent、ghost preview、reject/confirm、child Version、timeline 与 restart；真实 Provider 指标待测 |
+| R4 Planner evaluation | 评测基础设施完成 | `docs/evidence/R4_PLANNER_EVALUATION.md`、`evaluations/r4/planner_truth_set.json`、20 Brief/20 Variant/20 Change/20 lock、hash、逐例结果、阈值、latency/token、deterministic baseline 全通过；当前未配置 live Provider，`real_provider_evidence_eligible=false` |
 | R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Change Planner、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
@@ -217,7 +218,7 @@ Brief → Schema validation → A/B/C variants
 
 AI 只能引用 registry 中存在的 Module/Connector ID。组件库无法满足需求时，局部生成进入单独 Job，原始资产不覆盖。
 
-当前已完成 Brief Interpreter、Module Planner 与 Change Planner 边界：`deterministic_rules` 会实际解析紧凑/延展、细节密度、颜色和对称等视觉意图；`openai_compatible` 使用 strict JSON Schema，只能引用请求中提供的 node/module id。`auto` 模式外部 Provider 失败时显式降级并保存 attempted provider、错误、输入/输出 hash；`configured_provider` 失败直接返回错误。A/B/C 每个方案包含目标节点、结构 scale、注册模块建议和 rationale，并在服务端再次执行 lock/root/registry/Graph 校验。自然语言修改只允许 `replace_module`、`set_mirror`、`set_style`、`set_parameter`，先写入带 actor/provider/instruction/rationale/Job 的 proposed ChangeSet，再走既有 registry/lock/Connector/Graph preview；桌面显示半透明 ghost，用户明确确认才创建子版本，也可放弃并留下 rejected diagnostic。方案选择本身仍只切换 Planner 预览，不直接创建 Version；真实模型质量评测仍待实现。
+当前已完成 Brief Interpreter、Module Planner 与 Change Planner 边界：`deterministic_rules` 会解析紧凑/延展、明确长度/高度/握持角/细节百分比、颜色和对称等意图；`openai_compatible` 使用 strict JSON Schema，只能引用请求中提供的 node/module id。`auto` 模式外部 Provider 失败时显式降级并保存 attempted provider、错误、输入/输出 hash；`configured_provider` 失败直接返回错误。A/B/C 每个方案包含目标节点、结构 scale、注册模块建议和 rationale，并在服务端再次执行 lock/root/registry/Graph 校验。自然语言修改只允许 `replace_module`、`set_mirror`、`set_style`、`set_parameter`，先写入带 actor/provider/instruction/rationale/Job 的 proposed ChangeSet，再走既有 registry/lock/Connector/Graph preview；桌面显示半透明 ghost，用户明确确认才创建子版本，也可放弃并留下 rejected diagnostic。方案选择本身仍只切换 Planner 预览，不直接创建 Version。固定 80 阶段 truth set 与评测器已完成，deterministic baseline 四项为 100%，但真实模型质量评测尚未运行。
 
 退出条件：
 
@@ -325,7 +326,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 3. 为 ChangeSet 审计增加批量报告导出和长期归档策略；actor/provider provenance、instruction/rationale/Job、分页、搜索、状态/操作过滤、rejected/stale/discarded diagnostic 与重启恢复已完成。
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；安装 Blender 或 Assimp 后执行真实只读 round-trip，再评估纹理交换与 glTF Transform/Meshopt。转台 MP4、确定性轮廓抗锯齿、软接触阴影和 DCC 预检代码已完成。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
-6. 在已完成 Brief/Module/Change Planner、桌面 A/B/C 和 ghost preview/confirm 基础上，用真实配置 Provider 建立固定 truth set，评测 Brief ≥90%、三方案差异度、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic/fake-provider 通过不等于 AI 指标达标。
+6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
 9. 完成 Tauri sidecar、签名、安装/卸载和干净机器验证。
