@@ -1,7 +1,7 @@
 # R3 Concept Workbench Evidence
 
 日期：2026-07-10
-范围：R3 当前两个纵向切片；证明桌面工作台读取真实 Concept 数据、不可变 GLB 和兼容模块替换，不证明正式模块资产、拖放/完整吸附或 R3 完成。
+范围：R3 当前三个纵向切片；证明真实 Concept/GLB、兼容替换和版本化桌面交互，不证明正式模块资产、完整吸附/镜像或 R3 完成。
 
 ## 已实现
 
@@ -12,6 +12,9 @@
 - 视口通过 `GLTFLoader` 读取 Graph 节点引用的源 GLB，应用 node Transform 并释放 GPU 资源；
 - raycast 选择同步到底部模块库、右侧节点/模块/Connector 检查器和状态栏；
 - 节点支持本地隐藏/显示、聚焦和 Connector overlay；
+- 组件库模块可拖到视口节点形成候选，仍需显式点击确认；
+- Undo/Redo 沿 immutable parent/child Version 导航，不改写历史；
+- 爆炸视图只改变展示偏移，不写回 ModuleGraph；
 - 兼容模块替换走 ChangeSet preview/confirm，edge Connector 按相同 slot/type 自动重映射；
 - `locked` Graph 节点由服务端保护，即使客户端省略 `protected_node_ids` 也不能绕过；
 - 页面不再用程序化武器模型冒充真实 ModuleGraph；没有 Graph 或 Module 时显示明确空状态；
@@ -32,9 +35,11 @@ npm run desktop:r3-concept-workbench-smoke
 5. 将 `module_front_shell_01` 替换为兼容的 `module_front_shell_02`，确认后创建 V3；
 6. Connector 从 `connector_front_core` 重映射为 `connector_front_alt_core`；
 7. 隐藏/显示、聚焦和 overlay 控件可操作；
-8. 从工作台创建并下载非空 Concept ZIP；
-9. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
-10. 浏览器没有未处理 page error。
+8. 拖拽候选后替换按钮才启用，ChangeSet 不被绕过；
+9. Undo 到 V2、Redo 到 V3，并验证爆炸视图开关；
+10. 从工作台创建并下载非空 Concept ZIP；
+11. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
+12. 浏览器没有未处理 page error。
 
 截图：`output/playwright/r3-concept-workbench.png`。
 
@@ -51,7 +56,7 @@ npm run desktop:r3-concept-workbench-smoke
 ## 未完成
 
 - 首批 8–12 个高质量、UV/材质/LOD 完整的 Weapon Concept GLB；
-- 拖放、镜像、更完整的 Connector 自动吸附与批量操作；
+- 镜像、更完整的 Connector 自动吸附与批量操作；
 - 保存操作、Undo/Redo、爆炸视图和 GPU 压力测试；
 - combined GLB、OBJ、PNG、实际 Mesh/Assembly 检查；
 - Tauri 打包窗口中的同等 E2E。

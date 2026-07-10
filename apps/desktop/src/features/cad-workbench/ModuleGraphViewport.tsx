@@ -16,8 +16,10 @@ type ModuleGraphViewportProps = {
   hiddenNodeIds: string[]
   focusNodeId: string | null
   showConnectors: boolean
+  explodeFactor: number
   getModuleFileUrl: (moduleId: string) => string
   onSelectNode: (nodeId: string) => void
+  onDropModule: (nodeId: string, moduleId: string) => void
 }
 
 export function ModuleGraphViewport({
@@ -30,8 +32,10 @@ export function ModuleGraphViewport({
   hiddenNodeIds,
   focusNodeId,
   showConnectors,
+  explodeFactor,
   getModuleFileUrl,
   onSelectNode,
+  onDropModule,
 }: ModuleGraphViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [loadState, setLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>(
@@ -80,6 +84,10 @@ export function ModuleGraphViewport({
 
     let disposed = false
     const loader = new GLTFLoader()
+    const rootPosition = new THREE.Vector3(
+      ...(graph?.nodes.find((node) => node.node_id === graph.root_node_id)?.transform.position
+        ?? [0, 0, 0]) as [number, number, number],
+    )
     const loadNode = (node: NonNullable<typeof graph>['nodes'][number]) => new Promise<void>((resolve, reject) => {
       loader.load(
         getModuleFileUrl(node.module_id),
@@ -90,12 +98,24 @@ export function ModuleGraphViewport({
             return
           }
           const object = gltf.scene
+          const moduleRecord = modules.find(
+            (item) => item.manifest.module_id === node.module_id,
+          )
           object.name = node.node_id
           object.userData.nodeId = node.node_id
           const [px = 0, py = 0, pz = 0] = node.transform.position
           const [rx = 0, ry = 0, rz = 0] = node.transform.rotation
           const [sx = 1, sy = 1, sz = 1] = node.transform.scale
           object.position.set(px, py, pz)
+          if (explodeFactor > 0 && node.node_id !== graph?.root_node_id) {
+            const direction = object.position.clone().sub(rootPosition)
+            if (direction.lengthSq() < 0.0001) {
+              const nodeIndex = graph?.nodes.findIndex((item) => item.node_id === node.node_id) ?? 1
+              direction.set(nodeIndex % 2 === 0 ? 1 : -1, nodeIndex % 3 === 0 ? 0.5 : 0, 0)
+            }
+            const extent = Math.max(...(moduleRecord?.manifest.bounds_mm ?? [50]))
+            object.position.add(direction.normalize().multiplyScalar(extent * explodeFactor))
+          }
           object.rotation.set(rx, ry, rz)
           object.scale.set(sx, sy, sz)
           object.visible = node.visible !== false && !hiddenNodeIds.includes(node.node_id)
@@ -117,9 +137,6 @@ export function ModuleGraphViewport({
             child.material = Array.isArray(child.material) ? materials : materials[0]
           })
           if (showConnectors) {
-            const moduleRecord = modules.find(
-              (item) => item.manifest.module_id === node.module_id,
-            )
             const markerRadius = Math.max(
               ...(moduleRecord?.manifest.bounds_mm ?? [10]),
             ) * 0.035
@@ -181,16 +198,36 @@ export function ModuleGraphViewport({
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
-    const selectAtPointer = (event: PointerEvent) => {
+    const nodeAtClientPoint = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect()
-      pointer.x = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * 2 - 1
-      pointer.y = -((event.clientY - rect.top) / Math.max(rect.height, 1)) * 2 + 1
+      pointer.x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 2 - 1
+      pointer.y = -((clientY - rect.top) / Math.max(rect.height, 1)) * 2 + 1
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects(moduleRoot.children, true)[0]
       const nodeId = hit?.object.userData.nodeId
-      if (typeof nodeId === 'string') onSelectNode(nodeId)
+      return typeof nodeId === 'string' ? nodeId : null
+    }
+    const selectAtPointer = (event: PointerEvent) => {
+      const nodeId = nodeAtClientPoint(event.clientX, event.clientY)
+      if (nodeId) onSelectNode(nodeId)
+    }
+    const allowModuleDrop = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes('application/x-forgecad-module-id')) {
+        event.preventDefault()
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+      }
+    }
+    const dropModule = (event: DragEvent) => {
+      const moduleId = event.dataTransfer?.getData('application/x-forgecad-module-id')
+        || event.dataTransfer?.getData('text/plain')
+      if (!moduleId) return
+      event.preventDefault()
+      const nodeId = nodeAtClientPoint(event.clientX, event.clientY) ?? selectedNodeId
+      if (nodeId) onDropModule(nodeId, moduleId)
     }
     renderer.domElement.addEventListener('pointerdown', selectAtPointer)
+    renderer.domElement.addEventListener('dragover', allowModuleDrop)
+    renderer.domElement.addEventListener('drop', dropModule)
 
     const resize = () => {
       const width = host.clientWidth
@@ -216,6 +253,8 @@ export function ModuleGraphViewport({
       cancelAnimationFrame(animationFrame)
       observer.disconnect()
       renderer.domElement.removeEventListener('pointerdown', selectAtPointer)
+      renderer.domElement.removeEventListener('dragover', allowModuleDrop)
+      renderer.domElement.removeEventListener('drop', dropModule)
       controls.dispose()
       disposeObject(scene)
       renderer.dispose()
@@ -223,12 +262,14 @@ export function ModuleGraphViewport({
     }
   }, [
     cameraView,
+    explodeFactor,
     focusNodeId,
     getModuleFileUrl,
     graphRecord,
     hiddenNodeIds,
     modules,
     onSelectNode,
+    onDropModule,
     selectedNodeId,
     showConnectors,
     showGrid,

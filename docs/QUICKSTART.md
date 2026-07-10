@@ -36,6 +36,6 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph 与 GLB；`r3:workbench-gate` 使用 4 个程序化 GLB fixture 验证选择、隐藏、聚焦、Connector overlay 和 ChangeSet 替换，不代表最终模块资产质量。拖放/完整吸附、正式 8–12 个资产、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
+当前页面已读取真实 Concept Project、Version、ModuleGraph 与 GLB；`r3:workbench-gate` 使用 4 个程序化 GLB fixture 验证拖拽候选、ChangeSet 替换、Undo/Redo、爆炸视图和重启恢复，不代表最终模块资产质量。完整吸附/镜像、正式 8–12 个资产、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
 
 具体第一周设计步骤、运行方式和故障处理见 [OPERATIONS.md](OPERATIONS.md)。

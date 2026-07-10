@@ -248,7 +248,11 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
 
-    await page.getByRole('button', { name: /module_front_shell_02/ }).click()
+    await page.getByRole('button', { name: /module_front_shell_02/ }).dragTo(
+      page.locator('.weapon-viewport canvas'),
+      { targetPosition: { x: 28, y: 28 } },
+    )
+    await assertText(page.locator('.module-replace-bar'), ['节点：node_front', '候选：module_front_shell_02'])
     const replaceButton = page.getByRole('button', { name: '替换并创建新版本' })
     if (await replaceButton.isDisabled()) throw new Error('compatible replacement action was disabled')
     const confirmResponsePromise = page.waitForResponse(
@@ -270,6 +274,17 @@ async function runWorkbenchUi(baseUrl, seeded) {
     if (inspectorValuesAfterReplace[1] !== 'module_front_shell_02') {
       throw new Error(`replacement was not reflected in inspector: ${JSON.stringify(inspectorValuesAfterReplace)}`)
     }
+
+    await page.getByRole('button', { name: '撤销', exact: true }).click()
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V2'),
+      { timeout: 20_000 },
+    )
+    await page.getByRole('button', { name: '重做', exact: true }).click()
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V3'),
+      { timeout: 20_000 },
+    )
     const canvas = page.locator('.weapon-viewport canvas')
     const canvasBox = await canvas.boundingBox()
     if (!canvasBox || canvasBox.width < 400 || canvasBox.height < 300) {
@@ -283,6 +298,9 @@ async function runWorkbenchUi(baseUrl, seeded) {
     await page.getByRole('button', { name: '隐藏' }).click()
     await page.getByRole('button', { name: '显示' }).click()
     await page.getByRole('button', { name: '聚焦' }).click()
+    await page.getByRole('button', { name: '爆炸视图' }).click()
+    await page.waitForSelector('.viewport-viewbar button.active[aria-label="爆炸视图"]')
+    await page.getByRole('button', { name: '爆炸视图' }).click()
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
 
@@ -302,6 +320,9 @@ async function runWorkbenchUi(baseUrl, seeded) {
       viewport: { width: 1536, height: 1024 },
       selected_node_id: 'node_front',
       replacement_module_id: 'module_front_shell_02',
+      undo_redo_verified: true,
+      exploded_view_verified: true,
+      drag_candidate_verified: true,
       export_downloaded: true,
     }
   } finally {

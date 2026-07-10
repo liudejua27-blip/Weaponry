@@ -140,7 +140,7 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Export 已留痕 | Quality 与 Graph validate 继续接入该主链 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
-| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、ChangeSet 替换和源包导出 | 当前只有 4 个程序化 R3 fixture；拖放、完整吸附、爆炸视图和正式 8–12 模块待完成 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；完整吸附、镜像和正式 8–12 模块待完成 |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |

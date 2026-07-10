@@ -96,6 +96,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [showConnectors, setShowConnectors] = useState(false)
+  const [explodeFactor, setExplodeFactor] = useState(0)
   const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [chatInput, setChatInput] = useState('')
@@ -171,6 +172,13 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     && selectedNode.module_id !== selectedLibraryModule.manifest.module_id
     && selectedModule?.manifest.category === selectedLibraryModule.manifest.category,
   )
+  const activeVersionSummary = (concept.project?.versions ?? []).find(
+    (item) => item.version_id === concept.version?.version_id,
+  )
+  const undoVersionId = activeVersionSummary?.parent_version_id ?? null
+  const redoVersionId = (concept.project?.versions ?? [])
+    .filter((item) => item.parent_version_id === concept.version?.version_id)
+    .sort((left, right) => right.version_no - left.version_no)[0]?.version_id ?? null
 
   const selectGraphNode = useCallback((nodeId: string) => {
     setSelectedComponent(nodeId)
@@ -198,6 +206,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     ))
   }, [selectedNode])
 
+  const handleModuleDrop = useCallback((nodeId: string, moduleId: string) => {
+    selectGraphNode(nodeId)
+    setSelectedLibraryModuleId(moduleId)
+    setAssistantNote(`已将 ${moduleId} 设为 ${nodeId} 的替换候选；点击“替换并创建新版本”后才会提交 ChangeSet。`)
+  }, [selectGraphNode])
+
   const updateParameter = (key: keyof WeaponParameters, value: number) => {
     setParameters((current) => ({ ...current, [key]: value }))
   }
@@ -220,7 +234,20 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
           <IconAction icon={Plus} label="新建" onClick={() => concept.createStarterProject()} />
           <IconAction icon={FolderOpen} label="同步" onClick={() => concept.refresh()} />
           <IconAction icon={FloppyDisk} label="保存" onClick={() => setAssistantNote('参数仍是本地草稿；请通过 ChangeSet 确认后创建不可变新版本。')} />
-          <IconAction icon={ClockCounterClockwise} label="撤销" disabled title="R3 Undo/Redo 待实现" />
+          <IconAction
+            icon={ClockCounterClockwise}
+            label="撤销"
+            onClick={() => undoVersionId && concept.selectVersion(undoVersionId)}
+            disabled={!undoVersionId || concept.loading}
+            title="切换到当前版本的 parent"
+          />
+          <IconAction
+            icon={ArrowsClockwise}
+            label="重做"
+            onClick={() => redoVersionId && concept.selectVersion(redoVersionId)}
+            disabled={!redoVersionId || concept.loading}
+            title="切换到最近的 child version"
+          />
         </div>
         <nav className="cad-mode-tabs" aria-label="工作模式">
           {([
@@ -388,8 +415,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               hiddenNodeIds={hiddenNodeIds}
               focusNodeId={focusedNodeId}
               showConnectors={showConnectors}
+              explodeFactor={explodeFactor}
               getModuleFileUrl={getModuleFileUrl}
               onSelectNode={selectGraphNode}
+              onDropModule={handleModuleDrop}
             />
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
@@ -397,7 +426,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <IconButton icon={Crosshair} label="正视" active={cameraView === 'front'} onClick={() => setCameraView('front')} />
               <IconButton icon={GridFour} label="顶视" active={cameraView === 'top'} onClick={() => setCameraView('top')} />
               <IconButton icon={Cube} label="右视" active={cameraView === 'right'} onClick={() => setCameraView('right')} />
-              <IconButton icon={ArrowsOutCardinal} label="适配窗口" />
+              <IconButton
+                icon={ArrowsOutCardinal}
+                label="爆炸视图"
+                active={explodeFactor > 0}
+                onClick={() => setExplodeFactor((current) => current > 0 ? 0 : 0.42)}
+              />
             </div>
             <div className="viewport-readout">
               <span>{activeTool === 'measure' ? '测量模式：选择两个几何点' : `${activeTool} 工具已启用`}</span>
@@ -467,6 +501,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                           <button
                             key={component.manifest.module_id}
                             className={`${isActiveNode ? 'active' : ''} ${isCandidate ? 'candidate' : ''}`.trim()}
+                            draggable
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = 'copy'
+                              event.dataTransfer.setData('application/x-forgecad-module-id', component.manifest.module_id)
+                              event.dataTransfer.setData('text/plain', component.manifest.module_id)
+                            }}
                             onClick={() => {
                               setSelectedLibraryModuleId(component.manifest.module_id)
                               if (graphNode) selectGraphNode(graphNode.node_id)
