@@ -2,7 +2,7 @@
   "name": "wushen-forge",
   "private": true,
   "version": "0.1.0",
-  "description": "Local-first AI CAD and DFM desktop agent for weapon, precision mechanical, and 3D-print design workflows.",
+  "description": "Local-first AI modular 3D design workbench with a Weapon Concept Pack.",
   "workspaces": [
     "apps/desktop"
   ],
@@ -34,6 +34,7 @@
     "agent:m5-export-unity-http-smoke": ".venv/bin/python scripts/smoke_m5_export_unity_http.py",
     "agent:m6-structure-recast-smoke": ".venv/bin/python scripts/smoke_m6_structure_recast.py",
     "agent:r1-foundation-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r1_foundation.py",
+    "agent:r2-concept-contracts-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_concept_contracts.py",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
@@ -61,7 +62,8 @@
     "m5:gate": "npm run m4:gate && npm run agent:p0-job-actions-smoke && npm run agent:p0-runtime-recovery-smoke && npm run agent:p0-provider-runtime-boundary-smoke && npm run agent:p0-local-http-3d-provider-smoke && npm run agent:p0-local-3d-runtime-wrapper-smoke && npm run agent:p0-job-history-search-smoke && npm run agent:p0-async-generate3d-worker-smoke && npm run agent:p0-generate3d-worker-loop-smoke && npm run agent:p0-export-unity-worker-smoke && npm run agent:p1-asset-reveal-smoke && npm run desktop:p0-runtime-handoff-smoke && npm run desktop:p0-job-action-state-smoke && npm run desktop:p0-job-center-history-smoke && npm run desktop:p0-context-continuity-smoke && npm run desktop:p1-deeplink-smoke && npm run agent:m5-glb-smoke && npm run agent:m5-generate3d-http-smoke && npm run agent:m5-export-unity-http-smoke && npm run unity:preflight",
     "m6:gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:m6-structure-recast-smoke && npm run desktop:typecheck",
     "r1:foundation-gate": "npm run agent:r1-foundation-smoke && npm run m6:gate",
-    "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke"
+    "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke",
+    "r2:contracts-gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:r2-concept-contracts-smoke"
   },
   "engines": {
     "node": ">=20",

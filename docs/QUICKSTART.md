@@ -31,6 +31,7 @@ npm run desktop:typecheck
 npm run desktop:build
 npm run desktop:p0-context-continuity-smoke
 npm run r1:gate
+npm run r2:contracts-gate
 ```
 
 当前页面是产品方向和交互参考，Three.js 程序化模型不是最终 GLB 模块资产；Concept API、连接器、ChangeSet、质量检查和导出仍按 R2–R6 实施。

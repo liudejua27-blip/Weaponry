@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/module-graph.schema.json",
+  "title": "ModuleGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "graph_id", "project_id", "root_node_id", "nodes", "edges"],
+  "properties": {
+    "schema_version": { "const": "ModuleGraph@1" },
+    "graph_id": { "$ref": "common.schema.json#/$defs/id" },
+    "project_id": { "$ref": "common.schema.json#/$defs/id" },
+    "root_node_id": { "$ref": "common.schema.json#/$defs/id" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "module_id", "transform", "locked", "visible"],
+        "properties": {
+          "node_id": { "$ref": "common.schema.json#/$defs/id" },
+          "module_id": { "$ref": "common.schema.json#/$defs/id" },
+          "transform": { "$ref": "common.schema.json#/$defs/transform" },
+          "locked": { "type": "boolean" },
+          "visible": { "type": "boolean" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["edge_id", "from_node_id", "from_connector_id", "to_node_id", "to_connector_id", "status"],
+        "properties": {
+          "edge_id": { "$ref": "common.schema.json#/$defs/id" },
+          "from_node_id": { "$ref": "common.schema.json#/$defs/id" },
+          "from_connector_id": { "$ref": "common.schema.json#/$defs/id" },
+          "to_node_id": { "$ref": "common.schema.json#/$defs/id" },
+          "to_connector_id": { "$ref": "common.schema.json#/$defs/id" },
+          "status": { "type": "string", "enum": ["connected", "invalid"] }
+        }
+      }
+    }
+  }
+}

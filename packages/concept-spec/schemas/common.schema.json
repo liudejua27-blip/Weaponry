@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/common.schema.json",
+  "title": "ForgeCAD Concept Common Definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$"
+    },
+    "iso_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "hex_color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "number" }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vec3" },
+        "rotation": { "$ref": "#/$defs/vec3" },
+        "scale": { "$ref": "#/$defs/vec3" }
+      }
+    },
+    "module_category": {
+      "type": "string",
+      "enum": [
+        "core_shell",
+        "front_shell",
+        "rear_shell",
+        "grip_shell",
+        "top_accessory",
+        "side_accessory",
+        "lower_structure",
+        "storage_visual",
+        "armor_panel"
+      ]
+    },
+    "intended_use": {
+      "type": "string",
+      "enum": ["visual_asset", "game_asset", "film_prop", "non_functional_display"]
+    }
+  }
+}

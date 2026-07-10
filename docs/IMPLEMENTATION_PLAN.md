@@ -9,11 +9,11 @@
 截至 2026-07-10：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
-- `asset_store.py` 已从约 5210 行降至约 3717 行；connection、migration、object store、Repository/UoW、Job query/command、asset upload、library/version 和 Creative Recast 已提取；
+- `asset_store.py` 已从约 5210 行降至约 3608 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version 和 Creative Recast 已提取；
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已有九区工作台原型，并已切换到“概念/组装/精修/检查/展示”与 Concept 导出语义；
-- 新 `WeaponConceptSpec`、`ModuleGraph`、Connector、模块资产库、质量报告和通用 GLB 导出尚未实现；
+- 新 `WeaponConceptSpec`、`ModuleGraph`、Connector、ChangeSet、质量报告和 JobEvent@2 合同已实现；数据库、API、模块资产库和通用 GLB 导出尚未实现；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
 旧代码是迁移输入；当前工作台是参考实现，不代表新领域完成。
@@ -25,10 +25,11 @@
 | R0 tag / branch | 完成 | `legacy-wushen-v0.1`、`codex/refactor-cad-dfm-agent` |
 | R0 ADR / baseline | 完成 | `docs/ADR`、`docs/evidence/R0_BASELINE.md` |
 | R1 infrastructure | 主要通用切片完成 | `forgecad_agent/infrastructure` |
-| R1 application services | 进行中 | Job、Asset、Library、Creative Recast services |
+| R1 application services | 进行中 | Job query/command/recovery、Asset、Library、Creative Recast services |
 | R1 API factory | 完成当前切片 | legacy routes + base app factory |
 | R1 frontend shell | 完成当前切片 | router、AppShell、Providers |
 | R1 workbench reference | 五阶段语义已完成 | `#/cad`、`design-qa.md`；真实 ModuleGraph/Connector 进入 R2–R3 |
+| R2 concept contracts | 第一切片完成 | `packages/concept-spec`、`forgecad_agent.domain.concepts`、`r2:contracts-gate` |
 
 ## 2. 执行硬规则
 
@@ -293,9 +294,9 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 1. 将剩余 Provider workflow 从 `asset_store.py` 提取为 application services。
 2. 将旧工作台业务控制器从 `App.tsx` 提出，完成 R1 边界。
-3. 建立 `DesignDomainProfile@1` 和 Weapon Concept Profile。
-4. 新增 `WeaponConceptSpec@1`、`ModuleGraph@1`、`DesignChangeSet@1`、`ModelQualityReport@1`。
-5. 新增 Project/Version/Module/Connector migrations 和 `/api/v1/projects`。
+3. 新增 Project/Version/DomainProfile migrations 与 Repository/UoW。
+4. 新增 Module/Connector/ModuleGraph migrations 与 Repository/UoW。
+5. 实现 `/api/v1/projects` 创建、列表、详情和追加 Version。
 6. 制定 Module/Connector/材质/UV/LOD 命名规范。
 7. 准备第一套 8–12 个 GLB fixture 与 Manifest。
 8. 实现模块选择、高亮、隐藏、替换和 Connector overlay。
