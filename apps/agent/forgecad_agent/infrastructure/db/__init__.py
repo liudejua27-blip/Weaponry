@@ -1,6 +1,7 @@
 from .connection import SQLiteConnectionFactory
 from .concept_repositories import (
     ConceptAssetRepository,
+    ChangeSetAuditExportRepository,
     ChangeSetRepository,
     BriefVariantRepository,
     ConceptJobRepository,
@@ -20,6 +21,7 @@ __all__ = [
     "ConceptProjectRepository",
     "ConceptAssetRepository",
     "ChangeSetRepository",
+    "ChangeSetAuditExportRepository",
     "BriefVariantRepository",
     "ConceptJobRepository",
     "DomainProfileRepository",

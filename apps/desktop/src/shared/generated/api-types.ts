@@ -70,6 +70,44 @@ export type AssetUploadResponse = {
   "height"?: number | null
 }
 
+export type ChangeSetAuditExportFileEntry = {
+  "path": string
+  "sha256": string
+  "byte_size": number
+  "mime_type": string
+}
+
+export type ChangeSetAuditExportListResponse = {
+  "items"?: Array<ChangeSetAuditExportRecord>
+}
+
+export type ChangeSetAuditExportManifest = {
+  "schema_version"?: "ChangeSetAuditExportManifest@1"
+  "audit_export_id": string
+  "project_id": string
+  "filters"?: Record<string, unknown>
+  "record_count": number
+  "ordering"?: "updated_at_desc_change_set_id_desc"
+  "retention_class"?: "project_lifetime"
+  "files"?: Array<ChangeSetAuditExportFileEntry>
+  "created_at": string
+}
+
+export type ChangeSetAuditExportRecord = {
+  "audit_export_id": string
+  "project_id": string
+  "status": "validated"
+  "retention_class": "project_lifetime"
+  "record_count": number
+  "filters"?: Record<string, unknown>
+  "job_id"?: string | null
+  "package_asset_id": string
+  "package_sha256": string
+  "package_byte_size": number
+  "manifest": ChangeSetAuditExportManifest
+  "created_at": string
+}
+
 export type ChangeSetConfirmResponse = {
   "change_set": DesignChangeSet
   "project": ConceptProjectDetail
@@ -275,6 +313,17 @@ export type ConceptVersionSummary = {
   "module_graph_id"?: string | null
   "change_set_id"?: string | null
   "created_at": string
+}
+
+export type CreateChangeSetAuditExportRequest = {
+  "client_request_id": string
+  "query"?: string | null
+  "status"?: "proposed" | "previewed" | "confirmed" | "rejected" | "stale" | null
+  "operation"?: "add_module" | "remove_module" | "replace_module" | "connect" | "disconnect" | "set_transform" | "set_mirror" | "set_style" | "set_parameter" | null
+  "include_jsonl"?: true
+  "include_csv"?: boolean
+  "retention_class"?: "project_lifetime"
+  "max_records"?: number
 }
 
 export type CreateConceptExportRequest = {

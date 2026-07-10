@@ -141,6 +141,19 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     concept.searchTimeline({ query: '', status: '', operation: '' })
   }
 
+  const handleCreateAuditExport = async () => {
+    const result = await concept.createChangeSetAuditExport({
+      query: timelineQuery,
+      status: timelineStatus,
+      operation: timelineOperation,
+    })
+    if (result) {
+      window.location.assign(
+        forgeApi.getChangeSetAuditExportFileUrl(result.audit_export_id),
+      )
+    }
+  }
+
   useEffect(() => {
     const spec = concept.version?.spec
     if (!spec) return
@@ -786,7 +799,21 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                       <button onClick={clearTimelineFilters} disabled={concept.timelineLoading}>
                         重置
                       </button>
+                      <button
+                        data-testid="change-set-audit-export"
+                        onClick={() => handleCreateAuditExport().catch(() => undefined)}
+                        disabled={concept.timelineLoading}
+                        title="按当前筛选导出 JSONL/CSV、哈希清单与归档说明"
+                      >
+                        <FileArrowDown size={13} /> 导出审计 ZIP
+                      </button>
                     </div>
+                    {concept.lastAuditExport ? (
+                      <div className="timeline-audit-summary" data-testid="change-set-audit-summary">
+                        最近归档 · {concept.lastAuditExport.record_count} 条 ·{' '}
+                        {concept.lastAuditExport.audit_export_id} · project_lifetime
+                      </div>
+                    ) : null}
                     <div className="timeline-items" aria-live="polite">
                       {concept.timeline.map((item) => (
                         <article

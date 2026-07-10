@@ -244,6 +244,67 @@ class ChangeSetTimelineResponse(StrictApiModel):
     next_cursor: Optional[str] = None
 
 
+class CreateChangeSetAuditExportRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    query: Optional[str] = Field(default=None, max_length=120)
+    status: Optional[Literal["proposed", "previewed", "confirmed", "rejected", "stale"]] = None
+    operation: Optional[
+        Literal[
+            "add_module",
+            "remove_module",
+            "replace_module",
+            "connect",
+            "disconnect",
+            "set_transform",
+            "set_mirror",
+            "set_style",
+            "set_parameter",
+        ]
+    ] = None
+    include_jsonl: Literal[True] = True
+    include_csv: bool = True
+    retention_class: Literal["project_lifetime"] = "project_lifetime"
+    max_records: int = Field(default=5000, ge=1, le=10000)
+
+
+class ChangeSetAuditExportFileEntry(StrictApiModel):
+    path: str
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    byte_size: int = Field(ge=0)
+    mime_type: str
+
+
+class ChangeSetAuditExportManifest(StrictApiModel):
+    schema_version: Literal["ChangeSetAuditExportManifest@1"] = "ChangeSetAuditExportManifest@1"
+    audit_export_id: str
+    project_id: str
+    filters: Dict[str, Any] = Field(default_factory=dict)
+    record_count: int = Field(ge=0)
+    ordering: Literal["updated_at_desc_change_set_id_desc"] = "updated_at_desc_change_set_id_desc"
+    retention_class: Literal["project_lifetime"] = "project_lifetime"
+    files: List[ChangeSetAuditExportFileEntry] = Field(default_factory=list)
+    created_at: str
+
+
+class ChangeSetAuditExportRecord(StrictApiModel):
+    audit_export_id: str
+    project_id: str
+    status: Literal["validated"]
+    retention_class: Literal["project_lifetime"]
+    record_count: int = Field(ge=0)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+    job_id: Optional[str] = None
+    package_asset_id: str
+    package_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    package_byte_size: int = Field(ge=0)
+    manifest: ChangeSetAuditExportManifest
+    created_at: str
+
+
+class ChangeSetAuditExportListResponse(StrictApiModel):
+    items: List[ChangeSetAuditExportRecord] = Field(default_factory=list)
+
+
 class CreateQualityRunRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     report: ModelQualityReport

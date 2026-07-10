@@ -6,6 +6,7 @@ import type {
   ConceptProjectSummary,
   ConceptVersionDetail,
   ChangeSetPreviewResponse,
+  ChangeSetAuditExportRecord,
   ChangeSetTimelineItem,
   DesignBriefRecord,
   DesignVariantRecord,
@@ -44,6 +45,7 @@ type ConceptWorkbenchState = {
   error: string | null
   statusMessage: string
   lastExport: ConceptExportRecord | null
+  lastAuditExport: ChangeSetAuditExportRecord | null
   timeline: ChangeSetTimelineItem[]
   timelineNextCursor: string | null
   timelineLoading: boolean
@@ -65,6 +67,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   error: null,
   statusMessage: '正在读取本地 Concept 数据…',
   lastExport: null,
+  lastAuditExport: null,
   timeline: [],
   timelineNextCursor: null,
   timelineLoading: false,
@@ -93,10 +96,17 @@ export function useConceptWorkbench() {
         && versions.some((item) => item.version_id === preferredVersionId)
         ? preferredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
-      const [moduleResponse, variantResponse, timelineResponse, version] = await Promise.all([
+      const [
+        moduleResponse,
+        variantResponse,
+        timelineResponse,
+        auditExportResponse,
+        version,
+      ] = await Promise.all([
         forgeApi.listModuleAssets(project.profile.pack_id),
         forgeApi.listDesignVariants(projectId),
         forgeApi.listChangeSets(projectId, { limit: 20 }),
+        forgeApi.listChangeSetAuditExports(projectId, 1),
         versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
       ])
       const graphRecord = version?.module_graph_id
@@ -114,6 +124,7 @@ export function useConceptWorkbench() {
         brief: null,
         pendingChange: null,
         pendingPreview: null,
+        lastAuditExport: auditExportResponse.items?.[0] ?? null,
         timeline: timelineResponse.items ?? [],
         timelineNextCursor: timelineResponse.next_cursor ?? null,
         timelineLoading: false,
@@ -157,6 +168,7 @@ export function useConceptWorkbench() {
           brief: null,
           pendingChange: null,
           pendingPreview: null,
+          lastAuditExport: null,
           timeline: [],
           timelineNextCursor: null,
           timelineLoading: false,
@@ -747,6 +759,47 @@ export function useConceptWorkbench() {
     }
   }, [state.project?.project_id])
 
+  const createChangeSetAuditExport = useCallback(async (
+    filters: ChangeSetTimelineFilters = state.timelineFilters,
+  ) => {
+    const projectId = state.project?.project_id
+    if (!projectId) return null
+    const clientRequestId = `desktop-change-audit-${Date.now().toString(36)}`
+    setState((current) => ({
+      ...current,
+      timelineLoading: true,
+      error: null,
+      statusMessage: '正在生成不可变 ChangeSet 审计归档…',
+    }))
+    try {
+      const result = await forgeApi.createChangeSetAuditExport(projectId, {
+        client_request_id: clientRequestId,
+        query: filters.query.trim() || null,
+        status: filters.status || null,
+        operation: filters.operation || null,
+        include_jsonl: true,
+        include_csv: true,
+        retention_class: 'project_lifetime',
+        max_records: 5000,
+      })
+      setState((current) => ({
+        ...current,
+        timelineLoading: false,
+        lastAuditExport: result,
+        statusMessage: `审计归档完成 · ${result.record_count} 条 · ${result.package_sha256.slice(0, 12)}…`,
+      }))
+      return result
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        timelineLoading: false,
+        error: errorMessage(caught),
+        statusMessage: 'ChangeSet 审计归档创建失败。',
+      }))
+      return null
+    }
+  }, [state.project?.project_id, state.timelineFilters])
+
   const loadMoreTimeline = useCallback(async () => {
     const projectId = state.project?.project_id
     const cursor = state.timelineNextCursor
@@ -797,6 +850,7 @@ export function useConceptWorkbench() {
     replaceModule,
     setMirror,
     searchTimeline,
+    createChangeSetAuditExport,
     loadMoreTimeline,
   }
 }

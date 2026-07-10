@@ -47,6 +47,9 @@ import type {
   ChangeSetPreviewResponse,
   ChangeSetConfirmResponse,
   ChangeSetTimelineResponse,
+  CreateChangeSetAuditExportRequest,
+  ChangeSetAuditExportRecord,
+  ChangeSetAuditExportListResponse,
   InspectConceptVersionRequest,
   QualityRunRecord,
 } from '../types'
@@ -298,6 +301,40 @@ export class ForgeApiClient {
     if (input.operation) url.searchParams.set('operation', input.operation)
     const response = await fetch(url)
     return readJson<ChangeSetTimelineResponse>(response)
+  }
+
+  async createChangeSetAuditExport(
+    projectId: string,
+    input: CreateChangeSetAuditExportRequest,
+  ): Promise<ChangeSetAuditExportRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${projectId}/change-set-audit-exports`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<ChangeSetAuditExportRecord>(response)
+  }
+
+  async listChangeSetAuditExports(
+    projectId: string,
+    limit = 20,
+  ): Promise<ChangeSetAuditExportListResponse> {
+    const url = new URL(
+      `${this.baseUrl}/api/v1/projects/${projectId}/change-set-audit-exports`,
+    )
+    url.searchParams.set('limit', String(limit))
+    const response = await fetch(url)
+    return readJson<ChangeSetAuditExportListResponse>(response)
+  }
+
+  getChangeSetAuditExportFileUrl(auditExportId: string): string {
+    return `${this.baseUrl}/api/v1/change-set-audit-exports/${encodeURIComponent(auditExportId)}/file`
   }
 
   async previewChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetPreviewResponse> {

@@ -156,12 +156,12 @@ core.side_panel_left / core.side_panel_right
 | Brief / A-B-C Variant | Brief Interpreter、注册表约束 Module Planner、确定性规则 Provider、OpenAI-compatible strict JSON Schema Adapter、显式 auto fallback、provenance/hash、三种结构方案、桌面生成/选择预览与重启恢复已实现 | 当前只证明 Provider 边界与确定性/fake-provider truth set；真实模型解析成功率和方案质量指标尚未达标 |
 | DesignChangeSet 幽灵预览 | 自然语言 Change Planner、受限 `replace_module/set_mirror/set_style/set_parameter`、proposed/previewed/confirmed/rejected/stale、半透明 ghost、锁定/注册表/Connector 校验、显式确认与子版本提交已实现 | 确定性/fake-provider/API/桌面链通过；真实模型修改成功率 ≥85% 与锁定保持率 ≥95% 尚未评测 |
 | R4 Planner 评测 | 固定 20 Brief + 20 Variant + 20 Change + 20 lock probes、truth-set hash、阈值、逐例结果、p50/p95 延迟、token 汇总与严格 live CLI 已实现；明确数值 fallback 已补齐 | deterministic baseline 为 100%/100%/100%/100%，但 `real_provider_evidence_eligible=false`；当前环境未配置真实 Provider，不能作为 AI 指标证据 |
-| ChangeSet 操作时间线 | Project 级逆序 cursor API、搜索、状态/操作过滤、user/planner actor、Provider provenance、instruction、operation/node/result Version、rejected/stale/discarded diagnostic、桌面加载更多与重启回读已实现 | 批量报告导出和长期归档策略仍待实现 |
+| ChangeSet 操作时间线与审计归档 | Project 级逆序 cursor API、搜索、状态/操作过滤、user/planner actor、Provider provenance、instruction、operation/node/result Version、rejected/stale/discarded diagnostic、桌面加载更多已实现；当前筛选可批量导出 JSONL/CSV、逐文件哈希清单与不可变 ZIP，数据库和对象在 Agent 重启后恢复 | `project_lifetime` 不提供单包删除入口，并随 Project 数据保留；它不是法规级 WORM、legal hold 或独立灾备，离线恢复演练仍待完成 |
 | ModelQualityReport | `weapon-concept-geometry/1.3` 从版本绑定的 Spec、ModuleGraph 与不可变 GLB 检查 Mesh、重复/内嵌隐藏几何、组件间密度离群、项目三角预算、P0 LOD0 命名、根中面对称占位、Connector 对齐/间隙，以及未直连组件的世界三角形 BVH/SAT/containment；局部 triangle provenance、工作台高亮、JobEvent 与重启恢复已实现 | 当前仍是确定性概念资产筛查；正式 Blender truth set、Tauri 大网格阈值和多 LOD 运行时尚未完成，不代表强度/DFM/安全证明 |
 | Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable、确定性 MP4、轮廓抗锯齿/软接触阴影、render-set ZIP、Manifest hash、JobEvent、独立下载与重启恢复已实现 | 纹理交换、正式资产渲染性能与真实 Blender/Assimp round-trip 继续进入 R5；当前机器的 DCC 预检如实阻塞 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB；Brief/A-B-C 与自然语言修改均通过同一 Provider 边界，修改先进入半透明 ghost preview，确认后才由既有 ChangeSet 服务创建子版本。combined GLB、OBJ、正交图、8 帧 turntable 和 MP4 都读取同一 Graph/资产真相，首版 Mesh/Assembly 检查也已落地。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明真实 AI 指标、最终资产矩阵、照片级渲染、真实 DCC round-trip、完整 R5 检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB；Brief/A-B-C 与自然语言修改均通过同一 Provider 边界，修改先进入半透明 ghost preview，确认后才由既有 ChangeSet 服务创建子版本。操作记录可按当前筛选归档为带 SHA-256 清单的 JSONL/CSV ZIP。combined GLB、OBJ、正交图、8 帧 turntable 和 MP4 都读取同一 Graph/资产真相，首版 Mesh/Assembly 检查也已落地。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明真实 AI 指标、最终资产矩阵、法规级审计存储、照片级渲染、真实 DCC round-trip、完整 R5 检查或 CAD/DFM 已完成。
 
 正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 

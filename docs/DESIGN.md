@@ -400,6 +400,10 @@ GET    /api/v1/module-graphs/{graph_id}
 POST   /api/v1/versions/{version_id}/change-sets
 POST   /api/v1/versions/{version_id}/change-sets:plan
 GET    /api/v1/projects/{project_id}/change-sets
+POST   /api/v1/projects/{project_id}/change-set-audit-exports
+GET    /api/v1/projects/{project_id}/change-set-audit-exports
+GET    /api/v1/change-set-audit-exports/{audit_export_id}
+GET    /api/v1/change-set-audit-exports/{audit_export_id}/file
 POST   /api/v1/change-sets/{change_set_id}:preview
 POST   /api/v1/change-sets/{change_set_id}:reject
 POST   /api/v1/change-sets/{change_set_id}:confirm
@@ -436,11 +440,15 @@ GET /api/v1/projects/{project_id}/change-sets
 
 权威排序是 `updated_at DESC, change_set_id DESC`。cursor 同时绑定 query/status/operation 的 hash，不能跨过滤条件复用。migration `0015` 为每条记录增加 `user|planner` actor；Planner 行同时保存原始 instruction、rationale、`ConceptPlannerProvenance` 和 `concept_change_plan` Job ID。preview 的合同、锁定节点、Connector remap/snap 或 Graph validation 失败会把已持久化 ChangeSet 更新为 `rejected`，并保存 code/message/stage/operation_ids/node_ids/recorded_at；用户放弃 ghost preview 保存 `CHANGE_SET_DISCARDED`，confirm 前 current Version 漂移保存为 `stale` 与 confirm-stage diagnostic。HTTP 错误不是唯一审计来源。
 
+批量审计导出以同一筛选语义读取一个 SQLite 事务快照，固定按 `updated_at DESC, change_set_id DESC` 写入 `Records/change-sets.jsonl`，并可生成带 UTF-8 BOM 的审阅用 CSV；CSV 对公式前缀做中和，JSONL 仍保留 canonical 原值。`ChangeSetAuditExportManifest@1` 保存筛选、排序、记录数、保留类别及 README/JSONL/CSV 的 SHA-256、字节数和 MIME；Manifest 与数据共同封装为确定性 ZIP，再进入内容寻址对象存储。migration `0016` 的 `change_set_audit_exports` 关联 Project 和 `project_report` asset；JobEvent 使用现有 `export_package` 类型，artifact link 的 Version 为 `NULL`，表示 Project 级工件。`max_records` 上限为 10,000，超过请求上限返回 `AUDIT_EXPORT_LIMIT_EXCEEDED`，不静默截断。
+
+当前唯一保留类别是 `project_lifetime`：应用不提供单个归档或对象删除接口，Project 仍存在时记录与内容寻址对象必须保留；删除整个 Project 时数据库外键元数据随之删除，对象垃圾回收仍必须遵循资产引用规则。它是产品内不可变快照，不是法规级 WORM、legal hold、防篡改外部账本或独立灾备。备份时必须同时复制 SQLite 与 `objects/sha256`。
+
 桌面 `#/cad` 的“检查”面板已调用 `quality-runs:inspect`，显示规则集状态、Finding 消息和测量值；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。
 
 当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Change Planner、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选；自然语言修改也可生成受限 DesignChangeSet，但两者都必须先 preview，AI 链路以半透明青色 ghost 显示，显式确认后才创建子版本，放弃只更新审计状态。Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
 
-Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 actor、Provider provenance、instruction、operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。
+Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 actor、Provider provenance、instruction、operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。桌面“导出审计 ZIP”把当前控件筛选直接提交给服务端，下载返回工件并显示最近归档；项目重载会从归档列表恢复该状态。
 
 ### 9.1 坐标与 Connector 吸附
 
@@ -472,6 +480,7 @@ module_graphs
 module_graph_nodes
 module_graph_edges
 change_sets
+change_set_audit_exports
 quality_reports
 jobs
 job_steps

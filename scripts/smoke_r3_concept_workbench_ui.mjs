@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -18,6 +19,7 @@ const TURNTABLE_RENDER = join(OUTPUT_DIR, 'r5-concept-turntable-000.png')
 const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highlight.png')
 const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
+const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -81,7 +83,11 @@ async function main() {
     )
     processes.push(restartedAgent)
     await waitForHttp(`${restartBaseUrl}/api/health`, restartedAgent, 'restarted agent health')
-    const restartVerified = await verifyReplacement(restartBaseUrl, seeded.project_id)
+    const restartVerified = await verifyReplacement(
+      restartBaseUrl,
+      seeded.project_id,
+      result.change_set_audit_export,
+    )
     console.log(JSON.stringify({ ok: true, ...seeded, ...result, restart_verified: restartVerified }, null, 2))
   } finally {
     await Promise.all(processes.reverse().map(stopProcess))
@@ -509,6 +515,55 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       '整体长度调整为 218 mm',
     ])
 
+    await page.getByPlaceholder('搜索 ChangeSet…').fill('')
+    await page.getByLabel('ChangeSet 状态筛选').selectOption('')
+    await page.getByLabel('ChangeSet 操作筛选').selectOption('')
+    const auditExportResponsePromise = page.waitForResponse(
+      (response) => /\/api\/v1\/projects\/[^/]+\/change-set-audit-exports$/.test(response.url())
+        && response.request().method() === 'POST',
+    )
+    const auditDownloadPromise = page.waitForEvent('download')
+    await page.getByTestId('change-set-audit-export').click()
+    const auditExportResponse = await auditExportResponsePromise
+    if (!auditExportResponse.ok()) {
+      throw new Error(`ChangeSet audit export failed: ${auditExportResponse.status()}`)
+    }
+    const auditExportRecord = await auditExportResponse.json()
+    const expectedAuditCount = timelineFixture.total_count + 1
+    if (
+      auditExportRecord.record_count !== expectedAuditCount
+      || auditExportRecord.retention_class !== 'project_lifetime'
+      || auditExportRecord.manifest?.ordering !== 'updated_at_desc_change_set_id_desc'
+    ) {
+      throw new Error(`ChangeSet audit export record mismatch: ${JSON.stringify(auditExportRecord)}`)
+    }
+    const auditDownload = await auditDownloadPromise
+    if (!auditDownload.suggestedFilename().startsWith('csaudit_')
+      || !auditDownload.suggestedFilename().endsWith('.zip')) {
+      throw new Error(`unexpected ChangeSet audit filename: ${auditDownload.suggestedFilename()}`)
+    }
+    const auditDownloadPath = await auditDownload.path()
+    if (!auditDownloadPath || (await stat(auditDownloadPath)).size < 500) {
+      throw new Error('ChangeSet audit ZIP is unexpectedly small')
+    }
+    const auditBytes = await readFile(auditDownloadPath)
+    const auditSha256 = createHash('sha256').update(auditBytes).digest('hex')
+    if (
+      auditBytes.subarray(0, 2).toString('ascii') !== 'PK'
+      || auditSha256 !== auditExportRecord.package_sha256
+    ) {
+      throw new Error('ChangeSet audit ZIP header or hash mismatch')
+    }
+    await assertText(page.getByTestId('change-set-audit-summary'), [
+      `${expectedAuditCount} 条`,
+      auditExportRecord.audit_export_id,
+      'project_lifetime',
+    ])
+    await page.screenshot({ path: AUDIT_EXPORT_SCREENSHOT, fullPage: true })
+    if ((await stat(AUDIT_EXPORT_SCREENSHOT)).size < 20_000) {
+      throw new Error('ChangeSet audit export screenshot is unexpectedly small')
+    }
+
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
     await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
@@ -718,6 +773,13 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       change_planner_ghost_preview_verified: true,
       change_planner_confirmation_verified: true,
       change_planner_timeline_provenance_verified: true,
+      change_set_audit_export: {
+        audit_export_id: auditExportRecord.audit_export_id,
+        record_count: auditExportRecord.record_count,
+        package_sha256: auditExportRecord.package_sha256,
+      },
+      change_set_audit_download_verified: true,
+      change_set_audit_screenshot: AUDIT_EXPORT_SCREENSHOT,
       change_planner_screenshot: CHANGE_PLANNER_SCREENSHOT,
       geometry_quality_inspection_verified: true,
       quality_finding_focus_verified: true,
@@ -900,7 +962,7 @@ async function performanceMetric(session, name) {
   return result.metrics.find((metric) => metric.name === name)?.value ?? 0
 }
 
-async function verifyReplacement(baseUrl, projectId) {
+async function verifyReplacement(baseUrl, projectId, expectedAuditExport) {
   const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
   if ((project.versions ?? []).length !== 5) {
     throw new Error(`replacement, mirror, and Change Planner should create V5, got ${(project.versions ?? []).length} versions`)
@@ -939,6 +1001,33 @@ async function verifyReplacement(baseUrl, projectId) {
   if (diagnostic?.code !== 'CHANGE_SET_INVALID' || !diagnostic.node_ids?.includes('node_core')) {
     throw new Error(`restart lost rejected diagnostic: ${JSON.stringify(diagnostic)}`)
   }
+  const auditExports = await jsonRequest(
+    baseUrl,
+    `/api/v1/projects/${projectId}/change-set-audit-exports?limit=10`,
+  )
+  const restoredAudit = auditExports.items?.find(
+    (item) => item.audit_export_id === expectedAuditExport.audit_export_id,
+  )
+  if (
+    !restoredAudit
+    || restoredAudit.record_count !== expectedAuditExport.record_count
+    || restoredAudit.package_sha256 !== expectedAuditExport.package_sha256
+  ) {
+    throw new Error(`restart lost ChangeSet audit export: ${JSON.stringify(auditExports)}`)
+  }
+  const restoredAuditResponse = await fetch(
+    `${baseUrl}/api/v1/change-set-audit-exports/${expectedAuditExport.audit_export_id}/file`,
+  )
+  const restoredAuditBytes = Buffer.from(await restoredAuditResponse.arrayBuffer())
+  const restoredAuditHash = createHash('sha256').update(restoredAuditBytes).digest('hex')
+  if (
+    !restoredAuditResponse.ok
+    || restoredAuditBytes.subarray(0, 2).toString('ascii') !== 'PK'
+    || restoredAuditHash !== expectedAuditExport.package_sha256
+    || restoredAuditResponse.headers.get('x-content-sha256') !== restoredAuditHash
+  ) {
+    throw new Error('restart ChangeSet audit download or hash mismatch')
+  }
   return {
     version_id: version.version_id,
     graph_id: graph.graph.graph_id,
@@ -951,6 +1040,9 @@ async function verifyReplacement(baseUrl, projectId) {
     planner_detail_density: version.spec.style.detail_density,
     rejected_change_set_id: rejectedTimeline.items[0].change_set.change_set_id,
     rejected_diagnostic_code: diagnostic.code,
+    audit_export_id: restoredAudit.audit_export_id,
+    audit_record_count: restoredAudit.record_count,
+    audit_package_sha256: restoredAuditHash,
   }
 }
 

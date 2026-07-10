@@ -163,7 +163,7 @@ npm run r5:c07-policy-gate
 
 `r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module/Change Planner Provider 边界、deterministic rules、fake OpenAI-compatible strict JSON Schema、auto/strict failure、provenance、注册模块建议、A/B/C 选择、受限操作、ghost preview、discard/confirm、actor/provider 时间线和重启恢复，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。它们仍不证明人工 Blender 最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或真实 DCC round-trip。
 
-`r3:change-set-audit-gate` 专门验证 migration 0012、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、24 条桌面加载更多和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
+`r3:change-set-audit-gate` 专门验证 migration 0012/0016、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、批量 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、24–25 条桌面时间线/归档下载和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
 专项 Connector 门：
 
@@ -281,6 +281,8 @@ WushenForgeLibrary/
 ```
 
 数据库和对象目录必须一起备份。
+
+ChangeSet 审计归档也遵守这一规则：`change_set_audit_exports`/`concept_assets` 只保存元数据和相对对象键，ZIP 位于 `objects/sha256/`。只复制 `library.db` 会得到无法下载的归档，只复制对象目录则无法恢复筛选、记录数、Job 与 artifact link。`project_lifetime` 表示应用无单包删除入口，不代表异地副本、WORM 或 legal hold。
 
 安全备份：
 
@@ -479,6 +481,21 @@ curl --fail -X POST \
 ```
 
 不得对同一 preview 同时执行 confirm 和 reject。`configured_provider` 用于真实评测，失败时不会静默降级；日常 `auto` 降级会在时间线显示 attempted provider 与 `fallback_used=true`。
+
+在工作台底部“时间线”中设置搜索、状态或操作筛选后，点击“导出审计 ZIP”。下载包固定包含 canonical JSONL、可选 CSV、README 与 hash Manifest。直接调用 API 的例子：
+
+```bash
+curl --fail -X POST \
+  "http://127.0.0.1:8000/api/v1/projects/<project_id>/change-set-audit-exports" \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: day5-audit-001' \
+  -d '{"client_request_id":"day5-audit-001","status":"confirmed","include_jsonl":true,"include_csv":true,"retention_class":"project_lifetime","max_records":5000}'
+
+curl --fail -OJ \
+  "http://127.0.0.1:8000/api/v1/change-set-audit-exports/<audit_export_id>/file"
+```
+
+服务端固定完整导出或返回 `AUDIT_EXPORT_LIMIT_EXCEEDED`，不会截断后伪装完整报告。下载后可比较响应 `X-Content-SHA256` 与文件 SHA-256。当前没有单包删除、WORM、legal hold 或独立离线恢复承诺；整库恢复必须按第 3 节复制数据库与对象目录并演练。
 
 ### Day 6：做模型检查与导出
 

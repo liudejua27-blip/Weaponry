@@ -6,6 +6,7 @@ from .quality_routes import build_quality_router
 from .brief_routes import build_brief_router
 from .concept_job_routes import build_concept_job_router
 from .export_routes import build_export_router
+from .audit_export_routes import build_audit_export_router
 
 __all__ = [
     "LocalApiSettings",
@@ -16,5 +17,6 @@ __all__ = [
     "build_module_router",
     "build_quality_router",
     "build_export_router",
+    "build_audit_export_router",
     "create_local_api",
 ]

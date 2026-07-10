@@ -392,6 +392,190 @@
         "title": "AssetUploadResponse",
         "type": "object"
       },
+      "ChangeSetAuditExportFileEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "byte_size",
+          "mime_type"
+        ],
+        "title": "ChangeSetAuditExportFileEntry",
+        "type": "object"
+      },
+      "ChangeSetAuditExportListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ChangeSetAuditExportListResponse",
+        "type": "object"
+      },
+      "ChangeSetAuditExportManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "audit_export_id": {
+            "title": "Audit Export Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetAuditExportFileEntry"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "filters": {
+            "additionalProperties": true,
+            "title": "Filters",
+            "type": "object"
+          },
+          "ordering": {
+            "const": "updated_at_desc_change_set_id_desc",
+            "default": "updated_at_desc_change_set_id_desc",
+            "title": "Ordering",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "record_count": {
+            "minimum": 0.0,
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "default": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ChangeSetAuditExportManifest@1",
+            "default": "ChangeSetAuditExportManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audit_export_id",
+          "project_id",
+          "record_count",
+          "created_at"
+        ],
+        "title": "ChangeSetAuditExportManifest",
+        "type": "object"
+      },
+      "ChangeSetAuditExportRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "audit_export_id": {
+            "title": "Audit Export Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "filters": {
+            "additionalProperties": true,
+            "title": "Filters",
+            "type": "object"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ChangeSetAuditExportManifest"
+          },
+          "package_asset_id": {
+            "title": "Package Asset Id",
+            "type": "string"
+          },
+          "package_byte_size": {
+            "minimum": 0.0,
+            "title": "Package Byte Size",
+            "type": "integer"
+          },
+          "package_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Package Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "record_count": {
+            "minimum": 0.0,
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "status": {
+            "const": "validated",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audit_export_id",
+          "project_id",
+          "status",
+          "retention_class",
+          "record_count",
+          "package_asset_id",
+          "package_sha256",
+          "package_byte_size",
+          "manifest",
+          "created_at"
+        ],
+        "title": "ChangeSetAuditExportRecord",
+        "type": "object"
+      },
       "ChangeSetConfirmResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1699,6 +1883,98 @@
           "created_at"
         ],
         "title": "ConceptVersionSummary",
+        "type": "object"
+      },
+      "CreateChangeSetAuditExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "include_csv": {
+            "default": true,
+            "title": "Include Csv",
+            "type": "boolean"
+          },
+          "include_jsonl": {
+            "const": true,
+            "default": true,
+            "title": "Include Jsonl",
+            "type": "boolean"
+          },
+          "max_records": {
+            "default": 5000,
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Records",
+            "type": "integer"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "add_module",
+                  "remove_module",
+                  "replace_module",
+                  "connect",
+                  "disconnect",
+                  "set_transform",
+                  "set_mirror",
+                  "set_style",
+                  "set_parameter"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "default": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "proposed",
+                  "previewed",
+                  "confirmed",
+                  "rejected",
+                  "stale"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "CreateChangeSetAuditExportRequest",
         "type": "object"
       },
       "CreateConceptExportRequest": {
@@ -6956,6 +7232,88 @@
         "summary": "Runtime Work Once"
       }
     },
+    "/api/v1/change-set-audit-exports/{audit_export_id}": {
+      "get": {
+        "operationId": "get_audit_export_api_v1_change_set_audit_exports__audit_export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_export_id",
+            "required": true,
+            "schema": {
+              "title": "Audit Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Audit Export",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      }
+    },
+    "/api/v1/change-set-audit-exports/{audit_export_id}/file": {
+      "get": {
+        "operationId": "download_audit_export_api_v1_change_set_audit_exports__audit_export_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_export_id",
+            "required": true,
+            "schema": {
+              "title": "Audit Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Audit Export",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      }
+    },
     "/api/v1/change-sets/{change_set_id}:confirm": {
       "post": {
         "operationId": "confirm_change_set_api_v1_change_sets__change_set_id__confirm_post",
@@ -8281,6 +8639,126 @@
         "summary": "Get Brief",
         "tags": [
           "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/change-set-audit-exports": {
+      "get": {
+        "operationId": "list_audit_exports_api_v1_projects__project_id__change_set_audit_exports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit Exports",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      },
+      "post": {
+        "operationId": "create_audit_export_api_v1_projects__project_id__change_set_audit_exports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChangeSetAuditExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Audit Export",
+        "tags": [
+          "change-set-audit-exports"
         ]
       }
     },

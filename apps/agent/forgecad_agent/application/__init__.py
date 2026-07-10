@@ -30,6 +30,11 @@ from .concept_exports import (
     ConceptExportIdempotencyConflict,
     ConceptExportService,
 )
+from .concept_change_set_audits import (
+    ChangeSetAuditExportError,
+    ChangeSetAuditExportIdempotencyConflict,
+    ConceptChangeSetAuditService,
+)
 
 __all__ = [
     "ConceptProjectError",
@@ -53,4 +58,7 @@ __all__ = [
     "ConceptExportError",
     "ConceptExportIdempotencyConflict",
     "ConceptExportService",
+    "ChangeSetAuditExportError",
+    "ChangeSetAuditExportIdempotencyConflict",
+    "ConceptChangeSetAuditService",
 ]

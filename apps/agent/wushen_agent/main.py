@@ -6,6 +6,7 @@ import os
 from fastapi import FastAPI
 from forgecad_agent.api import (
     LocalApiSettings,
+    build_audit_export_router,
     build_brief_router,
     build_change_set_router,
     build_concept_project_router,
@@ -17,6 +18,7 @@ from forgecad_agent.api import (
 )
 from forgecad_agent.application import (
     ConceptChangeSetService,
+    ConceptChangeSetAuditService,
     ConceptBriefService,
     ConceptModuleService,
     ConceptProjectService,
@@ -50,6 +52,9 @@ def create_app() -> FastAPI:
     concept_briefs = ConceptBriefService(store.connection_factory, concept_planner)
     concept_jobs = ConceptJobService(store.connection_factory)
     concept_exports = ConceptExportService(store.connection_factory, store.object_store)
+    change_set_audits = ConceptChangeSetAuditService(
+        store.connection_factory, store.object_store
+    )
     register_error_handlers(app)
     app.include_router(build_asset_router(store))
     app.include_router(build_job_router(store))
@@ -62,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(build_brief_router(concept_briefs))
     app.include_router(build_concept_job_router(concept_jobs))
     app.include_router(build_export_router(concept_exports))
+    app.include_router(build_audit_export_router(change_set_audits))
 
     @app.on_event("startup")
     async def recover_interrupted_jobs_on_startup() -> None:

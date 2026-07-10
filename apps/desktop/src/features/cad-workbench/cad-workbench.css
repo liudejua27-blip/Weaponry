@@ -790,6 +790,19 @@
   font-size: 9px;
 }
 
+.timeline-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.timeline-audit-summary {
+  flex: 0 0 auto;
+  color: #70bfe8;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
 .timeline-items {
   min-width: 0;
   flex: 1 1 auto;

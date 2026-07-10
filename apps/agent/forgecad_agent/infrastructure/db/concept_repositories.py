@@ -872,7 +872,7 @@ class ExportRepository:
         self,
         *,
         project_id: str,
-        version_id: str,
+        version_id: Optional[str],
         asset_id: str,
         relation: str,
         created_at: str,
@@ -908,6 +908,92 @@ class ExportRepository:
             """,
             (export_id,),
         ).fetchone()
+
+
+class ChangeSetAuditExportRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def add(
+        self,
+        *,
+        audit_export_id: str,
+        project_id: str,
+        package_asset_id: str,
+        filters_json: str,
+        manifest_json: str,
+        record_count: int,
+        retention_class: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO change_set_audit_exports (
+              audit_export_id, project_id, package_asset_id, filters_json,
+              manifest_json, record_count, retention_class, status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'validated', ?)
+            """,
+            (
+                audit_export_id,
+                project_id,
+                package_asset_id,
+                filters_json,
+                manifest_json,
+                record_count,
+                retention_class,
+                created_at,
+            ),
+        )
+
+    def get(self, audit_export_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            f"""
+            {self._select_sql()}
+            WHERE cae.audit_export_id = ? AND cae.status != 'soft_deleted'
+              AND ca.soft_deleted_at IS NULL
+            """,
+            (audit_export_id,),
+        ).fetchone()
+
+    def list_for_project(
+        self,
+        project_id: str,
+        *,
+        limit: int = 50,
+    ) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                f"""
+                {self._select_sql()}
+                WHERE cae.project_id = ? AND cae.status != 'soft_deleted'
+                  AND ca.soft_deleted_at IS NULL
+                ORDER BY cae.created_at DESC, cae.audit_export_id DESC
+                LIMIT ?
+                """,
+                (project_id, limit),
+            ).fetchall()
+        )
+
+    @staticmethod
+    def _select_sql() -> str:
+        return """
+            SELECT cae.audit_export_id, cae.project_id, cae.package_asset_id,
+                   cae.filters_json, cae.manifest_json, cae.record_count,
+                   cae.retention_class, cae.status, cae.created_at,
+                   ca.logical_path, ca.object_path, ca.sha256 AS package_sha256,
+                   ca.byte_size AS package_byte_size, ca.mime_type,
+                   (
+                     SELECT cj.job_id
+                     FROM concept_jobs cj
+                     WHERE json_extract(cj.output_json, '$.audit_export_id') =
+                           cae.audit_export_id
+                     ORDER BY cj.created_at DESC
+                     LIMIT 1
+                   ) AS job_id
+            FROM change_set_audit_exports cae
+            JOIN concept_assets ca ON ca.asset_id = cae.package_asset_id
+        """
 
 
 class BriefVariantRepository:

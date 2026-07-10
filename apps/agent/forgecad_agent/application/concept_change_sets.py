@@ -401,59 +401,7 @@ class ConceptChangeSetService:
             )
             return ChangeSetTimelineResponse(
                 project_id=project_id,
-                items=[
-                    ChangeSetTimelineItem(
-                        change_set=DesignChangeSet.model_validate_json(row["change_set_json"]),
-                        base_version_id=str(row["base_version_id"]),
-                        result_version_id=(
-                            str(row["result_version_id"])
-                            if row["result_version_id"] is not None
-                            else None
-                        ),
-                        status=str(row["status"]),
-                        actor_type=str(row["actor_type"]),
-                        planner_instruction=(
-                            str(row["planner_instruction"])
-                            if row["planner_instruction"] is not None
-                            else None
-                        ),
-                        planner_rationale=(
-                            json.loads(row["planner_rationale_json"])
-                            if row["planner_rationale_json"] is not None
-                            else []
-                        ),
-                        planner_provenance=(
-                            ConceptPlannerProvenance.model_validate_json(
-                                row["planner_provenance_json"]
-                            )
-                            if row["planner_provenance_json"] is not None
-                            else None
-                        ),
-                        planner_job_id=(
-                            str(row["planner_job_id"])
-                            if row["planner_job_id"] is not None
-                            else None
-                        ),
-                        preview_sha256=(
-                            str(row["preview_sha256"])
-                            if row["preview_sha256"] is not None
-                            else None
-                        ),
-                        diagnostic=(
-                            ChangeSetDiagnostic.model_validate_json(row["diagnostic_json"])
-                            if row["diagnostic_json"] is not None
-                            else None
-                        ),
-                        created_at=str(row["created_at"]),
-                        updated_at=str(row["updated_at"]),
-                        confirmed_at=(
-                            str(row["confirmed_at"])
-                            if row["confirmed_at"] is not None
-                            else None
-                        ),
-                    )
-                    for row in page
-                ],
+                items=[change_set_timeline_item_from_row(row) for row in page],
                 next_cursor=next_cursor,
             )
 
@@ -1384,6 +1332,58 @@ def _graph_nodes(graph: ModuleGraph) -> list[dict[str, Any]]:
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def change_set_timeline_item_from_row(row: Any) -> ChangeSetTimelineItem:
+    """Build the public audit/timeline model from one persisted ChangeSet row."""
+    return ChangeSetTimelineItem(
+        change_set=DesignChangeSet.model_validate_json(row["change_set_json"]),
+        base_version_id=str(row["base_version_id"]),
+        result_version_id=(
+            str(row["result_version_id"])
+            if row["result_version_id"] is not None
+            else None
+        ),
+        status=str(row["status"]),
+        actor_type=str(row["actor_type"]),
+        planner_instruction=(
+            str(row["planner_instruction"])
+            if row["planner_instruction"] is not None
+            else None
+        ),
+        planner_rationale=(
+            json.loads(row["planner_rationale_json"])
+            if row["planner_rationale_json"] is not None
+            else []
+        ),
+        planner_provenance=(
+            ConceptPlannerProvenance.model_validate_json(row["planner_provenance_json"])
+            if row["planner_provenance_json"] is not None
+            else None
+        ),
+        planner_job_id=(
+            str(row["planner_job_id"])
+            if row["planner_job_id"] is not None
+            else None
+        ),
+        preview_sha256=(
+            str(row["preview_sha256"])
+            if row["preview_sha256"] is not None
+            else None
+        ),
+        diagnostic=(
+            ChangeSetDiagnostic.model_validate_json(row["diagnostic_json"])
+            if row["diagnostic_json"] is not None
+            else None
+        ),
+        created_at=str(row["created_at"]),
+        updated_at=str(row["updated_at"]),
+        confirmed_at=(
+            str(row["confirmed_at"])
+            if row["confirmed_at"] is not None
+            else None
+        ),
+    )
 
 
 def _change_set_diagnostic(

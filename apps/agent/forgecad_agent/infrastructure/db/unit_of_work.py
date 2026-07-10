@@ -7,6 +7,7 @@ from typing import Optional, Type
 from .connection import SQLiteConnectionFactory
 from .concept_repositories import (
     ConceptAssetRepository,
+    ChangeSetAuditExportRepository,
     ChangeSetRepository,
     BriefVariantRepository,
     ConceptJobRepository,
@@ -36,6 +37,7 @@ class SQLiteUnitOfWork:
         self.change_sets: ChangeSetRepository
         self.quality: QualityRepository
         self.exports: ExportRepository
+        self.change_set_audit_exports: ChangeSetAuditExportRepository
         self.brief_variants: BriefVariantRepository
         self.concept_jobs: ConceptJobRepository
 
@@ -53,6 +55,7 @@ class SQLiteUnitOfWork:
         self.change_sets = ChangeSetRepository(connection)
         self.quality = QualityRepository(connection)
         self.exports = ExportRepository(connection)
+        self.change_set_audit_exports = ChangeSetAuditExportRepository(connection)
         self.brief_variants = BriefVariantRepository(connection)
         self.concept_jobs = ConceptJobRepository(connection)
         return self
