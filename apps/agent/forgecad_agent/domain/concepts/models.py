@@ -166,6 +166,61 @@ class ModuleAssetManifest(StrictContractModel):
         return self
 
 
+class ModulePackLicense(StrictContractModel):
+    spdx_expression: str = Field(min_length=1, max_length=120)
+    license_path: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_license(self) -> "ModulePackLicense":
+        _validate_relative_path(self.license_path)
+        return self
+
+
+class ModulePackEntry(StrictContractModel):
+    module_id: ContractId
+    manifest_path: str = Field(min_length=1)
+    glb_path: str = Field(min_length=1)
+    thumbnail_path: str = Field(min_length=1)
+    license_path: str = Field(min_length=1)
+    lod: Literal["LOD0", "LOD1", "LOD2"] = "LOD0"
+
+    @model_validator(mode="after")
+    def validate_paths(self) -> "ModulePackEntry":
+        for value in (
+            self.manifest_path,
+            self.glb_path,
+            self.thumbnail_path,
+            self.license_path,
+        ):
+            _validate_relative_path(value)
+        return self
+
+
+class ModulePackManifest(StrictContractModel):
+    schema_version: Literal["ModulePackManifest@1"] = "ModulePackManifest@1"
+    pack_id: ContractId
+    profile_id: ContractId
+    name: str = Field(min_length=1, max_length=120)
+    version: Annotated[str, StringConstraints(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")]
+    description: str = Field(min_length=1, max_length=500)
+    intended_uses: List[IntendedUse] = Field(min_length=1)
+    non_functional_only: Literal[True] = True
+    units: Literal["millimeter"] = "millimeter"
+    up_axis: Literal["Y"] = "Y"
+    forward_axis: Literal["-Z"] = "-Z"
+    handedness: Literal["right"] = "right"
+    license: ModulePackLicense
+    modules: List[ModulePackEntry] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_pack(self) -> "ModulePackManifest":
+        _require_unique("intended_uses", self.intended_uses)
+        _require_unique("module ids", [item.module_id for item in self.modules])
+        for field_name in ("manifest_path", "glb_path", "thumbnail_path"):
+            _require_unique(field_name, [getattr(item, field_name) for item in self.modules])
+        return self
+
+
 class ModuleGraphNode(StrictContractModel):
     node_id: ContractId
     module_id: ContractId
@@ -443,5 +498,11 @@ def _validate_sha256(value: str) -> None:
 
 def _validate_relative_path(value: str) -> None:
     path = PurePosixPath(value)
-    if path.is_absolute() or ".." in path.parts or "://" in value:
+    if (
+        path.is_absolute()
+        or ".." in path.parts
+        or "://" in value
+        or "\\" in value
+        or (len(value) >= 2 and value[0].isalpha() and value[1] == ":")
+    ):
         raise ValueError("path must be a traversal-free relative path")

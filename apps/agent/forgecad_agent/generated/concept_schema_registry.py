@@ -14,6 +14,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "model-quality-report.schema.json": "f9d6ab460ab015fd300be40dd8027481c7d5f366885f66f660eacdaef4cd3ce3",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "1d6e15eb1fc2d4d35e002b69502aa7233060604cdc171a29c7e7876318169692",
+  "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
 ''')
@@ -858,6 +859,135 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "edges"
     ],
     "title": "ModuleGraph",
+    "type": "object"
+  },
+  "module-pack-manifest.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/module-pack-manifest.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "forward_axis": {
+        "const": "-Z"
+      },
+      "handedness": {
+        "const": "right"
+      },
+      "intended_uses": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/intended_use"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "license": {
+        "additionalProperties": false,
+        "properties": {
+          "license_path": {
+            "$ref": "common.schema.json#/$defs/relative_path"
+          },
+          "spdx_expression": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "spdx_expression",
+          "license_path"
+        ],
+        "type": "object"
+      },
+      "modules": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "glb_path": {
+              "$ref": "common.schema.json#/$defs/relative_path"
+            },
+            "license_path": {
+              "$ref": "common.schema.json#/$defs/relative_path"
+            },
+            "lod": {
+              "enum": [
+                "LOD0",
+                "LOD1",
+                "LOD2"
+              ]
+            },
+            "manifest_path": {
+              "$ref": "common.schema.json#/$defs/relative_path"
+            },
+            "module_id": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "thumbnail_path": {
+              "$ref": "common.schema.json#/$defs/relative_path"
+            }
+          },
+          "required": [
+            "module_id",
+            "manifest_path",
+            "glb_path",
+            "thumbnail_path",
+            "license_path",
+            "lod"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "pack_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "profile_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "schema_version": {
+        "const": "ModulePackManifest@1"
+      },
+      "units": {
+        "const": "millimeter"
+      },
+      "up_axis": {
+        "const": "Y"
+      },
+      "version": {
+        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "pack_id",
+      "profile_id",
+      "name",
+      "version",
+      "description",
+      "intended_uses",
+      "non_functional_only",
+      "units",
+      "up_axis",
+      "forward_axis",
+      "handedness",
+      "license",
+      "modules"
+    ],
+    "title": "ModulePackManifest",
     "type": "object"
   },
   "weapon-concept-spec.schema.json": {

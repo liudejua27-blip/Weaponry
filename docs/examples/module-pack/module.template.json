@@ -1,0 +1,25 @@
+{
+  "schema_version": "ModuleAssetManifest@1",
+  "module_id": "module_core_shell_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "category": "core_shell",
+  "asset_id": "asset_core_shell_01",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "bounds_mm": [150.0, 70.0, 42.0],
+  "triangle_count": 1,
+  "material_slots": ["MAT_primary", "MAT_secondary", "MAT_accent"],
+  "connectors": [
+    {
+      "connector_id": "connector_core_front",
+      "slot": "core.front",
+      "connector_type": "shell_mount",
+      "transform": {
+        "position": [0.075, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "scale_range": [0.95, 1.05],
+      "exclusive": true
+    }
+  ]
+}

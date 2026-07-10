@@ -169,6 +169,33 @@ export type ModuleGraph = {
 }>
 }
 
+export type ModulePackManifest = {
+  "schema_version": "ModulePackManifest@1"
+  "pack_id": Id
+  "profile_id": Id
+  "name": string
+  "version": string
+  "description": string
+  "intended_uses": Array<IntendedUse>
+  "non_functional_only": true
+  "units": "millimeter"
+  "up_axis": "Y"
+  "forward_axis": "-Z"
+  "handedness": "right"
+  "license": {
+  "spdx_expression": string
+  "license_path": RelativePath
+}
+  "modules": Array<{
+  "module_id": Id
+  "manifest_path": RelativePath
+  "glb_path": RelativePath
+  "thumbnail_path": RelativePath
+  "license_path": RelativePath
+  "lod": "LOD0" | "LOD1" | "LOD2"
+}>
+}
+
 export type WeaponConceptSpec = {
   "schema_version": "WeaponConceptSpec@1"
   "project_id": Id

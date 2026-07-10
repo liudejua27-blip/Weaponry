@@ -1,0 +1,33 @@
+{
+  "schema_version": "ModulePackManifest@1",
+  "pack_id": "pack_weapon_concept_v1",
+  "profile_id": "profile_weapon_concept_v1",
+  "name": "Weapon Concept Pack v1",
+  "version": "0.1.0",
+  "description": "Future concept, game, film-prop and non-functional display modules.",
+  "intended_uses": [
+    "visual_asset",
+    "game_asset",
+    "film_prop",
+    "non_functional_display"
+  ],
+  "non_functional_only": true,
+  "units": "millimeter",
+  "up_axis": "Y",
+  "forward_axis": "-Z",
+  "handedness": "right",
+  "license": {
+    "spdx_expression": "LicenseRef-Proprietary",
+    "license_path": "LICENSES/PACK.txt"
+  },
+  "modules": [
+    {
+      "module_id": "module_core_shell_01",
+      "manifest_path": "modules/module_core_shell_01/module.json",
+      "glb_path": "modules/module_core_shell_01/model.glb",
+      "thumbnail_path": "modules/module_core_shell_01/thumbnail.png",
+      "license_path": "modules/module_core_shell_01/LICENSE.txt",
+      "lod": "LOD0"
+    }
+  ]
+}

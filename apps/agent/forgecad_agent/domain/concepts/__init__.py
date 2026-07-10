@@ -5,6 +5,7 @@ from .models import (
     JobEventV2,
     ModelQualityReport,
     ModuleAssetManifest,
+    ModulePackManifest,
     ModuleGraph,
     WeaponConceptSpec,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "JobEventV2",
     "ModelQualityReport",
     "ModuleAssetManifest",
+    "ModulePackManifest",
     "ModuleGraph",
     "WeaponConceptSpec",
 ]

@@ -146,7 +146,7 @@ npm run r2:gate
 npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个可渲染 GLB，验证真实工作台交互和 Agent 重启恢复。它仍不证明 8–12 个正式模块、完整吸附/镜像、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据、源包，以及 Brief/Variant/Graph validate/QualityRun/Export 的 JobEvent@2 轨迹。`r3:workbench-gate` 注册 4 个可渲染 GLB 验证真实工作台交互，并用 9 个含 triangle/UV/material 的最小 GLB 验证 Module Pack dry-run、批量导入、幂等和重启恢复。它仍不证明正式 Blender 资产、完整吸附/镜像、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
 
 ### 2.3 Tauri 检查
 
@@ -234,6 +234,8 @@ export WUSHEN_LLM_API_KEY=<secret>
 
 ### Day 2：做 8–12 个首批 GLB
 
+先复制 `docs/examples/module-pack` 模板，并严格执行 [MODULE_ASSET_GUIDE.md](MODULE_ASSET_GUIDE.md)。建议首个正式包制作 10–12 个，确保九个 category 都有覆盖。
+
 优先制作：
 
 - 核心外壳 1 个；
@@ -251,6 +253,15 @@ export WUSHEN_LLM_API_KEY=<secret>
 - 米制/毫米约定固定；
 - 名称、材质槽、LOD 和碰撞体命名一致；
 - 先保证拓扑和连接，再追求数量。
+
+每次导出先做只读校验：
+
+```bash
+PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
+  /absolute/path/to/weapon-concept-v1 --release
+```
+
+不要在 dry-run 失败时绕过校验直接调用注册 API。
 
 ### Day 3：标注连接器
 

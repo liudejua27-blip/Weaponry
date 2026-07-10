@@ -285,6 +285,15 @@ async function runWorkbenchUi(baseUrl, seeded) {
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V3'),
       { timeout: 20_000 },
     )
+    await page.waitForFunction(
+      () => {
+        const canvas = document.querySelector('.weapon-viewport canvas')
+        if (!canvas) return false
+        const bounds = canvas.getBoundingClientRect()
+        return bounds.width >= 400 && bounds.height >= 300
+      },
+      { timeout: 20_000 },
+    )
     const canvas = page.locator('.weapon-viewport canvas')
     const canvasBox = await canvas.boundingBox()
     if (!canvasBox || canvasBox.width < 400 || canvasBox.height < 300) {

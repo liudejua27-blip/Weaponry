@@ -9,6 +9,7 @@ Contracts:
 - `DesignDomainProfile@1`
 - `WeaponConceptSpec@1`
 - `ModuleAssetManifest@1`
+- `ModulePackManifest@1`
 - `ModuleGraph@1`
 - `DesignChangeSet@1`
 - `ModelQualityReport@1`

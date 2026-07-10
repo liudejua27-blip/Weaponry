@@ -1,7 +1,7 @@
 # R3 Concept Workbench Evidence
 
 日期：2026-07-10
-范围：R3 当前三个纵向切片；证明真实 Concept/GLB、兼容替换和版本化桌面交互，不证明正式模块资产、完整吸附/镜像或 R3 完成。
+范围：R3 当前四个纵向切片；证明真实 Concept/GLB、兼容替换、版本化桌面交互和 Module Pack 工具链，不证明正式模块资产、完整吸附/镜像或 R3 完成。
 
 ## 已实现
 
@@ -19,11 +19,15 @@
 - `locked` Graph 节点由服务端保护，即使客户端省略 `protected_node_ids` 也不能绕过；
 - 页面不再用程序化武器模型冒充真实 ModuleGraph；没有 Graph 或 Module 时显示明确空状态；
 - 当前仅可创建 `SOURCE ZIP`，GLB/OBJ/PNG 显式标记为 R5 未实现。
+- `ModulePackManifest@1` 固定包坐标、用途、许可证和模块文件索引；
+- Module Pack CLI 校验安全路径、九类 release 覆盖、GLB 2.0、UV0、材质、三角数、毫米 bounds、identity Transform、缩略图、哈希和许可证；
+- CLI 默认 dry-run，显式 `--import` 后才调用 immutable Module registry，内容派生幂等键支持安全重放。
 
 ## 自动验证
 
 ```bash
 npm run desktop:r3-concept-workbench-smoke
+npm run agent:r3-module-pack-smoke
 ```
 
 临时库中创建“寒地巡逻 S1”，注册 4 个包含真实 box mesh 的 GLB，持久化 2 条 Connector edge，将 Graph 绑定到 V2。Playwright 使用系统 Chrome 在 `1536×1024` 验证：
@@ -41,6 +45,8 @@ npm run desktop:r3-concept-workbench-smoke
 11. Agent 重启后 V3、替换模块与新 Connector 完整恢复；
 12. 浏览器没有未处理 page error。
 
+Module Pack smoke 另用 9 个含 triangle/UV/material 的最小 GLB 覆盖九类资产，验证 dry-run、release 门、批量注册、幂等重放和重启恢复；并确认哈希篡改、越界路径、缺许可证、跨模块重复 Connector 和 pack_id 不一致会失败。
+
 截图：`output/playwright/r3-concept-workbench.png`。
 
 ## 视觉核对
@@ -55,8 +61,8 @@ npm run desktop:r3-concept-workbench-smoke
 
 ## 未完成
 
-- 首批 8–12 个高质量、UV/材质/LOD 完整的 Weapon Concept GLB；
+- 首批 10–12 个高质量、UV/材质完整的 Weapon Concept LOD0 GLB；
 - 镜像、更完整的 Connector 自动吸附与批量操作；
-- 保存操作、Undo/Redo、爆炸视图和 GPU 压力测试；
+- GPU 连续加载/卸载压力测试；
 - combined GLB、OBJ、PNG、实际 Mesh/Assembly 检查；
 - Tauri 打包窗口中的同等 E2E。

@@ -201,7 +201,7 @@ packs/weapon-concept/
       "connector_id": "connector_core_front",
       "slot": "core.front",
       "connector_type": "shell_mount",
-      "transform": { "position": [-74, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+      "transform": { "position": [-0.074, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
       "scale_range": [0.9, 1.1],
       "exclusive": true
     }
@@ -222,6 +222,43 @@ packs/weapon-concept/
 9. 装甲或装饰面板。
 
 首批只制作 8–12 个高质量、拓扑可靠的手工 GLB；闭环稳定后扩展到 24–30 个。
+
+### 6.2.1 ModulePackManifest@1
+
+`ModuleAssetManifest@1` 描述单个不可变模块，`ModulePackManifest@1` 描述可分发资产包。包合同固定 `millimeter` 业务单位、GLB 的 `Y-up / -Z-forward / right-handed` 导出约定、许可证和文件索引；P0 导入仅接受 `LOD0`。
+
+```json
+{
+  "schema_version": "ModulePackManifest@1",
+  "pack_id": "pack_weapon_concept_v1",
+  "profile_id": "profile_weapon_concept_v1",
+  "name": "Weapon Concept Pack v1",
+  "version": "0.1.0",
+  "description": "Future concept, game, film-prop and non-functional display modules.",
+  "intended_uses": ["visual_asset", "game_asset", "film_prop"],
+  "non_functional_only": true,
+  "units": "millimeter",
+  "up_axis": "Y",
+  "forward_axis": "-Z",
+  "handedness": "right",
+  "license": {
+    "spdx_expression": "LicenseRef-Proprietary",
+    "license_path": "LICENSES/PACK.txt"
+  },
+  "modules": [
+    {
+      "module_id": "module_core_shell_01",
+      "manifest_path": "modules/module_core_shell_01/module.json",
+      "glb_path": "modules/module_core_shell_01/model.glb",
+      "thumbnail_path": "modules/module_core_shell_01/thumbnail.png",
+      "license_path": "modules/module_core_shell_01/LICENSE.txt",
+      "lod": "LOD0"
+    }
+  ]
+}
+```
+
+机器校验、Blender 命名和显式导入流程见 `docs/MODULE_ASSET_GUIDE.md`。`ModulePackManifest` 不改变 Module registry API，也不把视觉 Connector 提升为真实机械接口。
 
 ### 6.3 ModuleGraph@1
 

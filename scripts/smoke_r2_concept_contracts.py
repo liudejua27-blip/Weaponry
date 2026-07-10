@@ -16,6 +16,7 @@ from forgecad_agent.domain.concepts import (
     JobEventV2,
     ModelQualityReport,
     ModuleAssetManifest,
+    ModulePackManifest,
     ModuleGraph,
     WeaponConceptSpec,
 )
@@ -41,6 +42,7 @@ def main() -> int:
         ("design-domain-profile.schema.json", DesignDomainProfile, _profile()),
         ("weapon-concept-spec.schema.json", WeaponConceptSpec, _concept_spec()),
         ("module-asset-manifest.schema.json", ModuleAssetManifest, _module_manifest()),
+        ("module-pack-manifest.schema.json", ModulePackManifest, _module_pack_manifest()),
         ("module-graph.schema.json", ModuleGraph, _module_graph()),
         ("design-change-set.schema.json", DesignChangeSet, _change_set()),
         ("model-quality-report.schema.json", ModelQualityReport, _quality_report()),
@@ -186,6 +188,37 @@ def _module_manifest() -> Dict[str, Any]:
                 "scale_range": [0.92, 1.08],
                 "exclusive": True,
             },
+        ],
+    }
+
+
+def _module_pack_manifest() -> Dict[str, Any]:
+    return {
+        "schema_version": "ModulePackManifest@1",
+        "pack_id": "pack_weapon_concept_v1",
+        "profile_id": "profile_weapon_concept_v1",
+        "name": "Weapon Concept Pack v1",
+        "version": "0.1.0",
+        "description": "Non-functional concept, game and film-prop modules.",
+        "intended_uses": ["visual_asset", "game_asset", "film_prop"],
+        "non_functional_only": True,
+        "units": "millimeter",
+        "up_axis": "Y",
+        "forward_axis": "-Z",
+        "handedness": "right",
+        "license": {
+            "spdx_expression": "CC-BY-4.0",
+            "license_path": "LICENSES/PACK.txt",
+        },
+        "modules": [
+            {
+                "module_id": "module_core_shell_01",
+                "manifest_path": "modules/module_core_shell_01/module.json",
+                "glb_path": "modules/module_core_shell_01/model.glb",
+                "thumbnail_path": "modules/module_core_shell_01/thumbnail.png",
+                "license_path": "modules/module_core_shell_01/LICENSE.txt",
+                "lod": "LOD0",
+            }
         ],
     }
 

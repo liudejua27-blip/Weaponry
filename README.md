@@ -69,6 +69,7 @@ P0 只实现一个完整场景：
 - 语义 Connector、吸附、父子关系和对称规则；
 - 比例、位置、旋转、材质、配色和细节密度；
 - `WeaponConceptSpec@1`、`ModuleGraph@1`、`DesignChangeSet@1`；
+- `ModuleAssetManifest@1`、`ModulePackManifest@1` 与显式 dry-run/import 资产门；
 - 追加式版本、Undo/Redo、操作时间线；
 - 网格、法线、穿插、接口、对称、UV 和 LOD 检查；
 - GLB、OBJ、PNG、爆炸图、组件 Manifest 与项目报告。
@@ -141,6 +142,7 @@ core.side_panel_left / core.side_panel_right
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
 | `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换、版本 Undo/Redo、爆炸视图和源包导出 | 当前只有 4 个程序化 R3 fixture；完整吸附、镜像和正式 8–12 模块待完成 |
+| Module Pack 资产门 | `ModulePackManifest@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现 | 工具链完成；正式 10–12 个 Blender GLB 仍需制作 |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
@@ -154,6 +156,8 @@ core.side_panel_left / core.side_panel_right
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
 新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB，并可通过 ChangeSet 替换兼容模块、自动重映射 Connector 后创建子版本。旧 Weapon/Unity 主链继续作为回归 baseline；当前 R3 仍不能证明正式模块资产、拖放/完整吸附、combined GLB、实际网格检查或 CAD/DFM 已完成。
+
+正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 
 ## P0 架构
 

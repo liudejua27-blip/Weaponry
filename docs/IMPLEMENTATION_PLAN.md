@@ -14,6 +14,7 @@
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
 - 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE 和可追溯概念源包导出已实现；首批高质量模块资产、AI 方案质量、combined GLB/OBJ/PNG 导出尚未实现；
+- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；正式 Blender 资产本身尚未完成；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
 旧代码是迁移输入；当前工作台是参考实现，不代表新领域完成。
@@ -38,6 +39,7 @@
 | R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 三个纵向切片完成 | 4 GLB fixture、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace、Undo/Redo、explode、restart |
+| R3 Module Pack tooling | 完成 | 九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
 
 ## 2. 执行硬规则
 
@@ -164,7 +166,7 @@ storage_visual / armor_panel
 
 实现：
 
-- 统一坐标、朝向、原点、比例、材质槽、UV、LOD 和缩略图；
+- 统一坐标、朝向、原点、比例、材质槽、UV、LOD 和缩略图；合同、CLI 与模板已落地，正式资产制作按 `MODULE_ASSET_GUIDE.md` 执行；
 - Connector overlay、拖放/替换、自动吸附、镜像、Transform、锁定；
 - 模块树与视口同步选择、高亮、隐藏和聚焦；
 - 爆炸视图、资源释放、Project 保存和恢复；
