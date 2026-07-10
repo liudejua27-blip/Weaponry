@@ -6,23 +6,22 @@ import { JobTimeline } from '../features/jobs/JobTimeline'
 import { LibraryPanel } from '../features/library/LibraryPanel'
 import { ProviderPanel } from '../features/settings/ProviderPanel'
 import { forgeApi } from '../shared/api/forgeApi'
+import { AppShell } from './AppShell'
+import { useJobEvents } from './providers/JobEventProvider'
+import { useRuntime } from './providers/RuntimeProvider'
+import { useSelection, type WeaponVersion } from './providers/SelectionProvider'
 import {
-  getAgentSupervisorStatus,
-  restartAgentSupervisor,
-  startAgentSupervisor,
-  stopAgentSupervisor,
-  type AgentSupervisorStatus,
-} from '../shared/tauri/agentSupervisor'
-import type { CreateWeaponResponse, JobDetail, JobEvent, JobRuntimeStateResponse, WeaponDetail } from '../shared/types'
+  parseHashRoute,
+  routeHasResource,
+  routeKey,
+  routeView,
+  writeHashRoute,
+  type AppRoute,
+  type View,
+} from './routing'
+import type { CreateWeaponResponse, JobDetail, JobRuntimeStateResponse, WeaponDetail } from '../shared/types'
 
-type View = 'forge' | 'patch' | 'library' | 'jobs' | 'settings'
-type WeaponVersion = NonNullable<WeaponDetail['versions']>[number]
 type VersionAsset = NonNullable<WeaponVersion['assets']>[number]
-type AppRoute =
-  | { kind: 'none' }
-  | { kind: 'view'; view: View }
-  | { kind: 'job'; jobId: string }
-  | { kind: 'weapon'; weaponId: string; versionId?: string }
 type DesktopJobNotification = {
   id: string
   jobId: string
@@ -36,33 +35,43 @@ type DesktopJobNotification = {
 const Preview3DPanel = lazy(() => import('../features/preview3d/Preview3DPanel').then((module) => ({ default: module.Preview3DPanel })))
 
 export function App() {
+  const {
+    api,
+    serviceStatus,
+    agentSupervisor,
+    agentActionError,
+    checkService,
+    startLocalAgent,
+    stopLocalAgent,
+    restartLocalAgent,
+  } = useRuntime()
+  const {
+    events,
+    streamStatus,
+    replaceEvents,
+    resetEvents,
+    subscribe: subscribeToJobEvents,
+  } = useJobEvents()
+  const {
+    activeWeaponId,
+    activeVersionId,
+    activeWeaponDetail,
+    activeVersion,
+    setActiveWeaponId,
+    setActiveVersionId,
+    loadWeaponDetail: handleWeaponDetailLoaded,
+    clearWeaponDetail,
+  } = useSelection()
   const initialRoute = useMemo(() => parseHashRoute(), [])
   const [view, setView] = useState<View>(() => routeView(initialRoute) ?? 'forge')
   const [pendingRoute, setPendingRoute] = useState<AppRoute>(initialRoute)
   const [activeJobId, setActiveJobId] = useState<string | null>(() => initialRoute.kind === 'job' ? initialRoute.jobId : null)
-  const [activeWeaponId, setActiveWeaponId] = useState<string>(() => initialRoute.kind === 'weapon' ? initialRoute.weaponId : '')
-  const [activeVersionId, setActiveVersionId] = useState<string>(() => initialRoute.kind === 'weapon' ? initialRoute.versionId ?? '' : '')
-  const [activeWeaponDetail, setActiveWeaponDetail] = useState<WeaponDetail | null>(null)
   const [activeJobDetail, setActiveJobDetail] = useState<JobDetail | null>(null)
   const [activeJobRuntime, setActiveJobRuntime] = useState<JobRuntimeStateResponse | null>(null)
-  const [events, setEvents] = useState<JobEvent[]>([])
-  const eventsRef = useRef<JobEvent[]>([])
-  const [serviceStatus, setServiceStatus] = useState<'checking' | 'connected' | 'offline'>('checking')
-  const [agentSupervisor, setAgentSupervisor] = useState<AgentSupervisorStatus | null>(null)
-  const [agentActionError, setAgentActionError] = useState<string | null>(null)
   const [jobActionStatus, setJobActionStatus] = useState<string | null>(null)
   const [recentJobIds, setRecentJobIds] = useState<string[]>(() => readRecentJobIds())
   const [desktopNotifications, setDesktopNotifications] = useState<DesktopJobNotification[]>(() => readDesktopNotifications())
-  const [streamStatus, setStreamStatus] = useState<'idle' | 'connecting' | 'live' | 'reconnecting' | 'closed'>('idle')
-  const api = useMemo(() => forgeApi, [])
   const appliedRouteRef = useRef('')
-  const activeVersion = useMemo(() => {
-    const versions = activeWeaponDetail?.versions ?? []
-    return versions.find((version) => version.version_id === activeVersionId)
-      ?? versions.find((version) => version.version_id === activeWeaponDetail?.current_version_id)
-      ?? versions.at(-1)
-      ?? null
-  }, [activeVersionId, activeWeaponDetail])
   const sourceImage = useMemo(
     () => findConceptOrPatchAsset(activeVersion) ?? findLatestConceptOrPatchAsset(activeWeaponDetail),
     [activeVersion, activeWeaponDetail]
@@ -70,10 +79,6 @@ export function App() {
   const roughGlb = useMemo(() => findAssetByRole(activeVersion, 'rough_raw_glb') ?? findLatestAssetByRole(activeWeaponDetail, 'rough_raw_glb'), [activeVersion, activeWeaponDetail])
   const unityMaterial = useMemo(() => findAssetByRole(activeVersion, 'unity_material_json') ?? findLatestAssetByRole(activeWeaponDetail, 'unity_material_json'), [activeVersion, activeWeaponDetail])
   const unityExport = useMemo(() => findLatestAssetByRole(activeWeaponDetail, 'unity_export_package'), [activeWeaponDetail])
-
-  useEffect(() => {
-    eventsRef.current = events
-  }, [events])
 
   useEffect(() => {
     const syncRoute = () => {
@@ -84,14 +89,6 @@ export function App() {
     }
     window.addEventListener('hashchange', syncRoute)
     return () => window.removeEventListener('hashchange', syncRoute)
-  }, [])
-
-  const mergeEvents = useCallback((incoming: JobEvent[]) => {
-    setEvents((current) => {
-      const byId = new Map(current.map((item) => [item.id, item]))
-      for (const event of incoming) byId.set(event.id, event)
-      return Array.from(byId.values()).sort(compareJobEvents)
-    })
   }, [])
 
   const handleWeaponSelected = useCallback((weaponId: string, versionId?: string) => {
@@ -119,15 +116,6 @@ export function App() {
     if (weaponId) writeHashRoute({ kind: 'weapon', weaponId, versionId })
   }, [activeWeaponDetail?.weapon_id, activeWeaponId, handleVersionSelected])
 
-  const handleWeaponDetailLoaded = useCallback((detail: WeaponDetail) => {
-    setActiveWeaponDetail(detail)
-    setActiveWeaponId(detail.weapon_id)
-    setActiveVersionId((current) => {
-      if (current && (detail.versions ?? []).some((version) => version.version_id === current)) return current
-      return detail.current_version_id || (detail.versions ?? []).at(-1)?.version_id || ''
-    })
-  }, [])
-
   const selectJobOutputVersion = useCallback((job: JobDetail, detail: WeaponDetail) => {
     const outputVersionId = jobOutputVersionId(job)
     if (outputVersionId && (detail.versions ?? []).some((version) => version.version_id === outputVersionId)) {
@@ -146,40 +134,28 @@ export function App() {
 
   const subscribeJobEvents = useCallback(
     (id: string) => {
-      setStreamStatus('connecting')
-      const after = eventsRef.current.filter((event) => event.job_id === id).at(-1)?.id
-      return api.subscribeJobEvents(id, {
-        onOpen: () => setStreamStatus('live'),
-        onEvent: (event) => {
-          if (event.job_id !== id) return
-          mergeEvents([event])
+      return subscribeToJobEvents(id, {
+        onTerminal: (event) => {
           api.getJobRuntime(id).then(setActiveJobRuntime).catch(() => undefined)
-          if (isTerminalJobEvent(event)) {
-            setStreamStatus('closed')
-            api.getJob(id)
-              .then((jobDetail) => {
-                setActiveJobDetail(jobDetail)
-                publishJobNotification(jobDetail)
-                if (event.weapon_id) {
-                  api.getWeapon(event.weapon_id)
-                    .then((weaponDetail) => {
-                      handleWeaponDetailLoaded(weaponDetail)
-                      selectJobOutputVersion(jobDetail, weaponDetail)
-                    })
-                    .catch(() => undefined)
-                }
-              })
-              .catch(() => undefined)
-          }
+          api.getJob(id)
+            .then((jobDetail) => {
+              setActiveJobDetail(jobDetail)
+              publishJobNotification(jobDetail)
+              if (event.weapon_id) {
+                api.getWeapon(event.weapon_id)
+                  .then((weaponDetail) => {
+                    handleWeaponDetailLoaded(weaponDetail)
+                    selectJobOutputVersion(jobDetail, weaponDetail)
+                  })
+                  .catch(() => undefined)
+              }
+            })
+            .catch(() => undefined)
         },
-        onStreamError: (error) => {
-          setStreamStatus('closed')
-          setJobActionStatus(`${error.code}: ${error.message}`)
-        },
-        onError: () => setStreamStatus('reconnecting'),
-      }, after)
+        onStreamError: (error) => setJobActionStatus(`${error.code}: ${error.message}`),
+      })
     },
-    [api, handleWeaponDetailLoaded, mergeEvents, publishJobNotification, selectJobOutputVersion]
+    [api, handleWeaponDetailLoaded, publishJobNotification, selectJobOutputVersion, subscribeToJobEvents]
   )
   const refreshJobRuntime = useCallback((jobId: string) => {
     return api.getJobRuntime(jobId)
@@ -193,57 +169,6 @@ export function App() {
       })
   }, [api])
 
-  const checkService = useCallback(() => {
-    setServiceStatus('checking')
-    getAgentSupervisorStatus()
-      .then((status) => {
-        setAgentSupervisor(status)
-        if (status.available && status.baseUrl) {
-          api.setBaseUrl(status.baseUrl)
-        }
-        return api.checkHealth()
-      })
-      .then(() => setServiceStatus('connected'))
-      .catch((caught) => {
-        setServiceStatus('offline')
-        if (caught instanceof Error) setAgentActionError(caught.message)
-      })
-  }, [api])
-
-  const startLocalAgent = useCallback(() => {
-    setAgentActionError(null)
-    startAgentSupervisor()
-      .then((status) => {
-        setAgentSupervisor(status)
-        checkService()
-      })
-      .catch((caught) => setAgentActionError(caught instanceof Error ? caught.message : String(caught)))
-  }, [checkService])
-
-  const stopLocalAgent = useCallback(() => {
-    setAgentActionError(null)
-    stopAgentSupervisor()
-      .then((status) => {
-        setAgentSupervisor(status)
-        checkService()
-      })
-      .catch((caught) => setAgentActionError(caught instanceof Error ? caught.message : String(caught)))
-  }, [checkService])
-
-  const restartLocalAgent = useCallback(() => {
-    setAgentActionError(null)
-    restartAgentSupervisor()
-      .then((status) => {
-        setAgentSupervisor(status)
-        checkService()
-      })
-      .catch((caught) => setAgentActionError(caught instanceof Error ? caught.message : String(caught)))
-  }, [checkService])
-
-  useEffect(() => {
-    checkService()
-  }, [checkService])
-
   const restoreJob = useCallback((jobId: string) => {
     setJobActionStatus('正在恢复任务...')
     return api.getJob(jobId)
@@ -251,7 +176,7 @@ export function App() {
         setActiveJobDetail(detail)
         setActiveJobId(detail.job_id)
         setActiveWeaponId(detail.weapon_id)
-        setEvents((detail.events ?? []).filter((event) => event.job_id === detail.job_id).sort(compareJobEvents))
+        replaceEvents((detail.events ?? []).filter((event) => event.job_id === detail.job_id))
         refreshJobRuntime(detail.job_id).catch(() => undefined)
         localStorage.setItem('wushen.recentJobId', detail.job_id)
         rememberJob(detail.job_id)
@@ -264,7 +189,7 @@ export function App() {
             return detail
           })
           .catch(() => {
-            setActiveWeaponDetail(null)
+            clearWeaponDetail()
             setJobActionStatus(`已恢复 ${detail.job_id}，但武器详情暂不可用`)
             return detail
           })
@@ -273,7 +198,7 @@ export function App() {
         setJobActionStatus(caught instanceof Error ? caught.message : String(caught))
         throw caught
       })
-  }, [api, handleWeaponDetailLoaded, publishJobNotification, refreshJobRuntime, rememberJob, selectJobOutputVersion])
+  }, [api, clearWeaponDetail, handleWeaponDetailLoaded, publishJobNotification, refreshJobRuntime, rememberJob, replaceEvents, selectJobOutputVersion])
 
   useEffect(() => {
     if (serviceStatus !== 'connected') return
@@ -346,17 +271,17 @@ export function App() {
     setActiveWeaponId(response.weapon_id)
     setActiveJobDetail(null)
     setActiveJobRuntime(null)
-    setEvents([])
+    resetEvents()
     localStorage.setItem('wushen.recentJobId', response.job_id)
     rememberJob(response.job_id)
     restoreJob(response.job_id).catch(() => {
       api.getWeapon(response.weapon_id)
         .then(handleWeaponDetailLoaded)
         .catch(() => {
-          setActiveWeaponDetail(null)
+          clearWeaponDetail()
         })
     })
-  }, [api, handleWeaponDetailLoaded, rememberJob, restoreJob])
+  }, [api, clearWeaponDetail, handleWeaponDetailLoaded, rememberJob, resetEvents, restoreJob])
 
   const retryJob = useCallback((jobId: string) => {
     setJobActionStatus('正在提交任务重试请求...')
@@ -409,39 +334,21 @@ export function App() {
   }, [restoreJob])
 
   return (
-    <div className="app-shell">
-      <aside className="nav-rail" aria-label="主导航">
-        <div className="brand">
-          <span className="brand-mark">武</span>
-          <span>武神 Forge</span>
-        </div>
-        <button className={view === 'forge' ? 'active' : ''} onClick={() => navigateToView('forge')}>Forge 工作台</button>
-        <button className={view === 'patch' ? 'active' : ''} onClick={() => navigateToView('patch')}>Patch Mode</button>
-        <button className={view === 'library' ? 'active' : ''} onClick={() => navigateToView('library')}>资产库</button>
-        <button className={view === 'jobs' ? 'active' : ''} onClick={() => navigateToView('jobs')}>任务中心</button>
-        <button className={view === 'settings' ? 'active' : ''} onClick={() => navigateToView('settings')}>设置</button>
-      </aside>
-
-      <main className="workspace">
-        <header className="top-bar">
-          <div>
-            <strong>{activeWeaponDetail?.display_name ?? '第一阶段'}</strong>
-            <span>
-              {activeWeaponDetail
-                ? `${activeWeaponDetail.weapon_family} · ${activeWeaponDetail.stage} · ${activeVersion?.version_id ?? 'no version'}`
-                : '1 个方案 -> 概念图 -> 局部修改 -> 资产库 -> 3D 粗模'}
-            </span>
-          </div>
-          <div className={`status-pill ${serviceStatus}`}>
-            {serviceStatus === 'connected'
-              ? (activeJobId ? `${activeJobDetail?.status ?? 'tracking'} · ${activeJobDetail?.current_step ?? activeJobId}` : 'Agent 空闲')
-              : '本地 Agent 未连接'}
-          </div>
-        </header>
-
+    <AppShell
+      view={view}
+      title={activeWeaponDetail?.display_name ?? '第一阶段'}
+      subtitle={activeWeaponDetail
+        ? `${activeWeaponDetail.weapon_family} · ${activeWeaponDetail.stage} · ${activeVersion?.version_id ?? 'no version'}`
+        : '1 个方案 -> 概念图 -> 局部修改 -> 资产库 -> 3D 粗模'}
+      serviceStatus={serviceStatus}
+      serviceLabel={serviceStatus === 'connected'
+        ? (activeJobId ? `${activeJobDetail?.status ?? 'tracking'} · ${activeJobDetail?.current_step ?? activeJobId}` : 'Agent 空闲')
+        : '本地 Agent 未连接'}
+      onNavigate={navigateToView}
+    >
         <section className={view === 'jobs' ? 'workbench jobs-workbench' : 'workbench'}>
           <div className="left-panel">
-            {view === 'forge' && <CreateWeaponPanel api={api} onJobCreated={handleJobAccepted} onEventsReset={() => setEvents([])} />}
+            {view === 'forge' && <CreateWeaponPanel api={api} onJobCreated={handleJobAccepted} onEventsReset={resetEvents} />}
             {view === 'patch' && (
               <section className="panel-section">
                 <h1>局部修改</h1>
@@ -492,7 +399,7 @@ export function App() {
                 onVersionSelected={handleVersionSelected}
                 onWeaponDetailLoaded={handleWeaponDetailLoaded}
                 onJobCreated={handleJobAccepted}
-                onEventsReset={() => setEvents([])}
+                onEventsReset={resetEvents}
               />
             ) : view === 'jobs' ? (
               <JobCenterPanel
@@ -541,7 +448,7 @@ export function App() {
                   onVersionSelected={handleVersionSelected}
                   onWeaponDetailLoaded={handleWeaponDetailLoaded}
                   onJobCreated={handleJobAccepted}
-                  onEventsReset={() => setEvents([])}
+                  onEventsReset={resetEvents}
                 />
               </Suspense>
             </div>
@@ -561,8 +468,7 @@ export function App() {
           onOpenSettings={() => navigateToView('settings')}
           onSkip3D={skip3D}
         />
-      </main>
-    </div>
+    </AppShell>
   )
 }
 
@@ -755,62 +661,6 @@ function maybeSendBrowserNotification(notification: DesktopJobNotification): voi
   }
 }
 
-function parseHashRoute(): AppRoute {
-  if (typeof window === 'undefined') return { kind: 'none' }
-  const raw = window.location.hash.replace(/^#\/?/, '')
-  const parts = raw.split('/').filter(Boolean).map((part) => {
-    try {
-      return decodeURIComponent(part)
-    } catch {
-      return part
-    }
-  })
-  const [first, second, third, fourth] = parts
-  if (first === 'jobs' && second) return { kind: 'job', jobId: second }
-  if (first === 'weapons' && second) {
-    if (third === 'versions' && fourth) return { kind: 'weapon', weaponId: second, versionId: fourth }
-    return { kind: 'weapon', weaponId: second }
-  }
-  if (isView(first)) return { kind: 'view', view: first }
-  return { kind: 'none' }
-}
-
-function writeHashRoute(route: AppRoute): void {
-  if (typeof window === 'undefined') return
-  const next = routeKey(route) || '#/forge'
-  if (window.location.hash !== next) window.location.hash = next
-}
-
-function routeKey(route: AppRoute): string {
-  switch (route.kind) {
-    case 'view':
-      return `#/${route.view}`
-    case 'job':
-      return `#/jobs/${encodeURIComponent(route.jobId)}`
-    case 'weapon':
-      return route.versionId
-        ? `#/weapons/${encodeURIComponent(route.weaponId)}/versions/${encodeURIComponent(route.versionId)}`
-        : `#/weapons/${encodeURIComponent(route.weaponId)}`
-    default:
-      return ''
-  }
-}
-
-function routeView(route: AppRoute): View | null {
-  if (route.kind === 'view') return route.view
-  if (route.kind === 'job') return 'jobs'
-  if (route.kind === 'weapon') return 'library'
-  return null
-}
-
-function routeHasResource(route: AppRoute): boolean {
-  return route.kind === 'job' || route.kind === 'weapon'
-}
-
-function isView(value: string | undefined): value is View {
-  return value === 'forge' || value === 'patch' || value === 'library' || value === 'jobs' || value === 'settings'
-}
-
 function findConceptOrPatchAsset(version: WeaponVersion | null): VersionAsset | null {
   const assets = [...(version?.assets ?? [])].reverse()
   return assets.find((asset) => asset.role === 'concept_patch')
@@ -842,24 +692,6 @@ function formatBytes(value: number) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`
 }
 
-function compareJobEvents(a: JobEvent, b: JobEvent): number {
-  if (a.seq !== b.seq) return a.seq - b.seq
-  const aSeq = parseEventSequence(a.id)
-  const bSeq = parseEventSequence(b.id)
-  if (aSeq !== null && bSeq !== null && aSeq !== bSeq) return aSeq - bSeq
-  return (a.created_at ?? '').localeCompare(b.created_at ?? '')
-}
-
-function isTerminalJobEvent(event: JobEvent) {
-  if (['failed', 'cancelled', 'partial_succeeded'].includes(event.status)) return true
-  return event.status === 'succeeded' && event.step === 'finalize_job'
-}
-
 function isTerminalJobStatus(status: string) {
   return ['failed', 'cancelled', 'partial_succeeded', 'succeeded'].includes(status)
-}
-
-function parseEventSequence(eventId: string): number | null {
-  const match = eventId.match(/_(\d+)$/)
-  return match ? Number(match[1]) : null
 }

@@ -16,7 +16,7 @@
     "desktop:p0-runtime-handoff-smoke": "node scripts/smoke_p0_runtime_handoff_ui.mjs",
     "desktop:p1-deeplink-smoke": "node scripts/smoke_p1_deeplink_ui.mjs",
     "desktop:tauri-check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
-    "agent:check": "python3 -m compileall -q apps/agent/wushen_agent scripts",
+    "agent:check": "python3 -m compileall -q apps/agent/wushen_agent apps/agent/forgecad_agent scripts",
     "contracts:types:generate": "python3 scripts/generate_schema_types.py && .venv/bin/python scripts/export_openapi.py",
     "contracts:types:check": "python3 scripts/generate_schema_types.py --check && .venv/bin/python scripts/export_openapi.py --check",
     "contracts:check": "python3 scripts/check_contracts.py",
@@ -33,6 +33,7 @@
     "agent:m5-generate3d-http-smoke": ".venv/bin/python scripts/smoke_m5_generate3d_http.py",
     "agent:m5-export-unity-http-smoke": ".venv/bin/python scripts/smoke_m5_export_unity_http.py",
     "agent:m6-structure-recast-smoke": ".venv/bin/python scripts/smoke_m6_structure_recast.py",
+    "agent:r1-foundation-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r1_foundation.py",
     "agent:p0-job-actions-smoke": ".venv/bin/python scripts/smoke_p0_job_actions.py",
     "agent:p0-job-history-search-smoke": ".venv/bin/python scripts/smoke_p0_job_history_search.py",
     "agent:p0-runtime-recovery-smoke": ".venv/bin/python scripts/smoke_p0_runtime_recovery.py",
@@ -58,7 +59,9 @@
     "m3:gate": "npm run contracts:types:check && npm run agent:m3-llm-smoke && npm run agent:m3-comfyui-smoke && npm run agent:m3-image-dimensions-smoke && npm run m2:gate",
     "m4:gate": "npm run m3:gate && npm run agent:m4-migrations-smoke && npm run agent:m4-patch-smoke && npm run agent:m4-patch-http-smoke && npm run agent:m4-comfyui-patch-smoke",
     "m5:gate": "npm run m4:gate && npm run agent:p0-job-actions-smoke && npm run agent:p0-runtime-recovery-smoke && npm run agent:p0-provider-runtime-boundary-smoke && npm run agent:p0-local-http-3d-provider-smoke && npm run agent:p0-local-3d-runtime-wrapper-smoke && npm run agent:p0-job-history-search-smoke && npm run agent:p0-async-generate3d-worker-smoke && npm run agent:p0-generate3d-worker-loop-smoke && npm run agent:p0-export-unity-worker-smoke && npm run agent:p1-asset-reveal-smoke && npm run desktop:p0-runtime-handoff-smoke && npm run desktop:p0-job-action-state-smoke && npm run desktop:p0-job-center-history-smoke && npm run desktop:p0-context-continuity-smoke && npm run desktop:p1-deeplink-smoke && npm run agent:m5-glb-smoke && npm run agent:m5-generate3d-http-smoke && npm run agent:m5-export-unity-http-smoke && npm run unity:preflight",
-    "m6:gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:m6-structure-recast-smoke && npm run desktop:typecheck"
+    "m6:gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:m6-structure-recast-smoke && npm run desktop:typecheck",
+    "r1:foundation-gate": "npm run agent:r1-foundation-smoke && npm run m6:gate",
+    "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke"
   },
   "engines": {
     "node": ">=20",

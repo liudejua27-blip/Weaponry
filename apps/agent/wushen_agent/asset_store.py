@@ -18,6 +18,17 @@ import zlib
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from forgecad_agent.infrastructure.db import (
+    AssetRepository,
+    CheckpointRepository,
+    JobRepository,
+    MigrationError,
+    SQLiteConnectionFactory,
+    SQLiteMigrationRunner,
+    SQLiteUnitOfWork,
+)
+from forgecad_agent.infrastructure.storage import ContentAddressedStore, ObjectStoreError
+
 from .models import (
     AssetUploadRequest,
     AssetUploadResponse,
@@ -112,7 +123,8 @@ class SQLiteAssetStore:
         self.image_provider = image_provider or image_provider_from_env()
         self.three_d_provider = three_d_provider or three_d_provider_from_env()
         self.library_root.mkdir(parents=True, exist_ok=True)
-        (self.library_root / "objects" / "sha256").mkdir(parents=True, exist_ok=True)
+        self.connection_factory = SQLiteConnectionFactory(self.db_path)
+        self.object_store = ContentAddressedStore(self.library_root)
         self._migrate()
 
     @classmethod
@@ -497,19 +509,13 @@ class SQLiteAssetStore:
         request_json = _canonical_json(request.model_dump())
         request_hash = _sha256_bytes(request_json.encode("utf-8"))
 
-        with self._connect() as conn:
-            existing = conn.execute(
-                """
-                SELECT request_hash, response_json
-                FROM idempotency_records
-                WHERE scope = ? AND idempotency_key = ?
-                """,
-                (idempotency_scope, idempotency_key),
-            ).fetchone()
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            conn = unit_of_work.require_connection()
+            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
             if existing is not None:
-                if existing["request_hash"] != request_hash:
+                if existing.request_hash != request_hash:
                     raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return CreativeInterpretationResponse(**json.loads(existing["response_json"]))
+                return CreativeInterpretationResponse(**json.loads(existing.response_json))
 
             if not self._has_weapon_row(conn, weapon_id):
                 raise AssetStoreError("WEAPON_NOT_FOUND", "Weapon not found.")
@@ -575,16 +581,13 @@ class SQLiteAssetStore:
                     now,
                 ),
             )
-            conn.execute(
-                """
-                INSERT INTO idempotency_records (
-                  scope, idempotency_key, request_hash, response_json, created_at
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (idempotency_scope, idempotency_key, request_hash, _canonical_json(response.model_dump()), now),
+            unit_of_work.idempotency.add(
+                scope=idempotency_scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=_canonical_json(response.model_dump()),
+                created_at=now,
             )
-            conn.commit()
             return response
 
     def confirm_recast(
@@ -597,19 +600,13 @@ class SQLiteAssetStore:
         request_json = _canonical_json(request.model_dump())
         request_hash = _sha256_bytes(request_json.encode("utf-8"))
 
-        with self._connect() as conn:
-            existing = conn.execute(
-                """
-                SELECT request_hash, response_json
-                FROM idempotency_records
-                WHERE scope = ? AND idempotency_key = ?
-                """,
-                (idempotency_scope, idempotency_key),
-            ).fetchone()
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            conn = unit_of_work.require_connection()
+            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
             if existing is not None:
-                if existing["request_hash"] != request_hash:
+                if existing.request_hash != request_hash:
                     raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return CreativeRecastConfirmResponse(**json.loads(existing["response_json"]))
+                return CreativeRecastConfirmResponse(**json.loads(existing.response_json))
 
             interpretation = conn.execute(
                 """
@@ -736,16 +733,13 @@ class SQLiteAssetStore:
                 skill_graph=skill_graph,
                 created_at=now,
             )
-            conn.execute(
-                """
-                INSERT INTO idempotency_records (
-                  scope, idempotency_key, request_hash, response_json, created_at
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (idempotency_scope, idempotency_key, request_hash, _canonical_json(response.model_dump()), now),
+            unit_of_work.idempotency.add(
+                scope=idempotency_scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=_canonical_json(response.model_dump()),
+                created_at=now,
             )
-            conn.commit()
             return response
 
     def get_creative_graph(self, weapon_id: str) -> CreativeGraphResponse:
@@ -1022,7 +1016,7 @@ class SQLiteAssetStore:
                     (weapon_id,),
                 ).fetchone()["next_version_no"]
             )
-            source_image_bytes = (self.library_root / source_image["object_path"]).read_bytes()
+            source_image_bytes = self._asset_payload(source_image)
             model_input = {
                 "schema_version": "ModelGenerationInput@1",
                 "weapon_id": weapon_id,
@@ -1422,7 +1416,7 @@ class SQLiteAssetStore:
             """,
             (version_id, weapon_id, request.source_version_id, job_id, version_no, "Worker draft for rough 3D generation.", now),
         )
-        source_image_bytes = (self.library_root / source_image["object_path"]).read_bytes()
+        source_image_bytes = self._asset_payload(source_image)
         model_input = {
             "schema_version": "ModelGenerationInput@1",
             "weapon_id": weapon_id,
@@ -1609,7 +1603,7 @@ class SQLiteAssetStore:
         provider_task_id = str(task["provider_task_id"])
         task_record_id = str(task["task_record_id"])
         source_image = self._validate_generate_3d_source(conn, weapon_id, request)
-        source_image_bytes = (self.library_root / source_image["object_path"]).read_bytes()
+        source_image_bytes = self._asset_payload(source_image)
 
         if task["status"] == "cancel_requested" or self._job_cancel_requested(conn, job_id):
             self._cancel_provider_task(conn, task_record_id=task_record_id, provider_task_id=provider_task_id)
@@ -2416,14 +2410,14 @@ class SQLiteAssetStore:
             if mask_asset["width"] != source_image["width"] or mask_asset["height"] != source_image["height"]:
                 raise AssetStoreError("MASK_SIZE_MISMATCH", "Mask dimensions must match the source concept image.")
 
-            mask_bytes = (self.library_root / mask_asset["object_path"]).read_bytes()
+            mask_bytes = self._asset_payload(mask_asset)
             if not mask_png_has_ink(mask_bytes, int(mask_asset["width"]), int(mask_asset["height"])):
                 raise AssetStoreError("MASK_EMPTY", "Patch mask is empty.")
-            source_image_bytes = (self.library_root / source_image["object_path"]).read_bytes()
+            source_image_bytes = self._asset_payload(source_image)
 
             try:
                 manifest = validate_patch_manifest(
-                    json.loads((self.library_root / manifest_asset["object_path"]).read_text(encoding="utf-8")),
+                    json.loads(self._asset_payload(manifest_asset).decode("utf-8")),
                     provider_id="asset_store",
                 )
             except (json.JSONDecodeError, WeaponSpecValidationError) as exc:
@@ -2637,19 +2631,13 @@ class SQLiteAssetStore:
         request_json = _canonical_json(request.model_dump())
         request_hash = _sha256_bytes(request_json.encode("utf-8"))
 
-        with self._connect() as conn:
-            existing = conn.execute(
-                """
-                SELECT request_hash, response_json
-                FROM idempotency_records
-                WHERE scope = ? AND idempotency_key = ?
-                """,
-                (idempotency_scope, idempotency_key),
-            ).fetchone()
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            conn = unit_of_work.require_connection()
+            existing = unit_of_work.idempotency.get(idempotency_scope, idempotency_key)
             if existing is not None:
-                if existing["request_hash"] != request_hash:
+                if existing.request_hash != request_hash:
                     raise IdempotencyConflictError("Idempotency-Key was reused with a different request body.")
-                return AssetUploadResponse(**json.loads(existing["response_json"]))
+                return AssetUploadResponse(**json.loads(existing.response_json))
 
             version = conn.execute(
                 """
@@ -2722,16 +2710,13 @@ class SQLiteAssetStore:
                 width=row["width"],
                 height=row["height"],
             )
-            conn.execute(
-                """
-                INSERT INTO idempotency_records (
-                  scope, idempotency_key, request_hash, response_json, created_at
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (idempotency_scope, idempotency_key, request_hash, _canonical_json(response.model_dump()), utc_now()),
+            unit_of_work.idempotency.add(
+                scope=idempotency_scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=_canonical_json(response.model_dump()),
+                created_at=utc_now(),
             )
-            conn.commit()
             return response
 
     def activate_version(self, weapon_id: str, version_id: str) -> WeaponDetail:
@@ -3158,38 +3143,27 @@ class SQLiteAssetStore:
         return buffer.getvalue()
 
     def _asset_payload(self, asset: sqlite3.Row) -> bytes:
-        object_path = Path(asset["object_path"])
-        if object_path.is_absolute() or ".." in object_path.parts:
-            raise AssetStoreError("ASSET_PERMISSION_DENIED", "Asset object path is outside the library.")
-        full_path = (self.library_root / object_path).resolve()
         try:
-            full_path.relative_to(self.library_root.resolve())
-        except ValueError as exc:
-            raise AssetStoreError("ASSET_PERMISSION_DENIED", "Asset object path is outside the library.") from exc
-        if not full_path.exists() or not full_path.is_file():
-            raise AssetStoreError("ASSET_FILE_MISSING", f"Asset file is missing: {asset['file_id']}")
-        payload = full_path.read_bytes()
-        if _sha256_bytes(payload) != asset["sha256"]:
-            raise AssetStoreError("LOCAL_IO_ERROR", f"Asset sha256 mismatch: {asset['file_id']}")
-        return payload
+            return self.object_store.read(asset["object_path"], expected_sha256=asset["sha256"])
+        except ObjectStoreError as exc:
+            if exc.code == "OBJECT_PATH_DENIED":
+                raise AssetStoreError("ASSET_PERMISSION_DENIED", str(exc)) from exc
+            if exc.code == "OBJECT_MISSING":
+                raise AssetStoreError("ASSET_FILE_MISSING", f"Asset file is missing: {asset['file_id']}") from exc
+            raise AssetStoreError("LOCAL_IO_ERROR", f"Asset sha256 mismatch: {asset['file_id']}") from exc
 
     def resolve_asset_file(self, asset_id: str) -> Dict[str, Any]:
         with self._connect() as conn:
             row = self._asset_row(conn, asset_id)
-        object_path = Path(row["object_path"])
-        if object_path.is_absolute() or ".." in object_path.parts:
-            raise AssetStoreError("ASSET_PERMISSION_DENIED", "Asset object path is outside the library.")
-        full_path = (self.library_root / object_path).resolve()
-        library_root = self.library_root.resolve()
         try:
-            full_path.relative_to(library_root)
-        except ValueError as exc:
-            raise AssetStoreError("ASSET_PERMISSION_DENIED", "Asset object path is outside the library.") from exc
-        if not full_path.exists() or not full_path.is_file():
-            raise AssetStoreError("ASSET_FILE_MISSING", f"Asset file is missing: {asset_id}")
-        digest = _sha256_bytes(full_path.read_bytes())
-        if digest != row["sha256"]:
-            raise AssetStoreError("LOCAL_IO_ERROR", f"Asset sha256 mismatch: {asset_id}")
+            full_path = self.object_store.resolve(row["object_path"])
+            self.object_store.read(row["object_path"], expected_sha256=row["sha256"])
+        except ObjectStoreError as exc:
+            if exc.code == "OBJECT_PATH_DENIED":
+                raise AssetStoreError("ASSET_PERMISSION_DENIED", str(exc)) from exc
+            if exc.code == "OBJECT_MISSING":
+                raise AssetStoreError("ASSET_FILE_MISSING", f"Asset file is missing: {asset_id}") from exc
+            raise AssetStoreError("LOCAL_IO_ERROR", f"Asset sha256 mismatch: {asset_id}") from exc
         return {
             "path": full_path,
             "mime_type": row["mime_type"],
@@ -3805,7 +3779,7 @@ class SQLiteAssetStore:
 
     def has_job(self, job_id: str) -> bool:
         with self._connect() as conn:
-            return conn.execute("SELECT 1 FROM generation_jobs WHERE job_id = ?", (job_id,)).fetchone() is not None
+            return JobRepository(conn).exists(job_id)
 
     def has_weapon(self, weapon_id: str) -> bool:
         with self._connect() as conn:
@@ -4308,49 +4282,16 @@ class SQLiteAssetStore:
         state: Dict[str, Any],
         updated_at: str,
     ) -> str:
-        existing = conn.execute(
-            """
-            SELECT checkpoint_id
-            FROM job_checkpoints
-            WHERE job_id = ? AND step_name = ? AND attempt = ?
-            """,
-            (job_id, step_name, attempt),
-        ).fetchone()
-        if existing:
-            checkpoint_id = str(existing["checkpoint_id"])
-            conn.execute(
-                """
-                UPDATE job_checkpoints
-                SET status = ?, resume_policy = ?, provider_task_record_id = ?,
-                    state_json = ?, updated_at = ?
-                WHERE checkpoint_id = ?
-                """,
-                (status, resume_policy, provider_task_record_id, _canonical_json(state), updated_at, checkpoint_id),
-            )
-            return checkpoint_id
-        checkpoint_id = _new_id("ckpt")
-        conn.execute(
-            """
-            INSERT INTO job_checkpoints (
-              checkpoint_id, job_id, step_name, attempt, status, resume_policy,
-              provider_task_record_id, state_json, created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                checkpoint_id,
-                job_id,
-                step_name,
-                attempt,
-                status,
-                resume_policy,
-                provider_task_record_id,
-                _canonical_json(state),
-                updated_at,
-                updated_at,
-            ),
+        return CheckpointRepository(conn).upsert(
+            job_id=job_id,
+            step_name=step_name,
+            attempt=attempt,
+            status=status,
+            resume_policy=resume_policy,
+            provider_task_record_id=provider_task_record_id,
+            state=state,
+            updated_at=updated_at,
         )
-        return checkpoint_id
 
     def _mark_current_provider_cancel_requested(
         self,
@@ -4397,49 +4338,19 @@ class SQLiteAssetStore:
         return str(task["task_record_id"])
 
     def _asset_row(self, conn: sqlite3.Connection, file_id: str) -> sqlite3.Row:
-        row = conn.execute(
-            """
-            SELECT file_id, weapon_id, version_id, job_id, role, logical_path, object_path,
-                   sha256, byte_size, mime_type, ext, width, height, metadata_json, created_at
-            FROM asset_files
-            WHERE file_id = ? AND soft_deleted_at IS NULL
-            """,
-            (file_id,),
-        ).fetchone()
+        row = AssetRepository(conn).get_active(file_id)
         if row is None:
             raise AssetStoreError("ASSET_FILE_MISSING", f"Asset file was not found: {file_id}")
         return row
 
     def _migrate(self) -> None:
-        migrations = sorted(self.migrations_dir.glob("*.sql"))
-        if not migrations:
-            raise AssetStoreError("LOCAL_IO_ERROR", f"No SQLite migrations found in {self.migrations_dir}")
-
-        with self._connect() as conn:
-            has_migrations = (
-                conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").fetchone() is not None
-            )
-            if not has_migrations:
-                initial = self.migrations_dir / "0001_init.sql"
-                conn.executescript(initial.read_text(encoding="utf-8"))
-
-            applied = {
-                row["version"]
-                for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
-            }
-            for migration in migrations:
-                version = migration.stem.split("_", 1)[0]
-                if version in applied:
-                    continue
-                conn.executescript(migration.read_text(encoding="utf-8"))
-                applied.add(version)
+        try:
+            SQLiteMigrationRunner(self.connection_factory, self.migrations_dir).run()
+        except MigrationError as exc:
+            raise AssetStoreError("LOCAL_IO_ERROR", str(exc)) from exc
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.execute("PRAGMA busy_timeout=5000")
-        return conn
+        return self.connection_factory.connect()
 
     def _insert_step(self, conn: sqlite3.Connection, job_id: str, step_name: str, status: str, provider: str) -> None:
         now = utc_now()
@@ -4499,12 +4410,7 @@ class SQLiteAssetStore:
         width: Optional[int] = None,
         height: Optional[int] = None,
     ) -> str:
-        digest = _sha256_bytes(payload)
-        object_path = Path("objects") / "sha256" / digest[:2] / digest[2:4] / f"{digest}{ext}"
-        full_path = self.library_root / object_path
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        if not full_path.exists():
-            full_path.write_bytes(payload)
+        stored_object = self.object_store.put(payload, extension=ext)
 
         file_id = _new_id("file")
         conn.execute(
@@ -4522,9 +4428,9 @@ class SQLiteAssetStore:
                 job_id,
                 role,
                 logical_path,
-                object_path.as_posix(),
-                digest,
-                len(payload),
+                stored_object.relative_path,
+                stored_object.sha256,
+                stored_object.byte_size,
                 mime_type,
                 ext.lstrip("."),
                 width,
