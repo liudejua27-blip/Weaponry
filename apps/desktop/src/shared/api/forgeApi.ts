@@ -26,6 +26,15 @@ import type {
   RuntimeWorkOnceResponse,
   WeaponDetail,
   WeaponSummary,
+  ConceptProjectDetail,
+  ConceptProjectListResponse,
+  ConceptVersionDetail,
+  CreateConceptProjectRequest,
+  ModuleAssetListResponse,
+  ModuleGraphRecord,
+  DesignVariantListResponse,
+  CreateConceptExportRequest,
+  ConceptExportRecord,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -57,6 +66,73 @@ export class ForgeApiClient {
   async checkHealth(): Promise<HealthResponse> {
     const response = await fetch(`${this.baseUrl}/api/health`)
     return readJson<HealthResponse>(response)
+  }
+
+  async listConceptProjects(): Promise<ConceptProjectListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects`)
+    return readJson<ConceptProjectListResponse>(response)
+  }
+
+  async getConceptProject(projectId: string): Promise<ConceptProjectDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}`)
+    return readJson<ConceptProjectDetail>(response)
+  }
+
+  async createConceptProject(input: CreateConceptProjectRequest): Promise<ConceptProjectDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<ConceptProjectDetail>(response)
+  }
+
+  async getConceptVersion(versionId: string): Promise<ConceptVersionDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}`)
+    return readJson<ConceptVersionDetail>(response)
+  }
+
+  async listModuleAssets(packId?: string): Promise<ModuleAssetListResponse> {
+    const url = new URL(`${this.baseUrl}/api/v1/module-assets`)
+    if (packId) url.searchParams.set('pack_id', packId)
+    const response = await fetch(url)
+    return readJson<ModuleAssetListResponse>(response)
+  }
+
+  getModuleAssetFileUrl(moduleId: string): string {
+    return `${this.baseUrl}/api/v1/module-assets/${encodeURIComponent(moduleId)}/file`
+  }
+
+  async getModuleGraph(graphId: string): Promise<ModuleGraphRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/module-graphs/${graphId}`)
+    return readJson<ModuleGraphRecord>(response)
+  }
+
+  async listDesignVariants(projectId: string): Promise<DesignVariantListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/variants`)
+    return readJson<DesignVariantListResponse>(response)
+  }
+
+  async createConceptExport(
+    versionId: string,
+    input: CreateConceptExportRequest,
+  ): Promise<ConceptExportRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/exports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<ConceptExportRecord>(response)
+  }
+
+  getConceptExportFileUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/file`
   }
 
   async createWeapon(input: CreateWeaponRequest): Promise<CreateWeaponResponse> {

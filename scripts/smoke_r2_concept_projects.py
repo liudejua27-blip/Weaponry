@@ -94,6 +94,16 @@ def main() -> int:
                 appended["current_spec"]["proportions"]["overall_length_mm"] == 242,
                 "current spec was not updated",
             )
+            version_detail = _json_request(
+                base_url,
+                f"/api/v1/versions/{version_2}",
+                method="GET",
+            )
+            _assert(version_detail["project_id"] == project_id, "version project trace mismatch")
+            _assert(
+                version_detail["spec"]["proportions"]["overall_length_mm"] == 242,
+                "version detail did not return its immutable spec",
+            )
             append_replay = _json_request(
                 base_url,
                 f"/api/v1/projects/{project_id}/versions",

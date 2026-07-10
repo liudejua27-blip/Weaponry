@@ -143,9 +143,10 @@ R1 当前完整回归：
 npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
+npm run r3:workbench-gate
 ```
 
-`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Project/Version、模块/Graph、ChangeSet、QualityRun、Brief/Variant、Concept JobEvent@2、cursor replay/SSE，以及带逐文件 hash 的概念源包创建、下载和重启恢复。它仍不证明 AI 方案质量、实际 Mesh 检查器、R3 工作台交互、combined GLB/OBJ/PNG 或正式模块资产质量。
+`r1:gate` 继续执行桌面生产构建和上下文连续性 smoke。`r2:contracts-gate` 只证明首批 Contract 与生成类型；`r2:gate` 进一步证明 Concept 数据与源包。`r3:workbench-gate` 在此基础上注册 3 个可渲染 GLB、绑定 ModuleGraph，并用系统 Chrome 验证工作台加载、节点选择、Connector 检查器与 ZIP 下载。它仍不证明 8–12 个正式模块、替换/吸附、AI 质量、实际 Mesh 检查器或 combined GLB/OBJ/PNG。
 
 ### 2.3 Tauri 检查
 

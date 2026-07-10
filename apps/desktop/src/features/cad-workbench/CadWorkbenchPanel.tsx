@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowsClockwise,
   ArrowsOutCardinal,
@@ -30,9 +30,10 @@ import {
   UserCircle,
   WarningCircle,
 } from '@phosphor-icons/react'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { forgeApi } from '../../shared/api/forgeApi'
+import type { ModuleAssetRecord } from '../../shared/types'
+import { ModuleGraphViewport } from './ModuleGraphViewport'
+import { useConceptWorkbench } from './useConceptWorkbench'
 import './cad-workbench.css'
 
 type WorkspaceTab = 'concept' | 'assembly' | 'refine' | 'inspect' | 'showcase'
@@ -50,25 +51,28 @@ type WeaponParameters = {
   detailDensity: number
 }
 
-const VERSION_ITEMS = [
-  { id: 'v5', label: '优化枪管结构', time: '10:30' },
-  { id: 'v4', label: '调整握把角度', time: '昨天' },
-  { id: 'v3', label: '增加瞄准镜', time: '昨天' },
-  { id: 'v2', label: '初始参数化设计', time: '上周' },
-]
+type ModuleCategory = ModuleAssetRecord['manifest']['category']
+type ComponentCategory = 'all' | ModuleCategory
 
-const COMPONENTS = [
-  { id: 'core-shell-01', name: '核心外壳_01', type: '核心外壳', icon: SelectionAll },
-  { id: 'front-shell-01', name: '前部外壳_01', type: '前部外壳', icon: Ruler },
-  { id: 'grip-shell-01', name: '握持外壳_01', type: '握持外壳', icon: GridFour },
-  { id: 'top-accessory-01', name: '顶部附件_01', type: '顶部附件', icon: ChartLineUp },
-  { id: 'top-accessory-02', name: '顶部附件_02', type: '顶部附件', icon: Crosshair },
-  { id: 'storage-visual-01', name: '储存视觉_01', type: '视觉模块', icon: Cube },
-  { id: 'front-shell-02', name: '前部外壳_02', type: '前部外壳', icon: ArrowsClockwise },
-]
+const MODULE_CATEGORY_LABELS: Record<ModuleCategory, string> = {
+  core_shell: '核心外壳',
+  front_shell: '前部外壳',
+  rear_shell: '后部外壳',
+  grip_shell: '握持外壳',
+  top_accessory: '顶部附件',
+  side_accessory: '侧部附件',
+  lower_structure: '下部结构',
+  storage_visual: '储存视觉',
+  armor_panel: '装甲面板',
+}
 
-const COMPONENT_CATEGORIES = ['全部', '核心外壳', '前部外壳', '握持外壳', '顶部附件', '视觉模块'] as const
-type ComponentCategory = (typeof COMPONENT_CATEGORIES)[number]
+const COMPONENT_CATEGORIES: Array<{ id: ComponentCategory; label: string }> = [
+  { id: 'all', label: '全部' },
+  ...Object.entries(MODULE_CATEGORY_LABELS).map(([id, label]) => ({
+    id: id as ModuleCategory,
+    label,
+  })),
+]
 
 const TOOL_ITEMS: Array<{ id: Tool; label: string; icon: typeof CursorClick }> = [
   { id: 'select', label: '选择', icon: CursorClick },
@@ -79,6 +83,7 @@ const TOOL_ITEMS: Array<{ id: Tool; label: string; icon: typeof CursorClick }> =
 ]
 
 export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
+  const concept = useConceptWorkbench()
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('concept')
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('parameters')
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('components')
@@ -86,15 +91,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
-  const [activeVersion, setActiveVersion] = useState('v5')
-  const [selectedComponent, setSelectedComponent] = useState('core-shell-01')
-  const [componentCategory, setComponentCategory] = useState<ComponentCategory>('全部')
+  const [selectedComponent, setSelectedComponent] = useState('')
+  const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [assistantNote, setAssistantNote] = useState(
-    '设计一把未来科幻风格的手枪，具有模块化结构和可替换组件。已生成两套候选结构。',
+    '输入修改要求后，系统将生成结构化 DesignChangeSet 预览；确认前不会覆盖当前版本。',
   )
-  const [exportFormat, setExportFormat] = useState('GLB')
+  const [exportFormat, setExportFormat] = useState('SOURCE ZIP')
   const [parameters, setParameters] = useState<WeaponParameters>({
     overallLength: 230,
     bodyHeight: 54,
@@ -104,17 +108,56 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     detailDensity: 68,
   })
 
+  useEffect(() => {
+    const spec = concept.version?.spec
+    if (!spec) return
+    setParameters((current) => ({
+      ...current,
+      overallLength: spec.proportions.overall_length_mm,
+      bodyHeight: spec.proportions.body_height_mm,
+      gripAngle: spec.proportions.grip_angle_deg,
+      detailDensity: Math.round(spec.style.detail_density * 100),
+    }))
+  }, [concept.version])
+
+  useEffect(() => {
+    const nodes = concept.graphRecord?.graph.nodes ?? []
+    if (nodes.length === 0) {
+      setSelectedComponent('')
+      return
+    }
+    setSelectedComponent((current) => (
+      nodes.some((node) => node.node_id === current) ? current : nodes[0].node_id
+    ))
+  }, [concept.graphRecord])
+
   const visibleComponents = useMemo(() => {
     const query = componentQuery.trim().toLowerCase()
-    const categoryItems = componentCategory === '全部'
-      ? COMPONENTS
-      : COMPONENTS.filter((component) => component.type === componentCategory)
+    const categoryItems = componentCategory === 'all'
+      ? concept.modules
+      : concept.modules.filter((component) => component.manifest.category === componentCategory)
     if (!query) return categoryItems
     return categoryItems.filter((component) => (
-      component.name.toLowerCase().includes(query)
-      || component.type.toLowerCase().includes(query)
+      component.manifest.module_id.toLowerCase().includes(query)
+      || MODULE_CATEGORY_LABELS[component.manifest.category].toLowerCase().includes(query)
     ))
-  }, [componentCategory, componentQuery])
+  }, [componentCategory, componentQuery, concept.modules])
+
+  const getModuleFileUrl = useCallback(
+    (moduleId: string) => forgeApi.getModuleAssetFileUrl(moduleId),
+    [],
+  )
+  const selectedNode = concept.graphRecord?.graph.nodes.find(
+    (node) => node.node_id === selectedComponent,
+  ) ?? null
+  const selectedModule = concept.modules.find(
+    (module) => module.manifest.module_id === selectedNode?.module_id,
+  ) ?? null
+
+  const handleCreateExport = useCallback(async () => {
+    const result = await concept.createExport()
+    if (result) window.location.assign(forgeApi.getConceptExportFileUrl(result.export_id))
+  }, [concept])
 
   const updateParameter = (key: keyof WeaponParameters, value: number) => {
     setParameters((current) => ({ ...current, [key]: value }))
@@ -135,10 +178,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
           <span>ForgeCAD</span>
         </button>
         <div className="cad-file-actions" aria-label="文件操作">
-          <IconAction icon={Plus} label="新建" />
-          <IconAction icon={FolderOpen} label="打开" />
-          <IconAction icon={FloppyDisk} label="保存" />
-          <IconAction icon={ClockCounterClockwise} label="撤销" />
+          <IconAction icon={Plus} label="新建" onClick={() => concept.createStarterProject()} />
+          <IconAction icon={FolderOpen} label="同步" onClick={() => concept.refresh()} />
+          <IconAction icon={FloppyDisk} label="保存" onClick={() => setAssistantNote('参数仍是本地草稿；请通过 ChangeSet 确认后创建不可变新版本。')} />
+          <IconAction icon={ClockCounterClockwise} label="撤销" disabled title="R3 Undo/Redo 待实现" />
         </div>
         <nav className="cad-mode-tabs" aria-label="工作模式">
           {([
@@ -171,23 +214,41 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             <div className="cad-panel-heading">
               <div>
                 <span className="eyebrow">项目</span>
-                <strong>寒地巡逻 S1</strong>
+                <strong>{concept.project?.name ?? '尚未创建 Concept Project'}</strong>
               </div>
               <CaretDown size={14} />
             </div>
+            {concept.projects.length > 1 && (
+              <label className="project-select">
+                <span>切换项目</span>
+                <select
+                  value={concept.project?.project_id ?? ''}
+                  onChange={(event) => concept.selectProject(event.target.value)}
+                >
+                  {concept.projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>{project.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="version-heading">版本历史</div>
             <div className="version-list">
-              {VERSION_ITEMS.map((version) => (
+              {(concept.project?.versions ?? []).slice().reverse().map((version) => (
                 <button
-                  key={version.id}
-                  className={activeVersion === version.id ? 'active' : ''}
-                  onClick={() => setActiveVersion(version.id)}
+                  key={version.version_id}
+                  className={concept.version?.version_id === version.version_id ? 'active' : ''}
+                  onClick={() => concept.selectVersion(version.version_id)}
                 >
-                  <span>{version.id}</span>
-                  <strong>{version.label}</strong>
-                  <small>{version.time}</small>
+                  <span>V{version.version_no}</span>
+                  <strong>{version.summary}</strong>
+                  <small>{formatVersionTime(version.created_at)}</small>
                 </button>
               ))}
+              {!concept.project && !concept.loading && (
+                <button className="empty-action" onClick={() => concept.createStarterProject()}>
+                  <Plus size={14} /> 创建“寒地巡逻 S1”
+                </button>
+              )}
             </div>
           </section>
 
@@ -196,12 +257,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <span><Sparkle size={16} weight="fill" /> AI 设计助手</span>
               <span className="assistant-state">在线</span>
             </div>
-            <div className="assistant-message">{assistantNote}</div>
+            <div className="assistant-message">{concept.error ?? assistantNote}</div>
+            <div className={`concept-runtime-state ${concept.error ? 'error' : ''}`}>
+              {concept.loading ? '同步中 · ' : ''}{concept.statusMessage}
+            </div>
             <div className="assistant-suggestions">
               <button onClick={() => setAssistantNote('方案 A：短枪管与紧凑握把，强调模块化和便携性。')}>紧凑方案</button>
               <button onClick={() => setAssistantNote('方案 B：延长上导轨与枪管护罩，提升未来工业感。')}>长导轨方案</button>
             </div>
-            <button className="secondary-action">应用此方案到设计</button>
+            <button className="secondary-action" disabled title="R4 Change Planner 待实现">R4 ChangeSet 待接入</button>
           </section>
 
           <section className="cad-panel quick-parameters">
@@ -230,8 +294,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               unit="%"
               onChange={(value) => updateParameter('detailDensity', value)}
             />
-            <button className="primary-action" onClick={() => setAssistantNote('参数已更新，已生成 ModuleGraph 组合预览；确认后将创建新版本。')}>
-              生成组合预览
+            <button className="primary-action" onClick={() => setAssistantNote('参数草稿已记录在本地 UI，尚未写入 Version；下一步通过 DesignChangeSet 预览与确认。')}>
+              记录参数草稿
             </button>
           </section>
 
@@ -275,12 +339,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 onClick={() => setWireframe((current) => !current)}
               />
             </div>
-            <WeaponViewport
-              parameters={parameters}
+            <ModuleGraphViewport
+              graphRecord={concept.graphRecord}
               cameraView={cameraView}
               showGrid={showGrid}
               wireframe={wireframe}
-              selectedComponent={selectedComponent}
+              selectedNodeId={selectedComponent}
+              getModuleFileUrl={getModuleFileUrl}
+              onSelectNode={setSelectedComponent}
             />
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
@@ -326,36 +392,63 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   <nav className="component-categories">
                     {COMPONENT_CATEGORIES.map((category) => (
                       <button
-                        key={category}
-                        className={componentCategory === category ? 'active' : ''}
-                        onClick={() => setComponentCategory(category)}
+                        key={category.id}
+                        className={componentCategory === category.id ? 'active' : ''}
+                        onClick={() => setComponentCategory(category.id)}
                       >
-                        {category}
+                        {category.label}
                       </button>
                     ))}
                   </nav>
                   <div className="component-grid">
                     {visibleComponents.map((component) => {
-                      const ComponentIcon = component.icon
+                      const ComponentIcon = componentIconFor(component.manifest.category)
+                      const graphNode = concept.graphRecord?.graph.nodes.find(
+                        (node) => node.module_id === component.manifest.module_id,
+                      )
                       return (
                         <button
-                          key={component.id}
-                          className={selectedComponent === component.id ? 'active' : ''}
-                          onClick={() => setSelectedComponent(component.id)}
+                          key={component.manifest.module_id}
+                          className={graphNode && selectedComponent === graphNode.node_id ? 'active' : ''}
+                          onClick={() => setSelectedComponent(graphNode?.node_id ?? component.manifest.module_id)}
                         >
                           <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
-                          <strong>{component.name}</strong>
-                          <small>{component.type}</small>
+                          <strong>{component.manifest.module_id}</strong>
+                          <small>{MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris</small>
                         </button>
                       )
                     })}
+                    {visibleComponents.length === 0 && (
+                      <div className="component-empty">
+                        <strong>Module Pack 为空</strong>
+                        <span>先通过 ModuleAssetManifest 注册 GLB，工作台不会用假组件替代。</span>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
                 <div className="drawer-placeholder">
-                  {drawerTab === 'variants' && <><strong>候选方案</strong><button>紧凑巡逻型</button><button>长轮廓展示型</button></>}
-                  {drawerTab === 'versions' && <><strong>版本分支</strong><button>v5 当前版本</button><button>v4 父版本</button></>}
-                  {drawerTab === 'timeline' && <><strong>设计时间线</strong><span>10:30 应用顶部附件 ChangeSet</span><span>10:12 锁定核心外壳</span></>}
+                  {drawerTab === 'variants' && <>
+                    <strong>候选方案</strong>
+                    {concept.variants.map((variant) => (
+                      <button key={variant.variant_id}>{variant.rank}. {variant.name} · {variant.status}</button>
+                    ))}
+                    {concept.variants.length === 0 && <span>当前项目尚无已持久化方案。</span>}
+                  </>}
+                  {drawerTab === 'versions' && <>
+                    <strong>版本分支</strong>
+                    {(concept.project?.versions ?? []).slice().reverse().map((version) => (
+                      <button key={version.version_id} onClick={() => concept.selectVersion(version.version_id)}>
+                        V{version.version_no} · {version.summary}
+                      </button>
+                    ))}
+                  </>}
+                  {drawerTab === 'timeline' && <>
+                    <strong>设计时间线</strong>
+                    {(concept.project?.versions ?? []).slice().reverse().map((version) => (
+                      <span key={version.version_id}>{formatVersionTime(version.created_at)} · V{version.version_no} {version.summary}</span>
+                    ))}
+                  </>}
                 </div>
               )}
             </div>
@@ -378,9 +471,18 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               ))}
             </nav>
             {inspectorTab === 'parameters' && <>
-              <label className="wide-field"><span>组件名称</span><input value={selectedComponent} readOnly /></label>
-              <div className="axis-group"><span>位置（mm）</span><div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div></div>
-              <div className="axis-group"><span>旋转（°）</span><div><AxisField axis="X" value="0.00" /><AxisField axis="Y" value="0.00" /><AxisField axis="Z" value="0.00" /></div></div>
+              <label className="wide-field"><span>Graph 节点</span><input value={selectedNode?.node_id ?? '未选择'} readOnly /></label>
+              <label className="wide-field"><span>模块资产</span><input value={selectedModule?.manifest.module_id ?? '—'} readOnly /></label>
+              <div className="axis-group"><span>位置</span><div>
+                <AxisField axis="X" value={formatAxis(selectedNode?.transform.position[0])} />
+                <AxisField axis="Y" value={formatAxis(selectedNode?.transform.position[1])} />
+                <AxisField axis="Z" value={formatAxis(selectedNode?.transform.position[2])} />
+              </div></div>
+              <div className="axis-group"><span>旋转（rad）</span><div>
+                <AxisField axis="X" value={formatAxis(selectedNode?.transform.rotation[0])} />
+                <AxisField axis="Y" value={formatAxis(selectedNode?.transform.rotation[1])} />
+                <AxisField axis="Z" value={formatAxis(selectedNode?.transform.rotation[2])} />
+              </div></div>
               <div className="property-divider" />
               <div className="property-heading">概念比例 <CaretDown size={13} /></div>
               <PropertyNumber label="整体长度" value={parameters.overallLength} unit="mm" onChange={(value) => updateParameter('overallLength', value)} />
@@ -395,31 +497,49 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <div className="appearance-swatches"><button aria-label="石墨黑" /><button aria-label="枪灰" /><button aria-label="信号红" /></div>
             </>}
             {inspectorTab === 'connections' && <div className="connection-list">
-              <DfmRow label="core.front" value="已连接" ok />
-              <DfmRow label="core.grip" value="已锁定" ok />
-              <DfmRow label="core.top" value="已连接" ok />
-              <DfmRow label="core.right" value="可用" ok />
+              {(selectedModule?.manifest.connectors ?? []).map((connector) => {
+                const connected = (concept.graphRecord?.graph.edges ?? []).some((edge) => (
+                  edge.from_connector_id === connector.connector_id
+                  || edge.to_connector_id === connector.connector_id
+                ))
+                return (
+                  <DfmRow
+                    key={connector.connector_id}
+                    label={connector.slot}
+                    value={connected ? '已连接' : '可用'}
+                    ok={connected}
+                  />
+                )
+              })}
+              {!selectedModule && <span className="muted-inspector">选择一个 Graph 节点查看真实 Connector。</span>}
             </div>}
             {inspectorTab === 'inspection' && <>
-              <DfmRow label="网格完整性" value="通过" ok />
-              <DfmRow label="模块相交" value="0 处" ok />
-              <DfmRow label="连接器对齐" value="6 / 6" ok />
-              <DfmRow label="对称偏差" value="0.4 mm" ok />
+              <DfmRow label="Graph 状态" value={concept.graphRecord?.validation_status ?? '未运行'} ok={concept.graphRecord?.validation_status === 'valid'} />
+              <DfmRow label="模块节点" value={String(concept.graphRecord?.graph.nodes.length ?? 0)} ok={Boolean(concept.graphRecord)} />
+              <DfmRow label="连接边" value={String(concept.graphRecord?.graph.edges?.length ?? 0)} ok={Boolean(concept.graphRecord)} />
+              <DfmRow label="Mesh 检查" value="R5 待实现" ok={false} />
               <div className="dfm-suggestion"><WarningCircle size={15} /> 提示：当前是非功能性概念模型，不代表制造或安全验证。</div>
-              <button className="secondary-action">查看模型检查报告</button>
+              <button className="secondary-action" disabled title="R5 实际检查器待实现">R5 检查报告待实现</button>
             </>}
           </section>
 
           <section className="cad-panel export-panel">
             <div className="cad-panel-title"><span><Export size={16} /> 展示与导出</span></div>
             <div className="export-formats">
-              {['GLB', 'OBJ', 'PNG', 'REPORT'].map((format) => (
+              {[
+                { id: 'SOURCE ZIP', enabled: true },
+                { id: 'GLB', enabled: false },
+                { id: 'OBJ', enabled: false },
+                { id: 'PNG', enabled: false },
+              ].map((format) => (
                 <button
-                  key={format}
-                  className={exportFormat === format ? 'active' : ''}
-                  onClick={() => setExportFormat(format)}
+                  key={format.id}
+                  className={exportFormat === format.id ? 'active' : ''}
+                  onClick={() => format.enabled && setExportFormat(format.id)}
+                  disabled={!format.enabled}
+                  title={format.enabled ? '当前可用' : 'R5 实现'}
                 >
-                  {format}
+                  {format.id}
                 </button>
               ))}
             </div>
@@ -427,15 +547,24 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <span><FileArrowDown size={15} /> 当前格式</span>
               <strong>{exportFormat}</strong>
             </div>
-            <button className="primary-action"><FileArrowDown size={16} /> 创建概念交付包</button>
+            {concept.lastExport && (
+              <div className="last-export">{concept.lastExport.export_id} · {concept.lastExport.package_sha256.slice(0, 10)}…</div>
+            )}
+            <button
+              className="primary-action"
+              onClick={handleCreateExport}
+              disabled={!concept.version?.module_graph_id || concept.loading}
+            >
+              <FileArrowDown size={16} /> 创建并下载概念源包
+            </button>
           </section>
         </aside>
       </div>
 
       <footer className="cad-status-bar">
         <span>{({ concept: '概念', assembly: '组装', refine: '精修', inspect: '检查', showcase: '展示' } as Record<WorkspaceTab, string>)[activeTab]}阶段</span>
-        <span>选择：{selectedComponent}</span>
-        <span>模型：ModuleGraph 预览</span>
+        <span>选择：{selectedComponent || '无'}</span>
+        <span>模型：{concept.graphRecord ? `${concept.graphRecord.graph.nodes.length} nodes` : '未绑定 ModuleGraph'}</span>
         <span>单位：mm</span>
         <span>网格：10 mm</span>
         <span className="status-spacer" />
@@ -445,213 +574,20 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   )
 }
 
-function WeaponViewport({
-  parameters,
-  cameraView,
-  showGrid,
-  wireframe,
-  selectedComponent,
+function IconAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  title,
 }: {
-  parameters: WeaponParameters
-  cameraView: CameraView
-  showGrid: boolean
-  wireframe: boolean
-  selectedComponent: string
+  icon: typeof Plus
+  label: string
+  onClick?: () => void
+  disabled?: boolean
+  title?: string
 }) {
-  const hostRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const host = hostRef.current
-    if (!host) return
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#101823')
-    scene.fog = new THREE.Fog('#101823', 380, 720)
-
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 1400)
-    setCameraPosition(camera, cameraView)
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.outputColorSpace = THREE.SRGBColorSpace
-    renderer.shadowMap.enabled = true
-    host.appendChild(renderer.domElement)
-
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.target.set(0, 20, 0)
-    controls.minDistance = 210
-    controls.maxDistance = 620
-
-    scene.add(new THREE.HemisphereLight('#d9e7ff', '#17202a', 3.1))
-    scene.add(new THREE.AmbientLight('#8aa2c4', 0.75))
-    const keyLight = new THREE.DirectionalLight('#ffffff', 4.2)
-    keyLight.position.set(120, 180, 140)
-    keyLight.castShadow = true
-    scene.add(keyLight)
-    const rimLight = new THREE.DirectionalLight('#4895ff', 1.8)
-    rimLight.position.set(-140, 80, -100)
-    scene.add(rimLight)
-
-    const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
-    grid.visible = showGrid
-    scene.add(grid)
-    scene.add(new THREE.AxesHelper(28))
-
-    const model = createWeaponModel(parameters, wireframe, selectedComponent)
-    scene.add(model)
-
-    const resize = () => {
-      const width = host.clientWidth
-      const height = host.clientHeight
-      renderer.setSize(width, height, false)
-      camera.aspect = width / Math.max(height, 1)
-      camera.updateProjectionMatrix()
-    }
-    const observer = new ResizeObserver(resize)
-    observer.observe(host)
-    resize()
-
-    let animationFrame = 0
-    const render = () => {
-      controls.update()
-      renderer.render(scene, camera)
-      animationFrame = requestAnimationFrame(render)
-    }
-    render()
-
-    return () => {
-      cancelAnimationFrame(animationFrame)
-      observer.disconnect()
-      controls.dispose()
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
-          object.geometry.dispose()
-          const materials = Array.isArray(object.material) ? object.material : [object.material]
-          materials.forEach((material) => material.dispose())
-        }
-      })
-      renderer.dispose()
-      renderer.domElement.remove()
-    }
-  }, [cameraView, parameters, selectedComponent, showGrid, wireframe])
-
-  return <div className="weapon-viewport" ref={hostRef} aria-label="可交互未来手枪三维视口" />
-}
-
-function createWeaponModel(
-  parameters: WeaponParameters,
-  wireframe: boolean,
-  selectedComponent: string,
-): THREE.Group {
-  const group = new THREE.Group()
-  const materialFor = (id: string, color = '#697582', metalness = 0.78) => {
-    const selected = selectedComponent === id
-    return new THREE.MeshStandardMaterial({
-      color,
-      emissive: selected ? '#173f72' : '#000000',
-      emissiveIntensity: selected ? 0.38 : 0,
-      metalness,
-      roughness: 0.3,
-      wireframe,
-    })
-  }
-  const addPart = (
-    id: string,
-    geometry: THREE.BufferGeometry,
-    position: [number, number, number],
-    rotation: [number, number, number] = [0, 0, 0],
-    color?: string,
-    metalness?: number,
-  ) => {
-    const mesh = new THREE.Mesh(geometry, materialFor(id, color, metalness))
-    mesh.position.set(...position)
-    mesh.rotation.set(...rotation)
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    mesh.userData.componentId = id
-    group.add(mesh)
-    if (!wireframe) {
-      const outline = new THREE.LineSegments(
-        new THREE.EdgesGeometry(geometry, 34),
-        new THREE.LineBasicMaterial({ color: '#aebdce', transparent: true, opacity: 0.18 }),
-      )
-      outline.position.copy(mesh.position)
-      outline.rotation.copy(mesh.rotation)
-      group.add(outline)
-    }
-    return mesh
-  }
-
-  const scale = THREE.MathUtils.clamp(parameters.overallLength / 230, 0.7, 1.35)
-  const bodyHeight = THREE.MathUtils.clamp(parameters.bodyHeight, 42, 72)
-  const bodyLength = 154 * scale
-  const bodyDepth = 38 * scale
-
-  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength, bodyHeight, bodyDepth, 5, 5), [18, 24, 0], [0, 0, -0.035], '#74808d')
-  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength * 0.82, 15, bodyDepth + 5, 4, 2.5), [27, 54, 0], [0, 0, -0.02], '#46515d')
-  addPart('core-shell-01', new RoundedBoxGeometry(bodyLength * 0.57, 14, bodyDepth - 3, 3, 3), [-1, 1, 0], [0, 0, 0.03], '#202832')
-  addPart('core-shell-01', new RoundedBoxGeometry(70, 17, bodyDepth + 1.5, 3, 3), [5, 15, 0], [0, 0, -0.03], '#414c58')
-
-  const frontShellLength = THREE.MathUtils.clamp(parameters.frontShellLength, 82, 165)
-  addPart('front-shell-01', new THREE.CylinderGeometry(10, 10, frontShellLength, 32), [-58, 26, 0], [0, 0, Math.PI / 2], '#343c46')
-  addPart('front-shell-01', new THREE.CylinderGeometry(15, 15, frontShellLength * 0.72, 12), [-35, 26, 0], [0, 0, Math.PI / 2], '#4d5864')
-  addPart('front-shell-02', new THREE.CylinderGeometry(18, 18, 15, 32), [-58 - frontShellLength / 2, 26, 0], [0, 0, Math.PI / 2], '#2a323b')
-  addPart('front-shell-02', new THREE.TorusGeometry(10, 2.2, 12, 32), [-66 - frontShellLength / 2, 26, 0], [0, Math.PI / 2, 0], '#151b22')
-  for (let index = 0; index < 4; index += 1) {
-    addPart('front-shell-01', new RoundedBoxGeometry(7, 20, bodyDepth + 5, 2, 1.5), [-52 + index * 15, 30, 0], [0, 0, -0.3], '#252e38')
-  }
-
-  const gripAngle = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(parameters.gripAngle, 5, 28))
-  addPart('grip-shell-01', new RoundedBoxGeometry(43, 92, 35, 6, 7), [42, -43, 0], [0, 0, -gripAngle], '#303945', 0.42)
-  addPart('grip-shell-01', new RoundedBoxGeometry(31, 74, 39, 5, 5), [46, -44, 0], [0, 0, -gripAngle], '#1e2731', 0.24)
-  for (let index = 0; index < 6; index += 1) {
-    addPart('grip-shell-01', new THREE.BoxGeometry(29, 2, 40.5), [42 + index * 2.1, -66 + index * 10, 0], [0, 0, -gripAngle], '#74808d')
-  }
-  addPart('storage-visual-01', new RoundedBoxGeometry(24, 70, 27, 4, 4), [43, -48, 0], [0, 0, -gripAngle], '#181f27')
-  addPart('storage-visual-01', new RoundedBoxGeometry(31, 9, 34, 3, 3), [55, -86, 0], [0, 0, -gripAngle], '#323b46')
-
-  addPart('core-shell-01', new THREE.TorusGeometry(18, 3.6, 12, 32, Math.PI * 1.55), [12, -11, 0], [0, 0, 0.4], '#38424d')
-  addPart('core-shell-01', new RoundedBoxGeometry(7, 22, 7, 3, 1.5), [8, -7, 0], [0, 0, -0.2], '#1c232b')
-
-  for (const [x, rotation] of [[43, -0.32], [59, -0.28], [75, -0.24]] as Array<[number, number]>) {
-    addPart('core-shell-01', new RoundedBoxGeometry(7, 24, 2.4, 2, 1), [x, 27, bodyDepth / 2 + 1.2], [0, 0, rotation], '#ad3036', 0.45)
-  }
-  for (const x of [-27, 18, 82]) {
-    addPart('core-shell-01', new THREE.CylinderGeometry(3.8, 3.8, 2.2, 24), [x, 7, bodyDepth / 2 + 1.2], [Math.PI / 2, 0, 0], '#202832')
-  }
-
-  const railStart = -32
-  for (let index = 0; index < 10; index += 1) {
-    addPart('top-accessory-01', new RoundedBoxGeometry(10, 5, bodyDepth + 5, 2, 1), [railStart + index * 13, 64, 0], [0, 0, -0.02], '#252e38')
-  }
-  for (let index = 0; index < 7; index += 1) {
-    addPart('top-accessory-01', new RoundedBoxGeometry(9, 4, bodyDepth + 1, 2, 1), [-37 + index * 13, -1, 0], [0, 0, 0.02], '#202832')
-  }
-  addPart('top-accessory-02', new RoundedBoxGeometry(34, 20, 24, 4, 4), [34, 78, 0], [0, 0, -0.02], '#303946')
-  addPart('top-accessory-02', new THREE.CylinderGeometry(8, 8, 26, 24), [15, 78, 0], [0, Math.PI / 2, 0], '#1d252e')
-  addPart('top-accessory-02', new THREE.TorusGeometry(6, 1.5, 10, 24), [1, 78, 0], [0, Math.PI / 2, 0], '#cf4141')
-
-  for (const x of [-34, -8, 76]) {
-    addPart('core-shell-01', new RoundedBoxGeometry(12, 21, bodyDepth + 1, 3, 2), [x, 25, 0], [0, 0, -0.04], '#242c35')
-  }
-
-  group.rotation.set(-0.08, -0.3, 0)
-  group.position.y = 20
-  return group
-}
-
-function setCameraPosition(camera: THREE.PerspectiveCamera, view: CameraView) {
-  const positions: Record<CameraView, [number, number, number]> = {
-    iso: [155, 145, 420],
-    front: [0, 45, 490],
-    top: [0, 490, 0.01],
-    right: [490, 45, 0],
-  }
-  camera.position.set(...positions[view])
-}
-
-function IconAction({ icon: Icon, label }: { icon: typeof Plus; label: string }) {
-  return <button><Icon size={15} /><span>{label}</span></button>
+  return <button onClick={onClick} disabled={disabled} title={title}><Icon size={15} /><span>{label}</span></button>
 }
 
 function IconButton({
@@ -724,4 +660,34 @@ function DfmRow({ label, value, ok }: { label: string; value: string; ok: boolea
       {ok ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}
     </div>
   )
+}
+
+function componentIconFor(category: ModuleCategory) {
+  const icons: Record<ModuleCategory, typeof Cube> = {
+    core_shell: SelectionAll,
+    front_shell: Ruler,
+    rear_shell: ArrowsClockwise,
+    grip_shell: GridFour,
+    top_accessory: ChartLineUp,
+    side_accessory: Crosshair,
+    lower_structure: ArrowsOutCardinal,
+    storage_visual: Cube,
+    armor_panel: SelectionAll,
+  }
+  return icons[category]
+}
+
+function formatVersionTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatAxis(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
 }

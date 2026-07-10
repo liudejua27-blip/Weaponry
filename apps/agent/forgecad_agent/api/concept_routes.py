@@ -14,6 +14,7 @@ from forgecad_agent.application.concept_models import (
     AppendConceptVersionRequest,
     ConceptProjectDetail,
     ConceptProjectListResponse,
+    ConceptVersionDetail,
     CreateConceptProjectRequest,
 )
 
@@ -47,6 +48,15 @@ def build_concept_project_router(service: ConceptProjectService) -> APIRouter:
     ) -> Union[ConceptProjectDetail, JSONResponse]:
         try:
             return service.get_project(project_id)
+        except ConceptProjectError as exc:
+            return _concept_error_response(exc)
+
+    @router.get("/versions/{version_id}", response_model=ConceptVersionDetail)
+    def get_version(
+        version_id: str,
+    ) -> Union[ConceptVersionDetail, JSONResponse]:
+        try:
+            return service.get_version(version_id)
         except ConceptProjectError as exc:
             return _concept_error_response(exc)
 

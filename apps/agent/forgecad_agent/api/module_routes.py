@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Optional, Union
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
 from forgecad_agent.application.concept_models import (
@@ -47,6 +47,22 @@ def build_module_router(service: ConceptModuleService) -> APIRouter:
     ) -> ModuleAssetListResponse:
         return service.list_modules(pack_id=pack_id, category=category)
 
+    @router.get("/module-assets/{module_id}/file", response_model=None)
+    def download_module_asset(module_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_module(module_id)
+        except ConceptModuleError as exc:
+            return _module_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="model/gltf-binary",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+                "Cache-Control": "public, max-age=31536000, immutable",
+            },
+        )
+
     @router.post(
         "/module-graphs/{graph_id}/validate",
         response_model=ModuleGraphValidationResponse,
@@ -90,6 +106,7 @@ def _module_error_response(exc: ConceptModuleError) -> JSONResponse:
         "PROJECT_NOT_FOUND",
         "DOMAIN_PROFILE_NOT_FOUND",
         "MODULE_GRAPH_NOT_FOUND",
+        "MODULE_NOT_FOUND",
     }:
         status_code = 404
     elif exc.code in {
@@ -100,6 +117,8 @@ def _module_error_response(exc: ConceptModuleError) -> JSONResponse:
         status_code = 409
     elif exc.code in {"INVALID_REQUEST", "INVALID_GLB"}:
         status_code = 400
+    elif exc.code == "MODULE_ASSET_UNAVAILABLE":
+        status_code = 503
     else:
         status_code = 500
     return _error_response(status_code, exc.code, str(exc))

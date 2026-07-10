@@ -359,7 +359,7 @@ class ModuleRepository:
             """
             SELECT ma.module_id, ma.pack_id, ma.category, ma.asset_id, ma.schema_version,
                    ma.manifest_json, ma.manifest_sha256, ma.status,
-                   ca.logical_path, ca.object_path, ca.byte_size, ca.mime_type,
+                   ca.logical_path, ca.object_path, ca.sha256, ca.byte_size, ca.mime_type,
                    ma.created_at, ma.updated_at
             FROM module_assets ma
             JOIN concept_assets ca ON ca.asset_id = ma.asset_id
@@ -388,7 +388,7 @@ class ModuleRepository:
             f"""
             SELECT ma.module_id, ma.pack_id, ma.category, ma.asset_id, ma.schema_version,
                    ma.manifest_json, ma.manifest_sha256, ma.status,
-                   ca.logical_path, ca.object_path, ca.byte_size, ca.mime_type,
+                   ca.logical_path, ca.object_path, ca.sha256, ca.byte_size, ca.mime_type,
                    ma.created_at, ma.updated_at
             FROM module_assets ma
             JOIN concept_assets ca ON ca.asset_id = ma.asset_id

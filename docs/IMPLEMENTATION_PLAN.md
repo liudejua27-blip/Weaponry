@@ -12,7 +12,7 @@
 - `asset_store.py` 已从约 5210 行降至约 3608 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version 和 Creative Recast 已提取；
 - `App.tsx` 约 706 行；AppShell、Hash route、Runtime/JobEvent/Selection Providers 和懒加载工作台已提取；
 - `main.py` 约 54 行；legacy route groups 和 app factory 已拆分；
-- `#/cad` 已有九区工作台原型，并已切换到“概念/组装/精修/检查/展示”与 Concept 导出语义；
+- `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
 - 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、确定性 Brief/Variant、JobEvent@2/SSE 和可追溯概念源包导出已实现；首批高质量模块资产、AI 方案质量、combined GLB/OBJ/PNG 导出尚未实现；
 - build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
 
@@ -37,6 +37,7 @@
 | R2 Brief/Variant | 模板基线完成 | interpreted brief、A/B/C graph variants、selection、restart recovery |
 | R2 Concept JobEvent@2 | 基础链完成 | independent jobs/events、JSON cursor replay、SSE、restart recovery |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
+| R3 workbench data binding | 第一纵向切片完成 | 3 GLB fixture、Project/Version/Graph 加载、raycast selection、Connector inspector、UI export download |
 
 ## 2. 执行硬规则
 
@@ -305,7 +306,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 3. 将 QualityRun 和 ModuleGraph validate 也接入 Concept JobEvent@2。
 4. 制定 Module/Connector/材质/UV/LOD 命名规范。
 5. 准备第一套 8–12 个高质量 GLB fixture 与 Manifest。
-6. 实现模块选择、高亮、隐藏、替换和 Connector overlay。
+6. 完成模块隐藏、聚焦、替换和 Connector overlay；真实加载、选择与高亮已完成。
 7. 实现吸附、锁定、爆炸视图、保存与恢复。
 8. 实现 combined GLB，再补 OBJ/PNG/爆炸图导出。
 9. 跑通“替换模块→ChangeSet→新版本→检查→combined GLB+Manifest 导出”。

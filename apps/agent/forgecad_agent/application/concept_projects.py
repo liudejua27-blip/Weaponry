@@ -12,6 +12,7 @@ from forgecad_agent.application.concept_models import (
     ConceptProjectListResponse,
     ConceptProjectSummary,
     ConceptVersionSummary,
+    ConceptVersionDetail,
     CreateConceptProjectRequest,
 )
 from forgecad_agent.domain.concepts.models import (
@@ -150,6 +151,18 @@ class ConceptProjectService:
     def get_project(self, project_id: str) -> ConceptProjectDetail:
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
             return project_detail_from_uow(unit_of_work, project_id=project_id)
+
+    def get_version(self, version_id: str) -> ConceptVersionDetail:
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            row = unit_of_work.concept_projects.find_version(version_id)
+            if row is None:
+                raise ConceptProjectError("VERSION_NOT_FOUND", "Concept version not found.")
+            values = dict(row)
+            spec_json = values.pop("spec_json")
+            return ConceptVersionDetail(
+                **values,
+                spec=WeaponConceptSpec.model_validate_json(spec_json),
+            )
 
     def append_version(
         self,

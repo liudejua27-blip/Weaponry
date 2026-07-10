@@ -30,6 +30,20 @@ export type ProviderSettings = Api.ProviderSettings
 export type RuntimeRecoveryResponse = Api.RuntimeRecoveryResponse
 export type RuntimeWorkOnceResponse = Api.RuntimeWorkOnceResponse
 export type HealthResponse = Api.HealthResponse
+export type ConceptProjectDetail = Api.ConceptProjectDetail
+export type ConceptProjectSummary = Api.ConceptProjectSummary
+export type ConceptProjectListResponse = Api.ConceptProjectListResponse
+export type ConceptVersionDetail = Api.ConceptVersionDetail
+export type ConceptVersionSummary = Api.ConceptVersionSummary
+export type CreateConceptProjectRequest = Api.CreateConceptProjectRequest
+export type ModuleAssetListResponse = Api.ModuleAssetListResponse
+export type ModuleAssetRecord = Api.ModuleAssetRecord
+export type ModuleGraph = Api.ModuleGraph
+export type ModuleGraphRecord = Api.ModuleGraphRecord
+export type DesignVariantListResponse = Api.DesignVariantListResponse
+export type DesignVariantRecord = Api.DesignVariantRecord
+export type CreateConceptExportRequest = Api.CreateConceptExportRequest
+export type ConceptExportRecord = Api.ConceptExportRecord
 
 export type ApiErrorEnvelope = {
   error: {

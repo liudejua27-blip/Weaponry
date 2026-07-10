@@ -7,6 +7,7 @@ import json
 import sqlite3
 import struct
 import tempfile
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -76,6 +77,17 @@ def main() -> int:
             )
             _assert(core["manifest"]["module_id"] == "module_core_shell_01", "core registration mismatch")
             _assert(front["manifest"]["module_id"] == "module_front_shell_01", "front registration mismatch")
+            with urllib.request.urlopen(
+                f"{base_url}/api/v1/module-assets/module_core_shell_01/file",
+                timeout=10,
+            ) as response:
+                downloaded_core = response.read()
+                _assert(response.headers.get_content_type() == "model/gltf-binary", "module MIME mismatch")
+                _assert(
+                    response.headers["X-Content-SHA256"] == hashlib.sha256(core_payload).hexdigest(),
+                    "module response hash mismatch",
+                )
+            _assert(downloaded_core == core_payload, "downloaded module GLB changed")
 
             replay = _register(
                 base_url,

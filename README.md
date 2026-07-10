@@ -140,7 +140,7 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Export 已留痕 | Quality 与 Graph validate 继续接入该主链 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 进行中 | connection、migration、object store、Repository/UoW、Job、Library 等已提取 |
-| `#/cad` 工作台原型 | 已切换为五阶段 Weapon Concept Workbench | 当前仍是前端交互与程序化 Three.js 模型，尚未接真实 ModuleGraph |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph、不可变 GLB、模块选择、Connector 和源包导出 | 当前只有 3 个程序化 R3 fixture；隐藏/替换/吸附/正式 8–12 模块待完成 |
 | 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
@@ -153,7 +153,7 @@ core.side_panel_left / core.side_panel_right
 | Concept Export | `ConceptExportManifest@1`、源 GLB/Spec/Graph/Quality ZIP、hash、JobEvent、下载与重启恢复已实现 | 当前不是 combined GLB；OBJ/PNG/爆炸图进入 R5 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-新 Concept 数据链已经独立存在，但桌面工作台仍是交互原型，尚未绑定真实 ModuleGraph。旧 Weapon/Unity 主链继续作为回归 baseline；不能据此声称 R3 工作台、combined GLB、实际网格检查或 CAD/DFM 已完成。
+新 Concept 数据链已经独立存在，桌面工作台已开始消费真实 Project、Version、ModuleGraph 和源 GLB。旧 Weapon/Unity 主链继续作为回归 baseline；当前 R3 只证明三模块加载、选择、Connector 与源包下载，不能据此声称正式模块资产、替换/吸附、combined GLB、实际网格检查或 CAD/DFM 已完成。
 
 ## P0 架构
 

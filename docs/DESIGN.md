@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-10）
-状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、JobEvent@2 和可追溯概念源包数据/API 已落地。
+状态：R0 已完成，R1 正在把旧武神基线重构为通用 3D 平台；R2 Concept 数据/API 已落地；R3 已完成真实 Project/Version/ModuleGraph/GLB 的首个桌面读取与选择切片。
 
 ## 1. 产品定义
 
@@ -339,12 +339,14 @@ POST   /api/v1/projects
 GET    /api/v1/projects
 GET    /api/v1/projects/{project_id}
 POST   /api/v1/projects/{project_id}/versions
+GET    /api/v1/versions/{version_id}
 POST   /api/v1/projects/{project_id}/brief:interpret
 POST   /api/v1/projects/{project_id}/variants
 POST   /api/v1/projects/{project_id}/variants/{variant_id}:select
 
 POST   /api/v1/module-assets
 GET    /api/v1/module-assets
+GET    /api/v1/module-assets/{module_id}/file
 POST   /api/v1/module-graphs/{graph_id}/validate
 GET    /api/v1/module-graphs/{graph_id}
 
@@ -361,7 +363,7 @@ GET    /api/v1/jobs/{job_id}
 GET    /api/v1/jobs/{job_id}/events
 ```
 
-当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export，并通过 `/brief:interpret`、`/variants` 和 `:select` 完成确定性 A/B/C 数据闭环。Concept JobEvent@2 已有独立持久化、JSON cursor replay 与 SSE；Variant generator 仍是 R2 模板基线，不代表 R4 AI 质量。当前 Export 同步生成可追溯源包并记录 completed Job；异步排队、取消和重试仍待后续 worker 化。
+当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export，并通过 `/brief:interpret`、`/variants` 和 `:select` 完成确定性 A/B/C 数据闭环。桌面 `#/cad` 已通过强类型 API 加载版本 Spec、Graph 和不可变 GLB，以 raycast 同步节点选择，并显示真实 Connector 与源包导出。Variant generator 仍是 R2 模板基线；隐藏、替换、吸附、爆炸视图和正式资产质量仍属于后续 R3。
 
 幂等创建请求接受 `Idempotency-Key`；耗时操作一律返回 Job，不让路由持有长事务。
 

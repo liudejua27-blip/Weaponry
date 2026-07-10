@@ -996,6 +996,92 @@
         "title": "ConceptStyle",
         "type": "object"
       },
+      "ConceptVersionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Set Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "spec_schema_version": {
+            "title": "Spec Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_no",
+          "status",
+          "summary",
+          "spec_schema_version",
+          "spec_sha256",
+          "created_at",
+          "project_id",
+          "spec"
+        ],
+        "title": "ConceptVersionDetail",
+        "type": "object"
+      },
       "ConceptVersionSummary": {
         "additionalProperties": false,
         "properties": {
@@ -6546,6 +6632,46 @@
         ]
       }
     },
+    "/api/v1/module-assets/{module_id}/file": {
+      "get": {
+        "operationId": "download_module_asset_api_v1_module_assets__module_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_id",
+            "required": true,
+            "schema": {
+              "title": "Module Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Module Asset",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
     "/api/v1/module-graphs/{graph_id}": {
       "get": {
         "operationId": "get_module_graph_api_v1_module_graphs__graph_id__get",
@@ -7203,6 +7329,48 @@
         "summary": "Get Quality Run",
         "tags": [
           "concept-quality"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}": {
+      "get": {
+        "operationId": "get_version_api_v1_versions__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptVersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "concept-projects"
         ]
       }
     },

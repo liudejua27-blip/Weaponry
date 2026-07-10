@@ -182,6 +182,21 @@ export type ConceptStyle = {
   "detail_density": number
 }
 
+export type ConceptVersionDetail = {
+  "version_id": string
+  "parent_version_id"?: string | null
+  "version_no": number
+  "status": string
+  "summary": string
+  "spec_schema_version": string
+  "spec_sha256": string
+  "module_graph_id"?: string | null
+  "change_set_id"?: string | null
+  "created_at": string
+  "project_id": string
+  "spec": WeaponConceptSpec
+}
+
 export type ConceptVersionSummary = {
   "version_id": string
   "parent_version_id"?: string | null

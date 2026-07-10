@@ -174,6 +174,47 @@
   padding: 10px;
 }
 
+.project-select {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 5px;
+  color: #8090a4;
+  font-size: 8px;
+}
+
+.project-select select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid #2b3a4c;
+  border-radius: 4px;
+  color: #cbd6e3;
+  background: #111a24;
+  font-size: 9px;
+}
+
+.version-list .empty-action {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 42px;
+  color: #7db7ff;
+}
+
+.concept-runtime-state {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #293748;
+  color: #7f96ae;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.concept-runtime-state.error {
+  color: #e68c8c;
+}
+
 .cad-panel-heading,
 .cad-panel-title,
 .component-library-header,
@@ -398,6 +439,44 @@
   display: block;
 }
 
+.weapon-viewport-shell {
+  position: absolute;
+  inset: 0;
+}
+
+.viewport-data-state {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: min(310px, calc(100% - 48px));
+  display: grid;
+  gap: 6px;
+  padding: 15px 18px;
+  border: 1px solid #2e4054;
+  border-radius: 8px;
+  color: #8596aa;
+  background: rgb(17 26 36 / 92%);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 30%);
+  text-align: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.viewport-data-state strong {
+  color: #d3deea;
+  font-size: 11px;
+}
+
+.viewport-data-state span {
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.viewport-data-state.failed {
+  border-color: #6e3d46;
+}
+
 .viewport-toolbar,
 .viewport-viewbar {
   position: absolute;
@@ -567,6 +646,7 @@
   display: grid;
   align-content: start;
   gap: 2px;
+  overflow-y: auto;
 }
 
 .component-categories button {
@@ -588,16 +668,20 @@
 
 .component-grid {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(6, minmax(72px, 1fr));
   gap: 6px;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .component-grid > button {
   min-width: 74px;
+  min-height: 0;
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 2px;
   padding: 6px;
   border: 1px solid #2a394a;
@@ -612,10 +696,26 @@
   box-shadow: inset 0 0 0 1px #347fe6;
 }
 
+.component-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  min-width: 260px;
+  color: #718298;
+  text-align: center;
+  font-size: 9px;
+}
+
+.component-empty strong {
+  color: #bcc9d8;
+  font-size: 10px;
+}
+
 .component-visual {
   display: grid;
   place-items: center;
-  min-height: 58px;
+  min-height: 0;
   border-radius: 4px;
   color: #8fa6c2;
   background: #263343;
@@ -766,6 +866,14 @@
 .dfm-row strong { color: #d9e3ef; font-weight: 550; }
 .dfm-row svg { color: var(--cad-success); }
 
+.muted-inspector {
+  display: block;
+  padding: 9px 0;
+  color: #77869a;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 .dfm-suggestion {
   display: flex;
   gap: 5px;
@@ -790,6 +898,32 @@
   color: #fff;
   border-color: #347fe6;
   background: #1d579f;
+}
+
+.export-formats button:disabled {
+  color: #536174;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.last-export {
+  margin: 6px 0;
+  overflow: hidden;
+  color: #7f91a6;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.primary-action:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.secondary-action:disabled,
+.cad-file-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .export-summary {

@@ -20,6 +20,7 @@ from forgecad_agent.application.concept_models import (
 from forgecad_agent.domain.concepts.models import ModuleAssetManifest, ModuleCategory, ModuleGraph
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 from forgecad_agent.infrastructure.storage import ContentAddressedStore
+from forgecad_agent.infrastructure.storage import ObjectStoreError
 
 
 class ConceptModuleError(RuntimeError):
@@ -260,6 +261,23 @@ class ConceptModuleService:
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
             )
+
+    def read_module(self, module_id: str) -> tuple[bytes, str, str]:
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            row = unit_of_work.modules.get_manifest(module_id)
+            if row is None:
+                raise ConceptModuleError("MODULE_NOT_FOUND", "Module asset not found.")
+            try:
+                payload = self.object_store.read(
+                    str(row["object_path"]),
+                    expected_sha256=str(row["sha256"]),
+                )
+            except ObjectStoreError as exc:
+                raise ConceptModuleError(
+                    "MODULE_ASSET_UNAVAILABLE",
+                    f"Module GLB is unavailable: {exc}",
+                ) from exc
+            return payload, f"{module_id}.glb", str(row["sha256"])
 
 
 def validate_registered_graph(

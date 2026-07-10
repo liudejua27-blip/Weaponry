@@ -67,6 +67,11 @@ class ConceptVersionSummary(StrictApiModel):
     created_at: str
 
 
+class ConceptVersionDetail(ConceptVersionSummary):
+    project_id: str
+    spec: WeaponConceptSpec
+
+
 class ConceptProjectSummary(StrictApiModel):
     project_id: str
     profile_id: str

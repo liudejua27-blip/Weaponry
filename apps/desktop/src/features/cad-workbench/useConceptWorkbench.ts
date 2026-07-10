@@ -1,0 +1,265 @@
+import { useCallback, useEffect, useState } from 'react'
+import { forgeApi } from '../../shared/api/forgeApi'
+import type {
+  ConceptExportRecord,
+  ConceptProjectDetail,
+  ConceptProjectSummary,
+  ConceptVersionDetail,
+  DesignVariantRecord,
+  ModuleAssetRecord,
+  ModuleGraphRecord,
+} from '../../shared/types'
+
+const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
+
+type ConceptWorkbenchState = {
+  projects: ConceptProjectSummary[]
+  project: ConceptProjectDetail | null
+  version: ConceptVersionDetail | null
+  graphRecord: ModuleGraphRecord | null
+  modules: ModuleAssetRecord[]
+  variants: DesignVariantRecord[]
+  loading: boolean
+  error: string | null
+  statusMessage: string
+  lastExport: ConceptExportRecord | null
+}
+
+const INITIAL_STATE: ConceptWorkbenchState = {
+  projects: [],
+  project: null,
+  version: null,
+  graphRecord: null,
+  modules: [],
+  variants: [],
+  loading: true,
+  error: null,
+  statusMessage: '正在读取本地 Concept 数据…',
+  lastExport: null,
+}
+
+export function useConceptWorkbench() {
+  const [state, setState] = useState<ConceptWorkbenchState>(INITIAL_STATE)
+
+  const loadProject = useCallback(async (
+    projectId: string,
+    preferredVersionId?: string,
+    knownProjects?: ConceptProjectSummary[],
+  ) => {
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在加载 Project、Version 与 ModuleGraph…',
+    }))
+    try {
+      const project = await forgeApi.getConceptProject(projectId)
+      const versions = project.versions ?? []
+      const versionId = preferredVersionId
+        && versions.some((item) => item.version_id === preferredVersionId)
+        ? preferredVersionId
+        : project.current_version_id ?? versions.at(-1)?.version_id
+      const [moduleResponse, variantResponse, version] = await Promise.all([
+        forgeApi.listModuleAssets(project.profile.pack_id),
+        forgeApi.listDesignVariants(projectId),
+        versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
+      ])
+      const graphRecord = version?.module_graph_id
+        ? await forgeApi.getModuleGraph(version.module_graph_id)
+        : null
+      localStorage.setItem(ACTIVE_PROJECT_KEY, projectId)
+      setState((current) => ({
+        ...current,
+        projects: knownProjects ?? current.projects,
+        project,
+        version,
+        graphRecord,
+        modules: moduleResponse.items ?? [],
+        variants: variantResponse.items ?? [],
+        loading: false,
+        error: null,
+        statusMessage: graphRecord
+          ? `已加载 ${graphRecord.graph.nodes.length} 个 ModuleGraph 节点。`
+          : '当前版本尚未绑定 ModuleGraph；可先注册模块并创建组合。',
+      }))
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: 'Concept 数据加载失败。',
+      }))
+    }
+  }, [])
+
+  const refresh = useCallback(async () => {
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在同步本地 Concept 项目…',
+    }))
+    try {
+      const response = await forgeApi.listConceptProjects()
+      const projects = response.items ?? []
+      if (projects.length === 0) {
+        setState((current) => ({
+          ...current,
+          projects,
+          project: null,
+          version: null,
+          graphRecord: null,
+          modules: [],
+          variants: [],
+          loading: false,
+          error: null,
+          statusMessage: '尚无 Concept Project。创建“寒地巡逻 S1”开始设计。',
+        }))
+        return
+      }
+      const storedId = localStorage.getItem(ACTIVE_PROJECT_KEY)
+      const activeId = projects.some((project) => project.project_id === storedId)
+        ? storedId!
+        : projects[0].project_id
+      await loadProject(activeId, undefined, projects)
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '无法连接本地 Concept API。',
+      }))
+    }
+  }, [loadProject])
+
+  useEffect(() => {
+    refresh().catch(() => undefined)
+  }, [refresh])
+
+  const selectProject = useCallback((projectId: string) => {
+    loadProject(projectId).catch(() => undefined)
+  }, [loadProject])
+
+  const selectVersion = useCallback(async (versionId: string) => {
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在读取版本 ${versionId}…`,
+    }))
+    try {
+      const version = await forgeApi.getConceptVersion(versionId)
+      const graphRecord = version.module_graph_id
+        ? await forgeApi.getModuleGraph(version.module_graph_id)
+        : null
+      setState((current) => ({
+        ...current,
+        version,
+        graphRecord,
+        loading: false,
+        statusMessage: graphRecord
+          ? `已切换到 V${version.version_no} · ${graphRecord.graph.nodes.length} 个节点。`
+          : `已切换到 V${version.version_no}；该版本没有 ModuleGraph。`,
+      }))
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '版本切换失败。',
+      }))
+    }
+  }, [])
+
+  const createStarterProject = useCallback(async () => {
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在创建“寒地巡逻 S1”…',
+    }))
+    try {
+      const created = await forgeApi.createConceptProject({
+        client_request_id: `desktop-concept-${Date.now()}`,
+        name: '寒地巡逻 S1',
+        intended_uses: ['game_asset', 'film_prop', 'non_functional_display'],
+        style: {
+          keywords: ['寒地', '工业', '紧凑', '硬表面'],
+          palette: ['graphite', 'gunmetal', 'signal_red'],
+          detail_density: 0.68,
+        },
+        proportions: {
+          overall_length_mm: 230,
+          body_height_mm: 54,
+          grip_angle_deg: 15,
+        },
+        constraints: {
+          symmetry: 'mostly_symmetric',
+          max_triangle_count: 180000,
+        },
+        assumptions: ['非功能性概念模型，不用于真实制造或使用'],
+      })
+      const projects = (await forgeApi.listConceptProjects()).items ?? []
+      await loadProject(created.project_id, created.current_version_id ?? undefined, projects)
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: 'Starter Project 创建失败。',
+      }))
+    }
+  }, [loadProject])
+
+  const createExport = useCallback(async () => {
+    if (!state.version?.module_graph_id) {
+      setState((current) => ({
+        ...current,
+        error: '当前版本没有已验证 ModuleGraph，不能创建概念交付包。',
+      }))
+      return null
+    }
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在创建可追溯概念交付包…',
+    }))
+    try {
+      const result = await forgeApi.createConceptExport(state.version.version_id, {
+        client_request_id: `desktop-export-${Date.now()}`,
+        profile: 'game_asset',
+        include_modules: true,
+        include_quality_report: true,
+      })
+      setState((current) => ({
+        ...current,
+        loading: false,
+        lastExport: result,
+        statusMessage: `导出完成 · ${result.package_byte_size} bytes · ${result.package_sha256.slice(0, 12)}…`,
+      }))
+      return result
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '概念交付包创建失败。',
+      }))
+      return null
+    }
+  }, [state.version])
+
+  return {
+    ...state,
+    refresh,
+    selectProject,
+    selectVersion,
+    createStarterProject,
+    createExport,
+  }
+}
+
+function errorMessage(caught: unknown): string {
+  return caught instanceof Error ? caught.message : String(caught)
+}

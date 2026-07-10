@@ -15,6 +15,7 @@
     "desktop:p0-job-action-state-smoke": "node scripts/smoke_p0_job_action_state_ui.mjs",
     "desktop:p0-runtime-handoff-smoke": "node scripts/smoke_p0_runtime_handoff_ui.mjs",
     "desktop:p1-deeplink-smoke": "node scripts/smoke_p1_deeplink_ui.mjs",
+    "desktop:r3-concept-workbench-smoke": "node scripts/smoke_r3_concept_workbench_ui.mjs",
     "desktop:tauri-check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "agent:check": "python3 -m compileall -q apps/agent/wushen_agent apps/agent/forgecad_agent scripts",
     "contracts:types:generate": "python3 scripts/generate_schema_types.py && .venv/bin/python scripts/export_openapi.py",
@@ -69,7 +70,8 @@
     "r1:foundation-gate": "npm run agent:r1-foundation-smoke && npm run m6:gate",
     "r1:gate": "npm run r1:foundation-gate && npm run desktop:build && npm run desktop:p0-context-continuity-smoke",
     "r2:contracts-gate": "npm run contracts:check && npm run contracts:types:check && npm run agent:check && npm run agent:r2-concept-contracts-smoke",
-    "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke && npm run agent:r2-module-registry-smoke && npm run agent:r2-change-sets-smoke && npm run agent:r2-brief-variants-smoke && npm run agent:r2-exports-smoke"
+    "r2:gate": "npm run r2:contracts-gate && npm run agent:r2-concept-projects-smoke && npm run agent:r2-module-registry-smoke && npm run agent:r2-change-sets-smoke && npm run agent:r2-brief-variants-smoke && npm run agent:r2-exports-smoke",
+    "r3:workbench-gate": "npm run r2:gate && npm run desktop:typecheck && npm run desktop:build && npm run desktop:r3-concept-workbench-smoke"
   },
   "engines": {
     "node": ">=20",

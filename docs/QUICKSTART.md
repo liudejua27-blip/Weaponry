@@ -33,8 +33,9 @@ npm run desktop:p0-context-continuity-smoke
 npm run r1:gate
 npm run r2:contracts-gate
 npm run r2:gate
+npm run r3:workbench-gate
 ```
 
-当前页面是产品方向和交互参考，Three.js 程序化模型不是最终 GLB 模块资产。Concept API、连接器、ChangeSet、QualityRun 数据链和可追溯概念源包已进入 `r2:gate`；桌面真实装配、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
+当前页面已读取真实 Concept Project、Version、ModuleGraph 与 GLB；`r3:workbench-gate` 使用 3 个程序化 GLB fixture 验证数据绑定，不代表最终模块资产质量。模块替换/吸附、正式 8–12 个资产、实际 Mesh 检查和 combined GLB/OBJ/PNG 仍按 R3–R5 实施。
 
 具体第一周设计步骤、运行方式和故障处理见 [OPERATIONS.md](OPERATIONS.md)。
