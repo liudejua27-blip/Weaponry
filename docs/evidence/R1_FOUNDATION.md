@@ -16,6 +16,7 @@
 - 旧 `SQLiteAssetStore` 作为 Facade 使用新基础设施；
 - 旧资产裸读取统一改为内容寻址存储读取；
 - 将 Job detail/list/action/runtime/event 查询迁入 `LegacyJobQueryService`，并通过 Repository 统一读取；
+- 将 Job cancel/retry/retry-from-step 事务迁入 `LegacyJobCommandService`，包括 action audit、event、checkpoint 与 Provider cancel 协调；
 - 将 interpretation/recast confirm/creative graph 工作流迁入 `LegacyCreativeRecastService`；
 - 提取 FastAPI settings/CORS/base app factory，并兼容 `FORGECAD_CORS_ORIGINS`。
 - 将 legacy asset、job、system、weapon routes 和错误映射拆出 `main.py`；
@@ -94,9 +95,18 @@ npm run agent:p0-runtime-recovery-smoke
 
 结果：全部通过。搜索/分页、action audit、cancel/retry、event cursor、provider task/checkpoint 和重启恢复保持原合同。
 
+Provider cancel 与异步 worker 补充运行：
+
+```bash
+npm run agent:p0-async-generate3d-worker-smoke
+npm run agent:p0-generate3d-worker-loop-smoke
+```
+
+结果：全部通过；Job command 提取后 provider task 取消/恢复与异步 3D worker 提交仍保持原行为。
+
 ## 尚未完成
 
 - `asset_store.py` 仍包含大量领域 SQL、Provider 和工作流；
-- Job 写侧 action/cancel/retry、Asset 写侧和其余业务工作流仍待提取；
+- Asset 写侧、异步 Provider worker 编排和其余业务工作流仍待提取；
 - `App.tsx` 仍包含旧任务恢复、通知和多页面业务组合；
 - 尚未进入 R2 新 CAD 合同和数据库。
