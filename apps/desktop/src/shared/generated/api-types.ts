@@ -429,6 +429,94 @@ export type JobSummary = {
   "finished_at"?: string | null
 }
 
+export type ModuleAssetListResponse = {
+  "items"?: Array<ModuleAssetRecord>
+  "pack_id"?: string | null
+  "category"?: "core_shell" | "front_shell" | "rear_shell" | "grip_shell" | "top_accessory" | "side_accessory" | "lower_structure" | "storage_visual" | "armor_panel" | null
+  "next_cursor"?: string | null
+}
+
+export type ModuleAssetManifest = {
+  "schema_version"?: "ModuleAssetManifest@1"
+  "module_id": string
+  "pack_id": string
+  "category": "core_shell" | "front_shell" | "rear_shell" | "grip_shell" | "top_accessory" | "side_accessory" | "lower_structure" | "storage_visual" | "armor_panel"
+  "asset_id": string
+  "sha256": string
+  "bounds_mm": Array<number>
+  "triangle_count": number
+  "material_slots": Array<string>
+  "connectors"?: Array<ModuleConnector>
+}
+
+export type ModuleAssetRecord = {
+  "manifest": ModuleAssetManifest
+  "logical_path": string
+  "object_path": string
+  "byte_size": number
+  "mime_type"?: string
+  "created_at": string
+}
+
+export type ModuleConnector = {
+  "connector_id": string
+  "slot": string
+  "connector_type": string
+  "transform": Transform
+  "scale_range": Array<number>
+  "exclusive"?: boolean
+}
+
+export type ModuleGraph = {
+  "schema_version"?: "ModuleGraph@1"
+  "graph_id": string
+  "project_id": string
+  "root_node_id": string
+  "nodes": Array<ModuleGraphNode>
+  "edges"?: Array<ModuleGraphEdge>
+}
+
+export type ModuleGraphEdge = {
+  "edge_id": string
+  "from_node_id": string
+  "from_connector_id": string
+  "to_node_id": string
+  "to_connector_id": string
+  "status"?: "connected" | "invalid"
+}
+
+export type ModuleGraphNode = {
+  "node_id": string
+  "module_id": string
+  "transform": Transform
+  "locked"?: boolean
+  "visible"?: boolean
+}
+
+export type ModuleGraphRecord = {
+  "graph": ModuleGraph
+  "graph_sha256": string
+  "validation_status": string
+  "created_at": string
+  "updated_at": string
+}
+
+export type ModuleGraphValidationIssue = {
+  "code": string
+  "message": string
+  "node_id"?: string | null
+  "edge_id"?: string | null
+}
+
+export type ModuleGraphValidationResponse = {
+  "graph_id": string
+  "project_id": string
+  "valid": boolean
+  "persisted": boolean
+  "graph_sha256": string
+  "issues"?: Array<ModuleGraphValidationIssue>
+}
+
 export type PatchWeaponRequest = {
   "client_request_id": string
   "source_version_id": string
@@ -473,6 +561,13 @@ export type ProviderTaskSummary = {
   "metadata"?: Record<string, unknown>
   "created_at": string
   "updated_at": string
+}
+
+export type RegisterModuleAssetRequest = {
+  "client_request_id": string
+  "manifest": ModuleAssetManifest
+  "logical_path": string
+  "glb_data_base64": string
 }
 
 export type RuntimeRecoveryItem = {
@@ -525,6 +620,18 @@ export type TargetOptions = {
   "phase"?: "concept_to_rough_3d"
   "engine"?: "unity"
   "output_format"?: "glb"
+}
+
+export type Transform = {
+  "position": Array<number>
+  "rotation": Array<number>
+  "scale": Array<number>
+}
+
+export type ValidateModuleGraphRequest = {
+  "client_request_id": string
+  "graph": ModuleGraph
+  "persist"?: boolean
 }
 
 export type ValidationError = {

@@ -7,9 +7,10 @@ from fastapi import FastAPI
 from forgecad_agent.api import (
     LocalApiSettings,
     build_concept_project_router,
+    build_module_router,
     create_local_api,
 )
-from forgecad_agent.application import ConceptProjectService
+from forgecad_agent.application import ConceptModuleService, ConceptProjectService
 
 from .api.asset_routes import build_asset_router
 from .api.errors import register_error_handlers
@@ -26,12 +27,14 @@ def create_app() -> FastAPI:
     )
     store = SQLiteAssetStore.from_env()
     concept_projects = ConceptProjectService(store.connection_factory)
+    concept_modules = ConceptModuleService(store.connection_factory, store.object_store)
     register_error_handlers(app)
     app.include_router(build_asset_router(store))
     app.include_router(build_job_router(store))
     app.include_router(build_system_router(store))
     app.include_router(build_weapon_router(store))
     app.include_router(build_concept_project_router(concept_projects))
+    app.include_router(build_module_router(concept_modules))
 
     @app.on_event("startup")
     async def recover_interrupted_jobs_on_startup() -> None:

@@ -2498,6 +2498,481 @@
         "title": "JobSummary",
         "type": "object"
       },
+      "ModuleAssetListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "core_shell",
+                  "front_shell",
+                  "rear_shell",
+                  "grip_shell",
+                  "top_accessory",
+                  "side_accessory",
+                  "lower_structure",
+                  "storage_visual",
+                  "armor_panel"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleAssetRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "pack_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Id"
+          }
+        },
+        "title": "ModuleAssetListResponse",
+        "type": "object"
+      },
+      "ModuleAssetManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "category": {
+            "enum": [
+              "core_shell",
+              "front_shell",
+              "rear_shell",
+              "grip_shell",
+              "top_accessory",
+              "side_accessory",
+              "lower_structure",
+              "storage_visual",
+              "armor_panel"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "connectors": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleConnector"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "material_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Material Slots",
+            "type": "array"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "pack_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModuleAssetManifest@1",
+            "default": "ModuleAssetManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 1.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "module_id",
+          "pack_id",
+          "category",
+          "asset_id",
+          "sha256",
+          "bounds_mm",
+          "triangle_count",
+          "material_slots"
+        ],
+        "title": "ModuleAssetManifest",
+        "type": "object"
+      },
+      "ModuleAssetRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ModuleAssetManifest"
+          },
+          "mime_type": {
+            "default": "model/gltf-binary",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "object_path": {
+            "title": "Object Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifest",
+          "logical_path",
+          "object_path",
+          "byte_size",
+          "created_at"
+        ],
+        "title": "ModuleAssetRecord",
+        "type": "object"
+      },
+      "ModuleConnector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "connector_type": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Connector Type",
+            "type": "string"
+          },
+          "exclusive": {
+            "default": true,
+            "title": "Exclusive",
+            "type": "boolean"
+          },
+          "scale_range": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Scale Range",
+            "type": "array"
+          },
+          "slot": {
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+            "title": "Slot",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          }
+        },
+        "required": [
+          "connector_id",
+          "slot",
+          "connector_type",
+          "transform",
+          "scale_range"
+        ],
+        "title": "ModuleConnector",
+        "type": "object"
+      },
+      "ModuleGraph": {
+        "additionalProperties": false,
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "graph_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Graph Id",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphNode"
+            },
+            "minItems": 1,
+            "title": "Nodes",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "root_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Root Node Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModuleGraph@1",
+            "default": "ModuleGraph@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "graph_id",
+          "project_id",
+          "root_node_id",
+          "nodes"
+        ],
+        "title": "ModuleGraph",
+        "type": "object"
+      },
+      "ModuleGraphEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "edge_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Edge Id",
+            "type": "string"
+          },
+          "from_connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "From Connector Id",
+            "type": "string"
+          },
+          "from_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "From Node Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "connected",
+            "enum": [
+              "connected",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "to_connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "To Connector Id",
+            "type": "string"
+          },
+          "to_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "To Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id",
+          "from_node_id",
+          "from_connector_id",
+          "to_node_id",
+          "to_connector_id"
+        ],
+        "title": "ModuleGraphEdge",
+        "type": "object"
+      },
+      "ModuleGraphNode": {
+        "additionalProperties": false,
+        "properties": {
+          "locked": {
+            "default": false,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node_id",
+          "module_id",
+          "transform"
+        ],
+        "title": "ModuleGraphNode",
+        "type": "object"
+      },
+      "ModuleGraphRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "graph",
+          "graph_sha256",
+          "validation_status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ModuleGraphRecord",
+        "type": "object"
+      },
+      "ModuleGraphValidationIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "edge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ModuleGraphValidationIssue",
+        "type": "object"
+      },
+      "ModuleGraphValidationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "graph_id": {
+            "title": "Graph Id",
+            "type": "string"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "persisted": {
+            "title": "Persisted",
+            "type": "boolean"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "graph_id",
+          "project_id",
+          "valid",
+          "persisted",
+          "graph_sha256"
+        ],
+        "title": "ModuleGraphValidationResponse",
+        "type": "object"
+      },
       "PatchWeaponRequest": {
         "properties": {
           "client_request_id": {
@@ -2750,6 +3225,39 @@
           "updated_at"
         ],
         "title": "ProviderTaskSummary",
+        "type": "object"
+      },
+      "RegisterModuleAssetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "glb_data_base64": {
+            "minLength": 1,
+            "title": "Glb Data Base64",
+            "type": "string"
+          },
+          "logical_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ModuleAssetManifest"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "manifest",
+          "logical_path",
+          "glb_data_base64"
+        ],
+        "title": "RegisterModuleAssetRequest",
         "type": "object"
       },
       "RuntimeRecoveryItem": {
@@ -3084,6 +3592,70 @@
           }
         },
         "title": "TargetOptions",
+        "type": "object"
+      },
+      "Transform": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Position",
+            "type": "array"
+          },
+          "rotation": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Rotation",
+            "type": "array"
+          },
+          "scale": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Scale",
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rotation",
+          "scale"
+        ],
+        "title": "Transform",
+        "type": "object"
+      },
+      "ValidateModuleGraphRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "persist": {
+            "default": true,
+            "title": "Persist",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "graph"
+        ],
+        "title": "ValidateModuleGraphRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -4183,6 +4755,249 @@
           }
         },
         "summary": "Runtime Work Once"
+      }
+    },
+    "/api/v1/module-assets": {
+      "get": {
+        "operationId": "list_module_assets_api_v1_module_assets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pack_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pack Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "core_shell",
+                    "front_shell",
+                    "rear_shell",
+                    "grip_shell",
+                    "top_accessory",
+                    "side_accessory",
+                    "lower_structure",
+                    "storage_visual",
+                    "armor_panel"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAssetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Module Assets",
+        "tags": [
+          "concept-modules"
+        ]
+      },
+      "post": {
+        "operationId": "register_module_asset_api_v1_module_assets_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterModuleAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Module Asset",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-graphs/{graph_id}": {
+      "get": {
+        "operationId": "get_module_graph_api_v1_module_graphs__graph_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "graph_id",
+            "required": true,
+            "schema": {
+              "title": "Graph Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleGraphRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Module Graph",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-graphs/{graph_id}/validate": {
+      "post": {
+        "operationId": "validate_module_graph_api_v1_module_graphs__graph_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "graph_id",
+            "required": true,
+            "schema": {
+              "title": "Graph Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateModuleGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleGraphValidationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Module Graph",
+        "tags": [
+          "concept-modules"
+        ]
       }
     },
     "/api/v1/projects": {

@@ -13,6 +13,9 @@
 - migration `0009_r2_concept_domain.sql`；
 - Project/Profile/Version Repository/UoW、application service 和 `/api/v1/projects`；
 - 创建、列表、详情、追加版本、幂等冲突和重启恢复 HTTP smoke。
+- 不可变 GLB 模块注册、内容哈希校验、列表/筛选和重启恢复；
+- Connector 所属模块、类型和缩放范围校验；
+- 仅持久化通过引用完整性检查的 ModuleGraph，失败图保留结构化 issue 而不入库。
 
 ## 已验证不变量
 
@@ -37,6 +40,8 @@ npm run r2:gate
 
 结果：通过。fresh database 应用 9 个 migration；HTTP smoke 创建 `weapon_concept` Project、追加不可覆盖父版本的 V2、验证幂等 replay/conflict，并在 Agent 重启后恢复项目与版本历史。新表不存在指向 `weapons`、`weapon_versions`、`creative_weapon_graphs` 或 `skill_graphs` 的外键。
 
+同一门还注册 2 个 R2 GLB envelope fixture 和 3 个 Connector，持久化 1 个有效 ModuleGraph，拒绝并不保存引用缺失模块的无效 Graph；重启后 registry 和 Graph 均可回读。R2 fixture 只验证存储与引用协议，不代表 R3 的高质量美术资产。
+
 Legacy 重启恢复提取另由以下命令验证：
 
 ```bash
@@ -47,7 +52,7 @@ Legacy 重启恢复提取另由以下命令验证：
 
 ## 未完成
 
-- Module/Connector Repository、注册与列表 API；
+- 已验证 ModuleGraph 与 Version 的绑定；
 - Version DAG、ChangeSet preview/commit；
 - GLB fixture、工作台真实 ModuleGraph 绑定；
 - C01–C10 完整发布门。

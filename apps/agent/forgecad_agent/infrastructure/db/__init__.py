@@ -1,5 +1,10 @@
 from .connection import SQLiteConnectionFactory
-from .concept_repositories import ConceptProjectRepository, DomainProfileRepository
+from .concept_repositories import (
+    ConceptAssetRepository,
+    ConceptProjectRepository,
+    DomainProfileRepository,
+    ModuleRepository,
+)
 from .migrations import MigrationError, SQLiteMigrationRunner
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
 from .unit_of_work import SQLiteUnitOfWork
@@ -8,9 +13,11 @@ __all__ = [
     "AssetRepository",
     "CheckpointRepository",
     "ConceptProjectRepository",
+    "ConceptAssetRepository",
     "DomainProfileRepository",
     "IdempotencyRepository",
     "JobRepository",
+    "ModuleRepository",
     "MigrationError",
     "SQLiteConnectionFactory",
     "SQLiteMigrationRunner",

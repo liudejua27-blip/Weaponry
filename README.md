@@ -144,8 +144,8 @@ core.side_panel_left / core.side_panel_right
 | 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
 | 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
 | Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API 已实现 | ModuleGraph 持久化仍在 R2 |
-| WeaponConceptSpec / ModuleGraph | v1 合同与生成类型已实现 | Project API 已使用 WeaponConceptSpec；ModuleGraph API 待实现 |
-| Connector / 模块吸附 / 爆炸视图 | Connector 合同和数据表已实现，Repository/API/交互未实现 | P0 核心技术阶段 |
+| WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化和回读 API 已实现 | Version 绑定与桌面真实渲染待实现 |
+| Connector / 模块吸附 / 爆炸视图 | Connector 合同、数据表、注册和兼容校验已实现；交互未实现 | P0 核心技术阶段 |
 | AI Brief / ChangeSet 幽灵预览 | 未实现 | 模块系统稳定后接入 |
 | ModelQualityReport | 未实现 | P0 Mesh/资产检查 |
 | DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |

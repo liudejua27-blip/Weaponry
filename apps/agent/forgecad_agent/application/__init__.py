@@ -3,9 +3,17 @@ from .concept_projects import (
     ConceptProjectIdempotencyConflict,
     ConceptProjectService,
 )
+from .concept_modules import (
+    ConceptModuleError,
+    ConceptModuleIdempotencyConflict,
+    ConceptModuleService,
+)
 
 __all__ = [
     "ConceptProjectError",
     "ConceptProjectIdempotencyConflict",
     "ConceptProjectService",
+    "ConceptModuleError",
+    "ConceptModuleIdempotencyConflict",
+    "ConceptModuleService",
 ]

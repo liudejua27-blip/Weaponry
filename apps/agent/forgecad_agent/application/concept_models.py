@@ -10,6 +10,9 @@ from forgecad_agent.domain.concepts.models import (
     ConceptStyle,
     DesignDomainProfile,
     IntendedUse,
+    ModuleAssetManifest,
+    ModuleCategory,
+    ModuleGraph,
     WeaponConceptSpec,
 )
 
@@ -79,3 +82,56 @@ class ConceptProjectDetail(ConceptProjectSummary):
 class ConceptProjectListResponse(StrictApiModel):
     items: List[ConceptProjectSummary] = Field(default_factory=list)
     next_cursor: Optional[str] = None
+
+
+class RegisterModuleAssetRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    manifest: ModuleAssetManifest
+    logical_path: str = Field(min_length=1, max_length=500)
+    glb_data_base64: str = Field(min_length=1)
+
+
+class ModuleAssetRecord(StrictApiModel):
+    manifest: ModuleAssetManifest
+    logical_path: str
+    object_path: str
+    byte_size: int
+    mime_type: str = "model/gltf-binary"
+    created_at: str
+
+
+class ModuleAssetListResponse(StrictApiModel):
+    items: List[ModuleAssetRecord] = Field(default_factory=list)
+    pack_id: Optional[str] = None
+    category: Optional[ModuleCategory] = None
+    next_cursor: Optional[str] = None
+
+
+class ValidateModuleGraphRequest(StrictApiModel):
+    client_request_id: str = Field(min_length=1, max_length=120)
+    graph: ModuleGraph
+    persist: bool = True
+
+
+class ModuleGraphValidationIssue(StrictApiModel):
+    code: str
+    message: str
+    node_id: Optional[str] = None
+    edge_id: Optional[str] = None
+
+
+class ModuleGraphValidationResponse(StrictApiModel):
+    graph_id: str
+    project_id: str
+    valid: bool
+    persisted: bool
+    graph_sha256: str
+    issues: List[ModuleGraphValidationIssue] = Field(default_factory=list)
+
+
+class ModuleGraphRecord(StrictApiModel):
+    graph: ModuleGraph
+    graph_sha256: str
+    validation_status: str
+    created_at: str
+    updated_at: str
