@@ -21,6 +21,7 @@ REQUIRED_PATHS = (
     "docs/OPERATIONS.md",
     "docs/MODULE_ASSET_GUIDE.md",
     "docs/evidence/README.md",
+    "docs/evidence/CAPABILITY_GATE_MATRIX.md",
     ".github/workflows/repository-integrity.yml",
     ".github/workflows/forgecad-core.yml",
     ".github/workflows/tauri-preflight.yml",

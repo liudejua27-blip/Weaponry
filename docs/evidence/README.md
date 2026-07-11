@@ -1,6 +1,7 @@
 # 执行证据索引
 
 - [仓库完整性与 CI 基线](REPOSITORY_INTEGRITY.md)
+- [能力与自动化 Gate 矩阵](CAPABILITY_GATE_MATRIX.md)
 
 - [R0 基线冻结](R0_BASELINE.md)
 - [R1 通用基础设施](R1_FOUNDATION.md)
