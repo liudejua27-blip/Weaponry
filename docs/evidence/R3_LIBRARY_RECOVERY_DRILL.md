@@ -29,6 +29,8 @@ npm run r3:library-backup-gate
 
 另对工作区当前静止的 legacy Library 执行一轮 `unclassified` 演练：113 条引用合并为 108 个唯一对象，逻辑对象 258,168 bytes、物理对象 233,411 bytes、去重 24,757 bytes，另有 1 个 492-byte 未引用候选；备份载荷 860,099 bytes，backup+internal verify 80.7 ms、独立 verify 17.8 ms、restore+verify 62.5 ms、Agent 启动与回读 610.3 ms。该库没有 Concept Module，因此这组结果只证明现有旧数据兼容性，不是代表性用户库或正式资产证据。
 
+2026-07-11 还以十模块 Blender visual candidate 建立隔离临时 Library，绑定完整 9 节点 Graph 并执行三轮 `unclassified` 演练。三个恢复库均回读 1 Project、2 Version、10 Module，下载全部 10 个 GLB 且 hash 一致；Blender generator 未被识别为 known fixture。中位 backup/internal verify、独立 verify、restore/verify、Agent 启动与回读、总耗时为 32.1 / 6.0 / 15.4 / 654.4 / 711.7 ms，备份载荷 1,772,796 bytes。报告保持 `formal_asset_evidence_eligible=false`，因此这些数值只扩展候选技术基线，不替代正式 `formal_blender_10_12` 或代表性用户库证据。
+
 ## 未证明
 
 - 人工 Blender 10–12 模块首包与代表性用户 Library 各至少三轮的正式报告；

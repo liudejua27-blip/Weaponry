@@ -40,6 +40,7 @@ REQUIRED_SCRIPTS = [
     "agent:r4-evaluation-preflight-smoke",
     "assets:formal-review-handoff",
     "assets:formal-review-handoff-smoke",
+    "assets:blender-full-candidate-recovery-drill",
 ]
 
 DOC_REQUIREMENTS: dict[str, list[str]] = {

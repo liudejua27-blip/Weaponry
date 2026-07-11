@@ -382,6 +382,16 @@ npm run library:recovery-drill -- \
 
 它逐轮复用正式 `backup → verify → restore`，然后针对恢复目录启动本地 Agent，回读 Project/Version/Module，并下载所有注册 Module GLB 校验 hash。默认成功后只保留 `recovery-drill-report.json`；调试时才增加 `--retain-artifacts`。输出目录必须位于源库外且尚不存在。源库在多轮间发生写入会返回 `SOURCE_CHANGED_DURING_DRILL`。
 
+待审 Blender candidate 可以先运行同一演练以验证技术链路，但必须保持 `unclassified`，不能提供 promotion report 或将结果用于正式资产声明：
+
+```bash
+npm run assets:blender-full-candidate-recovery-drill -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport" \
+  --output "$HOME/Library/Caches/ForgeCAD/Builds/recovery-drill-blender-candidate"
+```
+
+该命令在隔离临时 Library 中导入 10 模块、绑定 9 节点 Graph，再执行三轮生产 `backup → verify → restore → Agent readback`；输出只保留报告。2026-07-11 本机候选样本的中位 backup/internal verify、独立 verify、restore/verify、Agent 回读和总耗时分别为 32.1 / 6.0 / 15.4 / 654.4 / 711.7 ms。它不是正式资产、代表性用户库或 SLA 证据。
+
 制作完成的人工 Blender 首包不能只声明 `formal_blender_10_12`：必须先取得 `formal_release_10_12` 晋级报告，再把它传给恢复演练；工具会要求 10–12 个 Module、拒绝已知 reference/smoke generator，并逐个比较晋级报告与恢复后 Agent 下载 GLB 的 hash：
 
 ```bash

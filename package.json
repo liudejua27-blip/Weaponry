@@ -68,6 +68,7 @@
     "assets:blender-full-candidate-reexport": ".venv/bin/python scripts/export_blender_starter_pack.py --module-set full_candidate --execute --require-blender",
     "assets:blender-reexport-smoke": ".venv/bin/python scripts/smoke_blender_reexport_preflight.py",
     "assets:blender-full-candidate-workbench-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_full_candidate_workbench.py",
+    "assets:blender-full-candidate-recovery-drill": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_blender_full_candidate_recovery_drill.py",
     "assets:formal-review-draft": "PYTHONPATH=scripts .venv/bin/python scripts/formal_module_review.py draft",
     "assets:formal-review-validate": "PYTHONPATH=scripts .venv/bin/python scripts/formal_module_review.py validate",
     "assets:formal-review-handoff": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/render_formal_module_review_handoff.py",
