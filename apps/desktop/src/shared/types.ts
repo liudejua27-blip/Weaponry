@@ -64,6 +64,7 @@ export type ChangeSetAuditExportRecord = Api.ChangeSetAuditExportRecord
 export type ChangeSetAuditExportListResponse = Api.ChangeSetAuditExportListResponse
 export type InspectConceptVersionRequest = Api.InspectConceptVersionRequest
 export type QualityRunRecord = Api.QualityRunRecord
+export type ConceptJobRecord = Api.ConceptJobRecord
 export type QualityFinding = Api.QualityFinding
 
 export type ApiErrorEnvelope = {

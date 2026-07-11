@@ -46,6 +46,7 @@ async function main() {
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_CORS_ORIGINS: viteBaseUrl,
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
+          FORGECAD_CONCEPT_WORKER_ENABLED: '1',
           FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -735,7 +736,24 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '运行实际几何检查' }).click()
     const qualityResponse = await qualityResponsePromise
     if (!qualityResponse.ok()) throw new Error(`geometry quality inspection failed: ${qualityResponse.status()}`)
-    const qualityRecord = await qualityResponse.json()
+    const queuedQualityJob = await qualityResponse.json()
+    if (queuedQualityJob.status !== 'queued') {
+      throw new Error(`quality inspection was not queued: ${JSON.stringify(queuedQualityJob)}`)
+    }
+    await page.waitForResponse(
+      (response) => /\/api\/v1\/quality-runs\/quality_/.test(response.url())
+        && response.request().method() === 'GET' && response.ok(),
+      { timeout: 20_000 },
+    )
+    const completedQualityJob = await jsonRequest(
+      agentApiBaseUrl, `/api/v1/jobs/${queuedQualityJob.job_id}`, { method: 'GET' },
+    )
+    if (completedQualityJob.status !== 'succeeded' || !completedQualityJob.outputs?.quality_run_id) {
+      throw new Error(`queued quality job did not complete: ${JSON.stringify(completedQualityJob)}`)
+    }
+    const qualityRecord = await jsonRequest(
+      agentApiBaseUrl, `/api/v1/quality-runs/${completedQualityJob.outputs.quality_run_id}`, { method: 'GET' },
+    )
     const qualityFindings = qualityRecord.report.findings ?? []
     const highlightedFindingIndex = qualityFindings.findIndex(
       (finding) => (finding.geometry_refs ?? []).some(

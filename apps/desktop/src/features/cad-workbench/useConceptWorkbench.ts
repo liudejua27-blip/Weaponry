@@ -632,10 +632,20 @@ export function useConceptWorkbench() {
       statusMessage: '正在读取不可变 GLB 并执行 Mesh/Assembly 检查…',
     }))
     try {
-      const result = await forgeApi.inspectConceptVersion(version.version_id, {
+      const job = await forgeApi.enqueueConceptQualityInspection(version.version_id, {
         client_request_id: clientRequestId,
         ruleset_version: 'weapon-concept-geometry/1.3',
       })
+      setState((current) => ({
+        ...current,
+        statusMessage: '质量检查已入队，正在等待本地 worker…',
+      }))
+      const completed = await waitForConceptJob(job.job_id)
+      const qualityRunId = completed.outputs?.quality_run_id
+      if (completed.status !== 'succeeded' || !qualityRunId) {
+        throw new Error(completed.error_message || '质量检查后台任务未完成。')
+      }
+      const result = await forgeApi.getQualityRun(String(qualityRunId))
       const findingCount = result.report.findings?.length ?? 0
       setState((current) => ({
         ...current,
@@ -1204,6 +1214,18 @@ export function useConceptWorkbench() {
 
 function errorMessage(caught: unknown): string {
   return caught instanceof Error ? caught.message : String(caught)
+}
+
+async function waitForConceptJob(jobId: string) {
+  const deadline = Date.now() + 120_000
+  let polls = 0
+  while (Date.now() < deadline) {
+    const job = await forgeApi.getConceptJob(jobId)
+    if (['succeeded', 'failed', 'cancelled'].includes(job.status)) return job
+    if (job.status === 'queued' && polls++ === 3) await forgeApi.runConceptWorkerOnce()
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 250))
+  }
+  throw new Error('质量检查后台任务超时；可在任务中心重试。')
 }
 
 function isValidTransform(transform: Transform) {

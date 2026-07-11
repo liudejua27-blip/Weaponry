@@ -55,6 +55,7 @@ import type {
   ChangeSetAuditExportListResponse,
   InspectConceptVersionRequest,
   QualityRunRecord,
+  ConceptJobRecord,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -191,6 +192,32 @@ export class ForgeApiClient {
       body: JSON.stringify(input),
     })
     return readJson<QualityRunRecord>(response)
+  }
+
+  async enqueueConceptQualityInspection(
+    versionId: string,
+    input: InspectConceptVersionRequest,
+  ): Promise<ConceptJobRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${encodeURIComponent(versionId)}/quality-runs:inspect:enqueue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': input.client_request_id },
+      body: JSON.stringify(input),
+    })
+    return readJson<ConceptJobRecord>(response)
+  }
+
+  async getQualityRun(qualityRunId: string): Promise<QualityRunRecord> {
+    return readJson<QualityRunRecord>(
+      await fetch(`${this.baseUrl}/api/v1/quality-runs/${encodeURIComponent(qualityRunId)}`),
+    )
+  }
+
+  async getConceptJob(jobId: string): Promise<ConceptJobRecord> {
+    return readJson<ConceptJobRecord>(await fetch(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}`))
+  }
+
+  async runConceptWorkerOnce(): Promise<ConceptJobRecord | null> {
+    return readJson<ConceptJobRecord | null>(await fetch(`${this.baseUrl}/api/v1/concept-jobs/work-once`, { method: 'POST' }))
   }
 
   async listDesignVariants(projectId: string): Promise<DesignVariantListResponse> {
