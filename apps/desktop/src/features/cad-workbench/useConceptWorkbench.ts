@@ -8,6 +8,7 @@ import type {
   ChangeSetPreviewResponse,
   ChangeSetAuditExportRecord,
   ChangeSetTimelineItem,
+  DesignChangeSet,
   DesignBriefRecord,
   DesignVariantRecord,
   ModuleAssetRecord,
@@ -40,6 +41,7 @@ type ConceptWorkbenchState = {
   variants: DesignVariantRecord[]
   brief: DesignBriefRecord | null
   pendingChange: PlannedChangeSetRecord | null
+  pendingReplacement: DesignChangeSet | null
   pendingPreview: ChangeSetPreviewResponse | null
   loading: boolean
   error: string | null
@@ -62,6 +64,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   variants: [],
   brief: null,
   pendingChange: null,
+  pendingReplacement: null,
   pendingPreview: null,
   loading: true,
   error: null,
@@ -123,6 +126,7 @@ export function useConceptWorkbench() {
         variants: variantResponse.items ?? [],
         brief: null,
         pendingChange: null,
+        pendingReplacement: null,
         pendingPreview: null,
         lastAuditExport: auditExportResponse.items?.[0] ?? null,
         timeline: timelineResponse.items ?? [],
@@ -167,6 +171,7 @@ export function useConceptWorkbench() {
           variants: [],
           brief: null,
           pendingChange: null,
+          pendingReplacement: null,
           pendingPreview: null,
           lastAuditExport: null,
           timeline: [],
@@ -222,6 +227,7 @@ export function useConceptWorkbench() {
         qualityRun: null,
         brief: null,
         pendingChange: null,
+        pendingReplacement: null,
         pendingPreview: null,
         loading: false,
         statusMessage: graphRecord
@@ -266,8 +272,16 @@ export function useConceptWorkbench() {
         },
         assumptions: ['非功能性概念模型，不用于真实制造或使用'],
       })
+      const initialized = await forgeApi.initializeConceptWorkbench(
+        created.project_id,
+        `desktop-initialize-workbench-${Date.now().toString(36)}`,
+      )
       const projects = (await forgeApi.listConceptProjects()).items ?? []
-      await loadProject(created.project_id, created.current_version_id ?? undefined, projects)
+      await loadProject(
+        initialized.project_id,
+        initialized.current_version_id ?? undefined,
+        projects,
+      )
     } catch (caught) {
       setState((current) => ({
         ...current,
@@ -277,6 +291,38 @@ export function useConceptWorkbench() {
       }))
     }
   }, [loadProject])
+
+  const initializeCurrentProject = useCallback(async () => {
+    const project = state.project
+    if (!project) return null
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在安装内置 Module Pack 并创建首个 ModuleGraph…',
+    }))
+    try {
+      const initialized = await forgeApi.initializeConceptWorkbench(
+        project.project_id,
+        `desktop-initialize-workbench-${Date.now().toString(36)}`,
+      )
+      const projects = (await forgeApi.listConceptProjects()).items ?? []
+      await loadProject(
+        initialized.project_id,
+        initialized.current_version_id ?? undefined,
+        projects,
+      )
+      return initialized
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '内置 Module Pack 或初始 ModuleGraph 创建失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.project])
 
   const createExport = useCallback(async () => {
     if (!state.version?.module_graph_id) {
@@ -322,13 +368,18 @@ export function useConceptWorkbench() {
   }, [state.version])
 
   const planBrief = useCallback(async (sourceText: string) => {
-    const project = state.project
-    if (!project || !state.version?.module_graph_id) {
+    let project = state.project
+    if (!project) {
       setState((current) => ({
         ...current,
-        error: '必须先加载带有效 ModuleGraph 的 Concept Project。',
+        error: '请先创建或选择一个 Concept Project。',
       }))
       return null
+    }
+    if (!state.version?.module_graph_id) {
+      const initialized = await initializeCurrentProject()
+      if (!initialized) return null
+      project = initialized
     }
     const suffix = Date.now().toString(36)
     setState((current) => ({
@@ -370,7 +421,7 @@ export function useConceptWorkbench() {
       }))
       return null
     }
-  }, [state.project, state.version])
+  }, [initializeCurrentProject, state.project, state.version])
 
   const selectVariant = useCallback(async (variantId: string) => {
     const project = state.project
@@ -452,6 +503,7 @@ export function useConceptWorkbench() {
         ...current,
         loading: false,
         pendingChange: planned,
+        pendingReplacement: null,
         pendingPreview: preview,
         graphRecord: current.graphRecord
           ? {
@@ -469,6 +521,7 @@ export function useConceptWorkbench() {
         ...current,
         loading: false,
         pendingChange: null,
+        pendingReplacement: null,
         pendingPreview: null,
         error: errorMessage(caught),
         statusMessage: '自然语言 Change Planner 或 ghost preview 失败。',
@@ -586,7 +639,7 @@ export function useConceptWorkbench() {
     }
   }, [state.version])
 
-  const replaceModule = useCallback(async (nodeId: string, moduleId: string) => {
+  const previewModuleReplacement = useCallback(async (nodeId: string, moduleId: string) => {
     const project = state.project
     const version = state.version
     const graph = state.graphRecord?.graph
@@ -636,15 +689,55 @@ export function useConceptWorkbench() {
           status: 'proposed',
         },
       })
-      await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
-      const confirmed = await forgeApi.confirmChangeSet(
-        proposed.change_set_id,
-        `${clientRequestId}-confirm`,
-      )
+      const preview = await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingChange: null,
+        pendingReplacement: proposed,
+        pendingPreview: preview,
+        graphRecord: current.graphRecord
+          ? {
+              ...current.graphRecord,
+              graph: preview.preview_graph,
+              graph_sha256: `ghost-preview:${preview.preview_sha256}`,
+            }
+          : null,
+        statusMessage: `替换预览就绪：${node.module_id} → ${moduleId}；确认后才创建子版本。`,
+      }))
+      return preview
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingReplacement: null,
+        pendingPreview: null,
+        error: errorMessage(caught),
+        statusMessage: '模块替换预览失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.graphRecord, state.project, state.version])
+
+  const confirmModuleReplacement = useCallback(async () => {
+    const project = state.project
+    const replacement = state.pendingReplacement
+    if (!project || !replacement) return null
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在确认模块替换并创建不可变子版本…',
+    }))
+    try {
+      const confirmed = await forgeApi.confirmChangeSet(replacement.change_set_id, `desktop-replace-confirm-${suffix}`)
       const nextVersionId = confirmed.project.current_version_id ?? undefined
       await loadProject(project.project_id, nextVersionId)
       setState((current) => ({
         ...current,
+        pendingReplacement: null,
+        pendingPreview: null,
         statusMessage: `替换已确认并创建新版本：${nextVersionId ?? 'unknown'}。`,
       }))
       return confirmed
@@ -653,11 +746,37 @@ export function useConceptWorkbench() {
         ...current,
         loading: false,
         error: errorMessage(caught),
-        statusMessage: '模块替换 preview/confirm 失败。',
+        statusMessage: '模块替换确认失败；当前版本未被覆盖。',
       }))
       return null
     }
-  }, [loadProject, state.graphRecord, state.project, state.version])
+  }, [loadProject, state.pendingReplacement, state.project])
+
+  const discardModuleReplacement = useCallback(async () => {
+    const project = state.project
+    const version = state.version
+    const replacement = state.pendingReplacement
+    if (!project || !version || !replacement) return null
+    const suffix = Date.now().toString(36)
+    try {
+      await forgeApi.rejectChangeSet(replacement.change_set_id, `desktop-replace-reject-${suffix}`)
+      await loadProject(project.project_id, version.version_id)
+      setState((current) => ({
+        ...current,
+        pendingReplacement: null,
+        pendingPreview: null,
+        statusMessage: '已放弃模块替换预览；当前版本保持不变。',
+      }))
+      return true
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        error: errorMessage(caught),
+        statusMessage: '放弃模块替换预览失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.pendingReplacement, state.project, state.version])
 
   const setMirror = useCallback(async (
     nodeId: string,
@@ -840,6 +959,7 @@ export function useConceptWorkbench() {
     selectProject,
     selectVersion,
     createStarterProject,
+    initializeCurrentProject,
     createExport,
     planBrief,
     selectVariant,
@@ -847,7 +967,9 @@ export function useConceptWorkbench() {
     confirmPlannedChange,
     discardPlannedChange,
     runQualityInspection,
-    replaceModule,
+    previewModuleReplacement,
+    confirmModuleReplacement,
+    discardModuleReplacement,
     setMirror,
     searchTimeline,
     createChangeSetAuditExport,

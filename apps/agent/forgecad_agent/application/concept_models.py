@@ -46,6 +46,12 @@ class CreateConceptProjectRequest(StrictApiModel):
     )
 
 
+class InitializeConceptWorkbenchRequest(StrictApiModel):
+    """Idempotent request to install the bundled Pack and bind a starter graph."""
+
+    client_request_id: str = Field(min_length=1, max_length=120)
+
+
 class AppendConceptVersionRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     parent_version_id: str
@@ -99,6 +105,48 @@ class RegisterModuleAssetRequest(StrictApiModel):
     manifest: ModuleAssetManifest
     logical_path: str = Field(min_length=1, max_length=500)
     glb_data_base64: str = Field(min_length=1)
+    thumbnail_png_base64: Optional[str] = None
+    catalog_metadata: Optional["ModuleAssetCatalogMetadataInput"] = None
+
+
+OriginClaim = Literal["self_declared_original", "third_party", "unknown"]
+ModuleAssetReviewStatus = Literal["draft", "pending_review", "approved", "restricted"]
+
+
+class ModuleAssetCatalogMetadataInput(StrictApiModel):
+    """Human and review metadata kept separate from ModuleAssetManifest@1."""
+
+    display_name: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=500)
+    tags: List[str] = Field(default_factory=list, max_length=24)
+    catalog_path: str = Field(min_length=1, max_length=180)
+    origin_claim: OriginClaim = "unknown"
+    creator_name: str = Field(min_length=1, max_length=120)
+    review_status: ModuleAssetReviewStatus = "draft"
+    reviewer_name: Optional[str] = Field(default=None, max_length=120)
+    reviewed_at: Optional[str] = Field(default=None, max_length=64)
+    review_note: Optional[str] = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_review(self) -> "ModuleAssetCatalogMetadataInput":
+        normalized_tags = [tag.strip() for tag in self.tags if tag.strip()]
+        if len({tag.casefold() for tag in normalized_tags}) != len(normalized_tags):
+            raise ValueError("catalog tags must be unique")
+        self.tags = normalized_tags
+        if self.review_status == "approved":
+            if not self.reviewer_name or not self.reviewed_at:
+                raise ValueError("approved assets require reviewer_name and reviewed_at")
+            if self.reviewer_name.casefold() == self.creator_name.casefold():
+                raise ValueError("approved assets require an independent reviewer")
+        return self
+
+
+class ModuleAssetCatalogMetadata(ModuleAssetCatalogMetadataInput):
+    updated_at: str
+
+
+class UpdateModuleAssetCatalogMetadataRequest(ModuleAssetCatalogMetadataInput):
+    client_request_id: str = Field(min_length=1, max_length=120)
 
 
 class ModuleAssetRecord(StrictApiModel):
@@ -108,6 +156,7 @@ class ModuleAssetRecord(StrictApiModel):
     byte_size: int
     mime_type: str = "model/gltf-binary"
     created_at: str
+    catalog_metadata: ModuleAssetCatalogMetadata
 
 
 class ModuleAssetListResponse(StrictApiModel):

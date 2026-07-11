@@ -31,6 +31,8 @@ import type {
   ConceptVersionDetail,
   CreateConceptProjectRequest,
   ModuleAssetListResponse,
+  ModuleAssetRecord,
+  UpdateModuleAssetCatalogMetadataRequest,
   ModuleGraphRecord,
   DesignVariantListResponse,
   DesignVariantRecord,
@@ -107,20 +109,67 @@ export class ForgeApiClient {
     return readJson<ConceptProjectDetail>(response)
   }
 
+  async initializeConceptWorkbench(
+    projectId: string,
+    clientRequestId: string,
+  ): Promise<ConceptProjectDetail> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}:initialize-workbench`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': clientRequestId,
+        },
+        body: JSON.stringify({ client_request_id: clientRequestId }),
+      },
+    )
+    return readJson<ConceptProjectDetail>(response)
+  }
+
   async getConceptVersion(versionId: string): Promise<ConceptVersionDetail> {
     const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}`)
     return readJson<ConceptVersionDetail>(response)
   }
 
-  async listModuleAssets(packId?: string): Promise<ModuleAssetListResponse> {
+  async listModuleAssets(
+    packId?: string,
+    filters?: { query?: string; reviewStatus?: string; tag?: string; catalogPath?: string },
+  ): Promise<ModuleAssetListResponse> {
     const url = new URL(`${this.baseUrl}/api/v1/module-assets`)
     if (packId) url.searchParams.set('pack_id', packId)
+    if (filters?.query) url.searchParams.set('query', filters.query)
+    if (filters?.reviewStatus) url.searchParams.set('review_status', filters.reviewStatus)
+    if (filters?.tag) url.searchParams.set('tag', filters.tag)
+    if (filters?.catalogPath) url.searchParams.set('catalog_path', filters.catalogPath)
     const response = await fetch(url)
     return readJson<ModuleAssetListResponse>(response)
   }
 
+  async updateModuleAssetCatalogMetadata(
+    moduleId: string,
+    input: UpdateModuleAssetCatalogMetadataRequest,
+  ): Promise<ModuleAssetRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/module-assets/${encodeURIComponent(moduleId)}/catalog-metadata`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<ModuleAssetRecord>(response)
+  }
+
   getModuleAssetFileUrl(moduleId: string): string {
     return `${this.baseUrl}/api/v1/module-assets/${encodeURIComponent(moduleId)}/file`
+  }
+
+  getModuleAssetThumbnailUrl(moduleId: string): string {
+    return `${this.baseUrl}/api/v1/module-assets/${encodeURIComponent(moduleId)}/thumbnail`
   }
 
   async getModuleGraph(graphId: string): Promise<ModuleGraphRecord> {

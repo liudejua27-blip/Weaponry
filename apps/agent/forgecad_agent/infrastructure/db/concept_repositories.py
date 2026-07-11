@@ -355,15 +355,72 @@ class ModuleRepository:
             ),
         )
 
+    def upsert_catalog_metadata(
+        self,
+        *,
+        module_id: str,
+        display_name: str,
+        description: str,
+        tags_json: str,
+        catalog_path: str,
+        origin_claim: str,
+        creator_name: str,
+        review_status: str,
+        reviewer_name: Optional[str],
+        reviewed_at: Optional[str],
+        review_note: Optional[str],
+        updated_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO module_asset_catalog_metadata (
+              module_id, display_name, description, tags_json, catalog_path,
+              origin_claim, creator_name, review_status, reviewer_name,
+              reviewed_at, review_note, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(module_id) DO UPDATE SET
+              display_name = excluded.display_name,
+              description = excluded.description,
+              tags_json = excluded.tags_json,
+              catalog_path = excluded.catalog_path,
+              origin_claim = excluded.origin_claim,
+              creator_name = excluded.creator_name,
+              review_status = excluded.review_status,
+              reviewer_name = excluded.reviewer_name,
+              reviewed_at = excluded.reviewed_at,
+              review_note = excluded.review_note,
+              updated_at = excluded.updated_at
+            """,
+            (
+                module_id,
+                display_name,
+                description,
+                tags_json,
+                catalog_path,
+                origin_claim,
+                creator_name,
+                review_status,
+                reviewer_name,
+                reviewed_at,
+                review_note,
+                updated_at,
+            ),
+        )
+
     def get_manifest(self, module_id: str) -> Optional[sqlite3.Row]:
         return self.connection.execute(
             """
             SELECT ma.module_id, ma.pack_id, ma.category, ma.asset_id, ma.schema_version,
                    ma.manifest_json, ma.manifest_sha256, ma.status,
                    ca.logical_path, ca.object_path, ca.sha256, ca.byte_size, ca.mime_type,
-                   ma.created_at, ma.updated_at
+                   ma.created_at, ma.updated_at,
+                   md.display_name, md.description, md.tags_json, md.catalog_path,
+                   md.origin_claim, md.creator_name, md.review_status, md.reviewer_name,
+                   md.reviewed_at, md.review_note, md.updated_at AS metadata_updated_at
             FROM module_assets ma
             JOIN concept_assets ca ON ca.asset_id = ma.asset_id
+            JOIN module_asset_catalog_metadata md ON md.module_id = ma.module_id
             WHERE ma.module_id = ? AND ma.status = 'active' AND ca.soft_deleted_at IS NULL
             """,
             (module_id,),
@@ -374,6 +431,10 @@ class ModuleRepository:
         *,
         pack_id: Optional[str] = None,
         category: Optional[str] = None,
+        query: Optional[str] = None,
+        review_status: Optional[str] = None,
+        tag: Optional[str] = None,
+        catalog_path: Optional[str] = None,
         limit: int = 100,
     ) -> list[sqlite3.Row]:
         clauses = ["ma.status = 'active'", "ca.soft_deleted_at IS NULL"]
@@ -384,17 +445,37 @@ class ModuleRepository:
         if category:
             clauses.append("ma.category = ?")
             parameters.append(category)
+        if review_status:
+            clauses.append("md.review_status = ?")
+            parameters.append(review_status)
+        if catalog_path:
+            clauses.append("md.catalog_path = ? OR md.catalog_path LIKE ?")
+            parameters.extend([catalog_path, f"{catalog_path}/%"])
+        if tag:
+            clauses.append("lower(md.tags_json) LIKE ?")
+            parameters.append(f'%"{tag.casefold()}"%')
+        if query:
+            clauses.append(
+                "(lower(ma.module_id) LIKE ? OR lower(md.display_name) LIKE ? "
+                "OR lower(md.description) LIKE ? OR lower(md.tags_json) LIKE ?)"
+            )
+            query_value = f"%{query.casefold()}%"
+            parameters.extend([query_value, query_value, query_value, query_value])
         parameters.append(limit)
         return self.connection.execute(
             f"""
             SELECT ma.module_id, ma.pack_id, ma.category, ma.asset_id, ma.schema_version,
                    ma.manifest_json, ma.manifest_sha256, ma.status,
                    ca.logical_path, ca.object_path, ca.sha256, ca.byte_size, ca.mime_type,
-                   ma.created_at, ma.updated_at
+                   ma.created_at, ma.updated_at,
+                   md.display_name, md.description, md.tags_json, md.catalog_path,
+                   md.origin_claim, md.creator_name, md.review_status, md.reviewer_name,
+                   md.reviewed_at, md.review_note, md.updated_at AS metadata_updated_at
             FROM module_assets ma
             JOIN concept_assets ca ON ca.asset_id = ma.asset_id
+            JOIN module_asset_catalog_metadata md ON md.module_id = ma.module_id
             WHERE {' AND '.join(clauses)}
-            ORDER BY ma.category ASC, ma.module_id ASC
+            ORDER BY md.catalog_path ASC, md.display_name ASC, ma.module_id ASC
             LIMIT ?
             """,
             parameters,

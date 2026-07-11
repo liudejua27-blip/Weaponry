@@ -21,6 +21,7 @@ from forgecad_agent.application import (
     ConceptChangeSetAuditService,
     ConceptBriefService,
     ConceptModuleService,
+    ConceptWorkbenchBootstrapService,
     ConceptProjectService,
     ConceptQualityService,
     ConceptJobService,
@@ -43,8 +44,9 @@ def create_app() -> FastAPI:
     )
     store = SQLiteAssetStore.from_env()
     concept_planner = concept_planner_from_env()
-    concept_projects = ConceptProjectService(store.connection_factory)
     concept_modules = ConceptModuleService(store.connection_factory, store.object_store)
+    concept_projects = ConceptProjectService(store.connection_factory)
+    concept_bootstrap = ConceptWorkbenchBootstrapService(concept_projects, concept_modules)
     concept_change_sets = ConceptChangeSetService(
         store.connection_factory, concept_planner
     )
@@ -60,7 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(build_job_router(store))
     app.include_router(build_system_router(store))
     app.include_router(build_weapon_router(store))
-    app.include_router(build_concept_project_router(concept_projects))
+    app.include_router(build_concept_project_router(concept_projects, concept_bootstrap))
     app.include_router(build_module_router(concept_modules))
     app.include_router(build_change_set_router(concept_change_sets))
     app.include_router(build_quality_router(concept_quality))

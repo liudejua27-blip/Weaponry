@@ -162,6 +162,9 @@ def import_module_pack(pack: ValidatedModulePack, api_base_url: str) -> list[dic
             "manifest": module.manifest.model_dump(mode="json"),
             "logical_path": f"packs/{pack.manifest.pack_id}/{module.entry.glb_path}",
             "glb_data_base64": base64.b64encode(module.payload).decode("ascii"),
+            "thumbnail_png_base64": base64.b64encode(
+                (pack.root / module.entry.thumbnail_path).read_bytes()
+            ).decode("ascii"),
         }
         canonical = json.dumps(
             request_body,

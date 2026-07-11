@@ -5,6 +5,7 @@ import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
+type Graph = NonNullable<ModuleGraphRecord>['graph']
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
 let viewportRendererGeneration = 0
@@ -29,37 +30,38 @@ type ModuleGraphViewportProps = {
   onDropModule: (nodeId: string, moduleId: string) => void
 }
 
-export function ModuleGraphViewport({
-  graphRecord,
-  modules,
-  cameraView,
-  showGrid,
-  wireframe,
-  selectedNodeId,
-  hiddenNodeIds,
-  focusNodeId,
-  qualityHighlightNodeIds,
-  qualityGeometryRefs,
-  showConnectors,
-  explodeFactor,
-  ghostPreview,
-  getModuleFileUrl,
-  onSelectNode,
-  onDropModule,
-}: ModuleGraphViewportProps) {
+type ViewportRuntime = {
+  scene: THREE.Scene
+  camera: THREE.PerspectiveCamera
+  renderer: THREE.WebGLRenderer
+  controls: OrbitControls
+  grid: THREE.GridHelper
+  moduleRoot: THREE.Group
+  qualityRoot: THREE.Group
+  connectorGeometry: THREE.SphereGeometry
+  connectorMaterials: { exclusive: THREE.MeshBasicMaterial; shared: THREE.MeshBasicMaterial }
+  nodeObjects: Map<string, THREE.Group>
+  moduleCache: Map<string, Promise<THREE.Group>>
+  graph: Graph | null
+  modulesById: Map<string, ModuleAssetRecord>
+  scheduleRender: () => void
+}
+
+export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const runtimeRef = useRef<ViewportRuntime | null>(null)
+  const propsRef = useRef(props)
+  propsRef.current = props
   const [loadState, setLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>(
-    graphRecord ? 'loading' : 'empty',
+    props.graphRecord ? 'loading' : 'empty',
   )
   const [loadMessage, setLoadMessage] = useState('当前版本尚未绑定 ModuleGraph')
 
+  // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
+  // overlay and wireframe updates below never destroy the WebGL context.
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    const graph = graphRecord?.graph
-    setLoadState(graph ? 'loading' : 'empty')
-    setLoadMessage(graph ? '正在读取不可变 GLB 模块…' : '当前版本尚未绑定 ModuleGraph')
-
     const scene = new THREE.Scene()
     scene.background = new THREE.Color('#101823')
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
@@ -74,10 +76,9 @@ export function ModuleGraphViewport({
     host.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
+    controls.enableDamping = false
     controls.minDistance = 0.01
     controls.maxDistance = 100000
-
     scene.add(new THREE.HemisphereLight('#d9e7ff', '#17202a', 3.1))
     scene.add(new THREE.AmbientLight('#8aa2c4', 0.75))
     const keyLight = new THREE.DirectionalLight('#ffffff', 4.2)
@@ -87,180 +88,48 @@ export function ModuleGraphViewport({
     const rimLight = new THREE.DirectionalLight('#4895ff', 1.8)
     rimLight.position.set(-140, 80, -100)
     scene.add(rimLight)
-
     const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
-    grid.visible = showGrid
     scene.add(grid)
     scene.add(new THREE.AxesHelper(28))
     const moduleRoot = new THREE.Group()
     moduleRoot.name = 'ModuleGraphRoot'
     scene.add(moduleRoot)
-    const qualityOverlay = buildQualityOverlay(qualityGeometryRefs)
-    scene.add(qualityOverlay)
-
-    let disposed = false
-    const rootPosition = new THREE.Vector3(
-      ...(graph?.nodes.find((node) => node.node_id === graph.root_node_id)?.transform.position
-        ?? [0, 0, 0]) as [number, number, number],
-    )
-    const loadNode = (loader: GLTFLoader, node: NonNullable<typeof graph>['nodes'][number]) => new Promise<void>((resolve, reject) => {
-      loader.load(
-        getModuleFileUrl(node.module_id),
-        (gltf) => {
-          if (disposed) {
-            disposeObject(gltf.scene)
-            resolve()
-            return
-          }
-          const object = new THREE.Group()
-          const assetScene = gltf.scene
-          assetScene.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
-          object.add(assetScene)
-          const moduleRecord = modules.find(
-            (item) => item.manifest.module_id === node.module_id,
-          )
-          object.name = node.node_id
-          object.userData.nodeId = node.node_id
-          const [px = 0, py = 0, pz = 0] = node.transform.position
-          const [rx = 0, ry = 0, rz = 0] = node.transform.rotation
-          const [sx = 1, sy = 1, sz = 1] = node.transform.scale
-          const mirrorAxis = node.mirror_axis ?? 'none'
-          const mirrorScale = {
-            x: mirrorAxis === 'x' ? -1 : 1,
-            y: mirrorAxis === 'y' ? -1 : 1,
-            z: mirrorAxis === 'z' ? -1 : 1,
-          }
-          object.position.set(px, py, pz)
-          if (explodeFactor > 0 && node.node_id !== graph?.root_node_id) {
-            const direction = object.position.clone().sub(rootPosition)
-            if (direction.lengthSq() < 0.0001) {
-              const nodeIndex = graph?.nodes.findIndex((item) => item.node_id === node.node_id) ?? 1
-              direction.set(nodeIndex % 2 === 0 ? 1 : -1, nodeIndex % 3 === 0 ? 0.5 : 0, 0)
-            }
-            const extent = Math.max(...(moduleRecord?.manifest.bounds_mm ?? [50]))
-            object.position.add(direction.normalize().multiplyScalar(extent * explodeFactor))
-          }
-          object.rotation.set(rx, ry, rz)
-          object.scale.set(
-            sx * mirrorScale.x,
-            sy * mirrorScale.y,
-            sz * mirrorScale.z,
-          )
-          object.visible = node.visible !== false && !hiddenNodeIds.includes(node.node_id)
-          object.traverse((child) => {
-            child.userData.nodeId = node.node_id
-            if (!(child instanceof THREE.Mesh)) return
-            child.castShadow = true
-            child.receiveShadow = true
-            const sourceMaterials = Array.isArray(child.material) ? child.material : [child.material]
-            const materials = sourceMaterials.map((material) => {
-              const clone = material.clone()
-              if ('wireframe' in clone) clone.wireframe = wireframe
-              if (ghostPreview) {
-                clone.transparent = true
-                clone.opacity = 0.58
-                clone.depthWrite = false
-              }
-              if (clone instanceof THREE.MeshStandardMaterial || clone instanceof THREE.MeshPhysicalMaterial) {
-                const qualityHighlighted = qualityHighlightNodeIds.includes(node.node_id)
-                clone.emissive.set(
-                  qualityHighlighted
-                    ? '#b62424'
-                    : ghostPreview
-                    ? '#087ea8'
-                    : node.node_id === selectedNodeId
-                    ? '#1f64a8'
-                    : '#000000',
-                )
-                clone.emissiveIntensity = qualityHighlighted
-                  ? 0.72
-                  : ghostPreview
-                  ? 0.48
-                  : node.node_id === selectedNodeId
-                  ? 0.42
-                  : 0
-              }
-              return clone
-            })
-            child.material = Array.isArray(child.material) ? materials : materials[0]
-          })
-          if (showConnectors) {
-            const markerRadius = Math.max(
-              ...(moduleRecord?.manifest.bounds_mm ?? [10]),
-            ) * 0.035
-            for (const connector of moduleRecord?.manifest.connectors ?? []) {
-              const marker = new THREE.Mesh(
-                new THREE.SphereGeometry(Math.max(markerRadius, 0.5), 16, 12),
-                new THREE.MeshBasicMaterial({
-                  color: connector.exclusive === false ? '#f1b84b' : '#42c8ff',
-                  depthTest: false,
-                  transparent: true,
-                  opacity: 0.9,
-                }),
-              )
-              const [cx = 0, cy = 0, cz = 0] = connector.transform.position
-              marker.position.set(cx, cy, cz)
-              marker.name = connector.connector_id
-              marker.renderOrder = 10
-              marker.userData.nodeId = node.node_id
-              marker.userData.connectorId = connector.connector_id
-              object.add(marker)
-            }
-          }
-          moduleRoot.add(object)
-          resolve()
-        },
-        undefined,
-        reject,
-      )
-    })
-
-    if (graph) {
-      void import('three/examples/jsm/loaders/GLTFLoader.js')
-        .then(({ GLTFLoader }) => {
-          if (disposed) return undefined
-          const loader = new GLTFLoader()
-          return Promise.all(graph.nodes.map((node) => loadNode(loader, node)))
-        })
-        .then(() => {
-          if (disposed) return
-          const focusObjects = (
-            qualityHighlightNodeIds.length
-              ? qualityHighlightNodeIds
-              : focusNodeId
-              ? [focusNodeId]
-              : []
-          )
-            .map((nodeId) => moduleRoot.getObjectByName(nodeId))
-            .filter((item): item is THREE.Object3D => Boolean(item))
-          let bounds = focusObjects.length
-            ? focusObjects.reduce(
-                (combined, item) => combined.union(new THREE.Box3().setFromObject(item)),
-                new THREE.Box3(),
-              )
-            : new THREE.Box3().setFromObject(moduleRoot)
-          if (bounds.isEmpty() && focusObjects.length) bounds = new THREE.Box3().setFromObject(moduleRoot)
-          if (bounds.isEmpty()) {
-            setLoadState('failed')
-            setLoadMessage('ModuleGraph 已加载，但 GLB 中没有可显示网格')
-            frameCamera(camera, controls, cameraView, new THREE.Vector3(), 240)
-            return
-          }
-          const center = bounds.getCenter(new THREE.Vector3())
-          const size = bounds.getSize(new THREE.Vector3())
-          frameCamera(camera, controls, cameraView, center, Math.max(size.length(), 1))
-          setLoadState('ready')
-          setLoadMessage(`已加载 ${graph.nodes.length} 个真实 GLB 节点`)
-        })
-        .catch((caught) => {
-          if (disposed) return
-          setLoadState('failed')
-          setLoadMessage(caught instanceof Error ? caught.message : String(caught))
-          frameCamera(camera, controls, cameraView, new THREE.Vector3(), 240)
-        })
-    } else {
-      frameCamera(camera, controls, cameraView, new THREE.Vector3(), 240)
+    const qualityRoot = new THREE.Group()
+    qualityRoot.name = 'QualityGeometryOverlay'
+    scene.add(qualityRoot)
+    const connectorGeometry = new THREE.SphereGeometry(1, 16, 12)
+    const connectorMaterials = {
+      exclusive: new THREE.MeshBasicMaterial({ color: '#42c8ff', depthTest: false, transparent: true, opacity: 0.9 }),
+      shared: new THREE.MeshBasicMaterial({ color: '#f1b84b', depthTest: false, transparent: true, opacity: 0.9 }),
     }
+
+    let frame = 0
+    const render = () => {
+      frame = 0
+      renderer.render(scene, camera)
+      host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
+      host.dataset.rendererTextures = String(renderer.info.memory.textures)
+    }
+    const scheduleRender = () => {
+      if (!frame) frame = requestAnimationFrame(render)
+    }
+    const runtime: ViewportRuntime = {
+      scene,
+      camera,
+      renderer,
+      controls,
+      grid,
+      moduleRoot,
+      qualityRoot,
+      connectorGeometry,
+      connectorMaterials,
+      nodeObjects: new Map(),
+      moduleCache: new Map(),
+      graph: null,
+      modulesById: new Map(),
+      scheduleRender,
+    }
+    runtimeRef.current = runtime
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
@@ -275,12 +144,12 @@ export function ModuleGraphViewport({
     }
     const selectAtPointer = (event: PointerEvent) => {
       const nodeId = nodeAtClientPoint(event.clientX, event.clientY)
-      if (nodeId) onSelectNode(nodeId)
+      if (nodeId) propsRef.current.onSelectNode(nodeId)
     }
     const allowModuleDrop = (event: DragEvent) => {
       if (event.dataTransfer?.types.includes('application/x-forgecad-module-id')) {
         event.preventDefault()
-        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+        event.dataTransfer.dropEffect = 'copy'
       }
     }
     const dropModule = (event: DragEvent) => {
@@ -288,41 +157,38 @@ export function ModuleGraphViewport({
         || event.dataTransfer?.getData('text/plain')
       if (!moduleId) return
       event.preventDefault()
-      const nodeId = nodeAtClientPoint(event.clientX, event.clientY) ?? selectedNodeId
-      if (nodeId) onDropModule(nodeId, moduleId)
+      const nodeId = nodeAtClientPoint(event.clientX, event.clientY) ?? propsRef.current.selectedNodeId
+      if (nodeId) propsRef.current.onDropModule(nodeId, moduleId)
     }
     renderer.domElement.addEventListener('pointerdown', selectAtPointer)
     renderer.domElement.addEventListener('dragover', allowModuleDrop)
     renderer.domElement.addEventListener('drop', dropModule)
-
+    controls.addEventListener('change', scheduleRender)
     const resize = () => {
       const width = host.clientWidth
       const height = host.clientHeight
       renderer.setSize(width, height, false)
       camera.aspect = width / Math.max(height, 1)
       camera.updateProjectionMatrix()
+      scheduleRender()
     }
     const observer = new ResizeObserver(resize)
     observer.observe(host)
     resize()
 
-    let animationFrame = 0
-    const render = () => {
-      controls.update()
-      renderer.render(scene, camera)
-      host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
-      host.dataset.rendererTextures = String(renderer.info.memory.textures)
-      animationFrame = requestAnimationFrame(render)
-    }
-    render()
-
     return () => {
-      disposed = true
-      cancelAnimationFrame(animationFrame)
+      cancelAnimationFrame(frame)
       observer.disconnect()
+      controls.removeEventListener('change', scheduleRender)
       renderer.domElement.removeEventListener('pointerdown', selectAtPointer)
       renderer.domElement.removeEventListener('dragover', allowModuleDrop)
       renderer.domElement.removeEventListener('drop', dropModule)
+      clearNodeObjects(runtime)
+      runtime.moduleCache.forEach((source) => { void source.then(disposeObject) })
+      clearObjectChildren(qualityRoot)
+      connectorGeometry.dispose()
+      connectorMaterials.exclusive.dispose()
+      connectorMaterials.shared.dispose()
       controls.dispose()
       disposeObject(scene)
       renderer.dispose()
@@ -330,25 +196,85 @@ export function ModuleGraphViewport({
       activeViewportContexts = Math.max(0, activeViewportContexts - 1)
       host.dataset.activeWebglContexts = String(activeViewportContexts)
       renderer.domElement.remove()
+      runtimeRef.current = null
     }
+  }, [])
+
+  const graphHash = props.graphRecord?.graph_sha256 ?? ''
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    const graph = props.graphRecord?.graph ?? null
+    runtime.graph = graph
+    runtime.modulesById = new Map(props.modules.map((item) => [item.manifest.module_id, item]))
+    if (!graph) {
+      clearNodeObjects(runtime)
+      setLoadState('empty')
+      setLoadMessage('当前版本尚未绑定 ModuleGraph')
+      frameCamera(runtime.camera, runtime.controls, props.cameraView, new THREE.Vector3(), 240)
+      runtime.scheduleRender()
+      return
+    }
+
+    let cancelled = false
+    setLoadState('loading')
+    setLoadMessage('正在读取不可变 GLB 模块…')
+    reconcileNodeObjects(runtime, graph)
+    void import('three/examples/jsm/loaders/GLTFLoader.js')
+      .then(({ GLTFLoader }) => Promise.all(
+        graph.nodes
+          .filter((node) => !runtime.nodeObjects.has(node.node_id))
+          .map((node) => loadNode(runtime, GLTFLoader, node, props.getModuleFileUrl)),
+      ))
+      .then(() => {
+        if (cancelled) return
+        applyVisualState(runtime, propsRef.current)
+        frameVisibleObjects(runtime, propsRef.current)
+        setLoadState('ready')
+        setLoadMessage(`已加载 ${graph.nodes.length} 个真实 GLB 节点`)
+        runtime.scheduleRender()
+      })
+      .catch((caught) => {
+        if (cancelled) return
+        setLoadState('failed')
+        setLoadMessage(caught instanceof Error ? caught.message : String(caught))
+        frameCamera(runtime.camera, runtime.controls, propsRef.current.cameraView, new THREE.Vector3(), 240)
+        runtime.scheduleRender()
+      })
+    return () => { cancelled = true }
+  }, [graphHash, props.getModuleFileUrl, props.modules])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    applyVisualState(runtime, propsRef.current)
+    runtime.scheduleRender()
   }, [
-    cameraView,
-    explodeFactor,
-    focusNodeId,
-    getModuleFileUrl,
-    graphRecord,
-    ghostPreview,
-    hiddenNodeIds,
-    modules,
-    onSelectNode,
-    onDropModule,
-    selectedNodeId,
-    qualityGeometryRefs,
-    qualityHighlightNodeIds,
-    showConnectors,
-    showGrid,
-    wireframe,
+    props.explodeFactor,
+    props.ghostPreview,
+    props.hiddenNodeIds,
+    props.qualityHighlightNodeIds,
+    props.selectedNodeId,
+    props.showConnectors,
+    props.showGrid,
+    props.wireframe,
+    graphHash,
   ])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    clearObjectChildren(runtime.qualityRoot)
+    runtime.qualityRoot.add(buildQualityOverlay(props.qualityGeometryRefs))
+    runtime.scheduleRender()
+  }, [props.qualityGeometryRefs])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime || runtime.nodeObjects.size === 0) return
+    frameVisibleObjects(runtime, propsRef.current)
+    runtime.scheduleRender()
+  }, [props.cameraView, props.focusNodeId, props.qualityHighlightNodeIds, graphHash])
 
   return (
     <div className="weapon-viewport-shell">
@@ -357,10 +283,10 @@ export function ModuleGraphViewport({
         ref={hostRef}
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
-        data-preview-mode={ghostPreview ? 'ghost' : 'committed'}
-        data-focus-node-id={focusNodeId ?? ''}
-        data-quality-node-ids={qualityHighlightNodeIds.join(',')}
-        data-quality-triangle-count={qualityGeometryRefs.reduce(
+        data-preview-mode={props.ghostPreview ? 'ghost' : 'committed'}
+        data-focus-node-id={props.focusNodeId ?? ''}
+        data-quality-node-ids={props.qualityHighlightNodeIds.join(',')}
+        data-quality-triangle-count={props.qualityGeometryRefs.reduce(
           (count, reference) => count + (reference.world_triangles_mm?.length ?? 0),
           0,
         )}
@@ -375,52 +301,196 @@ export function ModuleGraphViewport({
   )
 }
 
-function buildQualityOverlay(
-  references: NonNullable<QualityFinding['geometry_refs']>,
-): THREE.Group {
+async function loadNode(
+  runtime: ViewportRuntime,
+  Loader: typeof GLTFLoader,
+  node: Graph['nodes'][number],
+  getModuleFileUrl: (moduleId: string) => string,
+) {
+  const source = await loadModuleSource(runtime, Loader, node.module_id, getModuleFileUrl(node.module_id))
+  const object = new THREE.Group()
+  object.name = node.node_id
+  object.userData.nodeId = node.node_id
+  object.userData.moduleId = node.module_id
+  const assetScene = source.clone(true)
+  assetScene.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
+  assetScene.traverse((child) => {
+    child.userData.nodeId = node.node_id
+    if (!(child instanceof THREE.Mesh)) return
+    child.castShadow = true
+    child.receiveShadow = true
+    const materials = (Array.isArray(child.material) ? child.material : [child.material]).map((item) => item.clone())
+    child.material = Array.isArray(child.material) ? materials : materials[0]
+  })
+  object.add(assetScene)
+  const moduleRecord = runtime.modulesById.get(node.module_id)
+  const markerRadius = Math.max(
+    Math.max(...(moduleRecord?.manifest.bounds_mm ?? [10])) * 0.035,
+    0.5,
+  )
+  for (const connector of moduleRecord?.manifest.connectors ?? []) {
+    const marker = new THREE.Mesh(
+      runtime.connectorGeometry,
+      connector.exclusive === false ? runtime.connectorMaterials.shared : runtime.connectorMaterials.exclusive,
+    )
+    marker.scale.setScalar(markerRadius)
+    const [cx = 0, cy = 0, cz = 0] = connector.transform.position
+    marker.position.set(cx, cy, cz)
+    marker.name = connector.connector_id
+    marker.renderOrder = 10
+    marker.userData.nodeId = node.node_id
+    marker.userData.forgecadConnectorMarker = true
+    object.add(marker)
+  }
+  runtime.nodeObjects.set(node.node_id, object)
+  runtime.moduleRoot.add(object)
+}
+
+function loadModuleSource(
+  runtime: ViewportRuntime,
+  Loader: typeof GLTFLoader,
+  moduleId: string,
+  url: string,
+): Promise<THREE.Group> {
+  const cached = runtime.moduleCache.get(moduleId)
+  if (cached) return cached
+  const source = new Promise<THREE.Group>((resolve, reject) => {
+    const loader = new Loader()
+    loader.load(url, (gltf) => resolve(gltf.scene), undefined, reject)
+  }).catch((error) => {
+    runtime.moduleCache.delete(moduleId)
+    throw error
+  })
+  runtime.moduleCache.set(moduleId, source)
+  return source
+}
+
+function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
+  runtime.grid.visible = props.showGrid
+  const graph = runtime.graph
+  if (!graph) return
+  const rootPosition = new THREE.Vector3(
+    ...(graph.nodes.find((node) => node.node_id === graph.root_node_id)?.transform.position ?? [0, 0, 0]) as [number, number, number],
+  )
+  graph.nodes.forEach((node, nodeIndex) => {
+    const object = runtime.nodeObjects.get(node.node_id)
+    if (!object) return
+    const [px = 0, py = 0, pz = 0] = node.transform.position
+    const [rx = 0, ry = 0, rz = 0] = node.transform.rotation
+    const [sx = 1, sy = 1, sz = 1] = node.transform.scale
+    const mirrorAxis = node.mirror_axis ?? 'none'
+    object.position.set(px, py, pz)
+    if (props.explodeFactor > 0 && node.node_id !== graph.root_node_id) {
+      const direction = object.position.clone().sub(rootPosition)
+      if (direction.lengthSq() < 0.0001) direction.set(nodeIndex % 2 === 0 ? 1 : -1, nodeIndex % 3 === 0 ? 0.5 : 0, 0)
+      const extent = Math.max(...(runtime.modulesById.get(node.module_id)?.manifest.bounds_mm ?? [50]))
+      object.position.add(direction.normalize().multiplyScalar(extent * props.explodeFactor))
+    }
+    object.rotation.set(rx, ry, rz)
+    object.scale.set(sx * (mirrorAxis === 'x' ? -1 : 1), sy * (mirrorAxis === 'y' ? -1 : 1), sz * (mirrorAxis === 'z' ? -1 : 1))
+    object.visible = node.visible !== false && !props.hiddenNodeIds.includes(node.node_id)
+    object.traverse((child) => {
+      if (child.userData.forgecadConnectorMarker) {
+        child.visible = props.showConnectors
+        return
+      }
+      if (!(child instanceof THREE.Mesh)) return
+      const materials = Array.isArray(child.material) ? child.material : [child.material]
+      materials.forEach((material) => {
+        if ('wireframe' in material) material.wireframe = props.wireframe
+        if ('transparent' in material) {
+          material.transparent = props.ghostPreview
+          material.opacity = props.ghostPreview ? 0.58 : 1
+          material.depthWrite = !props.ghostPreview
+        }
+        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+          const quality = props.qualityHighlightNodeIds.includes(node.node_id)
+          material.emissive.set(quality ? '#b62424' : props.ghostPreview ? '#087ea8' : node.node_id === props.selectedNodeId ? '#1f64a8' : '#000000')
+          material.emissiveIntensity = quality ? 0.72 : props.ghostPreview ? 0.48 : node.node_id === props.selectedNodeId ? 0.42 : 0
+        }
+      })
+    })
+  })
+}
+
+function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
+  const targets = (props.qualityHighlightNodeIds.length ? props.qualityHighlightNodeIds : props.focusNodeId ? [props.focusNodeId] : [])
+    .map((nodeId) => runtime.nodeObjects.get(nodeId))
+    .filter((item): item is THREE.Group => item !== undefined)
+  let bounds = targets.length
+    ? targets.reduce((combined, item) => combined.union(new THREE.Box3().setFromObject(item)), new THREE.Box3())
+    : new THREE.Box3().setFromObject(runtime.moduleRoot)
+  if (bounds.isEmpty() && targets.length) bounds = new THREE.Box3().setFromObject(runtime.moduleRoot)
+  if (bounds.isEmpty()) {
+    frameCamera(runtime.camera, runtime.controls, props.cameraView, new THREE.Vector3(), 240)
+    return
+  }
+  const center = bounds.getCenter(new THREE.Vector3())
+  const size = bounds.getSize(new THREE.Vector3())
+  frameCamera(runtime.camera, runtime.controls, props.cameraView, center, Math.max(size.length(), 1))
+}
+
+function buildQualityOverlay(references: NonNullable<QualityFinding['geometry_refs']>): THREE.Group {
   const group = new THREE.Group()
-  group.name = 'QualityGeometryOverlay'
   references.forEach((reference, referenceIndex) => {
     const positions: number[] = []
     for (const triangle of reference.world_triangles_mm ?? []) {
       if (triangle.length !== 3 || triangle.some((point) => point.length !== 3)) continue
       const [first, second, third] = triangle
-      positions.push(
-        ...first, ...second,
-        ...second, ...third,
-        ...third, ...first,
-      )
+      positions.push(...first, ...second, ...second, ...third, ...third, ...first)
     }
     if (!positions.length) return
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-    const material = new THREE.LineBasicMaterial({
-      color: referenceIndex % 2 === 0 ? '#ff4d4d' : '#ffb347',
-      depthTest: false,
-      transparent: true,
-      opacity: 0.98,
-    })
+    const material = new THREE.LineBasicMaterial({ color: referenceIndex % 2 === 0 ? '#ff4d4d' : '#ffb347', depthTest: false, transparent: true, opacity: 0.98 })
     const lines = new THREE.LineSegments(geometry, material)
-    lines.name = `QualityTriangles_${reference.node_id}`
     lines.renderOrder = 30
     group.add(lines)
   })
   return group
 }
 
-function frameCamera(
-  camera: THREE.PerspectiveCamera,
-  controls: OrbitControls,
-  view: CameraView,
-  center: THREE.Vector3,
-  size: number,
-) {
+function clearNodeObjects(runtime: ViewportRuntime) {
+  runtime.nodeObjects.forEach((object) => {
+    runtime.moduleRoot.remove(object)
+    disposeNodeInstance(object)
+  })
+  runtime.nodeObjects.clear()
+}
+
+function reconcileNodeObjects(runtime: ViewportRuntime, graph: Graph) {
+  const expectedModules = new Map(graph.nodes.map((node) => [node.node_id, node.module_id]))
+  runtime.nodeObjects.forEach((object, nodeId) => {
+    if (expectedModules.get(nodeId) === object.userData.moduleId) return
+    runtime.moduleRoot.remove(object)
+    disposeNodeInstance(object)
+    runtime.nodeObjects.delete(nodeId)
+  })
+}
+
+function clearObjectChildren(root: THREE.Object3D) {
+  for (const child of [...root.children]) {
+    root.remove(child)
+    disposeObject(child)
+  }
+}
+
+function disposeNodeInstance(root: THREE.Object3D) {
+  const materials = new Set<THREE.Material>()
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      if (object.userData.forgecadConnectorMarker) return
+      const values = Array.isArray(object.material) ? object.material : [object.material]
+      values.forEach((item) => materials.add(item))
+    }
+  })
+  materials.forEach((material) => material.dispose())
+}
+
+function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, view: CameraView, center: THREE.Vector3, size: number) {
   const distance = Math.max(size * 1.45, 1)
   const direction: Record<CameraView, THREE.Vector3> = {
-    iso: new THREE.Vector3(0.58, 0.48, 1),
-    front: new THREE.Vector3(0, 0.08, 1),
-    top: new THREE.Vector3(0, 1, 0.001),
-    right: new THREE.Vector3(1, 0.08, 0),
+    iso: new THREE.Vector3(0.58, 0.48, 1), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }
   camera.position.copy(center).add(direction[view].normalize().multiplyScalar(distance))
   camera.near = Math.max(distance / 1000, 0.001)
@@ -440,9 +510,7 @@ function disposeObject(root: THREE.Object3D) {
     const materials = Array.isArray(object.material) ? object.material : [object.material]
     materials.forEach((material) => {
       if (!material) return
-      Object.values(material).forEach((value) => {
-        if (value instanceof THREE.Texture) textures.add(value)
-      })
+      Object.values(material).forEach((value) => { if (value instanceof THREE.Texture) textures.add(value) })
       material.dispose()
     })
     if (object instanceof THREE.SkinnedMesh) object.skeleton.dispose()

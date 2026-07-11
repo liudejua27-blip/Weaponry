@@ -50,6 +50,8 @@
     "agent:r4-evaluation-live": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/evaluate_r4_planner_truth_set.py --provider configured_provider --confirm-live-provider --require-thresholds",
     "agent:r2-exports-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r2_exports.py",
     "agent:r3-module-pack-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r3_module_pack_tooling.py",
+    "agent:r3-first-run-workbench-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_r3_first_run_workbench.py",
+    "agent:r3-asset-catalog-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_r3_asset_catalog.py",
     "agent:r3-connector-snap-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_r3_connector_snap.py",
     "agent:r3-change-set-audit-export-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_r3_change_set_audit_export.py",
     "agent:r3-library-backup-restore-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_library_backup_restore.py",

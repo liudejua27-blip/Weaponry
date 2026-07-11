@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   ArrowsClockwise,
   ArrowsLeftRight,
   ArrowsOutCardinal,
   CaretDown,
+  CaretUp,
   ChartLineUp,
   ChatCircleDots,
   Check,
@@ -25,6 +26,7 @@ import {
   Plus,
   Ruler,
   SelectionAll,
+  Star,
   ShareNetwork,
   SlidersHorizontal,
   Sparkle,
@@ -58,6 +60,9 @@ type WeaponParameters = {
 
 type ModuleCategory = ModuleAssetRecord['manifest']['category']
 type ComponentCategory = 'all' | ModuleCategory
+type ComponentFilter = ComponentCategory | 'installed' | 'compatible' | 'favorites' | 'recent'
+type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'restricted'
+type QualityStatus = 'passed' | 'warning' | 'failed' | 'unavailable'
 
 const MODULE_CATEGORY_LABELS: Record<ModuleCategory, string> = {
   core_shell: '核心外壳',
@@ -71,20 +76,50 @@ const MODULE_CATEGORY_LABELS: Record<ModuleCategory, string> = {
   armor_panel: '装甲面板',
 }
 
-const COMPONENT_CATEGORIES: Array<{ id: ComponentCategory; label: string }> = [
-  { id: 'all', label: '全部' },
+const COMPONENT_CATEGORIES: Array<{ id: ComponentFilter; label: string }> = [
+  { id: 'all', label: '全部组件' },
+  { id: 'installed', label: '当前装配' },
+  { id: 'compatible', label: '可替换' },
+  { id: 'favorites', label: '收藏' },
+  { id: 'recent', label: '最近使用' },
   ...Object.entries(MODULE_CATEGORY_LABELS).map(([id, label]) => ({
     id: id as ModuleCategory,
     label,
   })),
 ]
 
-const TOOL_ITEMS: Array<{ id: Tool; label: string; icon: typeof CursorClick }> = [
-  { id: 'select', label: '选择', icon: CursorClick },
-  { id: 'move', label: '移动', icon: ArrowsOutCardinal },
-  { id: 'orbit', label: '旋转视图', icon: ArrowsClockwise },
-  { id: 'measure', label: '测量', icon: Ruler },
-  { id: 'section', label: '截面', icon: SelectionAll },
+const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  draft: '草稿',
+  pending_review: '待审',
+  approved: '已批准',
+  restricted: '受限',
+}
+
+const ORIGIN_CLAIM_LABELS = {
+  self_declared_original: '本人原创声明',
+  third_party: '第三方来源',
+  unknown: '来源待补充',
+} as const
+
+const QUALITY_STATUS_LABELS: Record<QualityStatus, string> = {
+  passed: '通过',
+  warning: '警告',
+  failed: '失败',
+  unavailable: '未检查',
+}
+
+const TOOL_ITEMS: Array<{
+  id: Tool
+  label: string
+  icon: typeof CursorClick
+  implemented: boolean
+  unavailableReason?: string
+}> = [
+  { id: 'select', label: '选择', icon: CursorClick, implemented: true },
+  { id: 'move', label: '移动', icon: ArrowsOutCardinal, implemented: false, unavailableReason: 'TransformControls 与可确认 ChangeSet 正在接入。' },
+  { id: 'orbit', label: '旋转视图', icon: ArrowsClockwise, implemented: true },
+  { id: 'measure', label: '测量', icon: Ruler, implemented: false, unavailableReason: '点到点与角度测量尚未实现，避免显示为可用能力。' },
+  { id: 'section', label: '截面', icon: SelectionAll, implemented: false, unavailableReason: '裁切平面尚未实现，避免显示为可用能力。' },
 ]
 
 export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
@@ -106,8 +141,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   >([])
   const [showConnectors, setShowConnectors] = useState(false)
   const [explodeFactor, setExplodeFactor] = useState(0)
-  const [componentCategory, setComponentCategory] = useState<ComponentCategory>('all')
+  const [componentCategory, setComponentCategory] = useState<ComponentFilter>('all')
   const [componentQuery, setComponentQuery] = useState('')
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>('')
+  const [drawerExpanded, setDrawerExpanded] = useState(false)
+  const [drawerHeight, setDrawerHeight] = useState(368)
+  const [favoriteModuleIds, setFavoriteModuleIds] = useState<string[]>([])
+  const [recentModuleIds, setRecentModuleIds] = useState<string[]>([])
+  const [thumbnailFailures, setThumbnailFailures] = useState<Set<string>>(() => new Set())
   const [timelineQuery, setTimelineQuery] = useState('')
   const [timelineStatus, setTimelineStatus] = useState<ChangeSetTimelineFilters['status']>('')
   const [timelineOperation, setTimelineOperation] = useState<
@@ -181,22 +222,31 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     setHiddenNodeIds((current) => current.filter((nodeId) => nodes.some((node) => node.node_id === nodeId)))
   }, [concept.graphRecord])
 
-  const visibleComponents = useMemo(() => {
-    const query = componentQuery.trim().toLowerCase()
-    const categoryItems = componentCategory === 'all'
-      ? concept.modules
-      : concept.modules.filter((component) => component.manifest.category === componentCategory)
-    if (!query) return categoryItems
-    return categoryItems.filter((component) => (
-      component.manifest.module_id.toLowerCase().includes(query)
-      || MODULE_CATEGORY_LABELS[component.manifest.category].toLowerCase().includes(query)
-    ))
-  }, [componentCategory, componentQuery, concept.modules])
+  const catalogPreferenceKey = concept.project
+    ? `forgecad.component-library.preferences.v1.${concept.project.profile.pack_id}`
+    : null
 
-  const getModuleFileUrl = useCallback(
-    (moduleId: string) => forgeApi.getModuleAssetFileUrl(moduleId),
-    [],
-  )
+  useEffect(() => {
+    if (!catalogPreferenceKey) return
+    try {
+      const stored = window.localStorage.getItem(catalogPreferenceKey)
+      const parsed = stored ? JSON.parse(stored) : null
+      setFavoriteModuleIds(Array.isArray(parsed?.favorites) ? parsed.favorites : [])
+      setRecentModuleIds(Array.isArray(parsed?.recent) ? parsed.recent : [])
+    } catch {
+      setFavoriteModuleIds([])
+      setRecentModuleIds([])
+    }
+  }, [catalogPreferenceKey])
+
+  useEffect(() => {
+    if (!catalogPreferenceKey) return
+    window.localStorage.setItem(catalogPreferenceKey, JSON.stringify({
+      favorites: favoriteModuleIds,
+      recent: recentModuleIds,
+    }))
+  }, [catalogPreferenceKey, favoriteModuleIds, recentModuleIds])
+
   const selectedNode = concept.graphRecord?.graph.nodes.find(
     (node) => node.node_id === selectedComponent,
   ) ?? null
@@ -206,12 +256,103 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const selectedLibraryModule = concept.modules.find(
     (module) => module.manifest.module_id === selectedLibraryModuleId,
   ) ?? null
+
+  const qualityByModuleId = useMemo(() => {
+    const result = new Map<string, QualityStatus>()
+    const nodes = concept.graphRecord?.graph.nodes ?? []
+    const report = concept.qualityRun?.report
+    if (!report || report.status === 'not_run') return result
+    for (const node of nodes) result.set(node.module_id, 'passed')
+    for (const finding of report.findings ?? []) {
+      const status: QualityStatus = finding.severity === 'error' ? 'failed' : 'warning'
+      for (const nodeId of finding.node_ids ?? []) {
+        const node = nodes.find((candidate) => candidate.node_id === nodeId)
+        if (!node) continue
+        const current = result.get(node.module_id)
+        if (status === 'failed' || current !== 'failed') result.set(node.module_id, status)
+      }
+    }
+    return result
+  }, [concept.graphRecord, concept.qualityRun])
+
+  const qualityStatusFor = useCallback(
+    (moduleId: string): QualityStatus => qualityByModuleId.get(moduleId) ?? 'unavailable',
+    [qualityByModuleId],
+  )
+
+  const visibleComponents = useMemo(() => {
+    const query = componentQuery.trim().toLowerCase()
+    const installedModuleIds = new Set(
+      (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
+    )
+    const selectedCategory = selectedModule?.manifest.category
+    const categoryItems = componentCategory === 'all'
+      ? concept.modules
+      : componentCategory === 'installed'
+      ? concept.modules.filter((component) => installedModuleIds.has(component.manifest.module_id))
+      : componentCategory === 'compatible'
+      ? concept.modules.filter((component) => (
+        selectedNode !== null
+        && !selectedNode.locked
+        && component.manifest.category === selectedCategory
+      ))
+      : componentCategory === 'favorites'
+      ? concept.modules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id))
+      : componentCategory === 'recent'
+      ? concept.modules.filter((component) => recentModuleIds.includes(component.manifest.module_id))
+      : concept.modules.filter((component) => component.manifest.category === componentCategory)
+    return categoryItems.filter((component) => {
+      const metadata = component.catalog_metadata
+      const haystack = [
+        component.manifest.module_id,
+        MODULE_CATEGORY_LABELS[component.manifest.category],
+        metadata.display_name,
+        metadata.description,
+        ...(metadata.tags ?? []),
+      ].join(' ').toLowerCase()
+      return (!query || haystack.includes(query))
+        && (!reviewStatusFilter || metadata.review_status === reviewStatusFilter)
+    })
+  }, [
+    componentCategory,
+    componentQuery,
+    concept.graphRecord,
+    concept.modules,
+    favoriteModuleIds,
+    recentModuleIds,
+    reviewStatusFilter,
+    selectedModule,
+    selectedNode,
+  ])
+
+  const componentFilterCounts = useMemo(() => {
+    const installedModuleIds = new Set(
+      (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
+    )
+    const compatibleCount = selectedNode && !selectedNode.locked && selectedModule
+      ? concept.modules.filter((component) => component.manifest.category === selectedModule.manifest.category).length
+      : 0
+    return {
+      all: concept.modules.length,
+      installed: installedModuleIds.size,
+      compatible: compatibleCount,
+      favorites: concept.modules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id)).length,
+      recent: concept.modules.filter((component) => recentModuleIds.includes(component.manifest.module_id)).length,
+    }
+  }, [concept.graphRecord, concept.modules, favoriteModuleIds, recentModuleIds, selectedModule, selectedNode])
+
+  const getModuleFileUrl = useCallback(
+    (moduleId: string) => forgeApi.getModuleAssetFileUrl(moduleId),
+    [],
+  )
   const canReplaceSelected = Boolean(
     selectedNode
     && selectedLibraryModule
     && !selectedNode.locked
     && selectedNode.module_id !== selectedLibraryModule.manifest.module_id
-    && selectedModule?.manifest.category === selectedLibraryModule.manifest.category,
+    && selectedModule?.manifest.category === selectedLibraryModule.manifest.category
+    && selectedLibraryModule.catalog_metadata.review_status !== 'restricted'
+    && qualityStatusFor(selectedLibraryModule.manifest.module_id) !== 'failed'
   )
   const activeVersionSummary = (concept.project?.versions ?? []).find(
     (item) => item.version_id === concept.version?.version_id,
@@ -226,6 +367,38 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     const node = concept.graphRecord?.graph.nodes.find((item) => item.node_id === nodeId)
     if (node) setSelectedLibraryModuleId(node.module_id)
   }, [concept.graphRecord])
+
+  const selectLibraryModule = useCallback((module: ModuleAssetRecord) => {
+    const moduleId = module.manifest.module_id
+    setSelectedLibraryModuleId(moduleId)
+    setRecentModuleIds((current) => [moduleId, ...current.filter((item) => item !== moduleId)].slice(0, 12))
+    setDrawerExpanded(true)
+    const graphNode = concept.graphRecord?.graph.nodes.find((node) => node.module_id === moduleId)
+    if (graphNode) setSelectedComponent(graphNode.node_id)
+  }, [concept.graphRecord])
+
+  const toggleLibraryFavorite = useCallback((moduleId: string) => {
+    setFavoriteModuleIds((current) => (
+      current.includes(moduleId)
+        ? current.filter((item) => item !== moduleId)
+        : [...current, moduleId]
+    ))
+  }, [])
+
+  const beginDrawerResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!drawerExpanded) return
+    const startY = event.clientY
+    const startHeight = drawerHeight
+    const onMove = (moveEvent: PointerEvent) => {
+      setDrawerHeight(Math.max(280, Math.min(520, startHeight + startY - moveEvent.clientY)))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [drawerExpanded, drawerHeight])
 
   const focusQualityFinding = useCallback((finding: QualityFinding) => {
     const validNodeIds = (finding.node_ids ?? []).filter((candidate) => (
@@ -274,7 +447,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
 
   const handleReplaceSelected = useCallback(() => {
     if (!selectedNode || !selectedLibraryModule) return
-    concept.replaceModule(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
+    concept.previewModuleReplacement(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
       .catch(() => undefined)
   }, [concept, selectedLibraryModule, selectedNode])
 
@@ -301,6 +474,30 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
 
   const updateParameter = (key: keyof WeaponParameters, value: number) => {
     setParameters((current) => ({ ...current, [key]: value }))
+  }
+
+  const previewParameterDraft = async () => {
+    const instruction = [
+      `整体长度调整为 ${parameters.overallLength} mm`,
+      `握持角度调整为 ${parameters.gripAngle} 度`,
+      `细节密度调整为 ${parameters.detailDensity}%`,
+    ].join('，')
+    setAssistantMode('change')
+    setAssistantNote(`正在将参数草稿转换为 ChangeSet：${instruction}`)
+    const result = await concept.planChange(instruction, {
+      selectedNodeId: selectedNode?.node_id,
+      selectedModuleId: selectedLibraryModule?.manifest.module_id,
+    })
+    if (!result) return
+    const previewSpec = result.preview.preview_spec
+    setParameters((current) => ({
+      ...current,
+      overallLength: previewSpec.proportions.overall_length_mm,
+      bodyHeight: previewSpec.proportions.body_height_mm,
+      gripAngle: previewSpec.proportions.grip_angle_deg,
+      detailDensity: Math.round(previewSpec.style.detail_density * 100),
+    }))
+    setAssistantNote('参数已生成 ghost preview；确认后会创建不可变新版本。')
   }
 
   const submitAssistantInstruction = async () => {
@@ -448,6 +645,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 </button>
               )}
             </div>
+            {concept.project && !concept.version?.module_graph_id && (
+              <button
+                className="empty-action"
+                onClick={() => concept.initializeCurrentProject()}
+                disabled={concept.loading}
+              >
+                <Cube size={14} /> 安装内置组件并初始化工作台
+              </button>
+            )}
           </section>
 
           <section className="cad-panel assistant-panel">
@@ -535,6 +741,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               value={parameters.frontShellLength}
               unit="mm"
               onChange={(value) => updateParameter('frontShellLength', value)}
+              disabled
+              title="当前 ModuleGraph 不提供前部程序化拉伸；请用模块替换或 ChangeSet 调整整体规格。"
             />
             <ParameterInput
               label="握把角度"
@@ -548,8 +756,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               unit="%"
               onChange={(value) => updateParameter('detailDensity', value)}
             />
-            <button className="primary-action" onClick={() => setAssistantNote('参数草稿已记录在本地 UI，尚未写入 Version；下一步通过 DesignChangeSet 预览与确认。')}>
-              记录参数草稿
+            <button className="primary-action" onClick={previewParameterDraft} disabled={concept.loading}>
+              生成参数 ChangeSet 预览
             </button>
           </section>
 
@@ -567,7 +775,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
           </div>
         </aside>
 
-        <main className="cad-center-stage">
+        <main
+          className="cad-center-stage"
+          style={{ gridTemplateRows: `minmax(0, 1fr) ${drawerExpanded ? drawerHeight : 162}px` }}
+        >
           <div className="viewport-shell">
             <div className="viewport-toolbar" aria-label="CAD 视口工具">
               {TOOL_ITEMS.map((tool) => (
@@ -576,6 +787,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   icon={tool.icon}
                   label={tool.label}
                   active={activeTool === tool.id}
+                  disabled={!tool.implemented}
+                  title={tool.unavailableReason}
                   onClick={() => setActiveTool(tool.id)}
                 />
               ))}
@@ -635,7 +848,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             </div>
           </div>
 
-          <section className="component-library">
+          <section className={`component-library ${drawerExpanded ? 'expanded' : ''}`}>
+            <div
+              className="component-library-resize-handle"
+              onPointerDown={beginDrawerResize}
+              aria-hidden="true"
+            />
             <div className="component-library-header">
               <nav className="drawer-tabs" aria-label="底部工作区">
                 {([
@@ -649,22 +867,46 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                   </button>
                 ))}
               </nav>
-              <div className="component-search">
-                <MagnifyingGlass size={15} />
-                <input
-                  value={drawerTab === 'timeline' ? timelineQuery : componentQuery}
-                  onChange={(event) => {
-                    if (drawerTab === 'timeline') setTimelineQuery(event.target.value)
-                    else setComponentQuery(event.target.value)
-                  }}
-                  onKeyDown={(event) => {
-                    if (drawerTab === 'timeline' && event.key === 'Enter') {
-                      applyTimelineFilters()
-                    }
-                  }}
-                  placeholder={drawerTab === 'timeline' ? '搜索 ChangeSet…' : '搜索组件…'}
-                />
-                <Funnel size={14} />
+              <div className="component-library-header-actions">
+                {drawerTab === 'components' && (
+                  <select
+                    className="component-status-filter"
+                    aria-label="组件审阅状态"
+                    value={reviewStatusFilter}
+                    onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
+                  >
+                    <option value="">全部状态</option>
+                    {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
+                      <option key={status} value={status}>{label}</option>
+                    ))}
+                  </select>
+                )}
+                <div className="component-search">
+                  <MagnifyingGlass size={15} />
+                  <input
+                    value={drawerTab === 'timeline' ? timelineQuery : componentQuery}
+                    onChange={(event) => {
+                      if (drawerTab === 'timeline') setTimelineQuery(event.target.value)
+                      else setComponentQuery(event.target.value)
+                    }}
+                    onKeyDown={(event) => {
+                      if (drawerTab === 'timeline' && event.key === 'Enter') {
+                        applyTimelineFilters()
+                      }
+                    }}
+                    placeholder={drawerTab === 'timeline' ? '搜索 ChangeSet…' : '搜索名称、描述或标签…'}
+                  />
+                  <Funnel size={14} />
+                </div>
+                <button
+                  type="button"
+                  className="component-drawer-toggle"
+                  onClick={() => setDrawerExpanded((current) => !current)}
+                  title={drawerExpanded ? '收起组件检视器' : '展开组件检视器'}
+                  aria-label={drawerExpanded ? '收起组件检视器' : '展开组件检视器'}
+                >
+                  {drawerExpanded ? <CaretDown size={15} /> : <CaretUp size={15} />}
+                </button>
               </div>
             </div>
             <div className="component-library-body">
@@ -677,23 +919,43 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                         className={componentCategory === category.id ? 'active' : ''}
                         onClick={() => setComponentCategory(category.id)}
                       >
-                        {category.label}
+                        <span>{category.label}</span>
+                        <small>{
+                          category.id === 'all'
+                            ? componentFilterCounts.all
+                            : category.id === 'installed'
+                            ? componentFilterCounts.installed
+                            : category.id === 'compatible'
+                            ? componentFilterCounts.compatible
+                            : category.id === 'favorites'
+                            ? componentFilterCounts.favorites
+                            : category.id === 'recent'
+                            ? componentFilterCounts.recent
+                            : concept.modules.filter((module) => module.manifest.category === category.id).length
+                        }</small>
                       </button>
                     ))}
                   </nav>
                   <div className="component-library-content">
                     <div className="module-replace-bar">
                       <span>节点：{selectedNode?.node_id ?? '未选择'}</span>
-                      <span>候选：{selectedLibraryModule?.manifest.module_id ?? '未选择'}</span>
+                      <span>候选：{selectedLibraryModule?.catalog_metadata.display_name ?? '未选择'}</span>
+                      <span className="component-result-count">显示 {visibleComponents.length} / {concept.modules.length}</span>
                       <button
                         onClick={handleReplaceSelected}
                         disabled={!canReplaceSelected || concept.loading}
-                        title={selectedNode?.locked ? '锁定节点不能替换' : '通过 ChangeSet preview/confirm 创建子版本'}
+                        title={selectedNode?.locked
+                          ? '锁定节点不能替换'
+                          : selectedLibraryModule?.catalog_metadata.review_status === 'restricted'
+                          ? '受限资产不能用于替换'
+                          : qualityStatusFor(selectedLibraryModule?.manifest.module_id ?? '') === 'failed'
+                          ? '质量检查失败的资产不能用于替换'
+                          : '通过 ChangeSet preview/confirm 创建子版本'}
                       >
-                        替换并创建新版本
+                        预览替换
                       </button>
                     </div>
-                    <div className="component-grid">
+            <div className="component-grid">
                       {visibleComponents.map((component) => {
                         const ComponentIcon = componentIconFor(component.manifest.category)
                         const graphNode = concept.graphRecord?.graph.nodes.find(
@@ -701,10 +963,20 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                         )
                         const isActiveNode = Boolean(graphNode && selectedComponent === graphNode.node_id)
                         const isCandidate = selectedLibraryModuleId === component.manifest.module_id
+                        const isInstalled = Boolean(graphNode)
+                        const compatible = Boolean(
+                          selectedNode
+                          && !selectedNode.locked
+                          && selectedModule?.manifest.category === component.manifest.category,
+                        )
+                        const metadata = component.catalog_metadata
+                        const reviewStatus = metadata.review_status as ReviewStatus
+                        const qualityStatus = qualityStatusFor(component.manifest.module_id)
+                        const thumbnailFailed = thumbnailFailures.has(component.manifest.module_id)
                         return (
                           <button
                             key={component.manifest.module_id}
-                            className={`${isActiveNode ? 'active' : ''} ${isCandidate ? 'candidate' : ''}`.trim()}
+                            className={`component-card ${isActiveNode ? 'active' : ''} ${isCandidate ? 'candidate' : ''}`.trim()}
                             draggable
                             onDragStart={(event) => {
                               event.dataTransfer.effectAllowed = 'copy'
@@ -712,13 +984,29 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                               event.dataTransfer.setData('text/plain', component.manifest.module_id)
                             }}
                             onClick={() => {
-                              setSelectedLibraryModuleId(component.manifest.module_id)
-                              if (graphNode) selectGraphNode(graphNode.node_id)
+                              selectLibraryModule(component)
                             }}
                           >
-                            <span className="component-visual"><ComponentIcon size={34} weight="duotone" /></span>
-                            <strong>{component.manifest.module_id}</strong>
-                            <small>{MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris</small>
+                            <span className="component-visual">
+                              {!thumbnailFailed && <img
+                                src={forgeApi.getModuleAssetThumbnailUrl(component.manifest.module_id)}
+                                alt={`${component.manifest.module_id} 模块缩略图`}
+                                onError={() => setThumbnailFailures((current) => new Set(current).add(component.manifest.module_id))}
+                              />}
+                              <span className="component-icon-fallback" hidden={!thumbnailFailed}>
+                                <ComponentIcon size={34} weight="duotone" />
+                              </span>
+                              <span className={`component-state ${reviewStatus}`}>
+                                {REVIEW_STATUS_LABELS[reviewStatus]}
+                              </span>
+                            </span>
+                            <strong>{metadata.display_name}</strong>
+                            <small>
+                              {MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris · {(component.manifest.connectors ?? []).length} 接口
+                            </small>
+                            <span className="component-card-activity">
+                              {isActiveNode ? '当前节点' : isCandidate ? '替换候选' : isInstalled ? '已装配' : compatible ? '可替换' : QUALITY_STATUS_LABELS[qualityStatus]}
+                            </span>
                           </button>
                         )
                       })}
@@ -730,6 +1018,80 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                       )}
                     </div>
                   </div>
+                  {drawerExpanded && selectedLibraryModule && (
+                    <aside className="component-inspector" data-testid="component-inspector">
+                      <div className="component-inspector-visual">
+                        {!thumbnailFailures.has(selectedLibraryModule.manifest.module_id) && (
+                          <img
+                            src={forgeApi.getModuleAssetThumbnailUrl(selectedLibraryModule.manifest.module_id)}
+                            alt={`${selectedLibraryModule.catalog_metadata.display_name} 预览`}
+                            onError={() => setThumbnailFailures((current) => new Set(current).add(selectedLibraryModule.manifest.module_id))}
+                          />
+                        )}
+                        <span>{selectedLibraryModule.catalog_metadata.catalog_path}</span>
+                      </div>
+                      <div className="component-inspector-heading">
+                        <div>
+                          <strong>{selectedLibraryModule.catalog_metadata.display_name}</strong>
+                          <span>{selectedLibraryModule.manifest.module_id}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={favoriteModuleIds.includes(selectedLibraryModule.manifest.module_id) ? 'active' : ''}
+                          onClick={() => toggleLibraryFavorite(selectedLibraryModule.manifest.module_id)}
+                          aria-label="切换组件收藏"
+                          title="切换组件收藏"
+                        >
+                          <Star size={16} weight={favoriteModuleIds.includes(selectedLibraryModule.manifest.module_id) ? 'fill' : 'regular'} />
+                        </button>
+                      </div>
+                      <p>{selectedLibraryModule.catalog_metadata.description}</p>
+                      <div className="component-inspector-statuses">
+                        <span className={`review-status ${selectedLibraryModule.catalog_metadata.review_status}`}>
+                          {REVIEW_STATUS_LABELS[selectedLibraryModule.catalog_metadata.review_status as ReviewStatus]}
+                        </span>
+                        <span className={`quality-status ${qualityStatusFor(selectedLibraryModule.manifest.module_id)}`}>
+                          质量：{QUALITY_STATUS_LABELS[qualityStatusFor(selectedLibraryModule.manifest.module_id)]}
+                        </span>
+                      </div>
+                      <dl className="component-spec-list">
+                        <div><dt>尺寸</dt><dd>{selectedLibraryModule.manifest.bounds_mm.map((value) => `${value} mm`).join(' × ')}</dd></div>
+                        <div><dt>几何</dt><dd>{selectedLibraryModule.manifest.triangle_count.toLocaleString()} tris · {selectedLibraryModule.manifest.material_slots.length} 材质槽</dd></div>
+                        <div><dt>连接器</dt><dd>{(selectedLibraryModule.manifest.connectors ?? []).length} 个 · {(selectedLibraryModule.manifest.connectors ?? []).map((item) => item.slot).join('、') || '无'}</dd></div>
+                        <div><dt>适配</dt><dd>{canReplaceSelected ? '可替换当前节点' : selectedNode?.locked ? '当前节点已锁定' : '选择同分类节点后验证'}</dd></div>
+                        <div><dt>来源</dt><dd>{ORIGIN_CLAIM_LABELS[selectedLibraryModule.catalog_metadata.origin_claim ?? 'unknown']}</dd></div>
+                        <div><dt>审阅</dt><dd>{selectedLibraryModule.catalog_metadata.reviewer_name ? `${selectedLibraryModule.catalog_metadata.reviewer_name} · ${selectedLibraryModule.catalog_metadata.reviewed_at ?? '时间待补充'}` : '等待独立审阅'}</dd></div>
+                      </dl>
+                      {(selectedLibraryModule.catalog_metadata.tags ?? []).length > 0 && (
+                        <div className="component-tags">
+                          {(selectedLibraryModule.catalog_metadata.tags ?? []).map((tag) => <span key={tag}>#{tag}</span>)}
+                        </div>
+                      )}
+                      <div className="component-inspector-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const node = concept.graphRecord?.graph.nodes.find((item) => item.module_id === selectedLibraryModule.manifest.module_id)
+                            if (node) selectGraphNode(node.node_id)
+                            else setAssistantNote('候选资产已选中；主视图只显示已确认版本，替换会先创建 ChangeSet 预览。')
+                          }}
+                        >{concept.graphRecord?.graph.nodes.some((item) => item.module_id === selectedLibraryModule.manifest.module_id) ? '定位主视图' : '设置替换候选'}</button>
+                        <button
+                          type="button"
+                          className="primary"
+                          disabled={!canReplaceSelected || concept.loading}
+                          onClick={handleReplaceSelected}
+                        >预览替换</button>
+                      </div>
+                      {concept.pendingReplacement && (
+                        <div className="component-replacement-preview" data-testid="component-replacement-preview">
+                          <span>幽灵预览已就绪，当前版本尚未改动。</span>
+                          <button type="button" onClick={() => concept.discardModuleReplacement()} disabled={concept.loading}>放弃</button>
+                          <button type="button" className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading}>确认并创建新版本</button>
+                        </div>
+                      )}
+                    </aside>
+                  )}
                 </>
               ) : (
                 <div className={`drawer-placeholder${drawerTab === 'timeline' ? ' timeline-drawer' : ''}`}>
@@ -1112,14 +1474,24 @@ function IconButton({
   label,
   active = false,
   onClick,
+  disabled = false,
+  title,
 }: {
   icon: typeof CursorClick
   label: string
   active?: boolean
   onClick?: () => void
+  disabled?: boolean
+  title?: string
 }) {
   return (
-    <button className={active ? 'active' : ''} onClick={onClick} title={label} aria-label={label}>
+    <button
+      className={active ? 'active' : ''}
+      onClick={onClick}
+      disabled={disabled}
+      title={title ?? label}
+      aria-label={label}
+    >
       <Icon size={17} />
     </button>
   )
@@ -1130,16 +1502,25 @@ function ParameterInput({
   value,
   unit,
   onChange,
+  disabled = false,
+  title,
 }: {
   label: string
   value: number
   unit: string
   onChange: (value: number) => void
+  disabled?: boolean
+  title?: string
 }) {
   return (
-    <label className="parameter-row">
+    <label className="parameter-row" title={title}>
       <span>{label}</span>
-      <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input
+        type="number"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
       <small>{unit}</small>
     </label>
   )

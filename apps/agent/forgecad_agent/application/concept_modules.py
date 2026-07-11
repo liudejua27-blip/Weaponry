@@ -9,12 +9,15 @@ from pathlib import PurePosixPath
 from typing import Any, Optional
 
 from forgecad_agent.application.concept_models import (
+    ModuleAssetCatalogMetadata,
+    ModuleAssetCatalogMetadataInput,
     ModuleAssetListResponse,
     ModuleAssetRecord,
     ModuleGraphRecord,
     ModuleGraphValidationIssue,
     ModuleGraphValidationResponse,
     RegisterModuleAssetRequest,
+    UpdateModuleAssetCatalogMetadataRequest,
     ValidateModuleGraphRequest,
 )
 from forgecad_agent.application.concept_jobs import record_completed_job
@@ -108,6 +111,31 @@ class ConceptModuleService:
                 manifest_sha256=hashlib.sha256(manifest_json.encode("utf-8")).hexdigest(),
                 created_at=now,
             )
+            if request.thumbnail_png_base64:
+                thumbnail = _decode_png(request.thumbnail_png_base64)
+                thumbnail_stored = self.object_store.put(thumbnail, extension=".png")
+                unit_of_work.concept_assets.add(
+                    asset_id=_thumbnail_asset_id(request.manifest.asset_id),
+                    project_id=None,
+                    version_id=None,
+                    role="other",
+                    logical_path=(
+                        f"packs/{request.manifest.pack_id}/"
+                        f"{request.manifest.module_id}/thumbnail.png"
+                    ),
+                    object_path=thumbnail_stored.relative_path,
+                    sha256=thumbnail_stored.sha256,
+                    byte_size=thumbnail_stored.byte_size,
+                    mime_type="image/png",
+                    metadata_json=_canonical_json(
+                        {
+                            "module_id": request.manifest.module_id,
+                            "kind": "module_thumbnail",
+                            "pack_id": request.manifest.pack_id,
+                        }
+                    ),
+                    created_at=now,
+                )
             for connector in request.manifest.connectors:
                 unit_of_work.modules.add_connector(
                     connector_id=connector.connector_id,
@@ -120,12 +148,20 @@ class ConceptModuleService:
                     exclusive=connector.exclusive,
                     created_at=now,
                 )
+            catalog_metadata = request.catalog_metadata or _default_catalog_metadata(
+                request.manifest,
+            )
+            unit_of_work.modules.upsert_catalog_metadata(
+                module_id=request.manifest.module_id,
+                **_catalog_metadata_values(catalog_metadata, updated_at=now),
+            )
             response = ModuleAssetRecord(
                 manifest=request.manifest,
                 logical_path=logical_path,
                 object_path=stored.relative_path,
                 byte_size=stored.byte_size,
                 created_at=now,
+                catalog_metadata=_catalog_metadata_record(catalog_metadata, updated_at=now),
             )
             unit_of_work.idempotency.add(
                 scope=scope,
@@ -141,11 +177,19 @@ class ConceptModuleService:
         *,
         pack_id: Optional[str] = None,
         category: Optional[ModuleCategory] = None,
+        query: Optional[str] = None,
+        review_status: Optional[str] = None,
+        tag: Optional[str] = None,
+        catalog_path: Optional[str] = None,
     ) -> ModuleAssetListResponse:
         with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
             rows = unit_of_work.modules.list_manifests(
                 pack_id=pack_id,
                 category=category,
+                query=query,
+                review_status=review_status,
+                tag=tag,
+                catalog_path=catalog_path,
             )
             items = [_module_record(row) for row in rows]
         return ModuleAssetListResponse(
@@ -154,6 +198,46 @@ class ConceptModuleService:
             category=category,
             next_cursor=None,
         )
+
+    def update_catalog_metadata(
+        self,
+        module_id: str,
+        request: UpdateModuleAssetCatalogMetadataRequest,
+        idempotency_key: str,
+    ) -> ModuleAssetRecord:
+        scope = f"PUT /api/v1/module-assets/{module_id}/catalog-metadata"
+        request_hash = _hash_json(request.model_dump(mode="json"))
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            existing = unit_of_work.idempotency.get(scope, idempotency_key)
+            if existing is not None:
+                if existing.request_hash != request_hash:
+                    raise ConceptModuleIdempotencyConflict(
+                        "Idempotency-Key was reused with a different request body."
+                    )
+                return ModuleAssetRecord.model_validate_json(existing.response_json)
+            row = unit_of_work.modules.get_manifest(module_id)
+            if row is None:
+                raise ConceptModuleError("MODULE_NOT_FOUND", f"Module is not registered: {module_id}")
+            now = _utc_now()
+            metadata = ModuleAssetCatalogMetadataInput.model_validate(
+                request.model_dump(exclude={"client_request_id"})
+            )
+            unit_of_work.modules.upsert_catalog_metadata(
+                module_id=module_id,
+                **_catalog_metadata_values(metadata, updated_at=now),
+            )
+            refreshed = unit_of_work.modules.get_manifest(module_id)
+            if refreshed is None:
+                raise ConceptModuleError("MODULE_NOT_FOUND", f"Module is not registered: {module_id}")
+            response = _module_record(refreshed)
+            unit_of_work.idempotency.add(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_json=_canonical_json(response.model_dump(mode="json")),
+                created_at=now,
+            )
+            return response
 
     def validate_graph(
         self,
@@ -319,6 +403,58 @@ class ConceptModuleService:
                 ) from exc
             return payload, f"{module_id}.glb", str(row["sha256"])
 
+    def ensure_module_thumbnail(self, module_id: str, png_payload: bytes) -> bool:
+        """Persist a Pack thumbnail for legacy module registrations when absent."""
+
+        _validate_png(png_payload)
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            row = unit_of_work.modules.get_manifest(module_id)
+            if row is None:
+                raise ConceptModuleError("MODULE_NOT_FOUND", "Module asset not found.")
+            asset_id = _thumbnail_asset_id(str(row["asset_id"]))
+            if unit_of_work.concept_assets.get_active(asset_id) is not None:
+                return False
+            stored = self.object_store.put(png_payload, extension=".png")
+            unit_of_work.concept_assets.add(
+                asset_id=asset_id,
+                project_id=None,
+                version_id=None,
+                role="other",
+                logical_path=f"packs/{row['pack_id']}/{module_id}/thumbnail.png",
+                object_path=stored.relative_path,
+                sha256=stored.sha256,
+                byte_size=stored.byte_size,
+                mime_type="image/png",
+                metadata_json=_canonical_json(
+                    {"module_id": module_id, "kind": "module_thumbnail", "pack_id": row["pack_id"]}
+                ),
+                created_at=_utc_now(),
+            )
+            return True
+
+    def read_module_thumbnail(self, module_id: str) -> tuple[bytes, str, str]:
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            row = unit_of_work.modules.get_manifest(module_id)
+            if row is None:
+                raise ConceptModuleError("MODULE_NOT_FOUND", "Module asset not found.")
+            thumbnail = unit_of_work.concept_assets.get_active(
+                _thumbnail_asset_id(str(row["asset_id"]))
+            )
+            if thumbnail is None:
+                raise ConceptModuleError(
+                    "MODULE_THUMBNAIL_NOT_FOUND",
+                    "Module thumbnail is unavailable; re-import the Module Pack with thumbnails.",
+                )
+            try:
+                payload = self.object_store.read(
+                    str(thumbnail["object_path"]), expected_sha256=str(thumbnail["sha256"])
+                )
+            except ObjectStoreError as exc:
+                raise ConceptModuleError(
+                    "MODULE_ASSET_UNAVAILABLE", f"Module thumbnail is unavailable: {exc}"
+                ) from exc
+            return payload, f"{module_id}.png", str(thumbnail["sha256"])
+
 
 def validate_registered_graph(
     unit_of_work: SQLiteUnitOfWork,
@@ -411,7 +547,61 @@ def _module_record(row: Any) -> ModuleAssetRecord:
         byte_size=row["byte_size"],
         mime_type=row["mime_type"],
         created_at=row["created_at"],
+        catalog_metadata=ModuleAssetCatalogMetadata(
+            display_name=row["display_name"],
+            description=row["description"],
+            tags=json.loads(row["tags_json"]),
+            catalog_path=row["catalog_path"],
+            origin_claim=row["origin_claim"],
+            creator_name=row["creator_name"],
+            review_status=row["review_status"],
+            reviewer_name=row["reviewer_name"],
+            reviewed_at=row["reviewed_at"],
+            review_note=row["review_note"],
+            updated_at=row["metadata_updated_at"],
+        ),
     )
+
+
+def _default_catalog_metadata(manifest: ModuleAssetManifest) -> ModuleAssetCatalogMetadataInput:
+    return ModuleAssetCatalogMetadataInput(
+        display_name=manifest.module_id.removeprefix("module_").replace("_", " ").title(),
+        description="资产信息待补充。",
+        tags=[],
+        catalog_path=manifest.category,
+        origin_claim="self_declared_original",
+        creator_name="ForgeCAD Author",
+        review_status="pending_review",
+        review_note="已声明为本人原创，等待独立审阅。",
+    )
+
+
+def _catalog_metadata_values(
+    metadata: ModuleAssetCatalogMetadataInput,
+    *,
+    updated_at: str,
+) -> dict[str, Any]:
+    return {
+        "display_name": metadata.display_name,
+        "description": metadata.description,
+        "tags_json": _canonical_json(metadata.tags),
+        "catalog_path": metadata.catalog_path,
+        "origin_claim": metadata.origin_claim,
+        "creator_name": metadata.creator_name,
+        "review_status": metadata.review_status,
+        "reviewer_name": metadata.reviewer_name,
+        "reviewed_at": metadata.reviewed_at,
+        "review_note": metadata.review_note,
+        "updated_at": updated_at,
+    }
+
+
+def _catalog_metadata_record(
+    metadata: ModuleAssetCatalogMetadataInput,
+    *,
+    updated_at: str,
+) -> ModuleAssetCatalogMetadata:
+    return ModuleAssetCatalogMetadata(**metadata.model_dump(), updated_at=updated_at)
 
 
 def _decode_glb(value: str) -> bytes:
@@ -422,6 +612,26 @@ def _decode_glb(value: str) -> bytes:
     if len(payload) > 64 * 1024 * 1024:
         raise ConceptModuleError("INVALID_GLB", "Module GLB exceeds the 64 MiB R2 limit.")
     return payload
+
+
+def _decode_png(value: str) -> bytes:
+    try:
+        payload = base64.b64decode(value, validate=True)
+    except binascii.Error as exc:
+        raise ConceptModuleError("INVALID_REQUEST", "thumbnail_png_base64 is not valid base64.") from exc
+    _validate_png(payload)
+    return payload
+
+
+def _validate_png(payload: bytes) -> None:
+    if len(payload) < 24 or len(payload) > 16 * 1024 * 1024:
+        raise ConceptModuleError("INVALID_REQUEST", "Module thumbnail must be a PNG under 16 MiB.")
+    if payload[:8] != b"\x89PNG\r\n\x1a\n" or payload[12:16] != b"IHDR":
+        raise ConceptModuleError("INVALID_REQUEST", "Module thumbnail must be a PNG file.")
+
+
+def _thumbnail_asset_id(asset_id: str) -> str:
+    return f"{asset_id}_thumbnail"
 
 
 def _validate_glb_envelope(payload: bytes) -> None:

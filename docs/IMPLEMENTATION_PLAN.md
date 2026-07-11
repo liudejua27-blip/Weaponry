@@ -47,6 +47,14 @@
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
 | R3 reference assets | 完成可运行基线与 visual candidate | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；十模块 Blender 4.2.22 visual candidate 已在隔离 Library 完成导入、完整 Graph、质量通过、导出、重启回读与 combined DCC 往返；最终 art 待人工制作 |
 | R3 formal asset promotion | 合同/门禁与正式化工作区完成、真实 starter 未批准 | `assets:formal-workspace` 安全复制 10–12 模块 candidate、source hash、权属/reviewer 待办并拒绝自动晋级；`FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；真实 starter 验证返回许可证/人工审批/评分/core 三角下限阻断，无正式资产声明 |
+
+### P0 工作台闭环修复（2026-07-11）
+
+- 新建 Project 后由 `:initialize-workbench` 自动安装 Pack、保存 PNG thumbnail、创建 9 节点 Graph 并以 V2 绑定；不再要求用户或 UI smoke 手动注入 ModuleGraph。
+- 组件库使用真实 Module thumbnail；缺失历史 thumbnail 才回退为类别图标。
+- 参数输入通过 ChangeSet ghost preview 与确认创建版本；不支持的前部程序化拉伸已只读化。
+- 移动/测量/截面在实现真实 TransformControls、几何拾取和 clipping plane 前明确禁用。
+- Three.js renderer/scene/camera 已持久化并缓存模块 GLB；20 轮版本切换 renderer 重建为 0。完整证据见 `docs/evidence/R3_FIRST_RUN_AND_VIEWPORT_OPTIMIZATION.md`。
 | R3 Connector snap/mirror | 合成/API 与 Blender candidate 技术基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；十模块 candidate 另完成 2/2 eligible front 替换、8/8 editable X 镜像、精确对齐、combined GLB/重启回读及锁定 root 拒绝。单节点镜像中 grip/top/side/armor 质量通过，front/rear/lower/storage 返回相交/包含 warning；连续八镜像压力分支共 8 warning。candidate 为 `unclassified`，正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
@@ -155,6 +163,7 @@ GET    /api/v1/projects
 GET    /api/v1/projects/{project_id}
 POST   /api/v1/projects/{project_id}/versions
 GET    /api/v1/module-assets
+PUT    /api/v1/module-assets/{module_id}/catalog-metadata
 POST   /api/v1/module-graphs/{graph_id}/validate
 POST   /api/v1/projects/{project_id}/variants
 POST   /api/v1/versions/{version_id}/change-sets

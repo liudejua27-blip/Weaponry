@@ -9,6 +9,7 @@ from forgecad_agent.application import (
     ConceptProjectError,
     ConceptProjectIdempotencyConflict,
     ConceptProjectService,
+    ConceptWorkbenchBootstrapService,
 )
 from forgecad_agent.application.concept_models import (
     AppendConceptVersionRequest,
@@ -16,10 +17,14 @@ from forgecad_agent.application.concept_models import (
     ConceptProjectListResponse,
     ConceptVersionDetail,
     CreateConceptProjectRequest,
+    InitializeConceptWorkbenchRequest,
 )
 
 
-def build_concept_project_router(service: ConceptProjectService) -> APIRouter:
+def build_concept_project_router(
+    service: ConceptProjectService,
+    bootstrap_service: ConceptWorkbenchBootstrapService | None = None,
+) -> APIRouter:
     router = APIRouter(prefix="/api/v1", tags=["concept-projects"])
 
     @router.post("/projects", response_model=ConceptProjectDetail, status_code=201)
@@ -48,6 +53,20 @@ def build_concept_project_router(service: ConceptProjectService) -> APIRouter:
     ) -> Union[ConceptProjectDetail, JSONResponse]:
         try:
             return service.get_project(project_id)
+        except ConceptProjectError as exc:
+            return _concept_error_response(exc)
+
+    @router.post("/projects/{project_id}:initialize-workbench", response_model=ConceptProjectDetail)
+    def initialize_workbench(
+        project_id: str,
+        request: InitializeConceptWorkbenchRequest,
+        idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
+    ) -> Union[ConceptProjectDetail, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        if bootstrap_service is None:
+            return _error_response(503, "DEFAULT_WORKBENCH_UNAVAILABLE", "Workbench bootstrap is unavailable.")
+        try:
+            return bootstrap_service.initialize_project(project_id, key)
         except ConceptProjectError as exc:
             return _concept_error_response(exc)
 

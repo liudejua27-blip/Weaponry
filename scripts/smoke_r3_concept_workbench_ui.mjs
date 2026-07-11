@@ -120,6 +120,7 @@ async function seedConceptGraph(baseUrl) {
   for (const entry of pack.modules) {
     const manifest = JSON.parse(await readFile(join(packRoot, entry.manifest_path), 'utf8'))
     const glb = await readFile(join(packRoot, entry.glb_path))
+    const thumbnail = await readFile(join(packRoot, entry.thumbnail_path))
     await jsonRequest(baseUrl, '/api/v1/module-assets', {
       method: 'POST',
       idempotencyKey: `r3-ui-${manifest.module_id}`,
@@ -127,6 +128,7 @@ async function seedConceptGraph(baseUrl) {
         client_request_id: `r3-ui-${manifest.module_id}`,
         logical_path: `packs/weapon-concept/${manifest.module_id}.glb`,
         glb_data_base64: glb.toString('base64'),
+        thumbnail_png_base64: thumbnail.toString('base64'),
         manifest,
       },
     })
@@ -219,15 +221,28 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await assertText(page.locator('.cad-left-rail'), ['寒地巡逻 S1', '绑定首个可交互 ModuleGraph。'])
     await page.waitForSelector('.viewport-data-state', { state: 'detached', timeout: 20_000 })
     await assertText(page.locator('.component-library'), [
-      'module_core_shell_01',
-      'module_front_shell_01',
-      'module_grip_shell_01',
-      'module_front_shell_02',
+      'Core Shell 01',
+      'Front Shell 01',
+      'Grip Shell 01',
+      'Front Shell 02',
+      '待审',
     ])
+    await page.waitForFunction(() => Array.from(
+      document.querySelectorAll('.component-card img'),
+    ).some((image) => image.complete && image.naturalWidth > 0), { timeout: 20_000 })
     await assertText(page.locator('.cad-status-bar'), ['9 nodes', '单位：mm'])
 
-    await page.getByRole('button', { name: /module_front_shell_01/ }).click()
+    await page.getByRole('button', { name: /Front Shell 01/ }).click()
     await assertText(page.locator('.cad-status-bar'), ['node_front'])
+    await assertText(page.locator('.component-grid'), ['当前节点'])
+    await page.waitForSelector('[data-testid="component-inspector"]', { timeout: 20_000 })
+    await assertText(page.locator('[data-testid="component-inspector"]'), ['本人原创声明', '等待独立审阅'])
+    await page.locator('.component-categories').getByRole('button', { name: /可替换/ }).click()
+    await assertText(page.locator('.component-grid'), ['Front Shell 01', 'Front Shell 02'])
+    if ((await page.locator('.component-card').count()) !== 2) {
+      throw new Error('compatible component filter did not narrow to the selected category')
+    }
+    await page.locator('.component-categories').getByRole('button', { name: /全部组件/ }).click()
     const inspectorValues = await page.locator('.properties-panel .wide-field input').evaluateAll(
       (inputs) => inputs.map((input) => input.value),
     )
@@ -237,17 +252,20 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['front.core', '已连接'])
 
-    await page.getByRole('button', { name: /module_front_shell_02/ }).dragTo(
+    await page.getByRole('button', { name: /Front Shell 02/ }).dragTo(
       page.locator('.weapon-viewport canvas'),
       { targetPosition: { x: 28, y: 28 } },
     )
-    await assertText(page.locator('.module-replace-bar'), ['节点：node_front', '候选：module_front_shell_02'])
-    const replaceButton = page.getByRole('button', { name: '替换并创建新版本' })
+    await assertText(page.locator('.module-replace-bar'), ['节点：node_front', '候选：Front Shell 02'])
+    const replaceButton = page.getByRole('button', { name: '预览替换' }).first()
     if (await replaceButton.isDisabled()) throw new Error('compatible replacement action was disabled')
+    await replaceButton.click()
+    await page.waitForSelector('[data-testid="component-replacement-preview"]', { timeout: 20_000 })
+    await assertText(page.locator('[data-testid="component-replacement-preview"]'), ['幽灵预览已就绪', '确认并创建新版本'])
     const confirmResponsePromise = page.waitForResponse(
       (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
     )
-    await replaceButton.click()
+    await page.locator('[data-testid="component-replacement-preview"]').getByRole('button', { name: '确认并创建新版本' }).click()
     const confirmResponse = await confirmResponsePromise
     if (!confirmResponse.ok()) throw new Error(`ChangeSet confirm failed: ${confirmResponse.status()}`)
     await page.waitForFunction(
@@ -305,7 +323,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '爆炸视图' }).click()
     await page.waitForSelector('.viewport-viewbar button.active[aria-label="爆炸视图"]')
     await page.getByRole('button', { name: '爆炸视图' }).click()
-    await page.getByRole('button', { name: /module_grip_shell_01/ }).click()
+    await page.getByRole('button', { name: /Grip Shell 01/ }).click()
     const mirrorConfirmPromise = page.waitForResponse(
       (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
     )
@@ -905,11 +923,10 @@ async function stressViewportLifecycle(page) {
   const before = await performanceMetric(session, 'JSHeapUsedSize')
   const host = page.locator('.weapon-viewport')
   const initialGeneration = Number(await host.getAttribute('data-renderer-generation') || '0')
-  let currentGeneration = initialGeneration
   const cycles = 20
   for (let index = 0; index < cycles; index += 1) {
-    currentGeneration = await switchVersionAndWait(page, 'V3', currentGeneration)
-    currentGeneration = await switchVersionAndWait(page, 'V4', currentGeneration)
+    await switchVersionAndWait(page, 'V3')
+    await switchVersionAndWait(page, 'V4')
     const canvasCount = await page.locator('.weapon-viewport canvas').count()
     const activeContexts = Number(await host.getAttribute('data-active-webgl-contexts') || '0')
     if (canvasCount !== 1 || activeContexts !== 1) {
@@ -921,15 +938,18 @@ async function stressViewportLifecycle(page) {
   const finalGeneration = Number(await host.getAttribute('data-renderer-generation') || '0')
   const generationDelta = finalGeneration - initialGeneration
   const heapGrowth = after - before
-  if (generationDelta < cycles * 2) {
-    throw new Error(`viewport lifecycle did not exercise enough renderer generations: ${generationDelta}`)
+  if (generationDelta > 1) {
+    throw new Error(`viewport recreated its renderer during version switching: ${generationDelta}`)
   }
   if (heapGrowth > 64 * 1024 * 1024) {
     throw new Error(`viewport JS heap grew by ${heapGrowth} bytes after GC`)
   }
   const geometries = Number(await host.getAttribute('data-renderer-geometries') || '0')
   const textures = Number(await host.getAttribute('data-renderer-textures') || '0')
-  if (geometries > 32 || textures > 32) {
+  // The persistent GLTF cache intentionally retains the bounded 10-module Pack;
+  // this ceiling catches growth across repeated version switches without treating
+  // cached source geometry as a leak.
+  if (geometries > 64 || textures > 32) {
     throw new Error(`viewport GPU resource counts are unbounded: geometries=${geometries}, textures=${textures}`)
   }
   await session.detach()
@@ -944,20 +964,18 @@ async function stressViewportLifecycle(page) {
   }
 }
 
-async function switchVersionAndWait(page, versionLabel, previousGeneration) {
+async function switchVersionAndWait(page, versionLabel) {
   await page.getByRole('button', { name: new RegExp(`^${versionLabel}\\b`) }).click()
   await page.waitForFunction(
-    ({ label, generation }) => {
+    ({ label }) => {
       const activeVersion = document.querySelector('.version-list button.active')
       const viewport = document.querySelector('.weapon-viewport')
       return activeVersion?.textContent?.trim().startsWith(label)
-        && Number(viewport?.dataset.rendererGeneration || '0') > generation
         && viewport?.dataset.loadState === 'ready'
     },
-    { label: versionLabel, generation: previousGeneration },
+    { label: versionLabel },
     { timeout: 20_000 },
   )
-  return Number(await page.locator('.weapon-viewport').getAttribute('data-renderer-generation') || '0')
 }
 
 async function performanceMetric(session, name) {
