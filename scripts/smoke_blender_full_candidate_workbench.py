@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import tempfile
+import time
 import urllib.request
+import zipfile
 from pathlib import Path
 
 from concept_module_pack import import_module_pack, validate_module_pack
@@ -43,6 +46,11 @@ def main() -> int:
     )
     parser.add_argument("--pack-root", required=True, type=Path)
     parser.add_argument("--combined-output", type=Path)
+    parser.add_argument(
+        "--include-presentation",
+        action="store_true",
+        help="also verify OBJ/MTL, PNG render set, and MP4 with a longer local timeout",
+    )
     args = parser.parse_args()
     pack = validate_module_pack(args.pack_root)
     _assert(
@@ -110,22 +118,34 @@ def main() -> int:
                 quality["report"]["status"] in {"passed", "warning"},
                 "full candidate quality inspection failed",
             )
-            exported = _json_request(
-                base_url,
-                f"/api/v1/versions/{version_id}/exports",
-                method="POST",
-                body={
-                    "client_request_id": "blender-full-candidate-export",
-                    "profile": "game_asset",
-                    "include_modules": True,
-                    "include_combined_glb": True,
-                    "include_combined_obj": False,
-                    "include_render_png": False,
-                    "include_turntable_video": False,
-                    "include_quality_report": True,
-                },
-                idempotency_key="blender-full-candidate-export",
-            )
+            export_request = {
+                "client_request_id": "blender-full-candidate-export",
+                "profile": "game_asset",
+                "include_modules": True,
+                "include_combined_glb": True,
+                "include_combined_obj": args.include_presentation,
+                "include_render_png": args.include_presentation,
+                "include_turntable_video": args.include_presentation,
+                "include_quality_report": True,
+            }
+            export_started = time.perf_counter()
+            if args.include_presentation:
+                exported = _post_json(
+                    base_url,
+                    f"/api/v1/versions/{version_id}/exports",
+                    export_request,
+                    idempotency_key="blender-full-candidate-export",
+                    timeout_seconds=90,
+                )
+            else:
+                exported = _json_request(
+                    base_url,
+                    f"/api/v1/versions/{version_id}/exports",
+                    method="POST",
+                    body=export_request,
+                    idempotency_key="blender-full-candidate-export",
+                )
+            export_elapsed_ms = round((time.perf_counter() - export_started) * 1000)
             combined_payload = _download_combined_glb(base_url, exported["export_id"])
             _assert(
                 hashlib.sha256(combined_payload).hexdigest()
@@ -135,6 +155,11 @@ def main() -> int:
             _assert(combined_payload[:4] == b"glTF", "combined GLB header mismatch")
             combined_output = _persist_combined_glb(
                 args.combined_output, combined_payload
+            )
+            presentation = (
+                _presentation_artifacts(base_url, exported)
+                if args.include_presentation
+                else {}
             )
         finally:
             _stop_agent(process)
@@ -191,6 +216,8 @@ def main() -> int:
                 "combined_glb_output": str(combined_output)
                 if combined_output
                 else None,
+                "export_elapsed_ms": export_elapsed_ms,
+                "presentation": presentation,
                 "restart_restored": True,
             },
             ensure_ascii=False,
@@ -203,6 +230,87 @@ def main() -> int:
 def _download_combined_glb(base_url: str, export_id: str) -> bytes:
     with urllib.request.urlopen(
         f"{base_url}/api/v1/exports/{export_id}/combined.glb", timeout=20
+    ) as response:
+        return response.read()
+
+
+def _post_json(
+    base_url: str,
+    path: str,
+    body: dict[str, object],
+    *,
+    idempotency_key: str,
+    timeout_seconds: int,
+) -> dict[str, object]:
+    request = urllib.request.Request(
+        base_url + path,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotency_key,
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    _assert(isinstance(payload, dict), "presentation export did not return an object")
+    return payload
+
+
+def _presentation_artifacts(
+    base_url: str, exported: dict[str, object]
+) -> dict[str, object]:
+    export_id = str(exported["export_id"])
+    expected = {
+        "combined.obj": "combined_obj_sha256",
+        "preview.png": "preview_png_sha256",
+        "exploded.png": "exploded_png_sha256",
+        "turntable.mp4": "turntable_video_sha256",
+        "renders.zip": "render_set_sha256",
+    }
+    payloads = {
+        name: _download_artifact(base_url, export_id, name)
+        for name in (*expected, "combined.mtl")
+    }
+    for name, response_key in expected.items():
+        _assert(
+            hashlib.sha256(payloads[name]).hexdigest() == exported[response_key],
+            f"{name} download hash mismatch",
+        )
+    _assert(
+        payloads["combined.obj"].startswith(b"# ForgeCAD combined OBJ"),
+        "OBJ header mismatch",
+    )
+    _assert(b"newmtl " in payloads["combined.mtl"], "MTL material table missing")
+    for name in ("preview.png", "exploded.png"):
+        _assert(
+            payloads[name].startswith(b"\x89PNG\r\n\x1a\n"),
+            f"{name} header mismatch",
+        )
+    _assert(payloads["turntable.mp4"][4:8] == b"ftyp", "MP4 container mismatch")
+    with zipfile.ZipFile(io.BytesIO(payloads["renders.zip"])) as render_set:
+        expected_render_entries = {
+            "preview.png",
+            "exploded.png",
+            "turntable.mp4",
+            *{f"views/{name}.png" for name in ("front", "side", "top")},
+            *{f"turntable/frame-{index:03d}.png" for index in range(8)},
+        }
+        _assert(
+            expected_render_entries.issubset(set(render_set.namelist())),
+            "render set is missing required views or turntable frames",
+        )
+    return {
+        "verified": True,
+        "obj_byte_size": len(payloads["combined.obj"]),
+        "preview_byte_size": len(payloads["preview.png"]),
+        "turntable_byte_size": len(payloads["turntable.mp4"]),
+    }
+
+
+def _download_artifact(base_url: str, export_id: str, name: str) -> bytes:
+    with urllib.request.urlopen(
+        f"{base_url}/api/v1/exports/{export_id}/{name}", timeout=30
     ) as response:
         return response.read()
 

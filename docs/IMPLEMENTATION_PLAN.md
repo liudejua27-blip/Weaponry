@@ -56,7 +56,7 @@
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
 | R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
-| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 visual-v2 三模块、10 模块 reference 和十模块 visual candidate combined GLB 的真实往返；最终批准资产全装配仍待执行 |
+| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 visual-v2 三模块、10 模块 reference 和十模块 visual candidate combined GLB 的真实往返；candidate OBJ/PNG/MP4 完整交付实测 16.4 s，最终批准资产全装配仍待执行 |
 | R5 Mesh/Assembly quality | C07 规则覆盖切片完成 | immutable Spec/Graph/GLB、indices/degenerate/normal/UV/topology/bounds、duplicate/enclosed geometry、density outlier/triangle budget、P0 LOD0、root-plane symmetry、Connector alignment/gap、triangle BVH/SAT/containment/provenance、双节点/局部高亮、JobEvent/restart、desktop E2E |
 | R6 packaging readiness | 门禁完整，真实二进制与流程验证待发布环境 | sidecar、`Cargo.lock`、bundle、CSP、capability、图标和文档入口均有校验；新门禁拒绝空、不可执行或无效平台头的 sidecar。当前占位 sidecar 被正确阻断，且当前机器无 Cargo/Rust |
 

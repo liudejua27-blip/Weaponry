@@ -145,6 +145,16 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_full_candidate_work
 
 它导入 10 模块、验证 9 节点/8 Connector 图、绑定新 Version、运行 `weapon-concept-geometry/1.3`、导出 combined GLB 并重启回读。它不替代桌面 Tauri 性能、最终美术评分或人工审批。
 
+默认 smoke 保持快速 GLB 回归。要对十模块候选实际生成 OBJ/MTL、PNG、8 帧转台和 MP4，并以较长本地超时校验所有独立下载 hash，显式加入：
+
+```bash
+PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_full_candidate_workbench.py \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport" \
+  --include-presentation
+```
+
+2026-07-11 的本机候选运行耗时 16.4 s，验证 OBJ 3,090,148 bytes、preview PNG 22,221 bytes 和 MP4 70,984 bytes；这只是一台开发机的技术观察值，不是正式资产或性能 SLA。
+
 ## 6. 正式人工审阅与晋级
 
 技术导出通过后仍不能称为最终资产。默认 re-export 许可证故意保留 starter/not-final 标记，必须在输出副本中换成已确认权属的最终美术 SPDX 和许可证文本。然后运行 `assets:formal-review-draft`，由非作者 reviewer 完成 `FormalModuleReview@1`：所有 checklist 为 true，五项视觉评分均 ≥4，确认非功能性概念/游戏/影视道具用途。

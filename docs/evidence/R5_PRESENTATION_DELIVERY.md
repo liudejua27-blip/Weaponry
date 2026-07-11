@@ -45,10 +45,14 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 `FORGECAD_DCC_COMBINED_OUTPUT` 只是 E2E 证据开关：必须是不存在的绝对 `.glb` 路径，且不能指向提交的 Module Pack。默认不写出额外产物，不改变普通桌面 smoke 的行为。
 
+### 十模块 Blender visual candidate
+
+2026-07-11 对待审十模块 visual candidate 运行 `smoke_blender_full_candidate_workbench.py --include-presentation`。隔离 Agent 导入 10 模块、绑定 9 节点 Graph、质量状态为 `passed`，然后用 90 s 本地超时完成 OBJ/MTL、preview/exploded PNG、正交/转台帧和 MP4 的同一 Export 交付。独立下载的 OBJ、MTL、两张 PNG 和 MP4 均与 Export 响应 SHA-256 一致；本机导出耗时 16,403 ms，OBJ 3,090,148 bytes、preview 22,221 bytes、MP4 70,984 bytes。该候选仍带 starter 许可证且没有人工批准，因此这些数值不是正式资产 SLA。
+
 ## 未完成
 
-- 正式 10–12 个 Blender 模块的渲染时间/内存阈值；
-- 正式 10–12 个 Blender 资产的 combined GLB 真实导入/再导出；
+- 最终批准的 10–12 个 Blender 模块的渲染时间/内存阈值；
+- 最终批准的 10–12 个 Blender 资产的 combined GLB 真实导入/再导出；
 - 贴图、PBR 环境光、照片级材质、插帧和自定义视频参数；
 - Blender/Cycles 或 Three.js GPU renderer 像素等价；
 - 任何 B-Rep、STEP、3MF、结构强度、切片或制造 DFM 结论。
