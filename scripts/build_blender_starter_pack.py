@@ -200,6 +200,10 @@ def _check_authoring_source() -> dict[str, object]:
         "_business_size_mm_to_blender_m",
         '(14, -24, 0)',
         '(0, 24, 0)',
+        '"top_visual_rail_a"',
+        '"left_visual_strake"',
+        '"top_visual_split"',
+        '"upper_visual_frame"',
     )
     missing_tokens = [token for token in required_tokens if token not in source]
     if missing_ids or missing_tokens:

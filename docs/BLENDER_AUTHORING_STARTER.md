@@ -55,7 +55,7 @@ export FORGECAD_BLENDER_EXECUTABLE="$HOME/Library/Caches/ForgeCAD/Blender/4.2.22
 npm run assets:blender-starter-build
 ```
 
-2026-07-11 真实运行返回 `built_and_validated`；三模块三角数分别为 940 / 752 / 940。core 的 940 低于正式晋级下限 1000，所以这一结果证明工具链，不证明最终资产。
+2026-07-11 视觉层级增强版真实运行返回 `built_and_validated`；三模块三角数分别为 2256 / 1316 / 1504，core 的外观顶轨、侧向条带、信号标记和下部护板已作为可编辑 starter 层次。它们均超过 formal 三角下限，但仍不证明最终资产：最终许可证和独立人工审阅仍是必要条件。
 
 默认拒绝非空输出目录，也永久拒绝把输出指向 `assets/module-packs`。只有确认不需要保留现有临时 starter 时，才可在自定义命令中显式加入 `--force`；它会删除并重建指定的 `output/` 目录。
 
