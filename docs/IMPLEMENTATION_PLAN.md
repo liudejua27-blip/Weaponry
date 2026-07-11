@@ -58,7 +58,7 @@
 | R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
 | R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 starter core 与工作台 10 模块 reference combined GLB 的真实往返；正式 Blender 资产全装配仍待执行 |
 | R5 Mesh/Assembly quality | C07 规则覆盖切片完成 | immutable Spec/Graph/GLB、indices/degenerate/normal/UV/topology/bounds、duplicate/enclosed geometry、density outlier/triangle budget、P0 LOD0、root-plane symmetry、Connector alignment/gap、triangle BVH/SAT/containment/provenance、双节点/局部高亮、JobEvent/restart、desktop E2E |
-| R6 packaging readiness | 静态合同通过，流程验证待发布环境 | sidecar、`Cargo.lock`、bundle、CSP、capability、图标和文档入口已通过 `release:packaging-readiness`；当前机器无 Cargo/Rust，未验证 Tauri compile、签名、安装/卸载或干净机 E2E |
+| R6 packaging readiness | 门禁完整，真实二进制与流程验证待发布环境 | sidecar、`Cargo.lock`、bundle、CSP、capability、图标和文档入口均有校验；新门禁拒绝空、不可执行或无效平台头的 sidecar。当前占位 sidecar 被正确阻断，且当前机器无 Cargo/Rust |
 
 ## 2. 执行硬规则
 
@@ -336,7 +336,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
-9. Tauri sidecar 的静态打包合同已通过；在含 Cargo/Rust 与平台签名权限的发布机上完成 compile、签名、安装/卸载和干净机验证。
+9. 用真实冻结 Agent 二进制替换当前占位 sidecar，并在含 Cargo/Rust 与平台签名权限的发布机上完成 compile、签名、安装/卸载和干净机验证。
 10. 执行 C01–C10 发布审计并清理 legacy 生产入口。
 
 第 6 步的真实 Provider 指标闭环通过后再执行第 7 步；AI 指标达标后才扩展第 8 步，第 9–10 步必须使用真实发布环境证据。CAD/DFM Engineering Pack 不提前占用 P0 主链。

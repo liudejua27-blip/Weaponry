@@ -135,7 +135,7 @@ core.side_panel_left / core.side_panel_right
 
 | 能力 | 当前状态 | 决策 |
 | --- | --- | --- |
-| Tauri + React 桌面壳 | 已实现；打包静态合同已通过 | `bundle.externalBin`、target sidecar、`Cargo.lock`、图标、CSP 与 capability 已经通过 `release:packaging-readiness`；本机未安装 Cargo，不声称 Rust 编译、签名或干净机 C10 已通过 |
+| Tauri + React 桌面壳 | 已实现；打包合同完整性门已加固 | 门禁覆盖 `bundle.externalBin`、target sidecar、`Cargo.lock`、图标、CSP 与 capability，并拒绝空或不可执行的占位 sidecar；当前仓库中的 sidecar 仍为空占位且本机无 Cargo，不声称 Rust 编译、签名或干净机 C10 已通过 |
 | FastAPI 本地 Agent | 已实现 | 保留并继续薄化路由 |
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
@@ -269,7 +269,7 @@ npm run release:gate
 npm run release:packaging-readiness
 ```
 
-该命令检查 Tauri bundle、图标、CSP、capability、`Cargo.lock`、target-suffixed sidecar 与运行时模式。具体平台打包、签名、安装/卸载和干净机验证见 [桌面打包合同](docs/PACKAGING.md)。
+该命令检查 Tauri bundle、图标、CSP、capability、`Cargo.lock`、target-suffixed sidecar 与运行时模式，并拒绝空文件、缺少可执行权限或与目标平台不匹配的二进制头。具体平台打包、签名、安装/卸载和干净机验证见 [桌面打包合同](docs/PACKAGING.md)。
 
 当前新工作台开发入口：
 
