@@ -60,6 +60,7 @@ jobs:
       - run: .venv/bin/pip install -e 'apps/agent[dev]'
       - run: npm ci
       - run: google-chrome --version
+      - run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - run: npm run desktop:r3-concept-workbench-smoke
         env:
           FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
