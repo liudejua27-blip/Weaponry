@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_top_accessory_01",
+  "bounds_mm": [
+    42.0,
+    20.0,
+    18.0
+  ],
+  "category": "top_accessory",
+  "connectors": [
+    {
+      "connector_id": "connector_top_core",
+      "connector_type": "top_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "top.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_top_accessory_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "c5bfccc2496a10dcdfbe320e3d5fb917866161d1f71ce78f53bde6906e7ccae8",
+  "triangle_count": 36
+}

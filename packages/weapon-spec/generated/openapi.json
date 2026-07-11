@@ -1,6 +1,49 @@
 {
   "components": {
     "schemas": {
+      "AppendConceptVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
+          "parent_version_id": {
+            "title": "Parent Version Id",
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "parent_version_id",
+          "summary",
+          "spec"
+        ],
+        "title": "AppendConceptVersionRequest",
+        "type": "object"
+      },
       "AssetFileResponse": {
         "properties": {
           "asset_id": {
@@ -347,6 +390,1748 @@
           "mime_type"
         ],
         "title": "AssetUploadResponse",
+        "type": "object"
+      },
+      "ChangeSetAuditExportFileEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "byte_size",
+          "mime_type"
+        ],
+        "title": "ChangeSetAuditExportFileEntry",
+        "type": "object"
+      },
+      "ChangeSetAuditExportListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ChangeSetAuditExportListResponse",
+        "type": "object"
+      },
+      "ChangeSetAuditExportManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "audit_export_id": {
+            "title": "Audit Export Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetAuditExportFileEntry"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "filters": {
+            "additionalProperties": true,
+            "title": "Filters",
+            "type": "object"
+          },
+          "ordering": {
+            "const": "updated_at_desc_change_set_id_desc",
+            "default": "updated_at_desc_change_set_id_desc",
+            "title": "Ordering",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "record_count": {
+            "minimum": 0.0,
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "default": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ChangeSetAuditExportManifest@1",
+            "default": "ChangeSetAuditExportManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audit_export_id",
+          "project_id",
+          "record_count",
+          "created_at"
+        ],
+        "title": "ChangeSetAuditExportManifest",
+        "type": "object"
+      },
+      "ChangeSetAuditExportRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "audit_export_id": {
+            "title": "Audit Export Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "filters": {
+            "additionalProperties": true,
+            "title": "Filters",
+            "type": "object"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ChangeSetAuditExportManifest"
+          },
+          "package_asset_id": {
+            "title": "Package Asset Id",
+            "type": "string"
+          },
+          "package_byte_size": {
+            "minimum": 0.0,
+            "title": "Package Byte Size",
+            "type": "integer"
+          },
+          "package_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Package Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "record_count": {
+            "minimum": 0.0,
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "status": {
+            "const": "validated",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "audit_export_id",
+          "project_id",
+          "status",
+          "retention_class",
+          "record_count",
+          "package_asset_id",
+          "package_sha256",
+          "package_byte_size",
+          "manifest",
+          "created_at"
+        ],
+        "title": "ChangeSetAuditExportRecord",
+        "type": "object"
+      },
+      "ChangeSetConfirmResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ConceptProjectDetail"
+          }
+        },
+        "required": [
+          "change_set",
+          "project"
+        ],
+        "title": "ChangeSetConfirmResponse",
+        "type": "object"
+      },
+      "ChangeSetDiagnostic": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operation Ids",
+            "type": "array"
+          },
+          "recorded_at": {
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "recoverable": {
+            "title": "Recoverable",
+            "type": "boolean"
+          },
+          "stage": {
+            "enum": [
+              "preview",
+              "confirm"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "stage",
+          "recoverable",
+          "recorded_at"
+        ],
+        "title": "ChangeSetDiagnostic",
+        "type": "object"
+      },
+      "ChangeSetPreviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "preview_graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "preview_sha256": {
+            "title": "Preview Sha256",
+            "type": "string"
+          },
+          "preview_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          }
+        },
+        "required": [
+          "change_set",
+          "preview_spec",
+          "preview_graph",
+          "preview_sha256"
+        ],
+        "title": "ChangeSetPreviewResponse",
+        "type": "object"
+      },
+      "ChangeSetTimelineItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_type": {
+            "default": "user",
+            "enum": [
+              "user",
+              "planner"
+            ],
+            "title": "Actor Type",
+            "type": "string"
+          },
+          "base_version_id": {
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChangeSetDiagnostic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planner_instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planner Instruction"
+          },
+          "planner_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planner Job Id"
+          },
+          "planner_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConceptPlannerProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planner_rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Planner Rationale",
+            "type": "array"
+          },
+          "preview_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Sha256"
+          },
+          "result_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Version Id"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "previewed",
+              "confirmed",
+              "rejected",
+              "stale"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_set",
+          "base_version_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ChangeSetTimelineItem",
+        "type": "object"
+      },
+      "ChangeSetTimelineResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSetTimelineItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ChangeSetTimelineResponse",
+        "type": "object"
+      },
+      "ConceptConstraints": {
+        "additionalProperties": false,
+        "properties": {
+          "max_triangle_count": {
+            "maximum": 2000000.0,
+            "minimum": 1000.0,
+            "title": "Max Triangle Count",
+            "type": "integer"
+          },
+          "symmetry": {
+            "enum": [
+              "symmetric",
+              "mostly_symmetric",
+              "asymmetric"
+            ],
+            "title": "Symmetry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symmetry",
+          "max_triangle_count"
+        ],
+        "title": "ConceptConstraints",
+        "type": "object"
+      },
+      "ConceptExportManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "export_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Export Id",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ExportFileEntry"
+            },
+            "minItems": 1,
+            "title": "Files",
+            "type": "array"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ExportModuleEntry"
+            },
+            "minItems": 1,
+            "title": "Modules",
+            "type": "array"
+          },
+          "non_functional_only": {
+            "const": true,
+            "default": true,
+            "title": "Non Functional Only",
+            "type": "boolean"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality_report_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Report Id"
+          },
+          "schema_version": {
+            "const": "ConceptExportManifest@1",
+            "default": "ConceptExportManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "project_id",
+          "version_id",
+          "profile",
+          "spec_sha256",
+          "graph_sha256",
+          "modules",
+          "files",
+          "created_at"
+        ],
+        "title": "ConceptExportManifest",
+        "type": "object"
+      },
+      "ConceptExportRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "combined_glb_byte_size": {
+            "minimum": 0.0,
+            "title": "Combined Glb Byte Size",
+            "type": "integer"
+          },
+          "combined_glb_sha256": {
+            "title": "Combined Glb Sha256",
+            "type": "string"
+          },
+          "combined_obj_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combined Obj Byte Size"
+          },
+          "combined_obj_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combined Obj Sha256"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "exploded_png_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exploded Png Byte Size"
+          },
+          "exploded_png_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exploded Png Sha256"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ConceptExportManifest"
+          },
+          "package_asset_id": {
+            "title": "Package Asset Id",
+            "type": "string"
+          },
+          "package_byte_size": {
+            "minimum": 0.0,
+            "title": "Package Byte Size",
+            "type": "integer"
+          },
+          "package_sha256": {
+            "title": "Package Sha256",
+            "type": "string"
+          },
+          "preview_png_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Png Byte Size"
+          },
+          "preview_png_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Png Sha256"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "render_set_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render Set Byte Size"
+          },
+          "render_set_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render Set Sha256"
+          },
+          "render_view_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render View Count"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "turntable_frame_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Frame Count"
+          },
+          "turntable_video_byte_size": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Byte Size"
+          },
+          "turntable_video_mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Mime Type"
+          },
+          "turntable_video_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turntable Video Sha256"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "project_id",
+          "version_id",
+          "profile",
+          "status",
+          "package_asset_id",
+          "package_sha256",
+          "package_byte_size",
+          "combined_glb_sha256",
+          "combined_glb_byte_size",
+          "manifest",
+          "created_at"
+        ],
+        "title": "ConceptExportRecord",
+        "type": "object"
+      },
+      "ConceptJobEventListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobEventV2"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "ConceptJobEventListResponse",
+        "type": "object"
+      },
+      "ConceptJobRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/JobEventV2"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "outputs": {
+            "additionalProperties": true,
+            "title": "Outputs",
+            "type": "object"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "job_id",
+          "project_id",
+          "type",
+          "status",
+          "input_hash",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConceptJobRecord",
+        "type": "object"
+      },
+      "ConceptPlannerProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Model"
+          },
+          "attempted_provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Provider Id"
+          },
+          "attempted_provider_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "deterministic",
+                  "openai_compatible"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempted Provider Type"
+          },
+          "fallback_used": {
+            "default": false,
+            "title": "Fallback Used",
+            "type": "boolean"
+          },
+          "generator": {
+            "enum": [
+              "deterministic_rules",
+              "openai_compatible"
+            ],
+            "title": "Generator",
+            "type": "string"
+          },
+          "input_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "output_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Output Sha256",
+            "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_type": {
+            "enum": [
+              "deterministic",
+              "openai_compatible"
+            ],
+            "title": "Provider Type",
+            "type": "string"
+          },
+          "registry_module_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Registry Module Ids",
+            "type": "array"
+          },
+          "total_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Tokens"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generator",
+          "provider_id",
+          "provider_type",
+          "input_sha256",
+          "output_sha256"
+        ],
+        "title": "ConceptPlannerProvenance",
+        "type": "object"
+      },
+      "ConceptProjectDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "domain_type": {
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/DesignDomainProfile"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptVersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "domain_type",
+          "name",
+          "status",
+          "created_at",
+          "updated_at",
+          "profile",
+          "current_spec"
+        ],
+        "title": "ConceptProjectDetail",
+        "type": "object"
+      },
+      "ConceptProjectListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptProjectSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "ConceptProjectListResponse",
+        "type": "object"
+      },
+      "ConceptProjectSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "domain_type": {
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "domain_type",
+          "name",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConceptProjectSummary",
+        "type": "object"
+      },
+      "ConceptProportions": {
+        "additionalProperties": false,
+        "properties": {
+          "body_height_mm": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Body Height Mm",
+            "type": "number"
+          },
+          "grip_angle_deg": {
+            "maximum": 45.0,
+            "minimum": -45.0,
+            "title": "Grip Angle Deg",
+            "type": "number"
+          },
+          "overall_length_mm": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Overall Length Mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "overall_length_mm",
+          "body_height_mm",
+          "grip_angle_deg"
+        ],
+        "title": "ConceptProportions",
+        "type": "object"
+      },
+      "ConceptStyle": {
+        "additionalProperties": false,
+        "properties": {
+          "detail_density": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Detail Density",
+            "type": "number"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Keywords",
+            "type": "array"
+          },
+          "palette": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Palette",
+            "type": "array"
+          }
+        },
+        "required": [
+          "keywords",
+          "palette",
+          "detail_density"
+        ],
+        "title": "ConceptStyle",
+        "type": "object"
+      },
+      "ConceptVersionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Set Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "spec_schema_version": {
+            "title": "Spec Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_no",
+          "status",
+          "summary",
+          "spec_schema_version",
+          "spec_sha256",
+          "created_at",
+          "project_id",
+          "spec"
+        ],
+        "title": "ConceptVersionDetail",
+        "type": "object"
+      },
+      "ConceptVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Set Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Graph Id"
+          },
+          "parent_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Version Id"
+          },
+          "spec_schema_version": {
+            "title": "Spec Schema Version",
+            "type": "string"
+          },
+          "spec_sha256": {
+            "title": "Spec Sha256",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version_id",
+          "version_no",
+          "status",
+          "summary",
+          "spec_schema_version",
+          "spec_sha256",
+          "created_at"
+        ],
+        "title": "ConceptVersionSummary",
+        "type": "object"
+      },
+      "CreateChangeSetAuditExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "include_csv": {
+            "default": true,
+            "title": "Include Csv",
+            "type": "boolean"
+          },
+          "include_jsonl": {
+            "const": true,
+            "default": true,
+            "title": "Include Jsonl",
+            "type": "boolean"
+          },
+          "max_records": {
+            "default": 5000,
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max Records",
+            "type": "integer"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "add_module",
+                  "remove_module",
+                  "replace_module",
+                  "connect",
+                  "disconnect",
+                  "set_transform",
+                  "set_mirror",
+                  "set_style",
+                  "set_parameter"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "retention_class": {
+            "const": "project_lifetime",
+            "default": "project_lifetime",
+            "title": "Retention Class",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "proposed",
+                  "previewed",
+                  "confirmed",
+                  "rejected",
+                  "stale"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "CreateChangeSetAuditExportRequest",
+        "type": "object"
+      },
+      "CreateConceptExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "include_combined_glb": {
+            "const": true,
+            "default": true,
+            "title": "Include Combined Glb",
+            "type": "boolean"
+          },
+          "include_combined_obj": {
+            "default": false,
+            "title": "Include Combined Obj",
+            "type": "boolean"
+          },
+          "include_modules": {
+            "const": true,
+            "default": true,
+            "title": "Include Modules",
+            "type": "boolean"
+          },
+          "include_quality_report": {
+            "default": true,
+            "title": "Include Quality Report",
+            "type": "boolean"
+          },
+          "include_render_png": {
+            "default": false,
+            "title": "Include Render Png",
+            "type": "boolean"
+          },
+          "include_turntable_video": {
+            "default": false,
+            "title": "Include Turntable Video",
+            "type": "boolean"
+          },
+          "profile": {
+            "enum": [
+              "visual_asset",
+              "game_asset",
+              "film_prop",
+              "non_functional_display"
+            ],
+            "title": "Profile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "profile"
+        ],
+        "title": "CreateConceptExportRequest",
+        "type": "object"
+      },
+      "CreateConceptProjectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/ConceptConstraints"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Optional Slots",
+            "type": "array"
+          },
+          "profile_id": {
+            "default": "profile_weapon_concept_v1",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "proportions": {
+            "$ref": "#/components/schemas/ConceptProportions"
+          },
+          "required_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "style": {
+            "$ref": "#/components/schemas/ConceptStyle"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "name",
+          "intended_uses",
+          "style",
+          "proportions",
+          "constraints"
+        ],
+        "title": "CreateConceptProjectRequest",
+        "type": "object"
+      },
+      "CreateQualityRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ModelQualityReport"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "report"
+        ],
+        "title": "CreateQualityRunRequest",
         "type": "object"
       },
       "CreateWeaponRequest": {
@@ -995,6 +2780,531 @@
         "title": "CreativeWeaponGraphPayload",
         "type": "object"
       },
+      "DesignBriefRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "interpreted_spec": {
+            "$ref": "#/components/schemas/WeaponConceptSpec"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "source_text": {
+            "title": "Source Text",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "interpreted",
+              "confirmed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "brief_id",
+          "project_id",
+          "source_text",
+          "interpreted_spec",
+          "status",
+          "planner_provenance",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DesignBriefRecord",
+        "type": "object"
+      },
+      "DesignChangeOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "edge_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Id"
+          },
+          "from_connector_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Connector Id"
+          },
+          "from_node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Node Id"
+          },
+          "mirror_axis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "x",
+                  "y",
+                  "z"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mirror Axis"
+          },
+          "module_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "op": {
+            "enum": [
+              "add_module",
+              "remove_module",
+              "replace_module",
+              "connect",
+              "disconnect",
+              "set_transform",
+              "set_mirror",
+              "set_style",
+              "set_parameter"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "operation_id": {
+            "pattern": "^op_[A-Za-z0-9_\\-]+$",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "to_connector_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Connector Id"
+          },
+          "to_node_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Node Id"
+          },
+          "transform": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Transform"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "operation_id",
+          "op"
+        ],
+        "title": "DesignChangeOperation",
+        "type": "object"
+      },
+      "DesignChangeSet": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "change_set_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Change Set Id",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/DesignChangeOperation"
+            },
+            "minItems": 1,
+            "title": "Operations",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "protected_node_ids": {
+            "items": {
+              "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "title": "Protected Node Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DesignChangeSet@1",
+            "default": "DesignChangeSet@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "previewed",
+              "confirmed",
+              "rejected",
+              "stale"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_set_id",
+          "project_id",
+          "base_version_id",
+          "summary",
+          "operations"
+        ],
+        "title": "DesignChangeSet",
+        "type": "object"
+      },
+      "DesignDomainProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "domain_type": {
+            "const": "weapon_concept",
+            "default": "weapon_concept",
+            "title": "Domain Type",
+            "type": "string"
+          },
+          "export_profiles": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Export Profiles",
+            "type": "array"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "module_categories": {
+            "items": {
+              "enum": [
+                "core_shell",
+                "front_shell",
+                "rear_shell",
+                "grip_shell",
+                "top_accessory",
+                "side_accessory",
+                "lower_structure",
+                "storage_visual",
+                "armor_panel"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Module Categories",
+            "type": "array"
+          },
+          "non_functional_only": {
+            "const": true,
+            "default": true,
+            "title": "Non Functional Only",
+            "type": "boolean"
+          },
+          "optional_connectors": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            "title": "Optional Connectors",
+            "type": "array"
+          },
+          "pack_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "required_connectors": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Connectors",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DesignDomainProfile@1",
+            "default": "DesignDomainProfile@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "display_name",
+          "pack_id",
+          "intended_uses",
+          "module_categories",
+          "required_connectors",
+          "export_profiles"
+        ],
+        "title": "DesignDomainProfile",
+        "type": "object"
+      },
+      "DesignVariantListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DesignVariantRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "DesignVariantListResponse",
+        "type": "object"
+      },
+      "DesignVariantRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "module_graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "rank": {
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Rationale",
+            "type": "array"
+          },
+          "recommended_module_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommended Module Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "selected",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "variant_id": {
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "project_id",
+          "brief_id",
+          "rank",
+          "name",
+          "summary",
+          "module_graph",
+          "planner_provenance",
+          "status",
+          "created_at"
+        ],
+        "title": "DesignVariantRecord",
+        "type": "object"
+      },
       "ErrorEnvelope": {
         "properties": {
           "code": {
@@ -1021,6 +3331,89 @@
           "message"
         ],
         "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "ExportFileEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "mime_type": {
+            "minLength": 1,
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "byte_size",
+          "mime_type"
+        ],
+        "title": "ExportFileEntry",
+        "type": "object"
+      },
+      "ExportModuleEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "mirror_axis": {
+            "default": "none",
+            "enum": [
+              "none",
+              "x",
+              "y",
+              "z"
+            ],
+            "title": "Mirror Axis",
+            "type": "string"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          }
+        },
+        "required": [
+          "node_id",
+          "module_id",
+          "asset_id",
+          "sha256",
+          "logical_path",
+          "transform"
+        ],
+        "title": "ExportModuleEntry",
         "type": "object"
       },
       "ExportUnityRequest": {
@@ -1121,6 +3514,44 @@
         "title": "Generate3DRequest",
         "type": "object"
       },
+      "GenerateDesignVariantsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_id": {
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "count": {
+            "const": 3,
+            "default": 3,
+            "title": "Count",
+            "type": "integer"
+          },
+          "generator": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
+            "title": "Generator",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "brief_id"
+        ],
+        "title": "GenerateDesignVariantsRequest",
+        "type": "object"
+      },
       "GenerationOptions": {
         "properties": {
           "concept_count": {
@@ -1194,6 +3625,70 @@
           "mode"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InspectConceptVersionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "ruleset_version": {
+            "const": "weapon-concept-geometry/1.3",
+            "default": "weapon-concept-geometry/1.3",
+            "title": "Ruleset Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "InspectConceptVersionRequest",
+        "type": "object"
+      },
+      "InterpretDesignBriefRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "generator": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
+            "title": "Generator",
+            "type": "string"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "source_text": {
+            "maxLength": 4000,
+            "minLength": 3,
+            "title": "Source Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "source_text"
+        ],
+        "title": "InterpretDesignBriefRequest",
         "type": "object"
       },
       "JobAcceptedResponse": {
@@ -1690,6 +4185,125 @@
         "title": "JobEvent",
         "type": "object"
       },
+      "JobEventV2": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Asset Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "job_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "level": {
+            "default": "info",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "progress": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "number"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "JobEvent@2",
+            "default": "JobEvent@2",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1.0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "queued",
+              "running",
+              "waiting_provider",
+              "waiting_user",
+              "retrying",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "partial_succeeded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step": {
+            "minLength": 1,
+            "title": "Step",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "event_id",
+          "job_id",
+          "seq",
+          "project_id",
+          "step",
+          "status",
+          "message",
+          "progress",
+          "created_at"
+        ],
+        "title": "JobEventV2",
+        "type": "object"
+      },
       "JobListResponse": {
         "properties": {
           "items": {
@@ -1955,6 +4569,565 @@
         "title": "JobSummary",
         "type": "object"
       },
+      "ModelQualityReport": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/QualityFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "report_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "ruleset_version": {
+            "minLength": 1,
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModelQualityReport@1",
+            "default": "ModelQualityReport@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "not_run"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "project_id",
+          "version_id",
+          "ruleset_version",
+          "status",
+          "created_at"
+        ],
+        "title": "ModelQualityReport",
+        "type": "object"
+      },
+      "ModuleAssetListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "core_shell",
+                  "front_shell",
+                  "rear_shell",
+                  "grip_shell",
+                  "top_accessory",
+                  "side_accessory",
+                  "lower_structure",
+                  "storage_visual",
+                  "armor_panel"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleAssetRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "pack_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Id"
+          }
+        },
+        "title": "ModuleAssetListResponse",
+        "type": "object"
+      },
+      "ModuleAssetManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "category": {
+            "enum": [
+              "core_shell",
+              "front_shell",
+              "rear_shell",
+              "grip_shell",
+              "top_accessory",
+              "side_accessory",
+              "lower_structure",
+              "storage_visual",
+              "armor_panel"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "connectors": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleConnector"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "material_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Material Slots",
+            "type": "array"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "pack_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModuleAssetManifest@1",
+            "default": "ModuleAssetManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 1.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "module_id",
+          "pack_id",
+          "category",
+          "asset_id",
+          "sha256",
+          "bounds_mm",
+          "triangle_count",
+          "material_slots"
+        ],
+        "title": "ModuleAssetManifest",
+        "type": "object"
+      },
+      "ModuleAssetRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "logical_path": {
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ModuleAssetManifest"
+          },
+          "mime_type": {
+            "default": "model/gltf-binary",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "object_path": {
+            "title": "Object Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifest",
+          "logical_path",
+          "object_path",
+          "byte_size",
+          "created_at"
+        ],
+        "title": "ModuleAssetRecord",
+        "type": "object"
+      },
+      "ModuleConnector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "connector_type": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Connector Type",
+            "type": "string"
+          },
+          "exclusive": {
+            "default": true,
+            "title": "Exclusive",
+            "type": "boolean"
+          },
+          "scale_range": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Scale Range",
+            "type": "array"
+          },
+          "slot": {
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+            "title": "Slot",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          }
+        },
+        "required": [
+          "connector_id",
+          "slot",
+          "connector_type",
+          "transform",
+          "scale_range"
+        ],
+        "title": "ModuleConnector",
+        "type": "object"
+      },
+      "ModuleGraph": {
+        "additionalProperties": false,
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "graph_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Graph Id",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphNode"
+            },
+            "minItems": 1,
+            "title": "Nodes",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "root_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Root Node Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ModuleGraph@1",
+            "default": "ModuleGraph@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "graph_id",
+          "project_id",
+          "root_node_id",
+          "nodes"
+        ],
+        "title": "ModuleGraph",
+        "type": "object"
+      },
+      "ModuleGraphEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "edge_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Edge Id",
+            "type": "string"
+          },
+          "from_connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "From Connector Id",
+            "type": "string"
+          },
+          "from_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "From Node Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "connected",
+            "enum": [
+              "connected",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "to_connector_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "To Connector Id",
+            "type": "string"
+          },
+          "to_node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "To Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id",
+          "from_node_id",
+          "from_connector_id",
+          "to_node_id",
+          "to_connector_id"
+        ],
+        "title": "ModuleGraphEdge",
+        "type": "object"
+      },
+      "ModuleGraphNode": {
+        "additionalProperties": false,
+        "properties": {
+          "locked": {
+            "default": false,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "mirror_axis": {
+            "default": "none",
+            "enum": [
+              "none",
+              "x",
+              "y",
+              "z"
+            ],
+            "title": "Mirror Axis",
+            "type": "string"
+          },
+          "module_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Module Id",
+            "type": "string"
+          },
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/components/schemas/Transform"
+          },
+          "visible": {
+            "default": true,
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node_id",
+          "module_id",
+          "transform"
+        ],
+        "title": "ModuleGraphNode",
+        "type": "object"
+      },
+      "ModuleGraphRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "graph",
+          "graph_sha256",
+          "validation_status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ModuleGraphRecord",
+        "type": "object"
+      },
+      "ModuleGraphValidationIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "edge_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ModuleGraphValidationIssue",
+        "type": "object"
+      },
+      "ModuleGraphValidationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "graph_id": {
+            "title": "Graph Id",
+            "type": "string"
+          },
+          "graph_sha256": {
+            "title": "Graph Sha256",
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "persisted": {
+            "title": "Persisted",
+            "type": "boolean"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "graph_id",
+          "project_id",
+          "valid",
+          "persisted",
+          "graph_sha256"
+        ],
+        "title": "ModuleGraphValidationResponse",
+        "type": "object"
+      },
       "PatchWeaponRequest": {
         "properties": {
           "client_request_id": {
@@ -2023,6 +5196,119 @@
           "instruction"
         ],
         "title": "PatchWeaponRequest",
+        "type": "object"
+      },
+      "PlanDesignChangeSetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "generator": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "configured_provider",
+              "deterministic_rules",
+              "deterministic_template"
+            ],
+            "title": "Generator",
+            "type": "string"
+          },
+          "instruction": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Instruction",
+            "type": "string"
+          },
+          "selected_module_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Module Id"
+          },
+          "selected_node_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Node Id"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "instruction"
+        ],
+        "title": "PlanDesignChangeSetRequest",
+        "type": "object"
+      },
+      "PlannedChangeSetRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "instruction": {
+            "title": "Instruction",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "planner_provenance": {
+            "$ref": "#/components/schemas/ConceptPlannerProvenance"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Rationale",
+            "type": "array"
+          }
+        },
+        "required": [
+          "change_set",
+          "instruction",
+          "planner_provenance",
+          "job_id"
+        ],
+        "title": "PlannedChangeSetRecord",
+        "type": "object"
+      },
+      "ProposeChangeSetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "change_set": {
+            "$ref": "#/components/schemas/DesignChangeSet"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "change_set"
+        ],
+        "title": "ProposeChangeSetRequest",
         "type": "object"
       },
       "ProviderSettings": {
@@ -2209,6 +5495,227 @@
         "title": "ProviderTaskSummary",
         "type": "object"
       },
+      "QualityFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "graph",
+              "mesh",
+              "assembly"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "check_id": {
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "finding_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "geometry_refs": {
+            "items": {
+              "$ref": "#/components/schemas/QualityGeometryReference"
+            },
+            "title": "Geometry Refs",
+            "type": "array"
+          },
+          "measured_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Value"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "node_ids": {
+            "items": {
+              "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "title": "Node Ids",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "not_run"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggestion": {
+            "default": "",
+            "title": "Suggestion",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "finding_id",
+          "check_id",
+          "category",
+          "severity",
+          "status",
+          "message"
+        ],
+        "title": "QualityFinding",
+        "type": "object"
+      },
+      "QualityGeometryReference": {
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "triangle_indices": {
+            "items": {
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "maxItems": 16,
+            "title": "Triangle Indices",
+            "type": "array"
+          },
+          "world_triangles_mm": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "maxItems": 16,
+            "title": "World Triangles Mm",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "QualityGeometryReference",
+        "type": "object"
+      },
+      "QualityRunRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality_run_id": {
+            "title": "Quality Run Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/ModelQualityReport"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quality_run_id",
+          "project_id",
+          "version_id",
+          "report",
+          "created_at"
+        ],
+        "title": "QualityRunRecord",
+        "type": "object"
+      },
+      "RegisterModuleAssetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "glb_data_base64": {
+            "minLength": 1,
+            "title": "Glb Data Base64",
+            "type": "string"
+          },
+          "logical_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Logical Path",
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ModuleAssetManifest"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "manifest",
+          "logical_path",
+          "glb_data_base64"
+        ],
+        "title": "RegisterModuleAssetRequest",
+        "type": "object"
+      },
       "RuntimeRecoveryItem": {
         "properties": {
           "event_id": {
@@ -2382,6 +5889,22 @@
         "title": "RuntimeWorkOnceResponse",
         "type": "object"
       },
+      "SelectDesignVariantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "SelectDesignVariantRequest",
+        "type": "object"
+      },
       "SkillCard": {
         "properties": {
           "anchor_point": {
@@ -2543,6 +6066,73 @@
         "title": "TargetOptions",
         "type": "object"
       },
+      "Transform": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "description": "Millimeters in graph-world or module-local space.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Position",
+            "type": "array"
+          },
+          "rotation": {
+            "description": "Radians using Euler XYZ order.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Rotation",
+            "type": "array"
+          },
+          "scale": {
+            "description": "Dimensionless positive scale.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Scale",
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rotation",
+          "scale"
+        ],
+        "title": "Transform",
+        "type": "object"
+      },
+      "ValidateModuleGraphRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/ModuleGraph"
+          },
+          "persist": {
+            "default": true,
+            "title": "Persist",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "graph"
+        ],
+        "title": "ValidateModuleGraphRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2581,6 +6171,98 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WeaponConceptSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "archetype": {
+            "const": "future_modular_sidearm",
+            "default": "future_modular_sidearm",
+            "title": "Archetype",
+            "type": "string"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/ConceptConstraints"
+          },
+          "intended_uses": {
+            "items": {
+              "enum": [
+                "visual_asset",
+                "game_asset",
+                "film_prop",
+                "non_functional_display"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Intended Uses",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Optional Slots",
+            "type": "array"
+          },
+          "profile_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "proportions": {
+            "$ref": "#/components/schemas/ConceptProportions"
+          },
+          "required_slots": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "WeaponConceptSpec@1",
+            "default": "WeaponConceptSpec@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "style": {
+            "$ref": "#/components/schemas/ConceptStyle"
+          }
+        },
+        "required": [
+          "project_id",
+          "profile_id",
+          "name",
+          "intended_uses",
+          "style",
+          "proportions",
+          "required_slots",
+          "constraints",
+          "assumptions"
+        ],
+        "title": "WeaponConceptSpec",
         "type": "object"
       },
       "WeaponDetail": {
@@ -3548,6 +7230,2367 @@
           }
         },
         "summary": "Runtime Work Once"
+      }
+    },
+    "/api/v1/change-set-audit-exports/{audit_export_id}": {
+      "get": {
+        "operationId": "get_audit_export_api_v1_change_set_audit_exports__audit_export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_export_id",
+            "required": true,
+            "schema": {
+              "title": "Audit Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Audit Export",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      }
+    },
+    "/api/v1/change-set-audit-exports/{audit_export_id}/file": {
+      "get": {
+        "operationId": "download_audit_export_api_v1_change_set_audit_exports__audit_export_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_export_id",
+            "required": true,
+            "schema": {
+              "title": "Audit Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Audit Export",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      }
+    },
+    "/api/v1/change-sets/{change_set_id}:confirm": {
+      "post": {
+        "operationId": "confirm_change_set_api_v1_change_sets__change_set_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/change-sets/{change_set_id}:preview": {
+      "post": {
+        "operationId": "preview_change_set_api_v1_change_sets__change_set_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/change-sets/{change_set_id}:reject": {
+      "post": {
+        "operationId": "reject_change_set_api_v1_change_sets__change_set_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}": {
+      "get": {
+        "operationId": "get_export_api_v1_exports__export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.glb": {
+      "get": {
+        "operationId": "download_combined_glb_api_v1_exports__export_id__combined_glb_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Glb",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.mtl": {
+      "get": {
+        "operationId": "download_combined_mtl_api_v1_exports__export_id__combined_mtl_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Mtl",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/combined.obj": {
+      "get": {
+        "operationId": "download_combined_obj_api_v1_exports__export_id__combined_obj_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Combined Obj",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/exploded.png": {
+      "get": {
+        "operationId": "download_exploded_png_api_v1_exports__export_id__exploded_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Exploded Png",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/file": {
+      "get": {
+        "operationId": "download_export_api_v1_exports__export_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/preview.png": {
+      "get": {
+        "operationId": "download_preview_png_api_v1_exports__export_id__preview_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Preview Png",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/renders.zip": {
+      "get": {
+        "operationId": "download_render_set_api_v1_exports__export_id__renders_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Render Set",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/turntable.mp4": {
+      "get": {
+        "operationId": "download_turntable_video_api_v1_exports__export_id__turntable_mp4_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Turntable Video",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/turntable/{frame_index}.png": {
+      "get": {
+        "operationId": "download_turntable_frame_api_v1_exports__export_id__turntable__frame_index__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "frame_index",
+            "required": true,
+            "schema": {
+              "title": "Frame Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Turntable Frame",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_id}/views/{view_name}.png": {
+      "get": {
+        "operationId": "download_render_view_api_v1_exports__export_id__views__view_name__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view_name",
+            "required": true,
+            "schema": {
+              "title": "View Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Render View",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_v1_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptJobRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job",
+        "tags": [
+          "concept-jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{job_id}/events": {
+      "get": {
+        "operationId": "stream_job_events_api_v1_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Job Events",
+        "tags": [
+          "concept-jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{job_id}/events.json": {
+      "get": {
+        "operationId": "list_job_events_api_v1_jobs__job_id__events_json_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptJobEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Job Events",
+        "tags": [
+          "concept-jobs"
+        ]
+      }
+    },
+    "/api/v1/module-assets": {
+      "get": {
+        "operationId": "list_module_assets_api_v1_module_assets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pack_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pack Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "core_shell",
+                    "front_shell",
+                    "rear_shell",
+                    "grip_shell",
+                    "top_accessory",
+                    "side_accessory",
+                    "lower_structure",
+                    "storage_visual",
+                    "armor_panel"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAssetListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Module Assets",
+        "tags": [
+          "concept-modules"
+        ]
+      },
+      "post": {
+        "operationId": "register_module_asset_api_v1_module_assets_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterModuleAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Module Asset",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-assets/{module_id}/file": {
+      "get": {
+        "operationId": "download_module_asset_api_v1_module_assets__module_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_id",
+            "required": true,
+            "schema": {
+              "title": "Module Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Module Asset",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-graphs/{graph_id}": {
+      "get": {
+        "operationId": "get_module_graph_api_v1_module_graphs__graph_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "graph_id",
+            "required": true,
+            "schema": {
+              "title": "Graph Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleGraphRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Module Graph",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-graphs/{graph_id}/validate": {
+      "post": {
+        "operationId": "validate_module_graph_api_v1_module_graphs__graph_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "graph_id",
+            "required": true,
+            "schema": {
+              "title": "Graph Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateModuleGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleGraphValidationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Module Graph",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "list_projects_api_v1_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects",
+        "tags": [
+          "concept-projects"
+        ]
+      },
+      "post": {
+        "operationId": "create_project_api_v1_projects_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConceptProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Project",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_api_v1_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/brief:interpret": {
+      "post": {
+        "operationId": "interpret_brief_api_v1_projects__project_id__brief_interpret_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretDesignBriefRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignBriefRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Interpret Brief",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/briefs/{brief_id}": {
+      "get": {
+        "operationId": "get_brief_api_v1_projects__project_id__briefs__brief_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignBriefRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Brief",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/change-set-audit-exports": {
+      "get": {
+        "operationId": "list_audit_exports_api_v1_projects__project_id__change_set_audit_exports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit Exports",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      },
+      "post": {
+        "operationId": "create_audit_export_api_v1_projects__project_id__change_set_audit_exports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChangeSetAuditExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetAuditExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Audit Export",
+        "tags": [
+          "change-set-audit-exports"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/change-sets": {
+      "get": {
+        "operationId": "list_change_sets_api_v1_projects__project_id__change_sets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 1000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "proposed",
+                    "previewed",
+                    "confirmed",
+                    "rejected",
+                    "stale"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "add_module",
+                    "remove_module",
+                    "replace_module",
+                    "connect",
+                    "disconnect",
+                    "set_transform",
+                    "set_mirror",
+                    "set_style",
+                    "set_parameter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operation"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetTimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Change Sets",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/variants": {
+      "get": {
+        "operationId": "list_variants_api_v1_projects__project_id__variants_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "brief_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brief Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Variants",
+        "tags": [
+          "concept-briefs"
+        ]
+      },
+      "post": {
+        "operationId": "generate_variants_api_v1_projects__project_id__variants_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateDesignVariantsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Variants",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/variants/{variant_id}:select": {
+      "post": {
+        "operationId": "select_variant_api_v1_projects__project_id__variants__variant_id__select_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "title": "Variant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectDesignVariantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignVariantRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Variant",
+        "tags": [
+          "concept-briefs"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/versions": {
+      "post": {
+        "operationId": "append_project_version_api_v1_projects__project_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendConceptVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append Project Version",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/quality-runs/{quality_run_id}": {
+      "get": {
+        "operationId": "get_quality_run_api_v1_quality_runs__quality_run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quality_run_id",
+            "required": true,
+            "schema": {
+              "title": "Quality Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quality Run",
+        "tags": [
+          "concept-quality"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}": {
+      "get": {
+        "operationId": "get_version_api_v1_versions__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptVersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/change-sets": {
+      "post": {
+        "operationId": "propose_change_set_api_v1_versions__version_id__change_sets_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeChangeSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/change-sets:plan": {
+      "post": {
+        "operationId": "plan_change_set_api_v1_versions__version_id__change_sets_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanDesignChangeSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannedChangeSetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/exports": {
+      "post": {
+        "operationId": "create_export_api_v1_versions__version_id__exports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConceptExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptExportRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Export",
+        "tags": [
+          "concept-exports"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/quality-runs": {
+      "post": {
+        "operationId": "create_quality_run_api_v1_versions__version_id__quality_runs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQualityRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Quality Run",
+        "tags": [
+          "concept-quality"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/quality-runs:inspect": {
+      "post": {
+        "operationId": "inspect_concept_version_api_v1_versions__version_id__quality_runs_inspect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectConceptVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRunRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inspect Concept Version",
+        "tags": [
+          "concept-quality"
+        ]
       }
     },
     "/api/weapons": {

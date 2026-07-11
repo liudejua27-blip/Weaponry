@@ -26,6 +26,32 @@ import type {
   RuntimeWorkOnceResponse,
   WeaponDetail,
   WeaponSummary,
+  ConceptProjectDetail,
+  ConceptProjectListResponse,
+  ConceptVersionDetail,
+  CreateConceptProjectRequest,
+  ModuleAssetListResponse,
+  ModuleGraphRecord,
+  DesignVariantListResponse,
+  DesignVariantRecord,
+  InterpretDesignBriefRequest,
+  DesignBriefRecord,
+  GenerateDesignVariantsRequest,
+  SelectDesignVariantRequest,
+  CreateConceptExportRequest,
+  ConceptExportRecord,
+  ProposeChangeSetRequest,
+  PlanDesignChangeSetRequest,
+  PlannedChangeSetRecord,
+  DesignChangeSet,
+  ChangeSetPreviewResponse,
+  ChangeSetConfirmResponse,
+  ChangeSetTimelineResponse,
+  CreateChangeSetAuditExportRequest,
+  ChangeSetAuditExportRecord,
+  ChangeSetAuditExportListResponse,
+  InspectConceptVersionRequest,
+  QualityRunRecord,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -57,6 +83,282 @@ export class ForgeApiClient {
   async checkHealth(): Promise<HealthResponse> {
     const response = await fetch(`${this.baseUrl}/api/health`)
     return readJson<HealthResponse>(response)
+  }
+
+  async listConceptProjects(): Promise<ConceptProjectListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects`)
+    return readJson<ConceptProjectListResponse>(response)
+  }
+
+  async getConceptProject(projectId: string): Promise<ConceptProjectDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}`)
+    return readJson<ConceptProjectDetail>(response)
+  }
+
+  async createConceptProject(input: CreateConceptProjectRequest): Promise<ConceptProjectDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<ConceptProjectDetail>(response)
+  }
+
+  async getConceptVersion(versionId: string): Promise<ConceptVersionDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}`)
+    return readJson<ConceptVersionDetail>(response)
+  }
+
+  async listModuleAssets(packId?: string): Promise<ModuleAssetListResponse> {
+    const url = new URL(`${this.baseUrl}/api/v1/module-assets`)
+    if (packId) url.searchParams.set('pack_id', packId)
+    const response = await fetch(url)
+    return readJson<ModuleAssetListResponse>(response)
+  }
+
+  getModuleAssetFileUrl(moduleId: string): string {
+    return `${this.baseUrl}/api/v1/module-assets/${encodeURIComponent(moduleId)}/file`
+  }
+
+  async getModuleGraph(graphId: string): Promise<ModuleGraphRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/module-graphs/${graphId}`)
+    return readJson<ModuleGraphRecord>(response)
+  }
+
+  async inspectConceptVersion(
+    versionId: string,
+    input: InspectConceptVersionRequest,
+  ): Promise<QualityRunRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/quality-runs:inspect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<QualityRunRecord>(response)
+  }
+
+  async listDesignVariants(projectId: string): Promise<DesignVariantListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/variants`)
+    return readJson<DesignVariantListResponse>(response)
+  }
+
+  async interpretDesignBrief(
+    projectId: string,
+    input: InterpretDesignBriefRequest,
+  ): Promise<DesignBriefRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/brief:interpret`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignBriefRecord>(response)
+  }
+
+  async generateDesignVariants(
+    projectId: string,
+    input: GenerateDesignVariantsRequest,
+  ): Promise<DesignVariantListResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/variants`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignVariantListResponse>(response)
+  }
+
+  async selectDesignVariant(
+    projectId: string,
+    variantId: string,
+    input: SelectDesignVariantRequest,
+  ): Promise<DesignVariantRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${projectId}/variants/${variantId}:select`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<DesignVariantRecord>(response)
+  }
+
+  async createConceptExport(
+    versionId: string,
+    input: CreateConceptExportRequest,
+  ): Promise<ConceptExportRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/exports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<ConceptExportRecord>(response)
+  }
+
+  getConceptExportFileUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/file`
+  }
+
+  getConceptCombinedGlbUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.glb`
+  }
+
+  getConceptCombinedObjUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.obj`
+  }
+
+  getConceptCombinedMtlUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/combined.mtl`
+  }
+
+  getConceptPreviewPngUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/preview.png`
+  }
+
+  getConceptExplodedPngUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/exploded.png`
+  }
+
+  getConceptRenderSetUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/renders.zip`
+  }
+
+  getConceptRenderViewUrl(exportId: string, viewName: 'front' | 'side' | 'top'): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/views/${viewName}.png`
+  }
+
+  getConceptTurntableFrameUrl(exportId: string, frameIndex: number): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/turntable/${frameIndex}.png`
+  }
+
+  getConceptTurntableVideoUrl(exportId: string): string {
+    return `${this.baseUrl}/api/v1/exports/${encodeURIComponent(exportId)}/turntable.mp4`
+  }
+
+  async proposeChangeSet(
+    versionId: string,
+    input: ProposeChangeSetRequest,
+  ): Promise<DesignChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/change-sets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<DesignChangeSet>(response)
+  }
+
+  async planChangeSet(
+    versionId: string,
+    input: PlanDesignChangeSetRequest,
+  ): Promise<PlannedChangeSetRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/versions/${versionId}/change-sets:plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<PlannedChangeSetRecord>(response)
+  }
+
+  async listChangeSets(
+    projectId: string,
+    input: {
+      cursor?: string
+      limit?: number
+      q?: string
+      status?: 'proposed' | 'previewed' | 'confirmed' | 'rejected' | 'stale'
+      operation?: 'add_module' | 'remove_module' | 'replace_module' | 'connect' | 'disconnect'
+        | 'set_transform' | 'set_mirror' | 'set_style' | 'set_parameter'
+    } = {},
+  ): Promise<ChangeSetTimelineResponse> {
+    const url = new URL(`${this.baseUrl}/api/v1/projects/${projectId}/change-sets`)
+    if (input.cursor) url.searchParams.set('cursor', input.cursor)
+    if (input.limit) url.searchParams.set('limit', String(input.limit))
+    if (input.q) url.searchParams.set('q', input.q)
+    if (input.status) url.searchParams.set('status', input.status)
+    if (input.operation) url.searchParams.set('operation', input.operation)
+    const response = await fetch(url)
+    return readJson<ChangeSetTimelineResponse>(response)
+  }
+
+  async createChangeSetAuditExport(
+    projectId: string,
+    input: CreateChangeSetAuditExportRequest,
+  ): Promise<ChangeSetAuditExportRecord> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${projectId}/change-set-audit-exports`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<ChangeSetAuditExportRecord>(response)
+  }
+
+  async listChangeSetAuditExports(
+    projectId: string,
+    limit = 20,
+  ): Promise<ChangeSetAuditExportListResponse> {
+    const url = new URL(
+      `${this.baseUrl}/api/v1/projects/${projectId}/change-set-audit-exports`,
+    )
+    url.searchParams.set('limit', String(limit))
+    const response = await fetch(url)
+    return readJson<ChangeSetAuditExportListResponse>(response)
+  }
+
+  getChangeSetAuditExportFileUrl(auditExportId: string): string {
+    return `${this.baseUrl}/api/v1/change-set-audit-exports/${encodeURIComponent(auditExportId)}/file`
+  }
+
+  async previewChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetPreviewResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:preview`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<ChangeSetPreviewResponse>(response)
+  }
+
+  async confirmChangeSet(changeSetId: string, idempotencyKey: string): Promise<ChangeSetConfirmResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:confirm`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<ChangeSetConfirmResponse>(response)
+  }
+
+  async rejectChangeSet(changeSetId: string, idempotencyKey: string): Promise<DesignChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/change-sets/${changeSetId}:reject`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<DesignChangeSet>(response)
   }
 
   async createWeapon(input: CreateWeaponRequest): Promise<CreateWeaponResponse> {

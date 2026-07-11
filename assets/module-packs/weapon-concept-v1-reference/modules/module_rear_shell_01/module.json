@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_rear_shell_01",
+  "bounds_mm": [
+    43.0,
+    39.0,
+    37.5
+  ],
+  "category": "rear_shell",
+  "connectors": [
+    {
+      "connector_id": "connector_rear_core",
+      "connector_type": "rear_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "rear.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_rear_shell_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "34231ded3dbc0696265277497a15baddfba3d3f55e88d83d73f9e4ab6f0ed42b",
+  "triangle_count": 48
+}

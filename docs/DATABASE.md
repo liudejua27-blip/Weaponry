@@ -214,24 +214,55 @@ Exit codes:
 
 ## Backup Manifest
 
-Backups must include a manifest:
+当前实现使用 `scripts/library_backup.py` 和 `ForgeCADLibraryBackupManifest@1`。备份由 SQLite Backup API 快照、快照实际引用的 legacy/Concept 对象和 Manifest 构成；不复制 WAL/SHM、Provider secret/config、trash/cache 或未引用对象候选。
 
 ```json
 {
-  "backup_id": "backup_20260704_0001",
-  "library_schema_version": 1,
-  "created_at": "2026-07-04T22:00:00+08:00",
-  "db_sha256": "sha256...",
-  "files": [
-    {
-      "logical_path": "weapons/weapon_001/versions/v0001/concept.png",
-      "object_path": "objects/sha256/aa/bb/hash.png",
-      "sha256": "sha256...",
-      "byte_size": 123456
+  "schema_version": "ForgeCADLibraryBackupManifest@1",
+  "backup_id": "backup_20260710T150708Z_3c7601b6cd07",
+  "created_at": "2026-07-10T15:07:08+00:00",
+  "database": {
+    "path": "library.db",
+    "sha256": "<64 hex>",
+    "byte_size": 659456,
+    "journal_mode": "delete",
+    "schema_versions": ["0001", "...", "0016"],
+    "table_counts": {
+      "projects": 1,
+      "module_assets": 2,
+      "module_connectors": 2,
+      "module_graphs": 1,
+      "concept_assets": 4,
+      "asset_files": 1
     }
-  ]
+  },
+  "objects": [
+    {
+      "path": "objects/sha256/aa/bb/<sha256>.zip",
+      "sha256": "<64 hex>",
+      "byte_size": 2758,
+      "reference_count": 1,
+      "source_tables": ["concept_assets"]
+    }
+  ],
+  "capacity": {
+    "reference_rows": 5,
+    "unique_object_count": 4,
+    "logical_object_bytes": 3248,
+    "unique_object_bytes": 3088,
+    "deduplicated_bytes": 160,
+    "unreferenced_candidate_count": 1
+  }
 }
 ```
+
+验证器要求数据库引用集合、Manifest object 集合和实际文件集合一致，并重新计算 SHA-256/size、capacity、`integrity_check` 与 `foreign_key_check`。恢复目标必须不存在；成功恢复会把 Manifest 保存到新库的 `backups/manifests/`。
+
+## Recovery Drill Report
+
+`scripts/library_recovery_drill.py` 在同一静止源库上连续调用正式 `backup → verify → restore`，再以恢复目录启动真实 Agent，回读所有 Project/Version、Module registry，并下载每个注册 GLB 校验响应头与 payload SHA-256。输出 `ForgeCADLibraryRecoveryDrillReport@1`，记录每轮 source snapshot 指纹、容量、wall-clock duration、吞吐、完成后的目录大小和 Agent 回读计数；多轮 source fingerprint 或 capacity 不一致时以 `SOURCE_CHANGED_DURING_DRILL` 失败。
+
+报告的 `evidence.declared_class` 由操作者声明。选择 `formal_blender_10_12` 时，工具要求 10–12 个注册 Module、拒绝仓库确定性 reference/smoke GLB generator，并强制提供 `formal_release_10_12` 的 `ForgeCADFormalModulePromotionReport@1`；晋级报告的 Module/GLB hash 集合必须与恢复后 Agent 的实际下载完全相等。恢复报告保存晋级报告 SHA-256，但不把人工 attestation 冒充密码学签名。`--baseline-report` 保存旧报告 SHA-256 并逐字段计算容量增量。默认成功后删除临时 backup/restore，只保留报告；只有显式 `--retain-artifacts` 才保留演练副本。
 
 ## Migration Rules
 

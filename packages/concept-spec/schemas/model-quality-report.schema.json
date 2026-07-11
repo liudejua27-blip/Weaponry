@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/model-quality-report.schema.json",
+  "title": "ModelQualityReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_id", "project_id", "version_id", "ruleset_version", "status", "findings", "created_at"],
+  "properties": {
+    "schema_version": { "const": "ModelQualityReport@1" },
+    "report_id": { "$ref": "common.schema.json#/$defs/id" },
+    "project_id": { "$ref": "common.schema.json#/$defs/id" },
+    "version_id": { "$ref": "common.schema.json#/$defs/id" },
+    "ruleset_version": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["passed", "warning", "failed", "not_run"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "check_id", "category", "severity", "status", "node_ids", "message", "suggestion"],
+        "properties": {
+          "finding_id": { "$ref": "common.schema.json#/$defs/id" },
+          "check_id": { "type": "string", "minLength": 1 },
+          "category": { "type": "string", "enum": ["graph", "mesh", "assembly"] },
+          "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+          "status": { "type": "string", "enum": ["passed", "warning", "failed", "not_run"] },
+          "node_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/id" } },
+          "geometry_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_id", "triangle_indices", "world_triangles_mm"],
+              "properties": {
+                "node_id": { "$ref": "common.schema.json#/$defs/id" },
+                "triangle_indices": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "items": { "type": "integer", "minimum": 0 }
+                },
+                "world_triangles_mm": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "array",
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "items": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "measured_value": { "type": ["number", "string", "null"] },
+          "threshold": { "type": ["number", "string", "null"] },
+          "message": { "type": "string", "minLength": 1 },
+          "suggestion": { "type": "string" }
+        }
+      }
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

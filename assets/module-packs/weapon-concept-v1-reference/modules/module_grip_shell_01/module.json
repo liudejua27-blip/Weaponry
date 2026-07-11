@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_grip_shell_01",
+  "bounds_mm": [
+    34.0,
+    67.0,
+    35.0
+  ],
+  "category": "grip_shell",
+  "connectors": [
+    {
+      "connector_id": "connector_grip_core",
+      "connector_type": "grip_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "grip.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_grip_shell_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "5d83eb2900a0a306a4d4aaf0e448b7cd9cc84cea03b29740a41fbcd82a2fc78b",
+  "triangle_count": 48
+}

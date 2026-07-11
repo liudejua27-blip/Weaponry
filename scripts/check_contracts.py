@@ -14,9 +14,32 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def check_json_schemas() -> None:
-    schema_dir = ROOT / "packages" / "weapon-spec" / "schemas"
-    for path in sorted(schema_dir.glob("*.json")):
-        json.loads(path.read_text(encoding="utf-8"))
+    schema_dirs = (
+        ROOT / "packages" / "weapon-spec" / "schemas",
+        ROOT / "packages" / "concept-spec" / "schemas",
+    )
+    required_concept_schemas = {
+        "common.schema.json",
+        "concept-export-manifest.schema.json",
+        "design-domain-profile.schema.json",
+        "weapon-concept-spec.schema.json",
+        "module-asset-manifest.schema.json",
+        "module-pack-manifest.schema.json",
+        "formal-module-review.schema.json",
+        "module-graph.schema.json",
+        "design-change-set.schema.json",
+        "model-quality-report.schema.json",
+        "job-event-v2.schema.json",
+    }
+    for schema_dir in schema_dirs:
+        names = set()
+        for path in sorted(schema_dir.glob("*.json")):
+            json.loads(path.read_text(encoding="utf-8"))
+            names.add(path.name)
+        if schema_dir.name == "schemas" and schema_dir.parent.name == "concept-spec":
+            missing = required_concept_schemas - names
+            if missing:
+                raise RuntimeError(f"missing concept schemas: {sorted(missing)}")
 
 
 def check_sqlite_migration() -> None:
@@ -45,6 +68,24 @@ def check_sqlite_migration() -> None:
             "agent_events",
             "models_3d",
             "export_packages",
+            "domain_profiles",
+            "projects",
+            "project_versions",
+            "concept_assets",
+            "module_assets",
+            "module_connectors",
+            "module_graphs",
+            "module_graph_nodes",
+            "module_graph_edges",
+            "design_briefs",
+            "design_variants",
+            "design_change_sets",
+            "quality_runs",
+            "quality_findings",
+            "export_packages_v2",
+            "artifact_links",
+            "concept_jobs",
+            "concept_job_events",
         }
         missing = required - tables
         if missing:

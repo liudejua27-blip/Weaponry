@@ -97,6 +97,7 @@ The gate blocks production release until:
 - Production icons are configured and the icon files exist.
 - `bundle.externalBin` includes `binaries/wushen-agent`.
 - At least one target-suffixed `wushen-agent-*` sidecar binary exists.
+- Each published sidecar is non-empty, executable where the target requires it, and has the expected Mach-O/ELF/PE header for its target.
 - Rust supervisor code implements a `packaged-sidecar` mode.
 - Packaging docs and release command references are current.
 

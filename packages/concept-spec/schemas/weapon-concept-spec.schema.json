@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/weapon-concept-spec.schema.json",
+  "title": "WeaponConceptSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "profile_id",
+    "name",
+    "archetype",
+    "intended_uses",
+    "style",
+    "proportions",
+    "required_slots",
+    "optional_slots",
+    "constraints",
+    "assumptions"
+  ],
+  "properties": {
+    "schema_version": { "const": "WeaponConceptSpec@1" },
+    "project_id": { "$ref": "common.schema.json#/$defs/id" },
+    "profile_id": { "$ref": "common.schema.json#/$defs/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "archetype": { "type": "string", "enum": ["future_modular_sidearm"] },
+    "intended_uses": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "common.schema.json#/$defs/intended_use" }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keywords", "palette", "detail_density"],
+      "properties": {
+        "keywords": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "palette": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "detail_density": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "proportions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_length_mm", "body_height_mm", "grip_angle_deg"],
+      "properties": {
+        "overall_length_mm": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+        "body_height_mm": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+        "grip_angle_deg": { "type": "number", "minimum": -45, "maximum": 45 }
+      }
+    },
+    "required_slots": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "optional_slots": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symmetry", "max_triangle_count"],
+      "properties": {
+        "symmetry": { "type": "string", "enum": ["symmetric", "mostly_symmetric", "asymmetric"] },
+        "max_triangle_count": { "type": "integer", "minimum": 1000, "maximum": 2000000 }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

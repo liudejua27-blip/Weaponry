@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_storage_visual_01",
+  "bounds_mm": [
+    34.0,
+    43.0,
+    33.0
+  ],
+  "category": "storage_visual",
+  "connectors": [
+    {
+      "connector_id": "connector_storage_core",
+      "connector_type": "storage_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "storage.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_storage_visual_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "a68248cd25751e8378755b7caf10799db0d77923b1c9cd1b586b8aae0bd429b3",
+  "triangle_count": 48
+}

@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_lower_structure_01",
+  "bounds_mm": [
+    46.0,
+    23.0,
+    26.5
+  ],
+  "category": "lower_structure",
+  "connectors": [
+    {
+      "connector_id": "connector_lower_core",
+      "connector_type": "lower_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "lower.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_lower_structure_01",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "6e94624ad57ce8ee6caa606cb3fd973ed19ba47f4d0500d2ccf6ef7714f9f7c7",
+  "triangle_count": 48
+}

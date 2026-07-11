@@ -1,0 +1,3 @@
+SPDX-License-Identifier: LicenseRef-ForgeCAD-Reference-Assets
+Copyright (c) 2026 ForgeCAD project contributors.
+Non-functional reference assets for project development and evaluation.

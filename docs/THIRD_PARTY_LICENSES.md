@@ -55,6 +55,7 @@ These projects are referenced by the product design or supported as external ada
 | Unity glTFast | Unity import verifier dependency | Pending | Used by the Unity import smoke through Package Manager; release needs package license and redistribution note. |
 | Tauri | Desktop shell | Blocked | Direct dependency exists, but Rust transitive dependency SBOM is blocked until `Cargo.lock` is committed. |
 | FastAPI | Agent API framework | Automated | Covered by `apps/agent/requirements-release.lock`; transitive Python runtime dependencies are pinned with license metadata. |
+| Phosphor Icons for React | CAD 工作台图标 | Automated | `@phosphor-icons/react@2.1.10`，MIT；由 `package-lock.json` 固定并进入 npm license gate。 |
 
 ## Current Production Blockers
 

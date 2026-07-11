@@ -1,0 +1,1 @@
+"""Generated ForgeCAD contract registries."""

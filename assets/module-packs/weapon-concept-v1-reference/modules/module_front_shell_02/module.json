@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset_front_shell_02",
+  "bounds_mm": [
+    76.0,
+    36.0,
+    42.5
+  ],
+  "category": "front_shell",
+  "connectors": [
+    {
+      "connector_id": "connector_front_02_core",
+      "connector_type": "shell_mount",
+      "exclusive": true,
+      "scale_range": [
+        0.9,
+        1.1
+      ],
+      "slot": "front.core",
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "material_slots": [
+    "MAT_primary",
+    "MAT_secondary",
+    "MAT_accent"
+  ],
+  "module_id": "module_front_shell_02",
+  "pack_id": "pack_weapon_concept_v1",
+  "schema_version": "ModuleAssetManifest@1",
+  "sha256": "bb2c06e5a732b9c628fc3c827873bd2d07edb6ed4c7c0bcd1647ac6e6e2b20d7",
+  "triangle_count": 60
+}

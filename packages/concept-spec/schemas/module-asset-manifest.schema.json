@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/module-asset-manifest.schema.json",
+  "title": "ModuleAssetManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module_id",
+    "pack_id",
+    "category",
+    "asset_id",
+    "sha256",
+    "bounds_mm",
+    "triangle_count",
+    "material_slots",
+    "connectors"
+  ],
+  "properties": {
+    "schema_version": { "const": "ModuleAssetManifest@1" },
+    "module_id": { "$ref": "common.schema.json#/$defs/id" },
+    "pack_id": { "$ref": "common.schema.json#/$defs/id" },
+    "category": { "$ref": "common.schema.json#/$defs/module_category" },
+    "asset_id": { "$ref": "common.schema.json#/$defs/id" },
+    "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "bounds_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+    "triangle_count": { "type": "integer", "minimum": 1 },
+    "material_slots": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "connectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["connector_id", "slot", "connector_type", "transform", "scale_range", "exclusive"],
+        "properties": {
+          "connector_id": { "$ref": "common.schema.json#/$defs/id" },
+          "slot": { "type": "string", "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$" },
+          "connector_type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "transform": { "$ref": "common.schema.json#/$defs/transform" },
+          "scale_range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "exclusiveMinimum": 0 } },
+          "exclusive": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

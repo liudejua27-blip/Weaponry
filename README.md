@@ -1,482 +1,303 @@
-# 武神 Forge
+# ForgeCAD（原武神 Forge）
 
-武神 Forge 是一个开源的 3渲2国风神兵设计桌面 Agent 软件。它面向游戏美术资产生产，不先做战斗、数值或玩法逻辑。
+ForgeCAD 是一个本地优先的 AI 模块化 3D 设计工作台。底层平台保持通用，第一阶段只交付 **Weapon Concept Pack**：面向未来武器概念、游戏资产、影视道具和非功能性展示模型，提供模块组合、AI 设计修改、版本、检查、渲染与导出闭环。
 
-项目目标很直接：
+> 新产品不拒绝武器题材。第一阶段允许外观精密、比例明确、模块细致、装配直观和版本可追踪；但产品不会把概念 Mesh/GLB 冒充为功能性武器工程 CAD，也不会在同一默认流程中混入未经实现的 STEP、完整 DFM、BOM 或生产切片。
 
-> 用户输入文字、草图或非武器物体，Agent 自动生成可迭代的幻想战斗物体方案、概念图、局部修改记录、资产库条目，并生成可进入 Unity 流程的 3D 粗模。
+边界不是拒绝武器设计，而是明确交付类型：当前生成物属于未来概念、影视道具和虚构游戏美术资产，导出包含非制造说明；产品不输出可用于现实制造武器的精确图纸。
 
-## 产品定位
+正式品牌尚未冻结，文档暂用 **ForgeCAD**。代码包名和环境变量仍保留 `wushen` / `WUSHEN_*`，直到迁移完成。
 
-武神 Forge 类似 Codex / Claude Code 的 Agent 工作方式，但目标不是写代码，而是生成武器美术资产。
-核心是：输入先表达“结构与意图”，先做结构解释与重诠释，再落在可进入游戏流程的神兵资产上。
-用户给出的是“对象”与“意图”，不是“武器类别”。
-
-入口约束（不再回退到分类器）：
-
-- 首次输入可为任意可解释对象：服饰、工具、家具、器物、自然形体、抽象几何都可进入流程。
-- 用户第一次提交后不做“是否武器”的分类拦截；如果解释能力不足，走重试而不是拒绝。
-- `interpretation` 在结构解释层先给 2~3 条候选，再由用户确认一个候选进入后续生成。
-
-合同层定义中 `WeaponDesignSpec@1` 保持兼容写盘，`CreativeWeaponGraph@1` 与 `SkillGraph@1` 为下一阶段主抽象，但阶段目标不依赖 `weapon_family` 分类前置。
-
-GPT-Pro 对齐的执行闭环（每轮验收前置）：
-
-- 先做 `interpretation`：2~3 个候选；
-- 用户单选一个候选并 `recast/confirm`；
-- 仅确认后的 `creative_graph` + `skill_graph` 允许继续 `concept -> patch -> generate-3d -> export-unity`；
-- 资产链路必须可追溯 `creative_graph_id -> skill_graph_id -> weapon_version -> export_version`；
-- 非武器对象不允许因分类失败被阻断（椅子、钥匙、树枝、花盆也必须走完整解释闭环）。
-
-它是“草图/描述驱动的幻想战斗物体工作台”：
-
-- 先解析输入结构：形体轮廓、骨架关系、握持点、攻击源、受控节点
-- 进行 Creative Recast：把任意物件解释为可执行的神兵语义（不要求它“像武器”）
-- 先给出 2~3 个结构候选，让用户确认（如防弹裤/木棍/椅子等）
-- 依据确认后的结构再生成 concept、局部修改与技能映射
-- 自动调度大模型 API、ComfyUI 与 3D 工作流
-- 保存每次生成、修改和导出资产到不可变资产库
-- 最终输出可在 Unity 流程继续加工的 3D 粗模
-
-## 第一阶段范围
-
-第一阶段只做自由输入与资产生成闭环：
+## 产品结构
 
 ```text
-用户描述/草图/非武器输入
--> 结构解释（形体/骨架/握持/攻击源/结构约束）
--> Creative Recast（对象重诠释）
--> 结构候选确认（2~3 套，用户选择）
--> CreativeWeaponGraph（目标态）
--> WeaponDesignSpec（兼容输出）
--> 概念图
--> 局部修改
--> SkillGraph（目标态，6+ 技能卡）
--> 3D 展台（展览台 + 简单角色 + 360）
--> 3D 粗模
--> Unity ZIP
--> 可直接进 Unity 的 3D 粗模数据
+通用 3D 设计平台
+├── 项目 / 版本 / 资产 / Job / Agent / 视口 / 导出
+├── Weapon Concept Pack（第一阶段）
+├── Game Prop / Robot / Vehicle Pack（后续领域包）
+└── CAD / DFM Engineering Pack（独立后续轨）
 ```
 
-第一阶段验收附加项：
+第一阶段不是“万能 AI CAD”，也不是“输入文字后每次重新生成整把模型”。核心价值是：
 
-- 3D 展台必须支持 360° 旋转，且可切换“角色持握点 / 穿戴点”提示。
-- `auto_run` 路径中，`POST /api/weapons` 首次返回可包含 `needs_confirm=true`，但不得省略候选确认。
-- 同一对象重复跑一次，必须保留至少一个候选排序不完全回退（有 `stable_seed` 可复现输入）。
+> 用人工可控的高质量模块库，让用户在五分钟内完成一款可修改、可回退、可检查、可展示和可导出的武器概念设计。
 
-第一阶段不做：
+## 第一阶段目标用户
 
-- Steam 游戏本体
-- 战斗系统
-- 数值系统
-- 联机乱斗
-- Unity 运行时集成
-- 成品级 3D 模型保证
+- 游戏独立开发者与 3D 美术；
+- 影视道具与概念设计人员；
+- 硬表面建模人员；
+- 武器概念设计爱好者；
+- 需要快速组合与比较造型方案的小型创意团队。
 
-## 风格方向
+北极星指标：
 
-核心风格是 **3渲2国风神兵**：
+> 每周完成并成功导出的有效武器概念设计数量。
 
-- 强剪影
-- 强轮廓线
-- 国风纹样
-- 神兵质感
-- 外观逼真可信，有重量感、视觉材质感和装饰细节层次
-- 玉、金属、骨、晶石、灵纹、符箓、火焰、雷电、水墨、灵气等幻想元素
-- 适合 Unity 中继续加工成游戏资产
+不是聊天次数、Prompt 数或完整模型生成次数。
 
-自由度原则（目标态）：
-
-- 先看“结构”，再看“能力”，永远不先按器类分类（剑、刀、枪只是结果标签，不是入口）。
-- 任意物件都先进行结构解释（骨架、握持、攻击源、受控节点）再转为战斗形态。
-- 先生成 2~3 个结构候选（如“防弹裤”可对应防御炮台/控制域/位移装置），用户先确认候选再继续生成。
-- `WeaponDesignSpec@1` 与 `weapon_family` 仅保留兼容回放，不作为主分类主键，主入口必须是 `creative_graph_id + skill_graph_id` 的语义链路。
-- 允许“防弹裤”“木棍”“椅子”“镜子”等非典型输入，目标是高自由度而不是类别覆盖。
-
-统一的解释框架（GPT Pro）：每个对象先走 4 层结构解释，不再用兵器类别做第一决策。
-
-- **结构层**：尺寸、骨架、受力点、可动关节、连接关系（握持、悬浮、穿戴、展开、折叠）
-- **交互层**：握持路径、放置路径、吸附关系、旋转与位移意图
-- **功能层**：`combat_affordances`（攻击、防护、控制、召唤、移动、反射、变形、回收等）
-- **资产层**：材质区、发光区、法阵纹样、Unity handoff 参数（Socket/比例/插槽）
-
-执行约束：
-
-- 每次 `interpretation` 默认返回 `2~3` 个候选（`rank` 稳定、`confidence` 可解释）
-- 候选必须至少覆盖两个 `combat_affordances` 分支（例如 `shield+area_control` 与 `mobility+projectile`）
-- 同一对象重复复测时允许轻微波动，但至少保留一个候选 `rank` 不回退到完全不同能力组
-- 候选未确认时，`concept / patch / generate-3d / export-unity` 统一阻断为 `INTERPRETATION_NOT_CONFIRMED`
-- 候选生成不足 2 条时先进入一次重采样；重采样后仍不足 2 条或字段缺失时返回 `PROVIDER_BAD_OUTPUT`，不得降级为单一类型模板
-
-实现约束（目标态）：
-
-- `interpretation` 输出不应返回单一“类型”；每次给到 2~3 个候选且每个候选携带至少 1 个 `combat_affordances`。
-- 选中的 `selected_candidate_id` 与 `selected_candidate_rank` 进入 `POST /api/weapons/{weapon_id}/recast/confirm`，再固定为后续 `creative_graph_id + skill_graph_id` 来源。
-- 单条 `POST /api/weapons/{weapon_id}/generate-3d` 或 `POST /api/weapons/{weapon_id}/export-unity` 在未确认前必须阻断。
-
-解释闭环补充（v1）：
-
-- 每次 `/interpretation` 必须返回 2~3 条候选，且至少两条在 `combat_affordances` 上有结构差异。
-- 每条候选必须有 `anchor_points`、`protected_regions`、`risk_tags` 与 `confidence`。
-- 只允许单选，未确认前不可进入 concept/patch/3D/export。
-
-子智能体执行约束（固定）：
-
-- 并发子智能体上限：`8`
-- 运行映射允许 12 个职责角色，但时序层仅允许最多 8 个实例并发。
-- 并发溢出时采用同一工具节点内职责复用与串行化，而不新增无限角色。
-
-GPT Pro 式进阶思路（本阶段建议默认启用）：
-
-- 把候选的 2~3 路视为“结构解释预算”，优先比较它们的 `combat_affordances` 与 `anchor_points` 差异，而非仅看文本相似度。
-- 每条候选至少要绑定一个 `protected_regions` 和一个 `skill_anchor_points`，让 Patch 与 3D 都有稳定约束来源。
-- 每轮手工验收固定一组“非武器对象”，并要求结果至少产出 2 种不同能力方向，避免恢复到固定类型映射。
-- 对象池建议按周补充：椅子、钥匙、树枝、雨伞、花盆、风车、花环、门把手、书卷、鞋底、花草等，优先覆盖材质/结构/交互差异。
-- 若某类非武器对象第一次回退到单一模板，进入“重采样模式”：保留一个稳定 `rank`/`confidence` 作为锚点，重新生成其余候选；若仍无法形成 2 条以上有效候选，则本轮失败，不继续出概念图。
-
-反模式（禁止）：
-
-- 不能在输入阶段要求用户先选武器类别或预设分类。
-- 不能用 `weapon_family`、`type`、固定类型模板作为第一决策字段。
-- 不能拒绝“非武器输入”；只要有结构语义即可推进候选重诠释。
-- 不能在解释候选未确认前直接启动概念图/3D。
-
-### 非具化输入示例（高自由度）
-
-| 输入 | 解释示例 |
-| --- | --- |
-| 防弹裤 | 腰部环形炮台 + 护体风雷阵 |
-| 木棍 | 符文炮杖 / 锁链炮杖 |
-| 椅子 | 王座炮台 / 折叠领域盾阵 |
-| 镜子 | 反射法器 / 召唤门 |
-| 伞 | 天幕防御阵 / 针雨伞 |
-| 门 | 传送门阵 / 空间折叠符箓 |
-| 戒指 | 玄纹护符场 / 启灵召唤环 |
-| 树枝 | 龙骨锁链刃 / 祭坛杵 |
-| 花盆 | 守域护甲 + 召唤触须 |
-| 钥匙 | 传送触发枢纽 |
-| 风车 | 反射旋场 |
-| 花环 | 持续增益场 |
-
-### 对象池建议（第一阶段）
-
-- 已覆盖：防弹裤、木棍、椅子、镜子、伞、门、戒指、树枝
-- 每周新增至少 2~3 个对象：贝壳、花盆、钥匙、风车、花环、竹简、车把
-
-### 生成对象种类收口（建议）
-
-为避免回退到“武器模板思维”，第一阶段的对象池建议覆盖 4 类：  
-1) 服饰/穿戴类：裤子、护符、鞋底、手套、戒指  
-2) 家具/结构类：椅子、花盆、门把、车把、栏杆  
-3) 工具/器械类：锤子、雨伞、钥匙、卷轴、书签、风铃  
-4) 天然/抽象形态：树枝、贝壳、风车、花环、花草藤蔓、网面、环形框架  
-
-验收规则（每周）：
-
-- 同一轮至少 3 条非武器对象必须产生 2~3 候选，且至少两组候选在 `combat_affordances` 主轴不同。  
-- 每条候选必须包含 `anchor_points`、`protected_regions`、`risk_tags`；缺失任一项时本轮阻断 interpretation。  
-- `generate-3d` / `export-unity` 仍只允许在确认 `creative_graph_id` 后进入。  
-- 每次回归测试需保留一个候选 `stable rank`，用于校验解释排序与复现实用性。
-
-### 更高细节目标（闭环验收）
-
-- 非武器对象必须通过 `interpretation` 并产生 2~3 个候选，拒绝任何“按类别先验拒绝”。
-- `recast/confirm` 成功前禁止 `generate-3d` / `export-unity`。
-- 生成结果需持续可追踪：`creative_graph_id` -> `skill_graph_id` -> `版本 -> 资产` 链路完整。
-
-### 自由度滑块（用于控制可编辑性与可用性平衡）
-
-- 形态自由度：保守 / 奇异 / 异形 / 超现实
-- 神化程度：现实材质感 / 国风神兵 / 仙术机关 / 神话概念
-- 玩法复杂度：轻量技能 / 多段技能 / 变形联动 / 多形态
-- 资产可用性：概念优先 / 低模优先 / Unity 直用优先
-
-可选增强策略（用于提升自由度而不失可用）：
-
-- 先做结构锚点：每个候选必须明确 `抓持 / 发射 / 控制 / 连接 / 变形` 的主路径。
-- 先做能力映射：每个候选至少 1 个主 `combat_affordance`，1 个增强 `combat_affordance`，减少“只有外观形似”的假阳性。
-- 先做风险标签：每个候选至少 1 个 `risk_tags`（如 `pivot_sensitive`、`symmetry_break`），用于 Patch 与 3D 阶段稳定性提示。
-- 先做复现性：对同一对象的候选排序记录 `seed` 说明；再次验证时至少保持 1 个候选 rank 稳定。
-
-更进一步的“更好的想法”：把物体语义固定为 4 层解释，而不是 1 层命名：
-
-1. **结构层**：尺寸感、骨架、受力点、可动关节；
-2. **交互层**：握持/放置/穿戴、吸附、扭矩路径；
-3. **功能层**：`combat_affordance`（攻击/防护/控制/召唤/移动等）；
-4. **资产层**：材质区、发光区、法阵纹样、Unity handoff 参数。
-
-这样可以稳定支持“防弹裤=移动炮台”“木棍=符文炮杖”“椅子=折叠领域盾阵”等非具像化闭环，而不会回退到武器类别模板。
-
-## 重要边界
-
-武神 Forge 面向虚构游戏资产和高拟真武器外观设计。这里的“逼真”指视觉可信：比例、视觉材质、磨损、雕刻、结构层次、发光区域和 3D 形体看起来像能存在于游戏世界里。
-
-项目不输出可用于现实制造武器的精确图纸、制造尺寸、材料配方、加工流程或结构工艺。这个边界只限制现实制造可操作性，不限制外观细节、国风神兵气质或游戏资产的视觉真实感。
-
-换句话说，产品可以生成逼真的武器外观、概念图、局部改稿、3D 粗模、Unity 材质意图和资产库元数据；但所有内容都必须保持为虚构游戏美术资产和非制造说明，不能变成现实武器的工程设计资料。
-
-## 技术栈
-
-首选技术栈：
-
-| 模块 | 技术 |
-| --- | --- |
-| 桌面端 | Tauri |
-| 前端 | TypeScript + React |
-| Agent 后端 | Python |
-| Agent 编排 | LangGraph |
-| 本地 API | FastAPI |
-| 草图/标注 | tldraw / Excalidraw / Fabric.js |
-| 图像生成调度 | ComfyUI 外部服务 |
-| 大模型调用 | OpenAI-compatible API adapter |
-| 3D 粗模 | Hunyuan3D / Stable Fast 3D / TripoSR / TRELLIS adapter |
-| 3D 预览 | Three.js / React Three Fiber |
-| 资产处理 | Blender Python + glTF-Transform |
-| 数据库 | SQLite |
-| 资产文件 | 本地项目文件夹 |
-
-LangGraph 目标执行链路（第一阶段）：
-
-1) 输入解析（文本/草图）
-2) Creative Recast（结构重诠释）
-3) CreativeWeaponGraph（结构图）
-4) WeaponDesignSpec + SkillGraph（玩法与约束）
-5) 概念图 -> Patch -> 3D -> Unity 交付
-
-## GitHub 参考项目
-
-| 项目 | 用途 |
-| --- | --- |
-| [tauri-apps/tauri](https://github.com/tauri-apps/tauri) | 桌面应用外壳、文件权限、跨平台打包 |
-| [dieharders/example-tauri-v2-python-server-sidecar](https://github.com/dieharders/example-tauri-v2-python-server-sidecar) | Python FastAPI sidecar 示例，参考 Tauri sidecar 生命周期与打包/运行脚本 |
-| [langchain-ai/langgraph](https://github.com/langchain-ai/langgraph) | 多 Agent 流程编排、状态机、可追踪执行 |
-| [cline/cline](https://github.com/cline/cline) | 参考 Agent 工具调用、人类确认、执行日志体验 |
-| [All-Hands-AI/OpenHands](https://github.com/All-Hands-AI/OpenHands) | 参考长任务执行、工作区、任务轨迹 |
-| [Aider-AI/aider](https://github.com/Aider-AI/aider) | 参考版本化迭代与变更记录思路 |
-| [tldraw/tldraw](https://github.com/tldraw/tldraw) | 草图画布、标注、圈选 |
-| [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw) | MVP 手绘草图输入 |
-| [fabricjs/fabric.js](https://github.com/fabricjs/fabric.js) | 正式版自定义画布、图层、对象编辑 |
-| [Comfy-Org/ComfyUI](https://github.com/Comfy-Org/ComfyUI) | 概念图、材质图、图标和生成工作流调度 |
-| [Tencent-Hunyuan/Hunyuan3D-2](https://github.com/Tencent-Hunyuan/Hunyuan3D-2) | 高质量 3D 资产生成实验管线 |
-| [Stability-AI/stable-fast-3d](https://github.com/Stability-AI/stable-fast-3d) | 单图快速 3D 粗模 |
-| [VAST-AI-Research/TripoSR](https://github.com/VAST-AI-Research/TripoSR) | 快速图生 3D 备选管线 |
-| [microsoft/TRELLIS](https://github.com/microsoft/TRELLIS) | 3D 生成备选管线 |
-| [mrdoob/three.js](https://github.com/mrdoob/three.js) | 3D 预览 |
-| [pmndrs/react-three-fiber](https://github.com/pmndrs/react-three-fiber) | React 内嵌 Three.js 场景 |
-| [Unity-Technologies/com.unity.toonshader](https://github.com/Unity-Technologies/com.unity.toonshader) | 3渲2描边、边缘光、Emission、MatCap 规则参考 |
-| [donmccurdy/glTF-Transform](https://github.com/donmccurdy/glTF-Transform) | GLB/GLTF 优化、压缩、资产处理 |
-
-## 计划中的项目结构
+## 第一阶段闭环
 
 ```text
-wushen-forge/
-  apps/
-    desktop/          # Tauri + React
-    agent/            # Python FastAPI + LangGraph
-  packages/
-    weapon-spec/      # WeaponDesignSpec / JobEvent / UnityMaterial JSON schemas
-    unity-export/     # Unity 导出约定和材质映射
-  migrations/         # SQLite schema migrations
-  workflows/
-    comfyui/          # ComfyUI workflow JSON
-    blender/          # Blender Python 脚本
-  docs/
-    QUICKSTART.md
-    DESIGN.md
-    API.md
-    SCHEMAS.md
-    DATABASE.md
-    FRONTEND.md
-    IMPLEMENTATION_PLAN.md
-    M1_SKELETON.md
-    M2_ASSETSTORE.md
-    M3_LLM_AND_CONTRACTS.md
-    M3_COMFYUI_ADAPTER.md
-    M3_DESKTOP_SUPERVISOR.md
-    M4_PATCH_ASSETSTORE.md
-    M5_ROUGH3D_PREVIEW.md
-    LOCAL_3D_RUNTIME.md
-    PACKAGING.md
-    PROMPT_QUALITY_SET.md
-    UNITY_IMPORT_SMOKE.md
-  assets/
-    examples/
+描述 Brief
+→ 选择三个轮廓方案之一
+→ 组合和替换模块
+→ 调整比例、材质和配色
+→ AI 生成 DesignChangeSet
+→ 幽灵预览与冲突检查
+→ 用户确认并创建子版本
+→ 模型质量检查
+→ 渲染 / 爆炸图 / ZIP、GLB、OBJ、PNG 导出
 ```
 
-## Agent 工作方式
+工作台使用五个阶段：
 
-第一阶段采用自动执行模式：
+```text
+概念 / 组装 / 精修 / 检查 / 展示
+```
 
-1. 用户输入文字、草图或参考图。
-2. `interpretation` 先提取结构与动作锚点，输出 **2~3 条**重诠释候选（按可执行性和稳定性排序）。
-3. 用户确认候选（系统内只允许选一个），固定写入 `CreativeWeaponGraph`。
-4. Agent 基于确认结果生成概念图，并保持候选与版本上下文（`creative_graph_id` / `skill_graph_id`）追溯。
-5. 局部修改（局部掩模/补丁）后再生成 3D 粗模。
-6. 输出 `SkillGraph`（至少 6 个技能卡）与资产清单。
-7. 生成可导入 Unity 的粗模资产与预览参数。
-8. 资产入库并可追溯回到版本链。
+## P0 边界
 
-## 生产级设计方向
+P0 只实现一个完整场景：
 
-第一阶段虽然功能闭环很小，但必须按生产级软件设计：
+> **未来模块化短型武器概念设计工作台。**
 
-- 桌面端启动后直接进入工作台，不做营销首页。
-- Tauri 使用受控文件权限，Python Agent 服务可作为 sidecar 或本地服务运行。
-- 前端不直接调用 LLM、ComfyUI 或 3D provider，所有生成任务统一走 FastAPI + LangGraph。
-- 长任务提交后立即返回 `job_id`，后续通过事件流展示 Agent 执行过程。
-- 资产库采用 SQLite + 本地不可变对象库，所有概念图、mask、prompt、workflow、GLB、导出包都可追溯。
-- 3D 粗模管线必须保留原始模型、规范化模型、优化模型、预览截图和 Unity 导出元数据。
-- Release 必须通过功能、质量、安全、Unity 导入、license、文档和桌面打包 gate；当前安全边界 gate 是 `npm run release:safety-scope`，secret/file gate 是 `npm run release:secrets-files`，固定 prompt 质量 gate 是 `npm run release:prompt-quality`，文档 walkthrough gate 是 `npm run release:docs-walkthrough`，桌面打包 readiness gate 是 `npm run release:packaging-readiness`，license/SBOM gate 是 `npm run release:license-sbom`，聚合发布入口是 `npm run release:gate`。
+支持：
 
-## 8 人位子 Agent 分工（上限）
+- 自然语言 Brief、参考图和风格参数；
+- 三种明显不同的组合方案；
+- 8–12 个首批模块，逐步扩展到 24–30 个；
+- 模块选择、高亮、隐藏、替换、镜像、锁定和爆炸视图；
+- 语义 Connector、吸附、父子关系和对称规则；
+- 比例、位置、旋转、材质、配色和细节密度；
+- `WeaponConceptSpec@1`、`ModuleGraph@1`、`DesignChangeSet@1`；
+- `ModuleAssetManifest@1`、`ModulePackManifest@1` 与显式 dry-run/import 资产门；
+- 追加式版本、Undo/Redo、操作时间线；
+- 网格、法线、穿插、接口、对称、UV 和 LOD 检查；
+- GLB、OBJ、PNG、爆炸图、组件 Manifest 与项目报告。
 
-后续每次大设计迭代默认按 8 人位子 Agent 分工讨论，再由主 Agent 收敛到文档和实现计划；复杂 release 审计可以临时增加专家，但总数不超过 8 个子 Agent。
+P0 导出 Profile：
 
-| 分组 | 子 Agent | 职责 |
+```text
+visual_asset
+game_asset
+film_prop
+non_functional_display
+```
+
+P0 不承诺：
+
+- 内部击发、闭锁、膛室、弹药或消声功能设计；
+- 生产级关键机械参数与功能安全结论；
+- STEP、工程 BOM、完整 DFM、切片或制造就绪状态；
+- 任意 Python/脚本执行；
+- 每次 AI 修改都重新生成整把模型。
+
+这些是阶段排序，不是对武器题材的类别拒绝。需要精确 B-Rep、STEP、3MF 和制造检查的工作进入独立 CAD/DFM Engineering Pack，并使用另一套合同和质量门。
+
+## 第一阶段领域模型
+
+```text
+WeaponConceptSpec
+└── ModuleGraph
+    ├── Module
+    ├── Connector
+    ├── Transform / symmetry / lock
+    └── material slots / provenance
+
+DesignChangeSet
+├── before / after
+├── affected modules
+├── locked modules
+└── ghost preview / confirmation
+
+ModelQualityReport
+└── findings with module and viewport location
+```
+
+首批九类视觉模块：
+
+```text
+核心主体壳体 / 前端外壳 / 后部外壳 / 握持外壳
+顶部视觉附件 / 侧面附件 / 下部结构
+能源或存储造型模块 / 表面装甲与装饰面板
+```
+
+首批语义接口：
+
+```text
+core.front / core.rear / core.top / core.bottom
+core.left / core.right / core.grip
+core.side_panel_left / core.side_panel_right
+```
+
+## 当前真实完成度
+
+| 能力 | 当前状态 | 决策 |
 | --- | --- | --- |
-| 前端 | Frontend Agent A | Forge 工作台任务流、3D 展台可用性、资产库交接体验 |
-| 前端 | Frontend Agent B | 桌面信息架构、视觉层级、Codex/Claude Code 式 Agent 操作模式 |
-| 后端/架构 | Backend Architecture Agent | API contract、任务状态、资产库、provider adapter、Unity export/import 管线 |
-| 后端/编排 | Runtime Agent | 3D/图像异步 worker、任务恢复、provider checkpoint、重试策略 |
-| 后端/部署 | Packaging/Distribution Agent | Tauri 打包、sidecar、签名/安装器、桌面发布脚本 |
-| 数据 | Quality & Safety Agent | 安全边界审计、非制造约束、prompt 风险和质量报告 |
-| 数据 | Verification Agent | 自动化测试、Playwright、Unity gate、安全/发布 blocker 与文档证据 |
-| 外部依赖 | Provider Specialist | ComfyUI、3D provider、Unity 导入行为和适配协议评估 |
+| Tauri + React 桌面壳 | 已实现；打包合同完整性门已加固 | 门禁覆盖 `bundle.externalBin`、target sidecar、`Cargo.lock`、图标、CSP 与 capability，并拒绝空或不可执行的占位 sidecar；当前仓库中的 sidecar 仍为空占位且本机无 Cargo，不声称 Rust 编译、签名或干净机 C10 已通过 |
+| FastAPI 本地 Agent | 已实现 | 保留并继续薄化路由 |
+| SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
+| 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
+| Job / Step / Event / SSE | 已实现 | 直接复用 |
+| Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Change Planner、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
+| 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
+| R1 通用基础设施拆分 | 当前退出边界完成 | `asset_store.py` 的完整 workflows 已迁入 application services；`App.tsx` 已从约 706 行缩为 21 行组合根，路由、控制器、持久化、选择器和旧工作台渲染已分层，并由 `r1:gate` 固定 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查及 ZIP/GLB/OBJ/MTL/PNG/MP4 导出 | 10 模块 reference 与 Blender visual candidate 均已在隔离 Library 完成导入、9 节点组合、质量、导出/重启回读；候选仍待人工最终质量与正式替换矩阵 |
+| 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；CAD/legacy GLTFLoader 仅在存在 ModuleGraph/GLB 时动态导入；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
+| Module Pack 与正式资产晋级门 | `ModulePackManifest@1`、`ForgeCADModuleNaming@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现；`assets:formal-workspace` 可将 10–12 模块 candidate 隔离为带输入 hash、权属待办与 reviewer brief 的工作区；`FormalModuleReview@1` 锁定 `.blend`、module Manifest、GLB、thumbnail 与 Pack/Module license hash，要求独立人工审阅、全部评分 ≥4、Blender generator、anti-placeholder 三角下限、最终许可证和基线 ID/Connector 不漂移 | Blender 4.2.22 LTS 已真实生成 10 模块 visual candidate，完成只读 re-export、完整组合质量通过和 Blender DCC 往返（10716 triangles）；候选仍带 starter 许可证，尚无最终许可证/独立人工批准 |
+| Arctic Patrol S1 参考 Pack | 10 GLB、九类、17 Connector、UV0/normal/三材质、缩略图、许可证、确定性生成与 9 节点 Graph 已实现 | 可用于产品闭环和 DCC 交接，不冒充最终高质量美术 |
+| 旧 CreativeWeaponGraph / SkillGraph | 已实现 | 冻结并删除，不机械改名 |
+| 旧图像/神经 3D Provider | 已实现 | 仅作可选概念或局部组件生成来源 |
+| 旧 Unity 导出 | 已实现 | legacy baseline；P0 改为通用 GLB/OBJ/Manifest |
+| Concept Project / Version / Profile | migration、Repository/UoW、创建/列表/详情/追加版本 API、桌面项目管理与版本切换已实现 | 打包桌面的干净机器恢复仍待 C10 |
+| WeaponConceptSpec / ModuleGraph | 合同、注册校验、持久化、Version 绑定、回读 API 与桌面真实 GLB 渲染已实现 | 正式资产和 Tauri 性能仍待验证 |
+| Connector / 模块吸附 / 镜像 / 爆炸视图 | Connector 合同、注册、兼容校验、替换 remap、rooted 子树自动重定位、显式镜像 ChangeSet、冲突/lock 拒绝、overlay 和爆炸视图已实现；十模块 Blender candidate 已完成 2/2 可替换 front 与 8/8 可编辑节点 X 镜像、精确 Connector 对齐、combined GLB 和重启回读，锁定 core 被正确拒绝。单节点镜像中 grip/top/side/armor 质量通过，front/rear/lower/storage 报相交/包含 warning；连续八镜像压力分支共 8 个 warning | 合成 100 组与 candidate 结果都只是技术基线；candidate 标记为 `unclassified`，镜像操作成功不等于质量通过，正式资产替换矩阵 ≥95% 仍待验证 |
+| Brief / A-B-C Variant | Brief Interpreter、注册表约束 Module Planner、确定性规则 Provider、OpenAI-compatible strict JSON Schema Adapter、显式 auto fallback、provenance/hash、三种结构方案、桌面生成/选择预览与重启恢复已实现 | 当前只证明 Provider 边界与确定性/fake-provider truth set；真实模型解析成功率和方案质量指标尚未达标 |
+| DesignChangeSet 幽灵预览 | 自然语言 Change Planner、受限 `replace_module/set_mirror/set_style/set_parameter`、proposed/previewed/confirmed/rejected/stale、半透明 ghost、锁定/注册表/Connector 校验、显式确认与子版本提交已实现 | 确定性/fake-provider/API/桌面链通过；真实模型修改成功率 ≥85% 与锁定保持率 ≥95% 尚未评测 |
+| R4 Planner 评测 | 固定 20 Brief + 20 Variant + 20 Change + 20 lock probes、truth-set hash、阈值、逐例结果、p50/p95 延迟、token 汇总与严格 live CLI 已实现；明确数值 fallback 已补齐 | deterministic baseline 为 100%/100%/100%/100%，但 `real_provider_evidence_eligible=false`；当前环境未配置真实 Provider，不能作为 AI 指标证据 |
+| ChangeSet 操作时间线与审计归档 | Project 级逆序 cursor API、搜索、状态/操作过滤、user/planner actor、Provider provenance、instruction、operation/node/result Version、rejected/stale/discarded diagnostic、桌面加载更多已实现；当前筛选可批量导出 JSONL/CSV、逐文件哈希清单与不可变 ZIP，数据库和对象在 Agent 重启及隔离整库恢复后均可回读 | `project_lifetime` 不提供单包删除入口，并随 Project 数据保留；它不是法规级 WORM、legal hold 或加密异地灾备，正式规模恢复耗时仍待测 |
+| Library 备份、恢复与演练 | SQLite Backup API 快照、`ForgeCADLibraryBackupManifest@1`、legacy/Concept 对象引用合并、SHA-256/size/FK/integrity 校验、容量/去重/未引用候选统计、禁止覆盖式恢复已实现；`ForgeCADLibraryRecoveryDrillReport@1` 可连续测量备份/独立校验/恢复/Agent 回读、吞吐及相对基线容量增长，并逐个回读 Module GLB hash；10 模块 reference Pack 与 Blender visual candidate 都已完成多轮演练，candidate 被硬性标记为 `unclassified`；正式资产声明还必须携带 `formal_release_10_12` 晋级报告且 hash 集合完全一致 | 10 模块 reference Pack 会被识别为 fixture；candidate 只证明候选技术链路，不是正式资产证据。备份不含 Provider secret/config、WAL/SHM、trash 或未引用对象，且不是加密异地备份；正式 Blender/代表性用户库仍须独立运行，reference-aware GC 尚未启用 |
+| ModelQualityReport | `weapon-concept-geometry/1.3` 从版本绑定的 Spec、ModuleGraph 与不可变 GLB 检查 Mesh、重复/内嵌隐藏几何、组件间密度离群、项目三角预算、P0 LOD0 命名、根中面对称占位、Connector 对齐/间隙，以及未直连组件的世界三角形 BVH/SAT/containment；局部 triangle provenance、工作台高亮、JobEvent 与重启恢复已实现 | 当前仍是确定性概念资产筛查；正式 Blender truth set、Tauri 大网格阈值和多 LOD 运行时尚未完成，不代表强度/DFM/安全证明 |
+| Concept Export | 源 GLB/Spec/Graph/Quality ZIP、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable、确定性 MP4、轮廓抗锯齿/软接触阴影、render-set ZIP、Manifest hash、JobEvent、独立下载与重启恢复已实现 | Blender 4.2.22 已对 visual-v2 三模块、10 模块 reference 与 10 模块 visual candidate combined GLB 完成真实往返；candidate 为 25808 顶点/10716 三角，纹理交换和正式资产渲染性能仍待验证 |
+| DesignSpec / FeatureGraph / CAD Runtime | 未实现 | 后续 CAD/DFM Engineering Pack |
 
-总上限：同时活跃子智能体不超过 8 个。超出时复用 Runtime/Provider/Verification 的同类任务，保持主任务队列单轨推进，避免状态不可控。
+新 Concept 数据链已经独立存在，桌面工作台已消费真实 Project、Version、ModuleGraph 和源 GLB；Brief/A-B-C 与自然语言修改均通过同一 Provider 边界，修改先进入半透明 ghost preview，确认后才由既有 ChangeSet 服务创建子版本。操作记录可按当前筛选归档为带 SHA-256 清单的 JSONL/CSV ZIP。combined GLB、OBJ、正交图、8 帧 turntable 和 MP4 都读取同一 Graph/资产真相，首版 Mesh/Assembly 检查也已落地。旧 Weapon/Unity 主链继续作为回归 baseline；当前仍不能证明真实 AI 指标、最终资产矩阵、法规级审计存储、照片级渲染、正式 Blender 资产的全装配往返、完整 R5 检查或 CAD/DFM 已完成。
 
-### 当前轮角色交付（8 人位）
+正式模块的 Blender 坐标、单位、命名、材质、UV、Connector、缩略图、许可证、校验与导入步骤见 [Weapon Concept Module Pack 资产制作规范](docs/MODULE_ASSET_GUIDE.md)。
 
-| 子 Agent | 状态 | 负责范围 | 下轮交付 |
-| --- | --- | --- | --- |
-| Frontend Agent A | In Progress | Forge、Patch、3D 预览主链路 | 任务流图、交互边界、可复用 Playwright 建议 |
-| Frontend Agent B | In Progress | 信息架构、状态文案、界面可读性 | 关键交互文案、视觉优先级、错误状态归一化 |
-| Backend Architecture Agent | In Progress | API、资产、provider adapter | contract 差异项、接口兼容性、schema 风险 |
-| Runtime Agent | In Progress | Worker、恢复、provider checkpoint | 任务状态机边界、重试/取消失败模式 |
-| Packaging/Distribution Agent | In Progress | Sidecar、打包、安装链路 | sidecar 交付清单、release readiness 阻塞项 |
-| Quality & Safety Agent | In Progress | 非制造边界、prompt 质量、安全约束 | 安全红线检查、negative prompt 清单 |
-| Verification Agent | In Progress | 测试、网关、文档证据 | gate 覆盖缺口、证据归档 |
-| Provider Specialist | In Progress | ComfyUI / 3D provider / Unity 导入 | provider 真实运行对比、失败归因与可采纳结论 |
+## P0 架构
 
-## goal 模式执行节奏（设计闭环）
+```text
+Tauri Desktop
+  ├─ Projects / Concept / Assembly / Refine / Inspect / Showcase
+  └─ HTTP + SSE
+          ↓
+FastAPI Local API
+  ├─ Thin Routes / Use Cases / Jobs
+  ├─ DesignDomainProfile
+  └─ Weapon Concept Pack
+          ↓
+SQLite + Content-addressed Objects
+  ├─ Project / Version / ModuleGraph / ChangeSet
+  └─ GLB modules / thumbnails / reports / exports
+          ↓
+Three.js Workbench
+  ├─ SceneGraph / Selection / Transform / Connector
+  ├─ Exploded View / Comparison / Quality Overlay
+  └─ GLB / OBJ / PNG / Manifest export
+```
 
-- 第 1 步：边界确认。确认阶段范围、非制造安全边界、输出边界与子 Agent 并发上限。
-- 第 2 步：参考映射。将功能能力映射到 GitHub 参考项目与正式文档。
-- 第 3 步：文档更新。同步 README、DESIGN、IMPLEMENTATION_PLAN。
-- 第 4 步：证据化。新增/更新 gate、smoke、复盘记录，再把阻塞项放进下一阶段优先级。
-- 第 5 步：实现执行。仅在证据项可复用时推进代码切片。
+后续 Engineering Pack 独立增加：
 
-每轮更新都要在 `git` 变更中保留“下一步计划”字段，避免设计演化失联。
+```text
+DesignSpec → FeatureGraph → build123d/OpenCascade B-Rep
+→ STEP/3MF/STL → DFM/Print Doctor
+```
 
-## 开源策略
+GLB ModuleGraph 与 B-Rep FeatureGraph 是两种不同的权威模型，不能机械互转或长期双写。
 
-本项目计划开源。由于会调用外部大模型 API、ComfyUI 工作流和 3D 生成模型，所有第三方项目在正式集成前都需要做 license 审核。
+## P0 技术选择
 
-建议策略：
+| 层 | 选择 | 用途 |
+| --- | --- | --- |
+| 桌面端 | Tauri + React + TypeScript | 本地工作台和 sidecar 生命周期 |
+| 本地 API | FastAPI + Pydantic | 合同、用例、Job 与事件 |
+| 数据 | SQLite + 内容寻址对象存储 | Project、Version、Module、工件 |
+| 视口 | Three.js + three-mesh-bvh | 模块选择、变换、空间查询和检查定位 |
+| 模块资产 | GLB + Blender 管线 | 人工高质量模块、材质、UV、LOD |
+| 网格检查 | trimesh；Manifold 按需 | 非流形、法线、包围盒和组件检查 |
+| AI 结构化输出 | Pydantic + strict JSON Schema / OpenAI-compatible Adapter | Brief、模块方案、受限 ChangeSet Planner；真实 Provider 指标待评测 |
+| 图标 | Phosphor Icons | 统一技术工作台图标体系 |
 
-- 桌面端、Agent 编排、资产库代码开源
-- 大模型 API provider 通过配置接入
-- ComfyUI 作为外部服务调用，不直接合入客户端源码
-- 3D 模型管线通过 adapter 接入，避免锁死某一个模型
+第一阶段不引入 build123d、lib3mf 或 PrusaSlicer 作为主链依赖；它们保留在 Engineering Pack 技术决策中。
 
-## 状态
+## 第一个验收纵向切片
 
-当前处于产品设计与架构设计阶段。
+示例 Brief：
 
-当前工程契约：
+> 创建“寒地巡逻 S1”未来短型武器概念。整体紧凑、厚重、可靠、低调，工业感高、未来感中低；主色深石墨灰，辅色黑色金属，暗红作为识别色。用途为游戏与影视道具概念。
 
-- [API Contract](docs/API.md)
-- [Quickstart](docs/QUICKSTART.md)
-- [Schema Contract](docs/SCHEMAS.md)
-- [Database Contract](docs/DATABASE.md)
-- [Frontend Contract](docs/FRONTEND.md)
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
-- [M1 Skeleton Notes](docs/M1_SKELETON.md)
-- [M2 SQLite AssetStore Notes](docs/M2_ASSETSTORE.md)
-- [M3 LLM and Contract Generation Notes](docs/M3_LLM_AND_CONTRACTS.md)
-- [M3 ComfyUI Adapter Notes](docs/M3_COMFYUI_ADAPTER.md)
-- [M3 Desktop Agent Supervisor Notes](docs/M3_DESKTOP_SUPERVISOR.md)
-- [M4 Patch AssetStore Notes](docs/M4_PATCH_ASSETSTORE.md)
-- [M5 Rough 3D Preview Notes](docs/M5_ROUGH3D_PREVIEW.md)
-- [Local 3D Runtime](docs/LOCAL_3D_RUNTIME.md)
-- [Desktop Packaging](docs/PACKAGING.md)
-- [Prompt Quality Set](docs/PROMPT_QUALITY_SET.md)
-- [Unity Import Smoke](docs/UNITY_IMPORT_SMOKE.md)
-- [SQLite migration](migrations/0001_init.sql)
-- [JSON schemas](packages/weapon-spec/schemas/)
+系统必须完成：
 
-当前已完成的工程切片：
+```text
+创建项目
+→ 返回 A/B/C 三种模块组合
+→ 选择方案 B
+→ 替换前端外壳
+→ 用自然语言调整整体长度和细节密度
+→ 保护已锁定核心模块与注册表边界
+→ 生成并检查半透明 ghost ChangeSet
+→ 明确确认后创建不可变子版本
+→ 运行 ModelQualityReport
+→ 生成爆炸图
+→ 导出 GLB + Manifest
+→ 重启后恢复项目与版本
+```
 
-- M1: Tauri + React 桌面工作台骨架，FastAPI Agent API 骨架，SSE mock 事件。
-- M2: SQLite-backed AssetStore mock，幂等创建，结构化错误 envelope，SSE replay，资产文件 sha256 校验，M2 smoke gate。
-- M3 foundation: schema/OpenAPI 类型生成，OpenAI-compatible LLM adapter 边界，WeaponDesignSpec 入库前 JSON Schema gate，ComfyUI mock/HTTP adapter 边界，concept quality report gate，M3 gate。
-- M3 desktop supervisor: Tauri dev/local Rust commands 可启动、停止、查询本地 Python Agent，并校验 `/api/health` 身份、清理 managed 子进程、向前端返回 runtime base URL；正式 bundled sidecar 仍未完成。
-- M4 patch foundation: 后端 patch job 已接入 AssetStore，并提供武器详情查询、受控资产文件读取、`patch_mask` / `patch_manifest` 本地上传 API；桌面端已有 API-connected Patch Mode 基础，可选择武器/版本、加载源概念图、用画笔或套索绘制 mask，支持画笔尺寸、mask 透明度、撤销/重做，上传 PatchManifest 并提交 patch；成功时创建追加式 patch version、`concept_patch`、`patch_prompt`、`comfyui_workflow` 和 schema-valid `quality_report`，不覆盖旧版本；默认仍可用 mock provider 离线开发，显式设置 `WUSHEN_IMAGE_PROVIDER=comfyui` 时 patch 会上传源图和 mask，并通过 ComfyUI HTTP inpaint workflow 生成 patch 结果；当前 patch 版本可用滑杆对比父版本源图和 patch 结果图，并可设为当前版本、回到父版本或从父版本重试；SQLite 迁移已覆盖旧 M4 库的幂等表、`concept_patch` 角色约束和重复内容资产复用。
-- M5 rough 3D foundation: mock 3D 产物已从文本占位升级为最小合法 GLB，`mock_3d` provider 会返回 raw / normalized / optimized GLB、Unity material metadata 和模型质量指标；`POST /api/weapons/{weapon_id}/generate-3d` 已接入，可从 `concept_image` 或 `concept_patch` 追加生成 `rough_3d` 子版本，不覆盖源版本；模型质量报告现在会解析 optimized GLB，记录 triangle/vertex/mesh/material/texture/image counts、PBR material、bounds、center、extents 和 longest axis，资产库检查会把缺失 mesh/bounds 证据标为 blocker、缺失 material slots 标为 warning；桌面端 `Preview3DPanel` 会读取资产库、定位当前或最近的 `rough_raw_glb`，通过受控 asset file URL 用 Three.js 加载，并展示为“展览台 + 简单角色 + 手持武器”的 360 度预览场景，支持自动旋转、拖拽旋转、toon/solid/wireframe、重置视角、截图，并可从当前概念图或 patch 图一键发起 generate-3d job，接回全局任务时间线；`POST /api/weapons/{weapon_id}/export-unity` 已可生成 `unity_export_package` ZIP 快照，包含优化 GLB、Unity material、weapon spec、质量报告和非制造说明，桌面端可从 3D 展台面板触发导出并显示下载链接；资产库页面已可按武器/版本展示概念图、patch、GLB、Unity material、质量报告和 Unity ZIP，并通过受控 asset URL 下载交接文件；`scripts/smoke_m5_unity_import.py` 会生成临时 export 包并做 Unity ZIP/manifest/GLB preflight，若配置了 `WUSHEN_UNITY_EXECUTABLE` 或 `UNITY_EXECUTABLE` 则进一步创建临时 Unity 项目、安装 glTFast 并用 batchmode 验证导入；当前本机未配置 Unity 时会记录 `UNITY_EXECUTABLE_NOT_CONFIGURED` release blocker；资产库检查会把非法 GLB、不完整 generate-3d job 和 malformed export 包标为 blocker；`npm run m5:gate` 已覆盖 M4 gate、GLB contract smoke、generate-3d HTTP smoke、Unity export HTTP smoke、desktop runtime/handoff browser smoke 和 Unity import preflight/batchmode smoke。
-- P0 desktop context foundation: `App` 现在统一持有当前 weapon/version/job 上下文，Forge、Patch、资产库、Inspector 和 3D 展台通过同一 active weapon/version 工作；job restore 和 terminal event 会优先切到该 job 的 `outputs.current_version_id`，保证 create / patch / generate-3d / export-unity 自动流程完成后 Inspector、top bar、3D 和资产库都跟随新输出版本；Patch Mode 的 mask canvas 现在会在 source asset/ref 就绪后按源图真实尺寸幂等初始化，避免上传尺寸漂移。非 Patch 主舞台会显示当前源图、版本、3D 粗模状态、Unity 导出状态和安全边界，Inspector 顶部显示 weapon id、version id、model id 和可用资产角色。浏览器证据见 `output/playwright/p0-unified-context-workbench.png`、`output/playwright/p0-library-selection-sync.png`、`output/playwright/p0-context-patch-brush.png`、`output/playwright/p0-context-patch-comparison.png`、`output/playwright/p0-context-3d-handoff.png`、`output/playwright/p0-context-library-sync.png`。
-- P0 Agent trace and job action foundation: 底部 `JobTimeline` 已从平铺事件列表升级为可恢复 Agent 轨迹抽屉，支持 `GET /api/jobs/{job_id}` 水合历史事件、最近 job 自动恢复、SSE `after` 续订、按公开 `seq` 排序、按 step 分组的中文阶段卡、进度条、metadata/asset 展示，以及按状态启用的请求重试、从失败步骤重试、请求取消、打开设置和跳过 3D 操作。任务中心也复用同一 trace 视图。后端已持久化 job action request：`job_actions` 审计、job 状态更新、step attempt/cancel 状态、追加 action event，并由 `agent:p0-job-actions-smoke` 覆盖。浏览器证据见 `output/playwright/p0-jobtimeline-success-trace.png` 和 `output/playwright/p0-jobtimeline-task-center.png`。
-- P0 job action-state browser coverage: `npm run desktop:p0-job-action-state-smoke` 已覆盖 failed rough3d job 的任务重试、从失败步骤重试、waiting_provider job 的取消请求、manual recovery 后 waiting_user job 的重试动作；脚本断言按钮启用/禁用、中文状态、runtime recovery/cancel 文案、provider task cancel 状态、action response 和截图产物。`GET /api/jobs/{job_id}/runtime` 现在不再把 `retrying` 标为 resumable，避免 UI 暴露会被后端 409 拒绝的二次重试入口。截图见 `output/playwright/p0-job-trace-failed-retry.png`、`output/playwright/p0-job-trace-retry-from.png`、`output/playwright/p0-job-trace-waiting-provider-cancel.png`、`output/playwright/p0-job-trace-recovered-waiting-user.png`。
-- P0 Task Center history and audit: 后端新增 `GET /api/jobs` 历史任务读模型和 `GET /api/jobs/{job_id}/actions` action 审计读模型，支持 query/status/job_type/error_code/cursor/limit，并通过 `0007_p0_job_history_indexes.sql` 增加只读索引；`GET /api/jobs/{job_id}` 现在会填充结构化 `error`。桌面端 `/jobs` 已升级为主工作区 `JobCenterPanel`，支持历史 job 搜索、状态过滤、失败原因过滤、手动 job id 恢复、最近任务唤醒、终态任务本机通知记录、选中 job 详情、Runtime、失败原因和 action 审计列表；筛选条件和最近任务会保存到本机，下次打开任务中心自动恢复；action 审计中的 event id 可一键定位并高亮对应 Agent Timeline step。查看历史不会自动切换工作台上下文，只有“恢复到工作台”、手动恢复、最近任务唤醒或通知记录打开任务才会订阅为 active job。该切片由 `agent:p0-job-history-search-smoke` 和 `desktop:p0-job-center-history-smoke` 覆盖，并已纳入 `npm run m5:gate`。浏览器证据见 `output/playwright/p0-job-center-history.png`。
-- P0 runtime recovery metadata foundation: SQLite 迁移 `0006` 已加入 `provider_tasks`、`job_checkpoints`，并给 `generation_jobs` / `job_steps` 增加 runner lease、checkpoint、cancel intent、provider task、cancel state 字段；后端提供 `GET /api/jobs/{job_id}/runtime` 和 `POST /api/runtime/recover`，应用启动会把中断的 active job 暂停为 `waiting_user` 并追加 recovery event；取消动作会对当前 rough3d provider task 发起 cancel，并把 provider task 记录为 `cancel_requested` 或 `cancelled`；SSE unknown `after` cursor 会显式返回 `INVALID_EVENT_CURSOR` 事件；前端恢复 job 时会用该 job 的事件替换轨迹，避免混入旧 job。该切片由 `agent:p0-runtime-recovery-smoke` 覆盖，并已纳入 `npm run m5:gate`。
-- P0 generate-3d provider runtime boundary: opt-in generate-3d worker 已从阻塞式 mock 调用升级为 `submit_rough_model` / `poll_rough_model` / `fetch_rough_model` / `cancel_rough_model` Provider 边界；默认 mock 仍可立即成功以保持 M5 兼容，设置 `WUSHEN_MOCK_3D_POLL_SEQUENCE=polling,succeeded` 可模拟真实异步 Provider。Worker 会在 `polling/submitted/unknown` 时保持 `waiting_provider`，不提交 rough_3d 版本、不写 GLB 资产；后续 worker tick 继续 poll，成功后 fetch 并提交 raw/normalized/optimized GLB、Unity material 和质量报告；取消会调用 provider cancel，late output 不会写入资产库。该边界由 `agent:p0-provider-runtime-boundary-smoke` 覆盖，并已纳入 `npm run m5:gate`。
-- P0 local HTTP 3D provider adapter: 后端新增 `local_http_3d` adapter，可通过 `WUSHEN_3D_PROVIDER=local_http` 和 `WUSHEN_3D_HTTP_BASE_URL=http://127.0.0.1:PORT` 接入本地 Stable Fast 3D、TripoSR、Hunyuan3D 或自研 3D runtime 包装服务。协议固定为 `POST /v1/rough-models`、`GET /v1/rough-models/{task}`、`GET /v1/rough-models/{task}/result`、`POST /v1/rough-models/{task}/cancel`，结果用 base64 GLB 和 Unity material JSON 交接；adapter 会校验 GLB header，不接受非 GLB 伪结果。该切片由 `agent:p0-local-http-3d-provider-smoke` 覆盖，并已纳入 `npm run m5:gate`。
-- P0 local 3D runtime wrapper: 新增 `scripts/wushen_local_3d_runtime.py`，作为独立 HTTP 子进程实现 Wushen local 3D 协议，避免把模型权重、GPU 依赖和模型进程崩溃放进桌面 Agent。当前支持 deterministic `mock` backend、调用本地 Stable Fast 3D `run.py` 的 `sf3d-cli` backend 路径，以及调用本地 TripoSR `run.py --model-save-format glb` 的 `triposr-cli` fallback 路径；`agent:p0-local-3d-runtime-wrapper-smoke` 会启动真实 wrapper 子进程，驱动 Agent worker 完成 submit -> waiting_provider -> fetch -> GLB 入库，并验证 cancel 不产生 late assets。`agent:p0-local-3d-runtime-sf3d-manual` 和 `agent:p0-local-3d-runtime-triposr-manual` 是不进默认 gate 的真实模型手动验收入口，安装和验收步骤见 [Local 3D Runtime](docs/LOCAL_3D_RUNTIME.md)。
-- P0 async generate-3d worker loop: 默认 M5 路径仍保持同步，保证现有开发 gate 和桌面体验稳定；显式设置 `WUSHEN_GENERATE3D_WORKER=1` 时，`POST /api/weapons/{weapon_id}/generate-3d` 只创建 `queued` job，不立即创建 `rough_3d` 版本或 GLB 资产，FastAPI 启动时会拉起本地后台 Worker 自动领取 queued/retrying/waiting-provider generate-3d job，写 runner lease、provider task、checkpoint、worker events，并在 provider 成功后提交一个 rough_3d 子版本、GLB variants、Unity material 和质量报告；`POST /api/runtime/work-once` 保留为本地/测试单步领取钩子。该 opt-in 路径由 `agent:p0-async-generate3d-worker-smoke` 和 `agent:p0-generate3d-worker-loop-smoke` 覆盖，并已纳入 `npm run m5:gate`。当前仍未完成真实 SF3D/TripoSR/Hunyuan3D 模型环境验收，也未完成任意 step 的通用 checkpoint resume。
-- P0 async export-unity worker loop: 默认 Unity export HTTP 路径仍同步完成以保持兼容；显式设置 `WUSHEN_EXPORT_UNITY_ASYNC=1` 时，`POST /api/weapons/{weapon_id}/export-unity` 只创建 queued job，不提前创建 export version、`export_packages` 行或 ZIP asset；`POST /api/runtime/work-once` 可领取并完成 export_unity job。设置 `WUSHEN_EXPORT_UNITY_WORKER=1` 或 `WUSHEN_RUNTIME_WORKER=1` 时，FastAPI 启动本地后台 Worker 自动领取 export_unity job。该路径由 `agent:p0-export-unity-worker-smoke` 覆盖，并已纳入 `npm run m5:gate`。
-- P0 frontend runtime and Unity handoff visibility: `App` 现在会随 active job 拉取 `GET /api/jobs/{job_id}/runtime`，`JobTimeline` 在事件轨迹上方显示 runtime mini panel，包括 provider task、checkpoint、resumable/cancellable 和 last seen；3D 展台新增 Unity 交接状态卡，保守展示 raw/normalized/optimized GLB、Unity material、quality report、export ZIP、model id、质量状态、fallback 和旧 ZIP 风险，并在同一卡片内展示 parsed GLB 模型质量证据：triangles、meshes、vertices、materials、textures、longest axis、center/extents、PBR 和 bounds 状态；同一卡片也展示 Unity 轴向/尺度策略，包括 forward axis、long axis、pivot、fallback pivot 和 `normalized_game_asset_scale`，明确这是游戏资产相对比例而非现实尺寸。资产库每个版本卡新增 Unity handoff checklist、质量徽标、版本溯源摘要、快速预览、版本级下载动作和“查看生成轨迹”入口：当前模型 report 会显示 `QC passed/warning/blocker`、blocker/warning 数量、triangles、materials 和 bounds 状态；旧版本或非模型版本会保守显示 report present/missing/not applicable，避免把“存在 ZIP”误说成“当前版本可交接”；版本溯源会显示 job id、root/parent v 来源、创建时间和该版本输出的资产角色；快速预览优先展示 concept/patch 图片缩略图，非图片版本显示 GLB/ZIP 摘要；资产行的 JSON/GLB/ZIP 预览抽屉会通过受控 asset file URL 读取文件，JSON 展示 schema、顶层 keys、字节数和截断正文，GLB 展示 header、chunk、mesh/material/texture/node 计数、generator 和 BIN 摘要，Unity ZIP 展示 central directory、deflated manifest.json、package root、payload counts、relative path safety 和 manifest coverage；版本级下载按钮通过受控 asset file URL 批量下载当前版本文件，导出版本额外提供 Unity ZIP 直链和“打开 ZIP 位置”动作；生成轨迹入口会恢复该版本的 job、切到任务中心并展示事件、runtime 和 action 审计。`POST /api/assets/{asset_id}/reveal` 会在本地 Agent 内部按 asset id 校验对象库 containment 与 sha256 后调用系统文件管理器，不把本地绝对路径返回给前端；`dry_run=true` 用于自动化验收。资产库详情顶部新增版本 DAG 条带，按 v 号展示 concept / patch / rough_3d / export 节点、root/parent v 关系，并可点击切换上下文版本。桌面端新增轻量 hash route：`#/jobs/:jobId` 会直接打开任务中心并恢复该 job 的事件、runtime 和 action 审计；`#/weapons/:weaponId/versions/:versionId` 会直接打开资产库并恢复指定版本上下文；普通导航会写回 `#/forge`、`#/library` 等状态。`npm run desktop:p0-runtime-handoff-smoke` 会用临时 Agent/Vite、mock providers 和 system Chrome 复现 generate-3d worker -> export-unity worker -> recent job restore，断言 runtime/handoff DOM、模型质量证据、轴向/尺度策略、资产库质量徽标、版本 DAG、版本溯源、快速预览、批量下载动作、受控 asset file 链接、资产库跨版本 handoff 覆盖，以及 3D canvas 非空和拖拽 checksum 变化；`npm run desktop:p0-context-continuity-smoke` 会通过真实 UI 操作覆盖 Forge create -> Patch mask -> patch job -> generate-3d from concept_patch -> export-unity -> Library sync，并校验请求体中的 source version/image、model id、版本父子链、版本 DAG、版本溯源、快速预览、JSON/GLB/ZIP 预览抽屉、批量下载动作、asset links 和从资产库恢复 export job 轨迹；`npm run desktop:p1-deeplink-smoke` 会冷启动 `#/weapons/:weaponId/versions/:versionId` 和 `#/jobs/:jobId`，验证 Library/Task Center 上下文恢复和普通导航 hash 写回；`npm run agent:p1-asset-reveal-smoke` 会验证 reveal dry-run 不打开系统窗口、不泄露本地路径，并已纳入 `npm run m5:gate`。
+退出指标：
 
-下一步建议：
+- 新用户首次有效设计时间小于 5 分钟；
+- 模块吸附和替换成功率不低于 95%；
+- 锁定模块保持率不低于 95%；
+- Undo/Redo、版本回退和崩溃恢复正确率 100%；
+- GLB 导出成功率不低于 98%；
+- 严重网格问题提示率 100%。
 
-1. 由 Backend Architecture Agent 先冻结 `CreativeWeaponGraph@1`、`SkillGraph@1`、`structure_interpretation` 与 `recast/confirm` 的文档合同，保持 `WeaponDesignSpec@1` / `weapon_family` 仅作兼容说明。
-2. 由 Frontend Agent A/B 补齐结构解释选择 UI、4 个自由度滑块、候选重试和未确认阻断规则，确保用户入口不回退到武器类别。
-3. 由 Quality & Safety Agent 扩充非武器对象 prompt 集，验证 `2~3` 候选、`combat_affordances` 分叉、稳定排序和非制造边界。
-4. 由 Provider Specialist 在结构合同冻结后继续跑通真实 Stable Fast 3D 与 TripoSR，对比 GLB 质量、显存、失败模式和 license 风险。
-5. 由 Runtime Agent 输出 generate-3d 与 export-unity 的恢复模型：明确 `provider_task_id` 持久化重试、超时重试、cancel 探测规则，并补齐对应 smoke 覆盖。
-6. 由 Packaging Agent 与 Verification Agent 接上 sidecar 打包和 Unity 真实验收，让 `release:packaging-readiness` 与 `unity:import:gate` 进入可发布证据链。
+## 开始工作
 
-## 生产级交付门禁矩阵
+当前 baseline 安装与门禁：
 
-只有当下列门禁全部清零，且有对应证据可复现时，才允许进入下一阶段（包括新的实现切片或主要里程碑）。
+```bash
+npm install
+python3 -m venv .venv
+.venv/bin/pip install -e "apps/agent[dev]"
+npm run r1:gate
+npm run r2:contracts-gate
+npm run r2:gate
+npm run r4:planner-gate
+npm run release:gate
+```
 
-| 执行记录ID | 门禁 | 目标状态 | 触发阻塞 | 当前状态 | 负责人 | 证据路径 | 失败归档 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| GATE-01 | 安全边界 | `npm run release:safety-scope` 通过 | 非制造内容、泄露风险、目录越权 | 部分通过（文档边界已写入） | Quality & Safety / Verification | `scripts/check_release_safety_scope.py`、`docs/API.md`、`docs/DESIGN.md` | `scope_violation`、`non_manufacturing_drift` |
-| GATE-02 | 秘钥与文件安全 | `npm run release:secrets-files` 通过 | 明文密钥、非法外泄文件路径、绝对路径入库 | 待排查 | Verification / Packaging | `scripts/check_release_secrets_files.py`、`apps/desktop/src-tauri/tauri.conf.json`、`apps/agent/wushen_agent/asset_store.py` | `secret_literal`、`path_leak` |
-| GATE-03 | Prompt 质量门 | `npm run release:prompt-quality` 通过 | 质量报告缺失、negative prompt 未覆盖风险词 | 待补齐 | Quality & Safety | `scripts/check_release_prompt_quality.py`、`docs/PROMPT_QUALITY_SET.md` | `prompt_coverage_gap`、`negative_prompt_missing` |
-| GATE-04 | 文档可复现性 | `npm run release:docs-walkthrough` 通过 | 关键流程无可复现脚本或证据缺失 | 待补齐 | Backend Architecture / Verification | `scripts/check_release_docs_walkthrough.py`、`docs/QUICKSTART.md`、`docs/API.md` | `walkthrough_gap`、`endpoint_mismatch` |
-| GATE-05 | 打包就绪 | `npm run release:packaging-readiness` 通过 | Tauri 打包 pipeline、sidecar 二进制、签名/资源项缺失 | 待处理 | Packaging/Distribution | `scripts/check_release_packaging_readiness.py`、`docs/PACKAGING.md`、`apps/desktop/src-tauri` | `sidecar_binary_missing`、`externalbin_mismatch` |
-| GATE-06 | License/SBOM | `npm run release:license-sbom` 通过 | 未知许可项或 SBOM 缺失 | 待确认 | Packaging / Verification | `scripts/check_release_license_sbom.py`、`docs/THIRD_PARTY_LICENSES.md` | `license_forbidden`、`lockfile_missing` |
-| GATE-07 | 3D provider 真实对比 | `agent:p0-local-3d-runtime-sf3d-manual` 与 `agent:p0-local-3d-runtime-triposr-manual` 有结果 | 无法稳定输出可用 raw/normalized/optimized 模型 | 待真实验收 | Provider Specialist | `scripts/smoke_p0_local_3d_runtime_sf3d_manual.py`、`scripts/smoke_p0_local_3d_runtime_triposr_manual.py`、`docs/LOCAL_3D_RUNTIME.md` | `backend_install`、`no_glb_output`、`invalid_glb` |
-| GATE-08 | 任务恢复能力 | `agent:p0-runtime-recovery-smoke` / `agent:p0-generate3d-worker-loop-smoke` 通过 | provider task 重试、cancel、checkpoint 恢复异常 | 待补齐 | Runtime | `scripts/smoke_p0_runtime_recovery.py`、`scripts/smoke_p0_generate3d_worker_loop.py`、`scripts/smoke_p0_provider_runtime_boundary.py` | `cursor_invalid`、`cancel_conflict` |
-| GATE-09 | 运行时恢复边界 | `GET /api/jobs/{job_id}/runtime` 与 runtime action 映射一致 | unknown cursor、cancel 409、超时状态不一致 | 基础有，但未闭环 | Runtime / Backend Architecture | `scripts/smoke_p0_runtime_recovery.py`、`apps/agent/wushen_agent/main.py`、`apps/agent/wushen_agent/asset_store.py` | `runtime_action_mismatch`、`cancel_not_propagated` |
-| GATE-10 | Unity 导入验证 | `npm run unity:import:gate` 由 `blocked_unity_not_configured` 转 `imported` | 环境缺失或导入失败 | 阻塞（待本机/CI 配置） | Verification / Provider Specialist | `scripts/smoke_m5_unity_import.py`、`docs/UNITY_IMPORT_SMOKE.md` | `unity_not_configured`、`unity_import_failed` |
+## 桌面打包发布准备度
 
-说明：门禁证据默认归档到 `output/release/<执行记录ID>/`，包含 `report.json`、`trace.txt`、`artifacts.txt`，并用本表中的失败归档代码进行分类归档，方便 `Implementation Plan` 与 `Design` 联动追踪。
+浏览器/Vite 开发壳不是已发布的桌面应用。Tauri 发布候选必须包含已冻结的 `wushen-agent` sidecar，并以 `mode=packaged-sidecar` 启动；不得依赖用户的 Python 或源码仓库。
 
-证据模板：
+打包前运行：
 
-- `output/release/README.md`
-- `output/release/_TEMPLATE/report.json`
-- `output/release/_TEMPLATE/trace.txt`
-- `output/release/_TEMPLATE/artifacts.txt`
+```bash
+npm run release:packaging-readiness
+```
 
-门禁执行规则：
+该命令检查 Tauri bundle、图标、CSP、capability、`Cargo.lock`、target-suffixed sidecar 与运行时模式，并拒绝空文件、缺少可执行权限或与目标平台不匹配的二进制头。具体平台打包、签名、安装/卸载和干净机验证见 [桌面打包合同](docs/PACKAGING.md)。
 
-- 本轮任一门禁为 blocker 时，不推进到下一阶段；仅将对应项升级为下轮执行目标。
-- 本轮建议只覆盖“可复现、可验证、可回滚”的项，不做不可验证的范围扩展。
-- 若 1~2 项阻塞可以并行拉起，超过 3 项阻塞则先完成 `structure-first docs + prompt-quality + safety-scope`，再并行 provider/runtime/packaging/Unity。
+当前新工作台开发入口：
 
-## 第一阶段产品决策冻结（与 DESIGN.md §16 对齐）
+```bash
+npm --workspace apps/desktop run dev -- --host 127.0.0.1
+# http://127.0.0.1:1420/#/cad
+```
 
-### API 与模型服务
+它只是 Vite 开发壳；Tauri 才是最终本地桌面交付路径。完整运行、备份和故障处理见 [操作手册](docs/OPERATIONS.md)。
 
-- LLM：默认使用 OpenAI-compatible API；provider profile 支持 `openai` / `deepseek` / `claude` 映射到统一适配层。
-- ComfyUI：默认外部本地服务，用户提供 endpoint；不在主应用内捆绑可执行文件。
-- 3D 粗模：优先采用 `local_http` provider 抽象链路，先稳定一个轻量 provider 输出（raw/normalized/optimized）闭环。
+## 文档地图
 
-### 开源与交付边界
+- [实施计划](docs/IMPLEMENTATION_PLAN.md)：R0–R6、PR 顺序、C01–C10 和近期行动。
+- [系统设计](docs/DESIGN.md)：平台、领域包、合同、API、数据库、视口、检查与后续 CAD/DFM 轨。
+- [操作手册](docs/OPERATIONS.md)：当前真实命令、Tauri/Vite 区别、数据和故障处理。
+- [Quickstart](docs/QUICKSTART.md)：操作手册统一入口。
+- [架构决策](docs/ADR/)：产品范围、领域模型、许可证和迁移决策。
+- [执行证据](docs/evidence/)：阶段门禁与回归结果。
 
-- 核心代码与文档以 MIT / Apache-2.0 为主线；GPL/AGPL 及高风险许可仅允许外部服务/工具链边界隔离。
-- Windows 为第一阶段发布优先目标平台（面向 Steam 场景），macOS/Linux 随发布阶段并行补齐。
+## 贡献约束
 
-这些决策已在 `docs/DESIGN.md` 与 `docs/IMPLEMENTATION_PLAN.md` 的门禁行动中形成验证要求。
+- 不在 `asset_store.py` 或 `App.tsx` 继续堆积新职责；
+- 不把旧 WeaponDesignSpec/CreativeWeaponGraph 机械改名成新合同；
+- P0 新业务进入通用 Project/Version 基础设施和 Weapon Concept Pack；
+- AI 只能引用已存在 Module ID，所有修改先生成 ChangeSet；
+- 原始模块资产和父版本不可覆盖；
+- 所有耗时动作使用 Job、幂等、取消、恢复和事件 replay；
+- 依赖必须固定版本、记录许可证并进入 SBOM；
+- 概念资产不得被 UI 或文档声称为生产级 CAD/DFM 结果。
+
+完整顺序以 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) 为准。

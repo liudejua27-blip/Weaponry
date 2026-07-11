@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 from typing import Any, Optional
 
@@ -84,6 +85,20 @@ def main() -> int:
         "No target-suffixed packaged Agent sidecar binary was found under src-tauri/binaries.",
         {"expected_base": "binaries/wushen-agent"},
     )
+    invalid_sidecars = {
+        str(path.relative_to(TAURI_DIR)): _sidecar_integrity_issues(path)
+        for path in sidecar_candidates
+    }
+    invalid_sidecars = {
+        path: issues for path, issues in invalid_sidecars.items() if issues
+    }
+    _require(
+        blockers,
+        not invalid_sidecars,
+        "SIDECAR_BINARY_INVALID",
+        "Packaged sidecar candidates must be non-empty executable binaries for their target.",
+        {"invalid_sidecars": invalid_sidecars},
+    )
 
     main_rs = main_rs_path.read_text(encoding="utf-8")
     _require(
@@ -125,6 +140,7 @@ def main() -> int:
         "icons": icons,
         "externalBin": external_bins,
         "sidecar_candidates": [str(path.relative_to(TAURI_DIR)) for path in sidecar_candidates],
+        "sidecar_invalid": invalid_sidecars,
         "cargo_lock": cargo_lock_path.exists(),
         "csp": bool(security.get("csp")),
         "capabilities": len(list(capabilities_dir.glob("*.json"))) if capabilities_dir.exists() else 0,
@@ -144,6 +160,40 @@ def _sidecar_candidates(external_bins: list[Any]) -> list[Path]:
         base = TAURI_DIR / entry
         candidates.extend(path for path in base.parent.glob(base.name + "-*") if path.is_file())
     return sorted(candidates)
+
+
+def _sidecar_integrity_issues(path: Path) -> list[str]:
+    """Return target-aware release blockers without attempting to execute a sidecar."""
+    try:
+        metadata = path.stat()
+        header = path.read_bytes()[:4]
+    except OSError as exc:
+        return [f"unreadable: {exc}"]
+    issues: list[str] = []
+    if metadata.st_size == 0:
+        issues.append("empty")
+    if not path.name.endswith(".exe") and not (metadata.st_mode & stat.S_IXUSR):
+        issues.append("owner_execute_bit_missing")
+    if path.name.endswith(".exe"):
+        valid = header.startswith(b"MZ")
+        expected = "PE/MZ"
+    elif "apple-darwin" in path.name:
+        valid = header in {
+            b"\xcf\xfa\xed\xfe",  # 64-bit Mach-O, little-endian
+            b"\xfe\xed\xfa\xcf",  # 64-bit Mach-O, big-endian
+            b"\xca\xfe\xba\xbe",  # universal Mach-O, big-endian
+            b"\xbe\xba\xfe\xca",  # universal Mach-O, little-endian
+        }
+        expected = "Mach-O"
+    elif "linux" in path.name:
+        valid = header == b"\x7fELF"
+        expected = "ELF"
+    else:
+        valid = bool(header)
+        expected = "non-empty executable"
+    if not valid:
+        issues.append(f"invalid_header_expected_{expected}")
+    return issues
 
 
 def _check_docs(blockers: list[dict[str, Any]]) -> dict[str, Any]:
