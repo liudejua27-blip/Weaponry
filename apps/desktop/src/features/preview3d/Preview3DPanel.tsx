@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ForgeApiClient } from '../../shared/api/forgeApi'
 import type { CreateWeaponResponse, WeaponDetail, WeaponSummary } from '../../shared/types'
 
@@ -235,34 +235,43 @@ export function Preview3DPanel({
       return
     }
     let cancelled = false
-    const loader = new GLTFLoader()
     setError(null)
     setStatus('loading')
-    loader.load(
-      api.getAssetFileUrl(glbAsset.asset_id),
-      (gltf) => {
-        if (cancelled) {
-          disposeObject(gltf.scene)
-          return
-        }
-        disposeCurrentModel()
-        const weaponGroup = prepareWeaponForCharacter(gltf.scene)
-        modelRef.current = weaponGroup
-        originalMaterialsRef.current.clear()
-        weaponSocketRef.current?.add(weaponGroup)
-        prepareModel(weaponGroup)
-        applyPreviewMode(mode)
-        resetCamera()
-        setLoadedAssetId(glbAsset.asset_id)
-        setStatus('ready')
-      },
-      undefined,
-      (caught) => {
+    void import('three/examples/jsm/loaders/GLTFLoader.js')
+      .then(({ GLTFLoader }) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : 'GLB 加载失败')
+        const loader: GLTFLoader = new GLTFLoader()
+        loader.load(
+          api.getAssetFileUrl(glbAsset.asset_id),
+          (gltf) => {
+            if (cancelled) {
+              disposeObject(gltf.scene)
+              return
+            }
+            disposeCurrentModel()
+            const weaponGroup = prepareWeaponForCharacter(gltf.scene)
+            modelRef.current = weaponGroup
+            originalMaterialsRef.current.clear()
+            weaponSocketRef.current?.add(weaponGroup)
+            prepareModel(weaponGroup)
+            applyPreviewMode(mode)
+            resetCamera()
+            setLoadedAssetId(glbAsset.asset_id)
+            setStatus('ready')
+          },
+          undefined,
+          (caught) => {
+            if (cancelled) return
+            setError(caught instanceof Error ? caught.message : 'GLB 加载失败')
+            setStatus('error')
+          }
+        )
+      })
+      .catch((caught) => {
+        if (cancelled) return
+        setError(caught instanceof Error ? caught.message : 'GLB 加载器初始化失败')
         setStatus('error')
-      }
-    )
+      })
     return () => {
       cancelled = true
     }

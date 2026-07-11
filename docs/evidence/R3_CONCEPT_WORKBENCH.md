@@ -10,6 +10,7 @@
 - Desktop Concept API client 支持 Project、Version、Module、ModuleGraph、Variant 和 Export；
 - `useConceptWorkbench` 负责加载、项目/版本切换、空状态、Starter Project 和导出；
 - 视口通过 `GLTFLoader` 读取 Graph 节点引用的源 GLB，应用 node Transform 并释放 GPU 资源；
+- `GLTFLoader` 只在已存在 ModuleGraph 或 legacy GLB 时动态导入，避免进入工作台壳后立即请求 loader；
 - raycast 选择同步到底部模块库、右侧节点/模块/Connector 检查器和状态栏；
 - 节点支持本地隐藏/显示、聚焦和 Connector overlay；
 - 组件库模块可拖到视口节点形成候选，仍需显式点击确认；

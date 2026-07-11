@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
@@ -99,12 +99,11 @@ export function ModuleGraphViewport({
     scene.add(qualityOverlay)
 
     let disposed = false
-    const loader = new GLTFLoader()
     const rootPosition = new THREE.Vector3(
       ...(graph?.nodes.find((node) => node.node_id === graph.root_node_id)?.transform.position
         ?? [0, 0, 0]) as [number, number, number],
     )
-    const loadNode = (node: NonNullable<typeof graph>['nodes'][number]) => new Promise<void>((resolve, reject) => {
+    const loadNode = (loader: GLTFLoader, node: NonNullable<typeof graph>['nodes'][number]) => new Promise<void>((resolve, reject) => {
       loader.load(
         getModuleFileUrl(node.module_id),
         (gltf) => {
@@ -217,7 +216,12 @@ export function ModuleGraphViewport({
     })
 
     if (graph) {
-      Promise.all(graph.nodes.map(loadNode))
+      void import('three/examples/jsm/loaders/GLTFLoader.js')
+        .then(({ GLTFLoader }) => {
+          if (disposed) return undefined
+          const loader = new GLTFLoader()
+          return Promise.all(graph.nodes.map((node) => loadNode(loader, node)))
+        })
         .then(() => {
           if (disposed) return
           const focusObjects = (
