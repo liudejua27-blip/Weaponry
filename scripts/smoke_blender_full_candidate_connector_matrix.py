@@ -45,6 +45,16 @@ EXPECTED_MODULE_IDS = {
     "module_storage_visual_01",
     "module_top_accessory_01",
 }
+EDITABLE_MIRROR_NODE_IDS = (
+    "node_front",
+    "node_rear",
+    "node_grip",
+    "node_top",
+    "node_side",
+    "node_lower",
+    "node_storage",
+    "node_armor",
+)
 
 
 def main() -> int:
@@ -52,6 +62,12 @@ def main() -> int:
         description="Run an unclassified Connector matrix for a Blender visual candidate."
     )
     parser.add_argument("--pack-root", type=Path, required=True)
+    parser.add_argument(
+        "--mirror-node",
+        action="append",
+        choices=EDITABLE_MIRROR_NODE_IDS,
+        help="run only the specified editable node(s); default exercises the full stress branch",
+    )
     args = parser.parse_args()
     pack = validate_module_pack(args.pack_root)
     _assert(
@@ -128,17 +144,8 @@ def main() -> int:
             )
             _assert_graph_alignment(reverse_preview["preview_graph"], manifests)
 
-            mirror_cases: list[str] = []
-            for node_id in (
-                "node_front",
-                "node_rear",
-                "node_grip",
-                "node_top",
-                "node_side",
-                "node_lower",
-                "node_storage",
-                "node_armor",
-            ):
+            mirror_cases = args.mirror_node or list(EDITABLE_MIRROR_NODE_IDS)
+            for node_id in mirror_cases:
                 version_id, preview = _set_mirror(
                     base_url,
                     project_id=str(project["project_id"]),
@@ -151,7 +158,6 @@ def main() -> int:
                     f"{node_id} mirror state was not previewed",
                 )
                 _assert_graph_alignment(preview["preview_graph"], manifests)
-                mirror_cases.append(node_id)
             locked_root_rejected = _assert_locked_root_rejected(
                 base_url,
                 project_id=str(project["project_id"]),
@@ -226,6 +232,9 @@ def main() -> int:
                 "evidence_class": "unclassified",
                 "formal_asset_evidence_eligible": False,
                 "module_count": 10,
+                "mirror_execution": (
+                    "selected_nodes" if args.mirror_node else "full_stress_branch"
+                ),
                 "eligible_replacement_cases": 2,
                 "replacement_successes": 2,
                 "mirror_cases": mirror_cases,

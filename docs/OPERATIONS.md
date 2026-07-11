@@ -210,7 +210,7 @@ npm run assets:blender-full-candidate-connector-matrix -- \
   --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport"
 ```
 
-该命令在隔离 Library 中验证 front 01→02→01 的两个 eligible replacement、八个可编辑节点的 X 镜像、每轮 Connector 精确对齐、combined GLB mirror scale 与 Agent 重启回读；锁定 core 的镜像请求必须返回 `CHANGE_SET_INVALID`。2026-07-11 的 candidate 为 2/2 replacement、8/8 mirror 操作成功；连续八镜像压力分支质量报告为 8 个 `assembly.unconnected_triangle_intersection` warning，不能当作可交付组合。输出固定 `evidence_class=unclassified` 和 `formal_asset_evidence_eligible=false`。
+该命令在隔离 Library 中验证 front 01→02→01 的两个 eligible replacement、八个可编辑节点的 X 镜像、每轮 Connector 精确对齐、combined GLB mirror scale 与 Agent 重启回读；锁定 core 的镜像请求必须返回 `CHANGE_SET_INVALID`。默认连续运行八镜像压力分支；要单独检查一个分支，追加 `--mirror-node node_grip`（可重复指定）。2026-07-11 的 candidate 为 2/2 replacement、8/8 mirror 操作成功；单节点 grip/top/side/armor 质量通过，front/rear 各有 2 个、lower/storage 各有 1 个 `assembly.unconnected_triangle_intersection` warning，连续压力分支共 8 warning。警告组合不能当作可交付组合。输出固定 `evidence_class=unclassified` 和 `formal_asset_evidence_eligible=false`。
 
 人工修改三份 `.blend` 后，使用只读 re-export，不能重跑 starter build：
 
