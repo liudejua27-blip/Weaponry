@@ -143,6 +143,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
+  const [xRay, setXRay] = useState(false)
   const [selectedComponent, setSelectedComponent] = useState('')
   const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState('')
   const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
@@ -944,6 +945,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 active={wireframe}
                 onClick={() => setWireframe((current) => !current)}
               />
+              <IconButton
+                icon={Eye}
+                label="X-Ray"
+                active={xRay}
+                onClick={() => setXRay((current) => !current)}
+              />
               {(activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale') && <>
                 <span className="toolbar-divider" />
                 <button
@@ -966,6 +973,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               cameraView={cameraView}
               showGrid={showGrid}
               wireframe={wireframe}
+              xRay={xRay}
               selectedNodeId={selectedComponent}
               hiddenNodeIds={hiddenNodeIds}
               focusNodeId={focusedNodeId}
@@ -1027,7 +1035,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             </div>
             <div className="viewport-readout">
               <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : measurementMode === 'distance' ? `测量：${measurementDistance.toFixed(2)} mm` : `法线夹角：${measurementAngle?.toFixed(2)}°` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
-              <span>单位：mm</span>
+              <span>{xRay ? 'X-Ray' : '单位：mm'}</span>
             </div>
           </div>
 

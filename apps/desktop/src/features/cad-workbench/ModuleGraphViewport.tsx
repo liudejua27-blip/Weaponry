@@ -24,6 +24,7 @@ type ModuleGraphViewportProps = {
   cameraView: CameraView
   showGrid: boolean
   wireframe: boolean
+  xRay: boolean
   selectedNodeId: string
   hiddenNodeIds: string[]
   focusNodeId: string | null
@@ -311,6 +312,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.showConnectors,
     props.showGrid,
     props.wireframe,
+    props.xRay,
     props.transformTool,
     props.transformSpace,
     props.snapEnabled,
@@ -340,6 +342,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
         data-preview-mode={props.ghostPreview ? 'ghost' : 'committed'}
+        data-xray={props.xRay ? 'enabled' : 'disabled'}
         data-focus-node-id={props.focusNodeId ?? ''}
         data-quality-node-ids={props.qualityHighlightNodeIds.join(',')}
         data-quality-triangle-count={props.qualityGeometryRefs.reduce(
@@ -455,9 +458,9 @@ function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportPr
       materials.forEach((material) => {
         if ('wireframe' in material) material.wireframe = props.wireframe
         if ('transparent' in material) {
-          material.transparent = props.ghostPreview
-          material.opacity = props.ghostPreview ? 0.58 : 1
-          material.depthWrite = !props.ghostPreview
+          material.transparent = props.ghostPreview || props.xRay
+          material.opacity = props.ghostPreview ? 0.58 : props.xRay ? 0.24 : 1
+          material.depthWrite = !props.ghostPreview && !props.xRay
         }
         if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
           const quality = props.qualityHighlightNodeIds.includes(node.node_id)
