@@ -47,7 +47,7 @@
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
 | R3 reference assets | 完成可运行基线与 visual candidate | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；十模块 Blender 4.2.22 visual candidate 已在隔离 Library 完成导入、完整 Graph、质量通过、导出、重启回读与 combined DCC 往返；最终 art 待人工制作 |
 | R3 formal asset promotion | 合同与门禁完成、真实 starter 未批准 | `FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；真实 starter 验证返回许可证/人工审批/评分/core 三角下限阻断，无正式资产声明 |
-| R3 Connector snap/mirror | 合成/API 与 Blender candidate 技术基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；十模块 candidate 另完成 2/2 eligible front 替换、8/8 editable X 镜像、精确对齐、combined GLB/重启回读及锁定 root 拒绝。candidate 为 `unclassified`，正式资产指标待测 |
+| R3 Connector snap/mirror | 合成/API 与 Blender candidate 技术基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；十模块 candidate 另完成 2/2 eligible front 替换、8/8 editable X 镜像、精确对齐、combined GLB/重启回读及锁定 root 拒绝。连续八镜像压力分支返回 8 个未连接组件相交/包含 warning，故操作链通过不表示质量通过；candidate 为 `unclassified`，正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
 | R3 ChangeSet audit archive | 批量导出切片完成 | migration `0016`、当前筛选 JSONL/CSV、hash Manifest、内容寻址 ZIP、`project_lifetime`、Job/artifact link、桌面下载与 restart smoke；WORM/legal hold/独立灾备未实现 |
@@ -329,7 +329,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 ## 8. 最近十个可执行动作
 
 1. 由已完成视觉层级与 formal floor 的 core + 两个 front starter 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，由人工进一步处理轮廓、面板节奏、UV 与材质表现；换成最终许可证后，由非作者 reviewer 完成五项评分与批准，不能用 starter 或 synthetic smoke 代替。
-2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。十模块 Blender candidate 已额外验证其仅有的 2/2 eligible front 替换与 8/8 editable 镜像、精确对齐、导出和重启回读，但它是 `unclassified` 技术样本，不能计入正式 ≥95%。
+2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。十模块 Blender candidate 已额外验证其仅有的 2/2 eligible front 替换与 8/8 editable 镜像、精确对齐、导出和重启回读；连续八镜像压力分支由质量规则报告 8 个未连接组件相交/包含 warning，因此不得把“操作通过”写作“组合可交付”。它是 `unclassified` 技术样本，不能计入正式 ≥95%。
 3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 `library:recovery-drill`，各至少 3 轮，保存备份/验证/恢复/Agent 回读耗时、吞吐、容量增长和未引用候选，再确定保留周期与 reference-aware GC；10 模块 reference fixture 已完成多轮稳定快照、全部 GLB hash 回读、基线增量和正式证据误报阻断，但不替代这两组真实报告。WORM/legal hold 不在当前承诺内。
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；starter core、工作台 visual-v2 三模块组合与 reference combined GLB 的真实 Blender round-trip 已通过，下一步是对正式 Blender 资产全装配重跑并评估纹理交换与 glTF Transform/Meshopt。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。

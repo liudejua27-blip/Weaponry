@@ -233,6 +233,19 @@ def main() -> int:
                 "locked_root_rejected": locked_root_rejected,
                 "connector_alignment_verified": True,
                 "quality_status": quality["report"]["status"],
+                "quality_finding_count": len(quality["report"]["findings"]),
+                "quality_warning_count": sum(
+                    finding["severity"] == "warning"
+                    for finding in quality["report"]["findings"]
+                ),
+                "quality_findings": [
+                    {
+                        "check_id": finding["check_id"],
+                        "severity": finding["severity"],
+                        "message": finding["message"],
+                    }
+                    for finding in quality["report"]["findings"]
+                ],
                 "combined_glb_mirror_verified": True,
                 "restart_restored": True,
             },
