@@ -25,6 +25,7 @@ def check_json_schemas() -> None:
         "weapon-concept-spec.schema.json",
         "module-asset-manifest.schema.json",
         "module-pack-manifest.schema.json",
+        "formal-module-review.schema.json",
         "module-graph.schema.json",
         "design-change-set.schema.json",
         "model-quality-report.schema.json",

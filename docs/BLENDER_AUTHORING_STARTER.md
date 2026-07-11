@@ -1,6 +1,6 @@
 # Blender Authoring Starter
 
-状态：三模块 authoring source 与执行器已实现；当前开发机未检测到 Blender，因此真实 `.blend`/GLB/thumbnail 构建尚未执行。
+状态：三模块 authoring source、只读导出器和正式人工审阅门已实现；当前开发机未检测到 Blender，因此真实 `.blend`/GLB/thumbnail 构建与人工批准尚未执行。
 
 ## 1. 作用
 
@@ -95,7 +95,13 @@ re-export 默认从 starter 的 `sources/` 读取，输出到独立的 `output/b
 
 导出前会阻断：丢失/额外 Mesh、错误 Object/Mesh 名、未应用 Modifier/Transform、缺失 UV0、错误材质集合、Connector Empty 与 metadata 不一致、Connector scale 未应用、相机缺失。输出必须再次通过完整 Module Pack 校验。
 
-## 6. 不可变注册边界
+## 6. 正式人工审阅与晋级
+
+技术导出通过后仍不能称为最终资产。默认 re-export 许可证故意保留 starter/not-final 标记，必须在输出副本中换成已确认权属的最终美术 SPDX 和许可证文本。然后运行 `assets:formal-review-draft`，由非作者 reviewer 完成 `FormalModuleReview@1`：所有 checklist 为 true，五项视觉评分均 ≥4，确认非功能性概念/游戏/影视道具用途。
+
+`assets:formal-review-validate` 会重新核验三份 Blender source、module Manifest、GLB、thumbnail、Pack/Module license 的 hash，以及 Blender generator、三语义材质、anti-placeholder triangle floor、最终许可证和 reference Pack 的稳定 Module/Asset/Connector 合同。报告不含绝对路径；attestation 是审计记录，不是密码学签名。具体命令见 [操作手册](OPERATIONS.md)。
+
+## 7. 不可变注册边界
 
 reference Pack 和 authoring starter 使用相同的预发布稳定 Module ID。Module Registry 不允许同 ID 更换 hash，因此：
 

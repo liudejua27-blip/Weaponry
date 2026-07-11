@@ -77,6 +77,7 @@ def run_recovery_drill(
     repeats: int = 1,
     evidence_class: str = "unclassified",
     baseline_report: Path | None = None,
+    formal_promotion_report: Path | None = None,
     retain_artifacts: bool = False,
     agent_timeout_seconds: float = 20.0,
 ) -> dict[str, Any]:
@@ -115,6 +116,10 @@ def run_recovery_drill(
         )
 
     baseline = _load_baseline(baseline_report)
+    promotion_report = _load_formal_promotion_report(
+        formal_promotion_report,
+        evidence_class=evidence_class,
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(
         tempfile.mkdtemp(prefix=f".{destination.name}.tmp-", dir=destination.parent)
@@ -192,7 +197,12 @@ def run_recovery_drill(
             )
 
         _require_stable_source(runs)
-        evidence = _classify_evidence(evidence_class, runs[0]["agent_readback"])
+        evidence = _classify_evidence(
+            evidence_class,
+            runs[0]["agent_readback"],
+            promotion_report=promotion_report,
+            promotion_report_path=formal_promotion_report,
+        )
         completed_at = _utc_now()
         current_capacity = runs[0]["capacity"]
         report = {
@@ -303,6 +313,7 @@ def _agent_readback(library_root: Path, timeout_seconds: float) -> dict[str, Any
         modules = _http_json(base_url, "/api/v1/module-assets")
         module_items = _require_items(modules, "module list")
         module_generators: dict[str, int] = {}
+        module_artifacts: list[dict[str, str]] = []
         downloaded_bytes = 0
         for item in module_items:
             manifest = item.get("manifest")
@@ -329,6 +340,13 @@ def _agent_readback(library_root: Path, timeout_seconds: float) -> dict[str, Any
                 )
             generator = _glb_generator(payload)
             module_generators[generator] = module_generators.get(generator, 0) + 1
+            module_artifacts.append(
+                {
+                    "module_id": module_id,
+                    "glb_sha256": actual_sha256,
+                    "glb_generator": generator,
+                }
+            )
             downloaded_bytes += len(payload)
         known_fixture_modules = sum(
             count
@@ -346,21 +364,27 @@ def _agent_readback(library_root: Path, timeout_seconds: float) -> dict[str, Any
             "module_download_bytes": downloaded_bytes,
             "module_hashes_verified": True,
             "module_generators": dict(sorted(module_generators.items())),
+            "module_artifacts": sorted(
+                module_artifacts, key=lambda item: item["module_id"]
+            ),
             "known_fixture_module_count": known_fixture_modules,
         }
     finally:
         _stop_process(process)
 
 
-def _classify_evidence(declared_class: str, readback: dict[str, Any]) -> dict[str, Any]:
+def _classify_evidence(
+    declared_class: str,
+    readback: dict[str, Any],
+    *,
+    promotion_report: dict[str, Any] | None = None,
+    promotion_report_path: Path | None = None,
+) -> dict[str, Any]:
     module_count = int(readback["module_count"])
     fixture_count = int(readback["known_fixture_module_count"])
-    eligible = (
-        declared_class == "formal_blender_10_12"
-        and 10 <= module_count <= 12
-        and fixture_count == 0
-    )
-    if declared_class == "formal_blender_10_12" and not eligible:
+    formal_requested = declared_class == "formal_blender_10_12"
+    base_eligible = formal_requested and 10 <= module_count <= 12 and fixture_count == 0
+    if formal_requested and not base_eligible:
         reasons: list[str] = []
         if not 10 <= module_count <= 12:
             reasons.append(f"module_count={module_count}, expected 10-12")
@@ -370,17 +394,51 @@ def _classify_evidence(declared_class: str, readback: dict[str, Any]) -> dict[st
             "FORMAL_ASSET_EVIDENCE_REJECTED",
             "Formal asset evidence requirements failed: " + ", ".join(reasons) + ".",
         )
+    report_hash: str | None = None
+    manual_review_record_verified = False
+    if formal_requested:
+        if promotion_report is None or promotion_report_path is None:
+            raise RecoveryDrillError(
+                "FORMAL_PROMOTION_REPORT_REQUIRED",
+                "formal_blender_10_12 requires a formal_release_10_12 promotion report.",
+            )
+        report_artifacts = promotion_report.get("module_artifacts")
+        if not isinstance(report_artifacts, list):
+            raise RecoveryDrillError(
+                "FORMAL_PROMOTION_REPORT_INVALID",
+                "Formal promotion report module_artifacts must be an array.",
+            )
+        reviewed_hashes = {
+            str(item.get("module_id")): str(item.get("glb_sha256"))
+            for item in report_artifacts
+            if isinstance(item, dict)
+        }
+        restored_hashes = {
+            str(item["module_id"]): str(item["glb_sha256"])
+            for item in readback["module_artifacts"]
+        }
+        if reviewed_hashes != restored_hashes:
+            raise RecoveryDrillError(
+                "FORMAL_PROMOTION_REPORT_MISMATCH",
+                "Reviewed GLB hashes do not match the restored Agent module set.",
+            )
+        report_hash = _sha256_file(promotion_report_path.expanduser().resolve())
+        manual_review_record_verified = True
+    eligible = base_eligible and manual_review_record_verified
     return {
         "declared_class": declared_class,
         "formal_asset_evidence_eligible": eligible,
         "module_count": module_count,
         "known_fixture_module_count": fixture_count,
+        "manual_review_record_verified": manual_review_record_verified,
+        "formal_promotion_report_sha256": report_hash,
         "automated_checks": [
             "restored module count",
             "known deterministic/smoke GLB generator rejection",
             "all restored module payload hashes",
+            "formal promotion report GLB hash equality",
         ],
-        "manual_review_still_required": declared_class == "formal_blender_10_12",
+        "cryptographic_signature_verified": False,
     }
 
 
@@ -551,6 +609,52 @@ def _load_baseline(path: Path | None) -> dict[str, Any] | None:
     return value
 
 
+def _load_formal_promotion_report(
+    path: Path | None,
+    *,
+    evidence_class: str,
+) -> dict[str, Any] | None:
+    formal_requested = evidence_class == "formal_blender_10_12"
+    if path is None:
+        if formal_requested:
+            raise RecoveryDrillError(
+                "FORMAL_PROMOTION_REPORT_REQUIRED",
+                "formal_blender_10_12 requires --formal-promotion-report.",
+            )
+        return None
+    if not formal_requested:
+        raise RecoveryDrillError(
+            "FORMAL_PROMOTION_REPORT_UNEXPECTED",
+            "--formal-promotion-report is only valid with formal_blender_10_12.",
+        )
+    resolved = path.expanduser().resolve()
+    if not resolved.is_file():
+        raise RecoveryDrillError(
+            "FORMAL_PROMOTION_REPORT_NOT_FOUND",
+            f"Formal promotion report was not found: {resolved}.",
+        )
+    value = _read_json(resolved)
+    required = {
+        "schema_version": "ForgeCADFormalModulePromotionReport@1",
+        "status": "formal_module_review_validated",
+        "evidence_class": "formal_release_10_12",
+        "formal_asset_evidence_eligible": True,
+    }
+    for key, expected in required.items():
+        if value.get(key) != expected:
+            raise RecoveryDrillError(
+                "FORMAL_PROMOTION_REPORT_INVALID",
+                f"Formal promotion report {key} must be {expected!r}.",
+            )
+    module_count = value.get("module_count")
+    if not isinstance(module_count, int) or not 10 <= module_count <= 12:
+        raise RecoveryDrillError(
+            "FORMAL_PROMOTION_REPORT_INVALID",
+            "Formal promotion report must cover 10-12 modules.",
+        )
+    return value
+
+
 def _object_set_sha256(objects: Any) -> str:
     canonical = json.dumps(
         objects, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -633,6 +737,7 @@ def _parser() -> argparse.ArgumentParser:
         "--evidence-class", choices=EVIDENCE_CLASSES, default="unclassified"
     )
     parser.add_argument("--baseline-report", type=Path)
+    parser.add_argument("--formal-promotion-report", type=Path)
     parser.add_argument("--retain-artifacts", action="store_true")
     parser.add_argument("--agent-timeout-seconds", type=float, default=20.0)
     return parser
@@ -647,6 +752,7 @@ def main() -> int:
             repeats=args.repeats,
             evidence_class=args.evidence_class,
             baseline_report=args.baseline_report,
+            formal_promotion_report=args.formal_promotion_report,
             retain_artifacts=args.retain_artifacts,
             agent_timeout_seconds=args.agent_timeout_seconds,
         )

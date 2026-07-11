@@ -90,6 +90,63 @@ export type DesignDomainProfile = {
   "non_functional_only": true
 }
 
+export type FormalModuleReview = {
+  "schema_version": "FormalModuleReview@1"
+  "review_id": string
+  "scope": "first_three" | "release_10_12"
+  "pack_id": string
+  "pack_version": string
+  "pack_manifest_sha256": string
+  "pack_license_sha256": string
+  "author_id": string
+  "reviewer": {
+  "reviewer_id": string
+  "display_name": string
+  "role": "art_director" | "technical_artist" | "asset_reviewer"
+  "organization"?: string
+}
+  "reviewed_at": string
+  "approval_status": "changes_requested" | "approved"
+  "reviewer_attestation": string
+  "limitations_acknowledged": Array<"non_functional_concept_asset" | "not_manufacturing_documentation" | "not_structural_or_safety_validation">
+  "pack_review": {
+  "stable_ids_preserved": boolean
+  "connector_semantics_preserved": boolean
+  "license_reviewed": boolean
+  "source_export_reproducible": boolean
+  "intended_uses_verified": boolean
+  "human_final_art_approved": boolean
+  "notes": string
+}
+  "modules": Array<{
+  "module_id": string
+  "source_blend_file": string
+  "source_blend_sha256": string
+  "module_manifest_sha256": string
+  "glb_sha256": string
+  "thumbnail_sha256": string
+  "license_sha256": string
+  "review": {
+  "silhouette_distinct": boolean
+  "surface_hierarchy_reviewed": boolean
+  "material_partition_reviewed": boolean
+  "uv0_reviewed": boolean
+  "thumbnail_reviewed": boolean
+  "connector_contract_reviewed": boolean
+  "transforms_and_modifiers_reviewed": boolean
+  "non_functional_visual_only": boolean
+  "scores": {
+  "silhouette": number
+  "surface_hierarchy": number
+  "material_readability": number
+  "modular_readability": number
+  "thumbnail_quality": number
+}
+  "notes": string
+}
+}>
+}
+
 export type JobEventV2 = {
   "schema_version": "JobEvent@2"
   "event_id": Id

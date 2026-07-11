@@ -196,6 +196,28 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 实际执行前必须看到 `ready_for_read_only_export`。runner 校验 source 集合/文件头、输出隔离和 Blender；导出脚本读取 `ForgeCADBlenderAuthoring@1` metadata 与 Connector Empty，拒绝未应用 Transform/Modifier、UV/材质/命名漂移；执行后验证 source SHA-256 未变化和输出 Pack 合同。专项静态/负例门为 `npm run assets:blender-authoring-preflight-gate`。
 
+re-export 产物仍带 `LicenseRef-ForgeCAD-Authoring-Starter` 和“需要人工批准”声明，因此不能直接作为正式资产。确认素材权属后，先在输出副本中将 `pack.json` 的 SPDX、`LICENSES/PACK.txt` 和三个模块的 `LICENSE.txt` 换成获批的最终美术许可证，再生成 hash 锁定的审阅草稿：
+
+```bash
+npm run assets:formal-review-draft -- \
+  --pack-root "$PWD/output/blender/weapon-concept-v1-edited-export" \
+  --source-root "$PWD/output/blender/weapon-concept-v1-starter/sources" \
+  --output "$PWD/output/blender/formal-review-first-three.json" \
+  --scope first_three
+```
+
+资产作者填写模块说明；另一位 reviewer 填写独立身份，将 `approval_status` 改为 `approved`，逐项确认 pack/module checklist，并给 silhouette、surface hierarchy、material readability、modular readability、thumbnail quality 各 1–5 分。全部项目必须为 true、全部评分必须 ≥4，并使用 CLI 发布的 attestation。随后只读验证并生成晋级报告：
+
+```bash
+npm run assets:formal-review-validate -- \
+  --pack-root "$PWD/output/blender/weapon-concept-v1-edited-export" \
+  --source-root "$PWD/output/blender/weapon-concept-v1-starter/sources" \
+  --review "$PWD/output/blender/formal-review-first-three.json" \
+  --report "$PWD/output/blender/formal-promotion-first-three.json"
+```
+
+正式门会重跑 Pack、hash、Blender generator、三语义材质、最终许可证、基线 ID/Connector 和 anti-placeholder 三角下限（core 1000、front 500）。reference/starter/smoke、作者自审、任一低分/未勾选、source/module Manifest/GLB/thumbnail/Pack license/Module license 篡改或 Connector 漂移都会失败。`formal_module_review_validated` 只表示三模块可进入下一轮工作台/Connector/质量评测；人工 attestation 不是密码学签名，也不表示制造、结构或安全就绪。扩到正式首包时使用 `--scope release_10_12`，保留 reference Pack 的 10 个稳定 ID，并再次生成独立审阅记录。
+
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
 
 创建导出时传 `"include_combined_obj": true`，OBJ 和 MTL 会分别写入 `Model/combined.obj`、`Model/combined.mtl`。可通过以下地址独立下载：
@@ -329,7 +351,18 @@ npm run library:recovery-drill -- \
 
 它逐轮复用正式 `backup → verify → restore`，然后针对恢复目录启动本地 Agent，回读 Project/Version/Module，并下载所有注册 Module GLB 校验 hash。默认成功后只保留 `recovery-drill-report.json`；调试时才增加 `--retain-artifacts`。输出目录必须位于源库外且尚不存在。源库在多轮间发生写入会返回 `SOURCE_CHANGED_DURING_DRILL`。
 
-制作完成的人工 Blender 首包使用 `--evidence-class formal_blender_10_12`；工具要求 10–12 个 Module 并拒绝已知 reference/smoke generator，但仍需要人工资产审阅。仓库参考包只能使用 `reference_fixture`。再次演练时用旧报告计算容量增长：
+制作完成的人工 Blender 首包不能只声明 `formal_blender_10_12`：必须先取得 `formal_release_10_12` 晋级报告，再把它传给恢复演练；工具会要求 10–12 个 Module、拒绝已知 reference/smoke generator，并逐个比较晋级报告与恢复后 Agent 下载 GLB 的 hash：
+
+```bash
+npm run library:recovery-drill -- \
+  --library-root "$PWD/WushenForgeLibrary" \
+  --output "$PWD/recovery-drills/forgecad-formal-<timestamp>" \
+  --repeats 3 \
+  --evidence-class formal_blender_10_12 \
+  --formal-promotion-report "$PWD/output/blender/formal-promotion-release.json"
+```
+
+缺失报告返回 `FORMAL_PROMOTION_REPORT_REQUIRED`，Module/hash 不一致返回 `FORMAL_PROMOTION_REPORT_MISMATCH`。报告只锁定人工审阅记录，不提供密码学签名。仓库参考包只能使用 `reference_fixture`。再次演练时用旧报告计算容量增长：
 
 ```bash
 npm run library:recovery-drill -- \

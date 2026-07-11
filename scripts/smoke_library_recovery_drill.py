@@ -13,6 +13,7 @@ from library_recovery_drill import (
     REPORT_SCHEMA,
     RecoveryDrillError,
     _classify_evidence,
+    _load_formal_promotion_report,
     run_recovery_drill,
 )
 from smoke_r2_concept_projects import (
@@ -146,6 +147,68 @@ def main() -> int:
             ),
         )
 
+        formal_artifacts = [
+            {
+                "module_id": f"module_formal_{index:02d}",
+                "glb_sha256": hashlib.sha256(f"formal-{index}".encode()).hexdigest(),
+                "glb_generator": "Khronos glTF Blender I/O v4.2",
+            }
+            for index in range(1, 11)
+        ]
+        formal_readback = {
+            "module_count": 10,
+            "known_fixture_module_count": 0,
+            "module_artifacts": formal_artifacts,
+        }
+        promotion_report_path = temporary_root / "formal-promotion-report.json"
+        promotion_report = {
+            "schema_version": "ForgeCADFormalModulePromotionReport@1",
+            "status": "formal_module_review_validated",
+            "evidence_class": "formal_release_10_12",
+            "formal_asset_evidence_eligible": True,
+            "module_count": 10,
+            "module_artifacts": formal_artifacts,
+        }
+        promotion_report_path.write_text(
+            json.dumps(promotion_report, sort_keys=True), encoding="utf-8"
+        )
+        loaded_promotion = _load_formal_promotion_report(
+            promotion_report_path,
+            evidence_class="formal_blender_10_12",
+        )
+        formal_link = _classify_evidence(
+            "formal_blender_10_12",
+            formal_readback,
+            promotion_report=loaded_promotion,
+            promotion_report_path=promotion_report_path,
+        )
+        _assert(
+            formal_link["formal_asset_evidence_eligible"] is True
+            and formal_link["manual_review_record_verified"] is True,
+            "formal promotion report was not linked to restored hashes",
+        )
+        promotion_required_guard = _expect_error(
+            "FORMAL_PROMOTION_REPORT_REQUIRED",
+            lambda: _classify_evidence(
+                "formal_blender_10_12",
+                formal_readback,
+            ),
+        )
+        mismatched_promotion = dict(promotion_report)
+        mismatched_promotion["module_artifacts"] = [
+            *formal_artifacts[:-1],
+            {**formal_artifacts[-1], "glb_sha256": "0" * 64},
+        ]
+        promotion_mismatch_guard = _expect_error(
+            "FORMAL_PROMOTION_REPORT_MISMATCH",
+            lambda: _classify_evidence(
+                "formal_blender_10_12",
+                formal_readback,
+                promotion_report=mismatched_promotion,
+                promotion_report_path=promotion_report_path,
+            ),
+        )
+
         comparison_output = temporary_root / "reference-drill-comparison"
         comparison = run_recovery_drill(
             library_root,
@@ -191,6 +254,9 @@ def main() -> int:
                     "nested_output_guard": nested_guard,
                     "overwrite_guard": overwrite_guard,
                     "formal_fixture_guard": formal_guard,
+                    "formal_promotion_link_verified": True,
+                    "formal_promotion_required_guard": promotion_required_guard,
+                    "formal_promotion_mismatch_guard": promotion_mismatch_guard,
                     "ephemeral_artifact_cleanup": True,
                     "explicit_artifact_retention": True,
                     "source_path_excluded_from_report": True,

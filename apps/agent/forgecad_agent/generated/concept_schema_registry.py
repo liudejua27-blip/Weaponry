@@ -10,6 +10,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "concept-export-manifest.schema.json": "cdc78963c4f8fc04a7a6a18387899611bd8f91bb2d94f77c6c58d67030112b44",
   "design-change-set.schema.json": "167a0417615eafcfb16a01a5aa04e3156827b7521ec6b8b32011a959343936fb",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
+  "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
@@ -458,6 +459,300 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "non_functional_only"
     ],
     "title": "DesignDomainProfile",
+    "type": "object"
+  },
+  "formal-module-review.schema.json": {
+    "$id": "https://forgecad.local/schemas/formal-module-review.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "approval_status": {
+        "enum": [
+          "changes_requested",
+          "approved"
+        ]
+      },
+      "author_id": {
+        "maxLength": 120,
+        "minLength": 2,
+        "type": "string"
+      },
+      "limitations_acknowledged": {
+        "items": {
+          "enum": [
+            "non_functional_concept_asset",
+            "not_manufacturing_documentation",
+            "not_structural_or_safety_validation"
+          ]
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "modules": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "glb_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "license_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "module_id": {
+              "pattern": "^module_[a-z][a-z0-9_]*_[0-9]{2}$",
+              "type": "string"
+            },
+            "module_manifest_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "review": {
+              "additionalProperties": false,
+              "properties": {
+                "connector_contract_reviewed": {
+                  "type": "boolean"
+                },
+                "material_partition_reviewed": {
+                  "type": "boolean"
+                },
+                "non_functional_visual_only": {
+                  "type": "boolean"
+                },
+                "notes": {
+                  "maxLength": 1200,
+                  "minLength": 12,
+                  "type": "string"
+                },
+                "scores": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "material_readability": {
+                      "maximum": 5,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "modular_readability": {
+                      "maximum": 5,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "silhouette": {
+                      "maximum": 5,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "surface_hierarchy": {
+                      "maximum": 5,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "thumbnail_quality": {
+                      "maximum": 5,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "silhouette",
+                    "surface_hierarchy",
+                    "material_readability",
+                    "modular_readability",
+                    "thumbnail_quality"
+                  ],
+                  "type": "object"
+                },
+                "silhouette_distinct": {
+                  "type": "boolean"
+                },
+                "surface_hierarchy_reviewed": {
+                  "type": "boolean"
+                },
+                "thumbnail_reviewed": {
+                  "type": "boolean"
+                },
+                "transforms_and_modifiers_reviewed": {
+                  "type": "boolean"
+                },
+                "uv0_reviewed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "silhouette_distinct",
+                "surface_hierarchy_reviewed",
+                "material_partition_reviewed",
+                "uv0_reviewed",
+                "thumbnail_reviewed",
+                "connector_contract_reviewed",
+                "transforms_and_modifiers_reviewed",
+                "non_functional_visual_only",
+                "scores",
+                "notes"
+              ],
+              "type": "object"
+            },
+            "source_blend_file": {
+              "pattern": "^module_[a-z][a-z0-9_]*_[0-9]{2}\\.blend$",
+              "type": "string"
+            },
+            "source_blend_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "thumbnail_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "module_id",
+            "source_blend_file",
+            "source_blend_sha256",
+            "module_manifest_sha256",
+            "glb_sha256",
+            "thumbnail_sha256",
+            "license_sha256",
+            "review"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "minItems": 3,
+        "type": "array"
+      },
+      "pack_id": {
+        "pattern": "^pack_[a-z][a-z0-9_]*_v[0-9]+$",
+        "type": "string"
+      },
+      "pack_license_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "pack_manifest_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "pack_review": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_semantics_preserved": {
+            "type": "boolean"
+          },
+          "human_final_art_approved": {
+            "type": "boolean"
+          },
+          "intended_uses_verified": {
+            "type": "boolean"
+          },
+          "license_reviewed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "maxLength": 1200,
+            "minLength": 12,
+            "type": "string"
+          },
+          "source_export_reproducible": {
+            "type": "boolean"
+          },
+          "stable_ids_preserved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "stable_ids_preserved",
+          "connector_semantics_preserved",
+          "license_reviewed",
+          "source_export_reproducible",
+          "intended_uses_verified",
+          "human_final_art_approved",
+          "notes"
+        ],
+        "type": "object"
+      },
+      "pack_version": {
+        "maxLength": 40,
+        "minLength": 1,
+        "type": "string"
+      },
+      "review_id": {
+        "pattern": "^fmr_[a-z0-9_]{8,80}$",
+        "type": "string"
+      },
+      "reviewed_at": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "reviewer": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "organization": {
+            "maxLength": 160,
+            "minLength": 2,
+            "type": "string"
+          },
+          "reviewer_id": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "art_director",
+              "technical_artist",
+              "asset_reviewer"
+            ]
+          }
+        },
+        "required": [
+          "reviewer_id",
+          "display_name",
+          "role"
+        ],
+        "type": "object"
+      },
+      "reviewer_attestation": {
+        "maxLength": 500,
+        "minLength": 20,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "FormalModuleReview@1"
+      },
+      "scope": {
+        "enum": [
+          "first_three",
+          "release_10_12"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "review_id",
+      "scope",
+      "pack_id",
+      "pack_version",
+      "pack_manifest_sha256",
+      "pack_license_sha256",
+      "author_id",
+      "reviewer",
+      "reviewed_at",
+      "approval_status",
+      "reviewer_attestation",
+      "limitations_acknowledged",
+      "pack_review",
+      "modules"
+    ],
+    "title": "FormalModuleReview",
     "type": "object"
   },
   "job-event-v2.schema.json": {

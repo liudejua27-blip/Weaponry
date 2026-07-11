@@ -10,6 +10,7 @@ Contracts:
 - `WeaponConceptSpec@1`
 - `ModuleAssetManifest@1`
 - `ModulePackManifest@1`
+- `FormalModuleReview@1`
 - `ModuleGraph@1`
 - `DesignChangeSet@1`
 - `ModelQualityReport@1`

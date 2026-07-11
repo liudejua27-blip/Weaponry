@@ -75,6 +75,8 @@ MP4 依赖 `ffmpeg`。如果不在 PATH，可设置 `FORGECAD_FFMPEG_EXECUTABLE`
 
 开始制作首包前先读 [MODULE_ASSET_GUIDE.md](MODULE_ASSET_GUIDE.md) 和 [MODULE_NAMING_STANDARD.md](MODULE_NAMING_STANDARD.md)。资产 CLI 默认只做 dry-run；只有显式传入 `--import` 才会注册到本地 Agent。
 
+Blender re-export 通过不等于正式资产；`FormalModuleReview@1` 草稿、独立人工审批和晋级报告命令只在 [OPERATIONS.md](OPERATIONS.md) 维护。
+
 仓库自带 10 模块参考包。启动 Agent 后可直接导入：
 
 ```bash

@@ -262,7 +262,7 @@ Exit codes:
 
 `scripts/library_recovery_drill.py` 在同一静止源库上连续调用正式 `backup → verify → restore`，再以恢复目录启动真实 Agent，回读所有 Project/Version、Module registry，并下载每个注册 GLB 校验响应头与 payload SHA-256。输出 `ForgeCADLibraryRecoveryDrillReport@1`，记录每轮 source snapshot 指纹、容量、wall-clock duration、吞吐、完成后的目录大小和 Agent 回读计数；多轮 source fingerprint 或 capacity 不一致时以 `SOURCE_CHANGED_DURING_DRILL` 失败。
 
-报告的 `evidence.declared_class` 由操作者声明。选择 `formal_blender_10_12` 时，工具要求 10–12 个注册 Module，并拒绝仓库确定性 reference/smoke GLB generator；通过仍只表示恢复演练具备正式证据资格，人工资产质量审阅继续是独立门。`--baseline-report` 保存旧报告 SHA-256 并逐字段计算容量增量。默认成功后删除临时 backup/restore，只保留报告；只有显式 `--retain-artifacts` 才保留演练副本。
+报告的 `evidence.declared_class` 由操作者声明。选择 `formal_blender_10_12` 时，工具要求 10–12 个注册 Module、拒绝仓库确定性 reference/smoke GLB generator，并强制提供 `formal_release_10_12` 的 `ForgeCADFormalModulePromotionReport@1`；晋级报告的 Module/GLB hash 集合必须与恢复后 Agent 的实际下载完全相等。恢复报告保存晋级报告 SHA-256，但不把人工 attestation 冒充密码学签名。`--baseline-report` 保存旧报告 SHA-256 并逐字段计算容量增量。默认成功后删除临时 backup/restore，只保留报告；只有显式 `--retain-artifacts` 才保留演练副本。
 
 ## Migration Rules
 

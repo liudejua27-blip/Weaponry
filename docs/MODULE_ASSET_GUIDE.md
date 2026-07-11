@@ -236,3 +236,5 @@ npm run assets:blender-reexport-preflight
 FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
   npm run assets:blender-reexport
 ```
+
+re-export 通过仍只是“待审资产”。替换 starter 许可证后，必须用 `assets:formal-review-draft` 生成 `FormalModuleReview@1`，由非作者 reviewer 完成全部 checklist 和五项 ≥4 评分，再运行 `assets:formal-review-validate`。它会锁定 `.blend`/GLB/thumbnail hash、拒绝非 Blender generator、低三角占位物、reference/starter 许可证、基线 ID/Connector 漂移和任何工件篡改。完整命令只在 [OPERATIONS.md](OPERATIONS.md) 维护。

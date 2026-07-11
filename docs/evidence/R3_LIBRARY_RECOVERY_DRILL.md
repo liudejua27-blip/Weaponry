@@ -23,6 +23,7 @@ npm run r3:library-backup-gate
 - `--baseline-report` 记录旧报告 hash，并在未变化库上得到全部容量字段 delta=0；
 - 输出位于源 Library 内或已存在目录会失败；
 - 10 个 reference GLB 的 generator 被识别，`formal_blender_10_12` 申报以 `FORMAL_ASSET_EVIDENCE_REJECTED` 失败，不能把 fixture 冒充正式资产。
+- synthetic linkage probe 还证明：formal evidence 缺少晋级报告会以 `FORMAL_PROMOTION_REPORT_REQUIRED` 失败，报告 GLB hash 与恢复 Module 不一致会以 `FORMAL_PROMOTION_REPORT_MISMATCH` 失败；匹配时恢复报告记录晋级报告 SHA-256；
 
 本机一次两轮样本约为：备份载荷 754 KB；backup+internal verify 中位数 27 ms、独立 verify 6.6 ms、restore+verify 15.8 ms、Agent 启动与完整回读 651 ms。数值仅用于确认报告链路和后续比较方法，不能作为 SLA 或正式规模结论。
 
@@ -33,4 +34,4 @@ npm run r3:library-backup-gate
 - 人工 Blender 10–12 模块首包与代表性用户 Library 各至少三轮的正式报告；
 - 峰值磁盘、峰值内存、跨机器/跨操作系统性能或长期容量趋势；
 - 保留周期、reference-aware GC、自动调度、加密异地复制、WORM 或 legal hold；
-- `formal_blender_10_12` 的自动资格检查不能代替人工资产质量审阅。
+- 真实 `formal_release_10_12` 晋级报告与恢复 Library 的端到端关联；当前只完成 synthetic hash-link probe。
