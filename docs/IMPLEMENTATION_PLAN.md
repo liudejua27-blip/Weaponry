@@ -41,7 +41,7 @@
 | R4 Brief/Module Planner | Provider 边界纵向切片完成 | deterministic rules、OpenAI-compatible strict JSON Schema、auto/strict failure semantics、migration 0014 provenance、registry recommendations、A/B/C structural variants、desktop selection preview、restart |
 | R4 Change Planner | 可确认纵向切片完成 | `docs/evidence/R4_CHANGE_PLANNER.md`；migration 0015 actor/provider provenance、受限操作、registry/lock/path/no-op validation、JobEvent、ghost preview、reject/confirm、child Version、timeline 与 restart；真实 Provider 指标待测 |
 | R4 Planner evaluation | 评测基础设施完成 | `docs/evidence/R4_PLANNER_EVALUATION.md`、`evaluations/r4/planner_truth_set.json`、20 Brief/20 Variant/20 Change/20 lock、hash、逐例结果、阈值、latency/token、deterministic baseline 全通过；当前未配置 live Provider，`real_provider_evidence_eligible=false` |
-| R2 Concept JobEvent@2 | 同步主链完成 | Brief、Variant、Change Planner、Graph validate、QualityRun、Export jobs/events、cursor、SSE、restart |
+| R2 Concept JobEvent@2 | 质量检查 worker 化；其余主链仍为同步兼容路径 | Brief、Variant、Change Planner、Graph validate 与 Export 仍写入 completed JobEvent；`quality-runs:inspect:enqueue` 已持久入队、租约领取、排队取消、失败/取消重试、重启 requeue、SSE 回读，桌面通过 Job 轮询加载最终报告 |
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
@@ -343,7 +343,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；starter core、工作台 visual-v2 三模块组合与 reference combined GLB 的真实 Blender round-trip 已通过，下一步是对正式 Blender 资产全装配重跑并评估纹理交换与 glTF Transform/Meshopt。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
 6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；先运行零网络、零费用的 `npm run agent:r4-evaluation-preflight`，只有本地配置就绪才由操作者承担 live 调用成本。当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
-7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
+7. 将 Brief、Variant、Change Planner、Export 等其余 Concept jobs 拆为可恢复 worker steps，补 partial success、超时/ETA 与 readiness；质量检查已完成首个持久 worker 切片，不可据此宣称所有 Concept Job 已 worker 化。
 8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
 9. 用真实冻结 Agent 二进制替换当前占位 sidecar，并在含 Cargo/Rust 与平台签名权限的发布机上完成 compile、签名、安装/卸载和干净机验证。
 10. 执行 C01–C10 发布审计并清理 legacy 生产入口。
