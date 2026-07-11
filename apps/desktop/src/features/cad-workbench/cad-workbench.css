@@ -624,6 +624,17 @@
 
 .measurement-overlay strong { color: #8ed0ff; }
 
+.measurement-mode-toggle {
+  display: flex;
+  gap: 3px;
+}
+
+.measurement-mode-toggle button.active {
+  border-color: #5da9ef;
+  color: #f0f8ff;
+  background: #225789;
+}
+
 .measurement-overlay button {
   padding: 3px 5px;
   border: 1px solid #4b739c;

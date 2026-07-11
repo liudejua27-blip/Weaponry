@@ -60,8 +60,10 @@ type WeaponParameters = {
 
 type MeasurementAnnotation = {
   annotationId: string
+  kind: 'distance' | 'normal_angle'
   points: [ViewportMeasurementPoint, ViewportMeasurementPoint]
   distanceMm: number
+  angleDeg: number
 }
 
 type ModuleCategory = ModuleAssetRecord['manifest']['category']
@@ -153,6 +155,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [explodeFactor, setExplodeFactor] = useState(0)
   const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
   const [measurementAnnotations, setMeasurementAnnotations] = useState<MeasurementAnnotation[]>([])
+  const [measurementMode, setMeasurementMode] = useState<'distance' | 'normal_angle'>('distance')
   const [componentCategory, setComponentCategory] = useState<ComponentFilter>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>('')
@@ -274,6 +277,9 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   ))
   const measurementDistance = measurementPoints.length === 2
     ? distanceBetween(measurementPoints[0].position, measurementPoints[1].position)
+    : null
+  const measurementAngle = measurementPoints.length === 2
+    ? angleBetweenNormals(measurementPoints[0].normal, measurementPoints[1].normal)
     : null
   const measurementStorageKey = concept.project && concept.version
     ? `forgecad.measurements.v1.${concept.project.project_id}.${concept.version.version_id}`
@@ -552,15 +558,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   }, [measurementStorageKey])
 
   const pinMeasurement = useCallback(() => {
-    if (measurementPoints.length !== 2 || measurementDistance == null) return
+    if (measurementPoints.length !== 2 || measurementDistance == null || measurementAngle == null) return
     const annotation: MeasurementAnnotation = {
       annotationId: `measure_${Date.now().toString(36)}`,
+      kind: measurementMode,
       points: [measurementPoints[0], measurementPoints[1]],
       distanceMm: measurementDistance,
+      angleDeg: measurementAngle,
     }
     saveMeasurementAnnotations([...measurementAnnotations, annotation])
     setMeasurementPoints([])
-  }, [measurementAnnotations, measurementDistance, measurementPoints, saveMeasurementAnnotations])
+  }, [measurementAngle, measurementAnnotations, measurementDistance, measurementMode, measurementPoints, saveMeasurementAnnotations])
 
   const removeMeasurementAnnotation = useCallback((annotationId: string) => {
     saveMeasurementAnnotations(measurementAnnotations.filter((item) => item.annotationId !== annotationId))
@@ -983,10 +991,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             )}
             {activeTool === 'measure' && (
               <div className="measurement-overlay" data-testid="measurement-overlay">
+                <div className="measurement-mode-toggle">
+                  <button className={measurementMode === 'distance' ? 'active' : ''} onClick={() => { setMeasurementMode('distance'); setMeasurementPoints([]) }}>距离</button>
+                  <button className={measurementMode === 'normal_angle' ? 'active' : ''} onClick={() => { setMeasurementMode('normal_angle'); setMeasurementPoints([]) }}>法线夹角</button>
+                </div>
                 {measurementDistance == null ? (
                   <span>{measurementPoints.length === 0 ? '点击模型设置起点' : '点击模型设置终点'}</span>
                 ) : (
-                  <><strong>点到点：{measurementDistance.toFixed(2)} mm</strong><button onClick={pinMeasurement}>固定标注</button></>
+                  <><strong>{measurementMode === 'distance' ? `点到点：${measurementDistance.toFixed(2)} mm` : `表面法线夹角：${measurementAngle?.toFixed(2)}°`}</strong><button onClick={pinMeasurement}>固定标注</button></>
                 )}
                 {measurementPoints.length > 0 && (
                   <button onClick={() => setMeasurementPoints([])}>清除</button>
@@ -994,7 +1006,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 {measurementAnnotations.length > 0 && (
                   <div className="measurement-annotations" data-testid="measurement-annotations">
                     {measurementAnnotations.map((annotation, index) => (
-                      <span key={annotation.annotationId}>标注 {index + 1} · {annotation.distanceMm.toFixed(2)} mm <button onClick={() => removeMeasurementAnnotation(annotation.annotationId)}>×</button></span>
+                      <span key={annotation.annotationId}>标注 {index + 1} · {annotation.kind === 'distance' ? `${annotation.distanceMm.toFixed(2)} mm` : `${annotation.angleDeg.toFixed(2)}° 法线夹角`} <button onClick={() => removeMeasurementAnnotation(annotation.annotationId)}>×</button></span>
                     ))}
                   </div>
                 )}
@@ -1014,7 +1026,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               />
             </div>
             <div className="viewport-readout">
-              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : `测量：${measurementDistance.toFixed(2)} mm` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
+              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : measurementMode === 'distance' ? `测量：${measurementDistance.toFixed(2)} mm` : `法线夹角：${measurementAngle?.toFixed(2)}°` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
               <span>单位：mm</span>
             </div>
           </div>
@@ -1878,6 +1890,17 @@ function distanceBetween(
     first[1] - second[1],
     first[2] - second[2],
   )
+}
+
+function angleBetweenNormals(
+  first: [number, number, number],
+  second: [number, number, number],
+) {
+  const firstLength = Math.hypot(...first)
+  const secondLength = Math.hypot(...second)
+  if (firstLength === 0 || secondLength === 0) return 0
+  const dot = (first[0] * second[0] + first[1] * second[1] + first[2] * second[2]) / (firstLength * secondLength)
+  return Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI
 }
 
 async function downloadBrowserFile(url: string, fallbackName?: string): Promise<void> {

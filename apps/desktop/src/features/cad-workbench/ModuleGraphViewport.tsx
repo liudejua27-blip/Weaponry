@@ -11,6 +11,7 @@ type Graph = NonNullable<ModuleGraphRecord>['graph']
 export type ViewportMeasurementPoint = {
   nodeId: string
   position: [number, number, number]
+  normal: [number, number, number]
 }
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
@@ -174,8 +175,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects(moduleRoot.children, true)[0]
       const nodeId = hit?.object.userData.nodeId
-      if (typeof nodeId !== 'string' || !hit) return null
-      return { nodeId, point: hit.point }
+      if (typeof nodeId !== 'string' || !hit || !hit.face) return null
+      const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
+      return { nodeId, point: hit.point, normal }
     }
     const selectAtPointer = (event: PointerEvent) => {
       const hit = hitAtClientPoint(event.clientX, event.clientY)
@@ -184,6 +186,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         propsRef.current.onMeasurePoint({
           nodeId: hit.nodeId,
           position: [hit.point.x, hit.point.y, hit.point.z],
+          normal: [hit.normal.x, hit.normal.y, hit.normal.z],
         })
         return
       }
