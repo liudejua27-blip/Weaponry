@@ -40,6 +40,8 @@ REQUIRED_SCRIPTS = [
     "agent:r4-evaluation-preflight-smoke",
     "assets:formal-review-handoff",
     "assets:formal-review-handoff-smoke",
+    "assets:formal-workspace",
+    "assets:formal-workspace-smoke",
     "assets:blender-full-candidate-recovery-drill",
     "assets:blender-full-candidate-connector-matrix",
 ]

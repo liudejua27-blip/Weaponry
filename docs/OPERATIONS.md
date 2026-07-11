@@ -224,6 +224,25 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 re-export 产物仍带 `LicenseRef-ForgeCAD-Authoring-Starter` 和“需要人工批准”声明，因此不能直接作为正式资产。确认素材权属后，先在输出副本中将 `pack.json` 的 SPDX、`LICENSES/PACK.txt` 和三个模块的 `LICENSE.txt` 换成获批的最终美术许可证，再生成 hash 锁定的审阅草稿：
 
+对完整十模块 candidate，先创建独立正式化工作区；它复制 source 与候选 Pack、记录输入 hash，并生成权属决策和 reviewer brief，但固定 `promotion_granted=false`，不会把 starter 许可证改写成最终许可证：
+
+```bash
+npm run assets:formal-workspace -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport" \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate/sources" \
+  --output-root "$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake"
+```
+
+在 `sources/` 完成最终美术后，re-export 到工作区外的新 `final-pack/`；只有权属人确认真实许可证后，才能替换 Pack 和十个 Module license。随后使用 `--scope release_10_12` 生成审阅草稿，绝不能复用修改前的 draft：
+
+```bash
+npm run assets:formal-review-draft -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-pack" \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake/sources" \
+  --output "$HOME/Library/Caches/ForgeCAD/Formalization/formal-review-release-10-12.json" \
+  --scope release_10_12
+```
+
 ```bash
 npm run assets:formal-review-draft -- \
   --pack-root "$PWD/output/blender/weapon-concept-v1-edited-export" \

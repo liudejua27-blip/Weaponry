@@ -18,12 +18,14 @@
 - `ForgeCADFormalModulePromotionReport@1` 不含绝对路径，并声明人工 attestation 不是密码学签名。
 - Library 正式恢复演练必须携带 `formal_release_10_12` 晋级报告，并逐个证明报告 GLB hash 与恢复后 Agent 下载一致；
 - `assets:formal-review-handoff` 从 hash 一致的 draft 生成只读 Markdown checklist，列出模块 source 文件名、thumbnail 相对路径、GLB hash 与人工勾选项；它固定 `approval_granted=false`，不修改 review JSON，也不能生成 promotion report。
+- `assets:formal-workspace` 将 10–12 模块 candidate 的 source 与 Pack 复制到新的外部工作区，锁定起始 hash 并生成权属/reviewer 待办；它拒绝覆盖、绝对输出路径外写入和 symlink 输入，且固定不声明最终许可证、人工审核或 promotion。
 
 ## 自动证据
 
 ```bash
 npm run assets:formal-review-smoke
 npm run assets:formal-review-handoff-smoke
+npm run assets:formal-workspace-smoke
 npm run assets:blender-authoring-preflight-gate
 npm run contracts:types:check
 ```
