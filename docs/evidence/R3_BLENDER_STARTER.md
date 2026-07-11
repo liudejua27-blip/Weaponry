@@ -62,9 +62,23 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 本次真实执行还暴露并修复了：factory startup 无 World、Blender Python 异常未映射为非零退出码、Blender Z-up 与 ForgeCAD/glTF Y-up 坐标基变换、Connector 基线的 ±24 mm 偏差、float32 表示噪声以及缩略图过曝。
 
+## 十模块 visual candidate（待人工审阅）
+
+同日扩展 `weapon_concept_starter.py --module-set full_candidate`，保持 reference Pack 的十个稳定 Module/Asset/Connector ID。官方 Blender 4.2.22 构建、只读 re-export 与 Pack 校验均通过，全部 source 在导出前后保持不变；其许可证仍为 `LicenseRef-ForgeCAD-Authoring-Starter`，所以不具备正式资产资格。
+
+| Module | triangles | GLB SHA-256 |
+| --- | ---: | --- |
+| core | 2256 | `1e9c14148e6ff6cac19c9fc3ec3c72506cb7b36b4dbc0d120596ebff5af80c88` |
+| front 01 / 02 | 1316 / 1504 | `f70a3b094972230bae4de2b63b99ad4d2d43569dbbdc25bb58b912dfb7527fe8` / `9f7fc19d7ff293eb98bb685ef0d3e04ee93c8fe0ca34756a523a7a94ad7a5bb8` |
+| rear / grip | 1128 / 1128 | `4830a532411087591b22f31eca2601f80052320b617c852a70079d91c8751119` / `70a29778e9cc6ba1c033193793c94d29899e02f79936d7f92d6dd1676547c20a` |
+| top / side / lower | 940 / 940 / 940 | `7a07373a5e3c6a69b882972acfa2c030cb4dc9fbd2fa3946d50d58db1d6f239d` / `4f0597551dd7b8ce0be73c89fba402b3e8005c38ae2ae99b734dd9740b865bb6` / `67bc4c79fc7b07152be514dc0f34d7124551467c07fddf7db53d8a5037f00ea4` |
+| storage / armor | 1128 / 940 | `8a5ea4f625cdd6e4eb49a1b3400ed234c697f32a429b551276e4eb90fb7764db` / `14dd65442087f41ac6680138ccb9d53ac95857cfb2716f7e5120f55ccdc29aee` |
+
+首次完整组装暴露 storage 内部包裹几何、grip 与 lower/storage 的非直连相交；候选脚本修正空间分区后，隔离 Agent 导入 10 模块、9 节点/8 Connector Graph、Version 绑定、质量检查、combined GLB 下载与重启回读均通过。最终质量状态为 `passed`，唯一 finding 是 `geometry.ruleset` 的通过信息。combined GLB 为 943456 bytes，SHA-256 `d0515dbbd6b00ff789c7ea02a1ad0f14fd5b11bcb50a4b1adb6613faded88d51`；Blender DCC round-trip 返回 source 不变，输出为 25808 vertices / 10716 triangles。`release_10_12` 审阅草稿已生成，验证如期因 starter 许可证、占位 reviewer/批准、人工 checklist 和低评分被拒绝；没有生成 promotion report。
+
 ## 尚未证明
 
 - 人工修改后的最终轮廓、表面层级、UV 和材质分区质量；
 - 最终许可证与独立 reviewer 批准；
-- 正式人工 Blender 资产的全装配 DCC 往返；
-- 三模块正式替换矩阵和 Tauri GPU 指标。
+- 最终许可证与独立 reviewer 批准后的正式 Blender 资产全装配 DCC 往返；
+- 正式资产替换矩阵和 Tauri GPU 指标。

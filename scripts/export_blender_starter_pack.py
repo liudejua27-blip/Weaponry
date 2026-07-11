@@ -13,7 +13,8 @@ from pathlib import Path
 from build_blender_starter_pack import (
     COMMITTED_PACK_ROOT,
     DEFAULT_OUTPUT_ROOT as STARTER_OUTPUT_ROOT,
-    REQUIRED_MODULE_IDS,
+    FULL_CANDIDATE_OUTPUT_ROOT,
+    MODULE_SETS,
     _find_blender,
 )
 from concept_module_pack import ModulePackValidationError, validate_module_pack
@@ -21,28 +22,44 @@ from concept_module_pack import ModulePackValidationError, validate_module_pack
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPORT_SCRIPT = ROOT / "scripts" / "blender" / "export_weapon_concept_sources.py"
-DEFAULT_SOURCE_ROOT = STARTER_OUTPUT_ROOT / "sources"
 DEFAULT_EXPORT_ROOT = ROOT / "output" / "blender" / "weapon-concept-v1-edited-export"
+FULL_CANDIDATE_EXPORT_ROOT = (
+    ROOT / "output" / "blender" / "weapon-concept-v1-full-candidate-edited-export"
+)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--blender-executable", type=Path)
-    parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
-    parser.add_argument("--output-root", type=Path, default=DEFAULT_EXPORT_ROOT)
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--module-set", choices=sorted(MODULE_SETS), default="starter")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--require-blender", action="store_true")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
     script_check = _check_export_source()
-    source_root = args.source_root.expanduser().resolve()
-    output_root = args.output_root.expanduser().resolve()
+    required_module_ids = MODULE_SETS[args.module_set]
+    source_root = (
+        (args.source_root or _default_source_root(args.module_set))
+        .expanduser()
+        .resolve()
+    )
+    output_root = (
+        (args.output_root or _default_export_root(args.module_set))
+        .expanduser()
+        .resolve()
+    )
     safety_error = _output_safety_error(source_root, output_root)
     if safety_error:
-        return _print_failure(safety_error, source_root=source_root, output_root=output_root)
+        return _print_failure(
+            safety_error, source_root=source_root, output_root=output_root
+        )
 
-    source_paths = tuple(source_root / f"{module_id}.blend" for module_id in REQUIRED_MODULE_IDS)
+    source_paths = tuple(
+        source_root / f"{module_id}.blend" for module_id in required_module_ids
+    )
     source_errors = _source_errors(source_root, source_paths)
     blender = _find_blender(args.blender_executable)
     blender_ready = blender is not None
@@ -75,6 +92,7 @@ def main() -> int:
                     "source_errors": source_errors,
                     "source_root": str(source_root),
                     "output_root": str(output_root),
+                    "module_set": args.module_set,
                     "script_check": script_check,
                 },
                 ensure_ascii=False,
@@ -110,6 +128,8 @@ def main() -> int:
         str(source_root),
         "--output-root",
         str(output_root),
+        "--module-set",
+        args.module_set,
     ]
     if args.force:
         command.append("--force")
@@ -141,10 +161,10 @@ def main() -> int:
     except ModulePackValidationError as exc:
         return _print_failure("edited_export_validation_failed", details=exc.errors)
     module_ids = tuple(module.manifest.module_id for module in validated.modules)
-    if module_ids != REQUIRED_MODULE_IDS:
+    if module_ids != required_module_ids:
         return _print_failure(
             "edited_export_module_set_mismatch",
-            details={"expected": list(REQUIRED_MODULE_IDS), "actual": list(module_ids)},
+            details={"expected": list(required_module_ids), "actual": list(module_ids)},
         )
     print(
         json.dumps(
@@ -154,6 +174,7 @@ def main() -> int:
                 "source_unchanged": True,
                 "source_root": str(source_root),
                 "output_root": str(output_root),
+                "module_set": args.module_set,
                 "module_ids": list(module_ids),
                 "warnings": list(validated.warnings),
             },
@@ -195,7 +216,9 @@ def _output_safety_error(source_root: Path, output_root: Path) -> str | None:
         return "committed_pack_output_denied"
     if output_root == source_root:
         return "source_output_overlap_denied"
-    if output_root.is_relative_to(source_root) or source_root.is_relative_to(output_root):
+    if output_root.is_relative_to(source_root) or source_root.is_relative_to(
+        output_root
+    ):
         return "source_output_overlap_denied"
     return None
 
@@ -214,6 +237,19 @@ def _source_errors(source_root: Path, paths: tuple[Path, ...]) -> list[str]:
         elif not _has_blender_header(path):
             errors.append(f"invalid Blender header: {path.name}")
     return errors
+
+
+def _default_source_root(module_set: str) -> Path:
+    root = (
+        STARTER_OUTPUT_ROOT if module_set == "starter" else FULL_CANDIDATE_OUTPUT_ROOT
+    )
+    return root / "sources"
+
+
+def _default_export_root(module_set: str) -> Path:
+    return (
+        DEFAULT_EXPORT_ROOT if module_set == "starter" else FULL_CANDIDATE_EXPORT_ROOT
+    )
 
 
 def _has_blender_header(path: Path) -> bool:
@@ -258,7 +294,11 @@ if __name__ == "__main__":
     except (OSError, RuntimeError, py_compile.PyCompileError) as exc:
         print(
             json.dumps(
-                {"ok": False, "status": "edited_export_preflight_failed", "message": str(exc)},
+                {
+                    "ok": False,
+                    "status": "edited_export_preflight_failed",
+                    "message": str(exc),
+                },
                 ensure_ascii=False,
                 indent=2,
             )

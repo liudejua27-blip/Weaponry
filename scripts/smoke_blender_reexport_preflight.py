@@ -16,6 +16,16 @@ MODULE_IDS = (
     "module_front_shell_01",
     "module_front_shell_02",
 )
+FULL_CANDIDATE_MODULE_IDS = (
+    *MODULE_IDS,
+    "module_rear_shell_01",
+    "module_grip_shell_01",
+    "module_top_accessory_01",
+    "module_side_accessory_01",
+    "module_lower_structure_01",
+    "module_storage_visual_01",
+    "module_armor_panel_01",
+)
 
 
 def main() -> int:
@@ -24,7 +34,9 @@ def main() -> int:
         "Blender Python exceptions are not mapped to a non-zero process exit code",
     )
     export_source = EXPORT_SCRIPT.read_text(encoding="utf-8")
-    _assert("BLENDER_TO_GLTF" in export_source, "Blender/glTF basis conversion is missing")
+    _assert(
+        "BLENDER_TO_GLTF" in export_source, "Blender/glTF basis conversion is missing"
+    )
     _assert(
         "round(component * 1000, 4)" in export_source,
         "Connector float32 noise normalization is missing",
@@ -37,17 +49,28 @@ def main() -> int:
         for module_id in MODULE_IDS:
             (source_root / f"{module_id}.blend").write_bytes(b"BLENDER-v-test-fixture")
 
-        ready = _run("--source-root", str(source_root), "--output-root", str(output_root))
+        ready = _run(
+            "--source-root", str(source_root), "--output-root", str(output_root)
+        )
         _assert(ready.returncode == 0, ready.stderr or ready.stdout)
         ready_report = json.loads(ready.stdout)
-        _assert(ready_report["sources_ready"] is True, "valid source headers were rejected")
+        _assert(
+            ready_report["sources_ready"] is True, "valid source headers were rejected"
+        )
         blender_ready = ready_report["blender_ready"] is True
         expected_status = (
-            "ready_for_read_only_export" if blender_ready else "blocked_blender_not_configured"
+            "ready_for_read_only_export"
+            if blender_ready
+            else "blocked_blender_not_configured"
         )
-        _assert(ready_report["status"] == expected_status, "preflight readiness is inconsistent")
+        _assert(
+            ready_report["status"] == expected_status,
+            "preflight readiness is inconsistent",
+        )
 
-        overlap = _run("--source-root", str(source_root), "--output-root", str(source_root))
+        overlap = _run(
+            "--source-root", str(source_root), "--output-root", str(source_root)
+        )
         _assert(overlap.returncode == 1, "source/output overlap was accepted")
         _assert(
             json.loads(overlap.stdout)["status"] == "source_output_overlap_denied",
@@ -76,12 +99,41 @@ def main() -> int:
             "--output-root",
             str(output_root),
         )
-        _assert(invalid.returncode == 0, "preflight diagnostics should remain inspectable")
+        _assert(
+            invalid.returncode == 0, "preflight diagnostics should remain inspectable"
+        )
         invalid_report = json.loads(invalid.stdout)
-        _assert(invalid_report["sources_ready"] is False, "invalid Blender headers passed")
+        _assert(
+            invalid_report["sources_ready"] is False, "invalid Blender headers passed"
+        )
         _assert(
             len(invalid_report["source_errors"]) == len(MODULE_IDS),
             "invalid header diagnostics were incomplete",
+        )
+
+        full_source_root = temp_root / "full-candidate-sources"
+        full_source_root.mkdir()
+        for module_id in FULL_CANDIDATE_MODULE_IDS:
+            (full_source_root / f"{module_id}.blend").write_bytes(
+                b"BLENDER-v-test-fixture"
+            )
+        full_ready = _run(
+            "--module-set",
+            "full_candidate",
+            "--source-root",
+            str(full_source_root),
+            "--output-root",
+            str(temp_root / "full-candidate-exports"),
+        )
+        _assert(full_ready.returncode == 0, full_ready.stderr or full_ready.stdout)
+        full_report = json.loads(full_ready.stdout)
+        _assert(
+            full_report["sources_ready"] is True,
+            "full candidate source set was rejected",
+        )
+        _assert(
+            full_report["module_set"] == "full_candidate",
+            "full candidate mode was lost",
         )
 
         if not blender_ready:
@@ -112,6 +164,7 @@ def main() -> int:
                 "python_exception_exit_code_enforced": True,
                 "connector_basis_conversion_present": True,
                 "connector_float_noise_normalized": True,
+                "full_candidate_source_contract": True,
             },
             ensure_ascii=False,
             indent=2,

@@ -1,16 +1,18 @@
 # Blender Authoring Starter
 
-状态：三模块 authoring source、只读导出器和正式人工审阅门已实现；当前开发机已用官方 Blender 4.2.22 LTS Apple Silicon 真实构建 `.blend`/GLB/thumbnail，完成只读 re-export 和 core GLB DCC 往返。这些仍是 starter，未经人工最终编辑、许可证替换和独立 reviewer 批准。
+状态：三模块 authoring source、十模块 visual candidate、只读导出器和正式人工审阅门已实现；当前开发机已用官方 Blender 4.2.22 LTS Apple Silicon 真实构建 `.blend`/GLB/thumbnail，完成只读 re-export、完整组合质量检查和 DCC 往返。这些仍是候选资产，未经人工最终编辑、许可证替换和独立 reviewer 批准。
 
 ## 1. 作用
 
-`scripts/blender/weapon_concept_starter.py` 在 Blender 中建立三个可编辑起点：
+`scripts/blender/weapon_concept_starter.py` 默认在 Blender 中建立三个可编辑起点：
 
 - `module_core_shell_01`；
 - `module_front_shell_01`；
 - `module_front_shell_02`。
 
 它创建 Metric 场景、LOD0 mesh、UV0、三个语义材质、Connector Empty、相机和灯光，保存独立 `.blend`，再导出 GLB、512×512 thumbnail、Module Manifest 和三模块 `pack.json`。这些是可编辑 starter，不是最终人工美术，也不是制造设计。
+
+当三模块替换链已经稳定后，`--module-set full_candidate` 会扩展为与 reference Pack 相同稳定 ID/Connector 语义的 10 模块视觉候选包。它仍使用 `LicenseRef-ForgeCAD-Authoring-Starter`，故正式审阅门会故意拒绝它，直到人类确认权属、完成编辑并独立审批。
 
 ## 2. 安装前预检
 
@@ -58,6 +60,25 @@ npm run assets:blender-starter-build
 2026-07-11 视觉层级增强版真实运行返回 `built_and_validated`；三模块三角数分别为 2256 / 1316 / 1504，core 的外观顶轨、侧向条带、信号标记和下部护板已作为可编辑 starter 层次。它们均超过 formal 三角下限，但仍不证明最终资产：最终许可证和独立人工审阅仍是必要条件。
 
 默认拒绝非空输出目录，也永久拒绝把输出指向 `assets/module-packs`。只有确认不需要保留现有临时 starter 时，才可在自定义命令中显式加入 `--force`；它会删除并重建指定的 `output/` 目录。
+
+### 3.1 十模块视觉候选包
+
+三模块链稳定后，使用独立输出目录生成完整候选包：
+
+```bash
+export FORGECAD_BLENDER_EXECUTABLE="$HOME/Library/Caches/ForgeCAD/Blender/4.2.22/Blender.app/Contents/MacOS/Blender"
+
+.venv/bin/python scripts/build_blender_starter_pack.py \
+  --module-set full_candidate --require-blender \
+  --output-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate"
+
+.venv/bin/python scripts/export_blender_starter_pack.py \
+  --module-set full_candidate --execute --require-blender \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate/sources" \
+  --output-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport"
+```
+
+候选包包含 core、两个 front、rear、grip、top、side、lower、storage 和 armor，共十个模块；runner 仍要求 source SHA-256 不变、Pack 合同通过。不要把此命令用于已人工编辑的 source。
 
 ## 4. 输出
 
@@ -114,6 +135,15 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_starter_workbench.p
 ```
 
 如需把工作台生成的 combined GLB 交给 DCC runner，可额外传入一个不存在的绝对 `.glb` 路径的 `--combined-output`；它拒绝覆盖和 committed Pack 路径。2026-07-11 的 visual-v2 运行通过：质量状态 `passed`、front 替换创建子版本、导出 combined GLB 为 8980 顶点 / 3760 三角，并通过 Blender 4.2.22 往返。
+
+十模块候选包使用完整 9 节点 Graph 的隔离验证：
+
+```bash
+PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_full_candidate_workbench.py \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport"
+```
+
+它导入 10 模块、验证 9 节点/8 Connector 图、绑定新 Version、运行 `weapon-concept-geometry/1.3`、导出 combined GLB 并重启回读。它不替代桌面 Tauri 性能、最终美术评分或人工审批。
 
 ## 6. 正式人工审阅与晋级
 

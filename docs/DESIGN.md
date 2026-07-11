@@ -1,7 +1,7 @@
 # ForgeCAD 系统设计
 
 版本：产品重构 v2（2026-07-11）
-状态：R0–R3 当前纵向切片已落地；R4 已完成 Brief/Module/Change Planner、A/B/C、ghost preview 与显式确认链，真实 Provider 指标仍待评测。
+状态：R0–R3 当前纵向切片已落地；十模块 Blender visual candidate 已通过隔离组合、质量与 DCC 往返，但尚未完成人工资产晋级；R4 已完成 Brief/Module/Change Planner、A/B/C、ghost preview 与显式确认链，真实 Provider 指标仍待评测。
 
 ## 1. 产品定义
 

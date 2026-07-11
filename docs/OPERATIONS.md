@@ -193,6 +193,16 @@ npm run assets:blender-starter-build
 
 未安装时预检返回 `blocked_blender_not_configured`，不得据此声称 `.blend`、Blender GLB 或缩略图已生成。输出默认写入 `output/blender/weapon-concept-v1-starter`，不修改提交中的 reference Pack。
 
+三模块替换链稳定后，可用相同的稳定 ID/Connector 生成十模块 visual candidate；它仍是未审资产，不能替代正式首包：
+
+```bash
+npm run assets:blender-full-candidate-preflight
+FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
+  npm run assets:blender-full-candidate-build
+```
+
+默认输出为 `output/blender/weapon-concept-v1-full-candidate`。对候选 `.blend` 的只读 re-export 使用 `assets:blender-full-candidate-reexport-preflight` 和 `assets:blender-full-candidate-reexport`；实际产品链通过 `scripts/smoke_blender_full_candidate_workbench.py --pack-root <reexport-pack>` 验证 10 模块导入、9 节点组合、质量、combined GLB 与重启回读。只有最终许可证、非作者 reviewer 与 `formal-review-validate --scope release_10_12` 全部通过，才可把该路径称为正式资产。
+
 人工修改三份 `.blend` 后，使用只读 re-export，不能重跑 starter build：
 
 ```bash

@@ -77,6 +77,8 @@ MP4 依赖 `ffmpeg`。如果不在 PATH，可设置 `FORGECAD_FFMPEG_EXECUTABLE`
 
 Blender re-export 通过不等于正式资产；`FormalModuleReview@1` 草稿、独立人工审批和晋级报告命令只在 [OPERATIONS.md](OPERATIONS.md) 维护。
 
+三模块设计链稳定后，可生成十模块 Blender visual candidate：`npm run assets:blender-full-candidate-build`。它用于完整组合、质量和 DCC 交接，仍带待审 starter 许可证；完整命令与晋级边界见 [BLENDER_AUTHORING_STARTER.md](BLENDER_AUTHORING_STARTER.md)。
+
 仓库自带 10 模块参考包。启动 Agent 后可直接导入：
 
 ```bash

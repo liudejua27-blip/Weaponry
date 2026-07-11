@@ -14,7 +14,7 @@
 - `main.py` 约 97 行；legacy route groups、Concept services 和 app factory 已拆分，入口仍只负责应用组装与 worker 生命周期；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
 - 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module/Change Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；Blender 4.2.22 已对工作台导出的 10 模块 reference 与 visual-v2 三模块 combined GLB 完成真实 DCC 往返；真实模型 AI 质量指标、最终高质量资产和纹理交换尚未实现；
-- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；Blender 4.2.22 LTS 已真实生成视觉层级增强的 core/front01/front02 `.blend`/GLB/thumbnail，完成只读 re-export、source hash 不变、Connector 基线和 core GLB DCC 往返；2256/1316/1504 三角已超过 formal floor。`FormalModuleReview@1` 仍如实拒绝 starter 许可证、未人工批准与低评分，因此正式资产仍未晋级；
+- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；Blender 4.2.22 LTS 已真实生成视觉层级增强的十模块 visual candidate `.blend`/GLB/thumbnail，完成只读 re-export、source hash 不变、完整 9 节点质量通过及 combined GLB DCC 往返（25808 顶点/10716 三角）。`FormalModuleReview@1` 仍如实拒绝 starter 许可证、未人工批准与低评分，因此正式资产仍未晋级；
 - ChangeSet 审计批量导出已实现：当前服务端筛选形成确定性 JSONL、可选 CSV、逐文件 SHA-256 Manifest 和内容寻址 ZIP；`project_lifetime` 记录无单包删除 API，桌面可下载且 Agent 重启后回读。该策略不等于法规级 WORM、legal hold 或独立灾备；
 - Library backup/restore CLI 已实现：SQLite Backup API 快照归一化为独立 `journal_mode=DELETE` 文件，只复制快照中 legacy/Concept asset 表真实引用的内容寻址对象，保存 schema/table/hash/size/capacity Manifest；恢复演练 CLI 可连续测量 backup/verify/restore/Agent 回读、吞吐和相对基线容量增长，并拒绝把已知 reference/smoke generator 申报为正式资产证据；`formal_blender_10_12` 还强制 `formal_release_10_12` 晋级报告与恢复 GLB hash 集合一致。10 模块参考库已跑通，正式 Blender/代表性用户资产库仍待执行；
 - 服务端 `weapon-concept-geometry/1.3` 已从版本绑定的 Spec、ModuleGraph 与内容寻址 GLB 计算 Mesh/Assembly Findings：除精确穿插、triangle provenance、Connector 对齐和保守表面间隙外，已覆盖重复面、内嵌封闭组件、组件间密度离群、项目总三角预算、P0 LOD0 合同和根中面对称占位偏差；桌面 Finding 会聚焦并高亮关联节点/局部 triangle。正式 Blender truth set、Tauri 大网格阈值与多 LOD 运行时尚未完成；
@@ -45,7 +45,7 @@
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
-| R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender 4.2.22 starter 已增加多层外观壳件、三材质分区和差异轮廓，并已在隔离 Library 完成导入、front 替换、质量、导出、重启回读与 combined DCC 往返；最终 art 待人工制作 |
+| R3 reference assets | 完成可运行基线与 visual candidate | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；十模块 Blender 4.2.22 visual candidate 已在隔离 Library 完成导入、完整 Graph、质量通过、导出、重启回读与 combined DCC 往返；最终 art 待人工制作 |
 | R3 formal asset promotion | 合同与门禁完成、真实 starter 未批准 | `FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；真实 starter 验证返回许可证/人工审批/评分/core 三角下限阻断，无正式资产声明 |
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
@@ -56,7 +56,7 @@
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
 | R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
-| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 starter core、工作台 visual-v2 三模块组合和 10 模块 reference combined GLB 的真实往返；正式 Blender 资产全装配仍待执行 |
+| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 visual-v2 三模块、10 模块 reference 和十模块 visual candidate combined GLB 的真实往返；最终批准资产全装配仍待执行 |
 | R5 Mesh/Assembly quality | C07 规则覆盖切片完成 | immutable Spec/Graph/GLB、indices/degenerate/normal/UV/topology/bounds、duplicate/enclosed geometry、density outlier/triangle budget、P0 LOD0、root-plane symmetry、Connector alignment/gap、triangle BVH/SAT/containment/provenance、双节点/局部高亮、JobEvent/restart、desktop E2E |
 | R6 packaging readiness | 门禁完整，真实二进制与流程验证待发布环境 | sidecar、`Cargo.lock`、bundle、CSP、capability、图标和文档入口均有校验；新门禁拒绝空、不可执行或无效平台头的 sidecar。当前占位 sidecar 被正确阻断，且当前机器无 Cargo/Rust |
 

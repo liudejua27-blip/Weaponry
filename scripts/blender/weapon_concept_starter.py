@@ -47,7 +47,7 @@ class Module:
     connectors: tuple[Connector, ...]
 
 
-MODULES = (
+STARTER_MODULES = (
     Module(
         "module_core_shell_01",
         "core_shell",
@@ -59,8 +59,16 @@ MODULES = (
             Part("side_plate_b", (-28, 0, -20), (20, 22, 3), "MAT_accent", 1.0),
             Part("top_visual_rail_a", (-27, 26, 0), (28, 4, 14), "MAT_secondary", 1.0),
             Part("top_visual_rail_b", (8, 26, 0), (30, 4, 14), "MAT_secondary", 1.0),
-            Part("left_visual_strake", (12, 2, 22), (56, 14, 2.5), "MAT_secondary", 0.8),
-            Part("right_visual_strake", (-20, -2, -22), (44, 12, 2.5), "MAT_secondary", 0.8),
+            Part(
+                "left_visual_strake", (12, 2, 22), (56, 14, 2.5), "MAT_secondary", 0.8
+            ),
+            Part(
+                "right_visual_strake",
+                (-20, -2, -22),
+                (44, 12, 2.5),
+                "MAT_secondary",
+                0.8,
+            ),
             Part("signal_marker_a", (35, 0, 23.5), (10, 9, 1.5), "MAT_accent", 0.6),
             Part("signal_marker_b", (20, 0, 23.5), (7, 9, 1.5), "MAT_accent", 0.6),
             Part("lower_visual_guard", (-9, -26, 0), (35, 4, 24), "MAT_secondary", 1.0),
@@ -71,8 +79,12 @@ MODULES = (
             Connector("connector_core_grip", "core.grip", "grip_mount", (14, -24, 0)),
             Connector("connector_core_top", "core.top", "top_mount", (0, 24, 0)),
             Connector("connector_core_side", "core.side", "side_mount", (0, 0, 20)),
-            Connector("connector_core_lower", "core.lower", "lower_mount", (-12, -24, 0)),
-            Connector("connector_core_storage", "core.storage", "storage_mount", (30, -24, 0)),
+            Connector(
+                "connector_core_lower", "core.lower", "lower_mount", (-12, -24, 0)
+            ),
+            Connector(
+                "connector_core_storage", "core.storage", "storage_mount", (30, -24, 0)
+            ),
             Connector("connector_core_armor", "core.armor", "armor_mount", (0, 0, -20)),
         ),
     ),
@@ -108,9 +120,123 @@ MODULES = (
 )
 
 
+# This deliberately remains an editable visual candidate, not a release asset pack.
+# The stable IDs and connector semantics match the reference Pack so an artist can
+# take the same graph from the three-module authoring exercise to a full assembly.
+FULL_CANDIDATE_MODULES = STARTER_MODULES + (
+    Module(
+        "module_rear_shell_01",
+        "rear_shell",
+        (
+            Part("rear_body", (22, 0, 0), (42, 38, 36), "MAT_primary", 3.5),
+            Part("rear_cap", (40, 0, 0), (12, 26, 30), "MAT_secondary", 2.0),
+            Part("upper_rear_spine", (20, 20, 0), (34, 5, 24), "MAT_secondary", 1.0),
+            Part("rear_side_armor", (26, 0, 19), (26, 16, 2.5), "MAT_secondary", 0.8),
+            Part("rear_signal_strip", (38, 0, 19), (9, 9, 1.5), "MAT_accent", 0.5),
+            Part("lower_rear_step", (17, -20, 0), (22, 5, 21), "MAT_accent", 0.8),
+        ),
+        (Connector("connector_rear_core", "rear.core", "rear_mount", (0, 0, 0)),),
+    ),
+    Module(
+        "module_grip_shell_01",
+        "grip_shell",
+        (
+            Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0),
+            Part("grip_backstrap", (11, -35, 0), (10, 51, 34), "MAT_secondary", 2.2),
+            Part("grip_front_guard", (-12, -13, 0), (8, 20, 29), "MAT_secondary", 1.5),
+            Part(
+                "grip_side_inlay_a", (1, -36, 17), (20, 31, 2.4), "MAT_secondary", 0.7
+            ),
+            Part("grip_side_inlay_b", (-4, -51, 17), (13, 13, 2.4), "MAT_accent", 0.6),
+            Part("grip_base_plate", (4, -64, 0), (28, 8, 32), "MAT_accent", 1.2),
+        ),
+        (Connector("connector_grip_core", "grip.core", "grip_mount", (0, 0, 0)),),
+    ),
+    Module(
+        "module_top_accessory_01",
+        "top_accessory",
+        (
+            Part("top_body", (0, 12, 0), (40, 18, 16), "MAT_primary", 2.6),
+            Part("top_bridge", (0, 3, 0), (28, 8, 12), "MAT_secondary", 1.0),
+            Part("top_frame_left", (-12, 18, 0), (8, 5, 18), "MAT_secondary", 0.7),
+            Part("top_frame_right", (12, 18, 0), (8, 5, 18), "MAT_secondary", 0.7),
+            Part("top_signal", (0, 21, 9), (12, 6, 1.6), "MAT_accent", 0.5),
+        ),
+        (Connector("connector_top_core", "top.core", "top_mount", (0, 0, 0)),),
+    ),
+    Module(
+        "module_side_accessory_01",
+        "side_accessory",
+        (
+            Part("side_body", (0, 0, 12), (34, 21, 16), "MAT_primary", 2.2),
+            Part("side_root", (0, 0, 3), (24, 13, 8), "MAT_secondary", 1.0),
+            Part("side_visual_frame", (0, 13, 13), (25, 3, 13), "MAT_secondary", 0.6),
+            Part("side_fin", (8, -8, 18), (16, 8, 3), "MAT_secondary", 0.6),
+            Part("side_marker", (-10, 0, 20), (8, 7, 1.4), "MAT_accent", 0.5),
+        ),
+        (Connector("connector_side_core", "side.core", "side_mount", (0, 0, 0)),),
+    ),
+    Module(
+        "module_lower_structure_01",
+        "lower_structure",
+        (
+            Part("lower_body", (-25, -14, 0), (42, 20, 24), "MAT_primary", 2.8),
+            Part("lower_root", (-22, -3, 0), (30, 8, 17), "MAT_secondary", 1.0),
+            Part("lower_keel", (-32, -23, 0), (27, 5, 20), "MAT_secondary", 0.8),
+            Part(
+                "lower_side_plate", (-15, -14, 13), (18, 12, 2.2), "MAT_secondary", 0.6
+            ),
+            Part("lower_signal_tab", (-38, -19, 13), (9, 7, 1.4), "MAT_accent", 0.5),
+        ),
+        (Connector("connector_lower_core", "lower.core", "lower_mount", (0, 0, 0)),),
+    ),
+    Module(
+        "module_storage_visual_01",
+        "storage_visual",
+        (
+            Part("storage_body", (25, -23, 0), (30, 32, 29), "MAT_primary", 3.0),
+            Part("storage_root", (8, 3, 0), (16, 6, 16), "MAT_secondary", 1.2),
+            Part("storage_front_band", (8, -23, 0), (6, 30, 27), "MAT_secondary", 0.8),
+            Part(
+                "storage_side_plate", (26, -23, 16), (19, 22, 2.4), "MAT_secondary", 0.7
+            ),
+            Part("storage_base", (27, -42, 0), (27, 7, 31), "MAT_accent", 1.0),
+            Part("storage_marker", (33, -31, 16), (8, 7, 1.4), "MAT_accent", 0.5),
+        ),
+        (
+            Connector(
+                "connector_storage_core", "storage.core", "storage_mount", (0, 0, 0)
+            ),
+        ),
+    ),
+    Module(
+        "module_armor_panel_01",
+        "armor_panel",
+        (
+            Part("armor_base", (0, 0, -7), (50, 28, 10), "MAT_primary", 2.0),
+            Part("armor_root", (0, 0, -2), (32, 16, 5), "MAT_secondary", 0.8),
+            Part("armor_upper_ridge", (0, 16, -8), (34, 4, 9), "MAT_secondary", 0.6),
+            Part("armor_lower_ridge", (0, -16, -8), (34, 4, 9), "MAT_secondary", 0.6),
+            Part("armor_signal_tile", (13, 0, -13), (10, 8, 1.5), "MAT_accent", 0.5),
+        ),
+        (Connector("connector_armor_core", "armor.core", "armor_mount", (0, 0, 0)),),
+    ),
+)
+
+MODULE_SETS = {
+    "starter": STARTER_MODULES,
+    "full_candidate": FULL_CANDIDATE_MODULES,
+}
+
+
+def module_ids_for_set(module_set: str) -> tuple[str, ...]:
+    return tuple(module.module_id for module in MODULE_SETS[module_set])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-root", required=True, type=Path)
+    parser.add_argument("--module-set", choices=sorted(MODULE_SETS), default="starter")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args(_script_args())
     output_root = args.output_root.expanduser().resolve()
@@ -120,7 +246,9 @@ def main() -> None:
         raise RuntimeError("starter output cannot target committed assets/module-packs")
     if output_root.exists() and any(output_root.iterdir()):
         if not args.force:
-            raise RuntimeError("starter output is not empty; use --force for a deliberate rebuild")
+            raise RuntimeError(
+                "starter output is not empty; use --force for a deliberate rebuild"
+            )
         shutil.rmtree(output_root)
     (output_root / "LICENSES").mkdir(parents=True, exist_ok=True)
     license_text = (
@@ -129,18 +257,33 @@ def main() -> None:
         "Not final art and not manufacturing documentation.\n"
     )
     (output_root / "LICENSES" / "PACK.txt").write_text(license_text, encoding="utf-8")
-    entries = [_build_module(output_root, module, license_text) for module in MODULES]
+    modules = MODULE_SETS[args.module_set]
+    entries = [_build_module(output_root, module, license_text) for module in modules]
     pack = {
         "schema_version": "ModulePackManifest@1",
         "pack_id": "pack_weapon_concept_v1",
         "profile_id": "profile_weapon_concept_v1",
-        "name": "Weapon Concept v1 Blender authoring starter",
+        "name": (
+            "Weapon Concept v1 Blender authoring starter"
+            if args.module_set == "starter"
+            else "Weapon Concept v1 Blender full visual candidate"
+        ),
         "version": "0.1.0",
         "description": (
-            "Editable Blender starter for three non-functional concept/game/film-prop modules; "
-            "requires human art review before promotion."
+            "Editable Blender "
+            + (
+                "starter for three"
+                if args.module_set == "starter"
+                else "full visual candidate for ten"
+            )
+            + " non-functional concept/game/film-prop modules; requires human art review before promotion."
         ),
-        "intended_uses": ["visual_asset", "game_asset", "film_prop", "non_functional_display"],
+        "intended_uses": [
+            "visual_asset",
+            "game_asset",
+            "film_prop",
+            "non_functional_display",
+        ],
         "non_functional_only": True,
         "units": "millimeter",
         "up_axis": "Y",
@@ -155,7 +298,9 @@ def main() -> None:
     _write_json(output_root / "pack.json", pack)
 
 
-def _build_module(output_root: Path, module: Module, license_text: str) -> dict[str, str]:
+def _build_module(
+    output_root: Path, module: Module, license_text: str
+) -> dict[str, str]:
     _reset_scene()
     scene = bpy.context.scene
     scene.unit_settings.system = "METRIC"
@@ -173,7 +318,9 @@ def _build_module(output_root: Path, module: Module, license_text: str) -> dict[
     materials = _create_materials()
     mesh_objects = []
     for index, part in enumerate(module.parts, start=1):
-        mesh_objects.append(_create_part(module.module_id, index, part, materials, collection))
+        mesh_objects.append(
+            _create_part(module.module_id, index, part, materials, collection)
+        )
     for connector in module.connectors:
         _create_connector(connector, collection)
     _create_render_rig(mesh_objects)
@@ -226,7 +373,10 @@ def _build_module(output_root: Path, module: Module, license_text: str) -> dict[
     scene.render.filepath = str(module_root / "thumbnail.png")
     bpy.ops.render.render(write_still=True)
     bounds_mm = _bounds_mm(mesh_objects)
-    triangle_count = sum(sum(max(0, len(poly.vertices) - 2) for poly in obj.data.polygons) for obj in mesh_objects)
+    triangle_count = sum(
+        sum(max(0, len(poly.vertices) - 2) for poly in obj.data.polygons)
+        for obj in mesh_objects
+    )
     payload = glb_path.read_bytes()
     manifest = {
         "schema_version": "ModuleAssetManifest@1",
@@ -327,7 +477,9 @@ def _create_render_rig(objects) -> None:
     minimum, maximum = _bounds(objects)
     center = (minimum + maximum) * 0.5
     extent = max(maximum - minimum)
-    bpy.ops.object.camera_add(location=center + Vector((extent * 1.8, -extent * 2.2, extent * 1.4)))
+    bpy.ops.object.camera_add(
+        location=center + Vector((extent * 1.8, -extent * 2.2, extent * 1.4))
+    )
     camera = bpy.context.object
     camera.data.type = "ORTHO"
     camera.data.ortho_scale = extent * 1.65
@@ -355,7 +507,9 @@ def _look_at(origin, target):
 
 
 def _bounds(objects):
-    points = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box]
+    points = [
+        obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box
+    ]
     return (
         Vector(min(point[axis] for point in points) for axis in range(3)),
         Vector(max(point[axis] for point in points) for axis in range(3)),
@@ -383,7 +537,9 @@ def _business_size_mm_to_blender_m(values):
 
 
 def _write_json(path, value):
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _script_args():
