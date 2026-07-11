@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 
@@ -20,6 +20,7 @@ const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highl
 const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
 const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
+const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -638,6 +639,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (glbHeader.subarray(0, 4).toString('ascii') !== 'glTF') {
       throw new Error('combined GLB download has an invalid header')
     }
+    const persistedCombinedGlb = await persistDccCombinedGlb(glbDownloadPath)
     await page.getByRole('button', { name: 'OBJ', exact: true }).click()
     const objDownloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: '创建并下载 combined OBJ' }).click()
@@ -778,6 +780,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
         record_count: auditExportRecord.record_count,
         package_sha256: auditExportRecord.package_sha256,
       },
+      dcc_combined_glb: persistedCombinedGlb,
       change_set_audit_download_verified: true,
       change_set_audit_screenshot: AUDIT_EXPORT_SCREENSHOT,
       change_planner_screenshot: CHANGE_PLANNER_SCREENSHOT,
@@ -1139,6 +1142,27 @@ async function jsonRequest(baseUrl, path, options = {}) {
   })
   if (!response.ok) throw new Error(`${options.method || 'GET'} ${path} failed: ${response.status} ${await response.text()}`)
   return response.json()
+}
+
+async function persistDccCombinedGlb(sourcePath) {
+  if (!DCC_COMBINED_OUTPUT) return null
+  if (!isAbsolute(DCC_COMBINED_OUTPUT) || !DCC_COMBINED_OUTPUT.endsWith('.glb')) {
+    throw new Error('FORGECAD_DCC_COMBINED_OUTPUT must be an absolute .glb path')
+  }
+  const destination = resolve(DCC_COMBINED_OUTPUT)
+  const committedPackRoot = resolve(ROOT, 'assets', 'module-packs')
+  if (destination === committedPackRoot || destination.startsWith(`${committedPackRoot}/`)) {
+    throw new Error('FORGECAD_DCC_COMBINED_OUTPUT cannot target committed module assets')
+  }
+  try {
+    await stat(destination)
+    throw new Error(`FORGECAD_DCC_COMBINED_OUTPUT already exists: ${destination}`)
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+  await mkdir(dirname(destination), { recursive: true })
+  await copyFile(sourcePath, destination)
+  return destination
 }
 
 async function jsonRequestAllowError(baseUrl, path, options = {}) {

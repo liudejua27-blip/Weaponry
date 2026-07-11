@@ -269,7 +269,7 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 只有输出 `dcc_roundtrip_validated` 才表示真实导入/再导出通过。`blocked_dcc_not_configured` 只是环境诊断；安装 Blender/Assimp 并设置 `FORGECAD_BLENDER_EXECUTABLE` 或 `FORGECAD_ASSIMP_EXECUTABLE` 后重跑。runner 拒绝覆盖输入和写入提交中的 Module Pack，并比较输入 SHA-256 与往返前后 vertex/triangle count。
 
-2026-07-11 的真实样本运行使用 re-export core GLB，Blender 4.2.22 返回 `dcc_roundtrip_validated`，2178 顶点和 940 三角保持不变。这只证明单模块 starter 往返；发布前仍必须对工作台生成的不可变 combined GLB 重跑同一命令。
+2026-07-11 的真实样本运行已包含 re-export core GLB（2178 顶点、940 三角）和工作台导出的 10 模块 reference combined GLB（840 顶点、420 三角）；两者都由 Blender 4.2.22 返回 `dcc_roundtrip_validated`，源 SHA-256 不变。reference Pack 仍是工具链基线，发布前必须对正式 Blender 资产的 combined GLB 重跑同一命令。
 
 实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
 
