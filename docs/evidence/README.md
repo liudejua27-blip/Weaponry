@@ -8,6 +8,8 @@
 - [R3 Blender Authoring Starter 真实构建](R3_BLENDER_STARTER.md)
 - [R3 正式 Blender 模块人工审阅门](R3_FORMAL_MODULE_REVIEW.md)
 - [R3 正式资产原创许可证声明](R3_FORMAL_ASSET_LICENSE_DECLARATION.md)
+- [R3 首次运行闭环与视口性能优化](R3_FIRST_RUN_AND_VIEWPORT_OPTIMIZATION.md)
+- [R3 组件资产目录与审阅状态](R3_ASSET_CATALOG.md)
 - [R5 工作台 combined GLB Blender 往返](R5_PRESENTATION_DELIVERY.md)
 - [R6 Tauri 打包完整性门](R6_PACKAGING_READINESS.md)
 - [P0 当前 C01–C10 发布证据审计](P0_CURRENT_READINESS_AUDIT.md)

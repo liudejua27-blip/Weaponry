@@ -3627,6 +3627,23 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "InitializeConceptWorkbenchRequest": {
+        "additionalProperties": false,
+        "description": "Idempotent request to install the bundled Pack and bind a starter graph.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "InitializeConceptWorkbenchRequest",
+        "type": "object"
+      },
       "InspectConceptVersionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4631,6 +4648,216 @@
         "title": "ModelQualityReport",
         "type": "object"
       },
+      "ModuleAssetCatalogMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_path": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Catalog Path",
+            "type": "string"
+          },
+          "creator_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Creator Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "origin_claim": {
+            "default": "unknown",
+            "enum": [
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "Origin Claim",
+            "type": "string"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "review_status": {
+            "default": "draft",
+            "enum": [
+              "draft",
+              "pending_review",
+              "approved",
+              "restricted"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewer_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Name"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Tags",
+            "type": "array"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name",
+          "description",
+          "catalog_path",
+          "creator_name",
+          "updated_at"
+        ],
+        "title": "ModuleAssetCatalogMetadata",
+        "type": "object"
+      },
+      "ModuleAssetCatalogMetadataInput": {
+        "additionalProperties": false,
+        "description": "Human and review metadata kept separate from ModuleAssetManifest@1.",
+        "properties": {
+          "catalog_path": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Catalog Path",
+            "type": "string"
+          },
+          "creator_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Creator Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "origin_claim": {
+            "default": "unknown",
+            "enum": [
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "Origin Claim",
+            "type": "string"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "review_status": {
+            "default": "draft",
+            "enum": [
+              "draft",
+              "pending_review",
+              "approved",
+              "restricted"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewer_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Name"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "display_name",
+          "description",
+          "catalog_path",
+          "creator_name"
+        ],
+        "title": "ModuleAssetCatalogMetadataInput",
+        "type": "object"
+      },
       "ModuleAssetListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -4782,6 +5009,9 @@
             "title": "Byte Size",
             "type": "integer"
           },
+          "catalog_metadata": {
+            "$ref": "#/components/schemas/ModuleAssetCatalogMetadata"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -4808,7 +5038,8 @@
           "logical_path",
           "object_path",
           "byte_size",
-          "created_at"
+          "created_at",
+          "catalog_metadata"
         ],
         "title": "ModuleAssetRecord",
         "type": "object"
@@ -5686,6 +5917,16 @@
       "RegisterModuleAssetRequest": {
         "additionalProperties": false,
         "properties": {
+          "catalog_metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModuleAssetCatalogMetadataInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "client_request_id": {
             "maxLength": 120,
             "minLength": 1,
@@ -5705,6 +5946,17 @@
           },
           "manifest": {
             "$ref": "#/components/schemas/ModuleAssetManifest"
+          },
+          "thumbnail_png_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Png Base64"
           }
         },
         "required": [
@@ -6106,6 +6358,115 @@
           "scale"
         ],
         "title": "Transform",
+        "type": "object"
+      },
+      "UpdateModuleAssetCatalogMetadataRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_path": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Catalog Path",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "creator_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Creator Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "origin_claim": {
+            "default": "unknown",
+            "enum": [
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "Origin Claim",
+            "type": "string"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "review_status": {
+            "default": "draft",
+            "enum": [
+              "draft",
+              "pending_review",
+              "approved",
+              "restricted"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewer_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Name"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "display_name",
+          "description",
+          "catalog_path",
+          "creator_name",
+          "client_request_id"
+        ],
+        "title": "UpdateModuleAssetCatalogMetadataRequest",
         "type": "object"
       },
       "ValidateModuleGraphRequest": {
@@ -8166,6 +8527,73 @@
               ],
               "title": "Category"
             }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "review_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "catalog_path",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 180,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Catalog Path"
+            }
           }
         ],
         "responses": {
@@ -8253,6 +8681,74 @@
         ]
       }
     },
+    "/api/v1/module-assets/{module_id}/catalog-metadata": {
+      "put": {
+        "operationId": "update_module_asset_catalog_metadata_api_v1_module_assets__module_id__catalog_metadata_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_id",
+            "required": true,
+            "schema": {
+              "title": "Module Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModuleAssetCatalogMetadataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAssetRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Module Asset Catalog Metadata",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
     "/api/v1/module-assets/{module_id}/file": {
       "get": {
         "operationId": "download_module_asset_api_v1_module_assets__module_id__file_get",
@@ -8288,6 +8784,46 @@
           }
         },
         "summary": "Download Module Asset",
+        "tags": [
+          "concept-modules"
+        ]
+      }
+    },
+    "/api/v1/module-assets/{module_id}/thumbnail": {
+      "get": {
+        "operationId": "download_module_thumbnail_api_v1_module_assets__module_id__thumbnail_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "module_id",
+            "required": true,
+            "schema": {
+              "title": "Module Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Module Thumbnail",
         "tags": [
           "concept-modules"
         ]
@@ -9164,6 +9700,74 @@
           }
         },
         "summary": "Append Project Version",
+        "tags": [
+          "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}:initialize-workbench": {
+      "post": {
+        "operationId": "initialize_workbench_api_v1_projects__project_id__initialize_workbench_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeConceptWorkbenchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Initialize Workbench",
         "tags": [
           "concept-projects"
         ]

@@ -11,6 +11,7 @@ from forgecad_agent.application.concept_models import (
     ModuleGraphRecord,
     ModuleGraphValidationResponse,
     RegisterModuleAssetRequest,
+    UpdateModuleAssetCatalogMetadataRequest,
     ValidateModuleGraphRequest,
 )
 from forgecad_agent.application.concept_modules import (
@@ -44,8 +45,39 @@ def build_module_router(service: ConceptModuleService) -> APIRouter:
     def list_module_assets(
         pack_id: Optional[str] = Query(default=None),
         category: Optional[ModuleCategory] = Query(default=None),
+        query: Optional[str] = Query(default=None, max_length=200),
+        review_status: Optional[str] = Query(default=None),
+        tag: Optional[str] = Query(default=None, max_length=80),
+        catalog_path: Optional[str] = Query(default=None, max_length=180),
     ) -> ModuleAssetListResponse:
-        return service.list_modules(pack_id=pack_id, category=category)
+        return service.list_modules(
+            pack_id=pack_id,
+            category=category,
+            query=query,
+            review_status=review_status,
+            tag=tag,
+            catalog_path=catalog_path,
+        )
+
+    @router.put(
+        "/module-assets/{module_id}/catalog-metadata",
+        response_model=ModuleAssetRecord,
+    )
+    def update_module_asset_catalog_metadata(
+        module_id: str,
+        request: UpdateModuleAssetCatalogMetadataRequest,
+        idempotency_key: Annotated[
+            Optional[str],
+            Header(alias="Idempotency-Key"),
+        ] = None,
+    ) -> Union[ModuleAssetRecord, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        try:
+            return service.update_catalog_metadata(module_id, request, key)
+        except ConceptModuleIdempotencyConflict as exc:
+            return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
+        except ConceptModuleError as exc:
+            return _module_error_response(exc)
 
     @router.get("/module-assets/{module_id}/file", response_model=None)
     def download_module_asset(module_id: str) -> Union[Response, JSONResponse]:
@@ -56,6 +88,22 @@ def build_module_router(service: ConceptModuleService) -> APIRouter:
         return Response(
             content=payload,
             media_type="model/gltf-binary",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "X-Content-SHA256": sha256,
+                "Cache-Control": "public, max-age=31536000, immutable",
+            },
+        )
+
+    @router.get("/module-assets/{module_id}/thumbnail", response_model=None)
+    def download_module_thumbnail(module_id: str) -> Union[Response, JSONResponse]:
+        try:
+            payload, filename, sha256 = service.read_module_thumbnail(module_id)
+        except ConceptModuleError as exc:
+            return _module_error_response(exc)
+        return Response(
+            content=payload,
+            media_type="image/png",
             headers={
                 "Content-Disposition": f'inline; filename="{filename}"',
                 "X-Content-SHA256": sha256,
@@ -107,6 +155,7 @@ def _module_error_response(exc: ConceptModuleError) -> JSONResponse:
         "DOMAIN_PROFILE_NOT_FOUND",
         "MODULE_GRAPH_NOT_FOUND",
         "MODULE_NOT_FOUND",
+        "MODULE_THUMBNAIL_NOT_FOUND",
     }:
         status_code = 404
     elif exc.code in {

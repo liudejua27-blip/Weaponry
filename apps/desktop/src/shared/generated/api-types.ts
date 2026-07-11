@@ -612,6 +612,10 @@ export type HealthResponse = {
   "mode": string
 }
 
+export type InitializeConceptWorkbenchRequest = {
+  "client_request_id": string
+}
+
 export type InspectConceptVersionRequest = {
   "client_request_id": string
   "ruleset_version"?: "weapon-concept-geometry/1.3"
@@ -767,6 +771,33 @@ export type ModelQualityReport = {
   "created_at": string
 }
 
+export type ModuleAssetCatalogMetadata = {
+  "display_name": string
+  "description": string
+  "tags"?: Array<string>
+  "catalog_path": string
+  "origin_claim"?: "self_declared_original" | "third_party" | "unknown"
+  "creator_name": string
+  "review_status"?: "draft" | "pending_review" | "approved" | "restricted"
+  "reviewer_name"?: string | null
+  "reviewed_at"?: string | null
+  "review_note"?: string | null
+  "updated_at": string
+}
+
+export type ModuleAssetCatalogMetadataInput = {
+  "display_name": string
+  "description": string
+  "tags"?: Array<string>
+  "catalog_path": string
+  "origin_claim"?: "self_declared_original" | "third_party" | "unknown"
+  "creator_name": string
+  "review_status"?: "draft" | "pending_review" | "approved" | "restricted"
+  "reviewer_name"?: string | null
+  "reviewed_at"?: string | null
+  "review_note"?: string | null
+}
+
 export type ModuleAssetListResponse = {
   "items"?: Array<ModuleAssetRecord>
   "pack_id"?: string | null
@@ -794,6 +825,7 @@ export type ModuleAssetRecord = {
   "byte_size": number
   "mime_type"?: string
   "created_at": string
+  "catalog_metadata": ModuleAssetCatalogMetadata
 }
 
 export type ModuleConnector = {
@@ -958,6 +990,8 @@ export type RegisterModuleAssetRequest = {
   "manifest": ModuleAssetManifest
   "logical_path": string
   "glb_data_base64": string
+  "thumbnail_png_base64"?: string | null
+  "catalog_metadata"?: ModuleAssetCatalogMetadataInput | null
 }
 
 export type RuntimeRecoveryItem = {
@@ -1020,6 +1054,20 @@ export type Transform = {
   "position": Array<number>
   "rotation": Array<number>
   "scale": Array<number>
+}
+
+export type UpdateModuleAssetCatalogMetadataRequest = {
+  "display_name": string
+  "description": string
+  "tags"?: Array<string>
+  "catalog_path": string
+  "origin_claim"?: "self_declared_original" | "third_party" | "unknown"
+  "creator_name": string
+  "review_status"?: "draft" | "pending_review" | "approved" | "restricted"
+  "reviewer_name"?: string | null
+  "reviewed_at"?: string | null
+  "review_note"?: string | null
+  "client_request_id": string
 }
 
 export type ValidateModuleGraphRequest = {

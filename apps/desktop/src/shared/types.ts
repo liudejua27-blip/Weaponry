@@ -38,6 +38,7 @@ export type ConceptVersionSummary = Api.ConceptVersionSummary
 export type CreateConceptProjectRequest = Api.CreateConceptProjectRequest
 export type ModuleAssetListResponse = Api.ModuleAssetListResponse
 export type ModuleAssetRecord = Api.ModuleAssetRecord
+export type UpdateModuleAssetCatalogMetadataRequest = Api.UpdateModuleAssetCatalogMetadataRequest
 export type ModuleGraph = Api.ModuleGraph
 export type ModuleGraphRecord = Api.ModuleGraphRecord
 export type DesignVariantListResponse = Api.DesignVariantListResponse

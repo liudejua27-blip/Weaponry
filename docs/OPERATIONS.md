@@ -205,6 +205,20 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 作者原创资产的正式化工作区位于 `$HOME/Library/Caches/ForgeCAD/Formalization/` 下的日期目录。许可证声明可先写入 `final-pack/`，但 reviewer 仍必须实际检查并完成原始 JSON；`REVIEW_HANDOFF.md` 只是只读交接单，不能代替 `formal-review-validate` 或 promotion report。
 
+## 首次启动 Concept Workbench
+
+创建 Project 后，桌面端会调用 `:initialize-workbench` 自动注册内置 Pack、保存缩略图、
+验证 9 节点 Graph 并创建绑定 Graph 的不可变 V2。若要在受控发行包中替换内置资产，设置
+`FORGECAD_BUNDLED_MODULE_PACK=/absolute/path/to/pack`；该 Pack 必须与 profile 的
+`pack_weapon_concept_v1` 合同一致。开发机验证：
+
+```bash
+npm run agent:r3-first-run-workbench-smoke
+```
+
+旧库项目显示“安装内置组件并初始化工作台”操作。该操作不会覆盖既有版本，只在当前版本
+未绑定 Graph 时创建新的子版本。
+
 候选也可运行 Connector 技术矩阵；它只覆盖候选中实际存在的替换组合，不允许把结果写成正式资产的 ≥95% 指标：
 
 ```bash
@@ -616,6 +630,23 @@ core.side_panel_right
 → 调整整体比例/握持角/细节密度
 → 保存为新版本
 ```
+
+### 组件资产库：目录、审阅与替换
+
+组件库默认是紧凑选件架。单击组件会展开底部检视器；搜索会匹配显示名、描述和标签，左侧目录可组合“当前装配 / 可替换 / 收藏 / 最近使用”，状态筛选可组合“草稿 / 待审 / 已批准 / 受限”。收藏和最近使用只保存到当前电脑的工作区偏好，不写入 Module Pack 或 Version。
+
+`ModuleAssetManifest@1` 继续只保存 GLB 几何事实。人类可读信息保存在独立的 `module_asset_catalog_metadata`：显示名、描述、标签、目录路径、来源声明、创作者、审阅状态、审阅人和审阅记录。当前本人创作的内置模块默认显示“本人原创声明 / 待审”；完成独立审阅前不得标为“已批准”。若 `review_status=approved`，API 会拒绝 reviewer 与 creator 同名的更新请求。
+
+模块替换分两步：点击“预览替换”只创建 ChangeSet ghost preview；检查主视图和详情后，再点击“确认并创建新版本”。`restricted` 资产或当前版本 QualityRun 标为 `failed` 的资产不能作为替换候选。质量状态从当前版本真实 QualityRun 推导，未运行检查时显示“未检查”。
+
+维护资产目录时可使用：
+
+```http
+GET /api/v1/module-assets?query=<关键词>&review_status=pending_review&tag=<标签>&catalog_path=<父目录>
+PUT /api/v1/module-assets/{module_id}/catalog-metadata
+```
+
+更新请求必须带 `Idempotency-Key` 和 `client_request_id`；批准状态需要不同于 `creator_name` 的 `reviewer_name` 以及 `reviewed_at`。
 
 ### Day 5：使用 AI ChangeSet
 

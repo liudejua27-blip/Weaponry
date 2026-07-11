@@ -8,6 +8,7 @@ from .concept_modules import (
     ConceptModuleIdempotencyConflict,
     ConceptModuleService,
 )
+from .concept_workbench_bootstrap import ConceptWorkbenchBootstrapService
 from .concept_change_sets import (
     ConceptChangeSetError,
     ConceptChangeSetIdempotencyConflict,
@@ -43,6 +44,7 @@ __all__ = [
     "ConceptModuleError",
     "ConceptModuleIdempotencyConflict",
     "ConceptModuleService",
+    "ConceptWorkbenchBootstrapService",
     "ConceptChangeSetError",
     "ConceptChangeSetIdempotencyConflict",
     "ConceptChangeSetService",
