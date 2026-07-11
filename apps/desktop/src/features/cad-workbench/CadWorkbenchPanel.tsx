@@ -72,6 +72,99 @@ type ComponentFilter = ComponentCategory | 'installed' | 'compatible' | 'favorit
 type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'restricted'
 type QualityStatus = 'passed' | 'warning' | 'failed' | 'unavailable'
 
+type WorkbenchSession = {
+  activeTab: WorkspaceTab
+  inspectorTab: InspectorTab
+  drawerTab: DrawerTab
+  activeTool: Tool
+  transformSpace: 'world' | 'local'
+  snapEnabled: boolean
+  cameraView: CameraView
+  showGrid: boolean
+  wireframe: boolean
+  xRay: boolean
+  sectionOffset: number
+  selectedComponent: string
+  selectedLibraryModuleId: string
+  showConnectors: boolean
+  explodeFactor: number
+  measurementMode: 'distance' | 'normal_angle'
+  componentCategory: ComponentFilter
+  reviewStatusFilter: ReviewStatus | ''
+  drawerExpanded: boolean
+  drawerHeight: number
+}
+
+const WORKBENCH_SESSION_KEY = 'forgecad.workbench.session.v1'
+
+const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
+  activeTab: 'concept',
+  inspectorTab: 'parameters',
+  drawerTab: 'components',
+  activeTool: 'select',
+  transformSpace: 'world',
+  snapEnabled: true,
+  cameraView: 'iso',
+  showGrid: true,
+  wireframe: false,
+  xRay: false,
+  sectionOffset: 0,
+  selectedComponent: '',
+  selectedLibraryModuleId: '',
+  showConnectors: false,
+  explodeFactor: 0,
+  measurementMode: 'distance',
+  componentCategory: 'all',
+  reviewStatusFilter: '',
+  drawerExpanded: false,
+  drawerHeight: 368,
+}
+
+function readWorkbenchSession(): WorkbenchSession {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(WORKBENCH_SESSION_KEY) ?? '{}') as Partial<WorkbenchSession>
+    return {
+      ...DEFAULT_WORKBENCH_SESSION,
+      activeTab: isOneOf(value.activeTab, ['concept', 'assembly', 'refine', 'inspect', 'showcase']) ? value.activeTab : 'concept',
+      inspectorTab: isOneOf(value.inspectorTab, ['parameters', 'appearance', 'connections', 'inspection']) ? value.inspectorTab : 'parameters',
+      drawerTab: isOneOf(value.drawerTab, ['components', 'variants', 'versions', 'timeline']) ? value.drawerTab : 'components',
+      activeTool: isOneOf(value.activeTool, ['select', 'move', 'rotate', 'scale', 'orbit', 'measure', 'section']) ? value.activeTool : 'select',
+      transformSpace: isOneOf(value.transformSpace, ['world', 'local']) ? value.transformSpace : 'world',
+      snapEnabled: typeof value.snapEnabled === 'boolean' ? value.snapEnabled : true,
+      cameraView: isOneOf(value.cameraView, ['iso', 'front', 'top', 'right']) ? value.cameraView : 'iso',
+      showGrid: typeof value.showGrid === 'boolean' ? value.showGrid : true,
+      wireframe: typeof value.wireframe === 'boolean' ? value.wireframe : false,
+      xRay: typeof value.xRay === 'boolean' ? value.xRay : false,
+      sectionOffset: boundedNumber(value.sectionOffset, -100, 100, 0),
+      selectedComponent: typeof value.selectedComponent === 'string' ? value.selectedComponent : '',
+      selectedLibraryModuleId: typeof value.selectedLibraryModuleId === 'string' ? value.selectedLibraryModuleId : '',
+      showConnectors: typeof value.showConnectors === 'boolean' ? value.showConnectors : false,
+      explodeFactor: boundedNumber(value.explodeFactor, 0, 1, 0),
+      measurementMode: isOneOf(value.measurementMode, ['distance', 'normal_angle']) ? value.measurementMode : 'distance',
+      componentCategory: isComponentFilter(value.componentCategory) ? value.componentCategory : 'all',
+      reviewStatusFilter: isOneOf(value.reviewStatusFilter, ['', 'draft', 'pending_review', 'approved', 'restricted']) ? value.reviewStatusFilter : '',
+      drawerExpanded: typeof value.drawerExpanded === 'boolean' ? value.drawerExpanded : false,
+      drawerHeight: boundedNumber(value.drawerHeight, 280, 520, 368),
+    }
+  } catch {
+    return DEFAULT_WORKBENCH_SESSION
+  }
+}
+
+function isOneOf<T extends string>(value: unknown, options: readonly T[]): value is T {
+  return typeof value === 'string' && options.includes(value as T)
+}
+
+function boundedNumber(value: unknown, min: number, max: number, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(min, Math.min(max, value))
+    : fallback
+}
+
+function isComponentFilter(value: unknown): value is ComponentFilter {
+  return isOneOf(value, ['all', 'installed', 'compatible', 'favorites', 'recent', ...Object.keys(MODULE_CATEGORY_LABELS)])
+}
+
 const MODULE_CATEGORY_LABELS: Record<ModuleCategory, string> = {
   core_shell: '核心外壳',
   front_shell: '前部外壳',
@@ -134,35 +227,36 @@ const TOOL_ITEMS: Array<{
 
 export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
   const concept = useConceptWorkbench()
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('concept')
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('parameters')
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>('components')
-  const [activeTool, setActiveTool] = useState<Tool>('select')
-  const [transformSpace, setTransformSpace] = useState<'world' | 'local'>('world')
-  const [snapEnabled, setSnapEnabled] = useState(true)
-  const [cameraView, setCameraView] = useState<CameraView>('iso')
-  const [showGrid, setShowGrid] = useState(true)
-  const [wireframe, setWireframe] = useState(false)
-  const [xRay, setXRay] = useState(false)
-  const [sectionOffset, setSectionOffset] = useState(0)
-  const [selectedComponent, setSelectedComponent] = useState('')
-  const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState('')
+  const [restoredSession] = useState(readWorkbenchSession)
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => restoredSession.activeTab)
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(() => restoredSession.inspectorTab)
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>(() => restoredSession.drawerTab)
+  const [activeTool, setActiveTool] = useState<Tool>(() => restoredSession.activeTool)
+  const [transformSpace, setTransformSpace] = useState<'world' | 'local'>(() => restoredSession.transformSpace)
+  const [snapEnabled, setSnapEnabled] = useState(() => restoredSession.snapEnabled)
+  const [cameraView, setCameraView] = useState<CameraView>(() => restoredSession.cameraView)
+  const [showGrid, setShowGrid] = useState(() => restoredSession.showGrid)
+  const [wireframe, setWireframe] = useState(() => restoredSession.wireframe)
+  const [xRay, setXRay] = useState(() => restoredSession.xRay)
+  const [sectionOffset, setSectionOffset] = useState(() => restoredSession.sectionOffset)
+  const [selectedComponent, setSelectedComponent] = useState(() => restoredSession.selectedComponent)
+  const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState(() => restoredSession.selectedLibraryModuleId)
   const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [qualityHighlightNodeIds, setQualityHighlightNodeIds] = useState<string[]>([])
   const [qualityGeometryRefs, setQualityGeometryRefs] = useState<
     NonNullable<QualityFinding['geometry_refs']>
   >([])
-  const [showConnectors, setShowConnectors] = useState(false)
-  const [explodeFactor, setExplodeFactor] = useState(0)
+  const [showConnectors, setShowConnectors] = useState(() => restoredSession.showConnectors)
+  const [explodeFactor, setExplodeFactor] = useState(() => restoredSession.explodeFactor)
   const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
   const [measurementAnnotations, setMeasurementAnnotations] = useState<MeasurementAnnotation[]>([])
-  const [measurementMode, setMeasurementMode] = useState<'distance' | 'normal_angle'>('distance')
-  const [componentCategory, setComponentCategory] = useState<ComponentFilter>('all')
+  const [measurementMode, setMeasurementMode] = useState<'distance' | 'normal_angle'>(() => restoredSession.measurementMode)
+  const [componentCategory, setComponentCategory] = useState<ComponentFilter>(() => restoredSession.componentCategory)
   const [componentQuery, setComponentQuery] = useState('')
-  const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>('')
-  const [drawerExpanded, setDrawerExpanded] = useState(false)
-  const [drawerHeight, setDrawerHeight] = useState(368)
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>(() => restoredSession.reviewStatusFilter)
+  const [drawerExpanded, setDrawerExpanded] = useState(() => restoredSession.drawerExpanded)
+  const [drawerHeight, setDrawerHeight] = useState(() => restoredSession.drawerHeight)
   const [favoriteModuleIds, setFavoriteModuleIds] = useState<string[]>([])
   const [recentModuleIds, setRecentModuleIds] = useState<string[]>([])
   const [thumbnailFailures, setThumbnailFailures] = useState<Set<string>>(() => new Set())
@@ -226,6 +320,62 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   }, [concept.version])
 
   useEffect(() => {
+    try {
+      // Draft parameters and ChangeSet previews are intentionally omitted:
+      // only confirmed Versions are durable design truth.
+      window.localStorage.setItem(WORKBENCH_SESSION_KEY, JSON.stringify({
+        activeTab,
+        inspectorTab,
+        drawerTab,
+        activeTool,
+        transformSpace,
+        snapEnabled,
+        cameraView,
+        showGrid,
+        wireframe,
+        xRay,
+        sectionOffset,
+        selectedComponent,
+        selectedLibraryModuleId,
+        showConnectors,
+        explodeFactor,
+        measurementMode,
+        componentCategory,
+        reviewStatusFilter,
+        drawerExpanded,
+        drawerHeight,
+      } satisfies WorkbenchSession))
+    } catch {
+      // A storage failure must not prevent a local workbench session from opening.
+    }
+  }, [
+    activeTab,
+    activeTool,
+    cameraView,
+    componentCategory,
+    drawerExpanded,
+    drawerHeight,
+    drawerTab,
+    explodeFactor,
+    inspectorTab,
+    measurementMode,
+    reviewStatusFilter,
+    sectionOffset,
+    selectedComponent,
+    selectedLibraryModuleId,
+    showConnectors,
+    showGrid,
+    snapEnabled,
+    transformSpace,
+    wireframe,
+    xRay,
+  ])
+
+  useEffect(() => {
+    // A project reload briefly clears graphRecord while API requests are in
+    // flight. Preserve the stored selection during that gap so a restart does
+    // not replace it with the root node before the same graph returns.
+    if (!concept.graphRecord) return
     const nodes = concept.graphRecord?.graph.nodes ?? []
     if (nodes.length === 0) {
       setSelectedComponent('')
@@ -234,7 +384,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     }
     setSelectedComponent((current) => {
       const nextNode = nodes.find((node) => node.node_id === current) ?? nodes[0]
-      setSelectedLibraryModuleId(nextNode.module_id)
+      setSelectedLibraryModuleId((currentModuleId) => currentModuleId || nextNode.module_id)
       return nextNode.node_id
     })
     setHiddenNodeIds((current) => current.filter((nodeId) => nodes.some((node) => node.node_id === nodeId)))

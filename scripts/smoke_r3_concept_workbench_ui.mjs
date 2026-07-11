@@ -308,6 +308,27 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       throw new Error(`Connector snap was not reflected in inspector: ${JSON.stringify(snappedPosition)}`)
     }
 
+    // A browser restart must restore the durable Concept Version and the
+    // operator's presentation/selection session, without restoring any
+    // unconfirmed ChangeSet draft as if it were design truth.
+    await page.getByRole('button', { name: 'X-Ray', exact: true }).click()
+    await page.locator('.weapon-viewport[data-xray="enabled"]').waitFor()
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
+    await page.waitForFunction(
+      () => document.querySelector('.cad-left-rail')?.textContent?.includes('V3'),
+      { timeout: 20_000 },
+    )
+    await page.locator('.weapon-viewport[data-xray="enabled"]').waitFor()
+    const restoredInspectorValues = await page.locator('.properties-panel .wide-field input').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    )
+    if (restoredInspectorValues[0] !== 'node_front' || restoredInspectorValues[1] !== 'module_front_shell_02') {
+      throw new Error(`workbench session did not restore the selected node: ${JSON.stringify(restoredInspectorValues)}`)
+    }
+    await page.getByRole('button', { name: 'X-Ray', exact: true }).click()
+    await page.locator('.weapon-viewport[data-xray="disabled"]').waitFor()
+
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V2'),

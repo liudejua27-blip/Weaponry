@@ -19,6 +19,11 @@ import type {
 } from '../../shared/types'
 
 const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
+const ACTIVE_VERSION_KEY_PREFIX = 'forgecad.activeConceptVersionId.'
+
+function activeVersionKey(projectId: string) {
+  return `${ACTIVE_VERSION_KEY_PREFIX}${projectId}`
+}
 
 export type ChangeSetTimelineFilters = {
   query: string
@@ -98,9 +103,10 @@ export function useConceptWorkbench() {
     try {
       const project = await forgeApi.getConceptProject(projectId)
       const versions = project.versions ?? []
-      const versionId = preferredVersionId
-        && versions.some((item) => item.version_id === preferredVersionId)
-        ? preferredVersionId
+      const restoredVersionId = preferredVersionId ?? localStorage.getItem(activeVersionKey(projectId))
+      const versionId = restoredVersionId
+        && versions.some((item) => item.version_id === restoredVersionId)
+        ? restoredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
       const [
         moduleResponse,
@@ -119,6 +125,8 @@ export function useConceptWorkbench() {
         ? await forgeApi.getModuleGraph(version.module_graph_id)
         : null
       localStorage.setItem(ACTIVE_PROJECT_KEY, projectId)
+      if (versionId) localStorage.setItem(activeVersionKey(projectId), versionId)
+      else localStorage.removeItem(activeVersionKey(projectId))
       setState((current) => ({
         ...current,
         projects: knownProjects ?? current.projects,
@@ -225,6 +233,7 @@ export function useConceptWorkbench() {
       const graphRecord = version.module_graph_id
         ? await forgeApi.getModuleGraph(version.module_graph_id)
         : null
+      localStorage.setItem(activeVersionKey(version.project_id), version.version_id)
       setState((current) => ({
         ...current,
         version,
