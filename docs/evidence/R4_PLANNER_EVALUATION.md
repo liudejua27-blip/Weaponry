@@ -45,6 +45,16 @@ npm run agent:r4-evaluation-live
 
 当前环境实际返回非零状态和 `EVAL_PROVIDER_NOT_CONFIGURED`。没有使用 deterministic fallback，也没有生成虚假 token/latency 证据。
 
+## 无调用配置预检
+
+2026-07-11 增加以下本地预检，供操作者在决定是否承担 80 次调用成本前执行：
+
+```bash
+npm run agent:r4-evaluation-preflight
+```
+
+它只读取环境与可选 secret file，固定报告 `network_calls_made=0`，不请求 Provider，且不回显 API key、endpoint 或绝对路径。本机本轮结果为 `status=not_ready`、`provider.type=deterministic`、`missing=["provider"]`；这只说明当前环境没有选择真实 Provider，不是模型质量结果。加入 `-- --require-ready` 时，未就绪返回 2；配有隔离环境、凭据回退和泄露检查的 smoke 已纳入 `r4:planner-gate`。
+
 ## Provider 遥测证据
 
 OpenAI-compatible Adapter 读取常见 `prompt_tokens/completion_tokens` 或 `input_tokens/output_tokens`，将实际 HTTP elapsed time 和 usage 写入 `ConceptPlannerProvenance`。fake HTTP smoke 已分别验证 Brief/Variant 和 Change 请求的 latency、input/output/total token；Provider 不返回 usage 时字段为 `null`。
@@ -61,4 +71,4 @@ OpenAI-compatible Adapter 读取常见 `prompt_tokens/completion_tokens` 或 `in
 - 每次调用均返回 token usage；
 - 四项发布阈值全部通过。
 
-当前没有满足上述条件，因此 R4 的真实 AI 指标仍未完成。下一步需要用户在本机 secret file/环境变量中配置 Provider，并明确授权这 80 次可能付费的调用。
+当前没有满足上述条件，因此 R4 的真实 AI 指标仍未完成。下一步需要用户在本机 secret file/环境变量中配置 Provider，先通过无调用预检，再明确授权这 80 次可能付费的调用。

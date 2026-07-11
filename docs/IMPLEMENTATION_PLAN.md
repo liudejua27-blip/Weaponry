@@ -333,7 +333,7 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 `library:recovery-drill`，各至少 3 轮，保存备份/验证/恢复/Agent 回读耗时、吞吐、容量增长和未引用候选，再确定保留周期与 reference-aware GC；10 模块 reference fixture 已完成多轮稳定快照、全部 GLB hash 回读、基线增量和正式证据误报阻断，但不替代这两组真实报告。WORM/legal hold 不在当前承诺内。
 4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；starter core、工作台 visual-v2 三模块组合与 reference combined GLB 的真实 Blender round-trip 已通过，下一步是对正式 Blender 资产全装配重跑并评估纹理交换与 glTF Transform/Meshopt。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
-6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
+6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；先运行零网络、零费用的 `npm run agent:r4-evaluation-preflight`，只有本地配置就绪才由操作者承担 live 调用成本。当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。
 8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
 9. 用真实冻结 Agent 二进制替换当前占位 sidecar，并在含 Cargo/Rust 与平台签名权限的发布机上完成 compile、签名、安装/卸载和干净机验证。
