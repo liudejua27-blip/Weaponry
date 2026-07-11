@@ -603,6 +603,35 @@
   pointer-events: none;
 }
 
+.measurement-overlay {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 1px solid #4d8adb;
+  border-radius: 6px;
+  color: #d7ecff;
+  background: rgb(13 47 76 / 92%);
+  box-shadow: 0 8px 20px rgb(0 42 86 / 24%);
+  font-size: 9px;
+}
+
+.measurement-overlay strong { color: #8ed0ff; }
+
+.measurement-overlay button {
+  padding: 3px 5px;
+  border: 1px solid #4b739c;
+  border-radius: 4px;
+  color: #d1e8ff;
+  background: #183b5c;
+  font-size: 8px;
+  cursor: pointer;
+}
+
 .viewport-viewbar {
   bottom: 10px;
   left: 50%;

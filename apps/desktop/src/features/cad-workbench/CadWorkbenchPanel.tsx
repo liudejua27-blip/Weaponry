@@ -35,7 +35,7 @@ import {
 } from '@phosphor-icons/react'
 import { forgeApi } from '../../shared/api/forgeApi'
 import type { DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
-import { ModuleGraphViewport } from './ModuleGraphViewport'
+import { ModuleGraphViewport, type ViewportMeasurementPoint } from './ModuleGraphViewport'
 import {
   useConceptWorkbench,
   type ChangeSetTimelineFilters,
@@ -120,7 +120,7 @@ const TOOL_ITEMS: Array<{
   { id: 'rotate', label: '旋转', icon: ArrowsClockwise, implemented: true },
   { id: 'scale', label: '缩放', icon: ArrowsOutCardinal, implemented: true },
   { id: 'orbit', label: '旋转视图', icon: ArrowsClockwise, implemented: true },
-  { id: 'measure', label: '测量', icon: Ruler, implemented: false, unavailableReason: '点到点与角度测量尚未实现，避免显示为可用能力。' },
+  { id: 'measure', label: '测量', icon: Ruler, implemented: true },
   { id: 'section', label: '截面', icon: SelectionAll, implemented: false, unavailableReason: '裁切平面尚未实现，避免显示为可用能力。' },
 ]
 
@@ -145,6 +145,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   >([])
   const [showConnectors, setShowConnectors] = useState(false)
   const [explodeFactor, setExplodeFactor] = useState(0)
+  const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
   const [componentCategory, setComponentCategory] = useState<ComponentFilter>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>('')
@@ -264,6 +265,9 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const selectedNodeConnections = (concept.graphRecord?.graph.edges ?? []).filter((edge) => (
     edge.from_node_id === selectedNode?.node_id || edge.to_node_id === selectedNode?.node_id
   ))
+  const measurementDistance = measurementPoints.length === 2
+    ? distanceBetween(measurementPoints[0].position, measurementPoints[1].position)
+    : null
   const canSnapSelectedNode = Boolean(
     selectedNode
       && selectedNode.node_id !== concept.graphRecord?.graph.root_node_id
@@ -510,6 +514,11 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     setTransformDraft(copyTransform(transform))
     concept.previewNodeTransform(nodeId, transform).catch(() => undefined)
   }, [concept.previewNodeTransform])
+
+  const handleMeasurePoint = useCallback((point: ViewportMeasurementPoint) => {
+    setSelectedComponent(point.nodeId)
+    setMeasurementPoints((current) => current.length >= 2 ? [point] : [...current, point])
+  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -914,14 +923,28 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               transformTool={activeTool === 'move' ? 'translate' : activeTool === 'rotate' ? 'rotate' : activeTool === 'scale' ? 'scale' : 'none'}
               transformSpace={transformSpace}
               snapEnabled={snapEnabled}
+              measureEnabled={activeTool === 'measure'}
               getModuleFileUrl={getModuleFileUrl}
               onSelectNode={selectGraphNode}
               onDropModule={handleModuleDrop}
               onTransformCommit={handleTransformCommit}
+              onMeasurePoint={handleMeasurePoint}
             />
             {concept.pendingPreview && (
               <div className="ghost-preview-badge" data-testid="ghost-preview-badge">
                 幽灵预览 · 尚未写入版本
+              </div>
+            )}
+            {activeTool === 'measure' && (
+              <div className="measurement-overlay" data-testid="measurement-overlay">
+                {measurementDistance == null ? (
+                  <span>{measurementPoints.length === 0 ? '点击模型设置起点' : '点击模型设置终点'}</span>
+                ) : (
+                  <strong>点到点：{measurementDistance.toFixed(2)} mm</strong>
+                )}
+                {measurementPoints.length > 0 && (
+                  <button onClick={() => setMeasurementPoints([])}>清除</button>
+                )}
               </div>
             )}
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
@@ -938,7 +961,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               />
             </div>
             <div className="viewport-readout">
-              <span>{activeTool === 'measure' ? '测量模式：选择两个几何点' : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
+              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : `测量：${measurementDistance.toFixed(2)} mm` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
               <span>单位：mm</span>
             </div>
           </div>
@@ -1791,6 +1814,17 @@ function copyTransform(transform: Transform): Transform {
     rotation: [...transform.rotation],
     scale: [...transform.scale],
   }
+}
+
+function distanceBetween(
+  first: [number, number, number],
+  second: [number, number, number],
+) {
+  return Math.hypot(
+    first[0] - second[0],
+    first[1] - second[1],
+    first[2] - second[2],
+  )
 }
 
 async function downloadBrowserFile(url: string, fallbackName?: string): Promise<void> {

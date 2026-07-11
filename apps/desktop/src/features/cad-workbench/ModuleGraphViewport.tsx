@@ -8,6 +8,10 @@ import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
 type Graph = NonNullable<ModuleGraphRecord>['graph']
+export type ViewportMeasurementPoint = {
+  nodeId: string
+  position: [number, number, number]
+}
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
 let viewportRendererGeneration = 0
@@ -30,10 +34,12 @@ type ModuleGraphViewportProps = {
   transformTool: TransformTool
   transformSpace: 'world' | 'local'
   snapEnabled: boolean
+  measureEnabled: boolean
   getModuleFileUrl: (moduleId: string) => string
   onSelectNode: (nodeId: string) => void
   onDropModule: (nodeId: string, moduleId: string) => void
   onTransformCommit: (nodeId: string, transform: Transform) => void
+  onMeasurePoint: (point: ViewportMeasurementPoint) => void
 }
 
 type ViewportRuntime = {
@@ -161,18 +167,27 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
-    const nodeAtClientPoint = (clientX: number, clientY: number) => {
+    const hitAtClientPoint = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect()
       pointer.x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 2 - 1
       pointer.y = -((clientY - rect.top) / Math.max(rect.height, 1)) * 2 + 1
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects(moduleRoot.children, true)[0]
       const nodeId = hit?.object.userData.nodeId
-      return typeof nodeId === 'string' ? nodeId : null
+      if (typeof nodeId !== 'string' || !hit) return null
+      return { nodeId, point: hit.point }
     }
     const selectAtPointer = (event: PointerEvent) => {
-      const nodeId = nodeAtClientPoint(event.clientX, event.clientY)
-      if (nodeId) propsRef.current.onSelectNode(nodeId)
+      const hit = hitAtClientPoint(event.clientX, event.clientY)
+      if (!hit) return
+      if (propsRef.current.measureEnabled) {
+        propsRef.current.onMeasurePoint({
+          nodeId: hit.nodeId,
+          position: [hit.point.x, hit.point.y, hit.point.z],
+        })
+        return
+      }
+      propsRef.current.onSelectNode(hit.nodeId)
     }
     const allowModuleDrop = (event: DragEvent) => {
       if (event.dataTransfer?.types.includes('application/x-forgecad-module-id')) {
@@ -185,7 +200,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         || event.dataTransfer?.getData('text/plain')
       if (!moduleId) return
       event.preventDefault()
-      const nodeId = nodeAtClientPoint(event.clientX, event.clientY) ?? propsRef.current.selectedNodeId
+      const nodeId = hitAtClientPoint(event.clientX, event.clientY)?.nodeId ?? propsRef.current.selectedNodeId
       if (nodeId) propsRef.current.onDropModule(nodeId, moduleId)
     }
     renderer.domElement.addEventListener('pointerdown', selectAtPointer)

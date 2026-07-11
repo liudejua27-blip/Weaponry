@@ -332,6 +332,16 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (!canvasBox || canvasBox.width < 400 || canvasBox.height < 300) {
       throw new Error(`ModuleGraph canvas is not usable: ${JSON.stringify(canvasBox)}`)
     }
+    await page.getByRole('button', { name: '测量', exact: true }).click()
+    await page.getByTestId('measurement-overlay').waitFor()
+    await page.mouse.click(canvasBox.x + canvasBox.width * 0.5, canvasBox.y + canvasBox.height * 0.46)
+    await assertText(page.getByTestId('measurement-overlay'), ['点击模型设置终点'])
+    await page.mouse.click(canvasBox.x + canvasBox.width * 0.57, canvasBox.y + canvasBox.height * 0.46)
+    await assertText(page.getByTestId('measurement-overlay'), ['点到点：', 'mm', '清除'])
+    await assertText(page.locator('.viewport-readout'), ['测量：', 'mm'])
+    await page.getByTestId('measurement-overlay').getByRole('button', { name: '清除' }).click()
+    await assertText(page.getByTestId('measurement-overlay'), ['点击模型设置起点'])
+    await page.getByRole('button', { name: '选择', exact: true }).click()
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: SCREENSHOT, fullPage: true })
     if ((await stat(SCREENSHOT)).size < 20_000) throw new Error('R3 workbench screenshot is unexpectedly small')
