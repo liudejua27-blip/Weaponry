@@ -37,6 +37,7 @@ npm run r5:combined-glb-gate
 8. 桌面 GLB 按钮下载以参考 Pack 生成的多 mesh 文件，header 为 `glTF`；
 9. 源 ZIP 继续保留 Spec、Graph、Quality、Manifest 和独立模块。
 10. 2026-07-11 用工作台 E2E 导出的 10 模块 reference combined GLB 运行 Blender 4.2.22 往返；源 SHA-256 保持不变，840 顶点 / 420 三角保持一致。
+11. 2026-07-11 用隔离 Agent 导出的十模块 visual candidate combined GLB 运行 Blender 4.2.22 往返；源 SHA-256 保持不变，输出为 25808 顶点 / 10716 三角。该资产仍待人工审批。
 
 ## 未完成
 

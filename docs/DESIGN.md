@@ -580,7 +580,7 @@ PNG 管线以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 
 
 展示交付切片在透明轮廓外缘增加固定 coverage 像素，并在非 top 相机下绘制确定性半透明软接触阴影；算法和模式进入 Export metadata/JobEvent，避免把技术预览写成照片级渲染。请求显式设置 `include_turntable_video=true` 时，Agent 通过配置的 FFmpeg 以固定 8 fps、单线程 H.264 参数和移除时间元数据的方式生成 `Renders/turntable.mp4`；视频和 13 张 PNG 一同进入 `render-set.zip`、主 ZIP 与 Manifest。旧请求默认不依赖 FFmpeg；视频请求在编码器缺失时返回结构化 `VIDEO_ENCODER_UNAVAILABLE`。桌面在 Version 未变化且所需工件存在时复用最近 Export，避免各格式形成不同交付真相。
 
-`scripts/check_dcc_roundtrip.py` 是只读交付门：发现 Blender/Assimp 后将显式输入的 combined GLB 导入再导出，校验源 SHA-256 未变化、输出 GLB 2.0 可读且 flatten 后 vertex/triangle count 一致。没有 DCC 时只返回 `blocked_dcc_not_configured`；这不构成 round-trip 证据。2026-07-11 已用 Blender 4.2.22 对工作台 E2E 导出的 10 模块 reference combined GLB 与实际 visual-v2 三模块组合 combined GLB 返回 `dcc_roundtrip_validated`；这是导出链证据，不是正式人工 Blender 资产验收。当前渲染器仍不含贴图、PBR 环境光或照片级材质。
+`scripts/check_dcc_roundtrip.py` 是只读交付门：发现 Blender/Assimp 后将显式输入的 combined GLB 导入再导出，校验源 SHA-256 未变化、输出 GLB 2.0 可读且 flatten 后 vertex/triangle count 一致。没有 DCC 时只返回 `blocked_dcc_not_configured`；这不构成 round-trip 证据。2026-07-11 已用 Blender 4.2.22 对工作台 E2E 导出的 10 模块 reference、实际 visual-v2 三模块以及十模块 visual candidate combined GLB 返回 `dcc_roundtrip_validated`；这是导出链证据，不是正式人工 Blender 资产验收。当前渲染器仍不含贴图、PBR 环境光或照片级材质。
 
 ## 14. 验证策略
 

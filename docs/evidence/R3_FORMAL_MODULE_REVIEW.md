@@ -4,7 +4,7 @@
 
 ## 范围
 
-证明 ForgeCAD 已具备把真实人工 Blender 工件从“技术 Pack 通过”推进到“可审计正式资产候选”的合同与只读门禁。当前机器已用 Blender 4.2.22 真实生成三模块 starter；synthetic 正例仍只证明“所有条件满足时可通过”，真实 starter 则用于证明“未人工批准时必须失败”。
+证明 ForgeCAD 已具备把真实人工 Blender 工件从“技术 Pack 通过”推进到“可审计正式资产候选”的合同与只读门禁。当前机器已用 Blender 4.2.22 真实生成三模块 starter 和十模块 visual candidate；synthetic 正例仍只证明“所有条件满足时可通过”，真实 candidate 审阅草稿则用于证明“未人工批准时必须失败”。
 
 ## 已实现
 
@@ -28,7 +28,7 @@ npm run contracts:types:check
 
 烟测覆盖：synthetic 正例、reference generator、低三角、starter 许可证、作者自审、评分低于 4、未勾选 checklist、unknown field、source/GLB/thumbnail/module Manifest/Pack license/Module license hash 篡改、Connector 漂移、Connector 数组重排与 `0`/`0.0`/`-0.0` 表示等价、报告覆盖和绝对路径排除。所有 synthetic 文件均在临时目录中销毁，不进入 Module Pack 或 Library。
 
-早期真实 starter 草稿的 validate 因 core 940 三角包含 `FORMAL_TRIANGLE_FLOOR_NOT_MET`。visual-v2 starter 将三模块提升到 2256 / 1316 / 1504 三角后，validate 仍按预期失败，但只剩 `FORMAL_REVIEW_NOT_APPROVED`、`FORMAL_LICENSE_NOT_PROMOTABLE` 和 `FORMAL_VISUAL_SCORE_BELOW_THRESHOLD`。修复规范化后不再误报 `FORMAL_CONNECTOR_CONTRACT_CHANGED`，而真实 Connector 位置漂移负例仍失败。
+早期真实 starter 草稿的 validate 因 core 940 三角包含 `FORMAL_TRIANGLE_FLOOR_NOT_MET`。visual-v2 starter 将三模块提升到 2256 / 1316 / 1504 三角后，validate 仍按预期失败，但只剩 `FORMAL_REVIEW_NOT_APPROVED`、`FORMAL_LICENSE_NOT_PROMOTABLE` 和 `FORMAL_VISUAL_SCORE_BELOW_THRESHOLD`。十模块 visual candidate 的 `release_10_12` 草稿也按预期因 starter 许可证、占位 reviewer/批准和人工 checklist/评分失败，未生成 promotion report。修复规范化后不再误报 `FORMAL_CONNECTOR_CONTRACT_CHANGED`，而真实 Connector 位置漂移负例仍失败。
 
 ```bash
 npm run assets:formal-review-draft -- \

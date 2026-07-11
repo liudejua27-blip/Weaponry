@@ -59,7 +59,7 @@ curl --fail http://127.0.0.1:8000/api/health
 curl --fail http://127.0.0.1:8000/api/provider-settings
 ```
 
-当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top、8 帧 turntable 和 MP4 导出 API 已实现；Blender 4.2.22 已对 starter core 与工作台 visual-v2 三模块组合 GLB 完成真实 DCC 往返，正式资产渲染性能、正式 Blender 全装配往返和完整 R5 检查矩阵尚未完成。
+当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top、8 帧 turntable 和 MP4 导出 API 已实现；Blender 4.2.22 已对 starter core、工作台 visual-v2 三模块、10 模块 reference 和 10 模块 visual candidate 组合 GLB 完成真实 DCC 往返。candidate 的完整 OBJ/PNG/MP4 交付也已在隔离 Agent 验证；正式资产渲染性能、最终批准 Blender 全装配往返和完整 R5 检查矩阵尚未完成。
 
 ### 1.4 打开参考工作台
 
@@ -161,7 +161,7 @@ npm run r5:c07-localization-gate
 npm run r5:c07-policy-gate
 ```
 
-`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module/Change Planner Provider 边界与可追溯受限操作，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。starter core 和 visual-v2 三模块组合已有真实 Blender 往返证据，但这些门仍不证明人工最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或正式 Blender 全装配往返。
+`r1:gate` 聚合后端 foundation 与前端 composition 两组门。`r2:gate` 证明 Concept 数据、源包和 JobEvent@2；`r3:workbench-gate` 验证参考 Pack、真实桌面交互、Connector 数学与 GPU 生命周期；`r4:planner-gate` 验证 Brief/Module/Change Planner Provider 边界与可追溯受限操作，但不证明真实模型质量。`r5:c07-policy-gate` 验证 `weapon-concept-geometry/1.3`，其他 R5 门验证 OBJ/PNG/MP4 与展示交付。starter core、visual-v2 三模块和十模块 visual candidate 均已有真实 Blender 往返证据；candidate 的完整展示交付也已通过隔离 Agent 校验，但这些门仍不证明人工最终资产矩阵上的 ≥95%、真实 AI 指标、Tauri GPU profiling、多 LOD、照片级渲染或最终批准 Blender 全装配往返。
 
 `r3:change-set-audit-gate` 专门验证 migration 0012/0016、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、批量 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、24–25 条桌面时间线/归档下载和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
@@ -279,7 +279,7 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 只有输出 `dcc_roundtrip_validated` 才表示真实导入/再导出通过。`blocked_dcc_not_configured` 只是环境诊断；安装 Blender/Assimp 并设置 `FORGECAD_BLENDER_EXECUTABLE` 或 `FORGECAD_ASSIMP_EXECUTABLE` 后重跑。runner 拒绝覆盖输入和写入提交中的 Module Pack，并比较输入 SHA-256 与往返前后 vertex/triangle count。
 
-2026-07-11 的真实样本运行已包含视觉层级增强的 re-export core GLB（5354 顶点、2256 三角）、工作台导出的 10 模块 reference combined GLB（840 顶点、420 三角），以及视觉层级增强的三模块经隔离工作台导入/替换后的 combined GLB（8980 顶点、3760 三角）。三者都由 Blender 4.2.22 返回 `dcc_roundtrip_validated`，源 SHA-256 不变。reference Pack 仍是工具链基线，发布前必须对正式 Blender 资产的 combined GLB 重跑同一命令。
+2026-07-11 的真实样本运行已包含视觉层级增强的 re-export core GLB（5354 顶点、2256 三角）、工作台导出的 10 模块 reference combined GLB（840 顶点、420 三角）、视觉层级增强的三模块经隔离工作台导入/替换后的 combined GLB（8980 顶点、3760 三角），以及十模块 visual candidate combined GLB（25808 顶点、10716 三角）。四者都由 Blender 4.2.22 返回 `dcc_roundtrip_validated`，源 SHA-256 不变。reference Pack 与 candidate 都是工具链/待审资产基线，发布前必须对最终批准 Blender 资产的 combined GLB 重跑同一命令。
 
 实际几何检查使用 `POST /api/v1/versions/{version_id}/quality-runs:inspect`，请求必须带 `Idempotency-Key`：
 

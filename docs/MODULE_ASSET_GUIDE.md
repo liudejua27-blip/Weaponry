@@ -227,7 +227,7 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
   npm run assets:blender-starter-build
 ```
 
-2026-07-11 已用 Blender 4.2.22 LTS 真实生成并只读重导出三模块；source hash 不变，Connector 与 reference baseline 语义一致。该结果是编辑起点，不是正式美术批准。
+2026-07-11 已用 Blender 4.2.22 LTS 真实生成并只读重导出三模块及十模块 visual candidate；source hash 不变，Connector 与 reference baseline 语义一致。完整 candidate 的 9 节点组合、质量、GLB/OBJ/PNG/MP4 交付和 DCC 往返均已作为待审技术证据通过；该结果是编辑起点，不是正式美术批准。
 
 详细输出、人工编辑和晋级边界见 [Blender Authoring Starter](BLENDER_AUTHORING_STARTER.md)。
 
