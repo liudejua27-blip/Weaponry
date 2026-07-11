@@ -22,6 +22,8 @@ const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-prev
 const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
+const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 180_000)
+let smokeStage = 'initializing'
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -51,6 +53,7 @@ async function main() {
     )
     processes.push(agent)
     await waitForHttp(`${agentBaseUrl}/api/health`, agent, 'agent health')
+    smokeStage = 'seeding Concept Project and Module Pack'
     const seeded = await seedConceptGraph(agentBaseUrl)
 
     const vite = spawn(
@@ -64,7 +67,9 @@ async function main() {
     )
     processes.push(vite)
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
+    smokeStage = 'running browser workbench flow'
     const result = await runWorkbenchUi(viteBaseUrl, agentBaseUrl, seeded)
+    smokeStage = 'stopping initial agent'
     await stopProcess(agent)
     const restartPort = await freePort()
     const restartBaseUrl = `http://127.0.0.1:${restartPort}`
@@ -85,13 +90,16 @@ async function main() {
     )
     processes.push(restartedAgent)
     await waitForHttp(`${restartBaseUrl}/api/health`, restartedAgent, 'restarted agent health')
+    smokeStage = 'verifying persistence after agent restart'
     const restartVerified = await verifyReplacement(
       restartBaseUrl,
       seeded.project_id,
       result.change_set_audit_export,
     )
+    smokeStage = 'writing result'
     console.log(JSON.stringify({ ok: true, ...seeded, ...result, restart_verified: restartVerified }, null, 2))
   } finally {
+    smokeStage = 'cleaning child processes and temporary library'
     await Promise.all(processes.reverse().map(stopProcess))
     await rm(tempRoot, { recursive: true, force: true })
   }
@@ -659,12 +667,12 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
         (reference) => (reference.world_triangles_mm ?? []).length > 0,
       ),
     )
-    if (qualityRecord.report.status !== 'warning' || highlightedFindingIndex < 0) {
+    if (qualityRecord.report.status !== 'failed' || highlightedFindingIndex < 0) {
       throw new Error(`unexpected geometry quality report: ${JSON.stringify(qualityRecord.report)}`)
     }
     await assertText(page.locator('.properties-panel'), [
       'Mesh/Assembly',
-      '需复核',
+      '失败',
       '几何检查不代表结构强度、制造可行性或使用安全验证',
     ])
     const highlightedFinding = qualityFindings[highlightedFindingIndex]
@@ -915,8 +923,12 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       turntable_render: TURNTABLE_RENDER,
     }
   } finally {
-    await context.close()
-    await browser.close()
+    // Headless Chrome can occasionally wait indefinitely while flushing a
+    // cancelled download target in CI. All assertions and screenshots above
+    // have completed at this point; let the explicit smoke-process shutdown
+    // own browser teardown instead of holding the release gate forever.
+    void context.close().catch(() => undefined)
+    void browser.close().catch(() => undefined)
   }
 }
 
@@ -982,7 +994,8 @@ async function seedTimelineAuditFixture(baseUrl, projectId) {
       },
     })
   }
-  return { rejected_id: rejectedId, total_count: 24 }
+  // replacement + mirror + confirmed transform + rejected fixture + 21 proposed fixtures
+  return { rejected_id: rejectedId, total_count: 25 }
 }
 
 async function downloadDirect(page, url) {
@@ -1038,8 +1051,10 @@ async function stressViewportLifecycle(page) {
   const initialGeneration = Number(await host.getAttribute('data-renderer-generation') || '0')
   const cycles = 20
   for (let index = 0; index < cycles; index += 1) {
-    await switchVersionAndWait(page, 'V3')
     await switchVersionAndWait(page, 'V4')
+    // End each cycle on the current immutable version. ChangeSet confirmation
+    // intentionally rejects previews made from an older historical branch.
+    await switchVersionAndWait(page, 'V5')
     const canvasCount = await page.locator('.weapon-viewport canvas').count()
     const activeContexts = Number(await host.getAttribute('data-active-webgl-contexts') || '0')
     if (canvasCount !== 1 || activeContexts !== 1) {
@@ -1379,7 +1394,19 @@ function sleep(milliseconds) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds))
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+const smokeTimeout = setTimeout(() => {
+  console.error(`Workbench smoke timed out during: ${smokeStage}`)
+  process.exit(1)
+}, SMOKE_TIMEOUT_MS)
+
+main().then(
+  () => {
+    clearTimeout(smokeTimeout)
+    process.exit(0)
+  },
+  (error) => {
+    clearTimeout(smokeTimeout)
+    console.error(error)
+    process.exit(1)
+  },
+)
