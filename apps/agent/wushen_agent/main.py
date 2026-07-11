@@ -65,9 +65,9 @@ def create_app() -> FastAPI:
     app.include_router(build_concept_project_router(concept_projects, concept_bootstrap))
     app.include_router(build_module_router(concept_modules))
     app.include_router(build_change_set_router(concept_change_sets))
-    app.include_router(build_quality_router(concept_quality))
+    app.include_router(build_quality_router(concept_quality, concept_jobs))
     app.include_router(build_brief_router(concept_briefs))
-    app.include_router(build_concept_job_router(concept_jobs))
+    app.include_router(build_concept_job_router(concept_jobs, concept_quality))
     app.include_router(build_export_router(concept_exports))
     app.include_router(build_audit_export_router(change_set_audits))
 
@@ -76,6 +76,8 @@ def create_app() -> FastAPI:
         worker_enabled = local_worker_enabled()
         if os.environ.get("WUSHEN_RECOVER_ON_STARTUP", "1").strip() != "0":
             store.recover_interrupted_jobs(reason="startup", include_queued=not worker_enabled)
+        if os.environ.get("FORGECAD_CONCEPT_RECOVER_ON_STARTUP", "1").strip() != "0":
+            concept_jobs.recover_interrupted_work(force=True)
         if worker_enabled:
             app.state.local_worker_task = asyncio.create_task(
                 run_local_worker_loop(
@@ -86,12 +88,25 @@ def create_app() -> FastAPI:
                     ),
                 )
             )
+        if os.environ.get("FORGECAD_CONCEPT_WORKER_ENABLED", "1").strip() != "0":
+            async def run_concept_worker_loop() -> None:
+                while True:
+                    completed = await asyncio.to_thread(
+                        concept_jobs.run_next_quality_inspection,
+                        concept_quality,
+                        runner_id=os.environ.get("FORGECAD_CONCEPT_WORKER_ID", "local_concept_worker"),
+                    )
+                    await asyncio.sleep(0.05 if completed is not None else 0.25)
+            app.state.concept_worker_task = asyncio.create_task(run_concept_worker_loop())
 
     @app.on_event("shutdown")
     async def stop_local_worker_on_shutdown() -> None:
         task = getattr(app.state, "local_worker_task", None)
         if task is not None:
             await stop_worker_task(task)
+        concept_task = getattr(app.state, "concept_worker_task", None)
+        if concept_task is not None:
+            await stop_worker_task(concept_task)
 
     return app
 

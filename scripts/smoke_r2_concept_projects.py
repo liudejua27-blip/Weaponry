@@ -234,6 +234,7 @@ def _start_agent(library_root: Path, port: int) -> subprocess.Popen:
     environment["WUSHEN_LIBRARY_ROOT"] = str(library_root)
     environment["WUSHEN_MIGRATIONS_DIR"] = str(ROOT / "migrations")
     environment["WUSHEN_LOCAL_WORKER_ENABLED"] = "0"
+    environment.setdefault("FORGECAD_CONCEPT_WORKER_ENABLED", "0")
     environment["FORGECAD_CONCEPT_PLANNER_PROVIDER"] = "deterministic_rules"
     return subprocess.Popen(
         [

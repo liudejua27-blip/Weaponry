@@ -1320,6 +1320,221 @@ class ConceptJobRepository:
             ),
         )
 
+    def append_event(
+        self,
+        *,
+        event_id: str,
+        job_id: str,
+        project_id: str,
+        version_id: Optional[str],
+        step: str,
+        level: str,
+        status: str,
+        message: str,
+        progress: float,
+        metadata_json: str,
+        created_at: str,
+    ) -> int:
+        row = self.connection.execute(
+            "SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM concept_job_events WHERE job_id = ?",
+            (job_id,),
+        ).fetchone()
+        seq = int(row["next_seq"])
+        self.add_event(
+            event_id=event_id,
+            job_id=job_id,
+            seq=seq,
+            project_id=project_id,
+            version_id=version_id,
+            step=step,
+            level=level,
+            status=status,
+            message=message,
+            progress=progress,
+            artifact_asset_id=None,
+            metadata_json=metadata_json,
+            created_at=created_at,
+        )
+        return seq
+
+    def add_work_item(
+        self,
+        *,
+        job_id: str,
+        task_type: str,
+        payload_json: str,
+        created_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO concept_job_work_items (
+              job_id, task_type, payload_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (job_id, task_type, payload_json, created_at, created_at),
+        )
+
+    def get_work_item(self, job_id: str) -> Optional[sqlite3.Row]:
+        return self.connection.execute(
+            """
+            SELECT job_id, task_type, payload_json, retry_count, lease_owner,
+                   lease_expires_at, created_at, updated_at
+            FROM concept_job_work_items
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+
+    def claim_next_work_item(
+        self,
+        *,
+        runner_id: str,
+        now: str,
+        lease_expires_at: str,
+    ) -> Optional[sqlite3.Row]:
+        row = self.connection.execute(
+            """
+            SELECT j.job_id, j.project_id, j.version_id, j.job_type, j.status,
+                   j.input_json, w.task_type, w.payload_json, w.retry_count
+            FROM concept_jobs j
+            JOIN concept_job_work_items w ON w.job_id = j.job_id
+            WHERE j.status IN ('queued', 'retrying')
+              AND (w.lease_expires_at IS NULL OR w.lease_expires_at < ?)
+            ORDER BY j.created_at ASC, j.job_id ASC
+            LIMIT 1
+            """,
+            (now,),
+        ).fetchone()
+        if row is None:
+            return None
+        claimed = self.connection.execute(
+            """
+            UPDATE concept_jobs
+            SET status = 'running', current_step = 'claim', updated_at = ?
+            WHERE job_id = ? AND status IN ('queued', 'retrying')
+            """,
+            (now, row["job_id"]),
+        )
+        if claimed.rowcount != 1:
+            return None
+        self.connection.execute(
+            """
+            UPDATE concept_job_work_items
+            SET lease_owner = ?, lease_expires_at = ?, updated_at = ?
+            WHERE job_id = ?
+            """,
+            (runner_id, lease_expires_at, now, row["job_id"]),
+        )
+        return row
+
+    def finish_work_item(
+        self,
+        *,
+        job_id: str,
+        status: str,
+        current_step: str,
+        output_json: str,
+        error_code: Optional[str],
+        error_message: Optional[str],
+        finished_at: Optional[str],
+        updated_at: str,
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE concept_jobs
+            SET status = ?, current_step = ?, output_json = ?, error_code = ?,
+                error_message = ?, updated_at = ?, finished_at = ?
+            WHERE job_id = ?
+            """,
+            (
+                status, current_step, output_json, error_code, error_message,
+                updated_at, finished_at, job_id,
+            ),
+        )
+        self.connection.execute(
+            """
+            UPDATE concept_job_work_items
+            SET lease_owner = NULL, lease_expires_at = NULL, updated_at = ?
+            WHERE job_id = ?
+            """,
+            (updated_at, job_id),
+        )
+
+    def retry_work_item(self, job_id: str, *, now: str) -> Optional[sqlite3.Row]:
+        row = self.get_job(job_id)
+        if row is None or row["status"] not in {"failed", "cancelled"}:
+            return None
+        work_item = self.get_work_item(job_id)
+        if work_item is None:
+            return None
+        self.connection.execute(
+            """
+            UPDATE concept_jobs
+            SET status = 'retrying', current_step = 'retry_requested',
+                error_code = NULL, error_message = NULL, updated_at = ?, finished_at = NULL
+            WHERE job_id = ?
+            """,
+            (now, job_id),
+        )
+        self.connection.execute(
+            """
+            UPDATE concept_job_work_items
+            SET retry_count = retry_count + 1, lease_owner = NULL,
+                lease_expires_at = NULL, updated_at = ?
+            WHERE job_id = ?
+            """,
+            (now, job_id),
+        )
+        return self.get_job(job_id)
+
+    def cancel_queued_work_item(self, job_id: str, *, now: str) -> Optional[sqlite3.Row]:
+        row = self.get_job(job_id)
+        if row is None or row["status"] not in {"queued", "retrying"}:
+            return None
+        if self.get_work_item(job_id) is None:
+            return None
+        self.finish_work_item(
+            job_id=job_id,
+            status="cancelled",
+            current_step="cancelled",
+            output_json=row["output_json"],
+            error_code=None,
+            error_message=None,
+            finished_at=now,
+            updated_at=now,
+        )
+        return self.get_job(job_id)
+
+    def recover_expired_work_items(self, *, now: str, force: bool = False) -> list[sqlite3.Row]:
+        rows = self.connection.execute(
+            """
+            SELECT j.job_id, j.project_id, j.version_id, j.current_step
+            FROM concept_jobs j
+            JOIN concept_job_work_items w ON w.job_id = j.job_id
+            WHERE j.status = 'running'
+              AND (? = 1 OR w.lease_expires_at IS NULL OR w.lease_expires_at < ?)
+            """,
+            (1 if force else 0, now),
+        ).fetchall()
+        for row in rows:
+            self.connection.execute(
+                """
+                UPDATE concept_jobs
+                SET status = 'queued', current_step = 'recovery', updated_at = ?
+                WHERE job_id = ?
+                """,
+                (now, row["job_id"]),
+            )
+            self.connection.execute(
+                """
+                UPDATE concept_job_work_items
+                SET lease_owner = NULL, lease_expires_at = NULL, updated_at = ?
+                WHERE job_id = ?
+                """,
+                (now, row["job_id"]),
+            )
+        return rows
+
     def get_job(self, job_id: str) -> Optional[sqlite3.Row]:
         return self.connection.execute(
             """

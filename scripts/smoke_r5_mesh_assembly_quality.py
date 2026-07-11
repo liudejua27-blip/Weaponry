@@ -189,6 +189,31 @@ def main() -> int:
             _assert(
                 quality_job["events"][-1]["status"] == "succeeded", "quality job failed"
             )
+            queued_quality = _json_request(
+                base_url,
+                f"/api/v1/versions/{version_2}/quality-runs:inspect:enqueue",
+                method="POST",
+                body={
+                    "client_request_id": "r5-quality-worker",
+                    "ruleset_version": "weapon-concept-geometry/1.3",
+                },
+                idempotency_key="r5-quality-worker",
+            )
+            _assert(queued_quality["status"] == "queued", "quality worker job was not queued")
+            cancelled_quality = _json_request(
+                base_url, f"/api/v1/jobs/{queued_quality['job_id']}:cancel", method="POST"
+            )
+            _assert(cancelled_quality["status"] == "cancelled", "queued quality job was not cancelled")
+            retried_quality = _json_request(
+                base_url, f"/api/v1/jobs/{queued_quality['job_id']}:retry", method="POST"
+            )
+            _assert(retried_quality["status"] == "retrying", "cancelled quality job was not retried")
+            completed_quality = _json_request(base_url, "/api/v1/concept-jobs/work-once", method="POST")
+            _assert(completed_quality["status"] == "succeeded", "quality worker did not complete retried job")
+            worker_quality_run = _json_request(
+                base_url, f"/api/v1/quality-runs/{completed_quality['outputs']['quality_run_id']}", method="GET"
+            )
+            _assert(worker_quality_run["report"]["status"] == "warning", "worker quality report mismatch")
             replay = _json_request(
                 base_url,
                 f"/api/v1/versions/{version_2}/quality-runs:inspect",
@@ -281,7 +306,7 @@ def main() -> int:
                 """,
                 (inspected["quality_run_id"],),
             ).fetchone()[0]
-        _assert(report_count == 3, "quality reports were not persisted exactly once")
+        _assert(report_count == 4, "quality reports were not persisted exactly once")
         _assert(finding_count >= 5, "quality findings were not normalized")
         _assert(
             geometry_ref_row_count == 4,

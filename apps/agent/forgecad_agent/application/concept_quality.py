@@ -178,6 +178,9 @@ class ConceptQualityService:
         version_id: str,
         request: InspectConceptVersionRequest,
         idempotency_key: str,
+        *,
+        record_job: bool = True,
+        report_id: Optional[str] = None,
     ) -> QualityRunRecord:
         scope = f"POST /api/v1/versions/{version_id}/quality-runs:inspect"
         request_hash = _hash_json(request.model_dump(mode="json"))
@@ -256,7 +259,7 @@ class ConceptQualityService:
                 else "passed"
             )
             report = ModelQualityReport(
-                report_id=f"quality_{uuid4().hex}",
+                report_id=report_id or f"quality_{uuid4().hex}",
                 project_id=str(version["project_id"]),
                 version_id=version_id,
                 ruleset_version=request.ruleset_version,
@@ -264,6 +267,20 @@ class ConceptQualityService:
                 findings=findings,
                 created_at=now,
             )
+            existing_report = unit_of_work.quality.get_report(report.report_id)
+            if existing_report is not None:
+                response = QualityRunRecord(
+                    quality_run_id=existing_report["quality_run_id"],
+                    project_id=existing_report["project_id"],
+                    version_id=existing_report["version_id"],
+                    report=ModelQualityReport.model_validate_json(existing_report["report_json"]),
+                    created_at=existing_report["created_at"],
+                )
+                unit_of_work.idempotency.add(
+                    scope=scope, key=idempotency_key, request_hash=request_hash,
+                    response_json=_canonical_json(response.model_dump(mode="json")), created_at=now,
+                )
+                return response
             _add_report(unit_of_work, report, now)
             response = QualityRunRecord(
                 quality_run_id=report.report_id,
@@ -272,60 +289,22 @@ class ConceptQualityService:
                 report=report,
                 created_at=now,
             )
-            job_id = record_completed_job(
-                unit_of_work,
-                project_id=report.project_id,
-                version_id=report.version_id,
-                job_type="quality_run",
-                input_payload={
-                    "quality_run_id": report.report_id,
-                    "ruleset_version": report.ruleset_version,
-                    "source": "server_geometry_inspector",
-                },
-                output_payload={
-                    "quality_run_id": report.report_id,
-                    "status": report.status,
-                    "finding_count": len(report.findings),
-                    "geometry_reference_count": sum(
-                        len(finding.geometry_refs) for finding in report.findings
-                    ),
-                },
-                steps=[
-                    (
-                        "load_immutable_assets",
-                        "Loaded version-scoped ModuleGraph and content-addressed GLBs.",
-                        0.25,
-                        {"node_count": len(graph.nodes)},
-                    ),
-                    (
-                        "inspect_meshes",
-                        "Checked indices, triangles, normals, UV0, topology, hidden geometry, density, LOD0, and bounds.",
-                        0.62,
-                        {
-                            "module_count": len(sources),
-                            "triangle_budget": spec.constraints.max_triangle_count,
-                        },
-                    ),
-                    (
-                        "inspect_assembly",
-                        "Checked symmetry, Connector alignment, connected surface gaps, and exact unconnected intersections.",
-                        0.86,
-                        {
-                            "edge_count": len(graph.edges),
-                            "geometry_reference_count": sum(
-                                len(finding.geometry_refs) for finding in findings
-                            ),
-                        },
-                    ),
-                    (
-                        "finalize_report",
-                        "Stored ModelQualityReport@1.",
-                        1.0,
-                        {"status": report.status, "finding_count": len(findings)},
-                    ),
-                ],
-            )
-            response = response.model_copy(update={"job_id": job_id})
+            if record_job:
+                job_id = record_completed_job(
+                    unit_of_work,
+                    project_id=report.project_id,
+                    version_id=report.version_id,
+                    job_type="quality_run",
+                    input_payload={"quality_run_id": report.report_id, "ruleset_version": report.ruleset_version, "source": "server_geometry_inspector"},
+                    output_payload={"quality_run_id": report.report_id, "status": report.status, "finding_count": len(report.findings)},
+                    steps=[
+                        ("load_immutable_assets", "Loaded version-scoped ModuleGraph and content-addressed GLBs.", 0.25, {"node_count": len(graph.nodes)}),
+                        ("inspect_meshes", "Checked indices, triangles, normals, UV0, topology, hidden geometry, density, LOD0, and bounds.", 0.62, {"module_count": len(sources), "triangle_budget": spec.constraints.max_triangle_count}),
+                        ("inspect_assembly", "Checked symmetry, Connector alignment, connected surface gaps, and exact unconnected intersections.", 0.86, {"edge_count": len(graph.edges), "geometry_reference_count": sum(len(finding.geometry_refs) for finding in findings)}),
+                        ("finalize_report", "Stored ModelQualityReport@1.", 1.0, {"status": report.status, "finding_count": len(findings)}),
+                    ],
+                )
+                response = response.model_copy(update={"job_id": job_id})
             unit_of_work.idempotency.add(
                 scope=scope,
                 key=idempotency_key,

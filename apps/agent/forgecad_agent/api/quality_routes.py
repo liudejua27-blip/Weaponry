@@ -15,9 +15,11 @@ from forgecad_agent.application.concept_quality import (
     ConceptQualityIdempotencyConflict,
     ConceptQualityService,
 )
+from forgecad_agent.application.concept_jobs import ConceptJobError, ConceptJobService
+from forgecad_agent.application.concept_models import ConceptJobRecord
 
 
-def build_quality_router(service: ConceptQualityService) -> APIRouter:
+def build_quality_router(service: ConceptQualityService, jobs: ConceptJobService | None = None) -> APIRouter:
     router = APIRouter(prefix="/api/v1", tags=["concept-quality"])
 
     @router.post(
@@ -61,6 +63,23 @@ def build_quality_router(service: ConceptQualityService) -> APIRouter:
             return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
         except ConceptQualityError as exc:
             return _quality_error_response(exc)
+
+    @router.post(
+        "/versions/{version_id}/quality-runs:inspect:enqueue",
+        response_model=ConceptJobRecord,
+        status_code=202,
+    )
+    def enqueue_concept_inspection(
+        version_id: str,
+        request: InspectConceptVersionRequest,
+        idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
+    ) -> Union[ConceptJobRecord, JSONResponse]:
+        if jobs is None:
+            return _error_response(503, "CONCEPT_WORKER_UNAVAILABLE", "Concept quality worker is unavailable.")
+        try:
+            return jobs.enqueue_quality_inspection(version_id, request, _require_idempotency_key(idempotency_key))
+        except ConceptJobError as exc:
+            return _error_response(409 if exc.code == "IDEMPOTENCY_CONFLICT" else 404 if exc.code in {"VERSION_NOT_FOUND", "MODULE_GRAPH_NOT_FOUND"} else 500, exc.code, str(exc))
 
     @router.get("/quality-runs/{quality_run_id}", response_model=QualityRunRecord)
     def get_quality_run(

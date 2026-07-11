@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Annotated, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -14,13 +14,36 @@ from forgecad_agent.application.concept_models import (
 )
 
 
-def build_concept_job_router(service: ConceptJobService) -> APIRouter:
+def build_concept_job_router(service: ConceptJobService, quality_service: Any | None = None) -> APIRouter:
     router = APIRouter(prefix="/api/v1", tags=["concept-jobs"])
 
     @router.get("/jobs/{job_id}", response_model=ConceptJobRecord)
     def get_job(job_id: str) -> Union[ConceptJobRecord, JSONResponse]:
         try:
             return service.get_job(job_id)
+        except ConceptJobError as exc:
+            return _job_error_response(exc)
+
+    @router.post("/jobs/{job_id}:cancel", response_model=ConceptJobRecord)
+    def cancel_job(job_id: str) -> Union[ConceptJobRecord, JSONResponse]:
+        try:
+            return service.cancel_queued_job(job_id)
+        except ConceptJobError as exc:
+            return _job_error_response(exc)
+
+    @router.post("/jobs/{job_id}:retry", response_model=ConceptJobRecord)
+    def retry_job(job_id: str) -> Union[ConceptJobRecord, JSONResponse]:
+        try:
+            return service.retry_job(job_id)
+        except ConceptJobError as exc:
+            return _job_error_response(exc)
+
+    @router.post("/concept-jobs/work-once", response_model=Optional[ConceptJobRecord])
+    def work_once() -> Union[ConceptJobRecord, None, JSONResponse]:
+        if quality_service is None:
+            return _job_error_response(ConceptJobError("CONCEPT_WORKER_UNAVAILABLE", "Concept quality worker is unavailable."))
+        try:
+            return service.run_next_quality_inspection(quality_service, runner_id="manual_api_worker")
         except ConceptJobError as exc:
             return _job_error_response(exc)
 
@@ -64,10 +87,12 @@ def build_concept_job_router(service: ConceptJobService) -> APIRouter:
 
 
 def _job_error_response(exc: ConceptJobError) -> JSONResponse:
-    if exc.code == "CONCEPT_JOB_NOT_FOUND":
+    if exc.code in {"CONCEPT_JOB_NOT_FOUND", "VERSION_NOT_FOUND", "MODULE_GRAPH_NOT_FOUND"}:
         status_code = 404
     elif exc.code == "INVALID_EVENT_CURSOR":
         status_code = 400
+    elif exc.code in {"JOB_ACTION_CONFLICT", "IDEMPOTENCY_CONFLICT"}:
+        status_code = 409
     else:
         status_code = 500
     return JSONResponse(
