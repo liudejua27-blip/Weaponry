@@ -618,6 +618,8 @@
   background: rgb(13 47 76 / 92%);
   box-shadow: 0 8px 20px rgb(0 42 86 / 24%);
   font-size: 9px;
+  flex-wrap: wrap;
+  max-width: 270px;
 }
 
 .measurement-overlay strong { color: #8ed0ff; }
@@ -630,6 +632,30 @@
   background: #183b5c;
   font-size: 8px;
   cursor: pointer;
+}
+
+.measurement-annotations {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding-top: 4px;
+  border-top: 1px solid rgb(122 180 235 / 28%);
+  color: #c5e5fb;
+  font-size: 8px;
+}
+
+.measurement-annotations span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.measurement-annotations button {
+  min-width: 16px;
+  padding: 0 3px;
+  color: #b8d5eb;
+  background: transparent;
 }
 
 .viewport-viewbar {

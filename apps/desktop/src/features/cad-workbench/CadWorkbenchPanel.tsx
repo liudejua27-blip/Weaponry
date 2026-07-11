@@ -58,6 +58,12 @@ type WeaponParameters = {
   detailDensity: number
 }
 
+type MeasurementAnnotation = {
+  annotationId: string
+  points: [ViewportMeasurementPoint, ViewportMeasurementPoint]
+  distanceMm: number
+}
+
 type ModuleCategory = ModuleAssetRecord['manifest']['category']
 type ComponentCategory = 'all' | ModuleCategory
 type ComponentFilter = ComponentCategory | 'installed' | 'compatible' | 'favorites' | 'recent'
@@ -146,6 +152,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [showConnectors, setShowConnectors] = useState(false)
   const [explodeFactor, setExplodeFactor] = useState(0)
   const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
+  const [measurementAnnotations, setMeasurementAnnotations] = useState<MeasurementAnnotation[]>([])
   const [componentCategory, setComponentCategory] = useState<ComponentFilter>('all')
   const [componentQuery, setComponentQuery] = useState('')
   const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>('')
@@ -268,6 +275,23 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const measurementDistance = measurementPoints.length === 2
     ? distanceBetween(measurementPoints[0].position, measurementPoints[1].position)
     : null
+  const measurementStorageKey = concept.project && concept.version
+    ? `forgecad.measurements.v1.${concept.project.project_id}.${concept.version.version_id}`
+    : null
+
+  useEffect(() => {
+    if (!measurementStorageKey) {
+      setMeasurementAnnotations([])
+      return
+    }
+    try {
+      const stored = window.localStorage.getItem(measurementStorageKey)
+      const parsed = stored ? JSON.parse(stored) : []
+      setMeasurementAnnotations(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      setMeasurementAnnotations([])
+    }
+  }, [measurementStorageKey])
   const canSnapSelectedNode = Boolean(
     selectedNode
       && selectedNode.node_id !== concept.graphRecord?.graph.root_node_id
@@ -519,6 +543,28 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     setSelectedComponent(point.nodeId)
     setMeasurementPoints((current) => current.length >= 2 ? [point] : [...current, point])
   }, [])
+
+  const saveMeasurementAnnotations = useCallback((next: MeasurementAnnotation[]) => {
+    setMeasurementAnnotations(next)
+    if (measurementStorageKey) {
+      window.localStorage.setItem(measurementStorageKey, JSON.stringify(next))
+    }
+  }, [measurementStorageKey])
+
+  const pinMeasurement = useCallback(() => {
+    if (measurementPoints.length !== 2 || measurementDistance == null) return
+    const annotation: MeasurementAnnotation = {
+      annotationId: `measure_${Date.now().toString(36)}`,
+      points: [measurementPoints[0], measurementPoints[1]],
+      distanceMm: measurementDistance,
+    }
+    saveMeasurementAnnotations([...measurementAnnotations, annotation])
+    setMeasurementPoints([])
+  }, [measurementAnnotations, measurementDistance, measurementPoints, saveMeasurementAnnotations])
+
+  const removeMeasurementAnnotation = useCallback((annotationId: string) => {
+    saveMeasurementAnnotations(measurementAnnotations.filter((item) => item.annotationId !== annotationId))
+  }, [measurementAnnotations, saveMeasurementAnnotations])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -940,10 +986,17 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 {measurementDistance == null ? (
                   <span>{measurementPoints.length === 0 ? '点击模型设置起点' : '点击模型设置终点'}</span>
                 ) : (
-                  <strong>点到点：{measurementDistance.toFixed(2)} mm</strong>
+                  <><strong>点到点：{measurementDistance.toFixed(2)} mm</strong><button onClick={pinMeasurement}>固定标注</button></>
                 )}
                 {measurementPoints.length > 0 && (
                   <button onClick={() => setMeasurementPoints([])}>清除</button>
+                )}
+                {measurementAnnotations.length > 0 && (
+                  <div className="measurement-annotations" data-testid="measurement-annotations">
+                    {measurementAnnotations.map((annotation, index) => (
+                      <span key={annotation.annotationId}>标注 {index + 1} · {annotation.distanceMm.toFixed(2)} mm <button onClick={() => removeMeasurementAnnotation(annotation.annotationId)}>×</button></span>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
