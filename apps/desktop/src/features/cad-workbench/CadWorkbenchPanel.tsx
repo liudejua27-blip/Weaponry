@@ -129,7 +129,7 @@ const TOOL_ITEMS: Array<{
   { id: 'scale', label: '缩放', icon: ArrowsOutCardinal, implemented: true },
   { id: 'orbit', label: '旋转视图', icon: ArrowsClockwise, implemented: true },
   { id: 'measure', label: '测量', icon: Ruler, implemented: true },
-  { id: 'section', label: '截面', icon: SelectionAll, implemented: false, unavailableReason: '裁切平面尚未实现，避免显示为可用能力。' },
+  { id: 'section', label: '截面', icon: SelectionAll, implemented: true },
 ]
 
 export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
@@ -144,6 +144,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
   const [xRay, setXRay] = useState(false)
+  const [sectionOffset, setSectionOffset] = useState(0)
   const [selectedComponent, setSelectedComponent] = useState('')
   const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState('')
   const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
@@ -974,6 +975,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               showGrid={showGrid}
               wireframe={wireframe}
               xRay={xRay}
+              sectionEnabled={activeTool === 'section'}
+              sectionOffset={sectionOffset}
               selectedNodeId={selectedComponent}
               hiddenNodeIds={hiddenNodeIds}
               focusNodeId={focusedNodeId}
@@ -1020,6 +1023,12 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 )}
               </div>
             )}
+            {activeTool === 'section' && (
+              <label className="section-overlay" data-testid="section-overlay">
+                <span>X 向裁切平面 · {sectionOffset.toFixed(0)} mm</span>
+                <input aria-label="截面偏移" type="range" min="-120" max="120" step="1" value={sectionOffset} onChange={(event) => setSectionOffset(Number(event.target.value))} />
+              </label>
+            )}
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
               <IconButton icon={House} label="等轴" active={cameraView === 'iso'} onClick={() => setCameraView('iso')} />
@@ -1034,7 +1043,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               />
             </div>
             <div className="viewport-readout">
-              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : measurementMode === 'distance' ? `测量：${measurementDistance.toFixed(2)} mm` : `法线夹角：${measurementAngle?.toFixed(2)}°` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
+              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : measurementMode === 'distance' ? `测量：${measurementDistance.toFixed(2)} mm` : `法线夹角：${measurementAngle?.toFixed(2)}°` : activeTool === 'section' ? `截面：X = ${sectionOffset.toFixed(0)} mm` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
               <span>{xRay ? 'X-Ray' : '单位：mm'}</span>
             </div>
           </div>

@@ -25,6 +25,8 @@ type ModuleGraphViewportProps = {
   showGrid: boolean
   wireframe: boolean
   xRay: boolean
+  sectionEnabled: boolean
+  sectionOffset: number
   selectedNodeId: string
   hiddenNodeIds: string[]
   focusNodeId: string | null
@@ -51,6 +53,8 @@ type ViewportRuntime = {
   controls: OrbitControls
   transformControls: TransformControls
   transformHelper: THREE.Object3D
+  sectionPlane: THREE.Plane
+  sectionHelper: THREE.PlaneHelper
   grid: THREE.GridHelper
   moduleRoot: THREE.Group
   qualityRoot: THREE.Group
@@ -82,6 +86,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     scene.background = new THREE.Color('#101823')
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    renderer.localClippingEnabled = true
     viewportRendererGeneration += 1
     activeViewportContexts += 1
     host.dataset.rendererGeneration = String(viewportRendererGeneration)
@@ -107,6 +112,10 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
     scene.add(grid)
     scene.add(new THREE.AxesHelper(28))
+    const sectionPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)
+    const sectionHelper = new THREE.PlaneHelper(sectionPlane, 180, '#f0b84b')
+    sectionHelper.visible = false
+    scene.add(sectionHelper)
     const transformControls = new TransformControls(camera, renderer.domElement)
     const transformHelper = transformControls.getHelper()
     transformHelper.visible = false
@@ -140,6 +149,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       controls,
       transformControls,
       transformHelper,
+      sectionPlane,
+      sectionHelper,
       grid,
       moduleRoot,
       qualityRoot,
@@ -313,6 +324,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.showGrid,
     props.wireframe,
     props.xRay,
+    props.sectionEnabled,
+    props.sectionOffset,
     props.transformTool,
     props.transformSpace,
     props.snapEnabled,
@@ -343,6 +356,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         data-load-state={loadState}
         data-preview-mode={props.ghostPreview ? 'ghost' : 'committed'}
         data-xray={props.xRay ? 'enabled' : 'disabled'}
+        data-section={props.sectionEnabled ? 'enabled' : 'disabled'}
+        data-section-offset={String(props.sectionOffset)}
         data-focus-node-id={props.focusNodeId ?? ''}
         data-quality-node-ids={props.qualityHighlightNodeIds.join(',')}
         data-quality-triangle-count={props.qualityGeometryRefs.reduce(
@@ -426,6 +441,9 @@ function loadModuleSource(
 
 function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
   runtime.grid.visible = props.showGrid
+  runtime.sectionPlane.constant = props.sectionOffset
+  runtime.sectionHelper.visible = props.sectionEnabled
+  runtime.renderer.clippingPlanes = props.sectionEnabled ? [runtime.sectionPlane] : []
   const graph = runtime.graph
   if (!graph) return
   const rootPosition = new THREE.Vector3(

@@ -645,6 +645,24 @@
   cursor: pointer;
 }
 
+.section-overlay {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+  padding: 8px;
+  border: 1px solid #a37538;
+  border-radius: 6px;
+  color: #ffe0a5;
+  background: rgb(70 45 15 / 92%);
+  font-size: 9px;
+}
+
+.section-overlay input { accent-color: #f0b84b; }
+
 .measurement-annotations {
   display: grid;
   width: 100%;
