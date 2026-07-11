@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding } from '../../shared/types'
+import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } from '../../shared/types'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
+type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
 type Graph = NonNullable<ModuleGraphRecord>['graph']
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
@@ -25,9 +27,13 @@ type ModuleGraphViewportProps = {
   showConnectors: boolean
   explodeFactor: number
   ghostPreview: boolean
+  transformTool: TransformTool
+  transformSpace: 'world' | 'local'
+  snapEnabled: boolean
   getModuleFileUrl: (moduleId: string) => string
   onSelectNode: (nodeId: string) => void
   onDropModule: (nodeId: string, moduleId: string) => void
+  onTransformCommit: (nodeId: string, transform: Transform) => void
 }
 
 type ViewportRuntime = {
@@ -35,6 +41,8 @@ type ViewportRuntime = {
   camera: THREE.PerspectiveCamera
   renderer: THREE.WebGLRenderer
   controls: OrbitControls
+  transformControls: TransformControls
+  transformHelper: THREE.Object3D
   grid: THREE.GridHelper
   moduleRoot: THREE.Group
   qualityRoot: THREE.Group
@@ -91,6 +99,10 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
     scene.add(grid)
     scene.add(new THREE.AxesHelper(28))
+    const transformControls = new TransformControls(camera, renderer.domElement)
+    const transformHelper = transformControls.getHelper()
+    transformHelper.visible = false
+    scene.add(transformHelper)
     const moduleRoot = new THREE.Group()
     moduleRoot.name = 'ModuleGraphRoot'
     scene.add(moduleRoot)
@@ -118,6 +130,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       camera,
       renderer,
       controls,
+      transformControls,
+      transformHelper,
       grid,
       moduleRoot,
       qualityRoot,
@@ -130,6 +144,20 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       scheduleRender,
     }
     runtimeRef.current = runtime
+
+    const onTransformDragging = (event: { value: unknown }) => {
+      controls.enabled = event.value !== true
+    }
+    const onTransformObjectChange = () => runtime.scheduleRender()
+    const onTransformCommit = () => {
+      const object = transformControls.object
+      const nodeId = object?.userData.nodeId
+      if (!object || typeof nodeId !== 'string') return
+      propsRef.current.onTransformCommit(nodeId, transformFromObject(object))
+    }
+    transformControls.addEventListener('dragging-changed', onTransformDragging)
+    transformControls.addEventListener('objectChange', onTransformObjectChange)
+    transformControls.addEventListener('mouseUp', onTransformCommit)
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
@@ -179,6 +207,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      transformControls.removeEventListener('dragging-changed', onTransformDragging)
+      transformControls.removeEventListener('objectChange', onTransformObjectChange)
+      transformControls.removeEventListener('mouseUp', onTransformCommit)
+      transformControls.detach()
+      transformControls.dispose()
       controls.removeEventListener('change', scheduleRender)
       renderer.domElement.removeEventListener('pointerdown', selectAtPointer)
       renderer.domElement.removeEventListener('dragover', allowModuleDrop)
@@ -229,6 +262,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       .then(() => {
         if (cancelled) return
         applyVisualState(runtime, propsRef.current)
+        syncTransformControls(runtime, propsRef.current)
         frameVisibleObjects(runtime, propsRef.current)
         setLoadState('ready')
         setLoadMessage(`已加载 ${graph.nodes.length} 个真实 GLB 节点`)
@@ -248,6 +282,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const runtime = runtimeRef.current
     if (!runtime) return
     applyVisualState(runtime, propsRef.current)
+    syncTransformControls(runtime, propsRef.current)
     runtime.scheduleRender()
   }, [
     props.explodeFactor,
@@ -258,6 +293,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.showConnectors,
     props.showGrid,
     props.wireframe,
+    props.transformTool,
+    props.transformSpace,
+    props.snapEnabled,
     graphHash,
   ])
 
@@ -411,6 +449,44 @@ function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportPr
       })
     })
   })
+}
+
+function syncTransformControls(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
+  const transformControls = runtime.transformControls
+  const selected = runtime.nodeObjects.get(props.selectedNodeId)
+  const selectedNode = runtime.graph?.nodes.find((node) => node.node_id === props.selectedNodeId)
+  const canTransform = Boolean(
+    selected
+      && selectedNode
+      && !selectedNode.locked
+      && selectedNode.node_id !== runtime.graph?.root_node_id
+      && props.transformTool !== 'none'
+      && !props.ghostPreview
+      && props.explodeFactor === 0,
+  )
+  if (!canTransform || !selected) {
+    transformControls.detach()
+    runtime.transformHelper.visible = false
+    return
+  }
+  runtime.transformHelper.visible = true
+  if (props.transformTool === 'none') return
+  transformControls.setMode(props.transformTool)
+  transformControls.setSpace(props.transformSpace)
+  transformControls.setTranslationSnap(props.snapEnabled ? 1 : null)
+  transformControls.setRotationSnap(props.snapEnabled ? Math.PI / 12 : null)
+  transformControls.setScaleSnap(props.snapEnabled ? 0.05 : null)
+  if (transformControls.object !== selected) transformControls.attach(selected)
+}
+
+function transformFromObject(object: THREE.Object3D): Transform {
+  return {
+    position: [object.position.x, object.position.y, object.position.z],
+    rotation: [object.rotation.x, object.rotation.y, object.rotation.z],
+    // Mirroring is stored separately on the ModuleGraph node; a transform edit must
+    // preserve that invariant rather than serializing a negative scale into the contract.
+    scale: [Math.abs(object.scale.x), Math.abs(object.scale.y), Math.abs(object.scale.z)],
+  }
 }
 
 function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {

@@ -41,6 +41,7 @@ export type ModuleAssetRecord = Api.ModuleAssetRecord
 export type UpdateModuleAssetCatalogMetadataRequest = Api.UpdateModuleAssetCatalogMetadataRequest
 export type ModuleGraph = Api.ModuleGraph
 export type ModuleGraphRecord = Api.ModuleGraphRecord
+export type Transform = Api.Transform
 export type DesignVariantListResponse = Api.DesignVariantListResponse
 export type DesignVariantRecord = Api.DesignVariantRecord
 export type InterpretDesignBriefRequest = Api.InterpretDesignBriefRequest

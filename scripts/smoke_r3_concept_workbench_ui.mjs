@@ -54,10 +54,10 @@ async function main() {
     const seeded = await seedConceptGraph(agentBaseUrl)
 
     const vite = spawn(
-      'npm',
-      ['--workspace', 'apps/desktop', 'run', 'dev', '--', '--host', '127.0.0.1', '--port', String(vitePort)],
+      process.execPath,
+      [join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(vitePort)],
       {
-        cwd: ROOT,
+        cwd: join(ROOT, 'apps', 'desktop'),
         env: { ...process.env, VITE_FORGE_API_BASE_URL: agentBaseUrl },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
@@ -296,7 +296,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     const snappedPosition = await page.locator('.properties-panel .axis-group').first().locator('input').evaluateAll(
       (inputs) => inputs.map((input) => input.value),
     )
-    if (JSON.stringify(snappedPosition) !== JSON.stringify(['-50.00', '0.00', '0.00'])) {
+    if (JSON.stringify(snappedPosition.map(Number)) !== JSON.stringify([-50, 0, 0])) {
       throw new Error(`Connector snap was not reflected in inspector: ${JSON.stringify(snappedPosition)}`)
     }
 
@@ -356,6 +356,50 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '取消镜像' }).waitFor()
     await page.screenshot({ path: MIRROR_SCREENSHOT, fullPage: true })
     if ((await stat(MIRROR_SCREENSHOT)).size < 20_000) throw new Error('mirror screenshot is unexpectedly small')
+
+    await page.getByRole('button', { name: '移动', exact: true }).click()
+    await assertText(page.getByTestId('transform-command-controls'), ['世界坐标', '吸附：1 mm / 15°'])
+    const transformAxis = page.locator('.properties-panel .axis-group').first().locator('input').first()
+    await transformAxis.fill('17')
+    const transformProposePromise = page.waitForResponse(
+      (response) => /\/api\/v1\/versions\/[^/]+\/change-sets$/.test(response.url())
+        && response.request().method() === 'POST',
+    )
+    const transformPreviewPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':preview')
+        && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '预览变换', exact: true }).click()
+    const [transformProposeResponse, transformPreviewResponse] = await Promise.all([
+      transformProposePromise,
+      transformPreviewPromise,
+    ])
+    if (!transformProposeResponse.ok() || !transformPreviewResponse.ok()) {
+      throw new Error(`transform ChangeSet preview failed: propose=${transformProposeResponse.status()} preview=${transformPreviewResponse.status()}`)
+    }
+    const transformChange = await transformProposeResponse.json()
+    if (transformChange.operations?.[0]?.op !== 'set_transform' || transformChange.operations?.[0]?.transform?.position?.[0] !== 17) {
+      throw new Error(`transform ChangeSet payload mismatch: ${JSON.stringify(transformChange)}`)
+    }
+    await page.getByTestId('manual-transform-preview').waitFor()
+    await assertText(page.getByTestId('manual-transform-preview'), ['变换幽灵预览', '变换 node_grip', '确认并创建新版本'])
+    const transformConfirmPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
+    )
+    await page.getByTestId('manual-transform-preview').getByRole('button', { name: '确认并创建新版本' }).click()
+    const transformConfirmResponse = await transformConfirmPromise
+    if (!transformConfirmResponse.ok()) throw new Error(`transform ChangeSet confirm failed: ${transformConfirmResponse.status()}`)
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('变换已确认并创建新版本'),
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('.cad-left-rail'), ['V5', 'ChangeSet: change_desktop_transform_'])
+    const committedTransformPosition = await page.locator('.properties-panel .axis-group').first().locator('input').first().inputValue()
+    if (committedTransformPosition !== '17') {
+      throw new Error(`transform was not reflected in inspector after confirm: ${committedTransformPosition}`)
+    }
+
     const lifecycle = await stressViewportLifecycle(page)
     const timelineFixture = await seedTimelineAuditFixture(agentApiBaseUrl, seeded.project_id)
     await page.getByRole('button', { name: '时间线' }).click()
@@ -538,7 +582,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       { timeout: 20_000 },
     )
     await page.locator('.weapon-viewport[data-preview-mode="committed"]').waitFor()
-    await assertText(page.locator('.cad-left-rail'), ['V5', 'ChangeSet: change_plan_'])
+    await assertText(page.locator('.cad-left-rail'), ['V6', 'ChangeSet: change_plan_'])
     await page.getByRole('button', { name: '时间线', exact: true }).click()
     await page.locator('[data-testid="change-set-planner-meta"]').first().waitFor()
     await assertText(page.locator('[data-testid="change-set-planner-meta"]').first(), [
@@ -1054,8 +1098,8 @@ async function performanceMetric(session, name) {
 
 async function verifyReplacement(baseUrl, projectId, expectedAuditExport) {
   const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
-  if ((project.versions ?? []).length !== 5) {
-    throw new Error(`replacement, mirror, and Change Planner should create V5, got ${(project.versions ?? []).length} versions`)
+  if ((project.versions ?? []).length !== 6) {
+    throw new Error(`replacement, mirror, transform, and Change Planner should create V6, got ${(project.versions ?? []).length} versions`)
   }
   const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
   const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
@@ -1073,6 +1117,9 @@ async function verifyReplacement(baseUrl, projectId, expectedAuditExport) {
   }
   if (gripNode?.mirror_axis !== 'x') {
     throw new Error(`restart lost grip mirror state: ${gripNode?.mirror_axis}`)
+  }
+  if (gripNode?.transform?.position?.[0] !== 17) {
+    throw new Error(`restart lost confirmed grip transform: ${JSON.stringify(gripNode?.transform)}`)
   }
   if (
     version.spec.proportions.overall_length_mm !== 218

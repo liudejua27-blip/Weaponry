@@ -13,6 +13,7 @@ import type {
   DesignVariantRecord,
   ModuleAssetRecord,
   ModuleGraphRecord,
+  Transform,
   PlannedChangeSetRecord,
   QualityRunRecord,
 } from '../../shared/types'
@@ -42,6 +43,7 @@ type ConceptWorkbenchState = {
   brief: DesignBriefRecord | null
   pendingChange: PlannedChangeSetRecord | null
   pendingReplacement: DesignChangeSet | null
+  pendingManualChange: DesignChangeSet | null
   pendingPreview: ChangeSetPreviewResponse | null
   loading: boolean
   error: string | null
@@ -65,6 +67,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
   brief: null,
   pendingChange: null,
   pendingReplacement: null,
+  pendingManualChange: null,
   pendingPreview: null,
   loading: true,
   error: null,
@@ -127,6 +130,7 @@ export function useConceptWorkbench() {
         brief: null,
         pendingChange: null,
         pendingReplacement: null,
+        pendingManualChange: null,
         pendingPreview: null,
         lastAuditExport: auditExportResponse.items?.[0] ?? null,
         timeline: timelineResponse.items ?? [],
@@ -172,6 +176,7 @@ export function useConceptWorkbench() {
           brief: null,
           pendingChange: null,
           pendingReplacement: null,
+          pendingManualChange: null,
           pendingPreview: null,
           lastAuditExport: null,
           timeline: [],
@@ -228,6 +233,7 @@ export function useConceptWorkbench() {
         brief: null,
         pendingChange: null,
         pendingReplacement: null,
+        pendingManualChange: null,
         pendingPreview: null,
         loading: false,
         statusMessage: graphRecord
@@ -504,6 +510,7 @@ export function useConceptWorkbench() {
         loading: false,
         pendingChange: planned,
         pendingReplacement: null,
+        pendingManualChange: null,
         pendingPreview: preview,
         graphRecord: current.graphRecord
           ? {
@@ -522,6 +529,7 @@ export function useConceptWorkbench() {
         loading: false,
         pendingChange: null,
         pendingReplacement: null,
+        pendingManualChange: null,
         pendingPreview: null,
         error: errorMessage(caught),
         statusMessage: '自然语言 Change Planner 或 ghost preview 失败。',
@@ -695,6 +703,7 @@ export function useConceptWorkbench() {
         loading: false,
         pendingChange: null,
         pendingReplacement: proposed,
+        pendingManualChange: null,
         pendingPreview: preview,
         graphRecord: current.graphRecord
           ? {
@@ -777,6 +786,158 @@ export function useConceptWorkbench() {
       return null
     }
   }, [loadProject, state.pendingReplacement, state.project, state.version])
+
+  const previewNodeTransform = useCallback(async (nodeId: string, transform: Transform) => {
+    const project = state.project
+    const version = state.version
+    const graph = state.graphRecord?.graph
+    if (!project || !version || !graph) {
+      setState((current) => ({ ...current, error: '必须先加载 Project、Version 与 ModuleGraph。' }))
+      return null
+    }
+    const node = graph.nodes.find((item) => item.node_id === nodeId)
+    if (!node) {
+      setState((current) => ({ ...current, error: `Graph 节点不存在：${nodeId}` }))
+      return null
+    }
+    if (node.locked || node.node_id === graph.root_node_id) {
+      setState((current) => ({ ...current, error: `节点 ${nodeId} 受保护，不能变换。` }))
+      return null
+    }
+    if (!isValidTransform(transform)) {
+      setState((current) => ({ ...current, error: '位置和旋转必须是有限数值，缩放必须大于 0。' }))
+      return null
+    }
+    if (sameTransform(node.transform, transform)) {
+      setState((current) => ({ ...current, statusMessage: '变换没有变化；未创建 ChangeSet。' }))
+      return null
+    }
+
+    const suffix = Date.now().toString(36)
+    const clientRequestId = `desktop-transform-${suffix}`
+    const changeSetId = `change_desktop_transform_${suffix}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在预览 ${nodeId} 的变换…`,
+    }))
+    try {
+      const proposed = await forgeApi.proposeChangeSet(version.version_id, {
+        client_request_id: clientRequestId,
+        change_set: {
+          schema_version: 'DesignChangeSet@1',
+          change_set_id: changeSetId,
+          project_id: project.project_id,
+          base_version_id: version.version_id,
+          summary: `Transform ${nodeId}.`,
+          operations: [{
+            operation_id: `op_transform_${suffix}`,
+            op: 'set_transform',
+            node_id: nodeId,
+            transform,
+          }],
+          protected_node_ids: graph.nodes
+            .filter((item) => item.locked || item.node_id === graph.root_node_id)
+            .map((item) => item.node_id),
+          status: 'proposed',
+        },
+      })
+      const preview = await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingChange: null,
+        pendingReplacement: null,
+        pendingManualChange: proposed,
+        pendingPreview: preview,
+        graphRecord: current.graphRecord
+          ? {
+              ...current.graphRecord,
+              graph: preview.preview_graph,
+              graph_sha256: `ghost-preview:${preview.preview_sha256}`,
+            }
+          : null,
+        qualityRun: null,
+        statusMessage: `变换幽灵预览就绪：${nodeId}；确认后才创建子版本。`,
+      }))
+      return preview
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingManualChange: null,
+        pendingPreview: null,
+        error: errorMessage(caught),
+        statusMessage: '变换 ChangeSet 预览失败。',
+      }))
+      return null
+    }
+  }, [state.graphRecord, state.project, state.version])
+
+  const confirmManualChange = useCallback(async () => {
+    const project = state.project
+    const pending = state.pendingManualChange
+    if (!project || !pending) return null
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在确认变换并创建不可变子版本…',
+    }))
+    try {
+      const confirmed = await forgeApi.confirmChangeSet(pending.change_set_id, `desktop-transform-confirm-${suffix}`)
+      const nextVersionId = confirmed.project.current_version_id ?? undefined
+      await loadProject(project.project_id, nextVersionId)
+      setState((current) => ({
+        ...current,
+        statusMessage: `变换已确认并创建新版本：${nextVersionId ?? 'unknown'}。`,
+      }))
+      return confirmed
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '变换确认失败；当前版本未被覆盖。',
+      }))
+      return null
+    }
+  }, [loadProject, state.pendingManualChange, state.project])
+
+  const discardManualChange = useCallback(async () => {
+    const project = state.project
+    const version = state.version
+    const pending = state.pendingManualChange
+    if (!project || !version || !pending) return null
+    const suffix = Date.now().toString(36)
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在放弃变换幽灵预览…',
+    }))
+    try {
+      await forgeApi.rejectChangeSet(pending.change_set_id, `desktop-transform-reject-${suffix}`)
+      await loadProject(project.project_id, version.version_id)
+      setState((current) => ({
+        ...current,
+        pendingManualChange: null,
+        pendingPreview: null,
+        statusMessage: '已放弃变换预览；当前版本保持不变。',
+      }))
+      return true
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '放弃变换预览失败。',
+      }))
+      return null
+    }
+  }, [loadProject, state.pendingManualChange, state.project, state.version])
 
   const setMirror = useCallback(async (
     nodeId: string,
@@ -970,6 +1131,9 @@ export function useConceptWorkbench() {
     previewModuleReplacement,
     confirmModuleReplacement,
     discardModuleReplacement,
+    previewNodeTransform,
+    confirmManualChange,
+    discardManualChange,
     setMirror,
     searchTimeline,
     createChangeSetAuditExport,
@@ -979,4 +1143,17 @@ export function useConceptWorkbench() {
 
 function errorMessage(caught: unknown): string {
   return caught instanceof Error ? caught.message : String(caught)
+}
+
+function isValidTransform(transform: Transform) {
+  return [transform.position, transform.rotation, transform.scale].every((values) => (
+    values.length === 3 && values.every((value) => Number.isFinite(value))
+  )) && transform.scale.every((value) => value > 0)
+}
+
+function sameTransform(left: Transform, right: Transform) {
+  return [left.position, left.rotation, left.scale].every((values, index) => {
+    const other = [right.position, right.rotation, right.scale][index]
+    return values.every((value, valueIndex) => Math.abs(value - other[valueIndex]) < 1e-6)
+  })
 }

@@ -34,7 +34,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react'
 import { forgeApi } from '../../shared/api/forgeApi'
-import type { DesignChangeSet, ModuleAssetRecord, QualityFinding } from '../../shared/types'
+import type { DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
 import { ModuleGraphViewport } from './ModuleGraphViewport'
 import {
   useConceptWorkbench,
@@ -45,7 +45,7 @@ import './cad-workbench.css'
 type WorkspaceTab = 'concept' | 'assembly' | 'refine' | 'inspect' | 'showcase'
 type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type DrawerTab = 'components' | 'variants' | 'versions' | 'timeline'
-type Tool = 'select' | 'move' | 'orbit' | 'measure' | 'section'
+type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type AssistantMode = 'brief' | 'change'
 
@@ -116,7 +116,9 @@ const TOOL_ITEMS: Array<{
   unavailableReason?: string
 }> = [
   { id: 'select', label: '选择', icon: CursorClick, implemented: true },
-  { id: 'move', label: '移动', icon: ArrowsOutCardinal, implemented: false, unavailableReason: 'TransformControls 与可确认 ChangeSet 正在接入。' },
+  { id: 'move', label: '移动', icon: ArrowsOutCardinal, implemented: true },
+  { id: 'rotate', label: '旋转', icon: ArrowsClockwise, implemented: true },
+  { id: 'scale', label: '缩放', icon: ArrowsOutCardinal, implemented: true },
   { id: 'orbit', label: '旋转视图', icon: ArrowsClockwise, implemented: true },
   { id: 'measure', label: '测量', icon: Ruler, implemented: false, unavailableReason: '点到点与角度测量尚未实现，避免显示为可用能力。' },
   { id: 'section', label: '截面', icon: SelectionAll, implemented: false, unavailableReason: '裁切平面尚未实现，避免显示为可用能力。' },
@@ -128,6 +130,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('parameters')
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('components')
   const [activeTool, setActiveTool] = useState<Tool>('select')
+  const [transformSpace, setTransformSpace] = useState<'world' | 'local'>('world')
+  const [snapEnabled, setSnapEnabled] = useState(true)
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [showGrid, setShowGrid] = useState(true)
   const [wireframe, setWireframe] = useState(false)
@@ -168,6 +172,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     shellThickness: 2.5,
     detailDensity: 68,
   })
+  const [transformDraft, setTransformDraft] = useState<Transform>(() => identityTransform())
 
   const applyTimelineFilters = () => concept.searchTimeline({
     query: timelineQuery,
@@ -256,6 +261,14 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const selectedLibraryModule = concept.modules.find(
     (module) => module.manifest.module_id === selectedLibraryModuleId,
   ) ?? null
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setTransformDraft(identityTransform())
+      return
+    }
+    setTransformDraft(copyTransform(selectedNode.transform))
+  }, [selectedNode?.node_id, selectedNode?.transform])
 
   const qualityByModuleId = useMemo(() => {
     const result = new Map<string, QualityStatus>()
@@ -465,6 +478,51 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     const nextAxis = selectedNode.mirror_axis === 'x' ? 'none' : 'x'
     concept.setMirror(selectedNode.node_id, nextAxis).catch(() => undefined)
   }, [concept, selectedNode])
+
+  const updateTransformDraft = useCallback((
+    field: keyof Transform,
+    axis: 0 | 1 | 2,
+    value: number,
+  ) => {
+    if (!Number.isFinite(value)) return
+    setTransformDraft((current) => {
+      const next = copyTransform(current)
+      next[field][axis] = value
+      return next
+    })
+  }, [])
+
+  const previewTransformDraft = useCallback(() => {
+    if (!selectedNode) return
+    concept.previewNodeTransform(selectedNode.node_id, transformDraft).catch(() => undefined)
+  }, [concept, selectedNode, transformDraft])
+
+  const handleTransformCommit = useCallback((nodeId: string, transform: Transform) => {
+    setTransformDraft(copyTransform(transform))
+    concept.previewNodeTransform(nodeId, transform).catch(() => undefined)
+  }, [concept.previewNodeTransform])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const element = event.target as HTMLElement | null
+      if (element?.matches('input, textarea, select, [contenteditable="true"]')) return
+      if (event.key === 'g' || event.key === 'G') {
+        event.preventDefault()
+        setActiveTool('move')
+      } else if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault()
+        setActiveTool('rotate')
+      } else if (event.key === 's' || event.key === 'S') {
+        event.preventDefault()
+        setActiveTool('scale')
+      } else if (event.key === 'Escape' && concept.pendingManualChange) {
+        event.preventDefault()
+        concept.discardManualChange().catch(() => undefined)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [concept.discardManualChange, concept.pendingManualChange])
 
   const toggleSelectedNodeVisibility = useCallback(() => {
     if (!selectedNode) return
@@ -814,6 +872,21 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 active={wireframe}
                 onClick={() => setWireframe((current) => !current)}
               />
+              {(activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale') && <>
+                <span className="toolbar-divider" />
+                <button
+                  className={transformSpace === 'world' ? 'viewport-tool-text active' : 'viewport-tool-text'}
+                  onClick={() => setTransformSpace((current) => current === 'world' ? 'local' : 'world')}
+                  aria-label="切换世界或本地坐标"
+                  title="切换世界或本地坐标"
+                >{transformSpace === 'world' ? '世界' : '本地'}</button>
+                <button
+                  className={snapEnabled ? 'viewport-tool-text active' : 'viewport-tool-text'}
+                  onClick={() => setSnapEnabled((current) => !current)}
+                  aria-label="切换变换吸附"
+                  title="切换变换吸附"
+                >吸附</button>
+              </>}
             </div>
             <ModuleGraphViewport
               graphRecord={concept.graphRecord}
@@ -829,9 +902,13 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               showConnectors={showConnectors}
               explodeFactor={explodeFactor}
               ghostPreview={Boolean(concept.pendingPreview)}
+              transformTool={activeTool === 'move' ? 'translate' : activeTool === 'rotate' ? 'rotate' : activeTool === 'scale' ? 'scale' : 'none'}
+              transformSpace={transformSpace}
+              snapEnabled={snapEnabled}
               getModuleFileUrl={getModuleFileUrl}
               onSelectNode={selectGraphNode}
               onDropModule={handleModuleDrop}
+              onTransformCommit={handleTransformCommit}
             />
             {concept.pendingPreview && (
               <div className="ghost-preview-badge" data-testid="ghost-preview-badge">
@@ -852,7 +929,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               />
             </div>
             <div className="viewport-readout">
-              <span>{activeTool === 'measure' ? '测量模式：选择两个几何点' : `${activeTool} 工具已启用`}</span>
+              <span>{activeTool === 'measure' ? '测量模式：选择两个几何点' : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
               <span>单位：mm</span>
             </div>
           </div>
@@ -1277,15 +1354,48 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 </button>
               </div>
               <div className="axis-group"><span>位置</span><div>
-                <AxisField axis="X" value={formatAxis(selectedNode?.transform.position[0])} />
-                <AxisField axis="Y" value={formatAxis(selectedNode?.transform.position[1])} />
-                <AxisField axis="Z" value={formatAxis(selectedNode?.transform.position[2])} />
+                <AxisField axis="X" value={transformDraft.position[0]} onChange={(value) => updateTransformDraft('position', 0, value)} />
+                <AxisField axis="Y" value={transformDraft.position[1]} onChange={(value) => updateTransformDraft('position', 1, value)} />
+                <AxisField axis="Z" value={transformDraft.position[2]} onChange={(value) => updateTransformDraft('position', 2, value)} />
               </div></div>
               <div className="axis-group"><span>旋转（rad）</span><div>
-                <AxisField axis="X" value={formatAxis(selectedNode?.transform.rotation[0])} />
-                <AxisField axis="Y" value={formatAxis(selectedNode?.transform.rotation[1])} />
-                <AxisField axis="Z" value={formatAxis(selectedNode?.transform.rotation[2])} />
+                <AxisField axis="X" value={transformDraft.rotation[0]} onChange={(value) => updateTransformDraft('rotation', 0, value)} />
+                <AxisField axis="Y" value={transformDraft.rotation[1]} onChange={(value) => updateTransformDraft('rotation', 1, value)} />
+                <AxisField axis="Z" value={transformDraft.rotation[2]} onChange={(value) => updateTransformDraft('rotation', 2, value)} />
               </div></div>
+              <div className="axis-group"><span>缩放</span><div>
+                <AxisField axis="X" value={transformDraft.scale[0]} onChange={(value) => updateTransformDraft('scale', 0, value)} />
+                <AxisField axis="Y" value={transformDraft.scale[1]} onChange={(value) => updateTransformDraft('scale', 1, value)} />
+                <AxisField axis="Z" value={transformDraft.scale[2]} onChange={(value) => updateTransformDraft('scale', 2, value)} />
+              </div></div>
+              <div className="transform-command-controls" data-testid="transform-command-controls">
+                <button
+                  className={transformSpace === 'world' ? 'active' : ''}
+                  onClick={() => setTransformSpace((current) => current === 'world' ? 'local' : 'world')}
+                  disabled={!selectedNode || selectedNode.locked || concept.loading}
+                >{transformSpace === 'world' ? '世界坐标' : '本地坐标'}</button>
+                <button
+                  className={snapEnabled ? 'active' : ''}
+                  onClick={() => setSnapEnabled((current) => !current)}
+                  disabled={!selectedNode || selectedNode.locked || concept.loading}
+                >{snapEnabled ? '吸附：1 mm / 15°' : '吸附：关'}</button>
+              </div>
+              <button
+                className="transform-preview-action"
+                onClick={previewTransformDraft}
+                disabled={!selectedNode || selectedNode.locked || selectedNode.node_id === concept.graphRecord?.graph.root_node_id || concept.loading || Boolean(concept.pendingPreview)}
+                title="移动、旋转和缩放先写入 ChangeSet 幽灵预览；确认后才创建子版本"
+              >预览变换</button>
+              {concept.pendingManualChange && concept.pendingPreview && (
+                <div className="change-preview-card manual-transform-preview" data-testid="manual-transform-preview">
+                  <div><strong>变换幽灵预览 · 待确认</strong><span>{concept.pendingManualChange.summary}</span></div>
+                  <ul>{concept.pendingManualChange.operations.map((operation) => <li key={operation.operation_id}>{formatChangeOperation(operation)}</li>)}</ul>
+                  <div className="change-preview-actions">
+                    <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>放弃预览</button>
+                    <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>确认并创建新版本</button>
+                  </div>
+                </div>
+              )}
               <label className="wide-field"><span>镜像轴</span><input value={selectedNode?.mirror_axis ?? 'none'} readOnly /></label>
               <div className="property-divider" />
               <div className="property-heading">概念比例 <CaretDown size={13} /></div>
@@ -1559,8 +1669,26 @@ function PropertyNumber({
   )
 }
 
-function AxisField({ axis, value }: { axis: string; value: string }) {
-  return <label className={`axis-field axis-${axis.toLowerCase()}`}><span>{axis}</span><input value={value} readOnly /></label>
+function AxisField({
+  axis,
+  value,
+  onChange,
+}: {
+  axis: string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className={`axis-field axis-${axis.toLowerCase()}`}>
+      <span>{axis}</span>
+      <input
+        type="number"
+        step="0.01"
+        value={Number.isFinite(value) ? value : ''}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  )
 }
 
 function DfmRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
@@ -1584,6 +1712,10 @@ function formatChangeOperation(operation: DesignChangeSet['operations'][number])
   }
   if (operation.op === 'set_mirror') {
     return `镜像 ${operation.node_id} → ${operation.mirror_axis}`
+  }
+  if (operation.op === 'set_transform') {
+    const position = operation.transform?.position?.map((value) => Number(value).toFixed(2)).join(', ')
+    return `变换 ${operation.node_id}${position ? ` · 位置 ${position} mm` : ''}`
   }
   if (operation.op === 'set_parameter' || operation.op === 'set_style') {
     const value = Array.isArray(operation.value)
@@ -1622,6 +1754,22 @@ function formatVersionTime(value: string): string {
 
 function formatAxis(value: number | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+}
+
+function identityTransform(): Transform {
+  return {
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+  }
+}
+
+function copyTransform(transform: Transform): Transform {
+  return {
+    position: [...transform.position],
+    rotation: [...transform.rotation],
+    scale: [...transform.scale],
+  }
 }
 
 async function downloadBrowserFile(url: string, fallbackName?: string): Promise<void> {
