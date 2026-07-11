@@ -203,6 +203,15 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 默认输出为 `output/blender/weapon-concept-v1-full-candidate`。对候选 `.blend` 的只读 re-export 使用 `assets:blender-full-candidate-reexport-preflight` 和 `assets:blender-full-candidate-reexport`；实际产品链通过 `scripts/smoke_blender_full_candidate_workbench.py --pack-root <reexport-pack>` 验证 10 模块导入、9 节点组合、质量、combined GLB 与重启回读。只有最终许可证、非作者 reviewer 与 `formal-review-validate --scope release_10_12` 全部通过，才可把该路径称为正式资产。
 
+候选也可运行 Connector 技术矩阵；它只覆盖候选中实际存在的替换组合，不允许把结果写成正式资产的 ≥95% 指标：
+
+```bash
+npm run assets:blender-full-candidate-connector-matrix -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport"
+```
+
+该命令在隔离 Library 中验证 front 01→02→01 的两个 eligible replacement、八个可编辑节点的 X 镜像、每轮 Connector 精确对齐、combined GLB mirror scale 与 Agent 重启回读；锁定 core 的镜像请求必须返回 `CHANGE_SET_INVALID`。2026-07-11 的 candidate 为 2/2 replacement、8/8 mirror 成功，质量报告为 `warning`；输出固定 `evidence_class=unclassified` 和 `formal_asset_evidence_eligible=false`。
+
 人工修改三份 `.blend` 后，使用只读 re-export，不能重跑 starter build：
 
 ```bash

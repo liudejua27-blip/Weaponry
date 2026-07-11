@@ -41,6 +41,7 @@ REQUIRED_SCRIPTS = [
     "assets:formal-review-handoff",
     "assets:formal-review-handoff-smoke",
     "assets:blender-full-candidate-recovery-drill",
+    "assets:blender-full-candidate-connector-matrix",
 ]
 
 DOC_REQUIREMENTS: dict[str, list[str]] = {
