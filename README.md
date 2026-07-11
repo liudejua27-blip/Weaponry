@@ -143,7 +143,7 @@ core.side_panel_left / core.side_panel_right
 | Concept JobEvent@2 | 独立 Job/Event 表、JSON replay、Last-Event-ID/SSE 已实现；Brief、Variant、Change Planner、Graph validate、QualityRun、Export 均已留痕 | 异步取消/重试继续在后续 worker 化 |
 | 幂等、取消、重试、恢复 | 已实现 | 直接复用 |
 | R1 通用基础设施拆分 | 当前退出边界完成 | `asset_store.py` 的完整 workflows 已迁入 application services；`App.tsx` 已从约 706 行缩为 21 行组合根，路由、控制器、持久化、选择器和旧工作台渲染已分层，并由 `r1:gate` 固定 |
-| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查及 ZIP/GLB/OBJ/MTL/PNG/MP4 导出 | 已用 10 模块参考 Pack 跑 E2E；人工 Blender 最终质量与正式替换矩阵待完成 |
+| `#/cad` Concept 工作台 | 已读取真实 Project/Version/ModuleGraph/GLB，支持选择、隐藏、聚焦、Connector overlay、拖拽候选、ChangeSet 替换/吸附/镜像、版本 Undo/Redo、爆炸视图、实际几何检查及 ZIP/GLB/OBJ/MTL/PNG/MP4 导出 | 10 模块参考 Pack E2E 与三模块 visual-v2 Blender starter 的隔离导入、替换、质量、导出/重启回读均已通过；人工 Blender 最终质量与正式替换矩阵待完成 |
 | 视口 GPU 生命周期 | geometry/material/texture/skeleton、controls、renderer 与 WebGL context 显式释放；版本压力 smoke 已实现 | 20 轮 V3↔V4 保持 1 canvas/1 context；正式资产和 Tauri 压力仍待验证 |
 | Module Pack 与正式资产晋级门 | `ModulePackManifest@1`、`ForgeCADModuleNaming@1`、目录/许可证/GLB/UV/材质/三角数/包围盒校验、dry-run、幂等批量导入、重启恢复已实现；`FormalModuleReview@1` 锁定 `.blend`、module Manifest、GLB、thumbnail 与 Pack/Module license hash，要求独立人工审阅、全部评分 ≥4、Blender generator、anti-placeholder 三角下限、最终许可证和基线 ID/Connector 不漂移 | Blender 4.2.22 LTS 已真实生成视觉层级增强的 core/front01/front02 的 `.blend`/GLB/thumbnail，只读 re-export、source hash 不变、Connector 基线和 core GLB DCC 往返已验证；2256/1316/1504 三角均超过形式下限，但无最终许可证/独立人工批准 |
 | Arctic Patrol S1 参考 Pack | 10 GLB、九类、17 Connector、UV0/normal/三材质、缩略图、许可证、确定性生成与 9 节点 Graph 已实现 | 可用于产品闭环和 DCC 交接，不冒充最终高质量美术 |

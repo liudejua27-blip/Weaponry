@@ -106,6 +106,15 @@ re-export 默认从 starter 的 `sources/` 读取，输出到独立的 `output/b
 
 导出前会阻断：丢失/额外 Mesh、错误 Object/Mesh 名、未应用 Modifier/Transform、缺失 UV0、错误材质集合、Connector Empty 与 metadata 不一致、Connector scale 未应用、相机缺失。输出必须再次通过完整 Module Pack 校验。
 
+需要验证实际产品链时，可将已重导出的三模块 Pack 导入隔离 Library，执行 core/front Graph、front01 → front02 替换、质量检查、导出和重启回读：
+
+```bash
+PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_starter_workbench.py \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-reexport-visual-v2-20260711"
+```
+
+如需把工作台生成的 combined GLB 交给 DCC runner，可额外传入一个不存在的绝对 `.glb` 路径的 `--combined-output`；它拒绝覆盖和 committed Pack 路径。2026-07-11 的 visual-v2 运行通过：质量状态 `passed`、front 替换创建子版本、导出 combined GLB 为 8980 顶点 / 3760 三角，并通过 Blender 4.2.22 往返。
+
 ## 6. 正式人工审阅与晋级
 
 技术导出通过后仍不能称为最终资产。默认 re-export 许可证故意保留 starter/not-final 标记，必须在输出副本中换成已确认权属的最终美术 SPDX 和许可证文本。然后运行 `assets:formal-review-draft`，由非作者 reviewer 完成 `FormalModuleReview@1`：所有 checklist 为 true，五项视觉评分均 ≥4，确认非功能性概念/游戏/影视道具用途。

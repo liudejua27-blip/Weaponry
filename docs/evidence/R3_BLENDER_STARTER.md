@@ -56,6 +56,8 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 三份 visual-v2 source 前后 SHA-256 保持 `f9ee89b8e4839cfde9bf15a65123ee4cd78f358722c378893196fc8600366408`、`f81526f0f578c57fe747ddd0f257e2fd2c43f9f981ad57334d0727f883129f3e`、`7cac011212660be9ae7f6674371b66e9e764ce8c7d0608068f65e8fad8c1ec8b`。只读 re-export、三模块 Connector baseline 和 core DCC 往返均通过；core 为 5354 顶点 / 2256 三角。
 
+通过 `smoke_blender_starter_workbench.py` 将这个实际 Pack 导入临时 ForgeCAD Library 后，core/front Graph 验证、front01 → front02 ChangeSet 预览/确认、子 Version、`weapon-concept-geometry/1.3` 质量检查（`passed`）、combined GLB 下载和 Agent 重启回读均通过。导出 combined GLB SHA-256 为 `415e7ac6fbf8403ded0cd3f73963f8802e41e755ddb5fa5e1c1d5cb1405b3351`，328732 bytes，Blender 往返后保持 8980 顶点 / 3760 三角。
+
 真实只读 re-export 返回 `edited_sources_exported_and_validated` 与 `source_unchanged: true`；三份 `.blend` 前后 SHA-256 分别保持 `3ae9a0e630399357fe80eddd7bd3be9d3488c4e09f7889d204f261d91073bbed`、`2287f80d5797cb9130106ff238fb5054e159bdaf4ddffb3daa0e0438b00e1d27`、`c9a259c923a8a5007ea79a95c5c3903afce510f807c98a07bf898af9fc490442`。三模块 Asset/Category/Connector 按 ID 规范化后与 reference baseline 相等。core GLB 通过 Blender DCC 往返，2178 顶点和 940 三角保持不变。
 
 本次真实执行还暴露并修复了：factory startup 无 World、Blender Python 异常未映射为非零退出码、Blender Z-up 与 ForgeCAD/glTF Y-up 坐标基变换、Connector 基线的 ±24 mm 偏差、float32 表示噪声以及缩略图过曝。
