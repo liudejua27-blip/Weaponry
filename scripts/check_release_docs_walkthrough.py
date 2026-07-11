@@ -36,6 +36,8 @@ REQUIRED_SCRIPTS = [
     "r4:planner-gate",
     "agent:r4-change-planner-smoke",
     "agent:r4-change-planner-api-smoke",
+    "agent:r4-evaluation-preflight",
+    "agent:r4-evaluation-preflight-smoke",
 ]
 
 DOC_REQUIREMENTS: dict[str, list[str]] = {
@@ -70,6 +72,7 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "npm run release:gate",
         "半透明 ghost",
         "真实模型 AI 指标",
+        "agent:r4-evaluation-preflight",
     ],
     "docs/API.md": [
         "POST /api/weapons",

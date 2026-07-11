@@ -69,7 +69,7 @@ npm run release:gate
 
 正式备份/验证/恢复/演练命令只在 [OPERATIONS.md](OPERATIONS.md) 维护；Quickstart 不复制完整流程。
 
-`agent:r4-evaluation-baseline` 验证固定 20/20/20/20 truth set 和评测器，但仍不是 AI 证据。配置真实 OpenAI-compatible Provider 后，只有操作者明确运行 `npm run agent:r4-evaluation-live`，完整 80 次调用、token usage 和全部阈值通过，报告才可能标记为真实 Provider 证据；具体成本和失败码见 [OPERATIONS.md](OPERATIONS.md)。
+`agent:r4-evaluation-baseline` 验证固定 20/20/20/20 truth set 和评测器，但仍不是 AI 证据。配置真实 OpenAI-compatible Provider 后，先运行不发网络请求的 `npm run agent:r4-evaluation-preflight`；只有操作者随后明确运行 `npm run agent:r4-evaluation-live`，完整 80 次调用、token usage 和全部阈值通过，报告才可能标记为真实 Provider 证据。具体成本、预检边界和失败码见 [OPERATIONS.md](OPERATIONS.md)。
 
 MP4 依赖 `ffmpeg`。如果不在 PATH，可设置 `FORGECAD_FFMPEG_EXECUTABLE`。DCC 环境先运行 `npm run assets:dcc-roundtrip-preflight`；只有带 `--input-glb` 的检查返回 `dcc_roundtrip_validated` 才能声称 Blender/Assimp 往返已通过。当前证据已覆盖 starter core、工作台组合后的 visual-v2 三模块与 10 模块 reference combined GLB；它们不代表正式美术资产验收。
 

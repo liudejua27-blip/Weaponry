@@ -450,6 +450,14 @@ output/evaluations/r4_planner_metrics.json
 真实 Provider 评测可能产生 **80 次付费 API 调用**。先配置本节环境变量并确认 `/api/provider-settings` 不再是 `missing_config`，再由操作者明确运行：
 
 ```bash
+npm run agent:r4-evaluation-preflight
+```
+
+这一步只读取本地环境与（如配置）secret file，固定报告 `network_calls_made=0`，不会请求 Provider，也不会输出 API key、base URL 或 secret file 的绝对路径。只有 `ready_for_live_evaluation=true` 时，才说明已选中 `openai_compatible` 且模型与凭据在本地可读；它不验证密钥权限、模型可用性、网络连通性或成本。CI/自动化可加 `-- --require-ready`，未就绪时返回 2。
+
+预检已就绪后，由对成本负责的操作者明确运行：
+
+```bash
 npm run agent:r4-evaluation-live
 ```
 
