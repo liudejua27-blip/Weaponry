@@ -693,6 +693,15 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       throw new Error('quality triangle highlight screenshot is unexpectedly small')
     }
 
+    // The confirmed manual transform intentionally leaves a connected module
+    // misaligned, so the quality gate blocks delivery. Switch to the previous
+    // valid immutable version to prove exports never bypass that gate.
+    await switchVersionAndWait(page, 'V4')
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V4'),
+      { timeout: 20_000 },
+    )
+
     const exportResponsePromise = page.waitForResponse(
       (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
         && response.request().method() === 'POST',
