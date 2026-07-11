@@ -135,7 +135,7 @@ core.side_panel_left / core.side_panel_right
 
 | 能力 | 当前状态 | 决策 |
 | --- | --- | --- |
-| Tauri + React 桌面壳 | 已实现 | 保留 |
+| Tauri + React 桌面壳 | 已实现；打包静态合同已通过 | `bundle.externalBin`、target sidecar、`Cargo.lock`、图标、CSP 与 capability 已经通过 `release:packaging-readiness`；本机未安装 Cargo，不声称 Rust 编译、签名或干净机 C10 已通过 |
 | FastAPI 本地 Agent | 已实现 | 保留并继续薄化路由 |
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
@@ -258,6 +258,18 @@ npm run r2:gate
 npm run r4:planner-gate
 npm run release:gate
 ```
+
+## 桌面打包发布准备度
+
+浏览器/Vite 开发壳不是已发布的桌面应用。Tauri 发布候选必须包含已冻结的 `wushen-agent` sidecar，并以 `mode=packaged-sidecar` 启动；不得依赖用户的 Python 或源码仓库。
+
+打包前运行：
+
+```bash
+npm run release:packaging-readiness
+```
+
+该命令检查 Tauri bundle、图标、CSP、capability、`Cargo.lock`、target-suffixed sidecar 与运行时模式。具体平台打包、签名、安装/卸载和干净机验证见 [桌面打包合同](docs/PACKAGING.md)。
 
 当前新工作台开发入口：
 
