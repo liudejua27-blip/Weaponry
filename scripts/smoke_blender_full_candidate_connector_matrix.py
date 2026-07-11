@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
+import sys
 import tempfile
 import urllib.request
 from pathlib import Path
@@ -62,13 +64,21 @@ def main() -> int:
         description="Run an unclassified Connector matrix for a Blender visual candidate."
     )
     parser.add_argument("--pack-root", type=Path, required=True)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--mirror-node",
         action="append",
         choices=EDITABLE_MIRROR_NODE_IDS,
         help="run only the specified editable node(s); default exercises the full stress branch",
     )
+    mode.add_argument(
+        "--individual-matrix",
+        action="store_true",
+        help="run every editable node in an independent isolated branch and summarize quality",
+    )
     args = parser.parse_args()
+    if args.individual_matrix:
+        return _run_individual_matrix(args.pack_root)
     pack = validate_module_pack(args.pack_root)
     _assert(
         {module.manifest.module_id for module in pack.modules} == EXPECTED_MODULE_IDS,
@@ -257,6 +267,84 @@ def main() -> int:
                 ],
                 "combined_glb_mirror_verified": True,
                 "restart_restored": True,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _run_individual_matrix(pack_root: Path) -> int:
+    results: list[dict[str, Any]] = []
+    for node_id in EDITABLE_MIRROR_NODE_IDS:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--pack-root",
+                str(pack_root.expanduser()),
+                "--mirror-node",
+                node_id,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        _assert(
+            completed.returncode == 0,
+            (
+                f"individual mirror branch {node_id} failed: "
+                f"{completed.stdout[-1000:]} {completed.stderr[-1000:]}"
+            ),
+        )
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise AssertionError(
+                f"individual mirror branch {node_id} did not emit JSON"
+            ) from exc
+        _assert(payload["mirror_cases"] == [node_id], "matrix child ran the wrong node")
+        results.append(
+            {
+                "node_id": node_id,
+                "quality_status": payload["quality_status"],
+                "quality_warning_count": payload["quality_warning_count"],
+                "quality_finding_checks": sorted(
+                    {item["check_id"] for item in payload["quality_findings"]}
+                ),
+                "connector_alignment_verified": payload[
+                    "connector_alignment_verified"
+                ],
+                "combined_glb_mirror_verified": payload[
+                    "combined_glb_mirror_verified"
+                ],
+                "restart_restored": payload["restart_restored"],
+            }
+        )
+    passed_node_ids = [
+        item["node_id"] for item in results if item["quality_status"] == "passed"
+    ]
+    warning_node_ids = [
+        item["node_id"] for item in results if item["quality_status"] == "warning"
+    ]
+    _assert(
+        len(passed_node_ids) + len(warning_node_ids) == len(EDITABLE_MIRROR_NODE_IDS),
+        "individual matrix produced an unexpected quality status",
+    )
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "evidence_class": "unclassified",
+                "formal_asset_evidence_eligible": False,
+                "module_count": 10,
+                "mirror_execution": "individual_matrix",
+                "individual_results": results,
+                "quality_pass_node_ids": passed_node_ids,
+                "quality_warning_node_ids": warning_node_ids,
+                "quality_pass_count": len(passed_node_ids),
+                "quality_warning_count": len(warning_node_ids),
             },
             ensure_ascii=False,
             indent=2,
