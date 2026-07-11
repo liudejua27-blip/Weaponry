@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Inspect R4 configured-provider readiness without making any provider request."""
+
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 from forgecad_agent.application.concept_planner import (
     OpenAICompatibleConceptPlanner,
@@ -22,13 +25,31 @@ def main() -> int:
 
 def provider_readiness() -> dict[str, Any]:
     """Return safe local configuration facts only; this function never calls a provider."""
-    provider = concept_planner_from_env()
+    try:
+        provider = concept_planner_from_env()
+    except (TypeError, ValueError):
+        return _invalid_configuration_report("timeout")
     configured_provider = isinstance(provider, OpenAICompatibleConceptPlanner)
     model_configured = bool(provider.model_name) if configured_provider else False
     credential_configured = (
         bool(provider.config.api_key) if configured_provider else False
     )
-    ready = configured_provider and model_configured and credential_configured
+    endpoint_valid = (
+        _valid_endpoint(provider.config.base_url) if configured_provider else False
+    )
+    timeout_valid = (
+        math.isfinite(provider.config.timeout_seconds)
+        and provider.config.timeout_seconds > 0
+        if configured_provider
+        else False
+    )
+    ready = (
+        configured_provider
+        and model_configured
+        and credential_configured
+        and endpoint_valid
+        and timeout_valid
+    )
     missing: list[str] = []
     if not configured_provider:
         missing.append("provider")
@@ -36,6 +57,10 @@ def provider_readiness() -> dict[str, Any]:
         missing.append("model")
     if configured_provider and not credential_configured:
         missing.append("credential")
+    if configured_provider and not endpoint_valid:
+        missing.append("endpoint")
+    if configured_provider and not timeout_valid:
+        missing.append("timeout")
 
     return {
         "schema_version": "ForgeCADPlannerProviderReadiness@1",
@@ -48,6 +73,8 @@ def provider_readiness() -> dict[str, Any]:
             "configured_provider_selected": configured_provider,
             "model_configured": model_configured,
             "credential_configured": credential_configured,
+            "endpoint_syntax_valid": endpoint_valid,
+            "timeout_valid": timeout_valid,
             "model_source": _first_set(
                 "FORGECAD_CONCEPT_PLANNER_MODEL",
                 "WUSHEN_LLM_MODEL",
@@ -73,6 +100,60 @@ def provider_readiness() -> dict[str, Any]:
             "absolute_paths_redacted": True,
         },
     }
+
+
+def _invalid_configuration_report(error: str) -> dict[str, Any]:
+    configured_provider = _selected_provider() == "openai_compatible"
+    return {
+        "schema_version": "ForgeCADPlannerProviderReadiness@1",
+        "ok": False,
+        "status": "invalid_configuration",
+        "network_calls_made": 0,
+        "ready_for_live_evaluation": False,
+        "provider": {
+            "type": "openai_compatible" if configured_provider else "deterministic",
+            "configured_provider_selected": configured_provider,
+            "model_configured": False,
+            "credential_configured": False,
+            "endpoint_syntax_valid": False,
+            "timeout_valid": False,
+            "model_source": _first_set(
+                "FORGECAD_CONCEPT_PLANNER_MODEL",
+                "WUSHEN_LLM_MODEL",
+                "WUSHEN_OPENAI_MODEL",
+            ),
+            "credential_source": _credential_source(False),
+            "endpoint_source": _first_set(
+                "FORGECAD_CONCEPT_PLANNER_BASE_URL",
+                "WUSHEN_LLM_BASE_URL",
+                "WUSHEN_OPENAI_BASE_URL",
+            ),
+        },
+        "missing": [error],
+        "next_action": "Correct the local provider configuration, then rerun this no-call preflight.",
+        "safety": {
+            "provider_request_sent": False,
+            "secrets_redacted": True,
+            "endpoint_redacted": True,
+            "absolute_paths_redacted": True,
+        },
+    }
+
+
+def _valid_endpoint(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _selected_provider() -> str:
+    return (
+        os.environ.get(
+            "FORGECAD_CONCEPT_PLANNER_PROVIDER",
+            os.environ.get("WUSHEN_LLM_PROVIDER", "deterministic_rules"),
+        )
+        .strip()
+        .lower()
+    )
 
 
 def _first_set(*names: str) -> str:

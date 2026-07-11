@@ -53,7 +53,7 @@ npm run agent:r4-evaluation-live
 npm run agent:r4-evaluation-preflight
 ```
 
-它只读取环境与可选 secret file，固定报告 `network_calls_made=0`，不请求 Provider，且不回显 API key、endpoint 或绝对路径。本机本轮结果为 `status=not_ready`、`provider.type=deterministic`、`missing=["provider"]`；这只说明当前环境没有选择真实 Provider，不是模型质量结果。加入 `-- --require-ready` 时，未就绪返回 2；配有隔离环境、凭据回退和泄露检查的 smoke 已纳入 `r4:planner-gate`。
+它只读取环境与可选 secret file，固定报告 `network_calls_made=0`，不请求 Provider，且不回显 API key、endpoint 或绝对路径。本机本轮结果为 `status=not_ready`、`provider.type=deterministic`、`missing=["provider"]`；这只说明当前环境没有选择真实 Provider，不是模型质量结果。加入 `-- --require-ready` 时，未就绪返回 2；预检还本地拒绝非 HTTP(S) endpoint、非正/非有限 timeout 和无法解析的 timeout（后者为 `status=invalid_configuration`）。配有隔离环境、凭据回退、无效配置和泄露检查的 smoke 已纳入 `r4:planner-gate`。
 
 ## Provider 遥测证据
 
