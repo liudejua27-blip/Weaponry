@@ -875,6 +875,57 @@ export function useConceptWorkbench() {
     }
   }, [state.graphRecord, state.project, state.version])
 
+  const previewConnectorSnap = useCallback(async (nodeId: string) => {
+    const version = state.version
+    if (!version?.module_graph_id) {
+      setState((current) => ({ ...current, error: '必须先加载带有效 ModuleGraph 的 Concept Version。' }))
+      return null
+    }
+    const suffix = Date.now().toString(36)
+    const clientRequestId = `desktop-connector-snap-${suffix}`
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: `正在计算 ${nodeId} 的 Connector 吸附…`,
+    }))
+    try {
+      const proposed = await forgeApi.proposeConnectorSnap(version.version_id, {
+        client_request_id: clientRequestId,
+        node_id: nodeId,
+      })
+      const preview = await forgeApi.previewChangeSet(proposed.change_set_id, `${clientRequestId}-preview`)
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingChange: null,
+        pendingReplacement: null,
+        pendingManualChange: proposed,
+        pendingPreview: preview,
+        graphRecord: current.graphRecord
+          ? {
+              ...current.graphRecord,
+              graph: preview.preview_graph,
+              graph_sha256: `ghost-preview:${preview.preview_sha256}`,
+            }
+          : null,
+        qualityRun: null,
+        statusMessage: `Connector 吸附预览就绪：${nodeId}；确认后才创建子版本。`,
+      }))
+      return preview
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        pendingManualChange: null,
+        pendingPreview: null,
+        error: errorMessage(caught),
+        statusMessage: 'Connector 吸附预览失败。',
+      }))
+      return null
+    }
+  }, [state.version])
+
   const confirmManualChange = useCallback(async () => {
     const project = state.project
     const pending = state.pendingManualChange
@@ -1132,6 +1183,7 @@ export function useConceptWorkbench() {
     confirmModuleReplacement,
     discardModuleReplacement,
     previewNodeTransform,
+    previewConnectorSnap,
     confirmManualChange,
     discardManualChange,
     setMirror,

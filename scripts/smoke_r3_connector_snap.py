@@ -156,15 +156,20 @@ def main() -> int:
             )
             _assert_vector(top_wrapper["translation"], [0.086, 0.033, 0])
             _assert(top_wrapper["scale"][0] == -1, "combined GLB lost X mirror scale")
-            version_6 = _connect_cycle_constraint(
+            repaired_version, connector_snap_verified = _misalign_and_repair_connector(
                 base_url,
                 project_id=project_id,
                 version_id=version_5,
             )
+            version_8 = _connect_cycle_constraint(
+                base_url,
+                project_id=project_id,
+                version_id=repaired_version,
+            )
             cycle_conflict_rejected = _assert_cycle_conflict_rejected(
                 base_url,
                 project_id=project_id,
-                version_id=version_6,
+                version_id=version_8,
             )
             locked_descendant_rejected = _assert_locked_descendant_rejected(base_url)
             timeline = _json_request(
@@ -172,7 +177,7 @@ def main() -> int:
                 f"/api/v1/projects/{project_id}/change-sets",
                 method="GET",
             )
-            _assert(len(timeline["items"]) == 5, "ChangeSet timeline count mismatch")
+            _assert(len(timeline["items"]) == 7, "ChangeSet timeline count mismatch")
             timeline_operations = [
                 operation["op"]
                 for item in timeline["items"]
@@ -196,8 +201,8 @@ def main() -> int:
             diagnostic_count = connection.execute(
                 "SELECT COUNT(*) FROM design_change_sets WHERE diagnostic_json IS NOT NULL"
             ).fetchone()[0]
-        _assert(graph_count == 6, "connector snap graph/version count mismatch")
-        _assert(change_set_count == 6, "connector snap ChangeSet count mismatch")
+        _assert(graph_count == 8, "connector snap graph/version count mismatch")
+        _assert(change_set_count == 8, "connector snap ChangeSet count mismatch")
         _assert(diagnostic_count == 2, "rejected ChangeSet diagnostics were not persisted")
 
         restart_port = _free_port()
@@ -207,7 +212,7 @@ def main() -> int:
             _wait_for_health(restart_url, restarted)
             restored_version = _json_request(
                 restart_url,
-                f"/api/v1/versions/{version_6}",
+                f"/api/v1/versions/{version_8}",
                 method="GET",
             )
             restored_graph = _json_request(
@@ -219,12 +224,13 @@ def main() -> int:
             _assert_vector(restored_nodes["node_front"]["transform"]["position"], [84, 16, 0])
             _assert_vector(restored_nodes["node_top"]["transform"]["position"], [86, 33, 0])
             _assert(restored_nodes["node_top"]["mirror_axis"] == "x", "restart lost mirror")
+            _assert_vector(restored_nodes["node_grip"]["transform"]["position"], [17, -39, 0])
             restored_timeline = _json_request(
                 restart_url,
                 f"/api/v1/projects/{project_id}/change-sets",
                 method="GET",
             )
-            _assert(len(restored_timeline["items"]) == 5, "restart lost ChangeSet timeline")
+            _assert(len(restored_timeline["items"]) == 7, "restart lost ChangeSet timeline")
             restored_rejected = _timeline_request(
                 restart_url,
                 project_id,
@@ -251,6 +257,7 @@ def main() -> int:
                     "connector_remap_verified": True,
                     "mirror_version_verified": True,
                     "mirror_export_verified": True,
+                    "connector_snap_action_verified": connector_snap_verified,
                     "combined_transform_verified": True,
                     "idempotent_replay": True,
                     "cycle_conflict_rejected": cycle_conflict_rejected,
@@ -259,7 +266,7 @@ def main() -> int:
                     "timeline_restored": True,
                     "timeline_query": timeline_query_evidence,
                     "diagnostic_count": diagnostic_count,
-                    "final_version_id": version_6,
+                    "final_version_id": version_8,
                     "graph_count": graph_count,
                 },
                 ensure_ascii=False,
@@ -608,6 +615,84 @@ def _set_mirror(
     return preview, confirmed
 
 
+def _misalign_and_repair_connector(
+    base_url: str,
+    *,
+    project_id: str,
+    version_id: str,
+) -> tuple[str, bool]:
+    """Exercise the user-facing connector-snap action after a manual transform."""
+    misaligned_id = "change_snap_misalign_grip"
+    misaligned = {
+        "schema_version": "DesignChangeSet@1",
+        "change_set_id": misaligned_id,
+        "project_id": project_id,
+        "base_version_id": version_id,
+        "summary": "Move grip away from its Connector for repair testing.",
+        "operations": [
+            {
+                "operation_id": "op_change_snap_misalign_grip",
+                "op": "set_transform",
+                "node_id": "node_grip",
+                "transform": {
+                    "position": [31, -39, 0],
+                    "rotation": [0, 0, 0],
+                    "scale": [1, 1, 1],
+                },
+            }
+        ],
+        "protected_node_ids": ["node_core"],
+        "status": "proposed",
+    }
+    _json_request(
+        base_url,
+        f"/api/v1/versions/{version_id}/change-sets",
+        method="POST",
+        body={"client_request_id": "r3-propose-misalign-grip", "change_set": misaligned},
+        idempotency_key="r3-propose-misalign-grip",
+    )
+    _json_request(
+        base_url,
+        f"/api/v1/change-sets/{misaligned_id}:preview",
+        method="POST",
+        idempotency_key="r3-preview-misalign-grip",
+    )
+    misaligned_confirmed = _json_request(
+        base_url,
+        f"/api/v1/change-sets/{misaligned_id}:confirm",
+        method="POST",
+        idempotency_key="r3-confirm-misalign-grip",
+    )
+    misaligned_version = str(misaligned_confirmed["project"]["current_version_id"])
+    proposed = _json_request(
+        base_url,
+        f"/api/v1/versions/{misaligned_version}/change-sets:connector-snap",
+        method="POST",
+        body={"client_request_id": "r3-connector-snap-grip", "node_id": "node_grip"},
+        idempotency_key="r3-connector-snap-grip",
+    )
+    _assert(
+        proposed["operations"][0]["op"] == "set_transform"
+        and proposed["operations"][0]["node_id"] == "node_grip",
+        "connector snap did not create a grip transform ChangeSet",
+    )
+    snap_id = proposed["change_set_id"]
+    preview = _json_request(
+        base_url,
+        f"/api/v1/change-sets/{snap_id}:preview",
+        method="POST",
+        idempotency_key="r3-preview-connector-snap-grip",
+    )
+    _assert_vector(_nodes(preview["preview_graph"])["node_grip"]["transform"]["position"], [17, -39, 0])
+    confirmed = _json_request(
+        base_url,
+        f"/api/v1/change-sets/{snap_id}:confirm",
+        method="POST",
+        idempotency_key="r3-confirm-connector-snap-grip",
+    )
+    return str(confirmed["project"]["current_version_id"]), True
+
+
 def _assert_cycle_conflict_rejected(
     base_url: str,
     *,
@@ -676,7 +761,10 @@ def _assert_timeline_query_features(
             break
     _assert(collected_ids == expected_ids, "timeline cursor pages changed order or lost rows")
     _assert(len(set(collected_ids)) == len(collected_ids), "timeline cursor duplicated rows")
-    _assert(page_count == 3, "timeline limit=2 did not produce three pages")
+    _assert(
+        page_count == math.ceil(len(expected_ids) / 2),
+        "timeline limit=2 returned an unexpected page count",
+    )
 
     rejected = _timeline_request(base_url, project_id, status="rejected")
     _assert(len(rejected["items"]) == 1, "rejected status filter mismatch")

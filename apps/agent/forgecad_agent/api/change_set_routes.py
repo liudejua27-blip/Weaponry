@@ -16,6 +16,7 @@ from forgecad_agent.application.concept_models import (
     ChangeSetTimelineResponse,
     PlanDesignChangeSetRequest,
     PlannedChangeSetRecord,
+    ProposeConnectorSnapRequest,
     ProposeChangeSetRequest,
 )
 from forgecad_agent.domain.concepts.models import ChangeOperationType, DesignChangeSet
@@ -66,6 +67,27 @@ def build_change_set_router(service: ConceptChangeSetService) -> APIRouter:
         key = _require_idempotency_key(idempotency_key)
         try:
             return service.plan(version_id, request, key)
+        except ConceptChangeSetIdempotencyConflict as exc:
+            return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
+        except ConceptChangeSetError as exc:
+            return _change_set_error_response(exc)
+
+    @router.post(
+        "/versions/{version_id}/change-sets:connector-snap",
+        response_model=DesignChangeSet,
+        status_code=201,
+    )
+    def propose_connector_snap(
+        version_id: str,
+        request: ProposeConnectorSnapRequest,
+        idempotency_key: Annotated[
+            Optional[str],
+            Header(alias="Idempotency-Key"),
+        ] = None,
+    ) -> Union[DesignChangeSet, JSONResponse]:
+        key = _require_idempotency_key(idempotency_key)
+        try:
+            return service.propose_connector_snap(version_id, request, key)
         except ConceptChangeSetIdempotencyConflict as exc:
             return _error_response(409, "IDEMPOTENCY_CONFLICT", str(exc))
         except ConceptChangeSetError as exc:

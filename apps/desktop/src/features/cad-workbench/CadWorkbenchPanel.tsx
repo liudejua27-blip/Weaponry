@@ -261,6 +261,15 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   const selectedLibraryModule = concept.modules.find(
     (module) => module.manifest.module_id === selectedLibraryModuleId,
   ) ?? null
+  const selectedNodeConnections = (concept.graphRecord?.graph.edges ?? []).filter((edge) => (
+    edge.from_node_id === selectedNode?.node_id || edge.to_node_id === selectedNode?.node_id
+  ))
+  const canSnapSelectedNode = Boolean(
+    selectedNode
+      && selectedNode.node_id !== concept.graphRecord?.graph.root_node_id
+      && !selectedNode.locked
+      && selectedNodeConnections.length > 0,
+  )
 
   useEffect(() => {
     if (!selectedNode) {
@@ -1386,16 +1395,6 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 disabled={!selectedNode || selectedNode.locked || selectedNode.node_id === concept.graphRecord?.graph.root_node_id || concept.loading || Boolean(concept.pendingPreview)}
                 title="移动、旋转和缩放先写入 ChangeSet 幽灵预览；确认后才创建子版本"
               >预览变换</button>
-              {concept.pendingManualChange && concept.pendingPreview && (
-                <div className="change-preview-card manual-transform-preview" data-testid="manual-transform-preview">
-                  <div><strong>变换幽灵预览 · 待确认</strong><span>{concept.pendingManualChange.summary}</span></div>
-                  <ul>{concept.pendingManualChange.operations.map((operation) => <li key={operation.operation_id}>{formatChangeOperation(operation)}</li>)}</ul>
-                  <div className="change-preview-actions">
-                    <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>放弃预览</button>
-                    <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>确认并创建新版本</button>
-                  </div>
-                </div>
-              )}
               <label className="wide-field"><span>镜像轴</span><input value={selectedNode?.mirror_axis ?? 'none'} readOnly /></label>
               <div className="property-divider" />
               <div className="property-heading">概念比例 <CaretDown size={13} /></div>
@@ -1411,18 +1410,30 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <div className="appearance-swatches"><button aria-label="石墨黑" /><button aria-label="枪灰" /><button aria-label="信号红" /></div>
             </>}
             {inspectorTab === 'connections' && <div className="connection-list">
+              <div className="connection-summary">
+                <span>{selectedNodeConnections.length} 条真实连接</span>
+                <button
+                  onClick={() => selectedNode && concept.previewConnectorSnap(selectedNode.node_id)}
+                  disabled={!canSnapSelectedNode || concept.loading || Boolean(concept.pendingPreview)}
+                  title={!canSnapSelectedNode ? '选择一个未锁定、已连接的非根节点以修复吸附。' : '以父 Connector 为基准生成可确认的吸附 ChangeSet。'}
+                >修复并预览吸附</button>
+              </div>
               {(selectedModule?.manifest.connectors ?? []).map((connector) => {
                 const connected = (concept.graphRecord?.graph.edges ?? []).some((edge) => (
                   edge.from_connector_id === connector.connector_id
                   || edge.to_connector_id === connector.connector_id
                 ))
                 return (
-                  <DfmRow
-                    key={connector.connector_id}
-                    label={connector.slot}
-                    value={connected ? '已连接' : '可用'}
-                    ok={connected}
-                  />
+                  <div key={connector.connector_id}>
+                    <DfmRow
+                      label={connector.slot}
+                      value={connected ? '已连接' : '可用'}
+                      ok={connected}
+                    />
+                    <small className="connector-contract">
+                      {connector.connector_type} · {connector.exclusive ? '独占' : '可共享'} · 缩放 {connector.scale_range[0]}–{connector.scale_range[1]}
+                    </small>
+                  </div>
                 )
               })}
               {!selectedModule && <span className="muted-inspector">选择一个 Graph 节点查看真实 Connector。</span>}
@@ -1468,6 +1479,16 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
                 {concept.loading ? '检查中…' : '运行实际几何检查'}
               </button>
             </>}
+            {concept.pendingManualChange && concept.pendingPreview && (
+              <div className="change-preview-card manual-transform-preview" data-testid="manual-transform-preview">
+                <div><strong>{concept.pendingManualChange.summary.startsWith('Snap ') ? 'Connector 吸附预览 · 待确认' : '变换幽灵预览 · 待确认'}</strong><span>{concept.pendingManualChange.summary}</span></div>
+                <ul>{concept.pendingManualChange.operations.map((operation) => <li key={operation.operation_id}>{formatChangeOperation(operation)}</li>)}</ul>
+                <div className="change-preview-actions">
+                  <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>放弃预览</button>
+                  <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>确认并创建新版本</button>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="cad-panel export-panel">

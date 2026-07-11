@@ -5542,6 +5542,30 @@
         "title": "ProposeChangeSetRequest",
         "type": "object"
       },
+      "ProposeConnectorSnapRequest": {
+        "additionalProperties": false,
+        "description": "Request an auditable snap of one non-root node to its graph parent.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "node_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "node_id"
+        ],
+        "title": "ProposeConnectorSnapRequest",
+        "type": "object"
+      },
       "ProviderSettings": {
         "properties": {
           "base_url": {
@@ -9920,6 +9944,74 @@
           }
         },
         "summary": "Propose Change Set",
+        "tags": [
+          "concept-change-sets"
+        ]
+      }
+    },
+    "/api/v1/versions/{version_id}/change-sets:connector-snap": {
+      "post": {
+        "operationId": "propose_connector_snap_api_v1_versions__version_id__change_sets_connector_snap_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeConnectorSnapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Connector Snap",
         "tags": [
           "concept-change-sets"
         ]

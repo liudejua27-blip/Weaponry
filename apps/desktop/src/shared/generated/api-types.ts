@@ -924,6 +924,11 @@ export type ProposeChangeSetRequest = {
   "change_set": DesignChangeSet
 }
 
+export type ProposeConnectorSnapRequest = {
+  "client_request_id": string
+  "node_id": string
+}
+
 export type ProviderSettings = {
   "provider_id": string
   "kind": "llm" | "image" | "three_d"

@@ -43,6 +43,7 @@ import type {
   CreateConceptExportRequest,
   ConceptExportRecord,
   ProposeChangeSetRequest,
+  ProposeConnectorSnapRequest,
   PlanDesignChangeSetRequest,
   PlannedChangeSetRecord,
   DesignChangeSet,
@@ -313,6 +314,24 @@ export class ForgeApiClient {
       },
       body: JSON.stringify(input),
     })
+    return readJson<DesignChangeSet>(response)
+  }
+
+  async proposeConnectorSnap(
+    versionId: string,
+    input: ProposeConnectorSnapRequest,
+  ): Promise<DesignChangeSet> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/versions/${encodeURIComponent(versionId)}/change-sets:connector-snap`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
     return readJson<DesignChangeSet>(response)
   }
 

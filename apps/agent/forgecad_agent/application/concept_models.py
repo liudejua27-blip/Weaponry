@@ -231,6 +231,13 @@ class ProposeChangeSetRequest(StrictApiModel):
     change_set: "DesignChangeSet"
 
 
+class ProposeConnectorSnapRequest(StrictApiModel):
+    """Request an auditable snap of one non-root node to its graph parent."""
+
+    client_request_id: str = Field(min_length=1, max_length=120)
+    node_id: str = Field(min_length=1, max_length=160)
+
+
 class PlanDesignChangeSetRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     instruction: str = Field(min_length=3, max_length=2000)

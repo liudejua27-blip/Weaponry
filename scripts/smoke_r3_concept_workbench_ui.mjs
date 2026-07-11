@@ -408,6 +408,35 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       throw new Error(`transform was not reflected in inspector after confirm: ${committedTransformPosition}`)
     }
 
+    await page.getByRole('button', { name: '连接', exact: true }).click()
+    const connectorSnapProposePromise = page.waitForResponse(
+      (response) => response.url().includes('change-sets:connector-snap')
+        && response.request().method() === 'POST',
+    )
+    const connectorSnapPreviewPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':preview')
+        && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '修复并预览吸附', exact: true }).click()
+    const [connectorSnapProposeResponse, connectorSnapPreviewResponse] = await Promise.all([
+      connectorSnapProposePromise,
+      connectorSnapPreviewPromise,
+    ])
+    if (!connectorSnapProposeResponse.ok() || !connectorSnapPreviewResponse.ok()) {
+      throw new Error(`connector snap preview failed: propose=${connectorSnapProposeResponse.status()} preview=${connectorSnapPreviewResponse.status()}`)
+    }
+    const connectorSnapChange = await connectorSnapProposeResponse.json()
+    if (connectorSnapChange.operations?.[0]?.op !== 'set_transform' || connectorSnapChange.operations?.[0]?.node_id !== 'node_grip') {
+      throw new Error(`connector snap ChangeSet payload mismatch: ${JSON.stringify(connectorSnapChange)}`)
+    }
+    await assertText(page.getByTestId('manual-transform-preview'), ['Connector 吸附预览', 'Snap node_grip', '确认并创建新版本'])
+    await page.getByTestId('manual-transform-preview').getByRole('button', { name: '放弃预览' }).click()
+    await page.waitForFunction(
+      () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已放弃变换预览'),
+      { timeout: 20_000 },
+    )
+
     const lifecycle = await stressViewportLifecycle(page)
     const timelineFixture = await seedTimelineAuditFixture(agentApiBaseUrl, seeded.project_id)
     await page.getByRole('button', { name: '时间线' }).click()
@@ -1003,8 +1032,9 @@ async function seedTimelineAuditFixture(baseUrl, projectId) {
       },
     })
   }
-  // replacement + mirror + confirmed transform + rejected fixture + 21 proposed fixtures
-  return { rejected_id: rejectedId, total_count: 25 }
+  // replacement + mirror + confirmed transform + rejected connector-snap preview
+  // + rejected fixture + 21 proposed fixtures
+  return { rejected_id: rejectedId, total_count: 26 }
 }
 
 async function downloadDirect(page, url) {

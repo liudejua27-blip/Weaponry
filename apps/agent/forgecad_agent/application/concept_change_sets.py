@@ -19,6 +19,7 @@ from forgecad_agent.application.concept_models import (
     ConceptPlannerProvenance,
     PlanDesignChangeSetRequest,
     PlannedChangeSetRecord,
+    ProposeConnectorSnapRequest,
     ProposeChangeSetRequest,
 )
 from forgecad_agent.application.concept_planner import (
@@ -358,6 +359,101 @@ class ConceptChangeSetService:
                 created_at=now,
             )
             return change_set
+
+    def propose_connector_snap(
+        self,
+        version_id: str,
+        request: ProposeConnectorSnapRequest,
+        idempotency_key: str,
+    ) -> DesignChangeSet:
+        """Build a set_transform ChangeSet from the graph's authoritative connector frames."""
+        with SQLiteUnitOfWork(self.connection_factory) as unit_of_work:
+            version = unit_of_work.concept_projects.find_version(version_id)
+            if version is None:
+                raise ConceptChangeSetError("VERSION_NOT_FOUND", "Base version not found.")
+            if version["module_graph_id"] is None:
+                raise ConceptChangeSetError(
+                    "MODULE_GRAPH_NOT_FOUND",
+                    "Connector snap requires a validated ModuleGraph.",
+                )
+            graph_row = unit_of_work.modules.get_graph(str(version["module_graph_id"]))
+            if graph_row is None:
+                raise ConceptChangeSetError(
+                    "MODULE_GRAPH_NOT_FOUND", "Base version ModuleGraph not found."
+                )
+            graph = ModuleGraph.model_validate_json(graph_row["graph_json"])
+            node = next((item for item in graph.nodes if item.node_id == request.node_id), None)
+            if node is None:
+                raise ConceptChangeSetError(
+                    "INVALID_REQUEST", f"Graph node does not exist: {request.node_id}"
+                )
+            if node.node_id == graph.root_node_id or node.locked:
+                raise ConceptChangeSetError(
+                    "CHANGE_SET_INVALID", f"Connector snap cannot move protected node: {node.node_id}"
+                )
+            parent_edges, _ = _rooted_parent_edges(graph)
+            parent_entry = parent_edges.get(node.node_id)
+            if parent_entry is None:
+                raise ConceptChangeSetError(
+                    "CHANGE_SET_INVALID",
+                    f"Connector snap requires {node.node_id} to have a parent edge.",
+                )
+            parent_node_id, edge = parent_entry
+            nodes = {item.node_id: item for item in graph.nodes}
+            parent_node = nodes[parent_node_id]
+            connector_rows = unit_of_work.modules.connector_map(
+                [item.module_id for item in graph.nodes]
+            )
+            parent_connector_id, child_connector_id = _edge_connector_ids(
+                edge, parent_id=parent_node_id, child_id=node.node_id
+            )
+            snapped = snap_child_transform(
+                parent_transform=parent_node.transform,
+                parent_connector=_connector_transform(
+                    connector_rows, parent_connector_id, parent_node_id
+                ),
+                parent_mirror_axis=parent_node.mirror_axis,
+                child_scale=node.transform.scale,
+                child_connector=_connector_transform(
+                    connector_rows, child_connector_id, node.node_id
+                ),
+                child_mirror_axis=node.mirror_axis,
+            )
+            if _transforms_differ(snapped, node.transform) is False:
+                raise ConceptChangeSetError(
+                    "PLANNER_NO_ACTION", "Connector is already aligned within snap precision."
+                )
+            suffix = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()[:16]
+            change_set = DesignChangeSet(
+                change_set_id=f"change_connector_snap_{suffix}",
+                project_id=str(version["project_id"]),
+                base_version_id=version_id,
+                summary=(
+                    f"Snap {node.node_id} to {parent_node_id} via Connector edge {edge.edge_id}."
+                ),
+                operations=[
+                    DesignChangeOperation(
+                        operation_id=f"op_connector_snap_{suffix}",
+                        op="set_transform",
+                        node_id=node.node_id,
+                        transform=snapped,
+                    )
+                ],
+                protected_node_ids=[
+                    item.node_id
+                    for item in graph.nodes
+                    if item.locked or item.node_id == graph.root_node_id
+                ],
+                status="proposed",
+            )
+        return self.propose(
+            version_id,
+            ProposeChangeSetRequest(
+                client_request_id=request.client_request_id,
+                change_set=change_set,
+            ),
+            idempotency_key,
+        )
 
     def list_for_project(
         self,

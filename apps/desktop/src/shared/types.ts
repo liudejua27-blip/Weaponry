@@ -52,6 +52,7 @@ export type CreateConceptExportRequest = Api.CreateConceptExportRequest
 export type ConceptExportRecord = Api.ConceptExportRecord
 export type DesignChangeSet = Api.DesignChangeSet
 export type ProposeChangeSetRequest = Api.ProposeChangeSetRequest
+export type ProposeConnectorSnapRequest = Api.ProposeConnectorSnapRequest
 export type PlanDesignChangeSetRequest = Api.PlanDesignChangeSetRequest
 export type PlannedChangeSetRecord = Api.PlannedChangeSetRecord
 export type ChangeSetPreviewResponse = Api.ChangeSetPreviewResponse
