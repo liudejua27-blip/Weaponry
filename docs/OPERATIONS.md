@@ -61,6 +61,17 @@ curl --fail http://127.0.0.1:8000/api/provider-settings
 
 当前健康响应仍使用 `service=wushen-agent`。Concept Project、ModuleGraph、ChangeSet、首版实际 Mesh/Assembly QualityRun、概念源包以及 combined GLB/OBJ/MTL、preview/exploded、front/side/top、8 帧 turntable 和 MP4 导出 API 已实现；Blender 4.2.22 已对 starter core、工作台 visual-v2 三模块、10 模块 reference 和 10 模块 visual candidate 组合 GLB 完成真实 DCC 往返。candidate 的完整 OBJ/PNG/MP4 交付也已在隔离 Agent 验证；正式资产渲染性能、最终批准 Blender 全装配往返和完整 R5 检查矩阵尚未完成。
 
+## 仓库完整性与 CI
+
+合并前先运行：
+
+```bash
+npm run repository:integrity
+npm run contracts:types:check
+```
+
+`repository:integrity` 会验证 README 所声明的 CAD 工作台、Concept Agent、核心迁移、操作文档、证据目录和 R1–R4/Workbench 门禁确实存在，同时检查 README 与 `docs/` 的本地链接。`.github/workflows/repository-integrity.yml` 将该命令和生成合同检查设为每个 PR 与 `main` push 的首个 CI 门；`forgecad-core.yml` 继续覆盖 Agent、资产目录、首次启动、桌面 build 与 Workbench E2E。Tauri 三平台 `cargo check` 位于独立的 `tauri-preflight.yml`，在 Rust/Tauri 相关变更或手动触发时运行。
+
 ### 1.4 打开参考工作台
 
 另开终端：

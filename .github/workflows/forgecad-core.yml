@@ -1,0 +1,71 @@
+name: ForgeCAD Core
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-and-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --upgrade pip
+      - run: .venv/bin/pip install -e 'apps/agent[dev]'
+      - run: npm ci
+      - run: npm run agent:check
+      - run: .venv/bin/ruff check apps/agent
+      - run: npm run agent:r2-concept-contracts-smoke
+      - run: npm run agent:r2-module-registry-smoke
+      - run: npm run agent:r3-asset-catalog-smoke
+      - run: npm run agent:r3-first-run-workbench-smoke
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:typecheck
+      - run: npm run desktop:build
+
+  workbench-e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-and-contracts, desktop]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --upgrade pip
+      - run: .venv/bin/pip install -e 'apps/agent[dev]'
+      - run: npm ci
+      - run: google-chrome --version
+      - run: npm run desktop:r3-concept-workbench-smoke
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workbench-evidence
+          path: output/playwright
+          if-no-files-found: ignore

@@ -432,18 +432,27 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
     )
     const result = reusable ? currentExport : await concept.createExport()
     if (!result) return
-    window.location.assign(
-      exportFormat === 'GLB'
-        ? forgeApi.getConceptCombinedGlbUrl(result.export_id)
-        : exportFormat === 'OBJ'
-        ? forgeApi.getConceptCombinedObjUrl(result.export_id)
-        : exportFormat === 'PNG'
-        ? forgeApi.getConceptPreviewPngUrl(result.export_id)
-        : exportFormat === 'MP4'
-        ? forgeApi.getConceptTurntableVideoUrl(result.export_id)
-        : forgeApi.getConceptExportFileUrl(result.export_id),
-    )
+    const url = exportFormat === 'GLB'
+      ? forgeApi.getConceptCombinedGlbUrl(result.export_id)
+      : exportFormat === 'OBJ'
+      ? forgeApi.getConceptCombinedObjUrl(result.export_id)
+      : exportFormat === 'PNG'
+      ? forgeApi.getConceptPreviewPngUrl(result.export_id)
+      : exportFormat === 'MP4'
+      ? forgeApi.getConceptTurntableVideoUrl(result.export_id)
+      : forgeApi.getConceptExportFileUrl(result.export_id)
+    try {
+      await downloadBrowserFile(url, exportDownloadFilename(result.export_id, exportFormat))
+    } catch (caught) {
+      setAssistantNote(`导出已生成，但浏览器下载失败：${errorText(caught)}`)
+    }
   }, [concept, exportFormat])
+
+  const downloadExistingExport = useCallback((url: string, filename: string) => {
+    downloadBrowserFile(url, filename).catch((caught) => {
+      setAssistantNote(`浏览器下载失败：${errorText(caught)}`)
+    })
+  }, [])
 
   const handleReplaceSelected = useCallback(() => {
     if (!selectedNode || !selectedLibraryModule) return
@@ -1399,8 +1408,9 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             {exportFormat === 'OBJ' && concept.lastExport && (
               <button
                 className="secondary-action"
-                onClick={() => window.location.assign(
+                onClick={() => downloadExistingExport(
                   forgeApi.getConceptCombinedMtlUrl(concept.lastExport!.export_id),
+                  'combined.mtl',
                 )}
               >
                 下载配套 combined.mtl
@@ -1410,25 +1420,28 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               <>
                 <button
                   className="secondary-action"
-                  onClick={() => window.location.assign(
-                    forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
-                  )}
+                onClick={() => downloadExistingExport(
+                  forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
+                  `${concept.lastExport!.export_id}-exploded.png`,
+                )}
                 >
                   下载 exploded.png
                 </button>
                 <button
                   className="secondary-action"
-                  onClick={() => window.location.assign(
-                    forgeApi.getConceptRenderSetUrl(concept.lastExport!.export_id),
-                  )}
+                onClick={() => downloadExistingExport(
+                  forgeApi.getConceptRenderSetUrl(concept.lastExport!.export_id),
+                  `${concept.lastExport!.export_id}-renders.zip`,
+                )}
                 >
                   下载正交视图与转台 ZIP
                 </button>
                 {concept.lastExport.turntable_video_sha256 && (
                   <button
                     className="secondary-action"
-                    onClick={() => window.location.assign(
+                    onClick={() => downloadExistingExport(
                       forgeApi.getConceptTurntableVideoUrl(concept.lastExport!.export_id),
+                      `${concept.lastExport!.export_id}-turntable.mp4`,
                     )}
                   >
                     下载转台 MP4
@@ -1609,4 +1622,34 @@ function formatVersionTime(value: string): string {
 
 function formatAxis(value: number | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+}
+
+async function downloadBrowserFile(url: string, fallbackName?: string): Promise<void> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`下载请求失败：HTTP ${response.status}`)
+  const blob = await response.blob()
+  const urlFallbackName = url.split('/').pop() || 'forgecad-export'
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i)
+  const anchor = document.createElement('a')
+  const objectUrl = URL.createObjectURL(blob)
+  anchor.href = objectUrl
+  anchor.download = filenameMatch?.[1] || fallbackName || urlFallbackName
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+}
+
+function exportDownloadFilename(exportId: string, format: string): string {
+  if (format === 'GLB') return `${exportId}.glb`
+  if (format === 'OBJ') return `${exportId}.obj`
+  if (format === 'PNG') return `${exportId}-preview.png`
+  if (format === 'MP4') return `${exportId}-turntable.mp4`
+  return `${exportId}.zip`
+}
+
+function errorText(caught: unknown): string {
+  return caught instanceof Error ? caught.message : String(caught)
 }

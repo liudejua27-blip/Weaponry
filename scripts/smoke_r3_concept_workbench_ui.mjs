@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,6 +21,7 @@ const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
 const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
+const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -201,7 +202,18 @@ async function seedConceptGraph(baseUrl) {
 
 async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
   const browser = await launchSystemBrowser()
-  const page = await browser.newPage({ viewport: { width: 1536, height: 1024 }, deviceScaleFactor: 1 })
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 1536, height: 1024 },
+    deviceScaleFactor: 1,
+  })
+  const page = await context.newPage()
+  const cdpSession = await context.newCDPSession(page)
+  await cdpSession.send('Browser.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: OUTPUT_DIR,
+    eventsEnabled: true,
+  })
   const browserErrors = []
   let conceptExportPosts = 0
   page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -541,7 +553,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       (response) => /\/api\/v1\/projects\/[^/]+\/change-set-audit-exports$/.test(response.url())
         && response.request().method() === 'POST',
     )
-    const auditDownloadPromise = page.waitForEvent('download')
+    const auditDownloadPromise = waitForDownload(page)
     await page.getByTestId('change-set-audit-export').click()
     const auditExportResponse = await auditExportResponsePromise
     if (!auditExportResponse.ok()) {
@@ -556,12 +568,16 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     ) {
       throw new Error(`ChangeSet audit export record mismatch: ${JSON.stringify(auditExportRecord)}`)
     }
-    const auditDownload = await auditDownloadPromise
-    if (!auditDownload.suggestedFilename().startsWith('csaudit_')
-      || !auditDownload.suggestedFilename().endsWith('.zip')) {
-      throw new Error(`unexpected ChangeSet audit filename: ${auditDownload.suggestedFilename()}`)
+    const auditDownload = await resolveDownload(
+      await auditDownloadPromise,
+      `${agentApiBaseUrl}/api/v1/change-set-audit-exports/${auditExportRecord.audit_export_id}/file`,
+      `${auditExportRecord.audit_export_id}.zip`,
+    )
+    if (!auditDownload.filename.startsWith('csaudit_')
+      || !auditDownload.filename.endsWith('.zip')) {
+      throw new Error(`unexpected ChangeSet audit filename: ${auditDownload.filename}`)
     }
-    const auditDownloadPath = await auditDownload.path()
+    const auditDownloadPath = auditDownload.path
     if (!auditDownloadPath || (await stat(auditDownloadPath)).size < 500) {
       throw new Error('ChangeSet audit ZIP is unexpectedly small')
     }
@@ -629,27 +645,35 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
         && response.request().method() === 'POST',
     )
-    const downloadPromise = page.waitForEvent('download')
+    const downloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
     const exportResponse = await exportResponsePromise
     if (!exportResponse.ok()) throw new Error(`delivery export failed: ${exportResponse.status()}`)
     const deliveryRecord = await exportResponse.json()
     const agentBaseUrl = new URL(exportResponse.url()).origin
-    const download = await downloadPromise
-    if (!download.suggestedFilename().endsWith('.zip')) {
-      throw new Error(`unexpected export filename: ${download.suggestedFilename()}`)
+    const download = await resolveDownload(
+      await downloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/file`,
+      `${deliveryRecord.export_id}.zip`,
+    )
+    if (!download.filename.endsWith('.zip')) {
+      throw new Error(`unexpected export filename: ${download.filename}`)
     }
-    const downloadPath = await download.path()
+    const downloadPath = download.path
     if (!downloadPath || (await stat(downloadPath)).size < 500) throw new Error('concept export download is empty')
     await assertText(page.locator('.export-panel'), ['export_', 'SOURCE ZIP'])
     await page.getByRole('button', { name: 'GLB', exact: true }).click()
-    const glbDownloadPromise = page.waitForEvent('download')
+    const glbDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '创建并下载 combined GLB' }).click()
-    const glbDownload = await glbDownloadPromise
-    if (!glbDownload.suggestedFilename().endsWith('.glb')) {
-      throw new Error(`unexpected combined GLB filename: ${glbDownload.suggestedFilename()}`)
+    const glbDownload = await resolveDownload(
+      await glbDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/combined.glb`,
+      `${deliveryRecord.export_id}.glb`,
+    )
+    if (!glbDownload.filename.endsWith('.glb')) {
+      throw new Error(`unexpected combined GLB filename: ${glbDownload.filename}`)
     }
-    const glbDownloadPath = await glbDownload.path()
+    const glbDownloadPath = glbDownload.path
     if (!glbDownloadPath || (await stat(glbDownloadPath)).size < 5_000) {
       throw new Error('combined GLB download is unexpectedly small')
     }
@@ -659,13 +683,17 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     }
     const persistedCombinedGlb = await persistDccCombinedGlb(glbDownloadPath)
     await page.getByRole('button', { name: 'OBJ', exact: true }).click()
-    const objDownloadPromise = page.waitForEvent('download')
+    const objDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '创建并下载 combined OBJ' }).click()
-    const objDownload = await objDownloadPromise
-    if (!objDownload.suggestedFilename().endsWith('.obj')) {
-      throw new Error(`unexpected combined OBJ filename: ${objDownload.suggestedFilename()}`)
+    const objDownload = await resolveDownload(
+      await objDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/combined.obj`,
+      `${deliveryRecord.export_id}.obj`,
+    )
+    if (!objDownload.filename.endsWith('.obj')) {
+      throw new Error(`unexpected combined OBJ filename: ${objDownload.filename}`)
     }
-    const objDownloadPath = await objDownload.path()
+    const objDownloadPath = objDownload.path
     if (!objDownloadPath || (await stat(objDownloadPath)).size < 5_000) {
       throw new Error('combined OBJ download is unexpectedly small')
     }
@@ -681,38 +709,50 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     ]) {
       if (!objText.includes(phrase)) throw new Error(`combined OBJ is missing ${phrase}`)
     }
-    const mtlDownloadPromise = page.waitForEvent('download')
+    const mtlDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '下载配套 combined.mtl' }).click()
-    const mtlDownload = await mtlDownloadPromise
-    if (mtlDownload.suggestedFilename() !== 'combined.mtl') {
-      throw new Error(`unexpected combined MTL filename: ${mtlDownload.suggestedFilename()}`)
+    const mtlDownload = await resolveDownload(
+      await mtlDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/combined.mtl`,
+      'combined.mtl',
+    )
+    if (mtlDownload.filename !== 'combined.mtl') {
+      throw new Error(`unexpected combined MTL filename: ${mtlDownload.filename}`)
     }
-    const mtlDownloadPath = await mtlDownload.path()
+    const mtlDownloadPath = mtlDownload.path
     const mtlText = mtlDownloadPath ? await readFile(mtlDownloadPath, 'utf8') : ''
     if (!mtlText.includes('newmtl ') || !mtlText.includes('\nKd ')) {
       throw new Error('combined MTL download is invalid')
     }
     await page.getByRole('button', { name: 'PNG', exact: true }).click()
-    const previewDownloadPromise = page.waitForEvent('download')
+    const previewDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '创建并下载透明 preview.png' }).click()
-    const previewDownload = await previewDownloadPromise
-    if (!previewDownload.suggestedFilename().endsWith('-preview.png')) {
-      throw new Error(`unexpected preview PNG filename: ${previewDownload.suggestedFilename()}`)
+    const previewDownload = await resolveDownload(
+      await previewDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/preview.png`,
+      `${deliveryRecord.export_id}-preview.png`,
+    )
+    if (!previewDownload.filename.endsWith('-preview.png')) {
+      throw new Error(`unexpected preview PNG filename: ${previewDownload.filename}`)
     }
-    const previewDownloadPath = await previewDownload.path()
+    const previewDownloadPath = previewDownload.path
     if (!previewDownloadPath || (await stat(previewDownloadPath)).size < 5_000) {
       throw new Error('preview PNG download is unexpectedly small')
     }
     const previewBytes = await readFile(previewDownloadPath)
     assertPng(previewBytes, 'preview')
     await copyFile(previewDownloadPath, PREVIEW_RENDER)
-    const explodedDownloadPromise = page.waitForEvent('download')
+    const explodedDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '下载 exploded.png' }).click()
-    const explodedDownload = await explodedDownloadPromise
-    if (!explodedDownload.suggestedFilename().endsWith('-exploded.png')) {
-      throw new Error(`unexpected exploded PNG filename: ${explodedDownload.suggestedFilename()}`)
+    const explodedDownload = await resolveDownload(
+      await explodedDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/exploded.png`,
+      `${deliveryRecord.export_id}-exploded.png`,
+    )
+    if (!explodedDownload.filename.endsWith('-exploded.png')) {
+      throw new Error(`unexpected exploded PNG filename: ${explodedDownload.filename}`)
     }
-    const explodedDownloadPath = await explodedDownload.path()
+    const explodedDownloadPath = explodedDownload.path
     if (!explodedDownloadPath || (await stat(explodedDownloadPath)).size < 5_000) {
       throw new Error('exploded PNG download is unexpectedly small')
     }
@@ -720,13 +760,17 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     assertPng(explodedBytes, 'exploded')
     if (previewBytes.equals(explodedBytes)) throw new Error('preview and exploded PNG are identical')
     await copyFile(explodedDownloadPath, EXPLODED_RENDER)
-    const renderSetDownloadPromise = page.waitForEvent('download')
+    const renderSetDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '下载正交视图与转台 ZIP' }).click()
-    const renderSetDownload = await renderSetDownloadPromise
-    if (!renderSetDownload.suggestedFilename().endsWith('-renders.zip')) {
-      throw new Error(`unexpected render set filename: ${renderSetDownload.suggestedFilename()}`)
+    const renderSetDownload = await resolveDownload(
+      await renderSetDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/renders.zip`,
+      `${deliveryRecord.export_id}-renders.zip`,
+    )
+    if (!renderSetDownload.filename.endsWith('-renders.zip')) {
+      throw new Error(`unexpected render set filename: ${renderSetDownload.filename}`)
     }
-    const renderSetPath = await renderSetDownload.path()
+    const renderSetPath = renderSetDownload.path
     if (!renderSetPath || (await stat(renderSetPath)).size < 20_000) {
       throw new Error('render set ZIP is unexpectedly small')
     }
@@ -737,13 +781,17 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (!deliveryRecord.turntable_video_sha256 || deliveryRecord.turntable_video_mime_type !== 'video/mp4') {
       throw new Error('delivery export did not report a turntable MP4')
     }
-    const videoDownloadPromise = page.waitForEvent('download')
+    const videoDownloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '下载转台 MP4' }).click()
-    const videoDownload = await videoDownloadPromise
-    if (!videoDownload.suggestedFilename().endsWith('-turntable.mp4')) {
-      throw new Error(`unexpected turntable MP4 filename: ${videoDownload.suggestedFilename()}`)
+    const videoDownload = await resolveDownload(
+      await videoDownloadPromise,
+      `${agentBaseUrl}/api/v1/exports/${deliveryRecord.export_id}/turntable.mp4`,
+      `${deliveryRecord.export_id}-turntable.mp4`,
+    )
+    if (!videoDownload.filename.endsWith('-turntable.mp4')) {
+      throw new Error(`unexpected turntable MP4 filename: ${videoDownload.filename}`)
     }
-    const videoDownloadPath = await videoDownload.path()
+    const videoDownloadPath = videoDownload.path
     if (!videoDownloadPath || (await stat(videoDownloadPath)).size < 1_000) {
       throw new Error('turntable MP4 is unexpectedly small')
     }
@@ -758,7 +806,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     ]
     for (const [label, url, destination] of visualArtifacts) {
       const artifact = await downloadDirect(page, url)
-      const artifactPath = await artifact.path()
+      const artifactPath = artifact.path
       if (!artifactPath) throw new Error(`${label} render download has no path`)
       const bytes = await readFile(artifactPath)
       assertPng(bytes, label)
@@ -823,6 +871,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       turntable_render: TURNTABLE_RENDER,
     }
   } finally {
+    await context.close()
     await browser.close()
   }
 }
@@ -893,7 +942,7 @@ async function seedTimelineAuditFixture(baseUrl, projectId) {
 }
 
 async function downloadDirect(page, url) {
-  const promise = page.waitForEvent('download')
+  const promise = waitForDownload(page)
   await page.evaluate((target) => {
     const anchor = document.createElement('a')
     anchor.href = target
@@ -902,7 +951,27 @@ async function downloadDirect(page, url) {
     anchor.click()
     anchor.remove()
   }, url)
-  return promise
+  return resolveDownload(await promise, url, url.split('/').pop() || 'artifact')
+}
+
+function waitForDownload(page) {
+  return REQUIRE_BROWSER_DOWNLOADS
+    ? page.waitForEvent('download')
+    : Promise.resolve(null)
+}
+
+async function resolveDownload(download, url, fallbackFilename) {
+  if (download) {
+    const path = await download.path()
+    if (!path) throw new Error(`browser download has no path: ${download.suggestedFilename()}`)
+    return { filename: download.suggestedFilename(), path }
+  }
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`fallback download failed: ${response.status} ${url}`)
+  const payload = Buffer.from(await response.arrayBuffer())
+  const path = join(OUTPUT_DIR, `ci-${fallbackFilename}`)
+  await writeFile(path, payload)
+  return { filename: fallbackFilename, path }
 }
 
 function assertPng(bytes, label) {

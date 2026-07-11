@@ -18,6 +18,7 @@
     "desktop:r3-concept-workbench-smoke": "node scripts/smoke_r3_concept_workbench_ui.mjs",
     "desktop:tauri-check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "agent:check": "python3 -m compileall -q apps/agent/wushen_agent apps/agent/forgecad_agent scripts",
+    "repository:integrity": "python3 scripts/check_repository_integrity.py",
     "contracts:types:generate": "python3 scripts/generate_schema_types.py && .venv/bin/python scripts/export_openapi.py",
     "contracts:types:check": "python3 scripts/generate_schema_types.py --check && .venv/bin/python scripts/export_openapi.py --check",
     "contracts:check": "python3 scripts/check_contracts.py",

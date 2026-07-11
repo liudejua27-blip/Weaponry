@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Iterable
 
 from ..models import CreativeInterpretationCandidate, CreativeInterpretationRequest, CreativeStructureGraph
 

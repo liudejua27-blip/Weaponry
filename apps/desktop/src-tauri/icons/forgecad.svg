@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ForgeCAD">
+  <defs>
+    <linearGradient id="forgecad-blue" x1="80" y1="56" x2="436" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#39a8ff"/>
+      <stop offset="1" stop-color="#1558c0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0d1724"/>
+  <path d="M256 72 420 166v180L256 440 92 346V166L256 72Z" fill="url(#forgecad-blue)"/>
+  <path d="m256 135 109 62-109 63-109-63 109-62Zm0 125 109-63v119l-109 63-109-63V197l109 63Z" fill="none" stroke="#e8f6ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/>
+  <path d="M256 260v119" stroke="#e8f6ff" stroke-linecap="round" stroke-width="24"/>
+</svg>

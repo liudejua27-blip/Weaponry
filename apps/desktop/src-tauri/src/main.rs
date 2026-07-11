@@ -73,11 +73,11 @@ fn agent_health_endpoint() -> String {
 
 #[tauri::command]
 fn agent_service_status(state: State<'_, AgentProcessState>) -> AgentServiceStatus {
-    let mode_name = read_mode(&state.mode.lock().unwrap_or_else(|_| AGENT_MODE_LOCAL.to_string()));
+    let mode_name = managed_mode_name(&state);
     let (managed_running, pid) = match state.child.lock() {
         Ok(mut guard) => {
             let pid = guard
-                .as_ref()
+                .as_mut()
                 .and_then(|child| {
                     if child.try_wait().ok().flatten().is_none() {
                         Some(child.id())
@@ -100,11 +100,14 @@ fn agent_service_status(state: State<'_, AgentProcessState>) -> AgentServiceStat
 #[tauri::command]
 fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServiceStatus, String> {
     if let Ok(mut child_guard) = state.child.lock() {
-        let managed_running = child_guard.as_ref().map(|child| child.try_wait().ok().flatten().is_none()).unwrap_or(false);
+        let managed_running = child_guard
+            .as_mut()
+            .map(|child| child.try_wait().ok().flatten().is_none())
+            .unwrap_or(false);
         if managed_running {
             let pid = child_guard.as_ref().map(|child| child.id());
             if let AgentProbe::Healthy = probe_agent() {
-                let mode_name = read_mode(state.mode.lock().unwrap_or_else(|_| AGENT_MODE_LOCAL.to_string()).as_str());
+                let mode_name = managed_mode_name(&state);
                 return Ok(status_from_probe(AgentProbe::Healthy, true, pid, &mode_name));
             }
         }
@@ -133,7 +136,7 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
     let child = match mode {
         AgentMode::PackagedSidecar => start_packaged_sidecar(&repo_root)?,
         AgentMode::LocalDev => start_local_python_sidecar(&repo_root)?,
-    }?;
+    };
     let pid = child.id();
     *child_guard = Some(child);
     drop(child_guard);
@@ -158,7 +161,7 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
 #[tauri::command]
 fn stop_agent_service(state: State<'_, AgentProcessState>) -> AgentServiceStatus {
     state.shutdown_managed();
-    let mode = read_mode(&state.mode.lock().unwrap_or_else(|_| AGENT_MODE_LOCAL.to_string()));
+    let mode = managed_mode_name(&state);
     status_from_probe(probe_agent(), false, None, &mode)
 }
 
@@ -344,6 +347,14 @@ fn read_mode(mode: &str) -> String {
         AGENT_MODE_PACKAGED => AGENT_MODE_PACKAGED.to_string(),
         _ => AGENT_MODE_LOCAL.to_string(),
     }
+}
+
+fn managed_mode_name(state: &AgentProcessState) -> String {
+    state
+        .mode
+        .lock()
+        .map(|mode| read_mode(&mode))
+        .unwrap_or_else(|_| AGENT_MODE_LOCAL.to_string())
 }
 
 fn probe_agent() -> AgentProbe {

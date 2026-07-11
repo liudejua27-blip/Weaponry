@@ -67,8 +67,20 @@ def main() -> int:
 
     icons = bundle.get("icon") if isinstance(bundle.get("icon"), list) else []
     icon_missing = [icon for icon in icons if not (TAURI_DIR / icon).exists()]
+    invalid_icons = {
+        icon: _icon_integrity_issues(TAURI_DIR / icon)
+        for icon in icons
+        if (TAURI_DIR / icon).is_file() and _icon_integrity_issues(TAURI_DIR / icon)
+    }
     _require(blockers, bool(icons), "TAURI_ICONS_MISSING", "Tauri production bundle must define application icons.")
     _require(blockers, not icon_missing, "TAURI_ICON_FILE_MISSING", "Configured Tauri icon files must exist.", {"icons": icon_missing})
+    _require(
+        blockers,
+        not invalid_icons,
+        "TAURI_ICON_INVALID",
+        "Configured Tauri icons must be non-empty and have a valid platform header.",
+        {"invalid_icons": invalid_icons},
+    )
 
     external_bins = bundle.get("externalBin") if isinstance(bundle.get("externalBin"), list) else []
     _require(
@@ -138,6 +150,7 @@ def main() -> int:
         "bundle_active": bundle.get("active"),
         "targets": bundle.get("targets"),
         "icons": icons,
+        "invalid_icons": invalid_icons,
         "externalBin": external_bins,
         "sidecar_candidates": [str(path.relative_to(TAURI_DIR)) for path in sidecar_candidates],
         "sidecar_invalid": invalid_sidecars,
@@ -160,6 +173,23 @@ def _sidecar_candidates(external_bins: list[Any]) -> list[Path]:
         base = TAURI_DIR / entry
         candidates.extend(path for path in base.parent.glob(base.name + "-*") if path.is_file())
     return sorted(candidates)
+
+
+def _icon_integrity_issues(path: Path) -> list[str]:
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        return [f"unreadable: {exc}"]
+    if not payload:
+        return ["empty"]
+    suffix = path.suffix.lower()
+    if suffix == ".png":
+        return [] if payload.startswith(b"\x89PNG\r\n\x1a\n") and len(payload) >= 24 else ["invalid_png"]
+    if suffix == ".ico":
+        return [] if payload.startswith(b"\x00\x00\x01\x00") and len(payload) >= 22 else ["invalid_ico"]
+    if suffix == ".icns":
+        return [] if payload.startswith(b"icns") and len(payload) >= 8 else ["invalid_icns"]
+    return ["unsupported_extension"]
 
 
 def _sidecar_integrity_issues(path: Path) -> list[str]:
