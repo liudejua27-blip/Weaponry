@@ -44,7 +44,7 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 | `module_front_shell_01` | 67.0 × 35.0 × 34.25 | 752 | `1f623e8f49f4a987ed49fb0574e17456fe319962815bc77d9db224e7748f7064` |
 | `module_front_shell_02` | 76.0 × 37.0 × 40.25 | 940 | `2f3100a59c0118e36ad57dd4ea9097cee33f85d4e50f06cbd2855648e6c258f2` |
 
-### 视觉层级增强版
+### 视觉层级增强版（当前 starter）
 
 同日用同一已验签 Blender 重建的 visual-v2 starter 保留全部 Module/Asset/Connector 合同，但增加了非功能性的顶轨、外观条带、装甲带、信号标记和差异化 front 轮廓。
 
@@ -58,7 +58,7 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 通过 `smoke_blender_starter_workbench.py` 将这个实际 Pack 导入临时 ForgeCAD Library 后，core/front Graph 验证、front01 → front02 ChangeSet 预览/确认、子 Version、`weapon-concept-geometry/1.3` 质量检查（`passed`）、combined GLB 下载和 Agent 重启回读均通过。导出 combined GLB SHA-256 为 `415e7ac6fbf8403ded0cd3f73963f8802e41e755ddb5fa5e1c1d5cb1405b3351`，328732 bytes，Blender 往返后保持 8980 顶点 / 3760 三角。
 
-真实只读 re-export 返回 `edited_sources_exported_and_validated` 与 `source_unchanged: true`；三份 `.blend` 前后 SHA-256 分别保持 `3ae9a0e630399357fe80eddd7bd3be9d3488c4e09f7889d204f261d91073bbed`、`2287f80d5797cb9130106ff238fb5054e159bdaf4ddffb3daa0e0438b00e1d27`、`c9a259c923a8a5007ea79a95c5c3903afce510f807c98a07bf898af9fc490442`。三模块 Asset/Category/Connector 按 ID 规范化后与 reference baseline 相等。core GLB 通过 Blender DCC 往返，2178 顶点和 940 三角保持不变。
+上文 940 三角与 2178 顶点对应初始 toolchain run；当前 starter 的权威数值以 visual-v2 段落为准。两次运行均保持 Asset/Category/Connector 按 ID 规范化后与 reference baseline 相等。
 
 本次真实执行还暴露并修复了：factory startup 无 World、Blender Python 异常未映射为非零退出码、Blender Z-up 与 ForgeCAD/glTF Y-up 坐标基变换、Connector 基线的 ±24 mm 偏差、float32 表示噪声以及缩略图过曝。
 
@@ -66,5 +66,5 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/check_dcc_roundtrip.py \
 
 - 人工修改后的最终轮廓、表面层级、UV 和材质分区质量；
 - 最终许可证与独立 reviewer 批准；
-- 工作台 combined GLB 的真实全装配 DCC 往返；
+- 正式人工 Blender 资产的全装配 DCC 往返；
 - 三模块正式替换矩阵和 Tauri GPU 指标。
