@@ -235,6 +235,18 @@ npm run assets:formal-review-validate -- \
 
 正式门会重跑 Pack、hash、Blender generator、三语义材质、最终许可证、基线 ID/Connector 和 anti-placeholder 三角下限（core 1000、front 500）。reference/starter/smoke、作者自审、任一低分/未勾选、source/module Manifest/GLB/thumbnail/Pack license/Module license 篡改或 Connector 漂移都会失败。`formal_module_review_validated` 只表示三模块可进入下一轮工作台/Connector/质量评测；人工 attestation 不是密码学签名，也不表示制造、结构或安全就绪。扩到正式首包时使用 `--scope release_10_12`，保留 reference Pack 的 10 个稳定 ID，并再次生成独立审阅记录。
 
+在 reviewer 打开原始 JSON 前，可生成不带绝对路径、不会修改 draft 的 Markdown 审阅交接单。它要求 Pack/source/review hash 仍一致，列出每个模块的 thumbnail 相对位置和待勾选项目，但 `approval_granted=false`，不能替代 reviewer 或 promotion report：
+
+```bash
+npm run assets:formal-review-handoff -- \
+  --pack-root "$PWD/output/blender/weapon-concept-v1-full-candidate-reexport" \
+  --source-root "$PWD/output/blender/weapon-concept-v1-full-candidate/sources" \
+  --review "$PWD/output/blender/formal-review-release-10-12.json" \
+  --output "$PWD/output/blender/formal-review-release-10-12-handoff.md"
+```
+
+`assets:formal-review-handoff-smoke` 覆盖 draft 边界、绝对路径排除、不能覆盖和 source 篡改拒绝；它不创建真实批准。
+
 combined GLB 可从 `GET /api/v1/exports/{export_id}/combined.glb` 独立下载，也同时存在于 ZIP 的 `Model/combined.glb`；两者 SHA-256 必须一致。
 
 创建导出时传 `"include_combined_obj": true`，OBJ 和 MTL 会分别写入 `Model/combined.obj`、`Model/combined.mtl`。可通过以下地址独立下载：

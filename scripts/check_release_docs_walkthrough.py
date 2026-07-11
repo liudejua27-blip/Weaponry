@@ -38,6 +38,8 @@ REQUIRED_SCRIPTS = [
     "agent:r4-change-planner-api-smoke",
     "agent:r4-evaluation-preflight",
     "agent:r4-evaluation-preflight-smoke",
+    "assets:formal-review-handoff",
+    "assets:formal-review-handoff-smoke",
 ]
 
 DOC_REQUIREMENTS: dict[str, list[str]] = {

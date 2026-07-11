@@ -159,6 +159,18 @@ PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_blender_full_candidate_work
 
 技术导出通过后仍不能称为最终资产。默认 re-export 许可证故意保留 starter/not-final 标记，必须在输出副本中换成已确认权属的最终美术 SPDX 和许可证文本。然后运行 `assets:formal-review-draft`，由非作者 reviewer 完成 `FormalModuleReview@1`：所有 checklist 为 true，五项视觉评分均 ≥4，确认非功能性概念/游戏/影视道具用途。
 
+为避免 reviewer 直接在长 JSON 中遗漏模块，可从完整性已锁定的 draft 生成只读 Markdown 交接单。它列出每个模块的 source 文件名、缩略图相对路径、GLB hash 和待勾选项，**不能**批准或晋级资产：
+
+```bash
+npm run assets:formal-review-handoff -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-reexport" \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate/sources" \
+  --review "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-full-candidate-review.json" \
+  --output "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-review-handoff.md"
+```
+
+若 source、Manifest、GLB、thumbnail 或 license hash 已偏离 draft，或输出文件已存在，该命令拒绝生成。reviewer 仍必须把真实结论填写回原始 JSON，并由 `assets:formal-review-validate` 生成唯一的 promotion report。
+
 `assets:formal-review-validate` 会重新核验三份 Blender source、module Manifest、GLB、thumbnail、Pack/Module license 的 hash，以及 Blender generator、三语义材质、anti-placeholder triangle floor、最终许可证和 reference Pack 的稳定 Module/Asset/Connector 合同。报告不含绝对路径；attestation 是审计记录，不是密码学签名。具体命令见 [操作手册](OPERATIONS.md)。
 
 ## 7. 不可变注册边界
