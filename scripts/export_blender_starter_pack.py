@@ -100,6 +100,8 @@ def main() -> int:
     command = [
         str(blender),
         "--background",
+        "--python-exit-code",
+        "1",
         "--factory-startup",
         "--python",
         str(EXPORT_SCRIPT),
@@ -171,6 +173,8 @@ def _check_export_source() -> dict[str, bool]:
         "forgecad_authoring_metadata",
         "apply location/rotation/scale",
         "apply modifiers before export",
+        "_blender_position_m_to_business_mm",
+        "_blender_rotation_to_business_euler",
     )
     missing = [token for token in required if token not in source]
     if "save_as_mainfile" in source or missing:

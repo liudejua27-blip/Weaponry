@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "export_blender_starter_pack.py"
+EXPORT_SCRIPT = ROOT / "scripts" / "blender" / "export_weapon_concept_sources.py"
 MODULE_IDS = (
     "module_core_shell_01",
     "module_front_shell_01",
@@ -18,6 +19,16 @@ MODULE_IDS = (
 
 
 def main() -> int:
+    _assert(
+        '"--python-exit-code"' in RUNNER.read_text(encoding="utf-8"),
+        "Blender Python exceptions are not mapped to a non-zero process exit code",
+    )
+    export_source = EXPORT_SCRIPT.read_text(encoding="utf-8")
+    _assert("BLENDER_TO_GLTF" in export_source, "Blender/glTF basis conversion is missing")
+    _assert(
+        "round(component * 1000, 4)" in export_source,
+        "Connector float32 noise normalization is missing",
+    )
     with tempfile.TemporaryDirectory(prefix="forgecad_blender_reexport_") as temporary:
         temp_root = Path(temporary)
         source_root = temp_root / "sources"
@@ -98,6 +109,9 @@ def main() -> int:
                 "source_output_overlap_rejected": True,
                 "committed_pack_output_rejected": True,
                 "execute_without_blender_rejected": not blender_ready,
+                "python_exception_exit_code_enforced": True,
+                "connector_basis_conversion_present": True,
+                "connector_float_noise_normalized": True,
             },
             ensure_ascii=False,
             indent=2,

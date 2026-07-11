@@ -61,11 +61,11 @@ MODULES = (
         (
             Connector("connector_core_front", "core.front", "shell_mount", (-50, 0, 0)),
             Connector("connector_core_rear", "core.rear", "rear_mount", (50, 0, 0)),
-            Connector("connector_core_grip", "core.grip", "grip_mount", (14, -23, 0)),
-            Connector("connector_core_top", "core.top", "top_mount", (0, 23, 0)),
+            Connector("connector_core_grip", "core.grip", "grip_mount", (14, -24, 0)),
+            Connector("connector_core_top", "core.top", "top_mount", (0, 24, 0)),
             Connector("connector_core_side", "core.side", "side_mount", (0, 0, 20)),
-            Connector("connector_core_lower", "core.lower", "lower_mount", (-12, -23, 0)),
-            Connector("connector_core_storage", "core.storage", "storage_mount", (30, -23, 0)),
+            Connector("connector_core_lower", "core.lower", "lower_mount", (-12, -24, 0)),
+            Connector("connector_core_storage", "core.storage", "storage_mount", (30, -24, 0)),
             Connector("connector_core_armor", "core.armor", "armor_mount", (0, 0, -20)),
         ),
     ),
@@ -153,6 +153,8 @@ def _build_module(output_root: Path, module: Module, license_text: str) -> dict[
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.film_transparent = True
+    scene.view_settings.look = "AgX - Medium High Contrast"
+    scene.view_settings.exposure = -1.5
     collection = bpy.data.collections.new(f"MOD_{module.module_id}")
     scene.collection.children.link(collection)
     materials = _create_materials()
@@ -278,8 +280,8 @@ def _create_part(module_id, index, part, materials, collection):
     collection.objects.link(obj)
     obj.name = f"GEO_{module_id}_LOD0_{index:02d}"
     obj.data.name = f"MESH_{module_id}_LOD0_{index:02d}"
-    obj.location = Vector(value / 1000 for value in part.center_mm)
-    obj.dimensions = Vector(value / 1000 for value in part.size_mm)
+    obj.location = _business_position_mm_to_blender_m(part.center_mm)
+    obj.dimensions = _business_size_mm_to_blender_m(part.size_mm)
     obj.data.materials.append(materials[part.material])
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
@@ -304,7 +306,7 @@ def _create_connector(connector, collection):
     collection.objects.link(obj)
     obj.empty_display_type = "ARROWS"
     obj.empty_display_size = 0.008
-    obj.location = Vector(value / 1000 for value in connector.position_mm)
+    obj.location = _business_position_mm_to_blender_m(connector.position_mm)
     return obj
 
 
@@ -319,8 +321,8 @@ def _create_render_rig(objects) -> None:
     camera.rotation_euler = _look_at(camera.location, center)
     bpy.context.scene.camera = camera
     for location, energy, size in (
-        (center + Vector((extent, -extent, extent * 2)), 700, extent * 3),
-        (center + Vector((-extent, -extent * 0.5, extent)), 450, extent * 2),
+        (center + Vector((extent, -extent, extent * 2)), 8, extent * 3),
+        (center + Vector((-extent, -extent * 0.5, extent)), 4, extent * 2),
     ):
         bpy.ops.object.light_add(type="AREA", location=location)
         light = bpy.context.object
@@ -328,7 +330,11 @@ def _create_render_rig(objects) -> None:
         light.data.shape = "DISK"
         light.data.size = size
         light.rotation_euler = _look_at(light.location, center)
-    bpy.context.scene.world.color = (0.012, 0.018, 0.028)
+    world = bpy.context.scene.world
+    if world is None:
+        world = bpy.data.worlds.new("ForgeCAD_World")
+        bpy.context.scene.world = world
+    world.color = (0.012, 0.018, 0.028)
 
 
 def _look_at(origin, target):
@@ -345,7 +351,22 @@ def _bounds(objects):
 
 def _bounds_mm(objects):
     minimum, maximum = _bounds(objects)
-    return [round((maximum[axis] - minimum[axis]) * 1000, 4) for axis in range(3)]
+    blender_extent = maximum - minimum
+    return [
+        round(blender_extent[0] * 1000, 4),
+        round(blender_extent[2] * 1000, 4),
+        round(blender_extent[1] * 1000, 4),
+    ]
+
+
+def _business_position_mm_to_blender_m(values):
+    x, y, z = (value / 1000 for value in values)
+    return Vector((x, -z, y))
+
+
+def _business_size_mm_to_blender_m(values):
+    x, y, z = (value / 1000 for value in values)
+    return Vector((x, z, y))
 
 
 def _write_json(path, value):

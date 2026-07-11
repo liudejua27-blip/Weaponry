@@ -1,6 +1,6 @@
 # Blender Authoring Starter
 
-状态：三模块 authoring source、只读导出器和正式人工审阅门已实现；当前开发机未检测到 Blender，因此真实 `.blend`/GLB/thumbnail 构建与人工批准尚未执行。
+状态：三模块 authoring source、只读导出器和正式人工审阅门已实现；当前开发机已用官方 Blender 4.2.22 LTS Apple Silicon 真实构建 `.blend`/GLB/thumbnail，完成只读 re-export 和 core GLB DCC 往返。这些仍是 starter，未经人工最终编辑、许可证替换和独立 reviewer 批准。
 
 ## 1. 作用
 
@@ -48,6 +48,15 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 执行器只有在 Blender 退出码为 0、三份 `.blend` 存在且整个输出通过 `validate_module_pack` 后才返回 `built_and_validated`。
 
+当前 macOS 开发机也可以使用不安装到 `/Applications` 的用户缓存版：
+
+```bash
+export FORGECAD_BLENDER_EXECUTABLE="$HOME/Library/Caches/ForgeCAD/Blender/4.2.22/Blender.app/Contents/MacOS/Blender"
+npm run assets:blender-starter-build
+```
+
+2026-07-11 真实运行返回 `built_and_validated`；三模块三角数分别为 940 / 752 / 940。core 的 940 低于正式晋级下限 1000，所以这一结果证明工具链，不证明最终资产。
+
 默认拒绝非空输出目录，也永久拒绝把输出指向 `assets/module-packs`。只有确认不需要保留现有临时 starter 时，才可在自定义命令中显式加入 `--force`；它会删除并重建指定的 `output/` 目录。
 
 ## 4. 输出
@@ -92,6 +101,8 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 ```
 
 re-export 默认从 starter 的 `sources/` 读取，输出到独立的 `output/blender/weapon-concept-v1-edited-export`。它不调用 Blender 保存 API；执行器在导出前后计算三份 `.blend` SHA-256，任何 source 变化都会失败。非空导出目录需要自定义命令显式 `--force`，但 source 与 output 不能相同、互为父子目录或位于 committed Pack。
+
+2026-07-11 真实 re-export 返回 `edited_sources_exported_and_validated` 与 `source_unchanged: true`；三份 source 前后 SHA-256 一致，三模块 Connector 按 ID 比较后与 reference baseline 数值语义一致。Blender 是 Z-up，ForgeCAD/glTF 合同是 Y-up，脚本负责 `(x,y,z) ↔ (x,-z,y)` 的基变换；不要手工二次旋转资产或 Connector。
 
 导出前会阻断：丢失/额外 Mesh、错误 Object/Mesh 名、未应用 Modifier/Transform、缺失 UV0、错误材质集合、Connector Empty 与 metadata 不一致、Connector scale 未应用、相机缺失。输出必须再次通过完整 Module Pack 校验。
 

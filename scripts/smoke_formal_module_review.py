@@ -471,6 +471,18 @@ def _create_candidate_pack(
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest["sha256"] = hashlib.sha256(glb_path.read_bytes()).hexdigest()
             manifest["triangle_count"] = TRIANGLES[module_root.name]
+            # A DCC export may reorder Connectors and serialize integral values as
+            # floats (including negative zero). Those are representation changes,
+            # not Connector contract drift.
+            manifest["connectors"].reverse()
+            for connector in manifest["connectors"]:
+                position = connector["transform"]["position"]
+                connector["transform"]["position"] = [float(value) for value in position]
+                rotation = connector["transform"]["rotation"]
+                connector["transform"]["rotation"] = [
+                    -0.0 if index == 1 and value == 0 else float(value)
+                    for index, value in enumerate(rotation)
+                ]
             _write_json(manifest_path, manifest)
             (module_root / "LICENSE.txt").write_text(license_text, encoding="utf-8")
     _write_sources(source_root, MODULE_ORDER)

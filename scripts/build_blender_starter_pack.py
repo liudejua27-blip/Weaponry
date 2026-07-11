@@ -81,6 +81,8 @@ def main() -> int:
     command = [
         str(blender),
         "--background",
+        "--python-exit-code",
+        "1",
         "--factory-startup",
         "--python",
         str(AUTHORING_SCRIPT),
@@ -193,6 +195,11 @@ def _check_authoring_source() -> dict[str, object]:
         '"MAT_secondary"',
         '"MAT_accent"',
         "forgecad_authoring_metadata",
+        'bpy.data.worlds.new("ForgeCAD_World")',
+        "_business_position_mm_to_blender_m",
+        "_business_size_mm_to_blender_m",
+        '(14, -24, 0)',
+        '(0, 24, 0)',
     )
     missing_tokens = [token for token in required_tokens if token not in source]
     if missing_ids or missing_tokens:

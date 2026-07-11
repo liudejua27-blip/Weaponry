@@ -691,10 +691,30 @@ def _validate_baseline_compatibility(
 
 def _canonical_connectors(connectors: Any) -> str:
     values = sorted(
-        (connector.model_dump(mode="json") for connector in connectors),
+        (
+            _normalize_contract_numbers(connector.model_dump(mode="json"))
+            for connector in connectors
+        ),
         key=lambda item: item["connector_id"],
     )
     return json.dumps(values, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _normalize_contract_numbers(value: Any) -> Any:
+    """Make JSON number representation irrelevant to Connector semantics."""
+    if isinstance(value, dict):
+        return {key: _normalize_contract_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_contract_numbers(item) for item in value]
+    if isinstance(value, float):
+        normalized = round(value, 6)
+        if abs(normalized) < 1e-6:
+            return 0
+        nearest_integer = round(normalized)
+        if abs(normalized - nearest_integer) < 1e-6:
+            return nearest_integer
+        return normalized
+    return value
 
 
 def _category_value(value: Any) -> str:

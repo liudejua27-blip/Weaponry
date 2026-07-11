@@ -4,7 +4,7 @@
 
 ## 范围
 
-证明 ForgeCAD 已具备把真实人工 Blender 工件从“技术 Pack 通过”推进到“可审计正式资产候选”的合同与只读门禁。当前机器没有 Blender，本证据的正例是临时 synthetic gate fixture，只证明校验逻辑，绝不表示 core/front 最终资产已经生成或批准。
+证明 ForgeCAD 已具备把真实人工 Blender 工件从“技术 Pack 通过”推进到“可审计正式资产候选”的合同与只读门禁。当前机器已用 Blender 4.2.22 真实生成三模块 starter；synthetic 正例仍只证明“所有条件满足时可通过”，真实 starter 则用于证明“未人工批准时必须失败”。
 
 ## 已实现
 
@@ -26,11 +26,25 @@ npm run assets:blender-authoring-preflight-gate
 npm run contracts:types:check
 ```
 
-烟测覆盖：synthetic 正例、reference generator、低三角、starter 许可证、作者自审、评分低于 4、未勾选 checklist、unknown field、source/GLB/thumbnail/module Manifest/Pack license/Module license hash 篡改、Connector 漂移、报告覆盖和绝对路径排除。所有 synthetic 文件均在临时目录中销毁，不进入 Module Pack 或 Library。
+烟测覆盖：synthetic 正例、reference generator、低三角、starter 许可证、作者自审、评分低于 4、未勾选 checklist、unknown field、source/GLB/thumbnail/module Manifest/Pack license/Module license hash 篡改、Connector 漂移、Connector 数组重排与 `0`/`0.0`/`-0.0` 表示等价、报告覆盖和绝对路径排除。所有 synthetic 文件均在临时目录中销毁，不进入 Module Pack 或 Library。
+
+真实 starter 草稿的 validate 按预期失败，主要码为 `FORMAL_REVIEW_NOT_APPROVED`、`FORMAL_LICENSE_NOT_PROMOTABLE`、`FORMAL_VISUAL_SCORE_BELOW_THRESHOLD` 和 core 的 `FORMAL_TRIANGLE_FLOOR_NOT_MET`。修复规范化后不再误报 `FORMAL_CONNECTOR_CONTRACT_CHANGED`，而真实 Connector 位置漂移负例仍失败。
+
+```bash
+npm run assets:formal-review-draft -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-reexport-proof-4.2.22" \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-starter-4.2.22/sources" \
+  --output "$HOME/Library/Caches/ForgeCAD/Builds/formal-review-first-three-starter-4.2.22.json" \
+  --scope first_three
+
+npm run assets:formal-review-validate -- \
+  --pack-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-reexport-proof-4.2.22" \
+  --source-root "$HOME/Library/Caches/ForgeCAD/Builds/weapon-concept-v1-starter-4.2.22/sources" \
+  --review "$HOME/Library/Caches/ForgeCAD/Builds/formal-review-first-three-starter-4.2.22.json"
+```
 
 ## 未证明
 
-- Blender 4.2+ 真实生成的三份 `.blend`、GLB 和 thumbnail；
 - 人工实际修改后的轮廓、面板节奏、UV、材质分区和最终许可证；
 - 真实独立 reviewer 身份与批准；
 - 正式三模块的工作台替换/Connector/质量/渲染结果，以及完整 10–12 模块首包。

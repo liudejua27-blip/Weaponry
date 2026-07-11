@@ -6,15 +6,15 @@
 
 ## 1. 计划基线
 
-截至 2026-07-10：
+截至 2026-07-11：
 
 - 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
 - `asset_store.py` 已从约 5210 行降至约 1449 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime 和 Unity Export 已提取；10 个 workflow facade 方法最长 20 行；
 - `App.tsx` 已从约 706 行缩为 21 行组合根；AppShell、Hash route、Runtime/JobEvent/Selection Providers、旧工作台控制器/渲染、任务持久化、资产选择器和懒加载工作台已提取；
 - `main.py` 约 97 行；legacy route groups、Concept services 和 app factory 已拆分，入口仍只负责应用组装与 worker 生命周期；
 - `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module/Change Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；真实模型 AI 质量指标、最终高质量资产、纹理交换和真实 DCC round-trip 尚未实现；
-- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；core/front01/front02 的 Blender authoring starter、`.blend` metadata、只读 re-export 与真实构建入口已实现；`FormalModuleReview@1`、草稿/验证 CLI、独立审阅、hash、评分、Blender generator、anti-placeholder 下限、最终许可证和稳定 Connector 晋级门已落地，但当前机器未配置 Blender，正式资产本身尚未生成；
+- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module/Change Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；真实模型 AI 质量指标、最终高质量资产、纹理交换和全装配 combined GLB DCC round-trip 尚未实现；
+- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；Blender 4.2.22 LTS 已真实生成 core/front01/front02 的 `.blend`/GLB/thumbnail，完成只读 re-export、source hash 不变、Connector 基线和 core GLB DCC 往返；`FormalModuleReview@1` 门已落地并如实拒绝 starter 许可证、未人工批准与 core 940<1000 三角下限，因此正式资产仍未晋级；
 - ChangeSet 审计批量导出已实现：当前服务端筛选形成确定性 JSONL、可选 CSV、逐文件 SHA-256 Manifest 和内容寻址 ZIP；`project_lifetime` 记录无单包删除 API，桌面可下载且 Agent 重启后回读。该策略不等于法规级 WORM、legal hold 或独立灾备；
 - Library backup/restore CLI 已实现：SQLite Backup API 快照归一化为独立 `journal_mode=DELETE` 文件，只复制快照中 legacy/Concept asset 表真实引用的内容寻址对象，保存 schema/table/hash/size/capacity Manifest；恢复演练 CLI 可连续测量 backup/verify/restore/Agent 回读、吞吐和相对基线容量增长，并拒绝把已知 reference/smoke generator 申报为正式资产证据；`formal_blender_10_12` 还强制 `formal_release_10_12` 晋级报告与恢复 GLB hash 集合一致。10 模块参考库已跑通，正式 Blender/代表性用户资产库仍待执行；
 - 服务端 `weapon-concept-geometry/1.3` 已从版本绑定的 Spec、ModuleGraph 与内容寻址 GLB 计算 Mesh/Assembly Findings：除精确穿插、triangle provenance、Connector 对齐和保守表面间隙外，已覆盖重复面、内嵌封闭组件、组件间密度离群、项目总三角预算、P0 LOD0 合同和根中面对称占位偏差；桌面 Finding 会聚焦并高亮关联节点/局部 triangle。正式 Blender truth set、Tauri 大网格阈值与多 LOD 运行时尚未完成；
@@ -45,8 +45,8 @@
 | R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
 | R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
 | R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
-| R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender starter/metadata/只读 re-export preflight 已完成，真实 `.blend` 与最终 art 待 Blender 环境 |
-| R3 formal asset promotion | 合同与门禁完成、真实工件待生成 | `FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；synthetic smoke 只证明阻断逻辑，不是资产证据 |
+| R3 reference assets | 完成可运行基线 | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；三模块 Blender 4.2.22 starter、metadata、只读 re-export、Connector 基线和 core DCC 往返已真实验证，最终 art 待人工制作 |
+| R3 formal asset promotion | 合同与门禁完成、真实 starter 未批准 | `FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；真实 starter 验证返回许可证/人工审批/评分/core 三角下限阻断，无正式资产声明 |
 | R3 Connector snap/mirror | 合成与 API 基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；正式资产指标待测 |
 | R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
 | R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
@@ -56,7 +56,7 @@
 | R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
 | R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
 | R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
-| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；DCC preflight 已实现，当前环境无 Blender/Assimp，未声称真实 round-trip |
+| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 starter core GLB 的 2178 顶点/940 三角往返，全装配 combined GLB 仍待执行 |
 | R5 Mesh/Assembly quality | C07 规则覆盖切片完成 | immutable Spec/Graph/GLB、indices/degenerate/normal/UV/topology/bounds、duplicate/enclosed geometry、density outlier/triangle budget、P0 LOD0、root-plane symmetry、Connector alignment/gap、triangle BVH/SAT/containment/provenance、双节点/局部高亮、JobEvent/restart、desktop E2E |
 
 ## 2. 执行硬规则
@@ -327,10 +327,10 @@ CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep
 
 ## 8. 最近十个可执行动作
 
-1. 由 10 模块确定性参考 Pack 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，先完成 core + 两个 front，再逐个替换 GLB 和缩略图；`FormalModuleReview@1` 与晋级 CLI 已完成，下一步必须在真实 Blender 中生成/人工修改三份 `.blend`，换成最终许可证，由非作者 reviewer 完成评分与批准，不能用 synthetic smoke 代替。
+1. 由已真实生成的 core + 两个 front starter 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，优先提升 core 轮廓/表面层级并超过 1000 三角，再让两个 front 形成明显差异；换成最终许可证后，由非作者 reviewer 完成五项评分与批准，不能用 starter 或 synthetic smoke 代替。
 2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。
 3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 `library:recovery-drill`，各至少 3 轮，保存备份/验证/恢复/Agent 回读耗时、吞吐、容量增长和未引用候选，再确定保留周期与 reference-aware GC；10 模块 reference fixture 已完成多轮稳定快照、全部 GLB hash 回读、基线增量和正式证据误报阻断，但不替代这两组真实报告。WORM/legal hold 不在当前承诺内。
-4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；安装 Blender 或 Assimp 后执行真实只读 round-trip，再评估纹理交换与 glTF Transform/Meshopt。转台 MP4、确定性轮廓抗锯齿、软接触阴影和 DCC 预检代码已完成。
+4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；starter core 的真实 Blender round-trip 已通过，下一步对工作台导出的不可变 combined GLB 执行全装配往返，再评估纹理交换与 glTF Transform/Meshopt。
 5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
 6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
 7. 将 Concept jobs worker 化，补取消、重试、partial success 与 readiness。

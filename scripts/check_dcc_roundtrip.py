@@ -112,6 +112,8 @@ def main() -> int:
         [
             str(blender),
             "--background",
+            "--python-exit-code",
+            "1",
             "--factory-startup",
             "--python",
             str(BLENDER_SCRIPT),

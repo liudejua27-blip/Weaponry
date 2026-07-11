@@ -11,11 +11,12 @@ import sys
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 
 AUTHORING_SCHEMA = "ForgeCADBlenderAuthoring@1"
 MATERIAL_NAMES = {"MAT_primary", "MAT_secondary", "MAT_accent"}
+BLENDER_TO_GLTF = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
 REQUIRED_MODULE_IDS = (
     "module_core_shell_01",
     "module_front_shell_01",
@@ -231,8 +232,8 @@ def _connectors(scene, metadata):
                 "slot": definition["slot"],
                 "connector_type": definition["connector_type"],
                 "transform": {
-                    "position": [round(value * 1000, 6) for value in obj.location],
-                    "rotation": [round(float(value), 9) for value in obj.rotation_euler],
+                    "position": _blender_position_m_to_business_mm(obj.location),
+                    "rotation": _blender_rotation_to_business_euler(obj.rotation_euler),
                     "scale": [1, 1, 1],
                 },
                 "scale_range": definition["scale_range"],
@@ -262,7 +263,25 @@ def _bounds_mm(objects):
     points = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box]
     minimum = [min(point[axis] for point in points) for axis in range(3)]
     maximum = [max(point[axis] for point in points) for axis in range(3)]
-    return [round((maximum[axis] - minimum[axis]) * 1000, 4) for axis in range(3)]
+    blender_extent = [maximum[axis] - minimum[axis] for axis in range(3)]
+    return [
+        round(blender_extent[0] * 1000, 4),
+        round(blender_extent[2] * 1000, 4),
+        round(blender_extent[1] * 1000, 4),
+    ]
+
+
+def _blender_position_m_to_business_mm(value):
+    converted = BLENDER_TO_GLTF @ value
+    # Blender stores object transforms as float32. Four decimal places in millimeters
+    # removes representation noise (for example 50.000001) without hiding author edits.
+    return [round(component * 1000, 4) for component in converted]
+
+
+def _blender_rotation_to_business_euler(value):
+    blender_matrix = value.to_matrix()
+    converted = BLENDER_TO_GLTF @ blender_matrix @ BLENDER_TO_GLTF.transposed()
+    return [round(float(component), 9) for component in converted.to_euler("XYZ")]
 
 
 def _write_json(path, value) -> None:
