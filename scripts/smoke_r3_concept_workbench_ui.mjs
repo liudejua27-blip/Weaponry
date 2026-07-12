@@ -20,6 +20,7 @@ const QUALITY_HIGHLIGHT_SCREENSHOT = join(OUTPUT_DIR, 'r5-quality-triangle-highl
 const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
 const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
+const AGENT_FIRST_SCREENSHOT = join(OUTPUT_DIR, 'agent-first-workbench.png')
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
 const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 180_000)
@@ -92,11 +93,13 @@ async function main() {
     processes.push(restartedAgent)
     await waitForHttp(`${restartBaseUrl}/api/health`, restartedAgent, 'restarted agent health')
     smokeStage = 'verifying persistence after agent restart'
-    const restartVerified = await verifyReplacement(
-      restartBaseUrl,
-      seeded.project_id,
-      result.change_set_audit_export,
-    )
+    const restartVerified = process.env.FORGECAD_AGENT_FIRST_ONLY === '1'
+      ? await verifyAgentFirstRestart(restartBaseUrl, seeded.project_id, result.version_id)
+      : await verifyReplacement(
+        restartBaseUrl,
+        seeded.project_id,
+        result.change_set_audit_export,
+      )
     smokeStage = 'writing result'
     console.log(JSON.stringify({ ok: true, ...seeded, ...result, restart_verified: restartVerified }, null, 2))
   } finally {
@@ -209,7 +212,106 @@ async function seedConceptGraph(baseUrl) {
   }
 }
 
+async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
+  const browser = await launchSystemBrowser()
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 1536, height: 1024 },
+    deviceScaleFactor: 1,
+  })
+  const page = await context.newPage()
+  const browserErrors = []
+  page.on('pageerror', (error) => browserErrors.push(error.message))
+  try {
+    await mkdir(OUTPUT_DIR, { recursive: true })
+    await page.goto(`${baseUrl}/#/cad`, { waitUntil: 'networkidle' })
+    await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
+    await page.waitForFunction(
+      () => document.querySelector('.cad-workspace-title')?.textContent?.includes('已自动保存'),
+      { timeout: 20_000 },
+    )
+    await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
+    await assertText(page.locator('.agent-first-panel'), ['设计助手', '侦察短构', '棱镜脉冲'])
+    await page.getByPlaceholder('描述你想设计的道具…').waitFor()
+    if (await page.locator('.cad-right-rail').isVisible()) {
+      throw new Error('legacy permanent property panel remains visible')
+    }
+    await page.getByTestId('contextual-edit-card').waitFor({ timeout: 20_000 })
+    await assertText(page.getByTestId('contextual-edit-card'), ['已选中部件', '替换', '让 Agent 调整', '精确调整'])
+
+    await page.getByRole('button', { name: '导出', exact: true }).click()
+    await assertText(page.locator('.export-drawer'), ['你准备如何使用它？', '展示设计', '游戏 / 影视项目', '交给三维设计师', '保存完整设计资料'])
+    await page.getByRole('button', { name: /游戏 \/ 影视项目/ }).click()
+    await assertText(page.locator('.export-ready-summary'), ['GLB 展示模型'])
+    await page.getByRole('button', { name: '关闭导出' }).click()
+
+    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).click()
+    await page.locator('.contextual-library').waitFor()
+    await assertText(page.locator('.contextual-library'), ['替换', '只显示当前部件可用的替换建议', 'Front Shell 01', 'Front Shell 02'])
+    if (await page.locator('.contextual-library .component-card').count() !== 2) {
+      throw new Error('contextual replacement drawer must limit the first view to compatible components')
+    }
+    await page.getByRole('button', { name: /Front Shell 02/ }).click()
+    const replacementPreviewPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':preview')
+        && response.request().method() === 'POST',
+    )
+    await page.locator('.contextual-library').getByRole('button', { name: '预览替换', exact: true }).click()
+    const replacementPreviewResponse = await replacementPreviewPromise
+    if (!replacementPreviewResponse.ok()) throw new Error(`replacement preview failed: ${replacementPreviewResponse.status()}`)
+    await page.getByTestId('agent-change-review').waitFor()
+    await assertText(page.getByTestId('agent-change-review'), ['本次修改', '组件替换预览已准备好', '撤销本次修改', '保留此修改'])
+    const replacementConfirmPromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/change-sets/')
+        && response.url().endsWith(':confirm')
+        && response.request().method() === 'POST',
+    )
+    await page.getByTestId('agent-change-review').getByRole('button', { name: '保留此修改', exact: true }).click()
+    const replacementConfirmResponse = await replacementConfirmPromise
+    if (!replacementConfirmResponse.ok()) throw new Error(`replacement confirmation failed: ${replacementConfirmResponse.status()}`)
+    await page.getByTestId('agent-change-review').waitFor({ state: 'detached', timeout: 20_000 })
+    await page.waitForFunction(
+      () => document.querySelector('.cad-status-bar')?.textContent?.includes('版本：v3'),
+      { timeout: 20_000 },
+    )
+
+    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '让 Agent 调整', exact: true }).click()
+    await page.getByPlaceholder(/告诉我怎么调整/).fill('整体更紧凑，增加精密细节，并使用信号蓝点缀配色')
+    const changePreviewPromise = page.waitForResponse(
+      (response) => response.url().includes('change-sets:plan')
+        && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '发送设计需求' }).click()
+    const changePreviewResponse = await changePreviewPromise
+    if (!changePreviewResponse.ok()) throw new Error(`agent change preview failed: ${changePreviewResponse.status()}`)
+    await page.getByTestId('agent-change-review').waitFor()
+    await assertText(page.getByTestId('agent-change-review'), ['本次修改', '撤销本次修改', '保留此修改'])
+    await page.getByTestId('agent-change-review').getByRole('button', { name: '撤销本次修改', exact: true }).click()
+    await page.getByTestId('agent-change-review').waitFor({ state: 'detached', timeout: 20_000 })
+
+    await page.getByRole('button', { name: '关闭组件选择' }).click()
+    await page.locator('.contextual-library').waitFor({ state: 'detached', timeout: 20_000 })
+
+    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await assertText(page.locator('.quality-drawer'), ['模型检查', '展示组件已加载', '运行模型检查'])
+    await page.getByRole('button', { name: '关闭模型检查' }).click()
+    await page.screenshot({ path: AGENT_FIRST_SCREENSHOT, fullPage: true })
+    if ((await stat(AGENT_FIRST_SCREENSHOT)).size < 20_000) {
+      throw new Error('agent-first workbench screenshot is unexpectedly small')
+    }
+    if (browserErrors.length > 0) throw new Error(`browser errors: ${browserErrors.join(' | ')}`)
+    return { version_id: seeded.version_id, agent_first_screenshot: AGENT_FIRST_SCREENSHOT }
+  } finally {
+    await context.close()
+    await browser.close()
+  }
+}
+
 async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
+  if (process.env.FORGECAD_AGENT_FIRST_ONLY === '1') {
+    return runAgentFirstWorkbenchUi(baseUrl, seeded)
+  }
   const browser = await launchSystemBrowser()
   const context = await browser.newContext({
     acceptDownloads: true,
@@ -1213,6 +1315,21 @@ async function switchVersionAndWait(page, versionLabel) {
 async function performanceMetric(session, name) {
   const result = await session.send('Performance.getMetrics')
   return result.metrics.find((metric) => metric.name === name)?.value ?? 0
+}
+
+async function verifyAgentFirstRestart(baseUrl, projectId) {
+  const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
+  const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
+  const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
+  const frontNode = graph.graph.nodes.find((node) => node.node_id === 'node_front')
+  if ((project.versions ?? []).length < 3 || frontNode?.module_id !== 'module_front_shell_02') {
+    throw new Error(`agent-first restart did not preserve confirmed replacement: ${JSON.stringify({ versions: project.versions?.length, frontNode })}`)
+  }
+  return {
+    version_id: version.version_id,
+    graph_id: graph.graph.graph_id,
+    module_id: frontNode.module_id,
+  }
 }
 
 async function verifyReplacement(baseUrl, projectId, expectedAuditExport) {

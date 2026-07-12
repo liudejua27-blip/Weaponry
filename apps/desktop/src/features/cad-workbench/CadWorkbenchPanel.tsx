@@ -41,6 +41,8 @@ type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type AssistantMode = 'brief' | 'change'
+type ComponentDrawerMode = 'recommended' | 'all'
+type ExportPurpose = 'presentation' | 'production' | 'handoff' | 'archive'
 
 type WeaponParameters = {
   overallLength: number
@@ -88,9 +90,8 @@ type WorkbenchSession = {
 
 // CAD-only session state. The v3 key deliberately ignores the retired
 // multi-workbench navigation, task views, and asset-library page state.
-// v4 resets the retired expanded-library default so a new CAD session opens
-// with an unobstructed primary viewport and the detail drawer is deliberate.
-const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v4'
+// v5 resets retired CAD-tool state so first use opens in simple selection mode.
+const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v5'
 
 const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
   inspectorTab: 'parameters',
@@ -121,6 +122,18 @@ const CONCEPT_FAMILY_SUGGESTIONS = [
   ['典藏长轴', '典藏仪式、长轴展示、精密硬表面、低饱和金属的非功能影视道具'],
   ['棱镜脉冲', '棱镜能量、非对称、脉冲视觉、深色金属与冷色点缀的非功能游戏道具'],
 ] as const
+
+const EXPORT_PURPOSES: Array<{
+  id: ExportPurpose
+  title: string
+  description: string
+  format: 'SOURCE ZIP' | 'GLB' | 'OBJ' | 'PNG' | 'MP4'
+}> = [
+  { id: 'presentation', title: '展示设计', description: '用于方案评审或展示画面', format: 'PNG' },
+  { id: 'production', title: '游戏 / 影视项目', description: '保留展示模型与材质', format: 'GLB' },
+  { id: 'handoff', title: '交给三维设计师', description: '继续在三维软件中处理', format: 'OBJ' },
+  { id: 'archive', title: '保存完整设计资料', description: '包含当前版本与概念资料', format: 'SOURCE ZIP' },
+]
 
 function readWorkbenchSession(): WorkbenchSession {
   try {
@@ -159,6 +172,10 @@ function boundedNumber(value: unknown, min: number, max: number, fallback: numbe
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.max(min, Math.min(max, value))
     : fallback
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
 }
 
 function isComponentFilter(value: unknown): value is ComponentFilter {
@@ -258,6 +275,12 @@ export function CadWorkbenchPanel() {
   const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>(() => restoredSession.reviewStatusFilter)
   const [drawerExpanded, setDrawerExpanded] = useState(() => restoredSession.drawerExpanded)
   const [drawerHeight, setDrawerHeight] = useState(() => restoredSession.drawerHeight)
+  const [componentDrawerOpen, setComponentDrawerOpen] = useState(false)
+  const [componentDrawerMode, setComponentDrawerMode] = useState<ComponentDrawerMode>('recommended')
+  const [showPrecisionAdjustments, setShowPrecisionAdjustments] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportPurpose, setExportPurpose] = useState<ExportPurpose>('presentation')
+  const [qualityOpen, setQualityOpen] = useState(false)
   const [favoriteModuleIds, setFavoriteModuleIds] = useState<string[]>([])
   const [recentModuleIds, setRecentModuleIds] = useState<string[]>([])
   const [thumbnailFailures, setThumbnailFailures] = useState<Set<string>>(() => new Set())
@@ -349,7 +372,12 @@ export function CadWorkbenchPanel() {
       return
     }
     setSelectedComponent((current) => {
-      const nextNode = nodes.find((node) => node.node_id === current) ?? nodes[0]
+      const existingNode = nodes.find((node) => node.node_id === current)
+      const nextNode = (existingNode && existingNode.node_id !== concept.graphRecord?.graph.root_node_id && !existingNode.locked
+        ? existingNode
+        : undefined)
+        ?? nodes.find((node) => node.node_id !== concept.graphRecord?.graph.root_node_id && !node.locked)
+        ?? nodes[0]
       setSelectedLibraryModuleId((currentModuleId) => currentModuleId || nextNode.module_id)
       return nextNode.node_id
     })
@@ -390,6 +418,9 @@ export function CadWorkbenchPanel() {
   const selectedLibraryModule = concept.modules.find(
     (module) => module.manifest.module_id === selectedLibraryModuleId,
   ) ?? null
+  const selectedModuleLabel = selectedModule
+    ? MODULE_CATEGORY_LABELS[selectedModule.manifest.category]
+    : '当前部件'
   const selectedNodeConnections = (concept.graphRecord?.graph.edges ?? []).filter((edge) => (
     edge.from_node_id === selectedNode?.node_id || edge.to_node_id === selectedNode?.node_id
   ))
@@ -515,6 +546,11 @@ export function CadWorkbenchPanel() {
     }
   }, [concept.graphRecord, concept.modules, favoriteModuleIds, recentModuleIds, selectedModule, selectedNode])
 
+  const displayedComponents = useMemo(
+    () => componentDrawerMode === 'recommended' ? visibleComponents.slice(0, 3) : visibleComponents,
+    [componentDrawerMode, visibleComponents],
+  )
+
   const getModuleFileUrl = useCallback(
     (moduleId: string) => forgeApi.getModuleAssetFileUrl(moduleId),
     [],
@@ -546,10 +582,9 @@ export function CadWorkbenchPanel() {
     const moduleId = module.manifest.module_id
     setSelectedLibraryModuleId(moduleId)
     setRecentModuleIds((current) => [moduleId, ...current.filter((item) => item !== moduleId)].slice(0, 12))
-    setDrawerExpanded(true)
     const graphNode = concept.graphRecord?.graph.nodes.find((node) => node.module_id === moduleId)
-    if (graphNode) setSelectedComponent(graphNode.node_id)
-  }, [concept.graphRecord])
+    if (graphNode && !componentDrawerOpen) setSelectedComponent(graphNode.node_id)
+  }, [componentDrawerOpen, concept.graphRecord])
 
   const toggleLibraryFavorite = useCallback((moduleId: string) => {
     setFavoriteModuleIds((current) => (
@@ -634,6 +669,16 @@ export function CadWorkbenchPanel() {
       .catch(() => undefined)
   }, [concept, selectedLibraryModule, selectedNode])
 
+  const openComponentReplacement = useCallback(() => {
+    if (!selectedNode || selectedNode.locked) return
+    setComponentCategory('compatible')
+    setComponentQuery('')
+    setReviewStatusFilter('')
+    setComponentDrawerMode('recommended')
+    setDrawerExpanded(false)
+    setComponentDrawerOpen(true)
+  }, [selectedNode])
+
   const handleToggleMirrorX = useCallback(() => {
     if (!selectedNode) return
     const nextAxis = selectedNode.mirror_axis === 'x' ? 'none' : 'x'
@@ -657,6 +702,23 @@ export function CadWorkbenchPanel() {
     if (!selectedNode) return
     concept.previewNodeTransform(selectedNode.node_id, transformDraft).catch(() => undefined)
   }, [concept, selectedNode, transformDraft])
+
+  const previewQuickTransform = useCallback((action: 'smaller' | 'larger' | 'forward' | 'backward' | 'rotateLeft' | 'rotateRight') => {
+    if (!selectedNode || selectedNode.locked || concept.loading || concept.pendingPreview) return
+    const next = copyTransform(selectedNode.transform)
+    if (action === 'smaller' || action === 'larger') {
+      const delta = action === 'smaller' ? -0.04 : 0.04
+      next.scale = next.scale.map((value) => clampNumber(value + delta, 0.9, 1.1)) as Transform['scale']
+    }
+    if (action === 'forward' || action === 'backward') {
+      next.position[0] += action === 'forward' ? -4 : 4
+    }
+    if (action === 'rotateLeft' || action === 'rotateRight') {
+      next.rotation[2] += action === 'rotateLeft' ? 0.1 : -0.1
+    }
+    setTransformDraft(next)
+    concept.previewNodeTransform(selectedNode.node_id, next).catch(() => undefined)
+  }, [concept, selectedNode])
 
   const handleTransformCommit = useCallback((nodeId: string, transform: Transform) => {
     setTransformDraft(copyTransform(transform))
@@ -812,126 +874,77 @@ export function CadWorkbenchPanel() {
       <header className="cad-command-bar">
         <div className="cad-brand" aria-label="CAD 工作台">
           <span className="cad-brand-mark"><Cube size={18} weight="fill" /></span>
-          <span>CAD 工作台</span>
+          <span>ForgeCAD</span>
         </div>
-        <div className="cad-file-actions" aria-label="文件操作">
-          <IconAction icon={Plus} label="新建" onClick={() => concept.createStarterProject()} />
-          <IconAction icon={FolderOpen} label="同步" onClick={() => concept.refresh()} />
-          <IconAction icon={FloppyDisk} label="保存" onClick={() => setAssistantNote('参数仍是本地草稿；请通过 ChangeSet 确认后创建不可变新版本。')} />
-          <IconAction
-            icon={ClockCounterClockwise}
-            label="撤销"
+        <div className="cad-workspace-title" aria-label="当前项目">
+          <strong>{concept.project?.name ?? '新概念设计'}</strong>
+          <span>{concept.loading ? '正在处理…' : '已自动保存'}</span>
+        </div>
+        <div className="cad-global-actions" aria-label="工作区操作">
+          <button
+            className="text-action"
             onClick={() => undoVersionId && concept.selectVersion(undoVersionId)}
             disabled={!undoVersionId || concept.loading}
-            title="切换到当前版本的 parent"
-          />
-          <IconAction
-            icon={ArrowsClockwise}
-            label="重做"
-            onClick={() => redoVersionId && concept.selectVersion(redoVersionId)}
-            disabled={!redoVersionId || concept.loading}
-            title="切换到最近的 child version"
-          />
-        </div>
-        <div className="cad-workspace-title" aria-label="当前工作区">建模工作区</div>
-        <div className="cad-global-actions" aria-label="工作区状态">
-              <span>本机 CAD</span>
+            title="返回上一个已确认版本"
+          ><ClockCounterClockwise size={16} /> 撤销</button>
+          <button className="text-action" onClick={() => setQualityOpen(true)}><Check size={16} /> 检查</button>
+          <button className="export-action" onClick={() => setExportOpen(true)}><Export size={16} /> 导出</button>
         </div>
       </header>
 
       <div className="cad-layout">
         <aside className="cad-left-rail">
-          <section className="cad-panel project-panel">
-            <div className="cad-panel-heading">
-              <div>
-                <span className="eyebrow">项目</span>
-                <strong>{concept.project?.name ?? '尚未创建 Concept Project'}</strong>
-              </div>
-              <CaretDown size={14} />
+          <section className="cad-panel assistant-panel agent-first-panel">
+            <div className="cad-panel-title">
+              <span><Sparkle size={16} weight="fill" /> 设计助手</span>
+              <span className="assistant-state">
+                {concept.loading ? '正在工作' : '准备就绪'}
+              </span>
             </div>
-            {concept.projects.length > 1 && (
-              <label className="project-select">
-                <span>切换项目</span>
-                <select
-                  value={concept.project?.project_id ?? ''}
-                  onChange={(event) => concept.selectProject(event.target.value)}
-                >
-                  {concept.projects.map((project) => (
-                    <option key={project.project_id} value={project.project_id}>{project.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
             {!concept.project && !concept.loading && (
               <button className="empty-action" onClick={() => concept.createStarterProject()}>
-                <Plus size={14} /> 创建新设计
+                <Plus size={14} /> 创建第一个设计
               </button>
             )}
             {concept.project && !concept.version?.module_graph_id && (
-              <button
-                className="empty-action"
-                onClick={() => concept.initializeCurrentProject()}
-                disabled={concept.loading}
-              >
-                <Cube size={14} /> 安装内置组件并初始化工作台
+              <button className="empty-action" onClick={() => concept.initializeCurrentProject()} disabled={concept.loading}>
+                <Cube size={14} /> 准备展示组件
               </button>
             )}
-          </section>
-
-          <section className="cad-panel assistant-panel">
-            <div className="cad-panel-title">
-              <span><Sparkle size={16} weight="fill" /> AI 设计助手</span>
-              <span className="assistant-state">
-                {concept.pendingChange?.planner_provenance.generator
-                  ?? concept.brief?.planner_provenance.generator
-                  ?? '待输入'}
-              </span>
+            <p className="agent-welcome">用一句话描述你想要的虚构展示道具；我会生成可预览、可继续修改的方向。</p>
+            <div className="assistant-composer agent-composer">
+              <ChatCircleDots size={17} />
+              <input
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && runAssistantAction()}
+                placeholder={assistantMode === 'change' && selectedNode ? `告诉我怎么调整这个${selectedModuleLabel}…` : '描述你想设计的道具…'}
+              />
+              <button onClick={runAssistantAction} aria-label="发送设计需求" disabled={concept.loading}>
+                <PaperPlaneRight size={16} weight="fill" />
+              </button>
             </div>
-            <div className="assistant-mode-tabs" aria-label="AI 设计助手模式">
-              <button
-                className={assistantMode === 'brief' ? 'active' : ''}
-                onClick={() => setAssistantMode('brief')}
-              >概念引导</button>
-              <button
-                className={assistantMode === 'change' ? 'active' : ''}
-                onClick={() => setAssistantMode('change')}
-              >修改预览</button>
-            </div>
-            <div className="assistant-message">{concept.error ?? assistantNote}</div>
-            <div className={`concept-runtime-state ${concept.error ? 'error' : ''}`}>
-              {concept.loading ? '同步中 · ' : ''}{concept.statusMessage}
-            </div>
-            <div className="assistant-suggestions">
-              {assistantMode === 'brief' ? <>
-                <button onClick={() => setChatInput('寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产')}>紧凑精密</button>
-                <button onClick={() => setChatInput('修长展示轮廓、未来工业、蓝色点缀的非功能影视道具')}>延展展示</button>
-              </> : <>
-                <button onClick={() => setChatInput('将选中节点替换为候选模块，整体长度调整为 218 mm，细节密度调整为 84%')}>替换并调比例</button>
-                <button onClick={() => setChatInput('整体更紧凑，增加精密细节，并使用信号蓝点缀配色')}>紧凑与配色</button>
-              </>}
-            </div>
-            {assistantMode === 'brief' && (
-              <div className="concept-family-suggestions" aria-label="概念家族">
-                <span>概念家族</span>
-                <div>
-                  {CONCEPT_FAMILY_SUGGESTIONS.map(([label, prompt]) => (
-                    <button key={label} type="button" onClick={() => setChatInput(prompt)}>{label}</button>
-                  ))}
-                </div>
+            <div className="concept-family-suggestions" aria-label="概念家族">
+              <span>从一个方向开始</span>
+              <div>
+                {CONCEPT_FAMILY_SUGGESTIONS.map(([label, prompt]) => (
+                  <button key={label} type="button" onClick={() => { setAssistantMode('brief'); setChatInput(prompt) }}>{label}</button>
+                ))}
               </div>
+            </div>
+            {selectedNode && (
+              <button
+                type="button"
+                className={`agent-selection-context ${assistantMode === 'change' ? 'active' : ''}`}
+                onClick={() => setAssistantMode('change')}
+              >正在调整：{selectedModuleLabel}</button>
             )}
-            <button
-              className="secondary-action"
-              disabled={concept.loading}
-              onClick={() => runAssistantAction()}
-            >
-              {assistantMode === 'brief' ? '生成设计方向' : '生成修改预览'}
-            </button>
-            {assistantMode === 'brief' && concept.variants.length > 0 && (
+            <div className={`assistant-message ${concept.error ? 'error' : ''}`}>{concept.error ?? assistantNote}</div>
+            {concept.variants.length > 0 && (
               <div className="assistant-directions" aria-label="AI 设计方向">
                 <div className="assistant-directions-heading">
-                  <span>设计方向</span>
-                  <small>选择后只更新主视图预览</small>
+                  <span>选择一个方向</span>
+                  <small>不会覆盖当前设计</small>
                 </div>
                 {concept.variants.slice(0, 3).map((variant) => (
                   <button
@@ -955,93 +968,17 @@ export function CadWorkbenchPanel() {
                 ))}
               </div>
             )}
-            {concept.pendingChange && concept.pendingPreview && (
-              <div className="change-preview-card" data-testid="change-preview-card">
-                <div>
-                  <strong>幽灵预览 · 待确认</strong>
-                  <span>{concept.pendingChange.change_set.summary}</span>
-                </div>
-                <ul>
-                  {concept.pendingChange.change_set.operations.map((operation) => (
-                    <li key={operation.operation_id}>
-                      {formatChangeOperation(operation)}
-                    </li>
-                  ))}
-                </ul>
-                <small>
-                  {concept.pendingChange.planner_provenance.provider_id}
-                  {concept.pendingChange.planner_provenance.fallback_used ? ' · 已显式降级' : ''}
-                </small>
-                <div className="change-preview-actions">
-                  <button
-                    onClick={() => concept.discardPlannedChange()}
-                    disabled={concept.loading}
-                  >放弃预览</button>
-                  <button
-                    className="confirm"
-                    onClick={() => concept.confirmPlannedChange()}
-                    disabled={concept.loading}
-                  >确认并创建新版本</button>
-                </div>
-              </div>
-            )}
-            <small className="planner-boundary">只引用注册 Module；修改先生成 ghost preview，确认后才创建子版本。</small>
+            <small className="planner-boundary">所有生成和调整都只影响虚构、非功能展示组件；预览确认前不会写入版本。</small>
           </section>
-
-          <section className="cad-panel quick-parameters">
-            <div className="cad-panel-title"><span><SlidersHorizontal size={16} /> 参数化输入</span></div>
-            <ParameterInput
-              label="整体长度"
-              value={parameters.overallLength}
-              unit="mm"
-              onChange={(value) => updateParameter('overallLength', value)}
-            />
-            <ParameterInput
-              label="前部长度"
-              value={parameters.frontShellLength}
-              unit="mm"
-              onChange={(value) => updateParameter('frontShellLength', value)}
-              disabled
-              title="当前 ModuleGraph 不提供前部程序化拉伸；请用模块替换或 ChangeSet 调整整体规格。"
-            />
-            <ParameterInput
-              label="握把角度"
-              value={parameters.gripAngle}
-              unit="°"
-              onChange={(value) => updateParameter('gripAngle', value)}
-            />
-            <ParameterInput
-              label="细节密度"
-              value={parameters.detailDensity}
-              unit="%"
-              onChange={(value) => updateParameter('detailDensity', value)}
-            />
-            <button className="primary-action" onClick={previewParameterDraft} disabled={concept.loading}>
-              生成参数 ChangeSet 预览
-            </button>
-          </section>
-
-          <div className="assistant-composer">
-            <ChatCircleDots size={17} />
-            <input
-              value={chatInput}
-              onChange={(event) => setChatInput(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && runAssistantAction()}
-              placeholder="输入设计需求…"
-            />
-            <button onClick={runAssistantAction} aria-label="发送设计需求">
-              <PaperPlaneRight size={16} weight="fill" />
-            </button>
-          </div>
         </aside>
 
         <main
           className="cad-center-stage"
-          style={{ gridTemplateRows: `minmax(0, 1fr) ${drawerExpanded ? drawerHeight : 162}px` }}
+          style={{ gridTemplateRows: componentDrawerOpen ? `minmax(0, 1fr) ${componentDrawerMode === 'all' ? 360 : 250}px` : 'minmax(0, 1fr)' }}
         >
           <div className="viewport-shell">
             <div className="viewport-toolbar" aria-label="CAD 视口工具">
-              {TOOL_ITEMS.map((tool) => (
+              {TOOL_ITEMS.filter((tool) => tool.id === 'select' || tool.id === 'orbit').map((tool) => (
                 <IconButton
                   key={tool.id}
                   icon={tool.icon}
@@ -1052,40 +989,6 @@ export function CadWorkbenchPanel() {
                   onClick={() => setActiveTool(tool.id)}
                 />
               ))}
-              <span className="toolbar-divider" />
-              <IconButton
-                icon={GridFour}
-                label="网格"
-                active={showGrid}
-                onClick={() => setShowGrid((current) => !current)}
-              />
-              <IconButton
-                icon={Eye}
-                label="线框"
-                active={wireframe}
-                onClick={() => setWireframe((current) => !current)}
-              />
-              <IconButton
-                icon={Eye}
-                label="X-Ray"
-                active={xRay}
-                onClick={() => setXRay((current) => !current)}
-              />
-              {(activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale') && <>
-                <span className="toolbar-divider" />
-                <button
-                  className={transformSpace === 'world' ? 'viewport-tool-text active' : 'viewport-tool-text'}
-                  onClick={() => setTransformSpace((current) => current === 'world' ? 'local' : 'world')}
-                  aria-label="切换世界或本地坐标"
-                  title="切换世界或本地坐标"
-                >{transformSpace === 'world' ? '世界' : '本地'}</button>
-                <button
-                  className={snapEnabled ? 'viewport-tool-text active' : 'viewport-tool-text'}
-                  onClick={() => setSnapEnabled((current) => !current)}
-                  aria-label="切换变换吸附"
-                  title="切换变换吸附"
-                >吸附</button>
-              </>}
             </div>
             <ModuleGraphViewport
               graphRecord={concept.graphRecord}
@@ -1162,12 +1065,57 @@ export function CadWorkbenchPanel() {
               />
             </div>
             <div className="viewport-readout">
-              <span>{activeTool === 'measure' ? measurementDistance == null ? `测量：${measurementPoints.length}/2 点` : measurementMode === 'distance' ? `测量：${measurementDistance.toFixed(2)} mm` : `法线夹角：${measurementAngle?.toFixed(2)}°` : activeTool === 'section' ? `截面：X = ${sectionOffset.toFixed(0)} mm` : activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale' ? `${activeTool === 'move' ? '移动' : activeTool === 'rotate' ? '旋转' : '缩放'} · ${transformSpace === 'world' ? '世界坐标' : '本地坐标'}${snapEnabled ? ' · 吸附' : ''}` : `${activeTool} 工具已启用`}</span>
-              <span>{xRay ? 'X-Ray' : '单位：mm'}</span>
+              <span>{concept.pendingPreview ? '正在预览修改，尚未保存' : selectedNode ? '已选中部件，可直接调整' : '点击模型部件即可开始调整'}</span>
+              <span>单位：mm</span>
             </div>
+            {selectedNode && (
+              <section className="contextual-edit-card" data-testid="contextual-edit-card">
+                <div className="contextual-edit-heading">
+                  <div>
+                    <span>已选中部件</span>
+                    <strong>{selectedModuleLabel}</strong>
+                  </div>
+                  <button type="button" onClick={() => setSelectedComponent('')} aria-label="关闭部件编辑">×</button>
+                </div>
+                <div className="contextual-edit-actions">
+                  <button type="button" onClick={openComponentReplacement} disabled={selectedNode.locked || concept.loading}>替换</button>
+                  <button type="button" onClick={() => { setAssistantMode('change'); setAssistantNote(`告诉我如何调整这个${selectedModuleLabel}。`) }} disabled={selectedNode.locked}>让 Agent 调整</button>
+                  <button type="button" onClick={toggleSelectedNodeVisibility}>{hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}</button>
+                </div>
+                <div className="contextual-adjustments">
+                  <span>快速调整</span>
+                  <div><small>大小</small><button onClick={() => previewQuickTransform('smaller')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>缩小</button><button onClick={() => previewQuickTransform('larger')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>放大</button></div>
+                  <div><small>位置</small><button onClick={() => previewQuickTransform('forward')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>向前</button><button onClick={() => previewQuickTransform('backward')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>向后</button></div>
+                  <div><small>方向</small><button onClick={() => previewQuickTransform('rotateLeft')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>左转</button><button onClick={() => previewQuickTransform('rotateRight')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>右转</button></div>
+                </div>
+                <button className="precision-toggle" type="button" onClick={() => setShowPrecisionAdjustments((current) => !current)}>
+                  {showPrecisionAdjustments ? '收起精确调整' : '精确调整'} <CaretDown size={13} />
+                </button>
+                {showPrecisionAdjustments && (
+                  <div className="precision-adjustments">
+                    <div className="axis-group"><span>位置</span><div>
+                      <AxisField axis="X" value={transformDraft.position[0]} onChange={(value) => updateTransformDraft('position', 0, value)} />
+                      <AxisField axis="Y" value={transformDraft.position[1]} onChange={(value) => updateTransformDraft('position', 1, value)} />
+                      <AxisField axis="Z" value={transformDraft.position[2]} onChange={(value) => updateTransformDraft('position', 2, value)} />
+                    </div></div>
+                    <div className="axis-group"><span>旋转</span><div>
+                      <AxisField axis="X" value={transformDraft.rotation[0]} onChange={(value) => updateTransformDraft('rotation', 0, value)} />
+                      <AxisField axis="Y" value={transformDraft.rotation[1]} onChange={(value) => updateTransformDraft('rotation', 1, value)} />
+                      <AxisField axis="Z" value={transformDraft.rotation[2]} onChange={(value) => updateTransformDraft('rotation', 2, value)} />
+                    </div></div>
+                    <div className="axis-group"><span>比例</span><div>
+                      <AxisField axis="X" value={transformDraft.scale[0]} onChange={(value) => updateTransformDraft('scale', 0, value)} />
+                      <AxisField axis="Y" value={transformDraft.scale[1]} onChange={(value) => updateTransformDraft('scale', 1, value)} />
+                      <AxisField axis="Z" value={transformDraft.scale[2]} onChange={(value) => updateTransformDraft('scale', 2, value)} />
+                    </div></div>
+                    <button className="precision-preview" onClick={previewTransformDraft} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>预览精确调整</button>
+                  </div>
+                )}
+              </section>
+            )}
           </div>
 
-          <section className={`component-library ${drawerExpanded ? 'expanded' : ''}`}>
+          {componentDrawerOpen && <section className={`component-library contextual-library ${componentDrawerMode === 'all' ? 'expanded' : ''}`}>
             <div
               className="component-library-resize-handle"
               onPointerDown={beginDrawerResize}
@@ -1175,42 +1123,47 @@ export function CadWorkbenchPanel() {
             />
             <div className="component-library-header">
               <div className="component-library-title">
-                <Cube size={15} weight="duotone" /> 部件
+                <Cube size={15} weight="duotone" />
+                {componentDrawerMode === 'recommended'
+                  ? `替换「${selectedModuleLabel}」`
+                  : '选择展示组件'}
               </div>
               <div className="component-library-header-actions">
-                <select
-                  className="component-status-filter"
-                  aria-label="部件审阅状态"
-                  value={reviewStatusFilter}
-                  onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
-                >
-                  <option value="">全部状态</option>
-                  {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
-                    <option key={status} value={status}>{label}</option>
-                  ))}
-                </select>
-                <div className="component-search">
-                  <MagnifyingGlass size={15} />
-                  <input
-                    value={componentQuery}
-                    onChange={(event) => setComponentQuery(event.target.value)}
-                    placeholder="搜索名称、描述或标签…"
-                  />
-                  <Funnel size={14} />
-                </div>
+                {componentDrawerMode === 'all' && <>
+                  <select
+                    className="component-status-filter"
+                    aria-label="部件审阅状态"
+                    value={reviewStatusFilter}
+                    onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
+                  >
+                    <option value="">全部状态</option>
+                    {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
+                      <option key={status} value={status}>{label}</option>
+                    ))}
+                  </select>
+                  <div className="component-search">
+                    <MagnifyingGlass size={15} />
+                    <input
+                      value={componentQuery}
+                      onChange={(event) => setComponentQuery(event.target.value)}
+                      placeholder="搜索名称、描述或标签…"
+                    />
+                    <Funnel size={14} />
+                  </div>
+                </>}
                 <button
                   type="button"
-                  className="component-drawer-toggle"
-                  onClick={() => setDrawerExpanded((current) => !current)}
-                  title={drawerExpanded ? '收起组件检视器' : '展开组件检视器'}
-                  aria-label={drawerExpanded ? '收起组件检视器' : '展开组件检视器'}
+                  className="component-drawer-toggle text"
+                  onClick={() => setComponentDrawerMode((current) => current === 'recommended' ? 'all' : 'recommended')}
                 >
-                  {drawerExpanded ? <CaretDown size={15} /> : <CaretUp size={15} />}
+                  {componentDrawerMode === 'recommended' ? '查看更多' : '返回推荐'}
                 </button>
+                <button type="button" className="component-drawer-toggle" onClick={() => setComponentDrawerOpen(false)} aria-label="关闭组件选择">×</button>
               </div>
             </div>
             <div className="component-library-body">
               <>
+                {componentDrawerMode === 'all' &&
                   <nav className="component-categories">
                     {COMPONENT_CATEGORIES.map((category) => (
                       <button
@@ -1235,11 +1188,11 @@ export function CadWorkbenchPanel() {
                       </button>
                     ))}
                   </nav>
+                }
                   <div className="component-library-content">
                     <div className="module-replace-bar">
-                      <span>节点：{selectedNode?.node_id ?? '未选择'}</span>
-                      <span>候选：{selectedLibraryModule?.catalog_metadata.display_name ?? '未选择'}</span>
-                      <span className="component-result-count">显示 {visibleComponents.length} / {concept.modules.length}</span>
+                      <span>{componentDrawerMode === 'recommended' ? '只显示当前部件可用的替换建议' : '选择一个组件后，可先预览再决定保留'}</span>
+                      <span className="component-result-count">显示 {displayedComponents.length} / {concept.modules.length}</span>
                       <button
                         onClick={handleReplaceSelected}
                         disabled={!canReplaceSelected || concept.loading}
@@ -1255,7 +1208,7 @@ export function CadWorkbenchPanel() {
                       </button>
                     </div>
             <div className="component-grid">
-                      {visibleComponents.map((component) => {
+                      {displayedComponents.map((component) => {
                         const ComponentIcon = componentIconFor(component.manifest.category)
                         const graphNode = concept.graphRecord?.graph.nodes.find(
                           (node) => node.module_id === component.manifest.module_id,
@@ -1309,10 +1262,10 @@ export function CadWorkbenchPanel() {
                           </button>
                         )
                       })}
-                      {visibleComponents.length === 0 && (
+                      {displayedComponents.length === 0 && (
                         <div className="component-empty">
-                          <strong>Module Pack 为空</strong>
-                          <span>先通过 ModuleAssetManifest 注册 GLB，工作台不会用假组件替代。</span>
+                          <strong>暂时没有可直接替换的组件</strong>
+                          <span>当前组件库没有同类、兼容且可用的展示组件；你可以继续用 Agent 调整，或稍后添加原创组件。</span>
                         </div>
                       )}
                     </div>
@@ -1394,6 +1347,7 @@ export function CadWorkbenchPanel() {
               </>
             </div>
           </section>
+          }
         </main>
 
         <aside className="cad-right-rail">
@@ -1655,14 +1609,86 @@ export function CadWorkbenchPanel() {
         </aside>
       </div>
 
+      {concept.pendingPreview && (
+        <section className="agent-change-review" data-testid="agent-change-review">
+          <div className="agent-change-review-copy">
+            <span>本次修改</span>
+            <strong>{concept.pendingChange?.change_set.summary ?? concept.pendingManualChange?.summary ?? '组件替换预览已准备好'}</strong>
+            {concept.pendingChange && (
+              <small>{concept.pendingChange.change_set.operations.slice(0, 2).map(formatChangeOperation).join('；')}</small>
+            )}
+            {concept.pendingManualChange && (
+              <small>{concept.pendingManualChange.operations.slice(0, 2).map(formatChangeOperation).join('；')}</small>
+            )}
+            {concept.pendingReplacement && <small>当前设计尚未被覆盖；确认后会保存为新版本。</small>}
+          </div>
+          <div className="agent-change-review-actions">
+            {concept.pendingChange && <button onClick={() => concept.discardPlannedChange()} disabled={concept.loading}>撤销本次修改</button>}
+            {concept.pendingManualChange && <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>撤销本次修改</button>}
+            {concept.pendingReplacement && <button onClick={() => concept.discardModuleReplacement()} disabled={concept.loading}>撤销本次修改</button>}
+            {concept.pendingChange && <button className="confirm" onClick={() => concept.confirmPlannedChange()} disabled={concept.loading}>保留此修改</button>}
+            {concept.pendingManualChange && <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>保留此修改</button>}
+            {concept.pendingReplacement && <button className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading}>保留此修改</button>}
+          </div>
+        </section>
+      )}
+
+      {exportOpen && (
+        <div className="workbench-overlay" role="presentation" onMouseDown={() => setExportOpen(false)}>
+          <section className="workbench-drawer export-drawer" role="dialog" aria-label="导出设计" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="drawer-heading"><div><span>导出当前设计</span><strong>你准备如何使用它？</strong></div><button onClick={() => setExportOpen(false)} aria-label="关闭导出">×</button></div>
+            <div className="export-purpose-list">
+              {EXPORT_PURPOSES.map((purpose) => (
+                <button
+                  key={purpose.id}
+                  className={exportPurpose === purpose.id ? 'active' : ''}
+                  onClick={() => { setExportPurpose(purpose.id); setExportFormat(purpose.format) }}
+                >
+                  <strong>{purpose.title}</strong><span>{purpose.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="export-ready-summary">
+              <span>将导出：<strong>{exportPurpose === 'presentation' ? '展示图像' : exportPurpose === 'production' ? 'GLB 展示模型' : exportPurpose === 'handoff' ? 'OBJ 模型' : '概念源包'}</strong></span>
+              <small>{concept.version ? `当前版本 v${activeVersionSummary?.version_no ?? '—'} · ${ORIGIN_CLAIM_LABELS[selectedModule?.catalog_metadata.origin_claim ?? 'unknown']}` : '请先创建或打开一个设计'}</small>
+            </div>
+            <button className="drawer-primary-action" onClick={handleCreateExport} disabled={!concept.version?.module_graph_id || concept.loading}>
+              <FileArrowDown size={16} /> 导出当前版本
+            </button>
+            <button className="drawer-secondary-action" onClick={() => setExportOpen(false)}>取消</button>
+          </section>
+        </div>
+      )}
+
+      {qualityOpen && (
+        <div className="workbench-overlay" role="presentation" onMouseDown={() => setQualityOpen(false)}>
+          <section className="workbench-drawer quality-drawer" role="dialog" aria-label="模型检查" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="drawer-heading"><div><span>模型检查</span><strong>{qualityStatusLabel(concept.qualityRun?.report.status)}</strong></div><button onClick={() => setQualityOpen(false)} aria-label="关闭模型检查">×</button></div>
+            <p>这里仅在需要时显示模型连接和几何质量信息，不会干扰设计过程。</p>
+            <div className="quality-overview">
+              <DfmRow label="展示组件已加载" value={concept.graphRecord ? '已就绪' : '未准备'} ok={Boolean(concept.graphRecord)} />
+              <DfmRow label="当前版本" value={concept.version ? '可保存' : '未创建'} ok={Boolean(concept.version)} />
+              <DfmRow label="几何检查" value={qualityStatusLabel(concept.qualityRun?.report.status)} ok={concept.qualityRun?.report.status === 'passed'} />
+            </div>
+            {(concept.qualityRun?.report.findings ?? []).slice(0, 3).map((finding) => (
+              <button type="button" className={`quality-finding ${finding.severity}`} key={finding.finding_id} onClick={() => { focusQualityFinding(finding); setQualityOpen(false) }}>
+                <strong>{finding.check_id}</strong><span>{finding.message}</span>
+              </button>
+            ))}
+            <button className="drawer-primary-action" disabled={concept.loading || !concept.version?.module_graph_id} onClick={() => concept.runQualityInspection()}>
+              {concept.loading ? '检查中…' : '运行模型检查'}
+            </button>
+          </section>
+        </div>
+      )}
+
       <footer className="cad-status-bar">
-        <span>设计就绪</span>
-        <span>选择：{selectedComponent || '无'}</span>
-        <span>模型：{concept.graphRecord ? `${concept.graphRecord.graph.nodes.length} nodes` : '未绑定 ModuleGraph'}</span>
+        <span>{concept.loading ? 'Agent 正在处理' : '设计就绪'}</span>
+        <span>{selectedNode ? `正在调整：${selectedModuleLabel}` : '点击模型的任意部件即可调整'}</span>
+        <span>版本：{activeVersionSummary ? `v${activeVersionSummary.version_no}` : '草稿'}</span>
         <span>单位：mm</span>
-        <span>网格：10 mm</span>
         <span className="status-spacer" />
-        <span>右键：上下文菜单</span>
+        <span>{qualityStatusLabel(concept.qualityRun?.report.status)} · 模型检查</span>
       </footer>
     </div>
   )
