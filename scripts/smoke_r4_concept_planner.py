@@ -31,7 +31,12 @@ class _PlannerHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length).decode("utf-8"))
         self.__class__.requests.append(payload)
-        schema_name = payload["response_format"]["json_schema"]["name"]
+        response_format = payload["response_format"]
+        schema_name = (
+            response_format["json_schema"]["name"]
+            if response_format["type"] == "json_schema"
+            else "forgecad_concept_brief_patch"
+        )
         if schema_name == "forgecad_concept_brief_patch":
             content = {
                 "keywords": ["寒地", "工业", "精密"],
@@ -176,6 +181,33 @@ def main() -> int:
         _assert(
             all("manufactur" in prompt.lower() for prompt in system_prompts),
             "provider safety boundary missing from prompts",
+        )
+
+        _PlannerHandler.requests.clear()
+        deepseek_compatible = OpenAICompatibleConceptPlanner(
+            OpenAICompatibleConceptPlannerConfig(
+                base_url=f"http://127.0.0.1:{server.server_port}/v1",
+                model="deepseek-v4-pro",
+                api_key="fake-secret",
+                timeout_seconds=5,
+                response_mode="json_object",
+                max_output_tokens=2048,
+            )
+        )
+        deepseek_compatible.interpret_brief(
+            source_text="紧凑、精密的非功能未来概念资产",
+            current_spec=spec,
+            module_catalog=catalog,
+        )
+        deepseek_request = _PlannerHandler.requests[0]
+        _assert(
+            deepseek_request["response_format"] == {"type": "json_object"}
+            and deepseek_request["max_tokens"] == 2048,
+            "DeepSeek JSON output contract mismatch",
+        )
+        _assert(
+            "JSON Schema" in deepseek_request["messages"][0]["content"],
+            "DeepSeek JSON mode did not receive the schema prompt",
         )
 
         fallback_service = ConceptBriefService(None, _FailingPlanner())  # type: ignore[arg-type]

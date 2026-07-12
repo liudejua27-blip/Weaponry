@@ -269,6 +269,10 @@ P0 recoverable Agent trace slice:
 
 ## Error UX
 
+## 当前桌面信息架构（CAD-only）
+
+桌面端已移除迁移前 Forge、Patch、任务中心、资产库和独立设置页面。`App` 只渲染 `CadWorkbenchPanel`：项目和版本位于左侧，真实注册模块位于底部组件抽屉，参数/检查/导出集中在右侧；所有设计修改先形成 ChangeSet 预览，再创建不可变版本。历史段落仅记录旧界面的迁移证据，不代表当前产品入口。
+
 Errors are shown in three places:
 
 - inline in the current step

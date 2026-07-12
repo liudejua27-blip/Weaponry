@@ -176,6 +176,17 @@ npm run r5:c07-policy-gate
 
 `r3:change-set-audit-gate` 专门验证 migration 0012/0016、逆序 keyset cursor、filter-bound cursor、全文搜索、status/operation 过滤、preview rejected 与 confirm stale diagnostic、批量 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、24–25 条桌面时间线/归档下载和 Agent 重启回读。`next_cursor` 是 opaque 值，不得解析或跨过滤条件保存复用。
 
+### DeepSeek V4 Pro（本机测试）
+
+ForgeCAD 的 Brief、A/B/C 方案与 ChangeSet Planner 可以使用 DeepSeek 的 OpenAI-compatible Chat Completions API。先在 DeepSeek 控制台撤销任何已经贴到聊天记录的密钥，生成新的测试密钥；不要把密钥写入仓库、`.env`、终端历史或聊天。
+
+```bash
+./script/configure_deepseek_test_key.sh
+./script/build_and_run.sh
+```
+
+第二个命令会在本机发现 owner-only 的密钥文件后自动配置：`https://api.deepseek.com`、`deepseek-v4-pro`、Thinking `high` 与最多 4096 个输出 token。DeepSeek V4 的上下文窗口是 1M；不要把“账户 token 配额”误写为单次生成上限。结构化 Planner 对 DeepSeek 使用官方 `json_object` 输出模式，并把 JSON Schema 放入系统提示；对原生 OpenAI 兼容 Provider 仍使用严格 `json_schema`。
+
 专项 Connector 门：
 
 ```bash

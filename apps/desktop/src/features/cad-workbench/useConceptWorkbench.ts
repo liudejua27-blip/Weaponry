@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { forgeApi } from '../../shared/api/forgeApi'
 import type {
   ConceptExportRecord,
@@ -88,6 +88,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
 
 export function useConceptWorkbench() {
   const [state, setState] = useState<ConceptWorkbenchState>(INITIAL_STATE)
+  const autoBootstrapAttempted = useRef(false)
 
   const loadProject = useCallback(async (
     projectId: string,
@@ -162,6 +163,54 @@ export function useConceptWorkbench() {
     }
   }, [])
 
+  const createStarterProject = useCallback(async () => {
+    setState((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+      statusMessage: '正在创建“前沿概念 P1”并装配初始组件…',
+    }))
+    try {
+      const created = await forgeApi.createConceptProject({
+        client_request_id: `desktop-concept-${Date.now()}`,
+        name: '前沿概念 P1',
+        intended_uses: ['game_asset', 'film_prop', 'non_functional_display'],
+        style: {
+          keywords: ['未来工业', '精密硬表面', '模块化', '信号红'],
+          palette: ['graphite', 'gunmetal', 'signal_red'],
+          detail_density: 0.78,
+        },
+        proportions: {
+          overall_length_mm: 230,
+          body_height_mm: 54,
+          grip_angle_deg: 15,
+        },
+        constraints: {
+          symmetry: 'mostly_symmetric',
+          max_triangle_count: 180000,
+        },
+        assumptions: ['虚构未来概念、游戏资产、影视道具与非功能性展示模型；不用于真实制造或使用。'],
+      })
+      const initialized = await forgeApi.initializeConceptWorkbench(
+        created.project_id,
+        `desktop-initialize-workbench-${Date.now().toString(36)}`,
+      )
+      const projects = (await forgeApi.listConceptProjects()).items ?? []
+      await loadProject(
+        initialized.project_id,
+        initialized.current_version_id ?? undefined,
+        projects,
+      )
+    } catch (caught) {
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: errorMessage(caught),
+        statusMessage: '初始 Concept Project 创建失败。请检查本地 Agent 与内置资产包。',
+      }))
+    }
+  }, [loadProject])
+
   const refresh = useCallback(async () => {
     setState((current) => ({
       ...current,
@@ -173,6 +222,11 @@ export function useConceptWorkbench() {
       const response = await forgeApi.listConceptProjects()
       const projects = response.items ?? []
       if (projects.length === 0) {
+        if (!autoBootstrapAttempted.current) {
+          autoBootstrapAttempted.current = true
+          await createStarterProject()
+          return
+        }
         setState((current) => ({
           ...current,
           projects,
@@ -194,7 +248,7 @@ export function useConceptWorkbench() {
           qualityRun: null,
           loading: false,
           error: null,
-          statusMessage: '尚无 Concept Project。创建“寒地巡逻 S1”开始设计。',
+          statusMessage: '尚无 Concept Project。使用“新建”创建首个未来概念项目。',
         }))
         return
       }
@@ -211,7 +265,7 @@ export function useConceptWorkbench() {
         statusMessage: '无法连接本地 Concept API。',
       }))
     }
-  }, [loadProject])
+  }, [createStarterProject, loadProject])
 
   useEffect(() => {
     refresh().catch(() => undefined)
@@ -258,54 +312,6 @@ export function useConceptWorkbench() {
       }))
     }
   }, [])
-
-  const createStarterProject = useCallback(async () => {
-    setState((current) => ({
-      ...current,
-      loading: true,
-      error: null,
-      statusMessage: '正在创建“寒地巡逻 S1”…',
-    }))
-    try {
-      const created = await forgeApi.createConceptProject({
-        client_request_id: `desktop-concept-${Date.now()}`,
-        name: '寒地巡逻 S1',
-        intended_uses: ['game_asset', 'film_prop', 'non_functional_display'],
-        style: {
-          keywords: ['寒地', '工业', '紧凑', '硬表面'],
-          palette: ['graphite', 'gunmetal', 'signal_red'],
-          detail_density: 0.68,
-        },
-        proportions: {
-          overall_length_mm: 230,
-          body_height_mm: 54,
-          grip_angle_deg: 15,
-        },
-        constraints: {
-          symmetry: 'mostly_symmetric',
-          max_triangle_count: 180000,
-        },
-        assumptions: ['非功能性概念模型，不用于真实制造或使用'],
-      })
-      const initialized = await forgeApi.initializeConceptWorkbench(
-        created.project_id,
-        `desktop-initialize-workbench-${Date.now().toString(36)}`,
-      )
-      const projects = (await forgeApi.listConceptProjects()).items ?? []
-      await loadProject(
-        initialized.project_id,
-        initialized.current_version_id ?? undefined,
-        projects,
-      )
-    } catch (caught) {
-      setState((current) => ({
-        ...current,
-        loading: false,
-        error: errorMessage(caught),
-        statusMessage: 'Starter Project 创建失败。',
-      }))
-    }
-  }, [loadProject])
 
   const initializeCurrentProject = useCallback(async () => {
     const project = state.project
@@ -1225,7 +1231,7 @@ async function waitForConceptJob(jobId: string) {
     if (job.status === 'queued' && polls++ === 3) await forgeApi.runConceptWorkerOnce()
     await new Promise<void>((resolve) => window.setTimeout(resolve, 250))
   }
-  throw new Error('质量检查后台任务超时；可在任务中心重试。')
+  throw new Error('质量检查超时；请在“检查”工作模式中重新运行。')
 }
 
 function isValidTransform(transform: Transform) {

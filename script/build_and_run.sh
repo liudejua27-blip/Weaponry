@@ -11,9 +11,33 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_BUNDLE="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle/macos/武神 Forge.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/wushen-forge-desktop"
 
+RUSTC_BIN="$(rustup which rustc 2>/dev/null || true)"
+if [[ -n "$RUSTC_BIN" && -x "$RUSTC_BIN" ]]; then
+  export PATH="$(dirname "$RUSTC_BIN"):$PATH"
+fi
 export PATH="$HOME/.cargo/bin:/opt/homebrew/opt/rustup/bin:$PATH"
 export WUSHEN_AGENT_RUNTIME_MODE="local-dev-python"
 export WUSHEN_REPO_ROOT="$ROOT_DIR"
+
+# Prefer the locally formalized original-author visual Pack when this Mac has
+# it available. The Agent safely falls back to the repository reference Pack
+# on other development machines.
+ORIGINAL_AUTHOR_PACK="$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake-20260711/final-pack"
+if [[ -f "$ORIGINAL_AUTHOR_PACK/pack.json" ]]; then
+  export FORGECAD_BUNDLED_MODULE_PACK="$ORIGINAL_AUTHOR_PACK"
+fi
+
+# Opt in to the user's locally stored DeepSeek test credential. The key never
+# enters this repository, command history, logs, or the Tauri bundle.
+DEEPSEEK_KEY_FILE="${FORGECAD_DEEPSEEK_API_KEY_FILE:-$HOME/Library/Application Support/ForgeCAD/deepseek-test.key}"
+if [[ -r "$DEEPSEEK_KEY_FILE" ]]; then
+  export FORGECAD_CONCEPT_PLANNER_PROVIDER="openai_compatible"
+  export FORGECAD_CONCEPT_PLANNER_BASE_URL="https://api.deepseek.com"
+  export FORGECAD_CONCEPT_PLANNER_MODEL="deepseek-v4-pro"
+  export FORGECAD_CONCEPT_PLANNER_API_KEY_FILE="$DEEPSEEK_KEY_FILE"
+  export FORGECAD_CONCEPT_PLANNER_RESPONSE_MODE="auto"
+  export FORGECAD_CONCEPT_PLANNER_MAX_TOKENS="4096"
+fi
 
 build_app() {
   (cd "$ROOT_DIR" && npm --workspace apps/desktop run tauri -- build --bundles app)

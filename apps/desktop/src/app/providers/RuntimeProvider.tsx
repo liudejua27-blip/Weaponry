@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { forgeApi } from '../../shared/api/forgeApi'
 import {
   getAgentSupervisorStatus,
+  isTauriRuntime,
   restartAgentSupervisor,
   startAgentSupervisor,
   stopAgentSupervisor,
@@ -29,6 +30,15 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   const [agentSupervisor, setAgentSupervisor] = useState<AgentSupervisorStatus | null>(null)
   const [agentActionError, setAgentActionError] = useState<string | null>(null)
 
+  const applyStartStatus = useCallback((status: AgentSupervisorStatus) => {
+    setAgentSupervisor(status)
+    if (status.state === 'error') {
+      setAgentActionError(status.error ?? '本地 Agent 启动失败。')
+      return false
+    }
+    return true
+  }, [])
+
   const checkService = useCallback(() => {
     setServiceStatus('checking')
     getAgentSupervisorStatus()
@@ -48,8 +58,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     setAgentActionError(null)
     startAgentSupervisor()
       .then((status) => {
-        setAgentSupervisor(status)
-        checkService()
+        if (applyStartStatus(status)) checkService()
       })
       .catch((caught) => setAgentActionError(caught instanceof Error ? caught.message : String(caught)))
   }, [checkService])
@@ -68,15 +77,28 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     setAgentActionError(null)
     restartAgentSupervisor()
       .then((status) => {
-        setAgentSupervisor(status)
-        checkService()
+        if (applyStartStatus(status)) checkService()
       })
       .catch((caught) => setAgentActionError(caught instanceof Error ? caught.message : String(caught)))
   }, [checkService])
 
   useEffect(() => {
-    checkService()
-  }, [checkService])
+    if (!isTauriRuntime()) {
+      checkService()
+      return
+    }
+    // The desktop product opens on the CAD workbench, so a user should never
+    // have to discover a separate Settings screen before their local Agent is
+    // available. The Rust supervisor safely reuses an already healthy Agent.
+    startAgentSupervisor()
+      .then((status) => {
+        if (applyStartStatus(status)) checkService()
+      })
+      .catch((caught) => {
+        setAgentActionError(caught instanceof Error ? caught.message : String(caught))
+        checkService()
+      })
+  }, [applyStartStatus, checkService])
 
   const value = useMemo<RuntimeContextValue>(() => ({
     api,

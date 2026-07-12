@@ -522,19 +522,17 @@ schema_migrations
 
 核心交互必须真实可用：模块筛选/选择、阶段切换、参数修改、连接状态、AI 提交、预览/确认、版本切换、检查和导出格式选择。
 
-桌面应用组合边界固定为：
+桌面应用只保留一个 CAD 入口：
 
 ```text
-App.tsx（route-level composition，21 行）
-├─ useLegacyAppController（旧工作台应用状态与任务命令）
-│  ├─ useAppRouting（Hash URL 与唯一 hashchange listener）
-│  ├─ jobPersistence（最近任务与桌面通知持久化）
-│  └─ assetSelectors（Version/Asset 派生选择）
-├─ LegacyWorkbench（无本地 state/effect 的页面渲染组合）
-└─ CadWorkbenchPanel（独立 lazy route）
+App.tsx
+└─ CadWorkbenchPanel
+   ├─ useConceptWorkbench（项目、版本、ModuleGraph、ChangeSet 与导出）
+   ├─ ModuleGraphViewport（唯一的 Three.js/WebGL canvas）
+   └─ CAD session preference（视图、工具、底部组件抽屉）
 ```
 
-`Preview3DPanel` 继续由 `LegacyWorkbench` 动态导入，避免把 Three.js 查看器并回基础 bundle。`App.tsx` 不得持有任务轮询、恢复、通知、`localStorage` 或页面业务状态；`scripts/smoke_r1_foundation.py` 对该边界做静态断言，桌面 E2E 再验证行为连续性。
+旧 Forge、Patch、任务中心、资产库、设置页面和它们的 hash 路由均已删除。任务历史不再是独立界面：当前项目的 ChangeSet 时间线在底部抽屉，质量结论在右侧“检查”，真实模块与筛选在底部“组件”。这避免用户在多个旧工作台之间丢失当前 CAD 上下文。
 
 ## 12. AI 设计协议
 

@@ -18,7 +18,6 @@ import {
   FloppyDisk,
   FolderOpen,
   Funnel,
-  Gear,
   GridFour,
   House,
   MagnifyingGlass,
@@ -30,7 +29,6 @@ import {
   ShareNetwork,
   SlidersHorizontal,
   Sparkle,
-  UserCircle,
   WarningCircle,
 } from '@phosphor-icons/react'
 import { forgeApi } from '../../shared/api/forgeApi'
@@ -95,7 +93,10 @@ type WorkbenchSession = {
   drawerHeight: number
 }
 
-const WORKBENCH_SESSION_KEY = 'forgecad.workbench.session.v1'
+// CAD-only navigation deliberately starts in the component drawer. Bumping the
+// key once prevents a saved tab from the retired multi-workbench UI from
+// reopening to an empty variants/history surface.
+const WORKBENCH_SESSION_KEY = 'forgecad.workbench.session.v2'
 
 const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
   activeTab: 'concept',
@@ -225,7 +226,7 @@ const TOOL_ITEMS: Array<{
   { id: 'section', label: '截面', icon: SelectionAll, implemented: true },
 ]
 
-export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }) {
+export function CadWorkbenchPanel() {
   const concept = useConceptWorkbench()
   const [restoredSession] = useState(readWorkbenchSession)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => restoredSession.activeTab)
@@ -846,10 +847,10 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
   return (
     <div className="cad-workbench" data-testid="cad-workbench">
       <header className="cad-command-bar">
-        <button className="cad-brand" onClick={onOpenLegacy} aria-label="返回迁移前工作台">
+        <div className="cad-brand" aria-label="ForgeCAD 工作台">
           <span className="cad-brand-mark"><Cube size={18} weight="fill" /></span>
           <span>ForgeCAD</span>
-        </button>
+        </div>
         <div className="cad-file-actions" aria-label="文件操作">
           <IconAction icon={Plus} label="新建" onClick={() => concept.createStarterProject()} />
           <IconAction icon={FolderOpen} label="同步" onClick={() => concept.refresh()} />
@@ -886,11 +887,8 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
             </button>
           ))}
         </nav>
-        <div className="cad-global-actions">
-          <IconButton icon={ShareNetwork} label="共享" />
-          <IconButton icon={Gear} label="设置" />
-          <UserCircle size={25} weight="duotone" />
-          <CaretDown size={14} />
+        <div className="cad-global-actions" aria-label="工作区状态">
+          <span>本机工作区</span>
         </div>
       </header>
 
@@ -932,7 +930,7 @@ export function CadWorkbenchPanel({ onOpenLegacy }: { onOpenLegacy: () => void }
               ))}
               {!concept.project && !concept.loading && (
                 <button className="empty-action" onClick={() => concept.createStarterProject()}>
-                  <Plus size={14} /> 创建“寒地巡逻 S1”
+                  <Plus size={14} /> 创建“前沿概念 P1”
                 </button>
               )}
             </div>

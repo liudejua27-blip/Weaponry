@@ -56,6 +56,7 @@ type ViewportRuntime = {
   sectionPlane: THREE.Plane
   sectionHelper: THREE.PlaneHelper
   grid: THREE.GridHelper
+  displayFloor: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>
   moduleRoot: THREE.Group
   qualityRoot: THREE.Group
   connectorGeometry: THREE.SphereGeometry
@@ -83,7 +84,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const host = hostRef.current
     if (!host) return
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#101823')
+    scene.background = new THREE.Color('#08111c')
+    scene.fog = new THREE.Fog('#08111c', 260, 720)
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     renderer.localClippingEnabled = true
@@ -93,22 +95,43 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     host.dataset.activeWebglContexts = String(activeViewportContexts)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.06
     renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
     host.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = false
     controls.minDistance = 0.01
     controls.maxDistance = 100000
-    scene.add(new THREE.HemisphereLight('#d9e7ff', '#17202a', 3.1))
-    scene.add(new THREE.AmbientLight('#8aa2c4', 0.75))
-    const keyLight = new THREE.DirectionalLight('#ffffff', 4.2)
+    scene.add(new THREE.HemisphereLight('#c8ddff', '#07101a', 2.25))
+    scene.add(new THREE.AmbientLight('#4f6686', 0.34))
+    const keyLight = new THREE.DirectionalLight('#e8f2ff', 5.6)
     keyLight.position.set(120, 180, 140)
     keyLight.castShadow = true
+    keyLight.shadow.mapSize.set(2048, 2048)
+    keyLight.shadow.camera.near = 1
+    keyLight.shadow.camera.far = 900
+    keyLight.shadow.camera.left = -360
+    keyLight.shadow.camera.right = 360
+    keyLight.shadow.camera.top = 360
+    keyLight.shadow.camera.bottom = -360
     scene.add(keyLight)
-    const rimLight = new THREE.DirectionalLight('#4895ff', 1.8)
+    const rimLight = new THREE.DirectionalLight('#4e9cff', 3.2)
     rimLight.position.set(-140, 80, -100)
     scene.add(rimLight)
+    const warmRimLight = new THREE.DirectionalLight('#ff8a62', 1.4)
+    warmRimLight.position.set(80, -20, -180)
+    scene.add(warmRimLight)
+    const displayFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(285, 96),
+      new THREE.MeshStandardMaterial({ color: '#0a1420', metalness: 0.5, roughness: 0.7, transparent: true, opacity: 0.78 }),
+    )
+    displayFloor.rotation.x = -Math.PI / 2
+    displayFloor.receiveShadow = true
+    displayFloor.name = 'DisplayFloor'
+    scene.add(displayFloor)
     const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
     scene.add(grid)
     scene.add(new THREE.AxesHelper(28))
@@ -152,6 +175,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       sectionPlane,
       sectionHelper,
       grid,
+      displayFloor,
       moduleRoot,
       qualityRoot,
       connectorGeometry,
@@ -393,7 +417,17 @@ async function loadNode(
     if (!(child instanceof THREE.Mesh)) return
     child.castShadow = true
     child.receiveShadow = true
-    const materials = (Array.isArray(child.material) ? child.material : [child.material]).map((item) => item.clone())
+    const materials = (Array.isArray(child.material) ? child.material : [child.material]).map((item) => {
+      const material = item.clone()
+      if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+        const color = material.color
+        const isSignalAccent = color.r > color.g * 1.45 && color.r > color.b * 1.35
+        material.metalness = Math.max(material.metalness, isSignalAccent ? 0.38 : 0.7)
+        material.roughness = Math.min(Math.max(material.roughness || 0.42, isSignalAccent ? 0.28 : 0.32), isSignalAccent ? 0.48 : 0.52)
+        material.envMapIntensity = Math.max(material.envMapIntensity, 0.9)
+      }
+      return material
+    })
     child.material = Array.isArray(child.material) ? materials : materials[0]
   })
   object.add(assetScene)
@@ -542,6 +576,8 @@ function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewpor
   }
   const center = bounds.getCenter(new THREE.Vector3())
   const size = bounds.getSize(new THREE.Vector3())
+  runtime.displayFloor.position.set(center.x, bounds.min.y - Math.max(size.y * 0.13, 4), center.z)
+  runtime.displayFloor.scale.setScalar(Math.max(size.length() / 190, 0.65))
   frameCamera(runtime.camera, runtime.controls, props.cameraView, center, Math.max(size.length(), 1))
 }
 

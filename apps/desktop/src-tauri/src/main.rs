@@ -1,6 +1,6 @@
 use std::{
     env,
-    fs::OpenOptions,
+    fs::{self, OpenOptions},
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
@@ -113,6 +113,19 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
         }
     }
 
+    match probe_agent() {
+        AgentProbe::Healthy => {
+            let mode_name = runtime_mode_name(runtime_mode());
+            return Ok(status_from_probe(AgentProbe::Healthy, false, None, &mode_name));
+        }
+        AgentProbe::WrongService(reason) => {
+            return Err(format!(
+                "Port 8000 is occupied by a non-ForgeCAD service: {reason}"
+            ));
+        }
+        AgentProbe::Offline => {}
+    }
+
     state.shutdown_managed();
 
     let mut child_guard = state
@@ -141,7 +154,9 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
     *child_guard = Some(child);
     drop(child_guard);
 
-    for _ in 0..30 {
+    // The first local startup can apply SQLite migrations and register the
+    // bundled module pack, so allow a realistic cold-start window.
+    for _ in 0..100 {
         match probe_agent() {
             AgentProbe::Healthy => return Ok(status_from_probe(AgentProbe::Healthy, true, Some(pid), &mode_name)),
             AgentProbe::WrongService(reason) => {
@@ -155,7 +170,14 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
     }
 
     state.shutdown_managed();
-    Err("Agent service did not become healthy on http://127.0.0.1:8000/api/health within 3s".to_string())
+    Err("Agent service did not become healthy on http://127.0.0.1:8000/api/health within 10s".to_string())
+}
+
+fn runtime_mode_name(mode: AgentMode) -> String {
+    match mode {
+        AgentMode::LocalDev => AGENT_MODE_LOCAL.to_string(),
+        AgentMode::PackagedSidecar => AGENT_MODE_PACKAGED.to_string(),
+    }
 }
 
 #[tauri::command]
@@ -217,11 +239,16 @@ fn status_from_probe(
 }
 
 fn start_local_python_sidecar(repo_root: &Path) -> Result<Child, String> {
+    let log_path = repo_root.join(".wushen-agent.log");
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("failed to create Agent log directory: {error}"))?;
+    }
     let mut command = Command::new(&agent_python(repo_root));
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(repo_root.join(".wushen-agent.log"))
+        .open(log_path)
         .map_err(|error| format!("failed to open Agent log file: {error}"))?;
     let stderr_log = log_file
         .try_clone()
@@ -238,8 +265,9 @@ fn start_local_python_sidecar(repo_root: &Path) -> Result<Child, String> {
         .arg(AGENT_PORT.to_string())
         .current_dir(repo_root)
         .env("PYTHONPATH", repo_root.join("apps/agent"))
-        .env("WUSHEN_LIBRARY_ROOT", repo_root.join("WushenForgeLibrary"))
+        .env("WUSHEN_LIBRARY_ROOT", local_library_root(repo_root))
         .env("WUSHEN_MIGRATIONS_DIR", repo_root.join("migrations"))
+        .env("PYTHONUNBUFFERED", "1")
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_log));
 
@@ -413,14 +441,42 @@ fn agent_health_url(base_url: &str) -> String {
 
 fn repo_root() -> Result<PathBuf, String> {
     if let Ok(value) = env::var("WUSHEN_REPO_ROOT") {
-        return Ok(PathBuf::from(value));
+        let candidate = PathBuf::from(value);
+        if is_repository_root(&candidate) {
+            return Ok(candidate);
+        }
     }
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
+    if let Some(candidate) = manifest_dir
         .ancestors()
         .nth(3)
         .map(Path::to_path_buf)
-        .ok_or_else(|| "could not resolve repository root from CARGO_MANIFEST_DIR".to_string())
+        .filter(|candidate| is_repository_root(candidate))
+    {
+        return Ok(candidate);
+    }
+    if let Ok(executable) = env::current_exe() {
+        if let Some(candidate) = executable
+            .ancestors()
+            .find(|candidate| is_repository_root(candidate))
+            .map(Path::to_path_buf)
+        {
+            return Ok(candidate);
+        }
+    }
+    Err("could not resolve a ForgeCAD repository root for local-dev-python mode".to_string())
+}
+
+fn is_repository_root(candidate: &Path) -> bool {
+    candidate.join("apps").join("agent").is_dir()
+        && candidate.join("migrations").is_dir()
+        && candidate.join(".venv").join("bin").join("python").exists()
+}
+
+fn local_library_root(repo_root: &Path) -> PathBuf {
+    env::var_os("WUSHEN_LIBRARY_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo_root.join("WushenForgeLibrary"))
 }
 
 fn agent_python(repo_root: &Path) -> PathBuf {

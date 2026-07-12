@@ -612,6 +612,8 @@ class OpenAICompatibleConceptPlannerConfig:
     model: str
     api_key: Optional[str]
     timeout_seconds: float = 60.0
+    response_mode: Literal["auto", "json_schema", "json_object"] = "auto"
+    max_output_tokens: int = 4096
 
 
 class OpenAICompatibleConceptPlanner:
@@ -756,18 +758,38 @@ class OpenAICompatibleConceptPlanner:
             raise ConceptPlannerError(
                 "PLANNER_UNCONFIGURED", "Concept Planner model is not configured."
             )
+        use_json_object = self._uses_json_object_mode()
+        system_message = system
+        if use_json_object:
+            # DeepSeek V4's OpenAI-compatible endpoint supports JSON mode, not
+            # OpenAI's json_schema response format. Place the complete schema
+            # in the prompt so the model still has a precise contract.
+            system_message = (
+                f"{system}\n\nReturn exactly one JSON object and no Markdown. "
+                f"The JSON object must validate against this JSON Schema:\n"
+                f"{_canonical_json(schema)}"
+            )
         payload = {
             "model": self.config.model,
             "messages": [
-                {"role": "system", "content": system},
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": user},
             ],
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": schema_name, "strict": True, "schema": schema},
-            },
-            "temperature": 0.35,
+            "response_format": (
+                {"type": "json_object"}
+                if use_json_object
+                else {
+                    "type": "json_schema",
+                    "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+                }
+            ),
+            "max_tokens": max(256, min(self.config.max_output_tokens, 16_384)),
         }
+        if self._uses_deepseek_v4():
+            payload["thinking"] = {"type": "enabled"}
+            payload["reasoning_effort"] = "high"
+        else:
+            payload["temperature"] = 0.35
         request = urllib.request.Request(
             self.config.base_url.rstrip("/") + "/chat/completions",
             data=_canonical_json(payload).encode("utf-8"),
@@ -814,6 +836,16 @@ class OpenAICompatibleConceptPlanner:
                 "PLANNER_BAD_OUTPUT", "Concept Planner did not return valid JSON."
             ) from exc
 
+    def _uses_deepseek_v4(self) -> bool:
+        return "api.deepseek.com" in self.config.base_url.casefold()
+
+    def _uses_json_object_mode(self) -> bool:
+        if self.config.response_mode == "json_object":
+            return True
+        if self.config.response_mode == "json_schema":
+            return False
+        return self._uses_deepseek_v4()
+
 
 def concept_planner_from_env() -> ConceptPlannerProvider:
     selected = os.environ.get(
@@ -843,9 +875,23 @@ def concept_planner_from_env() -> ConceptPlannerProvider:
                 timeout_seconds=float(
                     os.environ.get("FORGECAD_CONCEPT_PLANNER_TIMEOUT_SECONDS", "60")
                 ),
+                response_mode=_planner_response_mode_from_env(),
+                max_output_tokens=_planner_max_output_tokens_from_env(),
             )
         )
     return DeterministicConceptPlanner()
+
+
+def _planner_response_mode_from_env() -> Literal["auto", "json_schema", "json_object"]:
+    value = os.environ.get("FORGECAD_CONCEPT_PLANNER_RESPONSE_MODE", "auto").strip().lower()
+    return value if value in {"auto", "json_schema", "json_object"} else "auto"
+
+
+def _planner_max_output_tokens_from_env() -> int:
+    try:
+        return max(256, min(int(os.environ.get("FORGECAD_CONCEPT_PLANNER_MAX_TOKENS", "4096")), 16_384))
+    except ValueError:
+        return 4096
 
 
 def planner_provenance(

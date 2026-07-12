@@ -16,7 +16,7 @@
     "desktop:p0-runtime-handoff-smoke": "node scripts/smoke_p0_runtime_handoff_ui.mjs",
     "desktop:p1-deeplink-smoke": "node scripts/smoke_p1_deeplink_ui.mjs",
     "desktop:r3-concept-workbench-smoke": "node scripts/smoke_r3_concept_workbench_ui.mjs",
-    "desktop:tauri-check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "desktop:tauri-check": "script/with_rust_toolchain.sh cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "agent:check": "python3 -m compileall -q apps/agent/wushen_agent apps/agent/forgecad_agent scripts",
     "repository:integrity": "python3 scripts/check_repository_integrity.py",
     "contracts:types:generate": "python3 scripts/generate_schema_types.py && .venv/bin/python scripts/export_openapi.py",
