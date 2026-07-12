@@ -1,6 +1,8 @@
 # Blender Authoring Starter
 
-状态：三模块 authoring source、十模块 visual candidate、只读导出器和正式人工审阅门已实现；当前开发机已用官方 Blender 4.2.22 LTS Apple Silicon 真实构建 `.blend`/GLB/thumbnail，完成只读 re-export、完整组合质量检查和 DCC 往返。这些仍是候选资产，未经人工最终编辑、许可证替换和独立 reviewer 批准。
+状态：三模块 authoring source、十模块 visual candidate、只读导出器和正式人工审阅门已实现；authoring builder 同时兼容历史 Blender 4.x 的 EEVEE Next 与本机 Blender 5.x 的 EEVEE 枚举，已真实构建 `.blend`/GLB/thumbnail，完成完整组合质量检查和 DCC 往返。这些仍是候选资产，未经人工最终编辑、权属确认和独立 reviewer 批准。
+
+候选脚本会产生真实的倒角、楔形轮廓、表面轨道/接缝、握持纹理和非功能性前端视觉管件；它们导出在 GLB 中并接受同一模块包与组合质量检查，绝不是工作台中的静态伪预览。候选不应在未经人工美术确认时标为正式资产或“已批准”。
 
 ## 1. 作用
 

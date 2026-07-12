@@ -29,6 +29,7 @@ class Part:
     size_mm: tuple[float, float, float]
     material: str
     bevel_mm: float = 2.0
+    profile: str = "box"
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ STARTER_MODULES = (
         "module_core_shell_01",
         "core_shell",
         (
-            Part("main_body", (0, 0, 0), (100, 46, 40), "MAT_primary", 4.0),
+            Part("main_body", (0, 0, 0), (100, 46, 40), "MAT_primary", 4.0, "wedge"),
             Part("upper_spine", (-4, 21, 0), (76, 10, 30), "MAT_secondary", 2.5),
             Part("lower_keel", (-10, -21, 0), (48, 9, 32), "MAT_secondary", 2.0),
             Part("side_plate_a", (25, 0, 20), (28, 26, 3), "MAT_accent", 1.0),
@@ -92,9 +93,11 @@ STARTER_MODULES = (
         "module_front_shell_01",
         "front_shell",
         (
-            Part("main_wedge", (-31, 0, 0), (62, 32, 32), "MAT_primary", 3.0),
+            Part("main_wedge", (-31, 0, 0), (62, 32, 32), "MAT_primary", 3.0, "wedge"),
+            Part("upper_visual_tube", (-37, 8, 25.5), (74, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
+            Part("lower_visual_tube", (-37, -8, 25.5), (74, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
             Part("upper_rib", (-36, 16, 0), (42, 6, 27), "MAT_secondary", 1.5),
-            Part("nose_cap", (-60, 5, 0), (14, 22, 28), "MAT_secondary", 2.5),
+            Part("nose_cap", (-60, 5, 0), (14, 22, 28), "MAT_secondary", 2.5, "wedge"),
             Part("accent_fin", (-44, 0, 17), (20, 15, 2.5), "MAT_accent", 0.8),
             Part("top_visual_split", (-27, 21, 0), (28, 4, 20), "MAT_secondary", 0.8),
             Part("left_visual_fin", (-43, 2, 18), (24, 9, 2), "MAT_secondary", 0.6),
@@ -106,9 +109,11 @@ STARTER_MODULES = (
         "module_front_shell_02",
         "front_shell",
         (
-            Part("main_wedge", (-37, 0, 0), (74, 28, 38), "MAT_primary", 4.0),
+            Part("main_wedge", (-37, 0, 0), (74, 28, 38), "MAT_primary", 4.0, "wedge"),
+            Part("upper_visual_tube", (-43, 7, 27), (86, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
+            Part("lower_visual_tube", (-43, -7, 27), (86, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
             Part("upper_bridge", (-34, 15, 0), (40, 8, 32), "MAT_secondary", 2.0),
-            Part("nose_block", (-68, 7, 0), (16, 18, 30), "MAT_secondary", 2.0),
+            Part("nose_block", (-68, 7, 0), (16, 18, 30), "MAT_secondary", 2.0, "wedge"),
             Part("lower_step", (-20, -15, 0), (32, 6, 30), "MAT_accent", 1.0),
             Part("tip_accent", (-61, 0, -20), (16, 12, 2.5), "MAT_accent", 0.8),
             Part("upper_visual_frame", (-35, 21, 0), (38, 4, 26), "MAT_secondary", 1.0),
@@ -128,7 +133,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_rear_shell_01",
         "rear_shell",
         (
-            Part("rear_body", (22, 0, 0), (42, 38, 36), "MAT_primary", 3.5),
+            Part("rear_body", (22, 0, 0), (42, 38, 36), "MAT_primary", 3.5, "reverse_wedge"),
             Part("rear_cap", (40, 0, 0), (12, 26, 30), "MAT_secondary", 2.0),
             Part("upper_rear_spine", (20, 20, 0), (34, 5, 24), "MAT_secondary", 1.0),
             Part("rear_side_armor", (26, 0, 19), (26, 16, 2.5), "MAT_secondary", 0.8),
@@ -141,7 +146,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_grip_shell_01",
         "grip_shell",
         (
-            Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0),
+            Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0, "grip_taper"),
             Part("grip_backstrap", (11, -35, 0), (10, 51, 34), "MAT_secondary", 2.2),
             Part("grip_front_guard", (-12, -13, 0), (8, 20, 29), "MAT_secondary", 1.5),
             Part(
@@ -156,7 +161,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_top_accessory_01",
         "top_accessory",
         (
-            Part("top_body", (0, 12, 0), (40, 18, 16), "MAT_primary", 2.6),
+            Part("top_body", (0, 12, 0), (40, 18, 16), "MAT_primary", 2.6, "wedge"),
             Part("top_bridge", (0, 3, 0), (28, 8, 12), "MAT_secondary", 1.0),
             Part("top_frame_left", (-12, 18, 0), (8, 5, 18), "MAT_secondary", 0.7),
             Part("top_frame_right", (12, 18, 0), (8, 5, 18), "MAT_secondary", 0.7),
@@ -305,7 +310,14 @@ def _build_module(
     scene = bpy.context.scene
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.scale_length = 1.0
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    # Blender 4 exposed EEVEE Next as a separate enum; Blender 5 folds it
+    # back into BLENDER_EEVEE. Keep the generated authoring pack runnable on
+    # both the historical 4.x workstation and the current local Blender 5.x.
+    scene.render.engine = (
+        "BLENDER_EEVEE"
+        if "BLENDER_EEVEE" in {item.identifier for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items}
+        else "BLENDER_EEVEE_NEXT"
+    )
     scene.render.resolution_x = 512
     scene.render.resolution_y = 512
     scene.render.resolution_percentage = 100
@@ -317,10 +329,12 @@ def _build_module(
     scene.collection.children.link(collection)
     materials = _create_materials()
     mesh_objects = []
-    for index, part in enumerate(module.parts, start=1):
-        mesh_objects.append(
-            _create_part(module.module_id, index, part, materials, collection)
-        )
+    for part in module.parts:
+        object_name = f"GEO_{module.module_id}_LOD0_{len(mesh_objects) + 1:02d}"
+        mesh_objects.append(_create_part(object_name, part, materials, collection))
+        for detail in _surface_detail_parts(part):
+            detail_name = f"GEO_{module.module_id}_LOD0_{len(mesh_objects) + 1:02d}"
+            mesh_objects.append(_create_part(detail_name, detail, materials, collection))
     for connector in module.connectors:
         _create_connector(connector, collection)
     _create_render_rig(mesh_objects)
@@ -435,23 +449,20 @@ def _create_materials() -> dict[str, bpy.types.Material]:
     return result
 
 
-def _create_part(module_id, index, part, materials, collection):
-    bpy.ops.mesh.primitive_cube_add(size=1)
-    obj = bpy.context.object
-    for owner in tuple(obj.users_collection):
-        owner.objects.unlink(obj)
-    collection.objects.link(obj)
-    obj.name = f"GEO_{module_id}_LOD0_{index:02d}"
-    obj.data.name = f"MESH_{module_id}_LOD0_{index:02d}"
-    obj.location = _business_position_mm_to_blender_m(part.center_mm)
-    obj.dimensions = _business_size_mm_to_blender_m(part.size_mm)
+def _create_part(object_name, part, materials, collection):
+    obj = _create_profile_mesh(object_name, part, collection)
+    obj.data.name = object_name.replace("GEO_", "MESH_")
     obj.data.materials.append(materials[part.material])
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    if part.profile == "box":
+        obj.location = _business_position_mm_to_blender_m(part.center_mm)
+        obj.dimensions = _business_size_mm_to_blender_m(part.size_mm)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bevel = obj.modifiers.new("Bevel", "BEVEL")
     bevel.width = part.bevel_mm / 1000
     bevel.segments = 3
+    bevel.limit_method = "ANGLE"
     bpy.ops.object.modifier_apply(modifier=bevel.name)
     triangulate = obj.modifiers.new("Triangulate", "TRIANGULATE")
     bpy.ops.object.modifier_apply(modifier=triangulate.name)
@@ -462,6 +473,132 @@ def _create_part(module_id, index, part, materials, collection):
     obj.data.uv_layers.active.name = "UV0"
     obj.select_set(False)
     return obj
+
+
+def _create_profile_mesh(object_name, part, collection):
+    if part.profile == "box":
+        bpy.ops.mesh.primitive_cube_add(size=1)
+        obj = bpy.context.object
+        for owner in tuple(obj.users_collection):
+            owner.objects.unlink(obj)
+        collection.objects.link(obj)
+        obj.name = object_name
+        return obj
+
+    sx, sy, sz = part.size_mm
+    x0, x1 = -sx / 2, sx / 2
+    y0, y1 = -sy / 2, sy / 2
+    z0, z1 = -sz / 2, sz / 2
+    # The business coordinate system is X (length), Y (height), Z (depth).
+    # These intentional visual tapers make the authored source read as a
+    # designed hard-surface prop instead of a stack of axis-aligned boxes.
+    if part.profile == "wedge":
+        top_front, top_rear = y0 + sy * 0.66, y1
+        vertices = [
+            (x0, y0, z0), (x0, y0, z1), (x1, y0, z1), (x1, y0, z0),
+            (x0, top_front, z0), (x0, top_front, z1), (x1, top_rear, z1), (x1, top_rear, z0),
+        ]
+    elif part.profile == "reverse_wedge":
+        top_front, top_rear = y1, y0 + sy * 0.66
+        vertices = [
+            (x0, y0, z0), (x0, y0, z1), (x1, y0, z1), (x1, y0, z0),
+            (x0, top_front, z0), (x0, top_front, z1), (x1, top_rear, z1), (x1, top_rear, z0),
+        ]
+    elif part.profile == "grip_taper":
+        upper_x, upper_z = sx / 2, sz / 2
+        lower_x, lower_z = sx * 0.72 / 2, sz * 0.82 / 2
+        vertices = [
+            (-lower_x, y0, -lower_z), (-lower_x, y0, lower_z),
+            (lower_x, y0, lower_z), (lower_x, y0, -lower_z),
+            (-upper_x, y1, -upper_z), (-upper_x, y1, upper_z),
+            (upper_x, y1, upper_z), (upper_x, y1, -upper_z),
+        ]
+    elif part.profile == "cylinder_x":
+        segments = 24
+        vertices = []
+        radius_y = sy / 2
+        radius_z = sz / 2
+        for x in (x0, x1):
+            for segment in range(segments):
+                angle = math.tau * segment / segments
+                vertices.append((x, math.cos(angle) * radius_y, math.sin(angle) * radius_z))
+        faces = []
+        for segment in range(segments):
+            next_segment = (segment + 1) % segments
+            faces.append((segment, next_segment, segments + next_segment, segments + segment))
+        faces.extend((tuple(range(segments - 1, -1, -1)), tuple(range(segments, segments * 2))))
+        mesh = bpy.data.meshes.new(object_name.replace("GEO_", "MESH_"))
+        mesh.from_pydata(
+            [_business_position_mm_to_blender_m((x + part.center_mm[0], y + part.center_mm[1], z + part.center_mm[2])) for x, y, z in vertices],
+            [],
+            faces,
+        )
+        mesh.update()
+        obj = bpy.data.objects.new(object_name, mesh)
+        collection.objects.link(obj)
+        return obj
+    else:
+        raise ValueError(f"unsupported visual profile: {part.profile}")
+    faces = [
+        (0, 1, 2, 3), (4, 7, 6, 5), (0, 4, 5, 1),
+        (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0),
+    ]
+    mesh = bpy.data.meshes.new(object_name.replace("GEO_", "MESH_"))
+    mesh.from_pydata(
+        [_business_position_mm_to_blender_m((x + part.center_mm[0], y + part.center_mm[1], z + part.center_mm[2])) for x, y, z in vertices],
+        [],
+        faces,
+    )
+    mesh.update()
+    obj = bpy.data.objects.new(object_name, mesh)
+    collection.objects.link(obj)
+    return obj
+
+
+def _surface_detail_parts(part):
+    """Author small real meshes for vents, seams and grip ribs.
+
+    These are geometric details exported into the GLB, not a viewport-only
+    decoration. Their shallow offset keeps connector locations and the module
+    silhouette stable while giving the visual candidate readable panel rhythm.
+    """
+    sx, sy, sz = part.size_mm
+    result = []
+    if sx < 22 or sy < 10 or sz < 10:
+        return result
+    count = max(2, min(5, int(sx // 18)))
+    for side in (-1, 1):
+        for detail_index in range(count):
+            fraction = (detail_index + 1) / (count + 1) - 0.5
+            center = (
+                part.center_mm[0] + fraction * sx * 0.68,
+                part.center_mm[1] + sy * 0.05,
+                part.center_mm[2] + side * (sz / 2 + 0.38),
+            )
+            detail = Part(
+                f"{part.name}_surface_rail_{side}_{detail_index}",
+                center,
+                (max(3.4, sx * 0.07), max(4.0, sy * 0.25), 0.75),
+                "MAT_secondary" if detail_index % 3 else "MAT_accent",
+                0.34,
+            )
+            result.append(detail)
+    if part.profile == "grip_taper":
+        for rib_index in range(5):
+            center = (
+                part.center_mm[0],
+                part.center_mm[1] - sy * 0.12 - rib_index * sy * 0.12,
+                part.center_mm[2] + sz / 2 + 0.5,
+            )
+            rib = Part(
+                f"{part.name}_grip_rib_{rib_index}",
+                center,
+                (sx * 0.7, 1.8, 0.95),
+                "MAT_secondary",
+                0.28,
+            )
+            result.append(rib)
+    return result
 
 
 def _create_connector(connector, collection):
