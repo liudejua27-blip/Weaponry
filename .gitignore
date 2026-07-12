@@ -24,3 +24,4 @@ WushenForgeLibrary/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
 .wushen-agent.log
+.wushen-desktop.log

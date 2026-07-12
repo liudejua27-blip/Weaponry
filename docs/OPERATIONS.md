@@ -182,10 +182,20 @@ ForgeCAD 的 Brief、A/B/C 方案与 ChangeSet Planner 可以使用 DeepSeek 的
 
 ```bash
 ./script/configure_deepseek_test_key.sh
-./script/build_and_run.sh
 ```
 
-第二个命令会在本机发现 owner-only 的密钥文件后自动配置：`https://api.deepseek.com`、`deepseek-v4-pro`、Thinking `high` 与最多 4096 个输出 token。DeepSeek V4 的上下文窗口是 1M；不要把“账户 token 配额”误写为单次生成上限。结构化 Planner 对 DeepSeek 使用官方 `json_object` 输出模式，并把 JSON Schema 放入系统提示；对原生 OpenAI 兼容 Provider 仍使用严格 `json_schema`。
+CAD 本机测试包默认只运行注册表约束的 deterministic Planner，不会读取该密钥文件，也不会发起模型调用。这样首次启动、A/B/C、ChangeSet 与导出可以稳定验证而不产生意外成本。真实 Provider 评测必须由操作者在终端显式配置（只传递密钥文件路径，不传递密钥文本）并运行本节的 preflight/live 命令：
+
+```bash
+export FORGECAD_CONCEPT_PLANNER_PROVIDER=openai_compatible
+export FORGECAD_CONCEPT_PLANNER_BASE_URL=https://api.deepseek.com
+export FORGECAD_CONCEPT_PLANNER_MODEL=deepseek-v4-pro
+export FORGECAD_CONCEPT_PLANNER_API_KEY_FILE="$HOME/Library/Application Support/ForgeCAD/deepseek-test.key"
+export FORGECAD_CONCEPT_PLANNER_RESPONSE_MODE=auto
+export FORGECAD_CONCEPT_PLANNER_MAX_TOKENS=4096
+```
+
+DeepSeek V4 的上下文窗口是 1M；不要把“账户 token 配额”误写为单次生成上限。结构化 Planner 对 DeepSeek 使用官方 `json_object` 输出模式，并把 JSON Schema 放入系统提示；对原生 OpenAI 兼容 Provider 仍使用严格 `json_schema`。
 
 专项 Connector 门：
 

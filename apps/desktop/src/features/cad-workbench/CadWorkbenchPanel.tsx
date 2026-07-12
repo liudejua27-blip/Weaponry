@@ -121,6 +121,8 @@ const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
   drawerHeight: 368,
 }
 
+const DEFAULT_CONCEPT_BRIEF = '紧凑、精密硬表面、石墨灰与信号红点缀的非功能未来概念展示资产'
+
 function readWorkbenchSession(): WorkbenchSession {
   try {
     const value = JSON.parse(window.localStorage.getItem(WORKBENCH_SESSION_KEY) ?? '{}') as Partial<WorkbenchSession>
@@ -269,7 +271,7 @@ export function CadWorkbenchPanel() {
   const [chatInput, setChatInput] = useState('')
   const [assistantMode, setAssistantMode] = useState<AssistantMode>('brief')
   const [assistantNote, setAssistantNote] = useState(
-    '输入修改要求后，系统将生成结构化 DesignChangeSet 预览；确认前不会覆盖当前版本。',
+    '直接点击“生成 A/B/C 方案”即可开始，也可先输入概念需求；方案只使用已注册的展示模块。',
   )
   const [exportFormat, setExportFormat] = useState('SOURCE ZIP')
   const [parameters, setParameters] = useState<WeaponParameters>({
@@ -793,8 +795,7 @@ export function CadWorkbenchPanel() {
   }
 
   const submitAssistantInstruction = async () => {
-    const instruction = chatInput.trim()
-    if (!instruction) return
+    const instruction = chatInput.trim() || DEFAULT_CONCEPT_BRIEF
     setAssistantNote(`正在解释 Brief：“${instruction}”`)
     const result = await concept.planBrief(instruction)
     if (!result) return
@@ -979,7 +980,7 @@ export function CadWorkbenchPanel() {
             </div>
             <button
               className="secondary-action"
-              disabled={!chatInput.trim() || concept.loading}
+              disabled={concept.loading}
               onClick={() => runAssistantAction()}
             >
               {assistantMode === 'brief' ? '生成 A/B/C 方案' : '生成修改预览'}
@@ -1445,7 +1446,7 @@ export function CadWorkbenchPanel() {
                 <div className={`drawer-placeholder${drawerTab === 'timeline' ? ' timeline-drawer' : ''}`}>
                   {drawerTab === 'variants' && <>
                     <strong>候选方案</strong>
-                    {concept.variants.map((variant) => (
+                    {concept.variants.slice(0, 3).map((variant) => (
                       <button
                         key={variant.variant_id}
                         data-variant-rank={variant.rank}

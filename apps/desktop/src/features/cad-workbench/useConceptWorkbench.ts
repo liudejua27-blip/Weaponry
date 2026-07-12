@@ -20,6 +20,11 @@ import type {
 
 const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
 const ACTIVE_VERSION_KEY_PREFIX = 'forgecad.activeConceptVersionId.'
+// Rust allows up to ten seconds for a cold Agent startup (migrations plus Pack
+// registration). Keep the UI retry window slightly longer so first launch
+// resolves into the workbench instead of a stale offline screen.
+const STARTUP_SYNC_RETRY_LIMIT = 24
+const STARTUP_SYNC_RETRY_MS = 500
 
 function activeVersionKey(projectId: string) {
   return `${ACTIVE_VERSION_KEY_PREFIX}${projectId}`
@@ -89,6 +94,7 @@ const INITIAL_STATE: ConceptWorkbenchState = {
 export function useConceptWorkbench() {
   const [state, setState] = useState<ConceptWorkbenchState>(INITIAL_STATE)
   const autoBootstrapAttempted = useRef(false)
+  const startupRetryTimer = useRef<number | null>(null)
 
   const loadProject = useCallback(async (
     projectId: string,
@@ -211,7 +217,7 @@ export function useConceptWorkbench() {
     }
   }, [loadProject])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (attempt = 0) => {
     setState((current) => ({
       ...current,
       loading: true,
@@ -258,6 +264,19 @@ export function useConceptWorkbench() {
         : projects[0].project_id
       await loadProject(activeId, undefined, projects)
     } catch (caught) {
+      if (isTransientConnectionFailure(caught) && attempt < STARTUP_SYNC_RETRY_LIMIT) {
+        setState((current) => ({
+          ...current,
+          loading: true,
+          error: null,
+          statusMessage: `本地 Agent 正在启动，自动重试 ${attempt + 1}/${STARTUP_SYNC_RETRY_LIMIT}…`,
+        }))
+        startupRetryTimer.current = window.setTimeout(() => {
+          startupRetryTimer.current = null
+          void refresh(attempt + 1)
+        }, STARTUP_SYNC_RETRY_MS)
+        return
+      }
       setState((current) => ({
         ...current,
         loading: false,
@@ -270,6 +289,10 @@ export function useConceptWorkbench() {
   useEffect(() => {
     refresh().catch(() => undefined)
   }, [refresh])
+
+  useEffect(() => () => {
+    if (startupRetryTimer.current !== null) window.clearTimeout(startupRetryTimer.current)
+  }, [])
 
   const selectProject = useCallback((projectId: string) => {
     loadProject(projectId).catch(() => undefined)
@@ -414,13 +437,16 @@ export function useConceptWorkbench() {
         client_request_id: `desktop-brief-${suffix}`,
         source_text: sourceText,
         reference_asset_ids: [],
-        generator: 'auto',
+        // The CAD workbench must remain immediately usable on a local test
+        // build. Provider calls are an optional evaluation path; the default
+        // interaction uses the verified registry-bound planner.
+        generator: 'deterministic_rules',
       })
       const generated = await forgeApi.generateDesignVariants(project.project_id, {
         client_request_id: `desktop-variants-${suffix}`,
         brief_id: brief.brief_id,
         count: 3,
-        generator: 'auto',
+        generator: 'deterministic_rules',
       })
       const provenance = brief.planner_provenance
       setState((current) => ({
@@ -1220,6 +1246,12 @@ export function useConceptWorkbench() {
 
 function errorMessage(caught: unknown): string {
   return caught instanceof Error ? caught.message : String(caught)
+}
+
+function isTransientConnectionFailure(caught: unknown): boolean {
+  if (caught instanceof TypeError) return true
+  const message = errorMessage(caught).toLowerCase()
+  return message.includes('failed to fetch') || message.includes('networkerror') || message.includes('network request failed')
 }
 
 async function waitForConceptJob(jobId: string) {

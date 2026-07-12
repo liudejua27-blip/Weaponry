@@ -271,6 +271,8 @@ fn start_local_python_sidecar(repo_root: &Path) -> Result<Child, String> {
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_log));
 
+    apply_local_asset_pack(&mut command);
+
     command.spawn().map_err(|error| {
         format!(
             "failed to start local-agent service with {}: {error}",
@@ -477,6 +479,27 @@ fn local_library_root(repo_root: &Path) -> PathBuf {
     env::var_os("WUSHEN_LIBRARY_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| repo_root.join("WushenForgeLibrary"))
+}
+
+fn apply_local_asset_pack(command: &mut Command) {
+    // Local asset Pack discovery is non-sensitive and keeps the first-run
+    // workbench populated even when macOS LaunchServices drops shell exports.
+    // Provider credentials intentionally remain an explicit user opt-in.
+    if let Some(pack) = local_formal_module_pack() {
+        command.env("FORGECAD_BUNDLED_MODULE_PACK", pack);
+    }
+}
+
+fn local_formal_module_pack() -> Option<PathBuf> {
+    let explicit = env::var_os("FORGECAD_BUNDLED_MODULE_PACK").map(PathBuf::from);
+    let default_path = env::var_os("HOME").map(|home| {
+        PathBuf::from(home).join(
+            "Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake-20260711/final-pack",
+        )
+    });
+    explicit
+        .or(default_path)
+        .filter(|candidate| candidate.join("pack.json").is_file())
 }
 
 fn agent_python(repo_root: &Path) -> PathBuf {

@@ -639,7 +639,9 @@ function disposeNodeInstance(root: THREE.Object3D) {
 }
 
 function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, view: CameraView, center: THREE.Vector3, size: number) {
-  const distance = Math.max(size * 1.45, 1)
+  // Keep the assembled concept prominent like a CAD presentation viewport;
+  // the old distance left too much empty grid around compact module packs.
+  const distance = Math.max(size * 1.18, 1)
   const direction: Record<CameraView, THREE.Vector3> = {
     iso: new THREE.Vector3(0.58, 0.48, 1), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }

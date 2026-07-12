@@ -84,21 +84,56 @@ class ConceptBriefPatch(_StrictPlannerModel):
     symmetry: Literal["symmetric", "mostly_symmetric", "asymmetric"]
 
 
+class ConceptVariantNodeTransform(_StrictPlannerModel):
+    """A bounded visual adjustment for an existing editable ModuleGraph node.
+
+    Variants deliberately adjust existing display modules only. They do not add
+    functional components or create manufacturing geometry, while still making
+    the A/B/C silhouette meaningfully different in the CAD viewport.
+    """
+
+    node_id: str = Field(min_length=1)
+    position: Optional[list[float]] = Field(default=None, min_length=3, max_length=3)
+    rotation: Optional[list[float]] = Field(default=None, min_length=3, max_length=3)
+    scale: Optional[list[float]] = Field(default=None, min_length=3, max_length=3)
+    mirror_axis: Optional[Literal["none", "x", "y", "z"]] = None
+
+    @model_validator(mode="after")
+    def validate_transform(self) -> "ConceptVariantNodeTransform":
+        if (
+            self.position is None
+            and self.rotation is None
+            and self.scale is None
+            and self.mirror_axis is None
+        ):
+            raise ValueError("variant node transform requires at least one adjustment")
+        if self.position is not None and any(abs(value) > 500 for value in self.position):
+            raise ValueError("variant positions must stay inside the display workspace")
+        if self.rotation is not None and any(abs(value) > 3.15 for value in self.rotation):
+            raise ValueError("variant rotations must stay inside [-3.15, 3.15]")
+        if self.scale is not None and any(value < 0.9 or value > 1.1 for value in self.scale):
+            raise ValueError("variant scale values must stay inside [0.9, 1.1]")
+        return self
+
+
 class ConceptVariantPlan(_StrictPlannerModel):
     rank: int = Field(ge=1, le=3)
     name: str = Field(min_length=1, max_length=120)
     summary: str = Field(min_length=1, max_length=500)
     target_node_id: str = Field(min_length=1)
     scale: list[float] = Field(min_length=3, max_length=3)
+    node_transforms: list[ConceptVariantNodeTransform] = Field(default_factory=list, max_length=8)
     recommended_module_ids: list[str] = Field(min_length=1, max_length=12)
     rationale: list[str] = Field(min_length=1, max_length=12)
 
     @model_validator(mode="after")
     def validate_scale(self) -> "ConceptVariantPlan":
-        if any(value < 0.85 or value > 1.15 for value in self.scale):
-            raise ValueError("variant scale values must stay inside [0.85, 1.15]")
+        if any(value < 0.9 or value > 1.1 for value in self.scale):
+            raise ValueError("variant scale values must stay inside [0.9, 1.1]")
         if len(set(self.recommended_module_ids)) != len(self.recommended_module_ids):
             raise ValueError("recommended module ids must be unique")
+        if len({item.node_id for item in self.node_transforms}) != len(self.node_transforms):
+            raise ValueError("variant node transforms must not target a node twice")
         return self
 
 
@@ -138,6 +173,19 @@ class ConceptChangePlan(_StrictPlannerModel):
     summary: str = Field(min_length=1, max_length=500)
     operations: list[ConceptChangeOperationPlan] = Field(min_length=1, max_length=8)
     rationale: list[str] = Field(min_length=1, max_length=12)
+
+
+def _variant_transforms(
+    editable_by_id: dict[str, Any],
+    requested: dict[str, dict[str, Any]],
+) -> list[ConceptVariantNodeTransform]:
+    """Keep deterministic templates portable across smaller registered packs."""
+
+    return [
+        ConceptVariantNodeTransform(node_id=node_id, **payload)
+        for node_id, payload in requested.items()
+        if node_id in editable_by_id
+    ]
 
 
 class DeterministicConceptPlanner:
@@ -293,13 +341,41 @@ class DeterministicConceptPlanner:
                 "Current ModuleGraph has no editable non-root module.",
                 False,
             )
+        editable_by_id = {node.node_id: node for node in editable}
+        compact_transforms = _variant_transforms(
+            editable_by_id,
+            {
+                "node_front": {"position": [-44.0, 0.0, 0.0], "scale": [0.9, 0.9, 0.9]},
+                "node_rear": {"position": [44.0, 0.0, 0.0], "scale": [0.9, 0.92, 0.92]},
+                "node_top": {"position": [0.0, 21.0, 0.0], "scale": [0.9, 0.9, 0.9]},
+                "node_grip": {"position": [10.0, -22.0, 0.0], "scale": [0.9, 0.92, 0.92]},
+            },
+        )
+        armored_transforms = _variant_transforms(
+            editable_by_id,
+            {
+                "node_front": {"position": [-52.0, 0.0, 0.0], "scale": [1.02, 1.08, 1.08]},
+                "node_armor": {"position": [0.0, 0.0, -23.0], "scale": [1.1, 1.1, 1.1]},
+                "node_side": {"position": [0.0, 0.0, 24.0], "scale": [1.1, 1.04, 1.1]},
+                "node_top": {"position": [-4.0, 28.0, 0.0], "scale": [1.05, 1.1, 1.1]},
+            },
+        )
+        showcase_transforms = _variant_transforms(
+            editable_by_id,
+            {
+                "node_front": {"position": [-62.0, 0.0, 0.0], "scale": [1.1, 1.04, 1.04]},
+                "node_rear": {"position": [57.0, 0.0, 0.0], "scale": [1.1, 1.04, 1.06]},
+                "node_grip": {"position": [17.0, -28.0, 0.0], "rotation": [0.0, 0.0, -0.1], "scale": [1.04, 1.1, 1.06]},
+                "node_storage": {"position": [35.0, -28.0, 0.0], "scale": [1.08, 1.1, 1.08]},
+            },
+        )
         choices = (
-            ("A · 紧凑轮廓", "压缩主要可编辑模块，强调紧凑轮廓。", [0.9, 0.96, 0.96]),
-            ("B · 低矮均衡", "降低次要轴向比例，形成与基准不同的低矮方案。", [1.0, 0.94, 1.0]),
-            ("C · 延展展示", "延展主要可编辑模块，强调展示张力。", [1.1, 1.04, 1.04]),
+            ("A · 紧凑轮廓", "缩短前后轮廓并压低顶部附件，形成紧凑精密的展示姿态。", [0.9, 0.9, 0.9], compact_transforms),
+            ("B · 装甲均衡", "强化正面装甲、侧向体块与顶部体量，形成厚实均衡的未来展示轮廓。", [1.02, 1.08, 1.08], armored_transforms),
+            ("C · 延展展示", "延展前后体块并拉开下部模块，形成更有张力的长轴展示轮廓。", [1.1, 1.04, 1.04], showcase_transforms),
         )
         plans: list[ConceptVariantPlan] = []
-        for index, (name, summary, scale) in enumerate(choices):
+        for index, (name, summary, scale, transforms) in enumerate(choices):
             target = editable[min(index, len(editable) - 1)]
             category = next(
                 (
@@ -321,6 +397,7 @@ class DeterministicConceptPlanner:
                     summary=summary,
                     target_node_id=target.node_id,
                     scale=scale,
+                    node_transforms=transforms,
                     recommended_module_ids=recommended,
                     rationale=[
                         f"只修改未锁定节点 {target.node_id}",
@@ -681,7 +758,7 @@ class OpenAICompatibleConceptPlanner:
                 system=(
                     "You are ForgeCAD Module Planner. Return exactly three visually distinct, "
                     "non-functional concept asset plans. Reference only supplied node and module IDs. "
-                    "Use scale only inside 0.85 to 1.15. Never provide functional weapon or manufacturing instructions."
+                    "Use scale only inside 0.9 to 1.1. Never provide functional weapon or manufacturing instructions."
                 ),
                 user=_canonical_json(
                     {

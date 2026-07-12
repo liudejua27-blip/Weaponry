@@ -27,24 +27,22 @@ if [[ -f "$ORIGINAL_AUTHOR_PACK/pack.json" ]]; then
   export FORGECAD_BUNDLED_MODULE_PACK="$ORIGINAL_AUTHOR_PACK"
 fi
 
-# Opt in to the user's locally stored DeepSeek test credential. The key never
-# enters this repository, command history, logs, or the Tauri bundle.
-DEEPSEEK_KEY_FILE="${FORGECAD_DEEPSEEK_API_KEY_FILE:-$HOME/Library/Application Support/ForgeCAD/deepseek-test.key}"
-if [[ -r "$DEEPSEEK_KEY_FILE" ]]; then
-  export FORGECAD_CONCEPT_PLANNER_PROVIDER="openai_compatible"
-  export FORGECAD_CONCEPT_PLANNER_BASE_URL="https://api.deepseek.com"
-  export FORGECAD_CONCEPT_PLANNER_MODEL="deepseek-v4-pro"
-  export FORGECAD_CONCEPT_PLANNER_API_KEY_FILE="$DEEPSEEK_KEY_FILE"
-  export FORGECAD_CONCEPT_PLANNER_RESPONSE_MODE="auto"
-  export FORGECAD_CONCEPT_PLANNER_MAX_TOKENS="4096"
-fi
+# This local-workbench verifier intentionally remains deterministic. It never
+# reads a model credential or makes a provider request; live-provider checks
+# are a separate, user-initiated operation with a newly issued key.
 
 build_app() {
   (cd "$ROOT_DIR" && npm --workspace apps/desktop run tauri -- build --bundles app)
 }
 
 stop_local_app() {
-  pkill -f "$APP_BINARY" >/dev/null 2>&1 || true
+  pkill -TERM -f "$APP_BINARY" >/dev/null 2>&1 || true
+  # `pkill` does not emit a macOS close event, so the app-managed Python child
+  # can otherwise outlive the bundle and cause the next test run to reuse old
+  # code or old provider configuration on port 8000.
+  if [[ "${WUSHEN_KEEP_EXISTING_AGENT:-0}" != "1" ]]; then
+    pkill -TERM -f 'wushen_agent.main:create_app.*--port 8000' >/dev/null 2>&1 || true
+  fi
 }
 
 launch_app() {
@@ -52,7 +50,21 @@ launch_app() {
     echo "Expected app bundle was not created: $APP_BUNDLE" >&2
     exit 1
   fi
+  # Use LaunchServices so macOS keeps the GUI process alive. The Rust desktop
+  # supervisor resolves the local provider key file and authored Module Pack
+  # itself, because `open -n` intentionally does not preserve shell exports.
   /usr/bin/open -n "$APP_BUNDLE"
+}
+
+wait_for_agent() {
+  for _ in {1..25}; do
+    if curl -fsS http://127.0.0.1:8000/api/health >/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "local Agent did not become healthy; inspect $ROOT_DIR/.wushen-agent.log" >&2
+  return 1
 }
 
 case "$MODE" in
@@ -67,7 +79,9 @@ case "$MODE" in
     launch_app
     sleep 2
     pgrep -f "$APP_BINARY" >/dev/null
+    wait_for_agent
     echo "local_tauri_app_running: true"
+    echo "local_agent_healthy: true"
     echo "agent_mode: local-dev-python"
     ;;
   --debug|debug)

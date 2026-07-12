@@ -182,9 +182,9 @@ def main() -> int:
                 for item in variants["items"]
             ]
             _assert(len(graph_ids) == 3, "variant graph ids were not unique")
-            _assert(scales == [0.9, 1.0, 1.1], "A/B/C proportions were not distinct")
+            _assert(scales == [0.9, 1.02, 1.1], "A/B/C proportions were not distinct")
             _assert(
-                scale_vectors == [[0.9, 0.96, 0.96], [1.0, 0.94, 1.0], [1.1, 1.04, 1.04]],
+                scale_vectors == [[0.9, 0.9, 0.9], [1.02, 1.08, 1.08], [1.1, 1.04, 1.04]],
                 "A/B/C structural scale vectors mismatch",
             )
             registered_module_ids = {"module_core_shell_01", "module_front_shell_01"}

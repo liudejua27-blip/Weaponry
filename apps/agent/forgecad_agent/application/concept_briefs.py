@@ -556,6 +556,24 @@ def _planned_variant(base_graph: ModuleGraph, plan: ConceptVariantPlan) -> Modul
             f"Planner target node does not exist: {plan.target_node_id}",
         )
     candidate["transform"]["scale"] = plan.scale
+    for adjustment in plan.node_transforms:
+        node = next(
+            (item for item in payload["nodes"] if item["node_id"] == adjustment.node_id),
+            None,
+        )
+        if node is None:
+            raise ConceptBriefError(
+                "VARIANT_GENERATION_FAILED",
+                f"Planner transform target does not exist: {adjustment.node_id}",
+            )
+        if adjustment.position is not None:
+            node["transform"]["position"] = adjustment.position
+        if adjustment.rotation is not None:
+            node["transform"]["rotation"] = adjustment.rotation
+        if adjustment.scale is not None:
+            node["transform"]["scale"] = adjustment.scale
+        if adjustment.mirror_axis is not None:
+            node["mirror_axis"] = adjustment.mirror_axis
     return ModuleGraph.model_validate(payload)
 
 
@@ -586,7 +604,7 @@ def _validate_variant_plans(
             "PLANNER_BAD_OUTPUT", "Planner must return exactly ranks 1, 2, and 3."
         )
     nodes = {node.node_id: node for node in base_graph.nodes}
-    signatures: set[tuple[str, tuple[float, ...]]] = set()
+    signatures: set[str] = set()
     for plan in plans:
         node = nodes.get(plan.target_node_id)
         if node is None or node.node_id == base_graph.root_node_id or node.locked:
@@ -600,7 +618,26 @@ def _validate_variant_plans(
                 "PLANNER_BAD_OUTPUT",
                 f"Planner referenced unregistered modules: {unknown}",
             )
-        signature = (plan.target_node_id, tuple(plan.scale))
+        for adjustment in plan.node_transforms:
+            adjusted_node = nodes.get(adjustment.node_id)
+            if (
+                adjusted_node is None
+                or adjusted_node.node_id == base_graph.root_node_id
+                or adjusted_node.locked
+            ):
+                raise ConceptBriefError(
+                    "PLANNER_BAD_OUTPUT",
+                    f"Planner transform target must be an editable non-root node: {adjustment.node_id}",
+                )
+        signature = _canonical_json(
+            {
+                "target_node_id": plan.target_node_id,
+                "scale": plan.scale,
+                "node_transforms": [
+                    item.model_dump(mode="json") for item in plan.node_transforms
+                ],
+            }
+        )
         if signature in signatures:
             raise ConceptBriefError(
                 "PLANNER_BAD_OUTPUT", "Planner variants must be structurally distinct."
