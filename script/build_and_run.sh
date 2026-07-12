@@ -58,7 +58,7 @@ launch_app() {
 
 wait_for_agent() {
   for _ in {1..25}; do
-    if curl -fsS http://127.0.0.1:8000/api/health >/dev/null; then
+    if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
