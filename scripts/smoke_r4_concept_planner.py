@@ -14,6 +14,7 @@ from forgecad_agent.application.concept_models import (
 from forgecad_agent.application.concept_planner import (
     ConceptPlannerError,
     ConceptVariantPlan,
+    DeterministicConceptPlanner,
     OpenAICompatibleConceptPlanner,
     OpenAICompatibleConceptPlannerConfig,
     planner_provenance,
@@ -183,6 +184,39 @@ def main() -> int:
             "provider safety boundary missing from prompts",
         )
 
+        deterministic = DeterministicConceptPlanner()
+        family_expectations = {
+            "侦察轻型、紧凑、非功能展示道具": "A · 侦察短构",
+            "堡垒重装、层级装甲、非功能展示道具": "A · 堡垒核心",
+            "典藏仪式、长轴展示、非功能影视道具": "A · 典藏短轴",
+            "棱镜脉冲、非对称、非功能游戏道具": "A · 棱镜短脉",
+        }
+        family_signatures: list[str] = []
+        for family_brief, expected_first_name in family_expectations.items():
+            family_plans = deterministic.plan_variants(
+                source_text=family_brief,
+                interpreted_spec=spec,
+                base_graph=graph,
+                module_catalog=catalog,
+            )
+            _assert(
+                len(family_plans) == 3
+                and family_plans[0].name == expected_first_name
+                and all(plan.recommended_module_ids for plan in family_plans),
+                f"concept family variants mismatch: {family_brief}",
+            )
+            family_signatures.append(
+                json.dumps(
+                    [plan.node_transforms[0].model_dump(mode="json") for plan in family_plans],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+            )
+        _assert(
+            len(set(family_signatures)) == len(family_expectations),
+            "concept families must produce distinct visual transform templates",
+        )
+
         _PlannerHandler.requests.clear()
         deepseek_compatible = OpenAICompatibleConceptPlanner(
             OpenAICompatibleConceptPlannerConfig(
@@ -300,6 +334,7 @@ def main() -> int:
                     "safety_prompt_verified": True,
                     "provider_telemetry_verified": True,
                     "provider_variant_count": len(plans),
+                    "concept_family_variants_verified": len(family_expectations),
                     "auto_fallback_verified": True,
                     "configured_provider_failure_preserved": True,
                     "unregistered_module_rejected": True,

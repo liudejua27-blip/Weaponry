@@ -253,6 +253,10 @@ FORGECAD_LOCAL_VISUAL_PACK=0 script/build_and_run.sh --verify
 
 暂存的 Pack 仍会生成 `FormalModuleReview@1` 草稿；当前默认 reviewer 为“刘邦（已指派，待完成）”。只有 reviewer 实际填写原始草稿并使 `assets:formal-review-validate --scope release_10_12` 成功，状态才能改为“已批准”。
 
+### 虚构概念家族
+
+AI 助手中的“概念家族”快捷入口会把文本 Brief 送入同一 Planner 和 ModuleGraph 预览链。当前支持 `侦察短构`、`堡垒装甲`、`典藏长轴`、`棱镜脉冲` 四类视觉语言；每次生成三条 A/B/C 方向，差异来自现有已注册模块的受限位置、旋转和比例预览。它们都是非功能性的游戏、影视或展示道具概念，不代表现实武器规格、性能或制造信息。
+
 作者原创资产的正式化工作区位于 `$HOME/Library/Caches/ForgeCAD/Formalization/` 下的日期目录。许可证声明可先写入 `final-pack/`，但 reviewer 仍必须实际检查并完成原始 JSON；`REVIEW_HANDOFF.md` 只是只读交接单，不能代替 `formal-review-validate` 或 promotion report。
 
 ## 首次启动 Concept Workbench

@@ -115,6 +115,12 @@ const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
 
 const DEFAULT_CONCEPT_BRIEF = '紧凑、精密硬表面、石墨灰与信号红点缀的非功能未来概念展示资产'
 const DEFAULT_HIDDEN_NODE_IDS = ['node_storage']
+const CONCEPT_FAMILY_SUGGESTIONS = [
+  ['侦察短构', '侦察轻型、紧凑、未来工业、蓝色点缀的非功能展示道具'],
+  ['堡垒装甲', '堡垒重装、层级装甲、石墨灰与信号红的非功能展示道具'],
+  ['典藏长轴', '典藏仪式、长轴展示、精密硬表面、低饱和金属的非功能影视道具'],
+  ['棱镜脉冲', '棱镜能量、非对称、脉冲视觉、深色金属与冷色点缀的非功能游戏道具'],
+] as const
 
 function readWorkbenchSession(): WorkbenchSession {
   try {
@@ -904,6 +910,16 @@ export function CadWorkbenchPanel() {
                 <button onClick={() => setChatInput('整体更紧凑，增加精密细节，并使用信号蓝点缀配色')}>紧凑与配色</button>
               </>}
             </div>
+            {assistantMode === 'brief' && (
+              <div className="concept-family-suggestions" aria-label="概念家族">
+                <span>概念家族</span>
+                <div>
+                  {CONCEPT_FAMILY_SUGGESTIONS.map(([label, prompt]) => (
+                    <button key={label} type="button" onClick={() => setChatInput(prompt)}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <button
               className="secondary-action"
               disabled={concept.loading}

@@ -307,6 +307,40 @@
   font-size: 9px;
 }
 
+.concept-family-suggestions {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.concept-family-suggestions > span {
+  color: #8294a8;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.concept-family-suggestions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.concept-family-suggestions button {
+  padding: 4px 6px;
+  border: 1px solid #34485d;
+  border-radius: 4px;
+  color: #a8c9e9;
+  background: #172534;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.concept-family-suggestions button:hover {
+  border-color: #3d83c9;
+  color: #e4f3ff;
+  background: #1b3650;
+}
+
 .secondary-action,
 .primary-action {
   width: 100%;

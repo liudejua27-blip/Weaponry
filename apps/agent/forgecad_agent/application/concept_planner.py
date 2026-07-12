@@ -188,6 +188,20 @@ def _variant_transforms(
     ]
 
 
+def _concept_family(source_text: str) -> str:
+    """Classify visual-only prop language without inferring real capabilities."""
+    normalized = source_text.casefold()
+    if any(token in normalized for token in ("侦察", "轻型", "折叠", "scout", "lightweight")):
+        return "scout"
+    if any(token in normalized for token in ("堡垒", "重装", "防线", "bulwark", "heavy")):
+        return "bulwark"
+    if any(token in normalized for token in ("仪式", "长轴", "典藏", "ceremonial", "long-axis")):
+        return "ceremonial"
+    if any(token in normalized for token in ("棱镜", "能量", "脉冲", "prism", "pulse")):
+        return "prismatic"
+    return "industrial"
+
+
 class DeterministicConceptPlanner:
     provider_id = "deterministic_concept_rules"
     provider_type: Literal["deterministic"] = "deterministic"
@@ -329,7 +343,7 @@ class DeterministicConceptPlanner:
         base_graph: ModuleGraph,
         module_catalog: Sequence[dict[str, str]],
     ) -> list[ConceptVariantPlan]:
-        del source_text, interpreted_spec
+        del interpreted_spec
         editable = [
             node
             for node in base_graph.nodes
@@ -369,10 +383,141 @@ class DeterministicConceptPlanner:
                 "node_storage": {"position": [35.0, -28.0, 0.0], "scale": [1.08, 1.1, 1.08]},
             },
         )
-        choices = (
-            ("A · 紧凑轮廓", "缩短前后轮廓并压低顶部附件，形成紧凑精密的展示姿态。", [0.9, 0.9, 0.9], compact_transforms),
-            ("B · 装甲均衡", "强化正面装甲、侧向体块与顶部体量，形成厚实均衡的未来展示轮廓。", [1.02, 1.08, 1.08], armored_transforms),
-            ("C · 延展展示", "延展前后体块并拉开下部模块，形成更有张力的长轴展示轮廓。", [1.1, 1.04, 1.04], showcase_transforms),
+        family = _concept_family(source_text)
+        family_copy = {
+            "scout": (
+                ("A · 侦察短构", "压缩前后轮廓与顶部体量，形成轻快、紧凑的巡查展示道具。"),
+                ("B · 低廓疾影", "收紧侧部与下部结构，形成低重心的未来侦察轮廓。"),
+                ("C · 侧翼巡航", "拉出前端与侧部节奏，形成有速度感的巡航展示姿态。"),
+            ),
+            "bulwark": (
+                ("A · 堡垒核心", "强化主体与前端体积，形成厚实的守备展示轮廓。"),
+                ("B · 城垣装甲", "放大侧向与顶部护甲节奏，形成层级鲜明的重装视觉。"),
+                ("C · 重载陈列", "延展前后块体并加强下部支撑，形成稳重的展陈姿态。"),
+            ),
+            "ceremonial": (
+                ("A · 典藏短轴", "保留精密壳体并收拢附件，形成克制的仪式展示比例。"),
+                ("B · 徽记均衡", "提升顶部与侧向节奏，形成对称、庄重的陈列轮廓。"),
+                ("C · 长轴礼仪", "拉伸前后展陈轴线，形成修长的典藏道具姿态。"),
+            ),
+            "prismatic": (
+                ("A · 棱镜短脉", "压缩轮廓并突出顶部与侧面层次，形成紧凑的棱镜语言。"),
+                ("B · 脉冲装甲", "强调前端、侧翼与顶部的层级，形成高密度未来硬表面。"),
+                ("C · 光轨延展", "延展轮廓与下部节奏，形成具有展览张力的光轨姿态。"),
+            ),
+            "industrial": (
+                ("A · 紧凑轮廓", "缩短前后轮廓并压低顶部附件，形成紧凑精密的展示姿态。"),
+                ("B · 装甲均衡", "强化正面装甲、侧向体块与顶部体量，形成厚实均衡的未来展示轮廓。"),
+                ("C · 延展展示", "延展前后体块并拉开下部模块，形成更有张力的长轴展示轮廓。"),
+            ),
+        }[family]
+        family_transforms = {
+            "scout": (
+                compact_transforms,
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-48.0, 0.0, 0.0], "scale": [0.92, 0.9, 0.9]},
+                        "node_rear": {"position": [42.0, 0.0, 0.0], "scale": [0.9, 0.9, 0.92]},
+                        "node_side": {"position": [0.0, 0.0, -20.0], "scale": [0.9, 0.92, 0.9]},
+                        "node_grip": {"position": [8.0, -20.0, 0.0], "rotation": [0.0, 0.0, 0.08], "scale": [0.9, 0.92, 0.9]},
+                    },
+                ),
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-58.0, 0.0, 0.0], "scale": [1.04, 0.94, 0.94]},
+                        "node_rear": {"position": [50.0, 0.0, 0.0], "scale": [0.96, 0.92, 0.94]},
+                        "node_side": {"position": [4.0, 0.0, 26.0], "rotation": [0.0, 0.12, 0.0], "scale": [1.04, 0.94, 1.04]},
+                        "node_top": {"position": [-6.0, 23.0, 0.0], "scale": [0.92, 0.9, 0.92]},
+                    },
+                ),
+            ),
+            "bulwark": (
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-52.0, 0.0, 0.0], "scale": [1.06, 1.08, 1.08]},
+                        "node_armor": {"position": [0.0, 0.0, -25.0], "scale": [1.1, 1.1, 1.1]},
+                        "node_lower": {"position": [-10.0, -26.0, 0.0], "scale": [1.06, 1.1, 1.06]},
+                    },
+                ),
+                armored_transforms,
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-63.0, 0.0, 0.0], "scale": [1.1, 1.08, 1.08]},
+                        "node_rear": {"position": [58.0, 0.0, 0.0], "scale": [1.08, 1.06, 1.06]},
+                        "node_lower": {"position": [-8.0, -30.0, 0.0], "scale": [1.1, 1.1, 1.08]},
+                        "node_storage": {"position": [34.0, -30.0, 0.0], "scale": [1.08, 1.1, 1.08]},
+                    },
+                ),
+            ),
+            "ceremonial": (
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-47.0, 0.0, 0.0], "scale": [0.94, 0.96, 0.96]},
+                        "node_rear": {"position": [47.0, 0.0, 0.0], "scale": [0.94, 0.96, 0.96]},
+                        "node_top": {"position": [0.0, 24.0, 0.0], "scale": [0.96, 1.02, 0.96]},
+                    },
+                ),
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-52.0, 0.0, 0.0], "scale": [1.0, 1.02, 1.02]},
+                        "node_rear": {"position": [52.0, 0.0, 0.0], "scale": [1.0, 1.02, 1.02]},
+                        "node_top": {"position": [0.0, 28.0, 0.0], "scale": [1.02, 1.08, 1.02]},
+                        "node_armor": {"position": [0.0, 0.0, -22.0], "scale": [1.02, 1.0, 1.02]},
+                    },
+                ),
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-66.0, 0.0, 0.0], "scale": [1.08, 1.0, 1.0]},
+                        "node_rear": {"position": [62.0, 0.0, 0.0], "scale": [1.08, 1.0, 1.0]},
+                        "node_top": {"position": [-2.0, 27.0, 0.0], "scale": [1.04, 1.06, 1.04]},
+                        "node_grip": {"position": [14.0, -25.0, 0.0], "rotation": [0.0, 0.0, -0.06], "scale": [0.98, 1.04, 1.0]},
+                    },
+                ),
+            ),
+            "prismatic": (
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-46.0, 0.0, 0.0], "scale": [0.92, 0.98, 0.92]},
+                        "node_side": {"position": [2.0, 0.0, 25.0], "rotation": [0.0, -0.14, 0.0], "scale": [1.04, 0.94, 1.08]},
+                        "node_top": {"position": [-5.0, 26.0, 0.0], "scale": [0.96, 1.06, 0.96]},
+                    },
+                ),
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-54.0, 0.0, 0.0], "scale": [1.04, 1.08, 1.02]},
+                        "node_armor": {"position": [0.0, 0.0, -25.0], "rotation": [0.0, 0.1, 0.0], "scale": [1.1, 1.04, 1.1]},
+                        "node_side": {"position": [4.0, 0.0, 27.0], "rotation": [0.0, -0.16, 0.0], "scale": [1.1, 1.0, 1.08]},
+                        "node_top": {"position": [-7.0, 29.0, 0.0], "scale": [1.02, 1.1, 1.02]},
+                    },
+                ),
+                _variant_transforms(
+                    editable_by_id,
+                    {
+                        "node_front": {"position": [-63.0, 0.0, 0.0], "scale": [1.1, 1.0, 1.0]},
+                        "node_rear": {"position": [55.0, 0.0, 0.0], "scale": [1.04, 0.96, 0.98]},
+                        "node_side": {"position": [9.0, 0.0, 30.0], "rotation": [0.0, -0.2, 0.0], "scale": [1.08, 0.94, 1.1]},
+                        "node_lower": {"position": [-8.0, -28.0, 0.0], "scale": [1.02, 1.08, 1.02]},
+                    },
+                ),
+            ),
+            "industrial": (compact_transforms, armored_transforms, showcase_transforms),
+        }[family]
+        choices = tuple(
+            (name, summary, scale, transforms)
+            for (name, summary), scale, transforms in zip(
+                family_copy,
+                ([0.9, 0.9, 0.9], [1.02, 1.08, 1.08], [1.1, 1.04, 1.04]),
+                family_transforms,
+            )
         )
         plans: list[ConceptVariantPlan] = []
         for index, (name, summary, scale, transforms) in enumerate(choices):
