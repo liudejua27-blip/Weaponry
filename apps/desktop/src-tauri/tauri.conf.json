@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "武神 Forge",
+  "productName": "CAD 工作台",
   "version": "0.1.0",
   "identifier": "local.wushen.forge",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "武神 Forge",
+        "title": "CAD 工作台",
         "width": 1440,
         "height": 920,
         "minWidth": 1180,

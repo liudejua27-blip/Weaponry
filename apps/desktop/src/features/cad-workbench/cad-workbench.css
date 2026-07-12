@@ -37,7 +37,7 @@
 
 .cad-command-bar {
   display: grid;
-  grid-template-columns: 210px 300px minmax(330px, 1fr) 190px;
+  grid-template-columns: 210px minmax(330px, 1fr) 190px;
   align-items: center;
   gap: 8px;
   padding: 0 13px;
@@ -50,7 +50,6 @@
 .cad-brand,
 .cad-file-actions button,
 .cad-global-actions button,
-.cad-mode-tabs button,
 .viewport-toolbar button,
 .viewport-viewbar button {
   color: inherit;
@@ -107,25 +106,11 @@
   background: #243142;
 }
 
-.cad-mode-tabs {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.cad-mode-tabs button {
-  min-width: 72px;
-  padding: 0 18px;
-  border-inline: 1px solid transparent;
-  color: #abb7c6;
+.cad-workspace-title {
+  color: #9cb0c6;
   font-size: 12px;
-}
-
-.cad-mode-tabs button.active {
-  color: #4db2ff;
-  background: #122b43;
-  border-inline-color: #244563;
-  box-shadow: inset 0 -2px #1788f9;
+  font-weight: 650;
+  letter-spacing: .04em;
 }
 
 .cad-global-actions {
@@ -200,7 +185,7 @@
   font-size: 9px;
 }
 
-.version-list .empty-action {
+.project-panel .empty-action {
   display: flex;
   grid-template-columns: none;
   align-items: center;
@@ -239,52 +224,9 @@
   font-size: 12px;
 }
 
-.eyebrow,
-.version-heading {
+.eyebrow {
   color: var(--cad-muted);
   font-size: 10px;
-}
-
-.version-heading {
-  margin: 13px 0 5px;
-}
-
-.version-list {
-  display: grid;
-  gap: 2px;
-}
-
-.version-list button {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 6px;
-  border: 0;
-  border-radius: 5px;
-  color: #aeb9c7;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.version-list button:hover,
-.version-list button.active {
-  color: #e8eef8;
-  background: #202d3d;
-}
-
-.version-list strong {
-  overflow: hidden;
-  font-size: 10px;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.version-list small {
-  color: #7f8c9e;
-  font-size: 9px;
 }
 
 .assistant-panel {
@@ -781,18 +723,12 @@
   gap: 8px;
 }
 
-.component-library-header strong {
-  font-size: 11px;
-}
-
-.drawer-tabs,
 .inspector-tabs {
   display: flex;
   align-items: center;
   gap: 3px;
 }
 
-.drawer-tabs button,
 .inspector-tabs button {
   padding: 5px 8px;
   border: 0;
@@ -803,11 +739,19 @@
   cursor: pointer;
 }
 
-.drawer-tabs button.active,
 .inspector-tabs button.active {
   color: #dfeaff;
   background: #20364e;
   box-shadow: inset 0 -1px #2f8df4;
+}
+
+.component-library-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #d6e4f4;
+  font-size: 11px;
+  font-weight: 720;
 }
 
 .component-search {
@@ -874,140 +818,6 @@
 
 .component-library.expanded .component-library-body {
   grid-template-columns: 96px minmax(0, 1fr) 258px;
-}
-
-.drawer-placeholder {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  overflow-x: auto;
-  color: #93a2b5;
-  font-size: 9px;
-}
-
-.drawer-placeholder strong {
-  color: #d8e3ef;
-  margin-right: 4px;
-}
-
-.drawer-placeholder button,
-.drawer-placeholder > span {
-  flex: 0 0 auto;
-  padding: 9px 12px;
-  border: 1px solid #2c3b4d;
-  border-radius: 5px;
-  color: #aebccd;
-  background: #1b2734;
-}
-
-.drawer-placeholder button[data-variant-rank] {
-  display: grid;
-  gap: 3px;
-  min-width: 150px;
-  text-align: left;
-}
-
-.drawer-placeholder button[data-variant-rank] strong {
-  margin: 0;
-  color: #d8e3ef;
-}
-
-.drawer-placeholder button[data-variant-rank] span,
-.drawer-placeholder button[data-variant-rank] small {
-  padding: 0;
-  border: 0;
-  color: #8192a7;
-  background: transparent;
-}
-
-.drawer-placeholder button[data-variant-rank].selected {
-  border-color: #3089df;
-  background: #173553;
-}
-
-.timeline-drawer {
-  align-items: stretch;
-  padding: 7px 10px;
-  overflow: hidden;
-}
-
-.timeline-heading {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.timeline-heading select,
-.timeline-heading button,
-.timeline-more {
-  min-height: 26px;
-  padding: 4px 7px;
-  border: 1px solid #2c3b4d;
-  border-radius: 4px;
-  color: #b7c5d5;
-  background: #172331;
-  font-size: 9px;
-}
-
-.timeline-heading button {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.timeline-audit-summary {
-  flex: 0 0 auto;
-  color: #70bfe8;
-  font-size: 9px;
-  white-space: nowrap;
-}
-
-.timeline-items {
-  min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-}
-
-.timeline-item {
-  flex: 0 0 290px;
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 7px 9px;
-  border: 1px solid #2c3b4d;
-  border-radius: 5px;
-  color: #aebccd;
-  background: #1b2734;
-}
-
-.timeline-item.status-rejected,
-.timeline-item.status-stale {
-  border-color: #7e493f;
-}
-
-.timeline-planner-meta {
-  color: #67c8ea;
-  white-space: normal;
-}
-
-.timeline-diagnostic {
-  color: #ffb09d;
-  white-space: normal;
-}
-
-.timeline-empty {
-  align-self: center;
-  color: #8191a4;
-}
-
-.timeline-more {
-  flex: 0 0 auto;
-  align-self: center;
 }
 
 .component-categories {

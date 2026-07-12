@@ -34,15 +34,10 @@ import {
 import { forgeApi } from '../../shared/api/forgeApi'
 import type { DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
 import { ModuleGraphViewport, type ViewportMeasurementPoint } from './ModuleGraphViewport'
-import {
-  useConceptWorkbench,
-  type ChangeSetTimelineFilters,
-} from './useConceptWorkbench'
+import { useConceptWorkbench } from './useConceptWorkbench'
 import './cad-workbench.css'
 
-type WorkspaceTab = 'concept' | 'assembly' | 'refine' | 'inspect' | 'showcase'
 type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
-type DrawerTab = 'components' | 'variants' | 'versions' | 'timeline'
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type AssistantMode = 'brief' | 'change'
@@ -71,9 +66,7 @@ type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'restricted'
 type QualityStatus = 'passed' | 'warning' | 'failed' | 'unavailable'
 
 type WorkbenchSession = {
-  activeTab: WorkspaceTab
   inspectorTab: InspectorTab
-  drawerTab: DrawerTab
   activeTool: Tool
   transformSpace: 'world' | 'local'
   snapEnabled: boolean
@@ -93,15 +86,12 @@ type WorkbenchSession = {
   drawerHeight: number
 }
 
-// CAD-only navigation deliberately starts in the component drawer. Bumping the
-// key once prevents a saved tab from the retired multi-workbench UI from
-// reopening to an empty variants/history surface.
-const WORKBENCH_SESSION_KEY = 'forgecad.workbench.session.v2'
+// CAD-only session state. The v3 key deliberately ignores the retired
+// multi-workbench navigation, task views, and asset-library page state.
+const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v3'
 
 const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
-  activeTab: 'concept',
   inspectorTab: 'parameters',
-  drawerTab: 'components',
   activeTool: 'select',
   transformSpace: 'world',
   snapEnabled: true,
@@ -128,9 +118,7 @@ function readWorkbenchSession(): WorkbenchSession {
     const value = JSON.parse(window.localStorage.getItem(WORKBENCH_SESSION_KEY) ?? '{}') as Partial<WorkbenchSession>
     return {
       ...DEFAULT_WORKBENCH_SESSION,
-      activeTab: isOneOf(value.activeTab, ['concept', 'assembly', 'refine', 'inspect', 'showcase']) ? value.activeTab : 'concept',
       inspectorTab: isOneOf(value.inspectorTab, ['parameters', 'appearance', 'connections', 'inspection']) ? value.inspectorTab : 'parameters',
-      drawerTab: isOneOf(value.drawerTab, ['components', 'variants', 'versions', 'timeline']) ? value.drawerTab : 'components',
       activeTool: isOneOf(value.activeTool, ['select', 'move', 'rotate', 'scale', 'orbit', 'measure', 'section']) ? value.activeTool : 'select',
       transformSpace: isOneOf(value.transformSpace, ['world', 'local']) ? value.transformSpace : 'world',
       snapEnabled: typeof value.snapEnabled === 'boolean' ? value.snapEnabled : true,
@@ -231,9 +219,7 @@ const TOOL_ITEMS: Array<{
 export function CadWorkbenchPanel() {
   const concept = useConceptWorkbench()
   const [restoredSession] = useState(readWorkbenchSession)
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => restoredSession.activeTab)
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>(() => restoredSession.inspectorTab)
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>(() => restoredSession.drawerTab)
   const [activeTool, setActiveTool] = useState<Tool>(() => restoredSession.activeTool)
   const [transformSpace, setTransformSpace] = useState<'world' | 'local'>(() => restoredSession.transformSpace)
   const [snapEnabled, setSnapEnabled] = useState(() => restoredSession.snapEnabled)
@@ -263,15 +249,10 @@ export function CadWorkbenchPanel() {
   const [favoriteModuleIds, setFavoriteModuleIds] = useState<string[]>([])
   const [recentModuleIds, setRecentModuleIds] = useState<string[]>([])
   const [thumbnailFailures, setThumbnailFailures] = useState<Set<string>>(() => new Set())
-  const [timelineQuery, setTimelineQuery] = useState('')
-  const [timelineStatus, setTimelineStatus] = useState<ChangeSetTimelineFilters['status']>('')
-  const [timelineOperation, setTimelineOperation] = useState<
-    ChangeSetTimelineFilters['operation']
-  >('')
   const [chatInput, setChatInput] = useState('')
   const [assistantMode, setAssistantMode] = useState<AssistantMode>('brief')
   const [assistantNote, setAssistantNote] = useState(
-    '直接点击“生成 A/B/C 方案”即可开始，也可先输入概念需求；方案只使用已注册的展示模块。',
+    '输入概念需求后生成受限设计方向；AI 只使用已注册的展示模块。',
   )
   const [exportFormat, setExportFormat] = useState('SOURCE ZIP')
   const [parameters, setParameters] = useState<WeaponParameters>({
@@ -283,32 +264,6 @@ export function CadWorkbenchPanel() {
     detailDensity: 68,
   })
   const [transformDraft, setTransformDraft] = useState<Transform>(() => identityTransform())
-
-  const applyTimelineFilters = () => concept.searchTimeline({
-    query: timelineQuery,
-    status: timelineStatus,
-    operation: timelineOperation,
-  })
-
-  const clearTimelineFilters = () => {
-    setTimelineQuery('')
-    setTimelineStatus('')
-    setTimelineOperation('')
-    concept.searchTimeline({ query: '', status: '', operation: '' })
-  }
-
-  const handleCreateAuditExport = async () => {
-    const result = await concept.createChangeSetAuditExport({
-      query: timelineQuery,
-      status: timelineStatus,
-      operation: timelineOperation,
-    })
-    if (result) {
-      window.location.assign(
-        forgeApi.getChangeSetAuditExportFileUrl(result.audit_export_id),
-      )
-    }
-  }
 
   useEffect(() => {
     const spec = concept.version?.spec
@@ -327,9 +282,7 @@ export function CadWorkbenchPanel() {
       // Draft parameters and ChangeSet previews are intentionally omitted:
       // only confirmed Versions are durable design truth.
       window.localStorage.setItem(WORKBENCH_SESSION_KEY, JSON.stringify({
-        activeTab,
         inspectorTab,
-        drawerTab,
         activeTool,
         transformSpace,
         snapEnabled,
@@ -352,13 +305,11 @@ export function CadWorkbenchPanel() {
       // A storage failure must not prevent a local workbench session from opening.
     }
   }, [
-    activeTab,
     activeTool,
     cameraView,
     componentCategory,
     drawerExpanded,
     drawerHeight,
-    drawerTab,
     explodeFactor,
     inspectorTab,
     measurementMode,
@@ -809,10 +760,9 @@ export function CadWorkbenchPanel() {
       detailDensity: Math.round(interpreted.style.detail_density * 100),
     }))
     setAssistantNote(
-      `已生成 ${result.variants.length} 个注册表约束方案 · ${provenance.generator}`
+      `已解析 ${result.variants.length} 个受限设计方向 · ${provenance.generator}`
       + `${provenance.fallback_used ? ' · Provider 失败后已显式降级' : ''}。`,
     )
-    setDrawerTab('variants')
     setChatInput('')
   }
 
@@ -848,9 +798,9 @@ export function CadWorkbenchPanel() {
   return (
     <div className="cad-workbench" data-testid="cad-workbench">
       <header className="cad-command-bar">
-        <div className="cad-brand" aria-label="ForgeCAD 工作台">
+        <div className="cad-brand" aria-label="CAD 工作台">
           <span className="cad-brand-mark"><Cube size={18} weight="fill" /></span>
-          <span>ForgeCAD</span>
+          <span>CAD 工作台</span>
         </div>
         <div className="cad-file-actions" aria-label="文件操作">
           <IconAction icon={Plus} label="新建" onClick={() => concept.createStarterProject()} />
@@ -871,25 +821,9 @@ export function CadWorkbenchPanel() {
             title="切换到最近的 child version"
           />
         </div>
-        <nav className="cad-mode-tabs" aria-label="工作模式">
-          {([
-            ['concept', '概念'],
-            ['assembly', '组装'],
-            ['refine', '精修'],
-            ['inspect', '检查'],
-            ['showcase', '展示'],
-          ] as Array<[WorkspaceTab, string]>).map(([id, label]) => (
-            <button
-              key={id}
-              className={activeTab === id ? 'active' : ''}
-              onClick={() => setActiveTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
+        <div className="cad-workspace-title" aria-label="当前工作区">建模工作区</div>
         <div className="cad-global-actions" aria-label="工作区状态">
-          <span>本机工作区</span>
+              <span>本机 CAD</span>
         </div>
       </header>
 
@@ -916,25 +850,11 @@ export function CadWorkbenchPanel() {
                 </select>
               </label>
             )}
-            <div className="version-heading">版本历史</div>
-            <div className="version-list">
-              {(concept.project?.versions ?? []).slice().reverse().map((version) => (
-                <button
-                  key={version.version_id}
-                  className={concept.version?.version_id === version.version_id ? 'active' : ''}
-                  onClick={() => concept.selectVersion(version.version_id)}
-                >
-                  <span>V{version.version_no}</span>
-                  <strong>{version.summary}</strong>
-                  <small>{formatVersionTime(version.created_at)}</small>
-                </button>
-              ))}
-              {!concept.project && !concept.loading && (
-                <button className="empty-action" onClick={() => concept.createStarterProject()}>
-                  <Plus size={14} /> 创建“前沿概念 P1”
-                </button>
-              )}
-            </div>
+            {!concept.project && !concept.loading && (
+              <button className="empty-action" onClick={() => concept.createStarterProject()}>
+                <Plus size={14} /> 创建新设计
+              </button>
+            )}
             {concept.project && !concept.version?.module_graph_id && (
               <button
                 className="empty-action"
@@ -959,7 +879,7 @@ export function CadWorkbenchPanel() {
               <button
                 className={assistantMode === 'brief' ? 'active' : ''}
                 onClick={() => setAssistantMode('brief')}
-              >概念方案</button>
+              >概念引导</button>
               <button
                 className={assistantMode === 'change' ? 'active' : ''}
                 onClick={() => setAssistantMode('change')}
@@ -983,7 +903,7 @@ export function CadWorkbenchPanel() {
               disabled={concept.loading}
               onClick={() => runAssistantAction()}
             >
-              {assistantMode === 'brief' ? '生成 A/B/C 方案' : '生成修改预览'}
+              {assistantMode === 'brief' ? '生成设计方向' : '生成修改预览'}
             </button>
             {concept.pendingChange && concept.pendingPreview && (
               <div className="change-preview-card" data-testid="change-preview-card">
@@ -1204,46 +1124,27 @@ export function CadWorkbenchPanel() {
               aria-hidden="true"
             />
             <div className="component-library-header">
-              <nav className="drawer-tabs" aria-label="底部工作区">
-                {([
-                  ['components', '组件'],
-                  ['variants', '方案'],
-                  ['versions', '版本'],
-                  ['timeline', '时间线'],
-                ] as Array<[DrawerTab, string]>).map(([id, label]) => (
-                  <button key={id} className={drawerTab === id ? 'active' : ''} onClick={() => setDrawerTab(id)}>
-                    {label}
-                  </button>
-                ))}
-              </nav>
+              <div className="component-library-title">
+                <Cube size={15} weight="duotone" /> 部件
+              </div>
               <div className="component-library-header-actions">
-                {drawerTab === 'components' && (
-                  <select
-                    className="component-status-filter"
-                    aria-label="组件审阅状态"
-                    value={reviewStatusFilter}
-                    onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
-                  >
-                    <option value="">全部状态</option>
-                    {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
-                      <option key={status} value={status}>{label}</option>
-                    ))}
-                  </select>
-                )}
+                <select
+                  className="component-status-filter"
+                  aria-label="部件审阅状态"
+                  value={reviewStatusFilter}
+                  onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
+                >
+                  <option value="">全部状态</option>
+                  {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
+                    <option key={status} value={status}>{label}</option>
+                  ))}
+                </select>
                 <div className="component-search">
                   <MagnifyingGlass size={15} />
                   <input
-                    value={drawerTab === 'timeline' ? timelineQuery : componentQuery}
-                    onChange={(event) => {
-                      if (drawerTab === 'timeline') setTimelineQuery(event.target.value)
-                      else setComponentQuery(event.target.value)
-                    }}
-                    onKeyDown={(event) => {
-                      if (drawerTab === 'timeline' && event.key === 'Enter') {
-                        applyTimelineFilters()
-                      }
-                    }}
-                    placeholder={drawerTab === 'timeline' ? '搜索 ChangeSet…' : '搜索名称、描述或标签…'}
+                    value={componentQuery}
+                    onChange={(event) => setComponentQuery(event.target.value)}
+                    placeholder="搜索名称、描述或标签…"
                   />
                   <Funnel size={14} />
                 </div>
@@ -1259,8 +1160,7 @@ export function CadWorkbenchPanel() {
               </div>
             </div>
             <div className="component-library-body">
-              {drawerTab === 'components' ? (
-                <>
+              <>
                   <nav className="component-categories">
                     {COMPONENT_CATEGORIES.map((category) => (
                       <button
@@ -1441,140 +1341,7 @@ export function CadWorkbenchPanel() {
                       )}
                     </aside>
                   )}
-                </>
-              ) : (
-                <div className={`drawer-placeholder${drawerTab === 'timeline' ? ' timeline-drawer' : ''}`}>
-                  {drawerTab === 'variants' && <>
-                    <strong>候选方案</strong>
-                    {concept.variants.slice(0, 3).map((variant) => (
-                      <button
-                        key={variant.variant_id}
-                        data-variant-rank={variant.rank}
-                        className={variant.status === 'selected' ? 'selected' : ''}
-                        onClick={() => concept.selectVariant(variant.variant_id)}
-                        title={variant.summary}
-                      >
-                        <strong>{variant.rank}. {variant.name}</strong>
-                        <span>{variant.status} · {variant.planner_provenance.generator}</span>
-                        <small>建议 Module：{variant.recommended_module_ids?.length ?? 0}</small>
-                      </button>
-                    ))}
-                    {concept.variants.length === 0 && <span>当前项目尚无已持久化方案。</span>}
-                  </>}
-                  {drawerTab === 'versions' && <>
-                    <strong>版本分支</strong>
-                    {(concept.project?.versions ?? []).slice().reverse().map((version) => (
-                      <button key={version.version_id} onClick={() => concept.selectVersion(version.version_id)}>
-                        V{version.version_no} · {version.summary}
-                      </button>
-                    ))}
-                  </>}
-                  {drawerTab === 'timeline' && <>
-                    <div className="timeline-heading">
-                      <strong>ChangeSet 操作时间线</strong>
-                      <select
-                        aria-label="ChangeSet 状态筛选"
-                        value={timelineStatus}
-                        onChange={(event) => setTimelineStatus(
-                          event.target.value as ChangeSetTimelineFilters['status'],
-                        )}
-                      >
-                        <option value="">全部状态</option>
-                        <option value="confirmed">confirmed</option>
-                        <option value="rejected">rejected</option>
-                        <option value="stale">stale</option>
-                        <option value="previewed">previewed</option>
-                        <option value="proposed">proposed</option>
-                      </select>
-                      <select
-                        aria-label="ChangeSet 操作筛选"
-                        value={timelineOperation}
-                        onChange={(event) => setTimelineOperation(
-                          event.target.value as ChangeSetTimelineFilters['operation'],
-                        )}
-                      >
-                        <option value="">全部操作</option>
-                        <option value="replace_module">replace_module</option>
-                        <option value="set_mirror">set_mirror</option>
-                        <option value="set_transform">set_transform</option>
-                        <option value="add_module">add_module</option>
-                        <option value="remove_module">remove_module</option>
-                        <option value="connect">connect</option>
-                        <option value="disconnect">disconnect</option>
-                        <option value="set_style">set_style</option>
-                        <option value="set_parameter">set_parameter</option>
-                      </select>
-                      <button onClick={applyTimelineFilters} disabled={concept.timelineLoading}>
-                        查询
-                      </button>
-                      <button onClick={clearTimelineFilters} disabled={concept.timelineLoading}>
-                        重置
-                      </button>
-                      <button
-                        data-testid="change-set-audit-export"
-                        onClick={() => handleCreateAuditExport().catch(() => undefined)}
-                        disabled={concept.timelineLoading}
-                        title="按当前筛选导出 JSONL/CSV、哈希清单与归档说明"
-                      >
-                        <FileArrowDown size={13} /> 导出审计 ZIP
-                      </button>
-                    </div>
-                    {concept.lastAuditExport ? (
-                      <div className="timeline-audit-summary" data-testid="change-set-audit-summary">
-                        最近归档 · {concept.lastAuditExport.record_count} 条 ·{' '}
-                        {concept.lastAuditExport.audit_export_id} · project_lifetime
-                      </div>
-                    ) : null}
-                    <div className="timeline-items" aria-live="polite">
-                      {concept.timeline.map((item) => (
-                        <article
-                          className={`timeline-item status-${item.status}`}
-                          key={item.change_set.change_set_id}
-                        >
-                          <div>
-                            {formatVersionTime(item.confirmed_at ?? item.updated_at)} ·{' '}
-                            <b>{item.status}</b> · {item.change_set.change_set_id}
-                          </div>
-                          <div>
-                            {item.change_set.operations.map((operation) => (
-                              `${operation.op}${operation.node_id ? `(${operation.node_id})` : ''}`
-                            )).join(' + ')}
-                            {item.result_version_id ? ` → ${item.result_version_id}` : ''}
-                          </div>
-                          {item.actor_type === 'planner' ? (
-                            <div className="timeline-planner-meta" data-testid="change-set-planner-meta">
-                              planner · {item.planner_provenance?.provider_id ?? 'unknown provider'}
-                              {item.planner_provenance?.fallback_used ? ' · fallback' : ''}
-                              {item.planner_instruction ? ` · ${item.planner_instruction}` : ''}
-                            </div>
-                          ) : null}
-                          {item.diagnostic ? (
-                            <div className="timeline-diagnostic" data-testid="change-set-diagnostic">
-                              {item.diagnostic.code} · {item.diagnostic.stage} ·{' '}
-                              {item.diagnostic.message}
-                              {(item.diagnostic.node_ids ?? []).length > 0
-                                ? ` · nodes: ${(item.diagnostic.node_ids ?? []).join(', ')}`
-                                : ''}
-                            </div>
-                          ) : null}
-                        </article>
-                      ))}
-                      {concept.timeline.length === 0 ? (
-                        <div className="timeline-empty">没有符合条件的持久化 ChangeSet。</div>
-                      ) : null}
-                    </div>
-                    {concept.timelineNextCursor ? (
-                      <button
-                        className="timeline-more"
-                        onClick={concept.loadMoreTimeline}
-                        disabled={concept.timelineLoading}
-                      >
-                        {concept.timelineLoading ? '正在加载…' : '加载更多'}
-                      </button>
-                    ) : null}
-                  </>}
-                </div>
-              )}
+              </>
             </div>
           </section>
         </main>
@@ -1839,7 +1606,7 @@ export function CadWorkbenchPanel() {
       </div>
 
       <footer className="cad-status-bar">
-        <span>{({ concept: '概念', assembly: '组装', refine: '精修', inspect: '检查', showcase: '展示' } as Record<WorkspaceTab, string>)[activeTab]}阶段</span>
+        <span>设计就绪</span>
         <span>选择：{selectedComponent || '无'}</span>
         <span>模型：{concept.graphRecord ? `${concept.graphRecord.graph.nodes.length} nodes` : '未绑定 ModuleGraph'}</span>
         <span>单位：mm</span>

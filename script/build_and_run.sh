@@ -8,7 +8,7 @@ set -euo pipefail
 
 MODE="${1:-run}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle/macos/武神 Forge.app"
+APP_BUNDLE="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle/macos/CAD 工作台.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/wushen-forge-desktop"
 
 RUSTC_BIN="$(rustup which rustc 2>/dev/null || true)"
