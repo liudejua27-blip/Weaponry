@@ -135,7 +135,7 @@ core.side_panel_left / core.side_panel_right
 
 | 能力 | 当前状态 | 决策 |
 | --- | --- | --- |
-| Tauri + React 桌面壳 | 已实现；打包合同完整性门已加固 | 门禁覆盖 `bundle.externalBin`、target sidecar、`Cargo.lock`、图标、CSP 与 capability，并拒绝空或不可执行的占位 sidecar；当前仓库中的 sidecar 仍为空占位且本机无 Cargo，不声称 Rust 编译、签名或干净机 C10 已通过 |
+| Tauri + React 桌面壳 | macOS 本机构建、启动、工作台加载、Unity ZIP 导出和重启恢复已实测 | 已生成完整 `Cargo.lock`；打包合同仍覆盖 `bundle.externalBin`、target sidecar、图标、CSP 与 capability。仓库 sidecar 仍为空占位，所以这只是 `local-dev-python` 本机联调，不是可独立分发、已签名或干净机 C10 的安装包 |
 | FastAPI 本地 Agent | 已实现 | 保留并继续薄化路由 |
 | SQLite、WAL、迁移 | 已实现 | 泛化为 Project/Version/Module 数据 |
 | 内容寻址资产与 SHA-256 | 已实现 | 直接复用 |
@@ -272,6 +272,18 @@ npm run release:packaging-readiness
 该命令检查 Tauri bundle、图标、CSP、capability、`Cargo.lock`、target-suffixed sidecar 与运行时模式，并拒绝空文件、缺少可执行权限或与目标平台不匹配的二进制头。具体平台打包、签名、安装/卸载和干净机验证见 [桌面打包合同](docs/PACKAGING.md)。
 
 当前新工作台开发入口：
+
+```bash
+./script/build_and_run.sh --verify
+```
+
+该命令构建并启动本机 Tauri `.app`，并明确使用 `local-dev-python` Agent 联调模式；要让工作台连上本机 Agent，可在另一个终端运行：
+
+```bash
+PYTHONPATH=apps/agent WUSHEN_LIBRARY_ROOT="$PWD/WushenForgeLibrary" WUSHEN_MIGRATIONS_DIR="$PWD/migrations" .venv/bin/python -m uvicorn wushen_agent.main:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+这不是替代发布流程。正式安装包仍必须先替换冻结的 `wushen-agent` sidecar，再完成平台签名、公证和无源码干净机验证。
 
 ```bash
 npm --workspace apps/desktop run dev -- --host 127.0.0.1

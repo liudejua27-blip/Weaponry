@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 DEFAULT_CORS_ORIGINS = (
+    # The production Tauri frontend is served from this custom origin.  Keep
+    # it explicit rather than widening the local Agent to arbitrary origins.
+    "tauri://localhost",
     "http://127.0.0.1:1420",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",

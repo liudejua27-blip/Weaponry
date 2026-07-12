@@ -21,3 +21,5 @@ artifacts/design-qa/
 *.db-shm
 *.db-wal
 WushenForgeLibrary/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/

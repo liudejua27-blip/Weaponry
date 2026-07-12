@@ -78,6 +78,7 @@ def main() -> None:
         api_settings = LocalApiSettings.from_env(
             environ={"FORGECAD_CORS_ORIGINS": "http://127.0.0.1:5199/"}
         )
+        assert "tauri://localhost" in api_settings.cors_origins
         assert "http://127.0.0.1:5199" in api_settings.cors_origins
         assert "http://127.0.0.1:5173" in api_settings.cors_origins
         assert create_local_api(api_settings).title == "ForgeCAD Local Agent"
