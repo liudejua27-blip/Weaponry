@@ -45,6 +45,7 @@ class RuntimeConfig:
     sf3d_python: str
     triposr_repo: Optional[Path]
     triposr_python: str
+    triposr_runner: Optional[Path]
     triposr_device: Optional[str]
     triposr_pretrained_model: Optional[str]
     triposr_chunk_size: Optional[int]
@@ -254,18 +255,20 @@ class RuntimeState:
         run_py = repo / "run.py"
         if not run_py.exists():
             raise RuntimeError(f"TripoSR run.py was not found: {run_py}")
+        runner = self.config.triposr_runner
+        if runner is not None:
+            runner = runner.expanduser().resolve()
+            if not runner.is_file():
+                raise RuntimeError(f"Configured TripoSR runner was not found: {runner}")
+            if self.config.triposr_bake_texture:
+                raise RuntimeError("The MPS TripoSR runner does not support texture baking; disable WUSHEN_TRIPOSR_BAKE_TEXTURE.")
         input_path = _write_source_image(task.request, task.task_dir)
         output_dir = task.task_dir / "triposr_output"
         output_dir.mkdir(parents=True, exist_ok=True)
-        command = [
-            self.config.triposr_python,
-            str(run_py),
-            str(input_path),
-            "--output-dir",
-            str(output_dir),
-            "--model-save-format",
-            "glb",
-        ]
+        command = [self.config.triposr_python, str(runner or run_py), str(input_path)]
+        if runner is not None:
+            command.extend(["--triposr-repo", str(repo)])
+        command.extend(["--output-dir", str(output_dir), "--model-save-format", "glb"])
         if self.config.triposr_device:
             command.extend(["--device", self.config.triposr_device])
         if self.config.triposr_pretrained_model:
@@ -327,7 +330,11 @@ class RuntimeState:
                 "bake_texture": self.config.triposr_bake_texture,
                 "provider_reported_metrics": False,
             }
-            task.metadata.update({"triposr_repo": str(repo), "triposr_command": command})
+            task.metadata.update({
+                "triposr_repo": str(repo),
+                "triposr_runner": str(runner) if runner else None,
+                "triposr_command": command,
+            })
             task.status = "succeeded"
             task.progress = 1.0
             task.updated_at = time.time()
@@ -425,6 +432,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--sf3d-python", default=os.environ.get("WUSHEN_SF3D_PYTHON", sys.executable))
     parser.add_argument("--triposr-repo", default=os.environ.get("WUSHEN_TRIPOSR_REPO"))
     parser.add_argument("--triposr-python", default=os.environ.get("WUSHEN_TRIPOSR_PYTHON", sys.executable))
+    parser.add_argument("--triposr-runner", default=os.environ.get("WUSHEN_TRIPOSR_RUNNER"))
     parser.add_argument("--triposr-device", default=os.environ.get("WUSHEN_TRIPOSR_DEVICE"))
     parser.add_argument("--triposr-pretrained-model", default=os.environ.get("WUSHEN_TRIPOSR_PRETRAINED_MODEL"))
     parser.add_argument("--triposr-chunk-size", type=int, default=_optional_int(os.environ.get("WUSHEN_TRIPOSR_CHUNK_SIZE")))
@@ -450,6 +458,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         sf3d_python=args.sf3d_python,
         triposr_repo=Path(args.triposr_repo) if args.triposr_repo else None,
         triposr_python=args.triposr_python,
+        triposr_runner=Path(args.triposr_runner) if args.triposr_runner else None,
         triposr_device=args.triposr_device,
         triposr_pretrained_model=args.triposr_pretrained_model,
         triposr_chunk_size=args.triposr_chunk_size,

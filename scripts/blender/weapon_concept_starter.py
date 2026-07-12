@@ -16,9 +16,9 @@ from mathutils import Vector
 
 
 MATERIALS = {
-    "MAT_primary": ((0.035, 0.055, 0.08, 1.0), 0.72, 0.34),
-    "MAT_secondary": ((0.12, 0.16, 0.21, 1.0), 0.58, 0.42),
-    "MAT_accent": ((0.62, 0.018, 0.012, 1.0), 0.42, 0.30),
+    "MAT_primary": ((0.045, 0.058, 0.075, 1.0), 0.78, 0.30),
+    "MAT_secondary": ((0.14, 0.18, 0.23, 1.0), 0.64, 0.34),
+    "MAT_accent": ((0.62, 0.018, 0.012, 1.0), 0.42, 0.28),
 }
 
 
@@ -53,7 +53,7 @@ STARTER_MODULES = (
         "module_core_shell_01",
         "core_shell",
         (
-            Part("main_body", (0, 0, 0), (100, 46, 40), "MAT_primary", 4.0, "wedge"),
+            Part("main_body", (0, 0, 0), (100, 46, 40), "MAT_primary", 4.0, "contour"),
             Part("upper_spine", (-4, 21, 0), (76, 10, 30), "MAT_secondary", 2.5),
             Part("lower_keel", (-10, -21, 0), (48, 9, 32), "MAT_secondary", 2.0),
             Part("side_plate_a", (25, 0, 20), (28, 26, 3), "MAT_accent", 1.0),
@@ -93,11 +93,11 @@ STARTER_MODULES = (
         "module_front_shell_01",
         "front_shell",
         (
-            Part("main_wedge", (-31, 0, 0), (62, 32, 32), "MAT_primary", 3.0, "wedge"),
-            Part("upper_visual_tube", (-37, 8, 25.5), (74, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
-            Part("lower_visual_tube", (-37, -8, 25.5), (74, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
-            Part("upper_side_visual_tube", (-42, 8, -26), (64, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
-            Part("lower_side_visual_tube", (-42, -8, -26), (64, 12, 12), "MAT_secondary", 1.2, "cylinder_x"),
+            Part("main_wedge", (-31, 0, 0), (62, 32, 32), "MAT_primary", 3.0, "contour"),
+            Part("upper_visual_rail", (-37, 9, 25.5), (70, 8, 7), "MAT_secondary", 1.2, "wedge"),
+            Part("lower_visual_rail", (-37, -9, 25.5), (70, 8, 7), "MAT_secondary", 1.2, "reverse_wedge"),
+            Part("upper_side_visual_rail", (-42, 9, -26), (60, 8, 7), "MAT_secondary", 1.2, "wedge"),
+            Part("lower_side_visual_rail", (-42, -9, -26), (60, 8, 7), "MAT_secondary", 1.2, "reverse_wedge"),
             Part("upper_rib", (-36, 16, 0), (42, 6, 27), "MAT_secondary", 1.5),
             Part("nose_cap", (-60, 5, 0), (14, 22, 28), "MAT_secondary", 2.5, "wedge"),
             Part("accent_fin", (-44, 0, 17), (20, 15, 2.5), "MAT_accent", 0.8),
@@ -111,11 +111,11 @@ STARTER_MODULES = (
         "module_front_shell_02",
         "front_shell",
         (
-            Part("main_wedge", (-37, 0, 0), (74, 28, 38), "MAT_primary", 4.0, "wedge"),
-            Part("upper_visual_tube", (-43, 7, 27), (86, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
-            Part("lower_visual_tube", (-43, -7, 27), (86, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
-            Part("upper_side_visual_tube", (-48, 7, -28), (74, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
-            Part("lower_side_visual_tube", (-48, -7, -28), (74, 11, 11), "MAT_secondary", 1.1, "cylinder_x"),
+            Part("main_wedge", (-37, 0, 0), (74, 28, 38), "MAT_primary", 4.0, "contour"),
+            Part("upper_visual_rail", (-43, 8, 27), (80, 7, 7), "MAT_secondary", 1.1, "wedge"),
+            Part("lower_visual_rail", (-43, -8, 27), (80, 7, 7), "MAT_secondary", 1.1, "reverse_wedge"),
+            Part("upper_side_visual_rail", (-48, 8, -28), (68, 7, 7), "MAT_secondary", 1.1, "wedge"),
+            Part("lower_side_visual_rail", (-48, -8, -28), (68, 7, 7), "MAT_secondary", 1.1, "reverse_wedge"),
             Part("upper_bridge", (-34, 15, 0), (40, 8, 32), "MAT_secondary", 2.0),
             Part("nose_block", (-68, 7, 0), (16, 18, 30), "MAT_secondary", 2.0, "wedge"),
             Part("lower_step", (-20, -15, 0), (32, 6, 30), "MAT_accent", 1.0),
@@ -137,7 +137,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_rear_shell_01",
         "rear_shell",
         (
-            Part("rear_body", (22, 0, 0), (42, 38, 36), "MAT_primary", 3.5, "reverse_wedge"),
+            Part("rear_body", (22, 0, 0), (42, 38, 36), "MAT_primary", 3.5, "contour"),
             Part("rear_cap", (40, 0, 0), (12, 26, 30), "MAT_secondary", 2.0),
             Part("upper_rear_spine", (20, 20, 0), (34, 5, 24), "MAT_secondary", 1.0),
             Part("rear_side_armor", (26, 0, 19), (26, 16, 2.5), "MAT_secondary", 0.8),
@@ -150,7 +150,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_grip_shell_01",
         "grip_shell",
         (
-            Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0, "grip_taper"),
+            Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0, "grip_contour"),
             Part("grip_backstrap", (11, -35, 0), (10, 51, 34), "MAT_secondary", 2.2),
             Part("grip_front_guard", (-12, -13, 0), (8, 20, 29), "MAT_secondary", 1.5),
             Part(
@@ -336,9 +336,18 @@ def _build_module(
     for part in module.parts:
         object_name = f"GEO_{module.module_id}_LOD0_{len(mesh_objects) + 1:02d}"
         mesh_objects.append(_create_part(object_name, part, materials, collection))
-        for detail in _surface_detail_parts(part):
+        detail_objects = [
+            _create_part(
+                f"GEO_{module.module_id}_DETAIL_{detail_index:03d}",
+                detail,
+                materials,
+                collection,
+            )
+            for detail_index, detail in enumerate(_surface_detail_parts(part), start=1)
+        ]
+        if detail_objects:
             detail_name = f"GEO_{module.module_id}_LOD0_{len(mesh_objects) + 1:02d}"
-            mesh_objects.append(_create_part(detail_name, detail, materials, collection))
+            mesh_objects.append(_join_detail_objects(detail_name, detail_objects))
     for connector in module.connectors:
         _create_connector(connector, collection)
     _create_render_rig(mesh_objects)
@@ -479,6 +488,27 @@ def _create_part(object_name, part, materials, collection):
     return obj
 
 
+def _join_detail_objects(object_name, objects):
+    """Collapse one part's decorative geometry into a valid LOD0 mesh.
+
+    A pack's naming contract intentionally limits each module to two-digit LOD
+    mesh identifiers. Joining only the associated decorative set keeps that
+    contract stable while retaining every bevel, rail, vent and fastener in the
+    actual exported geometry.
+    """
+    for item in bpy.context.selected_objects:
+        item.select_set(False)
+    for item in objects:
+        item.select_set(True)
+    bpy.context.view_layer.objects.active = objects[0]
+    bpy.ops.object.join()
+    merged = bpy.context.object
+    merged.name = object_name
+    merged.data.name = object_name.replace("GEO_", "MESH_")
+    merged.select_set(False)
+    return merged
+
+
 def _create_profile_mesh(object_name, part, collection):
     if part.profile == "box":
         bpy.ops.mesh.primitive_cube_add(size=1)
@@ -523,15 +553,78 @@ def _create_profile_mesh(object_name, part, collection):
             (-upper_x, y1, -upper_z), (-upper_x, y1, upper_z),
             (upper_x, y1, upper_z), (upper_x, y1, -upper_z),
         ]
-    elif part.profile == "cylinder_x":
-        segments = 24
+    elif part.profile in {"contour", "grip_contour"}:
+        # These closed 2D outlines are extruded across the display depth. They
+        # replace the starter's pure cuboids with continuous, beveled shells
+        # while remaining simple editable source geometry.
+        if part.profile == "contour":
+            outline = (
+                (-0.50, -0.30), (-0.40, -0.50), (0.26, -0.48),
+                (0.50, -0.22), (0.48, 0.16), (0.28, 0.42),
+                (-0.16, 0.50), (-0.50, 0.25),
+            )
+        else:
+            outline = (
+                (-0.46, 0.50), (0.40, 0.48), (0.46, 0.10),
+                (0.70, -0.46), (0.22, -0.52), (-0.46, -0.16),
+            )
+        vertices = [
+            (x_factor * sx, y_factor * sy, z)
+            for z in (z0, z1)
+            for x_factor, y_factor in outline
+        ]
+        count = len(outline)
+        faces = [tuple(range(count - 1, -1, -1)), tuple(range(count, count * 2))]
+        faces.extend(
+            (index, (index + 1) % count, count + (index + 1) % count, count + index)
+            for index in range(count)
+        )
+        mesh = bpy.data.meshes.new(object_name.replace("GEO_", "MESH_"))
+        mesh.from_pydata(
+            [
+                _business_position_mm_to_blender_m(
+                    (x + part.center_mm[0], y + part.center_mm[1], z + part.center_mm[2])
+                )
+                for x, y, z in vertices
+            ],
+            [],
+            faces,
+        )
+        mesh.update()
+        obj = bpy.data.objects.new(object_name, mesh)
+        collection.objects.link(obj)
+        return obj
+    elif part.profile in {"cylinder_x", "cylinder_y", "cylinder_z"}:
+        # Axis-specific visual cylinders give the prop real fasteners, capped
+        # conduit details and side-mounted pins without introducing functional
+        # internals or manufacturing semantics.
+        segments = 12 if "_fastener_" in part.name else 24
         vertices = []
-        radius_y = sy / 2
-        radius_z = sz / 2
-        for x in (x0, x1):
+        if part.profile == "cylinder_x":
+            axis_values = (x0, x1)
+            radial = lambda axis, angle: (
+                axis,
+                math.cos(angle) * sy / 2,
+                math.sin(angle) * sz / 2,
+            )
+        elif part.profile == "cylinder_y":
+            axis_values = (y0, y1)
+            radial = lambda axis, angle: (
+                math.cos(angle) * sx / 2,
+                axis,
+                math.sin(angle) * sz / 2,
+            )
+        else:
+            axis_values = (z0, z1)
+            radial = lambda axis, angle: (
+                math.cos(angle) * sx / 2,
+                math.sin(angle) * sy / 2,
+                axis,
+            )
+        for axis in axis_values:
             for segment in range(segments):
                 angle = math.tau * segment / segments
-                vertices.append((x, math.cos(angle) * radius_y, math.sin(angle) * radius_z))
+                vertices.append(radial(axis, angle))
         faces = []
         for segment in range(segments):
             next_segment = (segment + 1) % segments
@@ -566,7 +659,7 @@ def _create_profile_mesh(object_name, part, collection):
 
 
 def _surface_detail_parts(part):
-    """Author small real meshes for vents, seams and grip ribs.
+    """Author real hard-surface visual meshes for seams, vents and fasteners.
 
     These are geometric details exported into the GLB, not a viewport-only
     decoration. Their shallow offset keeps connector locations and the module
@@ -576,7 +669,12 @@ def _surface_detail_parts(part):
     result = []
     if sx < 22 or sy < 10 or sz < 10:
         return result
-    count = max(2, min(5, int(sx // 18)))
+    # Long capped visual tubes already contribute their own curved silhouette;
+    # duplicating every rail/vent on them makes the candidate expensive without
+    # improving the silhouette in the CAD view.
+    if part.profile == "cylinder_x":
+        return result
+    count = max(3, min(5, int(sx // 18)))
     for side in (-1, 1):
         for detail_index in range(count):
             fraction = (detail_index + 1) / (count + 1) - 0.5
@@ -593,7 +691,59 @@ def _surface_detail_parts(part):
                 0.34,
             )
             result.append(detail)
-    if part.profile == "grip_taper":
+            # Each wide visual rail receives a capped side fastener.  This
+            # creates readable precision rhythm in a full-size view without
+            # pretending to be a real-world mechanical specification.
+            result.append(
+                Part(
+                    f"{part.name}_fastener_{side}_{detail_index}",
+                    (
+                        center[0] + max(2.2, sx * 0.035),
+                        center[1] - max(1.2, sy * 0.06),
+                        part.center_mm[2] + side * (sz / 2 + 0.86),
+                    ),
+                    (2.8, 2.8, 1.0),
+                    "MAT_accent" if detail_index == count - 1 else "MAT_secondary",
+                    0.18,
+                    "cylinder_z",
+                ),
+            )
+    if sx >= 34:
+        vent_count = max(2, min(3, int(sx // 20)))
+        for side in (-1, 1):
+            for vent_index in range(vent_count):
+                fraction = (vent_index + 1) / (vent_count + 1) - 0.5
+                result.append(
+                    Part(
+                        f"{part.name}_visual_vent_{side}_{vent_index}",
+                        (
+                            part.center_mm[0] + fraction * sx * 0.55,
+                            part.center_mm[1] + sy * 0.19,
+                            part.center_mm[2] + side * (sz / 2 + 0.46),
+                        ),
+                        (max(4.8, sx * 0.075), max(4.2, sy * 0.22), 0.52),
+                        "MAT_primary",
+                        0.22,
+                    ),
+                )
+    if sx >= 48:
+        tooth_count = max(4, min(6, int(sx // 14)))
+        for tooth_index in range(tooth_count):
+            fraction = (tooth_index + 1) / (tooth_count + 1) - 0.5
+            result.append(
+                Part(
+                    f"{part.name}_top_rail_tooth_{tooth_index}",
+                    (
+                        part.center_mm[0] + fraction * sx * 0.74,
+                        part.center_mm[1] + sy / 2 + 0.55,
+                        part.center_mm[2],
+                    ),
+                    (max(2.6, sx * 0.038), 0.9, max(5.0, sz * 0.24)),
+                    "MAT_secondary",
+                    0.18,
+                ),
+            )
+    if part.profile in {"grip_taper", "grip_contour"}:
         for rib_index in range(5):
             center = (
                 part.center_mm[0],

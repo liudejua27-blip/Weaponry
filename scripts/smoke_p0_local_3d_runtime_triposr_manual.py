@@ -138,6 +138,9 @@ def _start_runtime(
         "--task-timeout-seconds",
         str(max_wait_seconds),
     ]
+    runner = os.environ.get("WUSHEN_TRIPOSR_RUNNER")
+    if runner:
+        command.extend(["--triposr-runner", runner])
     for env_name, flag in (
         ("WUSHEN_TRIPOSR_DEVICE", "--triposr-device"),
         ("WUSHEN_TRIPOSR_PRETRAINED_MODEL", "--triposr-pretrained-model"),

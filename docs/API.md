@@ -644,10 +644,11 @@ Run TripoSR CLI mode after installing a local TripoSR checkout:
   --backend triposr-cli \
   --triposr-repo /absolute/path/to/TripoSR \
   --triposr-python /absolute/path/to/triposr/python \
-  --triposr-device cuda:0
+  --triposr-device mps \
+  --triposr-runner "$PWD/scripts/triposr_mps_runner.py"
 ```
 
-Environment equivalents are `WUSHEN_LOCAL_3D_BACKEND`, `WUSHEN_LOCAL_3D_HOST`, `WUSHEN_LOCAL_3D_PORT`, `WUSHEN_LOCAL_3D_WORK_DIR`, `WUSHEN_LOCAL_3D_TASK_TIMEOUT_SECONDS`, `WUSHEN_LOCAL_3D_MOCK_DELAY_SECONDS`, `WUSHEN_LOCAL_3D_KEEP_WORK_DIR`, `WUSHEN_SF3D_REPO`, `WUSHEN_SF3D_PYTHON`, `WUSHEN_SF3D_TEXTURE_RESOLUTION`, `WUSHEN_SF3D_REMESH_OPTION`, `WUSHEN_TRIPOSR_REPO`, `WUSHEN_TRIPOSR_PYTHON`, `WUSHEN_TRIPOSR_DEVICE`, `WUSHEN_TRIPOSR_PRETRAINED_MODEL`, `WUSHEN_TRIPOSR_CHUNK_SIZE`, `WUSHEN_TRIPOSR_MC_RESOLUTION`, `WUSHEN_TRIPOSR_BAKE_TEXTURE`, `WUSHEN_TRIPOSR_TEXTURE_RESOLUTION`, and `WUSHEN_TRIPOSR_NO_REMOVE_BG`.
+Environment equivalents are `WUSHEN_LOCAL_3D_BACKEND`, `WUSHEN_LOCAL_3D_HOST`, `WUSHEN_LOCAL_3D_PORT`, `WUSHEN_LOCAL_3D_WORK_DIR`, `WUSHEN_LOCAL_3D_TASK_TIMEOUT_SECONDS`, `WUSHEN_LOCAL_3D_MOCK_DELAY_SECONDS`, `WUSHEN_LOCAL_3D_KEEP_WORK_DIR`, `WUSHEN_SF3D_REPO`, `WUSHEN_SF3D_PYTHON`, `WUSHEN_SF3D_TEXTURE_RESOLUTION`, `WUSHEN_SF3D_REMESH_OPTION`, `WUSHEN_TRIPOSR_REPO`, `WUSHEN_TRIPOSR_PYTHON`, `WUSHEN_TRIPOSR_RUNNER`, `WUSHEN_TRIPOSR_DEVICE`, `WUSHEN_TRIPOSR_PRETRAINED_MODEL`, `WUSHEN_TRIPOSR_CHUNK_SIZE`, `WUSHEN_TRIPOSR_MC_RESOLUTION`, `WUSHEN_TRIPOSR_BAKE_TEXTURE`, `WUSHEN_TRIPOSR_TEXTURE_RESOLUTION`, and `WUSHEN_TRIPOSR_NO_REMOVE_BG`.
 
 Current automated verification: `npm run agent:p0-local-3d-runtime-wrapper-smoke` starts the wrapper as a real subprocess in mock mode, drives the Agent async worker through submit -> wait -> fetch, verifies GLB asset commits, and verifies cancellation reaches the runtime before any late asset write.
 

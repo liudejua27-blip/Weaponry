@@ -93,6 +93,8 @@ pip install -r requirements.txt
 
 TripoSR's official manual inference supports `python run.py <image> --output-dir <dir>` and a `--model-save-format glb` option. The Wushen wrapper always requests GLB so the Agent can keep the same Unity handoff contract.
 
+On Apple silicon, upstream `run.py` falls back to CPU because it only probes CUDA. Set `WUSHEN_TRIPOSR_RUNNER` to this repository's `scripts/triposr_mps_runner.py` to keep neural inference on PyTorch MPS while moving only marching-cubes extraction to CPU. The adapter imports the external TripoSR checkout without modifying it and writes `triposr-run.json` beside each candidate output.
+
 ## Manual SF3D Smoke
 
 From the Wushen Forge repo:
@@ -169,7 +171,8 @@ Optional inputs:
 
 ```bash
 export WUSHEN_TRIPOSR_INPUT_IMAGE="/absolute/path/to/source.png"
-export WUSHEN_TRIPOSR_DEVICE="cuda:0"
+export WUSHEN_TRIPOSR_DEVICE="mps"
+export WUSHEN_TRIPOSR_RUNNER="$PWD/scripts/triposr_mps_runner.py"
 export WUSHEN_TRIPOSR_PRETRAINED_MODEL="stabilityai/TripoSR"
 export WUSHEN_TRIPOSR_CHUNK_SIZE=8192
 export WUSHEN_TRIPOSR_MC_RESOLUTION=256
