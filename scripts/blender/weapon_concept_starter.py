@@ -511,9 +511,15 @@ def _create_profile_mesh(object_name, part, collection):
     elif part.profile == "grip_taper":
         upper_x, upper_z = sx / 2, sz / 2
         lower_x, lower_z = sx * 0.72 / 2, sz * 0.82 / 2
+        # A rearward bottom shift gives the display grip the intentional
+        # forward/rear rake of a hard-surface concept prop while its connector
+        # origin remains fixed at the upper mount.
+        lower_center_x = sx * 0.17
         vertices = [
-            (-lower_x, y0, -lower_z), (-lower_x, y0, lower_z),
-            (lower_x, y0, lower_z), (lower_x, y0, -lower_z),
+            (lower_center_x - lower_x, y0, -lower_z),
+            (lower_center_x - lower_x, y0, lower_z),
+            (lower_center_x + lower_x, y0, lower_z),
+            (lower_center_x + lower_x, y0, -lower_z),
             (-upper_x, y1, -upper_z), (-upper_x, y1, upper_z),
             (upper_x, y1, upper_z), (upper_x, y1, -upper_z),
         ]
