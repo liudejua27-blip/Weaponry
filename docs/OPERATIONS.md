@@ -235,6 +235,16 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 默认输出为 `output/blender/weapon-concept-v1-full-candidate`。对候选 `.blend` 的只读 re-export 使用 `assets:blender-full-candidate-reexport-preflight` 和 `assets:blender-full-candidate-reexport`；实际产品链通过 `scripts/smoke_blender_full_candidate_workbench.py --pack-root <reexport-pack>` 验证 10 模块导入、9 节点组合、质量、combined GLB 与重启回读。只有最终许可证、非作者 reviewer 与 `formal-review-validate --scope release_10_12` 全部通过，才可把该路径称为正式资产。
 
+要在**真实本机 Tauri 工作台**中视觉检查候选，而不覆盖默认 Library，可显式传入候选 Pack 和独立测试 Library：
+
+```bash
+FORGECAD_LOCAL_TEST_MODULE_PACK="$PWD/output/blender/weapon-concept-v1-full-candidate" \
+WUSHEN_LOCAL_TEST_LIBRARY_ROOT="$HOME/Library/Caches/ForgeCAD/WorkbenchCandidate" \
+  script/build_and_run.sh --verify
+```
+
+该命令仅将非敏感的本地路径传给 LaunchServices；脚本会用 ASCII 缓存链接规避含中文仓库路径在 macOS Python 子进程中的编码问题。它不会读取 Provider Key，也不会将候选写入默认 Library。下次执行不带这两个变量的 `script/build_and_run.sh --verify` 会恢复默认本机 Pack/Library。
+
 作者原创资产的正式化工作区位于 `$HOME/Library/Caches/ForgeCAD/Formalization/` 下的日期目录。许可证声明可先写入 `final-pack/`，但 reviewer 仍必须实际检查并完成原始 JSON；`REVIEW_HANDOFF.md` 只是只读交接单，不能代替 `formal-review-validate` 或 promotion report。
 
 ## 首次启动 Concept Workbench

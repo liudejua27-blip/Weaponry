@@ -1,56 +1,50 @@
-# ForgeCAD Weapon Concept 工作台设计 QA
+# ForgeCAD CAD 工作台设计 QA
 
-- 日期：2026-07-10
-- 参考图：`/Users/liuchongjiang/Desktop/e9d4239c-ee36-44de-9161-5020d2fcb329.png`
-- 实现入口：`http://127.0.0.1:1420/#/cad`
-- 实现文件：`apps/desktop/src/features/cad-workbench/CadWorkbenchPanel.tsx`
-- 目标视口：1536 × 1024
-- 默认状态：概念阶段、选择工具、等轴视图、网格开启、`v5`、核心外壳、GLB
+- 日期：2026-07-12
+- 参考视觉真相：`/Users/liuchongjiang/.codex/attachments/03c0589c-29dd-4070-8d2c-d30653758eff/image-1.png`
+- 实现截图：`artifacts/design-qa/cad-workbench-candidate-v2-iso-bright.png`
+- 同输入对照：`artifacts/design-qa/cad-workbench-reference-candidate-v2.png`
+- 实现入口：本机 Tauri `武神 Forge.app`，`CadWorkbenchPanel`
+- 截图视口：1238 × 768（参考按同高 768 px 对齐）；状态：概念、等轴视图、候选十模块 Pack、网格开启。
 
-## 设计结论
+## Findings
 
-参考图的九区高密度桌面工作台结构继续保留，产品语义已按 Weapon Concept Pack 重构：
+- [P1] 中央资产的精密硬表面密度仍明显低于参考。
+  - Location：中央 Three.js 视口 / 候选 Pack。
+  - Evidence：参考中的主体、前端、握持、顶部附件有连续壳体、开孔、分层轨道和材质微差；候选已使用真实 GLB 的楔形、倒角、表面轨道、握持纹理和视觉管件，但仍以独立模块块体为主。
+  - Impact：用户的首要感知仍是“模块样机”，而不是参考图级别的高精度未来概念资产。
+  - Fix：继续在 `.blend` 源中人工细化主壳体/握持/顶部模块的连续曲面、开孔与面板节奏；保持相同 Module ID 和 Connector，再经 Pack、组合、质量和本机 Tauri 回归。
 
-| 区域 | 当前定义 |
-| --- | --- |
-| 顶部阶段 | 概念、组装、精修、检查、展示 |
-| 左栏 | 项目/版本、AI 设计助手、概念比例输入 |
-| 中央 | 可交互 Three.js 概念模型视口 |
-| 底部抽屉 | 组件、方案、版本、时间线 |
-| 右侧检查器 | 参数、外观、连接、检查 |
-| 导出 | GLB、OBJ、PNG、REPORT 概念交付包 |
-| 状态栏 | 当前阶段、选择、ModuleGraph 预览、单位与网格 |
+- [P1] 参考图的底部组件缩略图和右侧分析密度高于当前工作台。
+  - Location：底部组件检视器、右侧检查面板。
+  - Evidence：参考同时展示多张资产缩略图和 DFM 摘要；当前默认底部保持紧凑且候选模块尚未获得正式质量结论。
+  - Impact：当前首屏在“精密 CAD 检视”上的信息密度偏低。
+  - Fix：在不伪造质量/审阅标签的前提下，用真实缩略图、组件参数和实际质量报告填充候选；候选质量仅显示 warning/待审，不能显示正式通过。
 
-原型不再默认展示 STEP、3MF、DFM 或“制造导出”，避免把尚未实现的 Engineering Pack 混入 P0。
+- [P2] 当前本机截图小于参考窗口，左/右栏和文字相对更紧凑。
+  - Location：整页布局与字体节奏。
+  - Evidence：对照中当前 1238 px 窗口下的面板更窄，参考为 1536 px 设计稿。
+  - Impact：中等；产品定位仍是桌面 CAD，宽窗口是主要目标。
+  - Fix：在 1536 × 1024 原生窗口重跑相同状态对照后，按真实可用宽度调整轨道最小宽度和字体。
 
-## 核心交互
+## 已验证的真实行为
 
-- 五阶段导航可切换并同步状态栏；
-- 视口选择、移动、旋转、测量、截面、网格与线框控制可操作；
-- 组件分类、搜索和选择可操作；
-- 底部“组件/方案/版本/时间线”可切换；
-- 右侧“参数/外观/连接/检查”可切换；
-- 参数修改会更新程序化预览；
-- AI 指令生成 ChangeSet 风格提示；
-- 展示导出格式可选择。
+- `CadWorkbenchPanel` 是唯一桌面入口；不存在旧任务中心、旧资产库、Mode、Patch、Forge 或设置页面。
+- 候选 Pack 在 Blender 5.1 构建后通过 Pack 合同、10 模块导入、9 节点组合、质量检查（warning）和 Agent 重启回读。
+- 原生 Tauri 可使用隔离候选 Pack/Library 启动；候选 GLB 的 API 下载 hash 与构建 Pack 一致。
+- 主视口保持单一 WebGL canvas；真实 GLB 的材质、边线与相机缩放均来自运行时渲染，不是静态覆盖图。
 
-## 资产与真实性
+## 比较历史
 
-当前中心模型是用于验证布局和交互的 Three.js 程序化概念原型。它不是正式 GLB 模块包，也没有真实连接器、ModuleGraph、质量报告或导出任务；这些能力按 R2–R5 实现后才能把原型状态改为产品状态。
+1. 旧对照显示当前工作台为深色 CAD 三栏布局，但视觉资产过暗且主体占比偏小。
+2. 修复后：提高 CAD 工作室光照/曝光、提升低亮度石墨材质的可读性、缩短等轴相机距离，并引入可隔离测试的 Blender 十模块候选 Pack。
+3. 最新对照仍发现上述 P1 资产精度与信息密度差距，故不将构建或截图冒充为设计通过。
 
-## 视觉验收
+## Implementation Checklist
 
-- 使用参考图的深海军蓝表面、低对比边框、蓝色主状态和紧凑桌面密度；
-- 图标统一来自 Phosphor，没有 emoji 或手工 SVG；
-- 1536 × 1024 是主验收视口，移动端不在产品范围；
-- 先前基于参考图完成了模型占比、相机、光照、金属层次、红色特征和滚动条的三轮对照修正；本次信息架构修改需重新跑一次同视口截图对照。
+1. 完成正式主壳体、前端、握持和顶部附件的人类美术细化，并保持稳定 Connector。
+2. 将候选通过人工权属/独立审阅后，导入正式 Pack；此前保持“待审”。
+3. 使用正式 Pack 在 1536 × 1024 原生工作台重新截图并完成同输入对照。
+4. 仅当不存在可操作 P0/P1/P2 差异时，将本文件改为 `final result: passed`。
 
-## 验证命令
-
-```bash
-npm run desktop:typecheck
-npm run desktop:build
-npm run desktop:p0-context-continuity-smoke
-```
-
-自动化状态：`desktop:typecheck`、`desktop:build`、`desktop:p0-context-continuity-smoke` 与 `r1:gate` 已通过。应用内浏览器本次未能附着到新标签页，因此 1536 × 1024 的新信息架构截图对照仍待复核，不将自动化构建通过冒充视觉验收通过。
+final result: blocked

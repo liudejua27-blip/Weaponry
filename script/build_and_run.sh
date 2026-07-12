@@ -23,8 +23,26 @@ export WUSHEN_REPO_ROOT="$ROOT_DIR"
 # it available. The Agent safely falls back to the repository reference Pack
 # on other development machines.
 ORIGINAL_AUTHOR_PACK="$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake-20260711/final-pack"
-if [[ -f "$ORIGINAL_AUTHOR_PACK/pack.json" ]]; then
+LOCAL_TEST_MODULE_PACK="${FORGECAD_LOCAL_TEST_MODULE_PACK:-}"
+LOCAL_TEST_LIBRARY_ROOT="${WUSHEN_LOCAL_TEST_LIBRARY_ROOT:-}"
+if [[ -n "$LOCAL_TEST_MODULE_PACK" ]]; then
+  if [[ ! -f "$LOCAL_TEST_MODULE_PACK/pack.json" ]]; then
+    echo "FORGECAD_LOCAL_TEST_MODULE_PACK must point to a ModulePackManifest@1 directory" >&2
+    exit 2
+  fi
+  # launchctl encodes a non-ASCII workspace path incorrectly for the Python
+  # child on some macOS versions. Pass an ASCII-only symlink in the user cache
+  # so a native Tauri candidate test is not dependent on the repository name.
+  LOCAL_TEST_PACK_LINK_ROOT="$HOME/Library/Caches/ForgeCAD/LocalTestPacks"
+  mkdir -p "$LOCAL_TEST_PACK_LINK_ROOT"
+  LOCAL_TEST_PACK_LINK="$LOCAL_TEST_PACK_LINK_ROOT/$(printf '%s' "$LOCAL_TEST_MODULE_PACK" | shasum -a 256 | cut -c1-16)"
+  ln -sfn "$LOCAL_TEST_MODULE_PACK" "$LOCAL_TEST_PACK_LINK"
+  export FORGECAD_BUNDLED_MODULE_PACK="$LOCAL_TEST_PACK_LINK"
+elif [[ -f "$ORIGINAL_AUTHOR_PACK/pack.json" ]]; then
   export FORGECAD_BUNDLED_MODULE_PACK="$ORIGINAL_AUTHOR_PACK"
+fi
+if [[ -n "$LOCAL_TEST_LIBRARY_ROOT" ]]; then
+  export WUSHEN_LIBRARY_ROOT="$LOCAL_TEST_LIBRARY_ROOT"
 fi
 
 # This local-workbench verifier intentionally remains deterministic. It never
@@ -50,9 +68,19 @@ launch_app() {
     echo "Expected app bundle was not created: $APP_BUNDLE" >&2
     exit 1
   fi
-  # Use LaunchServices so macOS keeps the GUI process alive. The Rust desktop
-  # supervisor resolves the local provider key file and authored Module Pack
-  # itself, because `open -n` intentionally does not preserve shell exports.
+  # Use LaunchServices so macOS keeps the GUI process alive. Publish only
+  # non-secret local test paths to that process environment because `open -n`
+  # intentionally does not preserve shell exports. This makes a Blender
+  # candidate pack testable in the real native workbench without touching the
+  # user's default library. Model credentials are intentionally never set here.
+  if [[ -n "${FORGECAD_BUNDLED_MODULE_PACK:-}" ]]; then
+    launchctl setenv FORGECAD_BUNDLED_MODULE_PACK "$FORGECAD_BUNDLED_MODULE_PACK"
+  fi
+  if [[ -n "${WUSHEN_LIBRARY_ROOT:-}" ]]; then
+    launchctl setenv WUSHEN_LIBRARY_ROOT "$WUSHEN_LIBRARY_ROOT"
+  else
+    launchctl unsetenv WUSHEN_LIBRARY_ROOT || true
+  fi
   /usr/bin/open -n "$APP_BUNDLE"
 }
 

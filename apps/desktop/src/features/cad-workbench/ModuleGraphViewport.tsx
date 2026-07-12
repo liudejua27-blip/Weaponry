@@ -96,7 +96,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.06
+    renderer.toneMappingExposure = 1.18
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     host.appendChild(renderer.domElement)
@@ -105,8 +105,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     controls.enableDamping = false
     controls.minDistance = 0.01
     controls.maxDistance = 100000
-    scene.add(new THREE.HemisphereLight('#c8ddff', '#07101a', 2.25))
-    scene.add(new THREE.AmbientLight('#4f6686', 0.34))
+    scene.add(new THREE.HemisphereLight('#c8ddff', '#07101a', 2.65))
+    scene.add(new THREE.AmbientLight('#4f6686', 0.42))
     const keyLight = new THREE.DirectionalLight('#e8f2ff', 5.6)
     keyLight.position.set(120, 180, 140)
     keyLight.castShadow = true
@@ -422,6 +422,14 @@ async function loadNode(
       if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
         const color = material.color
         const isSignalAccent = color.r > color.g * 1.45 && color.r > color.b * 1.35
+        // The authored pack retains its source materials. In the workbench we
+        // lift only the low-value non-accent surfaces into the same readable
+        // graphite range as a physical CAD presentation, rather than hiding
+        // hard-surface detail in near-black diffuse shading.
+        const perceivedLuminance = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
+        if (!isSignalAccent && perceivedLuminance < 0.24) {
+          color.lerp(new THREE.Color('#52677b'), 0.38)
+        }
         material.metalness = Math.max(material.metalness, isSignalAccent ? 0.38 : 0.7)
         material.roughness = Math.min(Math.max(material.roughness || 0.42, isSignalAccent ? 0.28 : 0.32), isSignalAccent ? 0.48 : 0.52)
         material.envMapIntensity = Math.max(material.envMapIntensity, 0.9)
@@ -652,7 +660,7 @@ function disposeNodeInstance(root: THREE.Object3D) {
 function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, view: CameraView, center: THREE.Vector3, size: number) {
   // Keep the assembled concept prominent like a CAD presentation viewport;
   // the old distance left too much empty grid around compact module packs.
-  const distance = Math.max(size * 1.18, 1)
+  const distance = Math.max(size * 0.98, 1)
   const direction: Record<CameraView, THREE.Vector3> = {
     iso: new THREE.Vector3(0.58, 0.48, 1), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }
