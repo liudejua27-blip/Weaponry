@@ -905,6 +905,34 @@ export function CadWorkbenchPanel() {
             >
               {assistantMode === 'brief' ? '生成设计方向' : '生成修改预览'}
             </button>
+            {assistantMode === 'brief' && concept.variants.length > 0 && (
+              <div className="assistant-directions" aria-label="AI 设计方向">
+                <div className="assistant-directions-heading">
+                  <span>设计方向</span>
+                  <small>选择后只更新主视图预览</small>
+                </div>
+                {concept.variants.slice(0, 3).map((variant) => (
+                  <button
+                    key={variant.variant_id}
+                    type="button"
+                    className={variant.status === 'selected' ? 'selected' : ''}
+                    disabled={concept.loading}
+                    onClick={() => {
+                      concept.selectVariant(variant.variant_id).then((selected) => {
+                        if (selected) {
+                          setAssistantNote(`已在主视图预览「${selected.name}」；确认修改后才会写入新版本。`)
+                        }
+                      })
+                    }}
+                    title={variant.summary}
+                  >
+                    <strong>{variant.rank}. {variant.name}</strong>
+                    <span>{variant.summary}</span>
+                    <small>{variant.status === 'selected' ? '当前预览' : '点击预览'}</small>
+                  </button>
+                ))}
+              </div>
+            )}
             {concept.pendingChange && concept.pendingPreview && (
               <div className="change-preview-card" data-testid="change-preview-card">
                 <div>

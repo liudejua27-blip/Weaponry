@@ -3,6 +3,7 @@
 - 日期：2026-07-12
 - 参考视觉真相：`/Users/liuchongjiang/.codex/attachments/03c0589c-29dd-4070-8d2c-d30653758eff/image-1.png`
 - 当前工作台截图：`artifacts/design-qa/cad-only-workbench.png`
+- AI 方向交互截图：`artifacts/design-qa/cad-workbench-ai-directions.png`
 - 当前 Blender 候选渲染：`artifacts/design-qa/weapon-concept-v1-full-candidate-v8-preview.png`
 - TripoSR MPS 实测渲染：`artifacts/design-qa/triposr-reference-prop-mps.png`
 - 实现入口：本机 Tauri `CAD 工作台.app`，`CadWorkbenchPanel`
@@ -37,6 +38,7 @@
 ## 已验证的真实行为
 
 - `CadWorkbenchPanel` 是唯一桌面入口；不存在旧任务中心、旧资产库、Mode、Patch、Forge 或设置页面，应用和窗口标题均为“CAD 工作台”。
+- 本机 Tauri 实测：生成三条受限设计方向后，左侧助手显示 A/B/C 卡片；点击 A 仅更新主视图 Planner 预览，状态明确显示“尚未创建子版本”。
 - v8 候选 Pack 在 Blender 5.1 构建后通过 Pack 合同、10 模块导入、9 节点组合、质量检查（warning）和 Agent 重启回读；总三角数 65,288，组合导出 4,975,728 bytes。它仍有 enclosed-component warning，不能晋级。
 - `WUSHEN_TRIPOSR_RUNNER=scripts/triposr_mps_runner.py` 已通过实际 Local HTTP Runtime + Agent Adapter 手动 smoke：16.05 秒返回优化 GLB，metadata 显示真实 MPS runner；图像质量尚未达到正式候选标准。
 - 原生 Tauri 可使用隔离候选 Pack/Library 启动；候选 GLB 的 API 下载 hash 与构建 Pack 一致。
