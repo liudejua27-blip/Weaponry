@@ -492,14 +492,17 @@ fn apply_local_asset_pack(command: &mut Command) {
 
 fn local_formal_module_pack() -> Option<PathBuf> {
     let explicit = env::var_os("FORGECAD_BUNDLED_MODULE_PACK").map(PathBuf::from);
-    let default_path = env::var_os("HOME").map(|home| {
-        PathBuf::from(home).join(
-            "Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake-20260711/final-pack",
-        )
+    let default_paths = env::var_os("HOME").map(|home| {
+        let root = PathBuf::from(home).join("Library/Caches/ForgeCAD/Formalization");
+        vec![
+            root.join("current/final-pack"),
+            root.join("weapon-concept-v1-final-art-intake-20260711/final-pack"),
+        ]
     });
     explicit
-        .or(default_path)
-        .filter(|candidate| candidate.join("pack.json").is_file())
+        .into_iter()
+        .chain(default_paths.into_iter().flatten())
+        .find(|candidate| candidate.join("pack.json").is_file())
 }
 
 fn agent_python(repo_root: &Path) -> PathBuf {

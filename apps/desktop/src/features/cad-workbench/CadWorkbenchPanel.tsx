@@ -88,7 +88,9 @@ type WorkbenchSession = {
 
 // CAD-only session state. The v3 key deliberately ignores the retired
 // multi-workbench navigation, task views, and asset-library page state.
-const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v3'
+// v4 resets the retired expanded-library default so a new CAD session opens
+// with an unobstructed primary viewport and the detail drawer is deliberate.
+const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v4'
 
 const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
   inspectorTab: 'parameters',
@@ -112,6 +114,7 @@ const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
 }
 
 const DEFAULT_CONCEPT_BRIEF = '紧凑、精密硬表面、石墨灰与信号红点缀的非功能未来概念展示资产'
+const DEFAULT_HIDDEN_NODE_IDS = ['node_storage']
 
 function readWorkbenchSession(): WorkbenchSession {
   try {
@@ -230,7 +233,10 @@ export function CadWorkbenchPanel() {
   const [sectionOffset, setSectionOffset] = useState(() => restoredSession.sectionOffset)
   const [selectedComponent, setSelectedComponent] = useState(() => restoredSession.selectedComponent)
   const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState(() => restoredSession.selectedLibraryModuleId)
-  const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([])
+  // The optional visual-storage module remains part of the 9-node graph, but
+  // opening with it hidden gives the compact prop a single-grip silhouette.
+  // Selecting it exposes the ordinary “显示” action in the property panel.
+  const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>(DEFAULT_HIDDEN_NODE_IDS)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [qualityHighlightNodeIds, setQualityHighlightNodeIds] = useState<string[]>([])
   const [qualityGeometryRefs, setQualityGeometryRefs] = useState<
@@ -1337,7 +1343,7 @@ export function CadWorkbenchPanel() {
                         <div><dt>连接器</dt><dd>{(selectedLibraryModule.manifest.connectors ?? []).length} 个 · {(selectedLibraryModule.manifest.connectors ?? []).map((item) => item.slot).join('、') || '无'}</dd></div>
                         <div><dt>适配</dt><dd>{canReplaceSelected ? '可替换当前节点' : selectedNode?.locked ? '当前节点已锁定' : '选择同分类节点后验证'}</dd></div>
                         <div><dt>来源</dt><dd>{ORIGIN_CLAIM_LABELS[selectedLibraryModule.catalog_metadata.origin_claim ?? 'unknown']}</dd></div>
-                        <div><dt>审阅</dt><dd>{selectedLibraryModule.catalog_metadata.reviewer_name ? `${selectedLibraryModule.catalog_metadata.reviewer_name} · ${selectedLibraryModule.catalog_metadata.reviewed_at ?? '时间待补充'}` : '等待独立审阅'}</dd></div>
+                        <div><dt>审阅</dt><dd>{selectedLibraryModule.catalog_metadata.reviewer_name ? `${selectedLibraryModule.catalog_metadata.reviewer_name} · ${selectedLibraryModule.catalog_metadata.reviewed_at ? `已记录 ${selectedLibraryModule.catalog_metadata.reviewed_at}` : '已指派，待完成'}` : '等待独立审阅'}</dd></div>
                       </dl>
                       {(selectedLibraryModule.catalog_metadata.tags ?? []).length > 0 && (
                         <div className="component-tags">

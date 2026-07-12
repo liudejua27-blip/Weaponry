@@ -239,7 +239,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       () => document.querySelector('.cad-left-rail')?.textContent?.includes('寒地巡逻 S1'),
       { timeout: 20_000 },
     )
-    await assertText(page.locator('.cad-left-rail'), ['寒地巡逻 S1', '绑定首个可交互 ModuleGraph。'])
+    await assertText(page.locator('.cad-left-rail'), ['寒地巡逻 S1', '已加载 9 个 ModuleGraph 节点。'])
     await page.waitForSelector('.viewport-data-state', { state: 'detached', timeout: 20_000 })
     await assertText(page.locator('.component-library'), [
       'Core Shell 01',
@@ -256,6 +256,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: /Front Shell 01/ }).click()
     await assertText(page.locator('.cad-status-bar'), ['node_front'])
     await assertText(page.locator('.component-grid'), ['当前节点'])
+    await page.getByRole('button', { name: '展开组件检视器' }).click()
     await page.waitForSelector('[data-testid="component-inspector"]', { timeout: 20_000 })
     await assertText(page.locator('[data-testid="component-inspector"]'), ['本人原创声明', '等待独立审阅'])
     await page.locator('.component-categories').getByRole('button', { name: /可替换/ }).click()

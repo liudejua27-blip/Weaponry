@@ -207,14 +207,16 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_storage_visual_01",
         "storage_visual",
         (
-            Part("storage_body", (25, -23, 0), (30, 32, 29), "MAT_primary", 3.0, "grip_contour"),
+            # The visual counterweight stays compact while retaining its
+            # stable connector position and conservative clearance envelope.
+            Part("storage_body", (25, -23, 0), (22, 25, 25), "MAT_primary", 3.0, "grip_contour"),
             Part("storage_root", (8, 3, 0), (16, 6, 16), "MAT_secondary", 1.2),
-            Part("storage_front_band", (8, -23, 0), (6, 30, 27), "MAT_secondary", 0.8),
+            Part("storage_front_band", (8, -23, 0), (6, 24, 24), "MAT_secondary", 0.8),
             Part(
-                "storage_side_plate", (26, -23, 16), (19, 22, 2.4), "MAT_secondary", 0.7
+                "storage_side_plate", (25, -23, 14), (15, 17, 2.4), "MAT_secondary", 0.7
             ),
-            Part("storage_base", (27, -42, 0), (27, 7, 31), "MAT_secondary", 1.0, "wedge"),
-            Part("storage_marker", (33, -31, 16), (8, 7, 1.4), "MAT_accent", 0.5),
+            Part("storage_base", (27, -42, 0), (21, 6, 27), "MAT_secondary", 1.0, "wedge"),
+            Part("storage_marker", (31, -31, 14), (6, 6, 1.4), "MAT_accent", 0.5),
         ),
         (
             Connector(

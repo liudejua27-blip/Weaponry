@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,6 +45,9 @@ ATTESTATION = (
     "the declared non-functional visual asset scope."
 )
 MATERIALS = {"MAT_primary", "MAT_secondary", "MAT_accent"}
+MATERIAL_SLOT_PATTERN = re.compile(
+    r"^MAT_(?:primary|secondary|accent)(?:_[a-z0-9]+)*$"
+)
 TRIANGLE_FLOORS = {
     "core_shell": 1000,
     "front_shell": 500,
@@ -321,11 +325,17 @@ def validate_formal_review(
                     module_id,
                 )
             )
-        if set(module.manifest.material_slots) != MATERIALS:
+        material_slots = set(module.manifest.material_slots)
+        if not MATERIALS.issubset(material_slots) or any(
+            MATERIAL_SLOT_PATTERN.fullmatch(slot) is None for slot in material_slots
+        ):
             findings.append(
                 _finding(
                     "FORMAL_MATERIAL_SET_MISMATCH",
-                    f"Formal modules must use {sorted(MATERIALS)}.",
+                    (
+                        f"Formal modules must include {sorted(MATERIALS)} and use only "
+                        "semantic primary/secondary/accent material variants."
+                    ),
                     module_id,
                 )
             )
@@ -734,7 +744,10 @@ def _glb_generator(path: Path) -> str:
 
 def _has_blender_header(path: Path) -> bool:
     with path.open("rb") as handle:
-        return handle.read(7) == b"BLENDER"
+        header = handle.read(7)
+    # Blender 5 can store editable .blend sources in a Zstandard container;
+    # older releases expose the historical literal header directly.
+    return header.startswith(b"BLENDER") or header.startswith(b"\x28\xb5\x2f\xfd")
 
 
 def _placeholder(value: str) -> bool:

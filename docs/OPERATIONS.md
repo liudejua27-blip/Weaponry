@@ -245,6 +245,14 @@ WUSHEN_LOCAL_TEST_LIBRARY_ROOT="$HOME/Library/Caches/ForgeCAD/WorkbenchCandidate
 
 该命令仅将非敏感的本地路径传给 LaunchServices；脚本会用 ASCII 缓存链接规避含中文仓库路径在 macOS Python 子进程中的编码问题。它不会读取 Provider Key，也不会将候选写入默认 Library。下次执行不带这两个变量的 `script/build_and_run.sh --verify` 会恢复默认本机 Pack/Library。
 
+当前 macOS 本机测试默认更进一步：`script/build_and_run.sh --verify` 会根据 Blender 源脚本的 hash 在 `$HOME/Library/Caches/ForgeCAD/OriginalAuthorVisualPacks/<hash>/` 构建 10 个高细节 GLB、暂存为“本人原创声明 / 待独立审阅”的本机 Pack，并使用同 hash 的隔离 Library 启动 CAD 工作台。该动作不会覆盖旧 Library、不会读取任何 Provider Key、不会创建批准或 promotion report。需要回退到历史 Pack 时设置：
+
+```bash
+FORGECAD_LOCAL_VISUAL_PACK=0 script/build_and_run.sh --verify
+```
+
+暂存的 Pack 仍会生成 `FormalModuleReview@1` 草稿；当前默认 reviewer 为“刘邦（已指派，待完成）”。只有 reviewer 实际填写原始草稿并使 `assets:formal-review-validate --scope release_10_12` 成功，状态才能改为“已批准”。
+
 作者原创资产的正式化工作区位于 `$HOME/Library/Caches/ForgeCAD/Formalization/` 下的日期目录。许可证声明可先写入 `final-pack/`，但 reviewer 仍必须实际检查并完成原始 JSON；`REVIEW_HANDOFF.md` 只是只读交接单，不能代替 `formal-review-validate` 或 promotion report。
 
 ## 首次启动 Concept Workbench

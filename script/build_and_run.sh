@@ -19,12 +19,38 @@ export PATH="$HOME/.cargo/bin:/opt/homebrew/opt/rustup/bin:$PATH"
 export WUSHEN_AGENT_RUNTIME_MODE="local-dev-python"
 export WUSHEN_REPO_ROOT="$ROOT_DIR"
 
-# Prefer the locally formalized original-author visual Pack when this Mac has
-# it available. The Agent safely falls back to the repository reference Pack
-# on other development machines.
-ORIGINAL_AUTHOR_PACK="$HOME/Library/Caches/ForgeCAD/Formalization/weapon-concept-v1-final-art-intake-20260711/final-pack"
+# The local workbench builds a cached Blender Pack from the current authored
+# source, then stages it as self-declared original art with review still
+# pending. It uses a content-addressed cache so old Library rows never shadow
+# new geometry and the user's default Library is never overwritten.
+VISUAL_SOURCE_FINGERPRINT="$(shasum -a 256 "$ROOT_DIR/scripts/blender/weapon_concept_starter.py" "$ROOT_DIR/scripts/stage_original_author_visual_pack.py" | shasum -a 256 | cut -c1-16)"
+VISUAL_PACK_CACHE="$HOME/Library/Caches/ForgeCAD/OriginalAuthorVisualPacks/$VISUAL_SOURCE_FINGERPRINT"
+ORIGINAL_AUTHOR_PACK="$VISUAL_PACK_CACHE/final-pack"
+CURRENT_FORMAL_PACK="$HOME/Library/Caches/ForgeCAD/Formalization/current/final-pack"
 LOCAL_TEST_MODULE_PACK="${FORGECAD_LOCAL_TEST_MODULE_PACK:-}"
 LOCAL_TEST_LIBRARY_ROOT="${WUSHEN_LOCAL_TEST_LIBRARY_ROOT:-}"
+
+prepare_local_visual_pack() {
+  if [[ -f "$ORIGINAL_AUTHOR_PACK/pack.json" ]]; then
+    mkdir -p "$(dirname "$CURRENT_FORMAL_PACK")"
+    ln -sfn "$ORIGINAL_AUTHOR_PACK" "$CURRENT_FORMAL_PACK"
+    return 0
+  fi
+  mkdir -p "$VISUAL_PACK_CACHE"
+  "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/build_blender_starter_pack.py" \
+    --module-set full_candidate --require-blender \
+    --output-root "$VISUAL_PACK_CACHE/candidate-pack"
+  "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/stage_original_author_visual_pack.py" \
+    --candidate-root "$VISUAL_PACK_CACHE/candidate-pack" \
+    --output-root "$ORIGINAL_AUTHOR_PACK"
+  mkdir -p "$(dirname "$CURRENT_FORMAL_PACK")"
+  ln -sfn "$ORIGINAL_AUTHOR_PACK" "$CURRENT_FORMAL_PACK"
+}
+
+if [[ -z "$LOCAL_TEST_MODULE_PACK" && "${FORGECAD_LOCAL_VISUAL_PACK:-1}" != "0" ]]; then
+  prepare_local_visual_pack
+  LOCAL_TEST_LIBRARY_ROOT="${LOCAL_TEST_LIBRARY_ROOT:-$HOME/Library/Caches/ForgeCAD/LocalWorkbenchLibraries/$VISUAL_SOURCE_FINGERPRINT}"
+fi
 if [[ -n "$LOCAL_TEST_MODULE_PACK" ]]; then
   if [[ ! -f "$LOCAL_TEST_MODULE_PACK/pack.json" ]]; then
     echo "FORGECAD_LOCAL_TEST_MODULE_PACK must point to a ModulePackManifest@1 directory" >&2
@@ -81,6 +107,11 @@ launch_app() {
   else
     launchctl unsetenv WUSHEN_LIBRARY_ROOT || true
   fi
+  # Keep localized author/reviewer defaults in the Python source instead of
+  # launchctl. Some macOS LaunchServices paths garble non-ASCII environment
+  # values before the Tauri child starts.
+  launchctl unsetenv FORGECAD_ASSET_CREATOR_NAME || true
+  launchctl unsetenv FORGECAD_ASSET_REVIEWER_NAME || true
   /usr/bin/open -n "$APP_BUNDLE"
 }
 

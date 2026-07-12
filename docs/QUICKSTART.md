@@ -24,6 +24,12 @@ VITE_FORGE_API_BASE_URL=http://127.0.0.1:8000 npm run desktop:dev
 
 打开 `http://127.0.0.1:1420/#/cad`。
 
+macOS 本机原生测试（推荐）会直接构建并运行 `CAD 工作台.app`。首次执行会用本机 Blender 生成并缓存高细节、本人原创声明且待独立审阅的 10 模块 Pack；它不使用任何模型 API Key：
+
+```bash
+script/build_and_run.sh --verify
+```
+
 ## 跑当前门禁
 
 ```bash

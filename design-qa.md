@@ -2,9 +2,9 @@
 
 - 日期：2026-07-12
 - 参考视觉真相：`/Users/liuchongjiang/.codex/attachments/03c0589c-29dd-4070-8d2c-d30653758eff/image-1.png`
-- 当前工作台截图：`artifacts/design-qa/cad-only-workbench.png`
+- 当前工作台截图：`artifacts/design-qa/cad-workbench-high-detail-default.png`
 - AI 方向交互截图：`artifacts/design-qa/cad-workbench-ai-directions.png`
-- 当前 Blender 候选渲染：`artifacts/design-qa/weapon-concept-v1-full-candidate-v10-preview.png`
+- 当前 Blender 候选渲染：`artifacts/design-qa/weapon-concept-v1-full-candidate-v12-preview.png`
 - TripoSR MPS 实测渲染：`artifacts/design-qa/triposr-reference-prop-mps.png`
 - 实现入口：本机 Tauri `CAD 工作台.app`，`CadWorkbenchPanel`
 - 截图视口：1238 × 768；状态：单一 CAD 工作区、等轴视图、真实 9 节点 ModuleGraph、网格开启。
@@ -13,7 +13,7 @@
 
 - [P1] 中央资产的精密硬表面密度仍明显低于参考。
   - Location：中央 Three.js 视口 / 候选 Pack。
-  - Evidence：参考中的主体、前端、握持、顶部附件有连续壳体、开孔、分层轨道和材质微差；v10 已使用真实 GLB 的连续轮廓壳体、倒角、嵌合表面轨道、暗色嵌入面、视觉通风槽和紧固件，并降低大面积强调色，但整体仍以独立模块块体为主。
+  - Evidence：参考中的主体、前端、握持、顶部附件有连续壳体、开孔、分层轨道和材质微差；v12 已使用真实 GLB 的连续轮廓壳体、倒角、嵌合表面轨道、暗色嵌入面、视觉通风槽和紧固件，并在默认视图隐藏非必要的 visual-storage 节点以保持单握持轮廓，但整体仍以独立模块块体为主。
   - Impact：用户的首要感知仍是“模块样机”，而不是参考图级别的高精度未来概念资产。
   - Fix：继续在 `.blend` 源中人工细化主壳体/握持/顶部模块的连续曲面、开孔与面板节奏；保持相同 Module ID 和 Connector，再经 Pack、组合、质量和本机 Tauri 回归。
 
@@ -39,7 +39,8 @@
 
 - `CadWorkbenchPanel` 是唯一桌面入口；不存在旧任务中心、旧资产库、Mode、Patch、Forge 或设置页面，应用和窗口标题均为“CAD 工作台”。
 - 本机 Tauri 实测：生成三条受限设计方向后，左侧助手显示 A/B/C 卡片；点击 A 仅更新主视图 Planner 预览，状态明确显示“尚未创建子版本”。
-- v10 候选 Pack 在 Blender 5.1 构建后通过 Pack 合同、10 模块导入、9 节点组合、质量检查（warning）和 Agent 重启回读；总三角数 67,648，组合导出 5,191,664 bytes。它仍有 8 条 `mesh.enclosed_components` warning，不能晋级。
+- v12 候选 Pack 在 Blender 5.1 构建后通过 Pack 合同、10 模块导入、9 节点组合、质量检查（warning）和 Agent 重启回读；总三角数 67,584，组合导出 5,183,600 bytes。它仍有 8 条 `mesh.enclosed_components` warning，不能晋级。
+- 本机 Tauri 默认从当前 Blender 源构建 hash 隔离的高细节 Pack 并载入新 Library；屏幕实测组件范围为 4,620–16,656 tris，显示“本人原创声明 / 待审 / 刘邦已指派，待完成”，不会显示“已批准”。
 - `WUSHEN_TRIPOSR_RUNNER=scripts/triposr_mps_runner.py` 已通过实际 Local HTTP Runtime + Agent Adapter 手动 smoke：16.05 秒返回优化 GLB，metadata 显示真实 MPS runner；图像质量尚未达到正式候选标准。
 - 原生 Tauri 可使用隔离候选 Pack/Library 启动；候选 GLB 的 API 下载 hash 与构建 Pack 一致。
 - 主视口保持单一 WebGL canvas；真实 GLB 的材质、边线与相机缩放均来自运行时渲染，不是静态覆盖图。
@@ -48,7 +49,7 @@
 
 1. 旧对照显示当前工作台为深色 CAD 三栏布局，但视觉资产过暗且主体占比偏小。
 2. 修复后：提高 CAD 工作室光照/曝光、提升低亮度石墨材质的可读性、缩短等轴相机距离，并将 UI 收拢为唯一 CAD 工作区。
-3. 最新候选将主壳体、侧附件、下方结构和展示存储件进一步改为连续轮廓，新增暗色嵌入视觉面，收敛大面积红色；真实 Pack/组合质量 smoke 仍可执行。视觉对照仍发现上述 P1 资产精度与信息密度差距，故不将构建或截图冒充为设计通过。
+3. 最新候选将主壳体、侧附件、下方结构和展示存储件进一步改为连续轮廓，新增暗色嵌入视觉面，收敛大面积红色；本机工作台不再误加载旧低面数 Pack，默认保持紧凑组件架和上方三分之四视图。真实 Pack/组合质量 smoke 仍可执行。视觉对照仍发现上述 P1 资产精度与信息密度差距，故不将构建或截图冒充为设计通过。
 
 ## Implementation Checklist
 

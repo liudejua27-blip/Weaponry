@@ -662,7 +662,10 @@ function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, v
   // the old distance left too much empty grid around compact module packs.
   const distance = Math.max(size * 0.98, 1)
   const direction: Record<CameraView, THREE.Vector3> = {
-    iso: new THREE.Vector3(0.58, 0.48, 1), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
+    // In the exported Y-up coordinate system, positive Y is above the prop.
+    // Keep a prominent depth component while opening the X/Y angle enough to
+    // show the top rails and lower display grip on first launch.
+    iso: new THREE.Vector3(0.9, 0.85, 1.55), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }
   camera.position.copy(center).add(direction[view].normalize().multiplyScalar(distance))
   camera.near = Math.max(distance / 1000, 0.001)

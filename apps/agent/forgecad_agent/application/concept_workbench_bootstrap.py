@@ -12,6 +12,7 @@ from forgecad_agent.application.concept_models import (
     AppendConceptVersionRequest,
     ConceptProjectDetail,
     ModuleAssetManifest,
+    ModuleAssetCatalogMetadataInput,
     RegisterModuleAssetRequest,
     ValidateModuleGraphRequest,
 )
@@ -115,6 +116,7 @@ class ConceptWorkbenchBootstrapService:
                         logical_path=f"packs/{expected_pack_id}/{entry['glb_path']}",
                         glb_data_base64=base64.b64encode(glb_payload).decode("ascii"),
                         thumbnail_png_base64=base64.b64encode(thumbnail_payload).decode("ascii"),
+                        catalog_metadata=_bundled_catalog_metadata(manifest, raw_pack),
                     ),
                     f"builtin-pack-{expected_pack_id}-{manifest.module_id}-{hashlib.sha256(glb_payload).hexdigest()[:16]}",
                 )
@@ -133,6 +135,51 @@ class ConceptWorkbenchBootstrapService:
 def _configured_pack_root() -> Path:
     configured = os.environ.get("FORGECAD_BUNDLED_MODULE_PACK")
     return Path(configured).expanduser().resolve() if configured else DEFAULT_PACK_ROOT
+
+
+def _bundled_catalog_metadata(
+    manifest: ModuleAssetManifest,
+    raw_pack: dict[str, object],
+) -> ModuleAssetCatalogMetadataInput:
+    """Keep authorship and review state honest for the Pack actually loaded.
+
+    A Blender authoring starter must not silently become an original-author
+    declaration merely because it is bundled into a local workbench.
+    """
+    license_value = raw_pack.get("license")
+    spdx = (
+        str(license_value.get("spdx_expression", ""))
+        if isinstance(license_value, dict)
+        else ""
+    )
+    display_name = manifest.module_id.removeprefix("module_").replace("_", " ").title()
+    if spdx == "LicenseRef-ForgeCAD-Original-Author":
+        reviewer = os.environ.get("FORGECAD_ASSET_REVIEWER_NAME", "").strip() or "刘邦"
+        return ModuleAssetCatalogMetadataInput(
+            display_name=display_name,
+            description="本人原创的非功能概念展示组件；可在 CAD 工作台中组合、预览与导出。",
+            tags=["original", "visual", "non-functional"],
+            catalog_path=manifest.category,
+            origin_claim="self_declared_original",
+            creator_name=os.environ.get("FORGECAD_ASSET_CREATOR_NAME", "").strip() or "刘崇江",
+            review_status="pending_review",
+            reviewer_name=reviewer,
+            review_note=(
+                f"已指派独立审阅人 {reviewer}；尚未完成实际审阅。"
+                if reviewer
+                else "已声明为本人原创，等待独立审阅。"
+            ),
+        )
+    return ModuleAssetCatalogMetadataInput(
+        display_name=display_name,
+        description="待确认来源的本机技术候选组件；不能作为已批准的正式美术资产。",
+        tags=["candidate", "visual", "non-functional"],
+        catalog_path=manifest.category,
+        origin_claim="unknown",
+        creator_name="Unclassified Asset Author",
+        review_status="draft",
+        review_note="需先完成权属声明和独立审阅，才能以原创正式资产显示。",
+    )
 
 
 def _pack_file(root: Path, value: str) -> Path:
