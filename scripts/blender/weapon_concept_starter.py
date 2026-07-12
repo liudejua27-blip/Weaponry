@@ -19,6 +19,10 @@ MATERIALS = {
     "MAT_primary": ((0.045, 0.058, 0.075, 1.0), 0.78, 0.30),
     "MAT_secondary": ((0.14, 0.18, 0.23, 1.0), 0.64, 0.34),
     "MAT_accent": ((0.62, 0.018, 0.012, 1.0), 0.42, 0.28),
+    # A deliberately near-black, non-emissive finish used only for shallow
+    # visual recesses.  It gives the authored hard-surface candidate a real
+    # panel-depth hierarchy without claiming that the voids are mechanisms.
+    "MAT_secondary_recess": ((0.006, 0.010, 0.016, 1.0), 0.20, 0.48),
 }
 
 
@@ -53,11 +57,11 @@ STARTER_MODULES = (
         "module_core_shell_01",
         "core_shell",
         (
-            Part("main_body", (0, 0, 0), (100, 46, 40), "MAT_primary", 4.0, "contour"),
-            Part("upper_spine", (-4, 21, 0), (76, 10, 30), "MAT_secondary", 2.5),
-            Part("lower_keel", (-10, -21, 0), (48, 9, 32), "MAT_secondary", 2.0),
-            Part("side_plate_a", (25, 0, 20), (28, 26, 3), "MAT_accent", 1.0),
-            Part("side_plate_b", (-28, 0, -20), (20, 22, 3), "MAT_accent", 1.0),
+            Part("main_body", (0, 0, 0), (166, 46, 40), "MAT_primary", 4.0, "contour"),
+            Part("upper_spine", (-4, 21, 0), (142, 10, 30), "MAT_secondary", 2.5),
+            Part("lower_keel", (-10, -21, 0), (112, 9, 32), "MAT_secondary", 2.0),
+            Part("side_plate_a", (25, 0, 20), (28, 26, 3), "MAT_secondary", 1.0),
+            Part("side_plate_b", (-28, 0, -20), (20, 22, 3), "MAT_secondary", 1.0),
             Part("top_visual_rail_a", (-27, 26, 0), (28, 4, 14), "MAT_secondary", 1.0),
             Part("top_visual_rail_b", (8, 26, 0), (30, 4, 14), "MAT_secondary", 1.0),
             Part(
@@ -70,8 +74,8 @@ STARTER_MODULES = (
                 "MAT_secondary",
                 0.8,
             ),
-            Part("signal_marker_a", (35, 0, 23.5), (10, 9, 1.5), "MAT_accent", 0.6),
-            Part("signal_marker_b", (20, 0, 23.5), (7, 9, 1.5), "MAT_accent", 0.6),
+            Part("signal_marker_a", (35, 0, 23.5), (7, 7, 1.5), "MAT_accent", 0.6),
+            Part("signal_marker_b", (20, 0, 23.5), (5, 7, 1.5), "MAT_accent", 0.6),
             Part("lower_visual_guard", (-9, -26, 0), (35, 4, 24), "MAT_secondary", 1.0),
         ),
         (
@@ -151,13 +155,13 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "grip_shell",
         (
             Part("grip_main", (2, -32, 0), (30, 59, 31), "MAT_primary", 4.0, "grip_contour"),
-            Part("grip_backstrap", (11, -35, 0), (10, 51, 34), "MAT_secondary", 2.2),
+            Part("grip_backstrap", (11, -35, 0), (8, 51, 34), "MAT_secondary", 2.2, "wedge"),
             Part("grip_front_guard", (-12, -13, 0), (8, 20, 29), "MAT_secondary", 1.5),
             Part(
                 "grip_side_inlay_a", (1, -36, 17), (20, 31, 2.4), "MAT_secondary", 0.7
             ),
             Part("grip_side_inlay_b", (-4, -51, 17), (13, 13, 2.4), "MAT_accent", 0.6),
-            Part("grip_base_plate", (4, -64, 0), (28, 8, 32), "MAT_accent", 1.2),
+            Part("grip_base_plate", (4, -64, 0), (28, 8, 32), "MAT_secondary", 1.2, "wedge"),
         ),
         (Connector("connector_grip_core", "grip.core", "grip_mount", (0, 0, 0)),),
     ),
@@ -177,7 +181,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_side_accessory_01",
         "side_accessory",
         (
-            Part("side_body", (0, 0, 12), (34, 21, 16), "MAT_primary", 2.2),
+            Part("side_body", (0, 0, 12), (38, 21, 16), "MAT_primary", 2.2, "contour"),
             Part("side_root", (0, 0, 3), (24, 13, 8), "MAT_secondary", 1.0),
             Part("side_visual_frame", (0, 13, 13), (25, 3, 13), "MAT_secondary", 0.6),
             Part("side_fin", (8, -8, 18), (16, 8, 3), "MAT_secondary", 0.6),
@@ -189,7 +193,7 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_lower_structure_01",
         "lower_structure",
         (
-            Part("lower_body", (-25, -14, 0), (42, 20, 24), "MAT_primary", 2.8),
+            Part("lower_body", (-25, -14, 0), (46, 20, 24), "MAT_primary", 2.8, "contour"),
             Part("lower_root", (-22, -3, 0), (30, 8, 17), "MAT_secondary", 1.0),
             Part("lower_keel", (-32, -23, 0), (27, 5, 20), "MAT_secondary", 0.8),
             Part(
@@ -203,13 +207,13 @@ FULL_CANDIDATE_MODULES = STARTER_MODULES + (
         "module_storage_visual_01",
         "storage_visual",
         (
-            Part("storage_body", (25, -23, 0), (30, 32, 29), "MAT_primary", 3.0),
+            Part("storage_body", (25, -23, 0), (30, 32, 29), "MAT_primary", 3.0, "grip_contour"),
             Part("storage_root", (8, 3, 0), (16, 6, 16), "MAT_secondary", 1.2),
             Part("storage_front_band", (8, -23, 0), (6, 30, 27), "MAT_secondary", 0.8),
             Part(
                 "storage_side_plate", (26, -23, 16), (19, 22, 2.4), "MAT_secondary", 0.7
             ),
-            Part("storage_base", (27, -42, 0), (27, 7, 31), "MAT_accent", 1.0),
+            Part("storage_base", (27, -42, 0), (27, 7, 31), "MAT_secondary", 1.0, "wedge"),
             Part("storage_marker", (33, -31, 16), (8, 7, 1.4), "MAT_accent", 0.5),
         ),
         (
@@ -414,7 +418,17 @@ def _build_module(
         "sha256": hashlib.sha256(payload).hexdigest(),
         "bounds_mm": bounds_mm,
         "triangle_count": triangle_count,
-        "material_slots": list(MATERIALS),
+        # Manifests describe the semantic slots actually present in this
+        # module's GLB.  Candidate modules do not all use every shared source
+        # material (for example, a small grip has no wide recess panel).
+        "material_slots": sorted(
+            {
+                slot.material.name
+                for obj in mesh_objects
+                for slot in obj.material_slots
+                if slot.material is not None
+            }
+        ),
         "connectors": [
             {
                 "connector_id": connector.connector_id,
@@ -722,7 +736,7 @@ def _surface_detail_parts(part):
                             part.center_mm[2] + side * (sz / 2 + 0.46),
                         ),
                         (max(4.8, sx * 0.075), max(4.2, sy * 0.22), 0.52),
-                        "MAT_primary",
+                        "MAT_secondary_recess",
                         0.22,
                     ),
                 )
