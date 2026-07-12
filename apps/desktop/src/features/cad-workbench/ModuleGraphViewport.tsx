@@ -429,6 +429,17 @@ async function loadNode(
       return material
     })
     child.material = Array.isArray(child.material) ? materials : materials[0]
+    // This is an overlay of the real mesh's own hard edges—not a replacement
+    // illustration. It gives low-texture authored modules the legible panel
+    // breaks expected in a precision CAD presentation.
+    const edgeOverlay = new THREE.LineSegments(
+      new THREE.EdgesGeometry(child.geometry, 28),
+      new THREE.LineBasicMaterial({ color: '#07101a', transparent: true, opacity: 0.52 }),
+    )
+    edgeOverlay.name = 'ForgeCADEdgeOverlay'
+    edgeOverlay.renderOrder = 4
+    edgeOverlay.userData.forgecadEdgeOverlay = true
+    child.add(edgeOverlay)
   })
   object.add(assetScene)
   const moduleRecord = runtime.modulesById.get(node.module_id)
