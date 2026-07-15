@@ -147,7 +147,37 @@ def _add_version(unit: Any, *, asset_version_id: str, version_no: int, parent: s
         domain_pack_id="pack_vehicle_concept",
         artifact_id=f"artifact_{asset_version_id}",
         parts_json=_canonical(_parts(part_ids)),
-        shape_program_json=_canonical({"schema_version": "ShapeProgram@1", "operations": []}),
+        shape_program_json=_canonical(
+            {
+                "schema_version": "ShapeProgram@1",
+                "program_id": f"shape_{asset_version_id}",
+                "units": "millimeter",
+                "seed": version_no,
+                "triangle_budget": 1000,
+                "parameters": [],
+                "operations": [
+                    {
+                        "operation_id": f"op_{asset_version_id}",
+                        "op": "box",
+                        "inputs": [],
+                        "args": {
+                            "position": [0, 0, 0],
+                            "size": [100, 40, 30],
+                            "part_role": "primary_body",
+                        },
+                    }
+                ],
+                "outputs": [
+                    {
+                        "output_id": f"output_{asset_version_id}",
+                        "operation_id": f"op_{asset_version_id}",
+                        "kind": "mesh",
+                        "part_role": "primary_body",
+                    }
+                ],
+                "non_functional_only": True,
+            }
+        ),
         assembly_graph_json=_canonical(graph),
         material_bindings_json="{}",
         created_at=NOW,

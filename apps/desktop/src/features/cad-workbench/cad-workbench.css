@@ -357,7 +357,7 @@
 .presentation-profile > span { color: #8294a8; font-size: 11px; font-weight: 700; }
 .presentation-profile > div { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .presentation-profile button { display: grid; gap: 2px; padding: 6px 7px; border: 1px solid #34485d; border-radius: 5px; color: #bfd4e9; background: #172534; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
-.presentation-profile button small { color: #8398ad; font-size: 10px; }
+.presentation-profile button small { color: #8398ad; font-size: 11px; }
 .presentation-profile button[aria-pressed="true"] { border-color: #4b94e8; background: #173b62; color: #f0f7ff; }
 .presentation-profile button.primary[aria-pressed="true"] { background: #195397; }
 
