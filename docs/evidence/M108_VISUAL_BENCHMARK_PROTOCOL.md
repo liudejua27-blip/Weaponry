@@ -28,10 +28,47 @@ npm run agent:m108-visual-benchmark-kit-smoke
 2. 每位评审者在同一版本的 ForgeCAD 工作台逐一导入四份 `fixtures/*.glb`，使用 `cad_neutral`、等轴相机、默认工作室环境。不得用软件概念 PNG、外部 glTF 查看器截图或参数化 ShapeProgram 回退代替。
 3. 对每份资产确认视口属性 `data-blockout-load-state=ready`、`data-blockout-render-source=glb_pbr`，且 `data-blockout-embedded-pbr-material-count` 大于 0。任一失败使本次 run 无效，不可用“看起来接近”补分。
 4. 对每份资产独立给出 1–5 分：`proportion`（主次体比例与轮廓）、`material_readability`（多材质/PBR 区域的区分）和 `surface_detail`（接缝、边缘、重复视觉细节是否服从部件边界）。可附简短失败原因和截图 SHA，但不应记录 API Key、外部 URL、原始 Provider 内容或工程材料性能推断。
-5. 将每位评审的声明和 4×3 分数写入 `review-responses.json`；提交前核对 `kit_manifest_sha256` 与本次 `manifest.json` 一致。
+5. 将每位评审的声明和 4×3 分数写入 `review-responses.json`；每条 fixture review 必须记录 `pbr_load_failure: false`，以及 `viewport.load_state: "ready"`、`viewport.render_source: "glb_pbr"` 与大于零的 `embedded_pbr_material_count`。提交前核对 `kit_manifest_sha256` 与本次 `manifest.json` 一致。
+
+评分 JSON 的最小结构如下；`reviewer_id` 可以是非敏感的匿名代号，但不能重复：
+
+```json
+{
+  "schema_version": "M108VisualBenchmarkResponses@1",
+  "kit_manifest_sha256": "<manifest sha256>",
+  "responses": [{
+    "reviewer_id": "reviewer_01",
+    "independent_of_implementation": true,
+    "fixture_reviews": [{
+      "fixture_id": "<fixture id>",
+      "pbr_load_failure": false,
+      "viewport": {
+        "load_state": "ready",
+        "render_source": "glb_pbr",
+        "embedded_pbr_material_count": 3
+      },
+      "scores": {
+        "proportion": 4,
+        "material_readability": 4,
+        "surface_detail": 4
+      }
+    }]
+  }]
+}
+```
+
+在提交任何通过结论前运行：
+
+```bash
+PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/validate_m108_visual_benchmark_scores.py \
+  --kit output/m108-visual-benchmark \
+  --responses output/m108-visual-benchmark/review-responses.json
+```
+
+该校验器不生成、补齐或修改评分；它要求至少三名独立评审、每人四领域全覆盖、同源 PBR 视口事实、1–5 整数分数，并计算每个维度的中位数。`npm run agent:m108-visual-benchmark-score-validator-smoke` 仅使用临时合成合同 fixture 验证拒绝边界，绝不是人工评分证据。
 
 ## 3. 通过口径与禁止项
 
-有效 run 需要 3 位或以上独立评审者，并且全部有效 asset-review 中每个维度的中位数均至少为 4/5。任意同源 PBR GLB 加载失败、评分来源不独立、少于四领域、少于三位评审者或参数外观回退冒充嵌入纹理，均为未通过，而非缺失值补齐。
+有效 run 需要 3 位或以上独立评审者，并且全部有效 asset-review 中每个维度的中位数均至少为 4/5。任意同源 PBR GLB 加载失败、评分来源不独立、少于四领域、少于三位评审者、manifest hash 不匹配、分数不是 1–5 整数或参数外观回退冒充嵌入纹理，均为未通过，而非缺失值补齐。
 
 通过后才可在 `CODEX_TASK_INDEX`、`DOCUMENTATION_STATUS` 和能力—Gate 矩阵把 M108 的人工基准项更新为有证据；在此之前，M108 仍为 `in_progress`，C105 继续 blocked。
