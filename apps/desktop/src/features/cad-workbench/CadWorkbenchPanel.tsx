@@ -243,6 +243,7 @@ export function CadWorkbenchPanel() {
   const { componentCatalogPresentation, openComponentCatalog, startComponentCatalogRead, receiveComponentCatalog, failComponentCatalog } = useComponentCatalogPresentation()
   const {
     glbBase64: agentBlockoutGlbBase64,
+    glbKind: agentBlockoutGlbKind,
     shapeProgram: agentBlockoutShapeProgram,
     segmentation: agentBlockoutSegmentation,
   } = agentBlockoutDisplay
@@ -374,7 +375,8 @@ export function CadWorkbenchPanel() {
       }
       clearAgentEditAssistPresentation()
       const isImportedReference = version.shape_program?.schema_version === 'ExternalGLBReference@1'
-      hydrateBlockoutDisplay(projectId, {
+      const blockoutDisplayRequestId = hydrateBlockoutDisplay(projectId, {
+        glbKind: null,
         shapeProgram: isImportedReference ? null : version.shape_program,
         segmentation: {
           artifact_id: version.artifact_id,
@@ -386,9 +388,11 @@ export function CadWorkbenchPanel() {
           assembly_graph: version.assembly_graph,
         },
       })
-      if (isImportedReference) {
+      if (isImportedReference && blockoutDisplayRequestId !== null) {
         void api.exportAgentAssetGlb(version.asset_version_id).then((exported) => {
-          if (isCurrentActiveDesignRequest(requestId)) setBlockoutGlb(projectId, exported.glb_base64)
+          if (isCurrentActiveDesignRequest(requestId)) {
+            setBlockoutGlb(projectId, blockoutDisplayRequestId, exported.glb_base64, 'external_reference')
+          }
         }).catch(() => {
           if (isCurrentActiveDesignRequest(requestId)) setAssistantNote('导入参考模型的原始 GLB 不可读取；不会影响其他项目版本。')
         })
@@ -1396,6 +1400,7 @@ export function CadWorkbenchPanel() {
       setAgentAssetChangeSet(null)
       hydrateBlockoutDisplay(concept.project.project_id, {
         glbBase64: payload,
+        glbKind: 'external_reference',
         shapeProgram: null,
         segmentation: {
           artifact_id: version.artifact_id,
@@ -1628,6 +1633,7 @@ export function CadWorkbenchPanel() {
               qualityHighlightNodeIds={[]}
               qualityGeometryRefs={[]}
               blockoutGlbBase64={agentBlockoutGlbBase64}
+              blockoutGlbKind={agentBlockoutGlbKind}
               blockoutShapeProgram={agentBlockoutShapeProgram}
               blockoutMaterialOverride={agentBlockoutShapeProgram ? appearanceMaterialId : null}
               selectedAgentPartId={displayedAgentSelectedPartId}

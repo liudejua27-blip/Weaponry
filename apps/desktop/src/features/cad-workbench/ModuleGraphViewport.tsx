@@ -10,6 +10,7 @@ import { buildShapeProgramPreview } from './shapeProgramPreview.js'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
 type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
+type BlockoutGlbKind = 'compiled_agent_pbr' | 'external_reference' | null
 type Graph = NonNullable<ModuleGraphRecord>['graph']
 export type ViewportMeasurementPoint = {
   nodeId: string
@@ -47,6 +48,7 @@ type ModuleGraphViewportProps = {
   qualityHighlightNodeIds: string[]
   qualityGeometryRefs: NonNullable<QualityFinding['geometry_refs']>
   blockoutGlbBase64: string | null
+  blockoutGlbKind: BlockoutGlbKind
   blockoutShapeProgram: Record<string, unknown> | null
   blockoutMaterialOverride: string | null
   selectedAgentPartId: string | null
@@ -108,7 +110,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const [blockoutLoadState, setBlockoutLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
   const [blockoutLoadMessage, setBlockoutLoadMessage] = useState('')
   const [blockoutPreviewPrimitiveKinds, setBlockoutPreviewPrimitiveKinds] = useState<string[]>([])
-  const [blockoutRenderSource, setBlockoutRenderSource] = useState<'empty' | 'glb_pbr' | 'shape_program_fallback'>('empty')
+  const [blockoutRenderSource, setBlockoutRenderSource] = useState<'empty' | 'glb_pbr' | 'external_reference' | 'shape_program_fallback'>('empty')
   const [blockoutEmbeddedPbrMaterialCount, setBlockoutEmbeddedPbrMaterialCount] = useState(0)
 
   // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
@@ -451,7 +453,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // Prefer it over the bounded ShapeProgram display adapter whenever both
       // are available; silently replacing it with parameter materials would
       // make the PBR/readback promise unverifiable in the workbench.
-      setBlockoutLoadMessage('正在加载同源 PBR GLB…')
+      const externalReference = props.blockoutGlbKind === 'external_reference'
+      setBlockoutLoadMessage(externalReference ? '正在加载只读外部参考 GLB…' : '正在加载同源 PBR GLB…')
       void import('three/examples/jsm/loaders/GLTFLoader.js')
         .then(({ GLTFLoader }) => new Promise<THREE.Object3D>((resolve, reject) => {
           const loader = new GLTFLoader()
@@ -474,7 +477,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             })
             applyAgentBlockoutVisualState(source, propsRef.current)
             const embeddedPbrMaterialCount = countEmbeddedPbrMaterials(source)
-            if (embeddedPbrMaterialCount === 0) {
+            if (!externalReference && embeddedPbrMaterialCount === 0) {
               reject(new Error('同源 GLB 没有可用的完整 PBR 纹理材质，不能作为真实纹理预览显示'))
               return
             }
@@ -487,8 +490,16 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             disposeObject(source)
             return
           }
-          setBlockoutRenderSource('glb_pbr')
-          attachPreview(source, '同源 PBR GLB 已加载')
+          const hasEmbeddedPbr = Number(source.userData.forgecadEmbeddedPbrMaterialCount ?? 0) > 0
+          setBlockoutRenderSource(hasEmbeddedPbr ? 'glb_pbr' : 'external_reference')
+          attachPreview(
+            source,
+            externalReference
+              ? hasEmbeddedPbr
+                ? '外部参考 GLB 已按完整嵌入 PBR 加载（只读）'
+                : '外部参考 GLB 已按只读来源加载；不声明完整 PBR'
+              : '同源 PBR GLB 已加载',
+          )
         })
         .catch((error) => {
           if (cancelled) return
@@ -530,6 +541,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     return () => { cancelled = true }
   }, [
     props.blockoutGlbBase64,
+    props.blockoutGlbKind,
     props.blockoutShapeProgram,
     props.blockoutMaterialOverride,
     props.selectedAgentPartId,
@@ -617,6 +629,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         )}
         data-blockout-preview={props.blockoutGlbBase64 ? 'ready' : 'empty'}
         data-blockout-load-state={blockoutLoadState}
+        data-blockout-glb-kind={props.blockoutGlbKind ?? 'none'}
         data-blockout-render-source={blockoutRenderSource}
         data-blockout-embedded-pbr-material-count={String(blockoutEmbeddedPbrMaterialCount)}
         data-blockout-preview-primitives={blockoutPreviewPrimitiveKinds.join(',')}

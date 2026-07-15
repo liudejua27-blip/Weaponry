@@ -73,7 +73,7 @@ def build_kit(output: Path) -> dict[str, object]:
             "minimum_independent_reviewers": 3,
             "scores_per_fixture": ["proportion", "material_readability", "surface_detail"],
             "score_range": [1, 5],
-            "passing_rule": "Each score dimension has a median of at least 4 across all valid fixture reviews; any embedded-PBR load failure invalidates the run.",
+            "passing_rule": "For every domain fixture, each score dimension has a reviewer median of at least 4; any embedded-PBR load failure invalidates the run.",
             "forbidden_evidence": [
                 "self-authored score without independent reviewer declaration",
                 "software concept PNG used instead of the GLB viewport",

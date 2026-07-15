@@ -1,7 +1,7 @@
 # ForgeCAD 视觉材质系统
 
 版本：2026-07-15
-状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 已完成源码侧的同源内置五通道 PBR、真实 zone→material 绑定、固定工作室环境 readback，并以 Khronos Validator 对四领域原始 GLB 做零 error/zero warning 自动检查；优化/压缩平台采用、packaged sidecar 与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
+状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 已完成源码侧的同源内置五通道 PBR、真实 zone→material 绑定、固定工作室环境 readback，并以 Khronos Validator 对四领域原始 GLB 做零 error/zero warning 自动检查；macOS arm64 packaged sidecar/Tauri PBR Gate 已通过，但优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
 

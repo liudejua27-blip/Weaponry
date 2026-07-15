@@ -21,6 +21,8 @@ const PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-concept-planner-variants.png')
 const CHANGE_PLANNER_SCREENSHOT = join(OUTPUT_DIR, 'r4-change-planner-ghost-preview.png')
 const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png')
 const AGENT_FIRST_SCREENSHOT = join(OUTPUT_DIR, 'agent-first-workbench.png')
+const AGENT_FIRST_FAILURE_SCREENSHOT = join(OUTPUT_DIR, 'agent-first-workbench-failure.png')
+const AGENT_FIRST_FAILURE_REPORT = join(OUTPUT_DIR, 'agent-first-workbench-failure.json')
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
 const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 360_000)
@@ -245,6 +247,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
     await page.waitForFunction(
       () => document.querySelector('.cad-workspace-title')?.textContent?.includes('已自动保存'),
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
@@ -275,7 +278,13 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await page.getByLabel('分件候选').getByText('导入参考模型 v1', { exact: true }).waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('分件候选'), ['导入模型已通过 GLB 安全检查', '请让 Agent 重建后再进行部件级编辑'])
     await page.waitForFunction(
-      () => document.querySelector('.weapon-viewport')?.getAttribute('data-blockout-load-state') === 'ready',
+      () => {
+        const viewport = document.querySelector('.weapon-viewport')
+        return viewport?.getAttribute('data-blockout-load-state') === 'ready'
+          && viewport.getAttribute('data-blockout-glb-kind') === 'external_reference'
+          && viewport.getAttribute('data-blockout-render-source') === 'external_reference'
+      },
+      undefined,
       { timeout: 20_000 },
     )
 
@@ -296,9 +305,11 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       () => {
         const viewport = document.querySelector('.weapon-viewport')
         return viewport?.getAttribute('data-blockout-load-state') === 'ready'
+          && viewport.getAttribute('data-blockout-glb-kind') === 'compiled_agent_pbr'
           && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
           && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
       },
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.getByLabel('分件候选'), ['分件候选', '可调整', '预览状态'])
@@ -357,6 +368,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     smokeStage = 'Agent immutable undo and redo'
     await page.waitForFunction(
       () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '撤销' && !button.disabled),
+      undefined,
       { timeout: 20_000 },
     )
     const undoResponsePromise = page.waitForResponse(
@@ -378,6 +390,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     }
     await page.waitForFunction(
       () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '重做' && !button.disabled),
+      undefined,
       { timeout: 20_000 },
     )
     const redoResponsePromise = page.waitForResponse(
@@ -605,6 +618,32 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       agent_asset_version_id: agentAssetVersionId,
       agent_first_screenshot: AGENT_FIRST_SCREENSHOT,
     }
+  } catch (error) {
+    const diagnostic = await page.evaluate((stage) => {
+      const viewport = document.querySelector('.weapon-viewport')
+      return {
+        stage,
+        url: window.location.href,
+        viewport: {
+          load_state: viewport?.getAttribute('data-blockout-load-state') ?? null,
+          glb_kind: viewport?.getAttribute('data-blockout-glb-kind') ?? null,
+          render_source: viewport?.getAttribute('data-blockout-render-source') ?? null,
+          embedded_pbr_material_count: Number(viewport?.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0'),
+        },
+        status_messages: [...document.querySelectorAll('.viewport-data-state')]
+          .map((element) => element.textContent?.trim() ?? '')
+          .filter(Boolean),
+      }
+    }, smokeStage).catch(() => ({ stage: smokeStage, viewport: null, status_messages: [] }))
+    await mkdir(OUTPUT_DIR, { recursive: true })
+    await page.screenshot({ path: AGENT_FIRST_FAILURE_SCREENSHOT, fullPage: true }).catch(() => undefined)
+    await writeFile(
+      AGENT_FIRST_FAILURE_REPORT,
+      `${JSON.stringify({ ...diagnostic, error: error instanceof Error ? error.message : String(error) }, null, 2)}\n`,
+      'utf8',
+    )
+    console.error(`[r3-diagnostic] ${JSON.stringify(diagnostic)}`)
+    throw error
   } finally {
     await context.close()
     await browser.close()
@@ -642,6 +681,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
     await page.waitForFunction(
       () => document.querySelector('.cad-left-rail')?.textContent?.includes('寒地巡逻 S1'),
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-left-rail'), ['寒地巡逻 S1', '已加载 9 个 ModuleGraph 节点。'])
@@ -655,7 +695,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     ])
     await page.waitForFunction(() => Array.from(
       document.querySelectorAll('.component-card img'),
-    ).some((image) => image.complete && image.naturalWidth > 0), { timeout: 20_000 })
+    ).some((image) => image.complete && image.naturalWidth > 0), undefined, { timeout: 20_000 })
     await assertText(page.locator('.cad-status-bar'), ['9 nodes', '单位：mm'])
 
     await page.getByRole('button', { name: /Front Shell 01/ }).click()
@@ -697,6 +737,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (!confirmResponse.ok()) throw new Error(`ChangeSet confirm failed: ${confirmResponse.status()}`)
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('替换已确认并创建新版本'),
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-left-rail'), ['V3', 'ChangeSet: change_desktop_replace_'])
@@ -724,6 +765,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
     await page.waitForFunction(
       () => document.querySelector('.cad-left-rail')?.textContent?.includes('V3'),
+      undefined,
       { timeout: 20_000 },
     )
     await page.locator('.weapon-viewport[data-xray="enabled"]').waitFor()
@@ -739,11 +781,13 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V2'),
+      undefined,
       { timeout: 20_000 },
     )
     await page.getByRole('button', { name: '重做', exact: true }).click()
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V3'),
+      undefined,
       { timeout: 20_000 },
     )
     await page.waitForFunction(
@@ -753,6 +797,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
         const bounds = canvas.getBoundingClientRect()
         return bounds.width >= 400 && bounds.height >= 300
       },
+      undefined,
       { timeout: 20_000 },
     )
     const canvas = page.locator('.weapon-viewport canvas')
@@ -805,6 +850,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (!mirrorConfirmResponse.ok()) throw new Error(`mirror ChangeSet confirm failed: ${mirrorConfirmResponse.status()}`)
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('镜像已确认并创建新版本'),
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-left-rail'), ['V4', 'ChangeSet: change_desktop_mirror_'])
@@ -853,6 +899,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (!transformConfirmResponse.ok()) throw new Error(`transform ChangeSet confirm failed: ${transformConfirmResponse.status()}`)
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('变换已确认并创建新版本'),
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-left-rail'), ['V5', 'ChangeSet: change_desktop_transform_'])
@@ -887,6 +934,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByTestId('manual-transform-preview').getByRole('button', { name: '放弃预览' }).click()
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已放弃变换预览'),
+      undefined,
       { timeout: 20_000 },
     )
 
@@ -896,6 +944,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '重置' }).click()
     await page.waitForFunction(
       () => document.querySelectorAll('.timeline-item').length === 20,
+      undefined,
       { timeout: 20_000 },
     )
     await page.getByRole('button', { name: '加载更多' }).click()
@@ -915,6 +964,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '查询' }).click()
     await page.waitForFunction(
       () => document.querySelectorAll('.timeline-item').length === 1,
+      undefined,
       { timeout: 20_000 },
     )
     await assertText(page.locator('[data-testid="change-set-diagnostic"]'), [
@@ -997,6 +1047,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.locator('[data-variant-rank="2"].selected').waitFor()
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('Planner 预览'),
+      undefined,
       { timeout: 20_000 },
     )
     await page.locator('.weapon-viewport[data-load-state="ready"]').waitFor()
@@ -1069,6 +1120,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     }
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('AI 修改已确认并创建新版本'),
+      undefined,
       { timeout: 20_000 },
     )
     await page.locator('.weapon-viewport[data-preview-mode="committed"]').waitFor()
@@ -1198,6 +1250,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await switchVersionAndWait(page, 'V4')
     await page.waitForFunction(
       () => document.querySelector('.concept-runtime-state')?.textContent?.includes('已切换到 V4'),
+      undefined,
       { timeout: 20_000 },
     )
 

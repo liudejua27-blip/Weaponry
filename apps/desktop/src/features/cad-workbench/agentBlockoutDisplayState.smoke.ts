@@ -19,9 +19,10 @@ export function runAgentBlockoutDisplayStateSmoke(): void {
     glbBase64: 'glb-a', shapeProgram: { schema_version: 'ShapeProgram@1' },
   })
   assert(state.directionPreviewLoading && state.glbBase64 === 'glb-a', 'current build must update only the candidate display')
+  assert(state.glbKind === 'compiled_agent_pbr', 'generated build must carry its strict compiled PBR display contract')
 
   state = agentBlockoutDisplayReducer(state, { type: 'preview_started', projectId: 'project-a', requestId: 3, directionId: 'direction_f009', variationIndex: 1 })
-  assert(state.glbBase64 === null && state.shapeProgram === null && state.segmentation === null, 'direction reselect must clear the previous candidate')
+  assert(state.glbBase64 === null && state.glbKind === null && state.shapeProgram === null && state.segmentation === null, 'direction reselect must clear the previous candidate')
   assert(state.directionId === 'direction_f009' && state.variationIndex === 1 && state.previewError === null, 'appearance rotation must keep only plain preview context')
   const afterLateSegmentation = agentBlockoutDisplayReducer(state, {
     type: 'segmentation_received', projectId: 'project-a', requestId: 2, segmentation,
@@ -41,8 +42,23 @@ export function runAgentBlockoutDisplayStateSmoke(): void {
     glbBase64: 'stale', shapeProgram: { schema_version: 'ShapeProgram@1' },
   })
   assert(afterOldProjectBuild === state, 'old project build must never pollute the next project')
+  state = agentBlockoutDisplayReducer(state, {
+    type: 'hydrate', projectId: 'project-b', requestId: 4, glbBase64: 'reference-glb', glbKind: 'external_reference',
+    shapeProgram: null, segmentation,
+  })
+  assert(state.glbKind === 'external_reference', 'external reference display provenance must travel with its GLB')
+  state = agentBlockoutDisplayReducer(state, { type: 'preview_started', projectId: 'project-b', requestId: 5, directionId: 'direction_f009', variationIndex: 0 })
+  state = agentBlockoutDisplayReducer(state, {
+    type: 'build_received', projectId: 'project-b', requestId: 5,
+    glbBase64: 'new-generated-glb', shapeProgram: { schema_version: 'ShapeProgram@1' },
+  })
+  const afterLateExternalGlb = agentBlockoutDisplayReducer(state, {
+    type: 'set_glb', projectId: 'project-b', requestId: 4, glbBase64: 'late-reference-glb', glbKind: 'external_reference',
+  })
+  assert(afterLateExternalGlb === state, 'a late external export must not overwrite a newer generated candidate display')
+  assert(state.glbBase64 === 'new-generated-glb' && state.glbKind === 'compiled_agent_pbr', 'generated GLB and provenance must remain atomic after a stale external export')
   state = agentBlockoutDisplayReducer(state, { type: 'clear', projectId: 'project-b' })
-  assert(state.directionId === null && state.variationIndex === 0 && state.previewError === null, 'clearing a candidate must also discard stale preview rotation context')
+  assert(state.directionId === null && state.variationIndex === 0 && state.previewError === null && state.glbKind === null, 'clearing a candidate must also discard stale preview rotation context')
   assert(!('asset_version_id' in state) && !('snapshot' in state) && !('change_set_id' in state), 'blockout display state must not own persistent design truth')
 }
 

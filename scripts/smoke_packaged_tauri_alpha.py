@@ -9,6 +9,7 @@ process, launches its bundled frozen Agent sidecar.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -19,7 +20,7 @@ import urllib.request
 from base64 import b64decode
 from pathlib import Path
 
-from smoke_packaged_sidecar_alpha import _assert, _create_and_export_editable_asset, _request
+from smoke_packaged_sidecar_alpha import _assert, _create_editable_asset_with_navigation, _request
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,7 +72,7 @@ def _run_native_smoke(temporary_path: Path) -> dict[str, object]:
         log_path = temporary_path / "WushenForge/agent.log"
         _wait_for_log(log_path, "ForgeCAD supervisor healthy mode=packaged-sidecar")
         _assert((library_root / "library.db").is_file(), "native first initialization did not create the Library")
-        asset_version_id = _create_and_export_editable_asset(8000, library_root)
+        asset_version_id, export_glb_sha256 = _create_editable_asset_with_navigation(8000, library_root)
     finally:
         _stop_desktop_and_listener(first)
 
@@ -86,8 +87,13 @@ def _run_native_smoke(temporary_path: Path) -> dict[str, object]:
         )
         recovered = _request(8000, f"/api/v1/agent/asset-versions/{asset_version_id}")
         exported = _request(8000, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
+        recovered_glb = b64decode(exported["glb_base64"])
         _assert(recovered["asset_version_id"] == asset_version_id, "desktop restart did not restore the editable asset")
-        _assert(b64decode(exported["glb_base64"])[:4] == b"glTF", "recovered native GLB export is invalid")
+        _assert(recovered_glb[:4] == b"glTF", "recovered native GLB export is invalid")
+        _assert(
+            hashlib.sha256(recovered_glb).hexdigest() == export_glb_sha256,
+            "desktop restart changed the packaged PBR GLB export",
+        )
     finally:
         _stop_desktop_and_listener(restarted)
 
@@ -97,6 +103,8 @@ def _run_native_smoke(temporary_path: Path) -> dict[str, object]:
         "empty_library_initialized": True,
         "editable_glb_export": True,
         "packaged_manifold_csg": True,
+        "packaged_visual_pbr_readback": True,
+        "packaged_undo_redo_export": True,
         "restart_recovery": True,
         "provider_calls": 0,
     }
