@@ -5,6 +5,16 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 纹理连续性与部件嵌合增量（进行中，未完成）
+
+- 真实工作台截图中的汽车漆马赛克不是 Three.js 色彩空间问题，而是旧内置 PNG 的离散格噪声被 320 mm UV 展示基线放大。新生成纹理的 texture-set ID 以 `_builtin_v2` 结尾、map ID 含 `_v2_`、`version=2`，周期平滑微表面替代旧格噪和 composite 硬织纹，coated/brushed/glass 的 baseColor 调制低于 roughness/normal。旧 `builtin` v1 的 40 张图、原 ID 和原字节以固定聚合 hash 保留为历史 GLB readback，不会被 v2 覆盖。
+- M108 smoke 现解码八种材质的全部五通道，并对 8/12/16/18/28/32 px 的每个相位拒绝硬格线；只有 metallicRoughness/normal 必须有微变化，baseColor/AO/emissive 可合理纯色。正常 v2 首次编译只生成 8 个当前集合；真实读取 v1 后，全量 PNG cache 上限为 16 个材质×版本集合、共 543,327 字节压缩图，不建立逐像素缓存。
+- GLB readback 不只相信图片 extras 自报 SHA：authored material 必须命中穷举目录→规范 `texture_material_id` 映射，texture-set/map metadata 与 PNG 字节必须匹配 current/legacy 清单，TextureInfo 固定 UV0 且不允许自定义 sampler/texture transform。同一资产实际使用的材质必须属于同一视觉纹理合同版本；未知材质、ID/index 不一致、v1/v2 混用、布尔伪索引、同步伪造 SHA、缺引用或损坏通道都会明确拒绝。精确 v1 报告仅迁移其缺失的规范材质字段；相对当前 v2 已过期的 GET/幂等重放返回 `stale_compile_readback/unavailable`，不能继续作为当前导出真值。glTF Transform writer 因改变固定采样状态而继续作为导出优化器被拒绝。
+- 四个固定审阅 fixture 只复用现有 cylinder、box+bevel 和 wedge，新增非功能连接外罩：虚构道具 core↔grip 的安装环、车辆 chassis↔左右前后轮的侧围、飞机 wing↔四旋翼的支座、机械臂 joint↔偏置 link 的肩部桥。G818 从最终 GLB POSITION accessor 要求外罩 AABB 与每个目标正体积重叠，且有小体积位于目标 AABB 并集外；这不是实体相交证明。M108 同时要求这些输出封闭、无边界/非流形/退化三角，并具备真实 UV/tangent/zone/material。
+- 最新源码重建的四领域真实工作台捕获仍是 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`。旧离散格状伪影已由自动 Gate 排除，且未在本轮四张截图中再出现；连接层进入同源 GLB。实际最高为航空器 6,176 renderer triangles、87 draw calls，仍低于 7,000/96 上限。主体仍是受限 Alpha blockout，并未引入 C105 Recipe、Loft 自动路由、工程机构或照片级真实性；M108 和 C105 状态不变。
+- 已从最终冻结源码重建 31,793,200-byte、SHA-256 `7254fc99317f1fb601400341157893a428d7ed07dee029b00223cfa95af5b1f0` 的 tracked macOS arm64 sidecar。该精确产物的 require-ready preflight、packaged sidecar smoke、Tauri check、经仓库 Rust wrapper 的 `.app`/DMG build 与 packaged Tauri smoke 均通过；本轮打包前确认没有旧测试 app、sidecar、8000 端口或 ForgeCAD DMG 挂载残留。本机空 Library、当前 PBR readback、Manifold CSG、undo/redo、导出和重启恢复成功，`provider_calls=0`，退出后没有遗留 listener。
+- 最终 `release:packaging-readiness` 仍按设计失败：Intel macOS、Windows x64 与 Linux x64 的 tracked sidecar 仍是空占位，分别缺少有效 Mach-O/PE/ELF 与可执行条件。不得删除或放宽该阻断；本轮通过结论只覆盖本机 macOS arm64 Alpha，不覆盖跨平台安装、签名、公证或正式发布。
+
 ## 2026-07-16：FGC-M108 曲面与真实取景增量（进行中，未完成）
 
 - 真实四领域截图确认 16 段 cylinder/capsule 的车轮、旋翼、关节和胶囊外壳存在明显棱面。Worker 现在使用固定 24 段基线，真实 GLB readback 分别要求 96/432 triangles；M108 Gate 逐 ShapeProgram role 对齐 `surface_provenance` 面数，未增加新的 operation、用户细分参数或 Recipe。
@@ -154,7 +164,7 @@
 
 - 新增 `GeometryCompileReadback@1` JSON Schema/Pydantic 合同，同一次编译产生 program/GLB hash、字节数、triangle、bounds、mesh/primitive/material 数、operation 与 output role 事实。生成类型和 OpenAPI 已同步。
 - 质量检查已删除 box/cylinder 常数估算，并将 readback 嵌入不可变报告；导出使用同一 compile/readback 结果。损坏回读生成 `compile_failure/unavailable` 质量或 `GEOMETRY_READBACK_FAILED` 导出拒绝，未知操作仍由 G819 无副作用拒绝。
-- 旧 `legacy_estimate` 报告读取时隔离为 unavailable，且不再成为组件来源质量证据。Q002 的 Snapshot ETag/Idempotency-Key 重放保留，新 quality request hash 防止旧估算响应被当作 Q003 报告重放。
+- 旧 `legacy_estimate` 报告读取时隔离为 unavailable，且不再成为组件来源质量证据。Q002 的 Snapshot ETag/Idempotency-Key 重放保留，新 quality request hash 防止旧估算响应被当作 Q003 报告重放；真实 legacy v1 readback 只有在精确清单、authored→canonical 映射和 material index 一致时才能迁移缺失字段，当前 v2 导出下的旧结论以 `stale_compile_readback/unavailable` 隔离。
 - 新 Gate `agent:q003-compile-readback-quality-smoke` 已通过，覆盖四领域、导出 hash/数字一致、损坏 readback、未知操作、旧报告隔离与重启幂等。G801–G818、G819、G5/G6/G7、Q002、C102、T002（14 场景）、T003、r3、desktop typecheck/build、`contracts:types:check`、`agent:check`、文档/安全/密钥 Gate 和 `git diff --check` 均已通过。
 - 下一项唯一 ready 任务为 `FGC-G820`。本轮未 commit、未 push，保留用户现有脏工作区。
 

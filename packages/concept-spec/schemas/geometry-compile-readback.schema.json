@@ -161,11 +161,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "visual_texture_set_id", "material_id", "material_index", "material_zone_ids", "maps", "extensions", "texture_byte_size"],
+        "required": ["schema_version", "visual_texture_set_id", "material_id", "texture_material_id", "material_index", "material_zone_ids", "maps", "extensions", "texture_byte_size"],
         "properties": {
           "schema_version": { "const": "VisualTextureSet@1" },
           "visual_texture_set_id": { "type": "string", "pattern": "^vtexset_[a-z0-9_\\-]+$" },
           "material_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" },
+          "texture_material_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" },
           "material_index": { "type": "integer", "minimum": 0 },
           "material_zone_ids": { "type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true, "items": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" } },
           "maps": {

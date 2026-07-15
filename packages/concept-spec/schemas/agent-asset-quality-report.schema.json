@@ -19,7 +19,7 @@
     },
     "evidence_source": {
       "type": "string",
-      "enum": ["geometry_compile_readback", "external_glb_inspection", "compile_failure", "legacy_estimate"],
+      "enum": ["geometry_compile_readback", "external_glb_inspection", "compile_failure", "stale_compile_readback", "legacy_estimate"],
       "default": "legacy_estimate"
     },
     "compile_readback": {
@@ -75,6 +75,20 @@
       "if": {
         "required": ["evidence_source"],
         "properties": { "evidence_source": { "const": "compile_failure" } }
+      },
+      "then": {
+        "properties": {
+          "status": { "const": "unavailable" },
+          "triangle_count": { "const": 0 },
+          "bounds_mm": { "type": "null" },
+          "compile_readback": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidence_source"],
+        "properties": { "evidence_source": { "const": "stale_compile_readback" } }
       },
       "then": {
         "properties": {

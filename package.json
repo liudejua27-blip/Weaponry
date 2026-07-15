@@ -82,7 +82,7 @@
     "agent:m108-visual-benchmark-score-validator-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/validate_m108_visual_benchmark_scores.py --self-test",
     "agent:m108-gltf-validator-smoke": "node scripts/smoke_m108_gltf_validator.mjs",
     "agent:m108-gltf-transform-evaluation": "node scripts/smoke_m108_gltf_transform_core.mjs",
-    "agent:m108-gate": "npm run agent:m108-visual-pbr-smoke && npm run agent:m108-gltf-validator-smoke && npm run agent:m108-gltf-transform-evaluation && npm run agent:m108-visual-benchmark-kit-smoke && npm run agent:m108-visual-benchmark-score-validator-smoke && npm run agent:g826-surface-readback-smoke",
+    "agent:m108-gate": "npm run agent:m108-visual-pbr-smoke && npm run agent:m108-gltf-validator-smoke && npm run agent:m108-gltf-transform-evaluation && npm run agent:m108-visual-benchmark-kit-smoke && npm run agent:m108-visual-benchmark-score-validator-smoke && npm run agent:g818-visual-detail-grammar-smoke && npm run agent:g826-surface-readback-smoke",
     "desktop:m108-workbench-renderer-smoke": "node scripts/smoke_m108_workbench_renderer.mjs",
     "desktop:s5-active-design-machine-smoke": "node scripts/smoke_active_design_machine.mjs",
     "agent:g2-contracts-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_g2_general_contracts.py",

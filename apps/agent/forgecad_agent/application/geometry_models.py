@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import isfinite
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import Field, model_validator
 
@@ -146,12 +146,92 @@ class GeometryVisualTextureMapReadback(StrictApiModel):
 class GeometryVisualTextureSetReadback(StrictApiModel):
     schema_version: Literal["VisualTextureSet@1"] = "VisualTextureSet@1"
     visual_texture_set_id: str = Field(pattern=r"^vtexset_[a-z0-9_\-]+$")
+    # Authored zone identity may be a reviewed catalog alias such as
+    # mat_graphite; texture_material_id names the canonical fixed GLB set.
     material_id: str = Field(pattern=r"^mat_[a-z0-9_\-]+$")
+    texture_material_id: str = Field(pattern=r"^mat_[a-z0-9_\-]+$")
     material_index: int = Field(ge=0)
     material_zone_ids: List[str] = Field(min_length=1, max_length=512)
     maps: List[GeometryVisualTextureMapReadback] = Field(min_length=5, max_length=5)
     extensions: List[str] = Field(default_factory=list, max_length=8)
     texture_byte_size: int = Field(gt=0, le=20_000_000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_historical_texture_material_id(cls, value: Any) -> Any:
+        """Hydrate only an exact legacy-v1 report from before this field existed.
+
+        Current v2 output must always carry ``texture_material_id`` explicitly.
+        The legacy bridge therefore verifies the immutable v1 texture manifest,
+        authored-to-canonical material binding, and fixed material index before
+        filling the missing field.  It must not turn a forged persisted report
+        into accepted current evidence.
+        """
+
+        if not isinstance(value, dict) or value.get("texture_material_id") is not None:
+            return value
+        texture_set_id = value.get("visual_texture_set_id")
+        if (
+            not isinstance(texture_set_id, str)
+            or not texture_set_id.endswith("_builtin")
+            or texture_set_id.endswith("_builtin_v2")
+        ):
+            return value
+        material_id = value.get("material_id")
+        material_index = value.get("material_index")
+        maps = value.get("maps")
+        if not isinstance(material_id, str) or type(material_index) is not int or not isinstance(maps, list):
+            raise ValueError("legacy visual texture readback identity is incomplete")
+
+        # Lazy import avoids the agent_models -> geometry_models import cycle;
+        # validation runs only after those modules have finished loading.
+        from .visual_texture_sets import (  # pylint: disable=import-outside-toplevel
+            builtin_visual_material_binding,
+            builtin_visual_texture_set_for_readback,
+        )
+
+        try:
+            expected_index, canonical_material_id = builtin_visual_material_binding(material_id)
+            expected_set = builtin_visual_texture_set_for_readback(material_index, texture_set_id)
+        except ValueError as exc:
+            raise ValueError("legacy visual texture readback identity is not canonical") from exc
+        if expected_index != material_index or expected_set.material_id != canonical_material_id:
+            raise ValueError("legacy authored material does not match its canonical texture set")
+
+        comparable_fields = (
+            "texture_id",
+            "texture_role",
+            "mime_type",
+            "byte_size",
+            "sha256",
+            "color_space",
+            "width",
+            "height",
+            "source",
+            "license",
+            "fallback",
+        )
+        expected_maps = {
+            item.texture_role: item.model_dump(mode="json")
+            for item in expected_set.maps
+        }
+        actual_maps: dict[str, dict[str, Any]] = {}
+        for item in maps:
+            if not isinstance(item, dict) or not isinstance(item.get("texture_role"), str):
+                raise ValueError("legacy visual texture map identity is invalid")
+            role = str(item["texture_role"])
+            if role in actual_maps:
+                raise ValueError("legacy visual texture map roles must be unique")
+            actual_maps[role] = item
+        if set(actual_maps) != set(expected_maps) or any(
+            any(actual_maps[role].get(field) != expected_maps[role].get(field) for field in comparable_fields)
+            for role in expected_maps
+        ):
+            raise ValueError("legacy visual texture maps do not match the immutable v1 manifest")
+
+        migrated = dict(value)
+        migrated["texture_material_id"] = canonical_material_id
+        return migrated
 
     @model_validator(mode="after")
     def validate_texture_set(self) -> "GeometryVisualTextureSetReadback":

@@ -827,6 +827,7 @@ class AgentAssetQualityReport(StrictApiModel):
         "geometry_compile_readback",
         "external_glb_inspection",
         "compile_failure",
+        "stale_compile_readback",
         "legacy_estimate",
     ] = "legacy_estimate"
     compile_readback: Optional[GeometryCompileReadback] = None
@@ -848,6 +849,12 @@ class AgentAssetQualityReport(StrictApiModel):
             raise ValueError("external GLB quality requires inspected bounds")
         if self.evidence_source == "compile_failure" and (self.status != "unavailable" or self.triangle_count != 0 or self.bounds_mm is not None):
             raise ValueError("compile failure quality must be unavailable without geometry facts")
+        if self.evidence_source == "stale_compile_readback" and (
+            self.status != "unavailable"
+            or self.triangle_count != 0
+            or self.bounds_mm is not None
+        ):
+            raise ValueError("stale compile quality must be unavailable without geometry facts")
         return self
 
 

@@ -1551,16 +1551,13 @@ class AgentAssetRepository:
                    description, source_asset_version_id, source_part_id,
                    part_template_json, shape_operation_json, material_bindings_json,
                    status,
-                   COALESCE((
-                     SELECT report.status
+                   (
+                     SELECT report.report_json
                      FROM agent_asset_quality_reports AS report
                      WHERE report.asset_version_id = agent_components.source_asset_version_id
-                       AND json_extract(report.report_json, '$.evidence_source') IN (
-                         'geometry_compile_readback', 'external_glb_inspection'
-                       )
                      ORDER BY report.created_at DESC, report.quality_report_id DESC
                      LIMIT 1
-                   ), 'unavailable') AS source_quality_status,
+                   ) AS source_quality_report_json,
                    created_at, updated_at
             FROM agent_components WHERE component_id = ?
             """,
@@ -1598,16 +1595,13 @@ class AgentAssetRepository:
                    description, source_asset_version_id, source_part_id,
                    part_template_json, shape_operation_json, material_bindings_json,
                    status,
-                   COALESCE((
-                     SELECT report.status
+                   (
+                     SELECT report.report_json
                      FROM agent_asset_quality_reports AS report
                      WHERE report.asset_version_id = agent_components.source_asset_version_id
-                       AND json_extract(report.report_json, '$.evidence_source') IN (
-                         'geometry_compile_readback', 'external_glb_inspection'
-                       )
                      ORDER BY report.created_at DESC, report.quality_report_id DESC
                      LIMIT 1
-                   ), 'unavailable') AS source_quality_status,
+                   ) AS source_quality_report_json,
                    created_at, updated_at
             FROM agent_components
             WHERE {' AND '.join(clauses)}

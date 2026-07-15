@@ -1,7 +1,7 @@
 # ForgeCAD 视觉材质系统
 
 版本：2026-07-16
-状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 正在执行：源码侧已有同源内置 128×128 五通道 PBR、真实 zone→material/role 绑定、实际使用扩展检查、受限 bevel readback 和固定工作室环境；汽车漆是独立 coated/clearcoat 纹理集，不再别名到 aluminum。基础 cylinder/capsule 已使用固定 24 段，真实工作台会核对 GLB bounds 并保证完整模型进入 NDC 安全区。后端聚合、Khronos Validator 与真实工作台环境/GPU Gate 已进入 CI；tracked macOS arm64 packaged 回归继续覆盖 PBR readback、CSG、undo/redo、导出和重启。优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
+状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 正在执行：源码侧已有同源内置 128×128 五通道 PBR、真实 zone→material/role 绑定、实际使用扩展检查、受限 bevel readback 和固定工作室环境；`builtin_v2` 使用周期平滑微表面并由 readback 与代码清单逐字节核对，汽车漆是独立 coated/clearcoat 纹理集，不再别名到 aluminum。旧 `builtin` v1 只作为不可变历史 GLB 的精确回读清单保留，新生成资产只写 v2。基础 cylinder/capsule 已使用固定 24 段，真实工作台会核对 GLB bounds 并保证完整模型进入 NDC 安全区。后端聚合、Khronos Validator 与真实工作台环境/GPU Gate 已进入 CI；tracked macOS arm64 packaged 回归继续覆盖 PBR readback、CSG、undo/redo、导出和重启。优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
 
@@ -141,11 +141,13 @@ transmission / thickness?（仅透明外观兼容集）
 
 每个通道记录内容 hash、用途、色彩空间（sRGB 或 linear）、分辨率、来源、许可证、版本和回退。base color/emissive 使用 sRGB；metallic-roughness、normal、occlusion 等数据纹理使用 linear。网格使用稳定 UV0；normal/clearcoat normal 生效前必须有可验证 tangent space。没有 UV 或 tangent 时明确拒绝当前正式 PBR GLB，不能把纹理字段写入 GLB 后仍声称已生效。当前 box/surface-panel/wedge/cylinder/capsule/bevel-box 将 `forgecad_visual_uv_repeat_mm=320` 写入 primitive extras，以统一视觉展示密度重复纹理，不再将一张 0..1 纹理伸满任意大小部件。M108 fixture 必须全部回读 320；G826 负向例拒绝 321 和超过 64 的有界 UV 重复坐标。这是视觉纹理尺度元数据，不是工程材料或制造尺寸。
 
-当前内置集合使用 128×128、材质专属且完全确定性的程序化 PNG。八个 GLB 材质包括 primary、aluminum、signal red、composite、rubber、dark glass、emissive blue 与独立 automotive paint；machined、brushed、coated、composite、rubber、glass、emissive 微表面函数生成 base color、粗糙/金属、normal、occlusion 和 emissive。汽车漆虽同属 coated 语法，但有独立颜色、metallic/roughness/normal、纹理 hash/index 和 `clearcoatFactor=0.86`，不会复用 aluminum；每张图仍受 hash、尺寸、色彩空间、来源和无回退 readback 约束。128×128 只是当前轻量视觉预算，不代表高分辨率照片纹理或工程表面测量。
+当前内置集合使用 128×128、材质专属且完全确定性的程序化 PNG。八个 GLB 材质包括 primary、aluminum、signal red、composite、rubber、dark glass、emissive blue 与独立 automotive paint；machined、brushed、coated、composite、rubber、glass、emissive 微表面函数生成 base color、粗糙/金属、normal、occlusion 和 emissive。新生成集合的 texture-set ID 以 `_builtin_v2` 结尾、map ID 含 `_v2_`、`version=2`；它将旧整数格采样与 composite 硬织纹替换为周期平滑微表面，并降低 coated/brushed/glass 的 base-color 调制，使细节主要通过 roughness/normal 表达。M108 smoke 解码八种材质的全部五通道，拒绝 8/12/16/18/28/32 px 边界梯度突变；只有 metallicRoughness/normal 必须存在微变化，baseColor/AO/emissive 允许物理上合理的纯色，不以噪声冒充细节。汽车漆虽同属 coated 语法，但有独立颜色、metallic/roughness/normal、纹理 hash/index 和 `clearcoatFactor=0.86`，不会复用 aluminum。v2 map ID 带版本段；旧 v1 的 40 张 map、原 ID 和原字节仍由固定聚合 SHA-256 `0b4701fe31946dfc9572990daa5e1e9260d05ddcfcfdef640c9eac776e10b62f` 证明可回读，但不会用于新生成。全量加载 v1/v2 时，PNG cache 上限为 16 个材质×版本集合、共 543,327 字节的压缩图像，不建立逐像素缓存。128×128 只是当前轻量视觉预算，不代表高分辨率照片纹理或工程表面测量。
 
-glTF 2.0 metallic-roughness 是默认互操作基线。当前内置 GLB 已为涂层使用 `KHR_materials_clearcoat`，并只为受限透明外观同时写出 `KHR_materials_transmission`/`KHR_materials_ior`；该 transmission 路径使用不重复叠加 alpha 混合的 `alphaMode=OPAQUE` 和 alpha 1，readback 拒绝缺 IOR、参数偏离或又设为 `BLEND` 的双重透明。`gltf-validator@2.0.0-dev.3.10` 作为开发/CI 门禁，对四领域各一份同一编译路径的原始 GLB 要求零 error、零 warning，并验证畸形 GLB 被拒绝；它不替代 `GeometryCompileReadback@1` 的资产真值。为了让这些标准 GLB 合规，内部稳定面追踪属性使用精确整数值的 FLOAT custom attribute，而不是 glTF 禁止用于顶点属性的 `UNSIGNED_INT`。纹理压缩 `KHR_texture_basisu`/KTX2 以及 glTF Transform inspect/validate/dedup/prune/压缩仍是**未采用**：受限评估只证明标准读取阶段的 Part/zone/material 映射保留，writer 会删除 ForgeCAD readback 必需的显式默认 PBR 参数，其写出因此必须被拒绝；此外仍无目标平台基线或 provenance 保留基准，不能以减小文件为由引入第二资产真值。只有 Three.js、GLB readback、映射保留和目标平台 smoke 全部通过后，才可另立 ADR 采用。
+readback 不只核对自报 SHA：它按 material index 精确核对 texture-set ID、规范 `texture_material_id`、五个 texture ID、完整 map metadata 与实际 PNG 字节；v2 的五个 texture ID 必须含 `_v2_`，v1 仅接受固定历史清单中的原无版本 ID，同一资产实际使用的材质不得混用两个版本。篡改 PNG 后同步更新自报 SHA 仍会拒绝。primitive 的 authored `material_id` 必须命中穷举目录→规范纹理材质映射，未知 ID 或 ID/index 不一致直接失败，不再静默落到 index 0。TextureInfo 固定使用 UV0，当前 writer 不写 sampler 或 `KHR_texture_transform`；readback 拒绝自定义 sampler、非零 texCoord、texture transform、额外采样字段和布尔伪索引，避免 GLB 在字节可信但实际采样效果已改变时仍被接受。正常 v2 首次编译只加载 8 个当前集合，只有真实 v1 readback 才扩到 16 个；精确 v1 质量报告可迁移缺失字段，但在当前 v2 合同下以 `stale_compile_readback/unavailable` 隔离。
 
-扩展存在不等于效果可见。M108 检查 primitive 实际使用的 material index 与 `forgecad_part_role/forgecad_material_id`：只有被实际引用的深色玻璃才可证明 transmission+IOR，只有被实际引用的信号红或汽车漆涂层才可证明 clearcoat。旧 variant 的数值材质先进入唯一目录映射，再由有限 role 规则补足轮胎/履带/握把→rubber、座舱/玻璃→dark glass、灯带→emissive、关节/旋翼→aluminum；代表车辆壳体显式绑定 automotive paint。规则之外不推断工程材料，也不开放自由材质代码。
+glTF 2.0 metallic-roughness 是默认互操作基线。当前内置 GLB 已为涂层使用 `KHR_materials_clearcoat`，并只为受限透明外观同时写出 `KHR_materials_transmission`/`KHR_materials_ior`；该 transmission 路径使用不重复叠加 alpha 混合的 `alphaMode=OPAQUE` 和 alpha 1，readback 拒绝缺 IOR、参数偏离或又设为 `BLEND` 的双重透明。`gltf-validator@2.0.0-dev.3.10` 作为开发/CI 门禁，对四领域各一份同一编译路径的原始 GLB 要求零 error、零 warning，并验证畸形 GLB 被拒绝；它不替代 `GeometryCompileReadback@1` 的资产真值。为了让这些标准 GLB 合规，内部稳定面追踪属性使用精确整数值的 FLOAT custom attribute，而不是 glTF 禁止用于顶点属性的 `UNSIGNED_INT`。纹理压缩 `KHR_texture_basisu`/KTX2 以及 glTF Transform inspect/validate/dedup/prune/压缩仍是**未采用**：受限评估只证明标准读取和写回后的 Part/zone/authored-material/规范纹理材质映射保留；writer 会改变固定纹理采样状态，并可能删除 ForgeCAD readback 必需的显式默认 PBR 参数，因此四份写出均必须被拒绝。此外仍无目标平台基线或 provenance 保留基准，不能以减小文件为由引入第二资产真值。只有 Three.js、GLB readback、映射保留和目标平台 smoke 全部通过后，才可另立 ADR 采用。
+
+扩展存在不等于效果可见。M108 检查 primitive 实际使用的 material index 与 `forgecad_part_role/forgecad_material_id`：只有被实际引用的深色玻璃才可证明 transmission+IOR，只有被实际引用的信号红或汽车漆涂层才可证明 clearcoat。13 个用户目录 ID、内部 primary/emissive ID 与八个规范纹理材质之间使用代码所有的穷举映射；有限 role 规则只补足轮胎/履带/握把→rubber、座舱/玻璃→dark glass、灯带→emissive、关节/旋翼→aluminum，代表车辆壳体显式绑定 automotive paint。规则之外不推断工程材料、不接受未知材质 ID，也不开放自由材质代码。
 
 ### 6.2 多材质区目标
 
@@ -160,6 +162,8 @@ G826 还对封闭 box/wedge/cylinder/capsule、六个主轴方向的 cylinder/ca
 showcase 只对 box 输出使用受限 `bevel_approx`，半径为 X/Z 较小尺寸的 8%、3 段，并继续服从 G826/runtime 的既有比例和预算上限；评测包至少回读一个 `bevel_approximation`。它只让概念硬表面具有有限高光边缘，不是自由 edge selection、精确 fillet、B-Rep 或制造圆角。
 
 showcase 外观层按四领域独立的 primary-role 白名单生成；找不到或找到多个锚点时直接拒绝，不按 primitive 顺序猜测。虚构道具、车辆、飞机、机械臂的 panel/groove/guard/light/vent/fastener 使用互不重叠的稳定 role 和不同布局；这仍只是非功能表面语言，不引入 Recipe Schema、实际散热、电气、结构或制造特征。
+
+四个 M108 固定审阅 fixture 还以既有受限操作生成非功能连接外罩：道具安装环、车辆左右侧围、航空旋翼支座和机械臂肩部桥。G818 从最终 GLB POSITION accessor 回读 role AABB，要求每个外罩与每个目标都有正体积 AABB 交叠，且外罩 AABB 仍有一小段体积位于所有目标 AABB 的并集之外；M108 再要求其封闭、无边界/非流形/退化三角，并具有 UV0、tangent、zone 和材质。AABB 断言只锁定这四个固定视觉 fixture，不能证明曲面或实体相交；这些外罩只修复概念外观中的悬浮/断裂感，不是工程连接、装配约束或 C105 Recipe。
 
 `EditableComponentRecipe@1` 可以声明需要的区域角色和默认材质，但实例化后仍以 GLB readback 的真实 zone 为准；Recipe 声明与输出不一致时质量失败，不由 UI 补齐。
 

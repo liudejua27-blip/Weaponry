@@ -41,6 +41,7 @@ from forgecad_agent.application.agent_models import (
     SaveAgentComponentRequest,
 )
 from forgecad_agent.application.material_catalog import material_preset_map
+from forgecad_agent.application.geometry_models import GeometryCompileReadback
 from forgecad_agent.application.geometry_worker import (
     GeometryCompileReadbackError,
     build_glb_from_shape_program,
@@ -52,6 +53,10 @@ from forgecad_agent.application.domain_packs import list_domain_packs
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
 from forgecad_agent.application.shape_program_runtime import UnsupportedRuntimeOperationError
 from forgecad_agent.application.semantic_proportions import part_id_for_role_selector, recipes_for_domain, style_token_map
+from forgecad_agent.application.visual_texture_sets import (
+    builtin_visual_material_binding,
+    builtin_visual_texture_set_for_material_index,
+)
 from forgecad_agent.infrastructure.db.agent_repositories import (
     ActiveDesignSnapshotConflict,
     ActiveDesignSnapshotError,
@@ -95,6 +100,114 @@ def _quality_request_hash(asset_version_id: str, expected_revision: Optional[int
         "expected_revision": expected_revision,
         "quality_contract": "GeometryCompileReadback@1",
     })
+
+
+def _parse_stored_quality_report(payload: str) -> AgentAssetQualityReport:
+    try:
+        return AgentAssetQualityReport.model_validate_json(payload)
+    except ValidationError as exc:
+        raise AgentAssetError(
+            "ASSET_QUALITY_INVALID",
+            "历史质量报告无法通过当前证据合同，请重新检查当前资产。",
+            status_code=409,
+        ) from exc
+
+
+def _compile_readback_uses_current_visual_contract(readback: GeometryCompileReadback) -> bool:
+    """Accept a saved report only when every texture set is the current manifest."""
+
+    comparable_fields = (
+        "texture_id",
+        "texture_role",
+        "mime_type",
+        "byte_size",
+        "sha256",
+        "color_space",
+        "width",
+        "height",
+        "source",
+        "license",
+        "fallback",
+    )
+    for texture_set in readback.visual_texture_sets:
+        try:
+            expected_index, canonical_material_id = builtin_visual_material_binding(
+                texture_set.material_id
+            )
+            expected_set = builtin_visual_texture_set_for_material_index(
+                texture_set.material_index
+            )
+        except ValueError:
+            return False
+        if (
+            expected_index != texture_set.material_index
+            or canonical_material_id != texture_set.texture_material_id
+            or expected_set.material_id != texture_set.texture_material_id
+            or expected_set.visual_texture_set_id != texture_set.visual_texture_set_id
+        ):
+            return False
+        expected_maps = {
+            item.texture_role: item.model_dump(mode="json")
+            for item in expected_set.maps
+        }
+        actual_maps = {
+            item.texture_role: item.model_dump(mode="json")
+            for item in texture_set.maps
+        }
+        if set(actual_maps) != set(expected_maps) or any(
+            any(actual_maps[role].get(field) != expected_maps[role].get(field) for field in comparable_fields)
+            for role in expected_maps
+        ):
+            return False
+    return True
+
+
+def _unavailable_quality_report(
+    report: AgentAssetQualityReport,
+    *,
+    evidence_source: str,
+    check_id: str,
+    message: str,
+) -> AgentAssetQualityReport:
+    payload = report.model_dump(mode="json")
+    payload.update({
+        "status": "unavailable",
+        "triangle_count": 0,
+        "bounds_mm": None,
+        "evidence_source": evidence_source,
+        "compile_readback": None,
+        "findings": [{
+            "check_id": check_id,
+            "severity": "error",
+            "message": message,
+            "part_ids": [],
+        }],
+    })
+    return AgentAssetQualityReport.model_validate(payload)
+
+
+def _quality_report_for_current_contract(
+    report: AgentAssetQualityReport,
+) -> AgentAssetQualityReport:
+    if report.evidence_source == "legacy_estimate":
+        return _unavailable_quality_report(
+            report,
+            evidence_source="legacy_estimate",
+            check_id="legacy_quality_estimate",
+            message="旧质量报告没有真实编译/GLB 回读证据，请重新检查当前资产。",
+        )
+    if (
+        report.evidence_source == "geometry_compile_readback"
+        and report.compile_readback is not None
+        and not _compile_readback_uses_current_visual_contract(report.compile_readback)
+    ):
+        return _unavailable_quality_report(
+            report,
+            evidence_source="stale_compile_readback",
+            check_id="stale_geometry_compile_readback",
+            message="质量报告使用旧视觉编译合同，与当前导出不一致，请重新检查当前资产。",
+        )
+    return report
 
 
 class AgentAssetEditingService:
@@ -596,7 +709,9 @@ class AgentAssetEditingService:
                         raise AgentAssetIdempotencyConflict(
                             "Idempotency-Key was reused with a different quality request."
                         )
-                    return AgentAssetQualityReport.model_validate_json(replay.response_json)
+                    return _quality_report_for_current_contract(
+                        _parse_stored_quality_report(replay.response_json)
+                    )
         version = self.get_version(asset_version_id)
         imported = self._imported_glb_row(asset_version_id)
         if imported is not None:
@@ -708,19 +823,9 @@ class AgentAssetEditingService:
             row = unit.agent_assets.get_quality_report(quality_report_id)
             if row is None:
                 raise AgentAssetError("ASSET_QUALITY_NOT_FOUND", "资产质量报告不存在。", status_code=404)
-            report = AgentAssetQualityReport.model_validate_json(str(row["report_json"]))
-            if report.evidence_source == "legacy_estimate":
-                return report.model_copy(update={
-                    "status": "unavailable",
-                    "triangle_count": 0,
-                    "bounds_mm": None,
-                    "findings": [AgentAssetQualityFinding(
-                        check_id="legacy_quality_estimate",
-                        severity="error",
-                        message="旧质量报告没有真实编译/GLB 回读证据，请重新检查当前资产。",
-                    )],
-                })
-            return report
+            return _quality_report_for_current_contract(
+                _parse_stored_quality_report(str(row["report_json"]))
+            )
 
     def _persist_quality_report(
         self,
@@ -740,7 +845,9 @@ class AgentAssetEditingService:
                         raise AgentAssetIdempotencyConflict(
                             "Idempotency-Key was reused with a different quality request."
                         )
-                    return AgentAssetQualityReport.model_validate_json(replay.response_json)
+                    return _quality_report_for_current_contract(
+                        _parse_stored_quality_report(replay.response_json)
+                    )
             snapshot = unit.active_designs.get_snapshot(version.project_id)
             if snapshot is None or not hasattr(snapshot.active_design, "asset_version_id"):
                 raise AgentAssetError("ACTIVE_DESIGN_NOT_AGENT", "当前项目没有可检查的活动 Agent 资产。", status_code=409)
@@ -1001,7 +1108,7 @@ class AgentAssetEditingService:
                 request.operations,
                 protected_part_ids=request.protected_part_ids,
                 locked_part_ids=locked_part_ids,
-                components={item.replacement_component_id: _component_from_row(unit.agent_assets.get_component(item.replacement_component_id)) for item in request.operations if item.replacement_component_id and unit.agent_assets.get_component(item.replacement_component_id)},
+                components=_components_for_operations(unit, request.operations),
                 structure_suggestions=_structure_suggestions_for(base_version, locked_part_ids=locked_part_ids),
             )
             now = _utc_now()
@@ -1077,6 +1184,28 @@ class AgentAssetEditingService:
                 if active_design.asset_version_id != str(row["base_asset_version_id"]):
                     unit.agent_assets.update_change_set(change_set_id, status="stale", preview_json=None, resulting_asset_version_id=None, updated_at=_utc_now())
                     raise AgentAssetError("ACTIVE_DESIGN_STALE", "活动设计版本已变化，请重新预览修改。", status_code=409)
+            base_version = _version_from_row(base)
+            operations = [
+                AgentPartEditOperation.model_validate(item)
+                for item in json.loads(row["operations_json"])
+            ]
+            locked_part_ids = _active_snapshot_locked_part_ids(
+                unit,
+                base_version,
+                purpose="确认修改",
+            )
+            components = _components_for_operations(unit, operations)
+            _validate_operations(
+                base_version,
+                operations,
+                protected_part_ids=json.loads(row["protected_part_ids_json"]),
+                locked_part_ids=locked_part_ids,
+                components=components,
+                structure_suggestions=_structure_suggestions_for(
+                    base_version,
+                    locked_part_ids=locked_part_ids,
+                ),
+            )
             try:
                 preview = AgentAssetVersion.model_validate_json(row["preview_json"])
             except ValidationError as exc:
@@ -1171,7 +1300,7 @@ class AgentAssetEditingService:
             base = _version_from_row(base_row)
             locked_part_ids = _active_snapshot_locked_part_ids(unit, base, purpose="预览修改")
             operations = [AgentPartEditOperation.model_validate(item) for item in json.loads(row["operations_json"])]
-            components = {item.replacement_component_id: _component_from_row(unit.agent_assets.get_component(item.replacement_component_id)) for item in operations if item.replacement_component_id and unit.agent_assets.get_component(item.replacement_component_id)}
+            components = _components_for_operations(unit, operations)
             structure_suggestions = _structure_suggestions_for(base, locked_part_ids=locked_part_ids)
             _validate_operations(
                 base,
@@ -1436,10 +1565,45 @@ def _component_from_row(row: Any) -> AgentComponentRecord:
         shape_operation=json.loads(row["shape_operation_json"]),
         material_bindings=json.loads(row["material_bindings_json"]),
         status=str(row["status"]),
-        source_quality_status=str(row["source_quality_status"]) if "source_quality_status" in row.keys() else "unavailable",
+        source_quality_status=_component_source_quality_status(row),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
     )
+
+
+def _component_source_quality_status(row: Any) -> str:
+    keys = row.keys()
+    if "source_quality_report_json" in keys:
+        payload = row["source_quality_report_json"]
+        if payload is None:
+            return "unavailable"
+        try:
+            report = _quality_report_for_current_contract(
+                _parse_stored_quality_report(str(payload))
+            )
+        except AgentAssetError:
+            return "unavailable"
+        return report.status
+    return str(row["source_quality_status"]) if "source_quality_status" in keys else "unavailable"
+
+
+def _components_for_operations(
+    unit: SQLiteUnitOfWork,
+    operations: list[AgentPartEditOperation],
+) -> dict[str, AgentComponentRecord]:
+    """Load replacement components and their latest source quality once per gate."""
+
+    component_ids = dict.fromkeys(
+        operation.replacement_component_id
+        for operation in operations
+        if operation.replacement_component_id is not None
+    )
+    components: dict[str, AgentComponentRecord] = {}
+    for component_id in component_ids:
+        row = unit.agent_assets.get_component(component_id)
+        if row is not None:
+            components[component_id] = _component_from_row(row)
+    return components
 
 
 def _component_compatibility(

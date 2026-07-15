@@ -9,7 +9,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "active-design-snapshot.schema.json": "1312454eb9955db786ed03a4c0c2924942b7f8d74702350112e6571abca5627d",
   "agent-asset-change-set.schema.json": "dd614614f75c318f323fc5614e7f39fe93e621639727054731c67ad69a4ce218",
   "agent-asset-export.schema.json": "07f5d9affd772280821dbdab40aea7e4fc912bb978b07e14109c36d4b678b608",
-  "agent-asset-quality-report.schema.json": "5e8a6dec311aa66863676e6f88e37e8ebbb90b6d316ee3cc0c120a6cc17c4115",
+  "agent-asset-quality-report.schema.json": "65e04009805a8ce4b199704b9027758676fe2d7a60397dac3aa218f13e37d133",
   "agent-asset-render-package.schema.json": "6db31fb793ba9c8b3135eeaa897c1ec66eee0493ab1fe795daed9989310fdcd9",
   "agent-asset-render-set.schema.json": "abf490f7520e9f8fb312b751fa2b3972d04b2f47068c9a2df3965a11b7cc4304",
   "agent-asset-version.schema.json": "e3104726287d904b10a9aa239d7f9b248e91d80d9b7a7716cc0909739f02f801",
@@ -27,7 +27,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
-  "geometry-compile-readback.schema.json": "77337890803a031116bc7af546830db685f7c20b2e29ebf802f44aa001d79430",
+  "geometry-compile-readback.schema.json": "9708bb63d8dc12b630b1f754c815d4c21d9fa96fad1ddca96e6029ff7b110ee0",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
   "material-texture-object.schema.json": "5818946a17dfa9dd19b13133aa3afab6717604f7b8258e17332d341271bfc1d2",
@@ -692,6 +692,34 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             }
           }
         }
+      },
+      {
+        "if": {
+          "properties": {
+            "evidence_source": {
+              "const": "stale_compile_readback"
+            }
+          },
+          "required": [
+            "evidence_source"
+          ]
+        },
+        "then": {
+          "properties": {
+            "bounds_mm": {
+              "type": "null"
+            },
+            "compile_readback": {
+              "type": "null"
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "triangle_count": {
+              "const": 0
+            }
+          }
+        }
       }
     ],
     "properties": {
@@ -728,6 +756,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "geometry_compile_readback",
           "external_glb_inspection",
           "compile_failure",
+          "stale_compile_readback",
           "legacy_estimate"
         ],
         "type": "string"
@@ -4056,6 +4085,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "minimum": 1,
               "type": "integer"
             },
+            "texture_material_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
             "visual_texture_set_id": {
               "pattern": "^vtexset_[a-z0-9_\\-]+$",
               "type": "string"
@@ -4065,6 +4098,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "schema_version",
             "visual_texture_set_id",
             "material_id",
+            "texture_material_id",
             "material_index",
             "material_zone_ids",
             "maps",

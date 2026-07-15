@@ -25,8 +25,10 @@ from .shape_program_runtime import (
 from .visual_intent import visual_intent_for_direction
 from .visual_texture_sets import (
     builtin_material_properties,
+    builtin_visual_material_binding,
     builtin_visual_material_count,
     builtin_visual_texture_set_for_material_index,
+    builtin_visual_texture_set_for_readback,
     studio_environment_manifest,
     visual_texture_png_bytes,
 )
@@ -1028,11 +1030,17 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                     "boolean_backside": bool(csg_provenance["boolean_backside"]),
                 })
             material_index = primitive.get("material")
-            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
+            if type(material_index) is not int or material_index < 0 or material_index >= len(materials):
                 raise ValueError("GLB primitive material is invalid")
             material_id = extras.get("forgecad_material_id")
             if not isinstance(material_id, str) or not material_id.startswith("mat_"):
                 raise ValueError("GLB primitive material identity is invalid")
+            try:
+                expected_material_index, _texture_material_id = builtin_visual_material_binding(material_id)
+            except ValueError as exc:
+                raise ValueError("GLB primitive material identity is outside the reviewed visual catalog") from exc
+            if material_index != expected_material_index:
+                raise ValueError("GLB primitive material identity does not match its canonical texture material")
             surface_provenance.append(provenance_item)
             material_zone_faces.append({
                 "primitive_id": primitive_id,
@@ -1120,6 +1128,8 @@ def _read_visual_pbr_facts(
     textures = document.get("textures", [])
     if not isinstance(images, list) or not isinstance(textures, list):
         raise ValueError("GLB visual texture resources are invalid")
+    if document.get("samplers") not in (None, []):
+        raise ValueError("GLB PBR sampling state does not match the fixed repeat/linear contract")
     used: Dict[Tuple[int, str], set[str]] = {}
     for material_index, material_id, zone_id in primitive_material_bindings:
         used.setdefault((material_index, material_id), set()).add(zone_id)
@@ -1129,20 +1139,24 @@ def _read_visual_pbr_facts(
     def number_matches(value: Any, expected: float) -> bool:
         return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)) and math.isclose(float(value), expected)
 
-    def texture_map(texture_index: Any, role: str) -> Dict[str, Any]:
-        if not isinstance(texture_index, int) or texture_index < 0 or texture_index >= len(textures):
+    def texture_map(texture_index: Any, role: str, expected_map: Any) -> Dict[str, Any]:
+        if type(texture_index) is not int or texture_index < 0 or texture_index >= len(textures):
             raise ValueError("GLB PBR texture reference is invalid")
         texture = textures[texture_index]
         if not isinstance(texture, dict):
             raise ValueError("GLB texture entry is invalid")
+        if set(texture) != {"name", "source"} or texture.get("name") != expected_map.texture_id:
+            raise ValueError("GLB PBR sampling state does not match the fixed repeat/linear contract")
         image_index = texture.get("source")
-        if not isinstance(image_index, int) or image_index < 0 or image_index >= len(images):
+        if type(image_index) is not int or image_index < 0 or image_index >= len(images):
             raise ValueError("GLB PBR texture does not embed an image")
         image = images[image_index]
         if not isinstance(image, dict) or "uri" in image or image.get("mimeType") != "image/png":
             raise ValueError("GLB PBR image must be embedded PNG data")
+        if image.get("name") != expected_map.texture_id:
+            raise ValueError("GLB PBR image identity does not match its built-in texture")
         view_index = image.get("bufferView")
-        if not isinstance(view_index, int) or view_index < 0 or view_index >= len(views):
+        if type(view_index) is not int or view_index < 0 or view_index >= len(views):
             raise ValueError("GLB PBR image buffer view is invalid")
         view = views[view_index]
         if not isinstance(view, dict):
@@ -1166,6 +1180,9 @@ def _read_visual_pbr_facts(
             raise ValueError("GLB PBR image has an invalid colour space")
         if metadata.get("source") != "forgecad_builtin" or metadata.get("license") != "not_applicable":
             raise ValueError("GLB PBR image provenance is outside the built-in boundary")
+        expected_metadata = expected_map.model_dump(mode="json")
+        if metadata != expected_metadata or payload != visual_texture_png_bytes(expected_map.texture_id):
+            raise ValueError("GLB PBR image does not match the built-in texture truth")
         return {
             "texture_id": metadata.get("texture_id"),
             "texture_role": role,
@@ -1183,25 +1200,71 @@ def _read_visual_pbr_facts(
         }
 
     results: List[Dict[str, Any]] = []
+    visual_texture_contract_version: str | None = None
     for (material_index, material_id), zone_ids in sorted(used.items()):
         material = materials[material_index]
         if not isinstance(material, dict):
             raise ValueError("GLB material entry is invalid")
         extras = material.get("extras")
         texture_set_id = extras.get("forgecad_visual_texture_set_id") if isinstance(extras, dict) else None
-        if not isinstance(texture_set_id, str) or not texture_set_id.startswith("vtexset_"):
-            raise ValueError("GLB material lacks a VisualTextureSet identity")
+        texture_material_id = extras.get("forgecad_texture_material_id") if isinstance(extras, dict) else None
+        try:
+            expected_texture_set = builtin_visual_texture_set_for_readback(
+                material_index,
+                texture_set_id if isinstance(texture_set_id, str) else "",
+            )
+            expected_material_index, expected_texture_material_id = builtin_visual_material_binding(material_id)
+        except ValueError as exc:
+            raise ValueError("GLB material does not match the built-in VisualTextureSet identity") from exc
+        if (
+            expected_material_index != material_index
+            or texture_material_id != expected_texture_material_id
+            or texture_material_id != expected_texture_set.material_id
+        ):
+            raise ValueError("GLB material does not match the built-in VisualTextureSet identity")
+        if visual_texture_contract_version is None:
+            visual_texture_contract_version = expected_texture_set.version
+        elif expected_texture_set.version != visual_texture_contract_version:
+            raise ValueError(
+                "GLB materials mix incompatible built-in visual texture contract versions"
+            )
         pbr = material.get("pbrMetallicRoughness")
         if not isinstance(pbr, dict):
             raise ValueError("GLB material lacks metallic-roughness PBR")
+
+        def texture_info(
+            container: Mapping[str, Any],
+            field: str,
+            *,
+            extra_field: str | None = None,
+        ) -> Mapping[str, Any]:
+            info = container.get(field)
+            expected_keys = {"index"} | ({extra_field} if extra_field else set())
+            if not isinstance(info, dict):
+                raise ValueError("GLB PBR texture reference is invalid")
+            if set(info) != expected_keys:
+                raise ValueError("GLB PBR sampling state does not match the fixed UV0 repeat/linear contract")
+            if type(info.get("index")) is not int:
+                raise ValueError("GLB PBR texture reference is invalid")
+            return info
+
+        base_color_info = texture_info(pbr, "baseColorTexture")
+        metallic_roughness_info = texture_info(pbr, "metallicRoughnessTexture")
+        normal_info = texture_info(material, "normalTexture", extra_field="scale")
+        occlusion_info = texture_info(material, "occlusionTexture", extra_field="strength")
+        emissive_info = texture_info(material, "emissiveTexture")
         refs = {
-            "base_color": pbr.get("baseColorTexture", {}).get("index") if isinstance(pbr.get("baseColorTexture"), dict) else None,
-            "metallic_roughness": pbr.get("metallicRoughnessTexture", {}).get("index") if isinstance(pbr.get("metallicRoughnessTexture"), dict) else None,
-            "normal": material.get("normalTexture", {}).get("index") if isinstance(material.get("normalTexture"), dict) else None,
-            "occlusion": material.get("occlusionTexture", {}).get("index") if isinstance(material.get("occlusionTexture"), dict) else None,
-            "emissive": material.get("emissiveTexture", {}).get("index") if isinstance(material.get("emissiveTexture"), dict) else None,
+            "base_color": base_color_info["index"],
+            "metallic_roughness": metallic_roughness_info["index"],
+            "normal": normal_info["index"],
+            "occlusion": occlusion_info["index"],
+            "emissive": emissive_info["index"],
         }
-        maps = [texture_map(refs[role], role) for role in ("base_color", "metallic_roughness", "normal", "occlusion", "emissive")]
+        expected_maps = {item.texture_role: item for item in expected_texture_set.maps}
+        maps = [
+            texture_map(refs[role], role, expected_maps[role])
+            for role in ("base_color", "metallic_roughness", "normal", "occlusion", "emissive")
+        ]
         extensions = material.get("extensions", {})
         if not isinstance(extensions, dict):
             raise ValueError("GLB material extensions are invalid")
@@ -1261,6 +1324,7 @@ def _read_visual_pbr_facts(
             "schema_version": "VisualTextureSet@1",
             "visual_texture_set_id": texture_set_id,
             "material_id": material_id,
+            "texture_material_id": texture_material_id,
             "material_index": material_index,
             "material_zone_ids": sorted(zone_ids),
             "maps": maps,
@@ -1609,21 +1673,7 @@ def _finite_vec3(value: Any) -> bool:
 
 
 def _material_index(material_id: str) -> int:
-    if material_id == "mat_aluminum":
-        return 1
-    if material_id == "mat_signal_red":
-        return 2
-    if material_id == "mat_composite":
-        return 3
-    if material_id == "mat_rubber":
-        return 4
-    if material_id == "mat_dark_glass":
-        return 5
-    if material_id == "mat_emissive_blue":
-        return 6
-    if material_id == "mat_automotive_paint":
-        return 7
-    return 0
+    return builtin_visual_material_binding(material_id or None)[0]
 
 
 _BOUND_SCALE_PATHS: Tuple[Tuple[str, str], ...] = (
@@ -1801,7 +1851,8 @@ def _presentation_primitives(
         details = _robotic_arm_showcase_details(primary, detail_level)
     else:
         raise ValueError(f"showcase detail grammar is not defined for {plan.domain_pack_id}")
-    return [*boxes, *details]
+    fairings = _showcase_connection_fairings(boxes, plan.domain_pack_id)
+    return [*boxes, *fairings, *details]
 
 
 _SHOWCASE_PRIMARY_ROLE_WHITELIST: Mapping[str, Tuple[str, ...]] = {
@@ -1856,6 +1907,192 @@ def _primitive_display_extent(primitive: BoxPrimitive) -> Tuple[float, float, fl
 
 def _detail_thickness(width: float, height: float, depth: float) -> float:
     return max(10.0, min(24.0, min(width, height, depth) * 0.06))
+
+
+def _exact_showcase_roles(
+    boxes: Sequence[BoxPrimitive],
+    *,
+    domain_pack_id: str,
+    required_roles: Sequence[str],
+) -> Mapping[str, BoxPrimitive] | None:
+    """Resolve one bounded showcase fixture without primitive-order fallback.
+
+    The first role is the fixture-specific trigger.  Once it is present, a
+    partial or duplicated match is rejected so a renamed catalog part cannot
+    silently drop a connection layer from the GLB presented for review.
+    """
+
+    matches = {
+        role: [primitive for primitive in boxes if primitive.part_role == role]
+        for role in required_roles
+    }
+    present = {role for role, items in matches.items() if items}
+    if not matches[required_roles[0]]:
+        return None
+    expected = set(required_roles)
+    if present != expected or any(len(matches[role]) != 1 for role in required_roles):
+        raise ValueError(
+            f"showcase connection roles are incomplete for {domain_pack_id}; "
+            f"expected {sorted(expected)}, found {sorted(present)}"
+        )
+    return {role: matches[role][0] for role in required_roles}
+
+
+def _showcase_connection_fairings(
+    boxes: Sequence[BoxPrimitive],
+    domain_pack_id: str,
+) -> List[BoxPrimitive]:
+    """Add non-functional exterior bridges to reviewed M108 fixtures.
+
+    The fairings only improve visual continuity between already-present parts.
+    They do not add joints, mechanisms or manufacturing meaning, and they use
+    the same bounded primitive/GLB/readback path as every other showcase part.
+    """
+
+    if domain_pack_id == "pack_future_weapon_prop":
+        roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("prop_core", "prop_grip"),
+        )
+        if roles is None:
+            return []
+        core = roles["prop_core"]
+        grip = roles["prop_grip"]
+        core_height = _primitive_display_extent(core)[1]
+        collar_height = 64.0
+        return [
+            _cylinder(
+                "visual_guard_prop_mount_collar",
+                (
+                    grip.center_mm[0],
+                    core.center_mm[1] - core_height / 2 - collar_height / 2 + 16.0,
+                    grip.center_mm[2],
+                ),
+                grip.radius_mm * 1.15,
+                collar_height,
+                1,
+                (0.0, 1.0, 0.0),
+                material_id="mat_aluminum",
+            )
+        ]
+
+    if domain_pack_id == "pack_vehicle_concept":
+        wheel_roles = (
+            "vehicle_wheel_fl",
+            "vehicle_wheel_fr",
+            "vehicle_wheel_rl",
+            "vehicle_wheel_rr",
+        )
+        roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("vehicle_chassis", *wheel_roles),
+        )
+        if roles is None:
+            return []
+        chassis = roles["vehicle_chassis"]
+        depth = _primitive_display_extent(chassis)[2]
+        fairings: List[BoxPrimitive] = []
+        for side, front_role, rear_role in (
+            ("left", "vehicle_wheel_fl", "vehicle_wheel_rl"),
+            ("right", "vehicle_wheel_fr", "vehicle_wheel_rr"),
+        ):
+            front = roles[front_role]
+            rear = roles[rear_role]
+            wheel_radius = min(front.radius_mm, rear.radius_mm)
+            thickness = max(80.0, depth * 0.1)
+            center_z = (front.center_mm[2] + rear.center_mm[2]) / 2
+            center_z -= math.copysign(thickness * 0.25, center_z)
+            fairings.append(
+                _box(
+                    f"visual_guard_vehicle_side_bridge_{side}",
+                    (
+                        (front.center_mm[0] + rear.center_mm[0]) / 2,
+                        (front.center_mm[1] + rear.center_mm[1]) / 2 + wheel_radius * 0.45,
+                        center_z,
+                    ),
+                    (
+                        abs(front.center_mm[0] - rear.center_mm[0]) + wheel_radius * 1.2,
+                        wheel_radius * 0.8,
+                        thickness,
+                    ),
+                    7,
+                    material_id="mat_automotive_paint",
+                )
+            )
+        return fairings
+
+    if domain_pack_id == "pack_aircraft_concept":
+        rotor_roles = (
+            "lift_rotor_front_left",
+            "lift_rotor_front_right",
+            "lift_rotor_rear_left",
+            "lift_rotor_rear_right",
+        )
+        roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("lift_wing_left", "lift_wing_right", *rotor_roles),
+        )
+        if roles is None:
+            return []
+        fairings = []
+        for rotor_role in rotor_roles:
+            side = "left" if rotor_role.endswith("left") else "right"
+            wing = roles[f"lift_wing_{side}"]
+            rotor = roles[rotor_role]
+            wing_thickness = _primitive_display_extent(wing)[1]
+            fairings.append(
+                _wedge(
+                    f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
+                    (
+                        rotor.center_mm[0],
+                        (wing.center_mm[1] + rotor.center_mm[1]) / 2,
+                        rotor.center_mm[2]
+                        + math.copysign(rotor.radius_mm * 0.6, rotor.center_mm[2]),
+                    ),
+                    (
+                        rotor.radius_mm * 0.9,
+                        max(72.0, wing_thickness + 18.0),
+                        rotor.radius_mm * 0.55,
+                    ),
+                    3,
+                    material_id="mat_aluminum",
+                )
+            )
+        return fairings
+
+    if domain_pack_id == "pack_robotic_arm_concept":
+        roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("precision_joint_1", "precision_link_1"),
+        )
+        if roles is None:
+            return []
+        joint = roles["precision_joint_1"]
+        link = roles["precision_link_1"]
+        return [
+            _box(
+                "visual_guard_robot_shoulder_bridge",
+                (
+                    (joint.center_mm[0] + link.center_mm[0]) / 2,
+                    joint.center_mm[1] + 70.0,
+                    (joint.center_mm[2] + link.center_mm[2]) / 2
+                    + joint.radius_mm * 0.45,
+                ),
+                (
+                    abs(joint.center_mm[0] - link.center_mm[0]) + 80.0,
+                    140.0,
+                    min(joint.radius_mm * 2, link.radius_mm * 2) * 0.75,
+                ),
+                3,
+                material_id="mat_composite",
+            )
+        ]
+
+    raise ValueError(f"showcase connection grammar is not defined for {domain_pack_id}")
 
 
 def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:

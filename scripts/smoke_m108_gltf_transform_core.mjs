@@ -73,6 +73,9 @@ function expectForgeCadReadbackRejected(payload, fixtureId) {
   const result = runReadback(payload);
   assert.notEqual(result.status, 0, `${fixtureId}: rewritten GLB unexpectedly remained ForgeCAD-readback valid`);
   const diagnostic = `${result.stderr ?? ''}\n${result.stdout ?? ''}`;
+  if (/GLB PBR sampling state does not match the fixed repeat\/linear contract/.test(diagnostic)) {
+    return 'fixed_texture_sampling_state_changed';
+  }
   assert.match(
     diagnostic,
     /GLB visual material parameters do not match the built-in PBR truth/,
@@ -85,17 +88,24 @@ function expectedPartZoneMaterialMapping(facts) {
   const textureSetByMaterial = new Map(
     facts.visual_texture_sets.map((textureSet) => [
       textureSet.material_id,
-      textureSet.visual_texture_set_id,
+      {
+        visual_texture_set_id: textureSet.visual_texture_set_id,
+        texture_material_id: textureSet.texture_material_id,
+      },
     ]),
   );
   return facts.material_zone_faces
-    .map((zone) => ({
-      primitive_id: zone.primitive_id,
-      part_instance_id: zone.part_instance_id,
-      material_zone_id: zone.material_zone_id,
-      material_id: zone.material_id,
-      visual_texture_set_id: textureSetByMaterial.get(zone.material_id),
-    }))
+    .map((zone) => {
+      const textureIdentity = textureSetByMaterial.get(zone.material_id);
+      assert.ok(textureIdentity, `missing texture identity for ${zone.material_id}`);
+      return {
+        primitive_id: zone.primitive_id,
+        part_instance_id: zone.part_instance_id,
+        material_zone_id: zone.material_zone_id,
+        material_id: zone.material_id,
+        ...textureIdentity,
+      };
+    })
     .sort((left, right) => left.primitive_id.localeCompare(right.primitive_id));
 }
 
@@ -105,17 +115,13 @@ function documentPartZoneMaterialMapping(document) {
     for (const primitive of mesh.listPrimitives()) {
       const primitiveExtras = primitive.getExtras();
       const materialExtras = primitive.getMaterial()?.getExtras() ?? {};
-      assert.equal(
-        materialExtras.forgecad_texture_material_id,
-        primitiveExtras.forgecad_material_id,
-        'glTF Transform reader detached a primitive from its declared visual material',
-      );
       mapping.push({
         primitive_id: primitiveExtras.forgecad_primitive_id,
         part_instance_id: primitiveExtras.forgecad_part_instance_id,
         material_zone_id: primitiveExtras.forgecad_material_zone_id,
         material_id: primitiveExtras.forgecad_material_id,
         visual_texture_set_id: materialExtras.forgecad_visual_texture_set_id,
+        texture_material_id: materialExtras.forgecad_texture_material_id,
       });
     }
   }
@@ -161,7 +167,7 @@ for (const fixture of fixtures) {
 console.log(JSON.stringify({
   ok: true,
   decision: 'reject_core_writer_as_export_transform',
-  note: 'glTF Transform preserves the standard-readable Part/zone/material mapping but removes explicit default PBR parameters required by ForgeCAD readback. Its output is intentionally rejected and cannot replace the immutable compiled GLB.',
+  note: 'glTF Transform preserves the standard-readable Part/zone/material mapping but changes fixed texture sampling state and may remove explicit default PBR parameters required by ForgeCAD readback. Its output is intentionally rejected and cannot replace the immutable compiled GLB.',
   rejection_reasons: rejectionReasons,
   byte_sizes: byteSizes,
 }));

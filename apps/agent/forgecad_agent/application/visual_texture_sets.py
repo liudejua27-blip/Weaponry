@@ -10,6 +10,7 @@ readback validation.
 from __future__ import annotations
 
 import hashlib
+import math
 import struct
 import zlib
 from functools import lru_cache
@@ -41,6 +42,29 @@ _MATERIALS: tuple[Mapping[str, object], ...] = (
 )
 
 
+# ShapeProgram and the visual material catalog keep the authored appearance id
+# in immutable zone facts.  The fixed eight-entry GLB material table is a
+# separate canonical texture identity.  Keep this bridge explicit and
+# exhaustive: an unknown authored id must never silently fall back to index 0.
+_AUTHORED_TO_TEXTURE_MATERIAL: Mapping[str, str] = {
+    "mat_primary": "mat_primary",
+    "mat_graphite": "mat_primary",
+    "mat_painted_steel": "mat_primary",
+    "mat_powder_coat": "mat_primary",
+    "mat_aluminum": "mat_aluminum",
+    "mat_signal_red": "mat_signal_red",
+    "mat_composite": "mat_composite",
+    "mat_abs_matte": "mat_composite",
+    "mat_carbon_composite": "mat_composite",
+    "mat_rubber": "mat_rubber",
+    "mat_rubber_tire": "mat_rubber",
+    "mat_dark_glass": "mat_dark_glass",
+    "mat_clear_glass": "mat_dark_glass",
+    "mat_emissive_blue": "mat_emissive_blue",
+    "mat_automotive_paint": "mat_automotive_paint",
+}
+
+
 def _clamp(value: int) -> int:
     return max(0, min(255, value))
 
@@ -51,7 +75,60 @@ def _noise(x: int, y: int, seed: int) -> int:
     return int((value ^ (value >> 16)) % 17) - 8
 
 
+def _smooth_periodic_noise(x: int, y: int, seed: int, cell_size: int) -> int:
+    """Return deterministic value noise without visible integer-cell steps.
+
+    The reviewed cell sizes divide the fixed 128 px texture extent, so the
+    bilinear field also tiles continuously at each PNG edge.
+    """
+
+    if cell_size <= 0 or TEXTURE_WIDTH % cell_size or TEXTURE_HEIGHT % cell_size:
+        raise ValueError("smooth visual noise cell size must divide the texture extent")
+    cells_x = TEXTURE_WIDTH // cell_size
+    cells_y = TEXTURE_HEIGHT // cell_size
+    grid_x = x // cell_size
+    grid_y = y // cell_size
+    local_x = (x % cell_size) / cell_size
+    local_y = (y % cell_size) / cell_size
+    smooth_x = local_x * local_x * (3.0 - 2.0 * local_x)
+    smooth_y = local_y * local_y * (3.0 - 2.0 * local_y)
+
+    def sample(offset_x: int, offset_y: int) -> int:
+        return _noise(
+            (grid_x + offset_x) % cells_x,
+            (grid_y + offset_y) % cells_y,
+            seed,
+        )
+
+    top = sample(0, 0) * (1.0 - smooth_x) + sample(1, 0) * smooth_x
+    bottom = sample(0, 1) * (1.0 - smooth_x) + sample(1, 1) * smooth_x
+    return round(top * (1.0 - smooth_y) + bottom * smooth_y)
+
+
 def _surface_height(pattern: str, x: int, y: int, seed: int) -> int:
+    micro = _noise(x, y, seed)
+    broad = _smooth_periodic_noise(x, y, seed + 19, 16)
+    if pattern == "brushed":
+        return _smooth_periodic_noise(0, y, seed + 31, 8) // 2 + micro // 4
+    if pattern == "composite":
+        # A smooth, tileable weave avoids the old 18 px hard-edged checker.
+        warp = round(2.5 * math.sin(2.0 * math.pi * x / 16.0))
+        weft = round(2.5 * math.sin(2.0 * math.pi * y / 16.0))
+        return warp + weft + micro // 5
+    if pattern == "rubber":
+        return micro // 2 + broad // 4
+    if pattern == "coated":
+        return broad // 3 + micro // 6
+    if pattern == "glass":
+        return broad // 5
+    if pattern == "emissive":
+        return 2 + broad // 4
+    return micro // 3 + round(1.5 * math.sin(2.0 * math.pi * x / 32.0))
+
+
+def _legacy_surface_height(pattern: str, x: int, y: int, seed: int) -> int:
+    """Reproduce the immutable builtin v1 texture bytes for readback only."""
+
     micro = _noise(x, y, seed)
     broad = _noise(x // 12, y // 12, seed + 19)
     if pattern == "brushed":
@@ -87,44 +164,91 @@ def _png_rgb(rows: Iterable[bytes], *, width: int = TEXTURE_WIDTH, height: int =
     )) + chunk(b"IDAT", zlib.compress(raw, level=9)) + chunk(b"IEND", b"")
 
 
-def _texture_bytes(role: str, material: Mapping[str, object]) -> bytes:
+def _render_texture_set_bytes(
+    material: Mapping[str, object],
+    *,
+    version: str,
+) -> Mapping[str, bytes]:
+    """Render all five maps in one bounded pass without a per-pixel LRU."""
+
     base = tuple(int(value) for value in material["base"])
     metallic = int(material["metallic"])
     roughness = int(material["roughness"])
     emissive = tuple(int(value) for value in material["emissive"])
     pattern = str(material["pattern"])
     seed = sum(base) + metallic * 3 + roughness * 5
-    rows: list[bytes] = []
+    height_function = _legacy_surface_height if version == "1" else _surface_height
+    heights = tuple(
+        height_function(pattern, x, y, seed)
+        for y in range(TEXTURE_HEIGHT)
+        for x in range(TEXTURE_WIDTH)
+    )
+    rows_by_role: dict[str, list[bytes]] = {role: [] for role in SUPPORTED_PBR_ROLES}
     for y in range(TEXTURE_HEIGHT):
-        row = bytearray()
+        row_by_role = {role: bytearray() for role in SUPPORTED_PBR_ROLES}
         for x in range(TEXTURE_WIDTH):
-            height = _surface_height(pattern, x, y, seed)
-            variation = height + _noise(x // 8, y // 8, seed + 53) // 4
-            if role == "base_color":
-                pixel = tuple(_clamp(value + variation) for value in base)
-            elif role == "metallic_roughness":
-                pixel = (255, _clamp(roughness + variation), _clamp(metallic + height // 2))
-            elif role == "normal":
-                dx = _surface_height(pattern, (x + 1) % TEXTURE_WIDTH, y, seed) - _surface_height(pattern, (x - 1) % TEXTURE_WIDTH, y, seed)
-                dy = _surface_height(pattern, x, (y + 1) % TEXTURE_HEIGHT, seed) - _surface_height(pattern, x, (y - 1) % TEXTURE_HEIGHT, seed)
-                pixel = (_clamp(128 - dx * 2), _clamp(128 + dy * 2), 254)
-            elif role == "occlusion":
-                ambient = _clamp(248 - max(0, -height) * 2)
-                pixel = (ambient, ambient, ambient)
-            elif role == "emissive":
-                pixel = tuple(_clamp(value + variation * 2) if value else 0 for value in emissive)
-            else:  # Defensive: all callers use the fixed contract above.
-                raise ValueError(f"unsupported visual texture role: {role}")
-            row.extend(pixel)
-        rows.append(bytes(row))
-    return _png_rgb(rows)
+            height = heights[y * TEXTURE_WIDTH + x]
+            variation = height + (
+                _noise(x // 8, y // 8, seed + 53) // 4
+                if version == "1"
+                else _smooth_periodic_noise(x, y, seed + 53, 8) // 4
+            )
+            if version == "1":
+                color_variation = variation
+            elif pattern == "coated":
+                color_variation = round(variation * 0.25)
+            elif pattern in {"brushed", "glass"}:
+                color_variation = round(variation * 0.5)
+            else:
+                color_variation = variation
+            row_by_role["base_color"].extend(
+                tuple(_clamp(value + color_variation) for value in base)
+            )
+            row_by_role["metallic_roughness"].extend(
+                (255, _clamp(roughness + variation), _clamp(metallic + height // 2))
+            )
+            left = heights[y * TEXTURE_WIDTH + (x - 1) % TEXTURE_WIDTH]
+            right = heights[y * TEXTURE_WIDTH + (x + 1) % TEXTURE_WIDTH]
+            above = heights[((y - 1) % TEXTURE_HEIGHT) * TEXTURE_WIDTH + x]
+            below = heights[((y + 1) % TEXTURE_HEIGHT) * TEXTURE_WIDTH + x]
+            row_by_role["normal"].extend(
+                (_clamp(128 - (right - left) * 2), _clamp(128 + (below - above) * 2), 254)
+            )
+            ambient = _clamp(248 - max(0, -height) * 2)
+            row_by_role["occlusion"].extend((ambient, ambient, ambient))
+            row_by_role["emissive"].extend(
+                tuple(_clamp(value + variation * 2) if value else 0 for value in emissive)
+            )
+        for role in SUPPORTED_PBR_ROLES:
+            rows_by_role[role].append(bytes(row_by_role[role]))
+    return {role: _png_rgb(rows_by_role[role]) for role in SUPPORTED_PBR_ROLES}
 
 
-def _map(role: str, material: Mapping[str, object]) -> VisualTextureMap:
-    payload = _texture_bytes(role, material)
+@lru_cache(maxsize=len(_MATERIALS) * 2)
+def _cached_texture_set_bytes(version: str, material_id: str) -> Mapping[str, bytes]:
+    material = next(
+        (item for item in _MATERIALS if item["material_id"] == material_id),
+        None,
+    )
+    if material is None:
+        raise ValueError(f"unknown built-in visual material id: {material_id}")
+    if version not in {"1", "2"}:
+        raise ValueError(f"unsupported built-in visual texture version: {version}")
+    return _render_texture_set_bytes(material, version=version)
+
+
+def _texture_bytes(role: str, material: Mapping[str, object], *, version: str = "2") -> bytes:
+    try:
+        return _cached_texture_set_bytes(version, str(material["material_id"]))[role]
+    except KeyError as exc:
+        raise ValueError(f"unsupported visual texture role: {role}") from exc
+
+
+def _map(role: str, material: Mapping[str, object], *, version: str) -> VisualTextureMap:
+    payload = _texture_bytes(role, material, version=version)
     slug = str(material["material_id"]).removeprefix("mat_")
     return VisualTextureMap(
-        texture_id=f"vtex_{slug}_{role}",
+        texture_id=f"vtex_{slug}{'_v2' if version == '2' else ''}_{role}",
         texture_role=role,
         mime_type="image/png",
         byte_size=len(payload),
@@ -142,10 +266,28 @@ def _map(role: str, material: Mapping[str, object]) -> VisualTextureMap:
 def builtin_visual_texture_sets() -> tuple[VisualTextureSet, ...]:
     return tuple(
         VisualTextureSet(
+            visual_texture_set_id=f"vtexset_{str(material['material_id']).removeprefix('mat_')}_builtin_v2",
+            material_id=str(material["material_id"]),
+            display_name=str(material["name"]),
+            maps=[_map(role, material, version="2") for role in SUPPORTED_PBR_ROLES],
+            source="forgecad_builtin",
+            license="not_applicable",
+            version="2",
+        )
+        for material in _MATERIALS
+    )
+
+
+@lru_cache(maxsize=1)
+def legacy_builtin_visual_texture_sets() -> tuple[VisualTextureSet, ...]:
+    """Return exact v1 manifests only so immutable historical GLBs still read."""
+
+    return tuple(
+        VisualTextureSet(
             visual_texture_set_id=f"vtexset_{str(material['material_id']).removeprefix('mat_')}_builtin",
             material_id=str(material["material_id"]),
             display_name=str(material["name"]),
-            maps=[_map(role, material) for role in SUPPORTED_PBR_ROLES],
+            maps=[_map(role, material, version="1") for role in SUPPORTED_PBR_ROLES],
             source="forgecad_builtin",
             license="not_applicable",
             version="1",
@@ -161,6 +303,28 @@ def builtin_visual_texture_set_for_material_index(index: int) -> VisualTextureSe
         raise ValueError(f"unsupported GLB material index for visual texture set: {index}") from exc
 
 
+def builtin_visual_texture_set_for_readback(
+    index: int,
+    visual_texture_set_id: str,
+) -> VisualTextureSet:
+    """Resolve only an exact current or immutable legacy built-in identity."""
+
+    try:
+        if visual_texture_set_id.endswith("_builtin_v2"):
+            candidate = builtin_visual_texture_sets()[index]
+        elif visual_texture_set_id.endswith("_builtin"):
+            candidate = legacy_builtin_visual_texture_sets()[index]
+        else:
+            raise ValueError(
+                "GLB material does not match a supported built-in VisualTextureSet identity"
+            )
+    except IndexError as exc:
+        raise ValueError(f"unsupported GLB material index for visual texture set: {index}") from exc
+    if candidate.visual_texture_set_id == visual_texture_set_id:
+        return candidate
+    raise ValueError("GLB material does not match a supported built-in VisualTextureSet identity")
+
+
 def builtin_visual_material_count() -> int:
     """Return the fixed built-in GLB material-table size."""
 
@@ -168,11 +332,55 @@ def builtin_visual_material_count() -> int:
 
 
 def visual_texture_png_bytes(texture_id: str) -> bytes:
-    for material, texture_set in zip(_MATERIALS, builtin_visual_texture_sets()):
+    # v2 map ids always contain the reviewed `_v2_` segment; immutable v1 ids
+    # never do.  Select one manifest lazily so current compilation does not
+    # generate the legacy PNG set merely to reject it.
+    version = "2" if "_v2_" in texture_id else "1"
+    texture_sets = (
+        builtin_visual_texture_sets()
+        if version == "2"
+        else legacy_builtin_visual_texture_sets()
+    )
+    for material, texture_set in zip(_MATERIALS, texture_sets):
         for item in texture_set.maps:
             if item.texture_id == texture_id:
-                return _texture_bytes(item.texture_role, material)
+                return _texture_bytes(item.texture_role, material, version=version)
     raise ValueError(f"unknown built-in visual texture id: {texture_id}")
+
+
+def builtin_visual_material_binding(material_id: str | None) -> tuple[int, str]:
+    """Return the canonical GLB index/id for one reviewed authored material."""
+
+    authored_material_id = material_id or "mat_primary"
+    canonical_material_id = _AUTHORED_TO_TEXTURE_MATERIAL.get(authored_material_id)
+    if canonical_material_id is None:
+        raise ValueError(f"unsupported authored visual material id: {authored_material_id}")
+    for index, material in enumerate(_MATERIALS):
+        if material["material_id"] == canonical_material_id:
+            return index, canonical_material_id
+    raise ValueError(f"built-in visual material binding is incomplete: {canonical_material_id}")
+
+
+def builtin_visual_texture_cache_facts() -> Mapping[str, int]:
+    """Expose bounded cache facts for the M108 sidecar regression gate."""
+
+    cached_sets = tuple(
+        _cached_texture_set_bytes(version, str(material["material_id"]))
+        for version in ("1", "2")
+        for material in _MATERIALS
+    )
+    # Resolve both immutable versions: only forty compact PNG byte strings per
+    # version are retained, never
+    # 128x128 Python cache entries per channel/pixel.
+    return {
+        "entry_count": _cached_texture_set_bytes.cache_info().currsize,
+        "max_entries": int(_cached_texture_set_bytes.cache_info().maxsize or 0),
+        "png_byte_size": sum(
+            len(payload)
+            for texture_set in cached_sets
+            for payload in texture_set.values()
+        ),
+    }
 
 
 def builtin_material_properties(index: int) -> Mapping[str, object]:

@@ -735,6 +735,7 @@
               "geometry_compile_readback",
               "external_glb_inspection",
               "compile_failure",
+              "stale_compile_readback",
               "legacy_estimate"
             ],
             "title": "Evidence Source",
@@ -7847,6 +7848,11 @@
             "title": "Texture Byte Size",
             "type": "integer"
           },
+          "texture_material_id": {
+            "pattern": "^mat_[a-z0-9_\\-]+$",
+            "title": "Texture Material Id",
+            "type": "string"
+          },
           "visual_texture_set_id": {
             "pattern": "^vtexset_[a-z0-9_\\-]+$",
             "title": "Visual Texture Set Id",
@@ -7856,6 +7862,7 @@
         "required": [
           "visual_texture_set_id",
           "material_id",
+          "texture_material_id",
           "material_index",
           "material_zone_ids",
           "maps",

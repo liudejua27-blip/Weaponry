@@ -4,13 +4,19 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import json
+import struct
 import tempfile
 from pathlib import Path
 
 from forgecad_agent.application import geometry_worker
-from forgecad_agent.application.agent_asset_editing import AgentAssetEditingService, AgentAssetError
+from forgecad_agent.application.agent_asset_editing import (
+    AgentAssetEditingService,
+    AgentAssetError,
+    _quality_request_hash,
+)
 from forgecad_agent.application.agent_kernel import AgentKernelService
 from forgecad_agent.application.agent_models import (
     AgentAssetQualityReport,
@@ -21,6 +27,10 @@ from forgecad_agent.application.agent_models import (
     StartAgentTurnRequest,
 )
 from forgecad_agent.application.mechanical_planner import MechanicalConceptPlan
+from forgecad_agent.application.visual_texture_sets import (
+    legacy_builtin_visual_texture_sets,
+    visual_texture_png_bytes,
+)
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteMigrationRunner, SQLiteUnitOfWork
 
 
@@ -31,6 +41,84 @@ CASES = (
     ("aircraft", "设计一架垂直起降概念飞机", "pack_aircraft_concept"),
     ("robotic", "设计一台三关节机械臂", "pack_robotic_arm_concept"),
 )
+PBR_TEXTURE_FIELDS = {
+    "base_color": ("pbrMetallicRoughness", "baseColorTexture"),
+    "metallic_roughness": ("pbrMetallicRoughness", "metallicRoughnessTexture"),
+    "normal": (None, "normalTexture"),
+    "occlusion": (None, "occlusionTexture"),
+    "emissive": (None, "emissiveTexture"),
+}
+
+
+def _glb_parts(payload: bytes) -> tuple[dict, bytearray]:
+    offset = 12
+    document = None
+    binary = bytearray()
+    while offset + 8 <= len(payload):
+        length, kind = struct.unpack_from("<II", payload, offset)
+        offset += 8
+        chunk = payload[offset:offset + length]
+        if kind == 0x4E4F534A:
+            document = json.loads(chunk.rstrip(b" \x00").decode("utf-8"))
+        elif kind == 0x004E4942:
+            binary = bytearray(chunk)
+        offset += length
+    assert isinstance(document, dict) and binary
+    return document, binary
+
+
+def _glb_payload(document: dict, binary: bytearray) -> bytes:
+    encoded = json.dumps(document, separators=(",", ":")).encode("utf-8")
+    encoded += b" " * ((4 - len(encoded) % 4) % 4)
+    binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+    total = 12 + 8 + len(encoded) + 8 + len(binary)
+    return (
+        struct.pack("<4sII", b"glTF", 2, total)
+        + struct.pack("<II", len(encoded), 0x4E4F534A)
+        + encoded
+        + struct.pack("<II", len(binary), 0x004E4942)
+        + bytes(binary)
+    )
+
+
+def _material_texture_reference(document: dict, material_index: int, role: str) -> dict:
+    parent_field, texture_field = PBR_TEXTURE_FIELDS[role]
+    material = document["materials"][material_index]
+    parent = material[parent_field] if parent_field is not None else material
+    reference = parent[texture_field]
+    assert isinstance(reference, dict) and type(reference.get("index")) is int
+    return reference
+
+
+def _legacy_v1_glb(payload: bytes) -> bytes:
+    """Rewrite one current compiler GLB to the immutable pre-v2 texture bytes."""
+
+    document, binary = _glb_parts(payload)
+    for material_index, texture_set in enumerate(legacy_builtin_visual_texture_sets()):
+        material = document["materials"][material_index]
+        material["extras"]["forgecad_visual_texture_set_id"] = texture_set.visual_texture_set_id
+        for texture_map in texture_set.maps:
+            texture_index = int(
+                _material_texture_reference(
+                    document,
+                    material_index,
+                    texture_map.texture_role,
+                )["index"]
+            )
+            texture = document["textures"][texture_index]
+            image = document["images"][int(texture["source"])]
+            view = document["bufferViews"][int(image["bufferView"])]
+            texture_payload = visual_texture_png_bytes(texture_map.texture_id)
+            binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+            view["byteOffset"] = len(binary)
+            view["byteLength"] = len(texture_payload)
+            binary.extend(texture_payload)
+            texture["name"] = texture_map.texture_id
+            image["name"] = texture_map.texture_id
+            image["extras"]["forgecad_visual_texture"] = texture_map.model_dump(mode="json")
+    binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+    document["buffers"][0]["byteLength"] = len(binary)
+    return _glb_payload(document, binary)
 
 
 def _seed(factory: SQLiteConnectionFactory) -> None:
@@ -139,9 +227,93 @@ def main() -> int:
                 editing_module.compile_shape_program = original_compile
             versions.append((assets, version, report))
 
+        # A real pre-v2 readback remains parseable for history, but it must not
+        # survive restart as passed evidence for today's v2 compiler/export.
+        assets, version, current = versions[0]
+        current_compiled = geometry_worker.compile_shape_program(version.shape_program)
+        legacy_glb = _legacy_v1_glb(current_compiled.glb_bytes)
+        legacy_facts = geometry_worker.read_shape_program_glb_facts(legacy_glb)
+        legacy_glb_sha256 = hashlib.sha256(legacy_glb).hexdigest()
+        assert legacy_glb_sha256 != current_compiled.readback.glb_sha256
+        legacy_readback = current.compile_readback.model_dump(mode="json")
+        legacy_readback.update({
+            "glb_sha256": legacy_glb_sha256,
+            "glb_byte_size": len(legacy_glb),
+            "visual_texture_sets": copy.deepcopy(legacy_facts.visual_texture_sets),
+        })
+        assert all(
+            item["visual_texture_set_id"].endswith("_builtin")
+            and not item["visual_texture_set_id"].endswith("_builtin_v2")
+            for item in legacy_readback["visual_texture_sets"]
+        )
+        # This field did not exist when the v1 quality report was persisted.
+        for item in legacy_readback["visual_texture_sets"]:
+            item.pop("texture_material_id")
+        pre_v2_payload = current.model_dump(mode="json")
+        pre_v2_payload.update({
+            "quality_report_id": "quality_q003_pre_v2",
+            "status": "passed",
+            "triangle_count": legacy_facts.triangle_count,
+            "bounds_mm": legacy_facts.bounds_mm,
+            "evidence_source": "geometry_compile_readback",
+            "compile_readback": legacy_readback,
+            "findings": [],
+            "checked_at": "2026-07-15T12:00:00+00:00",
+        })
+        pre_v2_json = json.dumps(pre_v2_payload, ensure_ascii=False, sort_keys=True)
+        replay_key = "q003-pre-v2-replay"
+        with SQLiteUnitOfWork(factory) as unit:
+            snapshot = unit.active_designs.get_snapshot(version.project_id)
+            assert snapshot is not None
+            replay_revision = snapshot.revision
+            unit.agent_assets.add_quality_report(
+                quality_report_id=pre_v2_payload["quality_report_id"],
+                project_id=version.project_id,
+                asset_version_id=version.asset_version_id,
+                report_json=pre_v2_json,
+                status="passed",
+                created_at=pre_v2_payload["checked_at"],
+            )
+            unit.active_designs.set_quality(
+                project_id=version.project_id,
+                expected_revision=replay_revision,
+                quality_report_id=pre_v2_payload["quality_report_id"],
+                asset_version_id=version.asset_version_id,
+                updated_at=pre_v2_payload["checked_at"],
+            )
+            unit.idempotency.add(
+                scope=f"POST /api/v1/agent/asset-versions/{version.asset_version_id}:quality",
+                key=replay_key,
+                request_hash=_quality_request_hash(version.asset_version_id, replay_revision),
+                response_json=pre_v2_json,
+                created_at=pre_v2_payload["checked_at"],
+            )
+
+        restarted = AgentAssetEditingService(factory)
+        restarted_snapshot_revision = _revision(factory, version.project_id)
+        assert restarted_snapshot_revision == replay_revision + 1
+        current_export = restarted.export_glb(version.asset_version_id)
+        current_export_sha256 = hashlib.sha256(
+            base64.b64decode(current_export.glb_base64, validate=True)
+        ).hexdigest()
+        assert current_export_sha256 == current_compiled.readback.glb_sha256
+        assert current_export_sha256 != legacy_glb_sha256
+        isolated_pre_v2 = restarted.get_quality_report(pre_v2_payload["quality_report_id"])
+        assert isolated_pre_v2.status == "unavailable"
+        assert isolated_pre_v2.evidence_source == "stale_compile_readback"
+        assert isolated_pre_v2.triangle_count == 0 and isolated_pre_v2.bounds_mm is None
+        assert isolated_pre_v2.compile_readback is None
+        assert isolated_pre_v2.findings[0].check_id == "stale_geometry_compile_readback"
+        replayed_pre_v2 = restarted.quality(
+            version.asset_version_id,
+            expected_revision=replay_revision,
+            idempotency_key=replay_key,
+        )
+        assert replayed_pre_v2 == isolated_pre_v2
+        assert assets.get_quality_report(current.quality_report_id) == current
+
         # A pre-Q003 estimate remains readable only as unavailable evidence and
         # cannot replace a current readback-backed report.
-        assets, version, current = versions[0]
         legacy = AgentAssetQualityReport(
             quality_report_id="quality_q003_legacy",
             asset_version_id=version.asset_version_id,
@@ -162,7 +334,6 @@ def main() -> int:
         isolated = assets.get_quality_report(legacy.quality_report_id)
         assert isolated.status == "unavailable" and isolated.triangle_count == 0
         assert isolated.evidence_source == "legacy_estimate"
-        assert assets.get_quality_report(current.quality_report_id) == current
 
         # Damaged GLB readback produces explicit unavailable quality and blocks export.
         assets, version, _ = versions[1]

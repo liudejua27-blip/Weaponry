@@ -131,7 +131,7 @@ export type AgentAssetQualityReport = {
   "status": "passed" | "warning" | "failed" | "unavailable"
   "triangle_count": number
   "bounds_mm"?: Array<number> | null
-  "evidence_source"?: "geometry_compile_readback" | "external_glb_inspection" | "compile_failure" | "legacy_estimate"
+  "evidence_source"?: "geometry_compile_readback" | "external_glb_inspection" | "compile_failure" | "stale_compile_readback" | "legacy_estimate"
   "compile_readback"?: GeometryCompileReadback | null
   "findings"?: Array<AgentAssetQualityFinding>
   "checked_at": string
@@ -1257,6 +1257,7 @@ export type GeometryVisualTextureSetReadback = {
   "schema_version"?: "VisualTextureSet@1"
   "visual_texture_set_id": string
   "material_id": string
+  "texture_material_id": string
   "material_index": number
   "material_zone_ids": Array<string>
   "maps": Array<GeometryVisualTextureMapReadback>

@@ -61,6 +61,10 @@ def build_kit(output: Path) -> dict[str, object]:
             "material_zone_count": len(readback.material_zone_faces),
             "visual_texture_set_count": len(readback.visual_texture_sets),
             "material_ids": sorted(str(item["material_id"]) for item in readback.visual_texture_sets),
+            "texture_material_ids": sorted({
+                str(item["texture_material_id"])
+                for item in readback.visual_texture_sets
+            }),
             "texture_dimensions": [
                 list(item)
                 for item in sorted({
