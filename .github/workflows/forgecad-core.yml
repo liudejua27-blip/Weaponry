@@ -248,6 +248,7 @@ jobs:
       - run: .venv/bin/python -m pip install --upgrade pip
       - run: .venv/bin/pip install -e 'apps/agent[dev]'
       - run: npm ci
+      - run: npm run desktop:build
       - run: google-chrome --version
       - run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - run: npm run desktop:d3-domain-clarification-smoke
