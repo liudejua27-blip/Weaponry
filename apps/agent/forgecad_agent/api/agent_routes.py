@@ -40,6 +40,7 @@ from forgecad_agent.application.material_textures import (
 )
 from forgecad_agent.application.domain_packs import DomainPackManifest, list_domain_packs
 from forgecad_agent.application.material_catalog import list_material_presets
+from forgecad_agent.application.provider_gateway import ProviderConnectionState
 
 
 def build_agent_router(
@@ -113,8 +114,19 @@ def build_agent_router(
             return _error(exc.status_code, exc.code, str(exc))
 
     @router.post("/provider:check", response_model=AgentProviderCheckResponse)
-    def check_provider() -> AgentProviderCheckResponse:
-        return service.check_provider()
+    def check_provider(
+        check_id: Annotated[Optional[str], Header(alias="X-Provider-Check-Id")] = None,
+    ) -> AgentProviderCheckResponse:
+        return service.check_provider(check_id)
+
+    @router.post("/provider-checks/{check_id}/cancel")
+    def cancel_provider_check(check_id: str) -> dict[str, object]:
+        return {"check_id": check_id, "cancel_requested": service.cancel_provider_check(check_id)}
+
+    @router.get("/provider", response_model=ProviderConnectionState)
+    def get_provider_connection_state() -> ProviderConnectionState:
+        """Read the process capability without making an external request."""
+        return service.provider_connection_state()
 
     @router.post("/blockouts", response_model=BuildAgentBlockoutResponse, status_code=201)
     def build_blockout(

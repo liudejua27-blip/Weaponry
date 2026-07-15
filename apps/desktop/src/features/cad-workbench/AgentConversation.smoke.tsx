@@ -22,6 +22,8 @@ const baseProps: AgentConversationProps = {
   onCancelProviderSetup: () => undefined,
   onTestProvider: () => undefined,
   onSaveProvider: () => undefined,
+  activeProviderTurnId: null,
+  onCancelProviderTurn: () => undefined,
   assistantMode: 'brief',
   selectedNode: null,
   selectedModuleLabel: '',
@@ -128,7 +130,17 @@ export function runAgentConversationSmoke(): void {
   assert(hasAriaLabel(output, '外观生成质量'), 'conversation must expose an accessible visual quality control')
   const configuredText = collectText(AgentConversation({
     ...baseProps,
-    providerConfig: { base_url: 'https://api.example.test', model: 'private-provider-model-id', configured: true, storage: 'keychain' },
+    providerConfig: {
+      base_url: 'https://api.example.test',
+      model: 'private-provider-model-id',
+      configured: true,
+      storage: 'keychain',
+      metadata_status: 'valid',
+      secret_status: 'available',
+      supervisor_status: 'running',
+      capability_status: 'ready',
+      failure_code: null,
+    },
   }))
   assert(configuredText.includes('模型服务已配置') && !configuredText.includes('private-provider-model-id'), 'provider status must not expose the configured model identifier')
   assert(hasAriaLabel(output, '设计需求'), 'conversation must expose an accessible input label')

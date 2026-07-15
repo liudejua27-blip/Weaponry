@@ -207,7 +207,7 @@ DeepSeek Provider 只接受受 Schema 验证的概念计划或受限产品 Tool 
 
 ### 5.5 DeepSeek Provider Gateway
 
-当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-14 官方文档；当前“没有响应”的直接原因不是模型名，而是运行实例没有 Provider metadata/Keychain 配置，因而选择了离线 Planner。目标 Gateway 必须把这一事实直接呈现，不允许把离线结果包装成真实 Provider 结果。
+当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-15 官方文档。A003 已实现 Gateway 的配置/运行诊断：本机无 metadata/Keychain 时稳定报告 `unconfigured + network_call_made=false`，不再把离线结果包装成真实 Provider 结果。
 
 `ProviderConnectionState@1`：
 
@@ -217,14 +217,14 @@ unconfigured → checking → ready
                               | server_unavailable | timeout | invalid_output)
 ```
 
-实现要求：
+A003 当前实现：
 
 - 保存后先验证 metadata 和 Keychain 可读，再重启并等待新 Agent 报告 provider/model capability；
-- `provider:check` 必须产生可取消的 Turn/Item 进度，不阻塞 UI，也不能只返回一个泛化失败字符串；
+- `provider:check` 和普通 Turn 产生可取消的脱敏 lifecycle；工作台轮询正在运行 Turn 以展示 Item 和取消 ID，原始 token delta 不进入 UI；
 - 固定映射 DeepSeek 400、401、402、422、429、500、503 和网络/超时；不向 UI 泄露 Key、原始响应或内部 Base URL；
 - JSON 模式 prompt 明确包含 JSON 要求和输出示例；空 `content`、缺少 choice、无效 JSON、Schema 不符分别记录为结构化错误，不能回退为离线成功；
 - 普通 Turn 使用 streaming 反馈和明确取消；Provider 失败后保留已有设计不变，由用户显式重试；
-- 稳定系统合同、工具 Schema、Domain Pack 和 Skill 前缀保持 canonical，以利用 DeepSeek 上下文缓存；动态 Snapshot、Brief 和请求 ID 放在后部。
+- 稳定系统合同、输出 Schema、版本化 JSON 示例和 Domain Pack 前缀保持 canonical，以利用 DeepSeek 上下文缓存；动态 Snapshot、Brief 和请求 ID 放在后部。Tool/Skill 前缀仍属于 A004/A005。
 
 ### 5.6 内部候选与单一最佳结果
 

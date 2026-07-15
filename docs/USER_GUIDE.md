@@ -34,9 +34,10 @@ script/build_and_run.sh --verify
 2. 填写模型名称；
 3. 填写 API Key；
 4. 选择“保存并连接”；
-5. 使用“测试连接”执行一次真实 Provider 检查。
+5. 等待界面确认 metadata、Keychain、Agent 重启和本地 capability 均已就绪；
+6. 使用“测试连接（会联网）”执行一次真实 Provider 检查。
 
-macOS Tauri 运行时把 API Key 保存到系统 Keychain。不要把密钥写进项目文件、终端命令、截图或聊天记录。浏览器开发预览不提供 Keychain，开发者应按 [开发与调试](DEVELOPMENT.md) 使用本机 secret file。
+macOS Tauri 运行时把 API Key 保存到系统 Keychain。仅写入 metadata 或 Keychain 不代表已经连接；只有新 Agent 进程的 capability 为 `ready` 时，界面才允许真实连接测试。测试或普通模型请求期间可以选择“取消本次模型请求”。取消、鉴权失败、余额不足、限流、服务错误、超时、空内容、非法 JSON 或 Schema 不符都不会创建计划、资产版本或导出，也不会静默改用离线结果冒充成功。不要把密钥写进项目文件、终端命令、截图或聊天记录。浏览器开发预览不提供 Keychain，开发者应按 [开发与调试](DEVELOPMENT.md) 使用本机 secret file。
 
 即使没有配置大模型，当前工作台仍可使用确定性离线 Planner 验证基本流程；离线结果不能代表真实模型质量。
 

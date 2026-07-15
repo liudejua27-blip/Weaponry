@@ -118,7 +118,9 @@ def main() -> int:
             StartAgentTurnRequest(client_request_id="g809-turn", message="设计一台三关节机械臂"),
             "g809-turn",
         )
-        plan = MechanicalConceptPlan.model_validate(next(item.payload["result"] for item in turn.items if item.item_type == "tool_result"))
+        plan = MechanicalConceptPlan.model_validate(
+            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
+        )
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(
             BuildAgentBlockoutRequest(client_request_id="g809-build", plan=plan, direction_id=direction_id),

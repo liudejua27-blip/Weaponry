@@ -37,6 +37,8 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
   "profile-section-set.schema.json": "5baf4fdb7f1788f6237e57f0222a655043057041b639ba85b46388836c0d750f",
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
+  "provider-connection-state.schema.json": "b3e683f4d2ec694fe1a8b35c3662c7123883eb68da25459194d22031fdcb2c8a",
+  "provider-execution-trace.schema.json": "be119b3631dd5588b6f2cdeea2c44211ea4ad8a8434745a6a178a19806f08b6c",
   "shape-program.schema.json": "112b6e5c33333ce5c9cd5a31a4e908c47b31313de2a6c3fae986ea5876a8c72e",
   "visual-intent-mapping.schema.json": "e610720b36ad0a22e4815f067d4ae416d12e2f64fee0780e4c43fa5716fcc57c",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
@@ -5496,6 +5498,203 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "provenance"
     ],
     "title": "ProfileSketch",
+    "type": "object"
+  },
+  "provider-connection-state.schema.json": {
+    "$id": "https://forgecad.local/schemas/provider-connection-state.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "capability_status": {
+        "enum": [
+          "offline",
+          "ready",
+          "mismatch",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "configured": {
+        "type": "boolean"
+      },
+      "failure_code": {
+        "maxLength": 120,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "message": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "metadata_status": {
+        "enum": [
+          "not_checked",
+          "missing",
+          "valid",
+          "invalid",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "network_call_made": {
+        "type": "boolean"
+      },
+      "provider_id": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ProviderConnectionState@1"
+      },
+      "secret_status": {
+        "enum": [
+          "not_checked",
+          "missing",
+          "available",
+          "invalid",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "offline",
+          "unconfigured",
+          "ready",
+          "degraded",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "supervisor_status": {
+        "enum": [
+          "not_checked",
+          "running",
+          "restart_failed",
+          "unavailable"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "status",
+      "provider_id",
+      "configured",
+      "metadata_status",
+      "secret_status",
+      "supervisor_status",
+      "capability_status",
+      "network_call_made",
+      "message"
+    ],
+    "title": "ProviderConnectionState",
+    "type": "object"
+  },
+  "provider-execution-trace.schema.json": {
+    "$id": "https://forgecad.local/schemas/provider-execution-trace.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "attempt": {
+        "maximum": 2,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "error_code": {
+        "maxLength": 120,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "input_tokens": {
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "latency_ms": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "message": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "network_call_made": {
+        "type": "boolean"
+      },
+      "output_tokens": {
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "phase": {
+        "enum": [
+          "preflight",
+          "request_started",
+          "streaming",
+          "validating",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "prompt_cache_hit_tokens": {
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "prompt_cache_miss_tokens": {
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "provider_id": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ProviderExecutionTrace@1"
+      },
+      "total_tokens": {
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "trace_id": {
+        "pattern": "^ptrace_[a-f0-9]{32}$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "trace_id",
+      "phase",
+      "provider_id",
+      "attempt",
+      "network_call_made",
+      "latency_ms",
+      "message"
+    ],
+    "title": "ProviderExecutionTrace",
     "type": "object"
   },
   "shape-program.schema.json": {

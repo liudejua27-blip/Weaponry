@@ -30,11 +30,10 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react'
 import { ForgeApiError, forgeApi, mapActiveDesignError } from '../../shared/api/forgeApi'
-import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
+import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, AgentTurn, DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
 import { useRuntime } from '../../app/providers/RuntimeProvider'
 import {
   getProviderConfig as getTauriProviderConfig,
-  restartAgentSupervisor,
   saveProviderConfig as saveTauriProviderConfig,
   type ProviderConfigMetadata,
 } from '../../shared/tauri/agentSupervisor'
@@ -84,13 +83,14 @@ import { useAgentMaterialFilterPresentation } from './useAgentMaterialFilterPres
 import { useAgentMaterialPreselectionPresentation } from './useAgentMaterialPreselectionPresentation'
 import { useComponentCatalogPresentation } from './useComponentCatalogPresentation'
 import { useConceptWorkbench } from './useConceptWorkbench'
+import { isProviderExecutionError, providerCheckPresentation } from './providerConnectionPresentation'
 import './cad-workbench.css'
 
 type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
-type AgentTurnRecordResult = { recorded: boolean; clarification: boolean; cancelled: boolean }
+type AgentTurnRecordResult = { recorded: boolean; clarification: boolean; cancelled: boolean; failed: boolean }
 
 type WeaponParameters = {
   overallLength: number
@@ -421,6 +421,8 @@ export function CadWorkbenchPanel() {
   const [providerModel, setProviderModel] = useState('deepseek-v4-pro')
   const [providerApiKey, setProviderApiKey] = useState('')
   const [providerSaving, setProviderSaving] = useState(false)
+  const [activeProviderTurnId, setActiveProviderTurnId] = useState<string | null>(null)
+  const [activeProviderCheckId, setActiveProviderCheckId] = useState<string | null>(null)
   const [importingGlb, setImportingGlb] = useState(false)
   const importGlbInputRef = useRef<HTMLInputElement | null>(null)
   const {
@@ -676,12 +678,16 @@ export function CadWorkbenchPanel() {
   ])
 
   useEffect(() => {
-    void getTauriProviderConfig().then((config) => {
-      if (!config) return
-      setProviderConfig(config)
-      setProviderBaseUrl(config.base_url)
-      setProviderModel(config.model)
-    })
+    void getTauriProviderConfig()
+      .then((config) => {
+        if (!config) return
+        setProviderConfig(config)
+        setProviderBaseUrl(config.base_url)
+        setProviderModel(config.model)
+      })
+      .catch((caught) => {
+        setAssistantNote(`无法读取模型服务配置：${errorText(caught)}。当前不会假定 DeepSeek 已配置。`)
+      })
   }, [])
 
   useEffect(() => {
@@ -1308,17 +1314,43 @@ export function CadWorkbenchPanel() {
         })
         threadId = created.thread_id
         if (!isCurrentAgentConversationRequest(projectId, requestId)) {
-          return { recorded: false, clarification: false, cancelled: true }
+          return { recorded: false, clarification: false, cancelled: true, failed: false }
         }
       }
-      const turn = await api.startAgentTurn(threadId, {
+      const turnPromise = api.startAgentTurn(threadId, {
         client_request_id: `agent-turn-${Date.now()}`,
         message,
         ...(clarificationDomainPackId ? { clarification_domain_pack_id: clarificationDomainPackId } : {}),
       })
+      const discovery = window.setInterval(() => {
+        void api.getAgentThread(threadId).then((detail) => {
+          if (!isCurrentAgentConversationRequest(projectId, requestId)) return
+          const running = [...detail.turns].reverse().find((candidate) => candidate.status === 'running')
+          if (!running) return
+          setActiveProviderTurnId(running.turn_id)
+          receiveAgentTurn(
+            projectId,
+            requestId,
+            threadId,
+            running.items,
+            parseAgentTurnPresentation(running.items, running.request_text),
+          )
+        }).catch(() => undefined)
+      }, 150)
+      let turn: AgentTurn
+      try {
+        turn = await turnPromise
+      } finally {
+        window.clearInterval(discovery)
+        setActiveProviderTurnId(null)
+      }
       const presentation = parseAgentTurnPresentation(turn.items, turn.request_text)
       if (!receiveAgentTurn(projectId, requestId, threadId, turn.items, presentation)) {
-        return { recorded: false, clarification: false, cancelled: true }
+        return { recorded: false, clarification: false, cancelled: true, failed: false }
+      }
+      if (turn.status === 'cancelled') {
+        setAssistantNote('本次模型请求已取消；没有创建计划、资产版本或导出。')
+        return { recorded: true, clarification: false, cancelled: true, failed: false }
       }
       if (presentation.clarification) {
         clearBlockoutDisplay(projectId)
@@ -1326,13 +1358,13 @@ export function CadWorkbenchPanel() {
         setAgentAssetChangeSet(null)
         setAgentCandidateSelectedPartId(null)
         setAssistantNote(presentation.clarification.question)
-        return { recorded: true, clarification: true, cancelled: false }
+        return { recorded: true, clarification: true, cancelled: false, failed: false }
       }
       if (presentation.plan) requestAgentDirectionConceptPreviews(presentation.plan, projectId)
-      return { recorded: true, clarification: false, cancelled: false }
+      return { recorded: true, clarification: false, cancelled: false, failed: false }
     } catch (caught) {
       if (!isCurrentAgentConversationRequest(projectId, requestId)) {
-        return { recorded: false, clarification: false, cancelled: true }
+        return { recorded: false, clarification: false, cancelled: true, failed: false }
       }
       if (caught instanceof ForgeApiError && (caught.code === 'DOMAIN_AMBIGUOUS' || caught.code === 'DOMAIN_UNSUPPORTED')) {
         const clarification: AgentClarification = {
@@ -1343,19 +1375,38 @@ export function CadWorkbenchPanel() {
           originalMessage: message,
         }
         if (!receiveAgentClarification(projectId, requestId, clarification)) {
-          return { recorded: false, clarification: false, cancelled: true }
+          return { recorded: false, clarification: false, cancelled: true, failed: false }
         }
         setAssistantNote(caught.message)
-        return { recorded: false, clarification: true, cancelled: false }
+        return { recorded: false, clarification: true, cancelled: false, failed: false }
+      }
+      if (caught instanceof ForgeApiError && isProviderExecutionError(caught.code)) {
+        const networkCall = caught.details.network_call_made === true ? 'true' : 'false'
+        setAssistantNote(`模型请求失败：${caught.message}（${caught.code}，network_call_made=${networkCall}）。不会切换到离线 Planner；已保存资产没有变化。`)
+        return { recorded: false, clarification: false, cancelled: false, failed: true }
       }
       // The compatibility planner remains usable when the new kernel is not
       // available yet (for example while an older local Agent is running).
       if (!markAgentKernelUnavailable(projectId, requestId)) {
-        return { recorded: false, clarification: false, cancelled: true }
+        return { recorded: false, clarification: false, cancelled: true, failed: false }
       }
-      return { recorded: false, clarification: false, cancelled: false }
+      return { recorded: false, clarification: false, cancelled: false, failed: false }
     }
   }, [agentThreadId, api, clearAgentAssetWorkspace, clearBlockoutDisplay, clearDirectionConceptPreviews, concept.project?.name, concept.project?.project_id, isCurrentAgentConversationRequest, markAgentKernelUnavailable, parseAgentTurnPresentation, receiveAgentClarification, receiveAgentTurn, requestAgentDirectionConceptPreviews, startAgentConversationRequest])
+
+  const cancelActiveProviderTurn = useCallback(async () => {
+    if (!activeProviderTurnId && !activeProviderCheckId) return
+    try {
+      if (activeProviderCheckId) {
+        await api.cancelAgentProviderCheck(activeProviderCheckId)
+      } else if (activeProviderTurnId) {
+        await api.cancelAgentTurn(activeProviderTurnId, `agent-turn-cancel-${Date.now()}`)
+      }
+      setAssistantNote('正在取消本次模型请求；已保存资产不会变化。')
+    } catch (caught) {
+      setAssistantNote(`取消请求失败：${errorText(caught)}。请等待当前请求结束后再试。`)
+    }
+  }, [activeProviderCheckId, activeProviderTurnId, api])
 
   const previewAgentDirection = useCallback(async (directionId: string, variationIndex = 0, requestedProfile = presentationProfile) => {
     if (!agentPlan) return
@@ -1734,6 +1785,10 @@ export function CadWorkbenchPanel() {
     setAssistantNote(`正在解释 Brief：“${instruction}”`)
     const kernelResult = await recordAgentTurn(instruction, clarificationDomainPackId)
     if (kernelResult.cancelled) return
+    if (kernelResult.failed) {
+      setChatInput('')
+      return
+    }
     if (kernelResult.clarification) {
       setChatInput('')
       return
@@ -1776,6 +1831,10 @@ export function CadWorkbenchPanel() {
     setAssistantNote(`正在规划修改：“${instruction}”`)
     const kernelResult = await recordAgentTurn(instruction)
     if (kernelResult.cancelled) return
+    if (kernelResult.failed) {
+      setChatInput('')
+      return
+    }
     if (kernelResult.clarification) {
       setChatInput('')
       return
@@ -1820,10 +1879,15 @@ export function CadWorkbenchPanel() {
       })
       setProviderConfig(saved)
       setProviderApiKey('')
-      setProviderSetupOpen(false)
-      const restarted = await restartAgentSupervisor()
-      checkService()
-      setAssistantNote(restarted.running ? '模型服务已保存并重新连接；现在可以让 Agent 生成真实设计方向。' : '配置已保存，但本地 Agent 尚未连接，请检查服务状态。')
+      void checkService()
+      if (saved.metadata_status !== 'valid' || saved.secret_status !== 'available') {
+        setAssistantNote(`配置尚未启用：${saved.failure_code ?? 'Provider metadata 或 Keychain 未通过验证'}。没有发起 DeepSeek 请求。`)
+      } else if (saved.supervisor_status !== 'running' || saved.capability_status !== 'ready') {
+        setAssistantNote(`密钥已安全保存，但 Agent 尚未载入新配置：${saved.failure_code ?? '本地 capability 不匹配'}。没有发起 DeepSeek 请求，请先修复服务状态。`)
+      } else {
+        setProviderSetupOpen(false)
+        setAssistantNote('模型服务配置、Keychain、Agent 重启和本地 capability 均已验证；尚未发起收费请求，可点击“测试连接”。')
+      }
     } catch (caught) {
       setAssistantNote(`模型服务配置失败：${errorText(caught)}`)
     } finally {
@@ -1833,16 +1897,18 @@ export function CadWorkbenchPanel() {
 
   const testProvider = useCallback(async () => {
     setProviderSaving(true)
+    const checkId = `provider-check-${Date.now()}`
+    setActiveProviderCheckId(checkId)
     try {
-      const result = await api.checkAgentProvider()
-      setAssistantNote(result.status === 'ready'
-        ? '模型服务连接成功，已返回结构化设计计划。'
-        : result.status === 'not_configured'
-        ? '当前仍是本机离线规划，没有发起大模型请求。'
-        : '模型服务暂时无法连接。已保存设计没有变化；请检查配置后再试。')
-    } catch {
-      setAssistantNote('模型服务测试未完成。已保存设计没有变化；请稍后重试。')
+      const result = await api.checkAgentProvider(checkId)
+      setAssistantNote(providerCheckPresentation(result))
+    } catch (caught) {
+      const detail = caught instanceof ForgeApiError
+        ? `${caught.message}（${caught.code}，network_call_made=${caught.details?.network_call_made === true ? 'true' : 'unknown'}）`
+        : errorText(caught)
+      setAssistantNote(`模型服务测试未完成：${detail}。不会静默切换为离线成功，已保存设计没有变化。`)
     } finally {
+      setActiveProviderCheckId(null)
       setProviderSaving(false)
     }
   }, [api])
@@ -1981,6 +2047,8 @@ export function CadWorkbenchPanel() {
               onCancelProviderSetup={() => setProviderSetupOpen(false)}
               onTestProvider={() => void testProvider()}
               onSaveProvider={() => void saveProvider()}
+              activeProviderTurnId={activeProviderTurnId ?? activeProviderCheckId}
+              onCancelProviderTurn={() => void cancelActiveProviderTurn()}
               assistantMode={assistantMode}
               selectedNode={selectedNode?.node_id ?? null}
               selectedModuleLabel={selectedModuleLabel}

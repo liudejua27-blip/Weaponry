@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import threading
 import time
 import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Protocol
+from typing import Any, Callable, Dict, List, Literal, Optional, Protocol
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from .concept_models import StrictApiModel
 from .conversation import ProviderConversation
 from .domain_packs import DomainPackManifest
+from .provider_gateway import ProviderConnectionState, ProviderExecutionTrace
 from .visual_intent import (
     VisualIntentMapping,
     build_visual_intent_mapping,
@@ -23,10 +26,18 @@ from .visual_intent import (
 
 
 class MechanicalPlannerError(RuntimeError):
-    def __init__(self, code: str, message: str, *, recoverable: bool = True) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        recoverable: bool = True,
+        network_call_made: bool = False,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.recoverable = recoverable
+        self.network_call_made = network_call_made
 
 
 @dataclass(frozen=True)
@@ -72,6 +83,7 @@ class MechanicalConceptPlanner(Protocol):
     provider_id: str
     model_name: Optional[str]
     last_call_telemetry: Optional[MechanicalPlannerTelemetry]
+    last_execution_trace: Optional[ProviderExecutionTrace]
 
     def plan_complete_concept(
         self,
@@ -80,7 +92,12 @@ class MechanicalConceptPlanner(Protocol):
         pack: DomainPackManifest,
         project_id: Optional[str],
         conversation: Optional[ProviderConversation] = None,
+        cancel_event: Optional[threading.Event] = None,
+        trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
     ) -> MechanicalConceptPlan:
+        ...
+
+    def connection_state(self) -> ProviderConnectionState:
         ...
 
 
@@ -100,6 +117,19 @@ class DeterministicMechanicalPlanner:
 
     def __init__(self) -> None:
         self.last_call_telemetry: Optional[MechanicalPlannerTelemetry] = None
+        self.last_execution_trace: Optional[ProviderExecutionTrace] = None
+
+    def connection_state(self) -> ProviderConnectionState:
+        return ProviderConnectionState(
+            status="unconfigured",
+            provider_id=self.provider_id,
+            configured=False,
+            metadata_status="not_checked",
+            secret_status="not_checked",
+            supervisor_status="not_checked",
+            capability_status="offline",
+            message="当前使用本机离线规划；不会发起 DeepSeek 网络请求。",
+        )
 
     def plan_complete_concept(
         self,
@@ -108,8 +138,20 @@ class DeterministicMechanicalPlanner:
         pack: DomainPackManifest,
         project_id: Optional[str],
         conversation: Optional[ProviderConversation] = None,
+        cancel_event: Optional[threading.Event] = None,
+        trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
     ) -> MechanicalConceptPlan:
         del conversation
+        if cancel_event is not None and cancel_event.is_set():
+            raise MechanicalPlannerError("PROVIDER_CANCELLED", "Provider request was cancelled.", recoverable=False)
+        trace = ProviderExecutionTrace.new(
+            phase="completed",
+            provider_id=self.provider_id,
+            network_call_made=False,
+            message="本机离线规划已完成；未调用外部 Provider。",
+        )
+        self.last_execution_trace = trace
+        _notify_trace(trace_observer, trace)
         roles = _roles_for_pack(pack.domain)
         direction_ids = [f"direction_{index}" for index in range(1, 4)]
         visual_intent = build_visual_intent_mapping(
@@ -137,6 +179,21 @@ class OpenAICompatibleMechanicalPlanner:
         self.config = config
         self.model_name = config.model or None
         self.last_call_telemetry: Optional[MechanicalPlannerTelemetry] = None
+        self.last_execution_trace: Optional[ProviderExecutionTrace] = None
+
+    def connection_state(self) -> ProviderConnectionState:
+        configured = bool(self.config.api_key and self.config.model and self.config.base_url)
+        return ProviderConnectionState(
+            status="ready" if configured else "unconfigured",
+            provider_id=self.provider_id,
+            configured=configured,
+            metadata_status="valid" if self.config.model and self.config.base_url else "missing",
+            secret_status="available" if self.config.api_key else "missing",
+            supervisor_status="not_checked",
+            capability_status="ready" if configured else "unavailable",
+            failure_code=None if configured else "PROVIDER_UNCONFIGURED",
+            message="Provider capability is ready for an explicit request." if configured else "Provider metadata or secret is missing.",
+        )
 
     def plan_complete_concept(
         self,
@@ -145,11 +202,45 @@ class OpenAICompatibleMechanicalPlanner:
         pack: DomainPackManifest,
         project_id: Optional[str],
         conversation: Optional[ProviderConversation] = None,
+        cancel_event: Optional[threading.Event] = None,
+        trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
     ) -> MechanicalConceptPlan:
+        trace_id = f"ptrace_{uuid.uuid4().hex}"
+        started_at = time.monotonic()
+        self.last_call_telemetry = None
+        self.last_execution_trace = None
         if not self.config.api_key:
-            raise MechanicalPlannerError("PLANNER_UNCONFIGURED", "Mechanical Planner API key is not configured.", recoverable=False)
+            self._fail_trace(
+                trace_id,
+                "PROVIDER_UNCONFIGURED",
+                "Provider API key is not configured.",
+                started_at,
+                False,
+                trace_observer,
+            )
+            raise MechanicalPlannerError("PROVIDER_UNCONFIGURED", "Provider API key is not configured.", recoverable=False)
         if not self.config.model:
-            raise MechanicalPlannerError("PLANNER_UNCONFIGURED", "Mechanical Planner model is not configured.", recoverable=False)
+            self._fail_trace(
+                trace_id,
+                "PROVIDER_UNCONFIGURED",
+                "Provider model is not configured.",
+                started_at,
+                False,
+                trace_observer,
+            )
+            raise MechanicalPlannerError("PROVIDER_UNCONFIGURED", "Provider model is not configured.", recoverable=False)
+        if cancel_event is not None and cancel_event.is_set():
+            self._cancel_trace(trace_id, started_at, False, trace_observer)
+            raise MechanicalPlannerError("PROVIDER_CANCELLED", "Provider request was cancelled.", recoverable=False)
+        preflight = ProviderExecutionTrace.new(
+            trace_id=trace_id,
+            phase="preflight",
+            provider_id=self.provider_id,
+            network_call_made=False,
+            message="Provider metadata and in-memory secret passed preflight.",
+        )
+        self.last_execution_trace = preflight
+        _notify_trace(trace_observer, preflight)
         schema = MechanicalConceptPlan.model_json_schema()
         stable_messages = [
             {
@@ -170,6 +261,7 @@ class OpenAICompatibleMechanicalPlanner:
                         "schema_version": "ForgeCADProviderStaticContract@1",
                         "domain_pack": pack.model_dump(mode="json"),
                         "output_schema": schema,
+                        "versioned_json_output_example": _provider_output_example(pack),
                     }
                 ),
             },
@@ -190,6 +282,8 @@ class OpenAICompatibleMechanicalPlanner:
             "model": self.config.model,
             "messages": [*stable_messages, *dynamic_messages],
             "response_format": _response_format(self.config, schema),
+            "stream": True,
+            "stream_options": {"include_usage": True},
             "max_tokens": max(512, min(
                 conversation.max_output_tokens if conversation is not None else self.config.max_output_tokens,
                 self.config.max_output_tokens,
@@ -209,34 +303,101 @@ class OpenAICompatibleMechanicalPlanner:
             method="POST",
         )
         request.add_header("Content-Type", "application/json")
+        request.add_header("Accept", "text/event-stream, application/json")
         request.add_header("Authorization", f"Bearer {self.config.api_key}")
-        started_at = time.monotonic()
+        request_started = ProviderExecutionTrace.new(
+            trace_id=trace_id,
+            phase="request_started",
+            provider_id=self.provider_id,
+            network_call_made=True,
+            message="Provider network request started.",
+        )
+        self.last_execution_trace = request_started
+        _notify_trace(trace_observer, request_started)
         try:
             with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
+                response_payload = _read_provider_response(
+                    response,
+                    cancel_event=cancel_event,
+                    on_streaming=lambda: self._streaming_trace(trace_id, started_at, trace_observer),
+                )
         except urllib.error.HTTPError as exc:
             self.last_call_telemetry = MechanicalPlannerTelemetry(latency_ms=_elapsed_ms(started_at))
-            if exc.code in {401, 403}:
-                raise MechanicalPlannerError("PLANNER_AUTH_FAILED", "Mechanical Planner rejected the API key.", recoverable=False) from exc
-            if exc.code == 429:
-                raise MechanicalPlannerError("PLANNER_RATE_LIMITED", "Mechanical Planner rate limited the request.") from exc
-            raise MechanicalPlannerError("PLANNER_HTTP_ERROR", f"Mechanical Planner HTTP error {exc.code}.") from exc
-        except Exception as exc:  # noqa: BLE001 - provider failures cross a stable boundary.
+            code, message, recoverable = _http_error(exc.code)
+            self._fail_trace(trace_id, code, message, started_at, True, trace_observer)
+            raise MechanicalPlannerError(code, message, recoverable=recoverable, network_call_made=True) from exc
+        except MechanicalPlannerError as exc:
+            if exc.code == "PROVIDER_CANCELLED":
+                self._cancel_trace(trace_id, started_at, True, trace_observer)
+            else:
+                self._fail_trace(trace_id, exc.code, str(exc), started_at, True, trace_observer)
+            raise
+        except (socket.timeout, TimeoutError) as exc:
             self.last_call_telemetry = MechanicalPlannerTelemetry(latency_ms=_elapsed_ms(started_at))
-            raise MechanicalPlannerError("PLANNER_TIMEOUT", "Mechanical Planner request failed.") from exc
+            code = "PROVIDER_TIMEOUT"
+            message = "Provider request timed out; its outcome is unknown."
+            self._fail_trace(trace_id, code, message, started_at, True, trace_observer)
+            raise MechanicalPlannerError(code, message, network_call_made=True) from exc
+        except (urllib.error.URLError, OSError) as exc:
+            self.last_call_telemetry = MechanicalPlannerTelemetry(latency_ms=_elapsed_ms(started_at))
+            code = "PROVIDER_NETWORK_ERROR"
+            message = "Provider network request failed."
+            self._fail_trace(trace_id, code, message, started_at, True, trace_observer)
+            raise MechanicalPlannerError(code, message, network_call_made=True) from exc
         self.last_call_telemetry = _provider_telemetry(response_payload, _elapsed_ms(started_at))
+        validating = _trace_from_telemetry(
+            trace_id=trace_id,
+            phase="validating",
+            provider_id=self.provider_id,
+            telemetry=self.last_call_telemetry,
+            network_call_made=True,
+            message="Provider stream completed; validating structured JSON output.",
+        )
+        self.last_execution_trace = validating
+        _notify_trace(trace_observer, validating)
         try:
             message = response_payload["choices"][0]["message"]
             if message.get("tool_calls"):
                 raise MechanicalPlannerError(
-                    "PLANNER_TOOL_CALLS_UNSUPPORTED",
-                    "Mechanical Planner returned tool calls, which are not enabled for this local Alpha.",
+                    "PROVIDER_TOOL_CALLS_UNSUPPORTED",
+                    "Provider returned tool calls, which are not enabled for this local Alpha.",
                     recoverable=False,
+                    network_call_made=True,
                 )
-            content = message["content"]
-            result = MechanicalConceptPlan.model_validate(json.loads(content))
-        except Exception as exc:  # noqa: BLE001 - external output is untrusted.
-            raise MechanicalPlannerError("PLANNER_BAD_OUTPUT", "Mechanical Planner returned invalid structured output.", recoverable=False) from exc
+            content = message.get("content")
+            if not isinstance(content, str) or not content.strip():
+                raise MechanicalPlannerError(
+                    "PROVIDER_EMPTY_CONTENT",
+                    "Provider returned empty JSON content.",
+                    recoverable=False,
+                    network_call_made=True,
+                )
+            try:
+                decoded = json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise MechanicalPlannerError(
+                    "PROVIDER_INVALID_JSON",
+                    "Provider returned invalid JSON content.",
+                    recoverable=False,
+                    network_call_made=True,
+                ) from exc
+            try:
+                result = MechanicalConceptPlan.model_validate(decoded)
+            except ValidationError as exc:
+                raise MechanicalPlannerError(
+                    "PROVIDER_SCHEMA_MISMATCH",
+                    "Provider JSON did not match MechanicalConceptPlan@1.",
+                    recoverable=False,
+                    network_call_made=True,
+                ) from exc
+        except MechanicalPlannerError as exc:
+            self._fail_trace(trace_id, exc.code, str(exc), started_at, True, trace_observer)
+            raise
+        except (KeyError, IndexError, TypeError) as exc:
+            code = "PROVIDER_SCHEMA_MISMATCH"
+            message = "Provider response envelope did not contain a completion message."
+            self._fail_trace(trace_id, code, message, started_at, True, trace_observer)
+            raise MechanicalPlannerError(code, message, recoverable=False, network_call_made=True) from exc
         visual_intent = build_visual_intent_mapping(
             brief=brief,
             domain_pack_id=pack.pack_id,
@@ -252,7 +413,7 @@ class OpenAICompatibleMechanicalPlanner:
             )
             for direction in result.directions
         ]
-        return result.model_copy(
+        normalized = result.model_copy(
             update={
                 "domain_pack_id": pack.pack_id,
                 "brief": brief,
@@ -269,6 +430,77 @@ class OpenAICompatibleMechanicalPlanner:
                 "shape_program_ready": False,
             }
         )
+        completed = _trace_from_telemetry(
+            trace_id=trace_id,
+            phase="completed",
+            provider_id=self.provider_id,
+            telemetry=self.last_call_telemetry,
+            network_call_made=True,
+            message="Provider output passed MechanicalConceptPlan@1 validation.",
+        )
+        self.last_execution_trace = completed
+        _notify_trace(trace_observer, completed)
+        return normalized
+
+    def _streaming_trace(
+        self,
+        trace_id: str,
+        started_at: float,
+        observer: Optional[Callable[[ProviderExecutionTrace], None]],
+    ) -> None:
+        if self.last_execution_trace is not None and self.last_execution_trace.phase == "streaming":
+            return
+        trace = ProviderExecutionTrace.new(
+            trace_id=trace_id,
+            phase="streaming",
+            provider_id=self.provider_id,
+            network_call_made=True,
+            latency_ms=_elapsed_ms(started_at),
+            message="Provider response stream started.",
+        )
+        self.last_execution_trace = trace
+        _notify_trace(observer, trace)
+
+    def _fail_trace(
+        self,
+        trace_id: str,
+        code: str,
+        message: str,
+        started_at: float,
+        network_call_made: bool,
+        observer: Optional[Callable[[ProviderExecutionTrace], None]],
+    ) -> None:
+        trace = _trace_from_telemetry(
+            trace_id=trace_id,
+            phase="failed",
+            provider_id=self.provider_id,
+            telemetry=self.last_call_telemetry,
+            network_call_made=network_call_made,
+            message=message,
+            error_code=code,
+            fallback_latency_ms=_elapsed_ms(started_at),
+        )
+        self.last_execution_trace = trace
+        _notify_trace(observer, trace)
+
+    def _cancel_trace(
+        self,
+        trace_id: str,
+        started_at: float,
+        network_call_made: bool,
+        observer: Optional[Callable[[ProviderExecutionTrace], None]],
+    ) -> None:
+        trace = ProviderExecutionTrace.new(
+            trace_id=trace_id,
+            phase="cancelled",
+            provider_id=self.provider_id,
+            network_call_made=network_call_made,
+            latency_ms=_elapsed_ms(started_at),
+            error_code="PROVIDER_CANCELLED",
+            message="Provider request was cancelled; saved assets were not changed.",
+        )
+        self.last_execution_trace = trace
+        _notify_trace(observer, trace)
 
 
 def mechanical_planner_from_env() -> MechanicalConceptPlanner:
@@ -295,6 +527,24 @@ def mechanical_planner_from_env() -> MechanicalConceptPlanner:
             response_mode=_response_mode_env(),
             max_output_tokens=_int_env("FORGECAD_AGENT_MAX_TOKENS", 4096),
         )
+    )
+
+
+def planner_connection_state(planner: MechanicalConceptPlanner) -> ProviderConnectionState:
+    connection_state = getattr(planner, "connection_state", None)
+    if callable(connection_state):
+        return connection_state()
+    provider_id = str(getattr(planner, "provider_id", "unknown"))
+    return ProviderConnectionState(
+        status="degraded",
+        provider_id=provider_id,
+        configured=False,
+        metadata_status="not_checked",
+        secret_status="not_checked",
+        supervisor_status="not_checked",
+        capability_status="unavailable",
+        failure_code="PROVIDER_CAPABILITY_UNAVAILABLE",
+        message="Planner does not expose ProviderConnectionState@1.",
     )
 
 
@@ -371,6 +621,186 @@ def _response_format(config: MechanicalPlannerConfig, schema: Dict[str, Any]) ->
     if use_json_object:
         return {"type": "json_object"}
     return {"type": "json_schema", "json_schema": {"name": "forgecad_mechanical_concept_plan", "strict": True, "schema": schema}}
+
+
+def _provider_output_example(pack: DomainPackManifest) -> Dict[str, Any]:
+    roles = _roles_for_pack(pack.domain)
+    return {
+        "schema_version": "MechanicalConceptPlan@1",
+        "plan_id": "plan_example_contract_v1",
+        "domain_pack_id": pack.pack_id,
+        "brief": "JSON example only",
+        "generation_stage": "blockout",
+        "spec": {"non_functional_only": True},
+        "directions": [
+            {
+                "direction_id": f"direction_{index}",
+                "title": f"完整外观方向 {index}",
+                "summary": "描述完整对象轮廓、主要分件和非功能视觉语言。",
+                "silhouette": silhouette,
+                "primary_part_roles": roles[: max(2, min(6, len(roles)))],
+                "material_direction": "描述视觉材质与配色，不提供工程材料配方。",
+            }
+            for index, silhouette in enumerate(("compact", "balanced", "industrial"), start=1)
+        ],
+        "provider_id": "provider_contract_example",
+        "model": None,
+        "shape_program_ready": False,
+    }
+
+
+def _read_provider_response(
+    response: Any,
+    *,
+    cancel_event: Optional[threading.Event],
+    on_streaming: Callable[[], None],
+) -> Dict[str, Any]:
+    content_type = str(response.headers.get("Content-Type", "")).casefold()
+    if "text/event-stream" not in content_type:
+        if cancel_event is not None and cancel_event.is_set():
+            raise MechanicalPlannerError(
+                "PROVIDER_CANCELLED",
+                "Provider request was cancelled.",
+                recoverable=False,
+                network_call_made=True,
+            )
+        raw = response.read().decode("utf-8")
+        if cancel_event is not None and cancel_event.is_set():
+            raise MechanicalPlannerError(
+                "PROVIDER_CANCELLED",
+                "Provider request was cancelled.",
+                recoverable=False,
+                network_call_made=True,
+            )
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise MechanicalPlannerError(
+                "PROVIDER_INVALID_JSON",
+                "Provider returned an invalid JSON response envelope.",
+                recoverable=False,
+                network_call_made=True,
+            ) from exc
+        if not isinstance(value, dict):
+            raise MechanicalPlannerError(
+                "PROVIDER_SCHEMA_MISMATCH",
+                "Provider response envelope must be a JSON object.",
+                recoverable=False,
+                network_call_made=True,
+            )
+        return value
+
+    content_chunks: List[str] = []
+    usage: Optional[Dict[str, Any]] = None
+    tool_calls: List[Any] = []
+    stream_started = False
+    for raw_line in response:
+        if cancel_event is not None and cancel_event.is_set():
+            raise MechanicalPlannerError(
+                "PROVIDER_CANCELLED",
+                "Provider request was cancelled.",
+                recoverable=False,
+                network_call_made=True,
+            )
+        line = raw_line.decode("utf-8").strip()
+        if not line or line.startswith(":") or not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise MechanicalPlannerError(
+                "PROVIDER_INVALID_JSON",
+                "Provider stream contained invalid JSON.",
+                recoverable=False,
+                network_call_made=True,
+            ) from exc
+        if not isinstance(chunk, dict):
+            continue
+        if not stream_started:
+            stream_started = True
+            on_streaming()
+        chunk_usage = chunk.get("usage")
+        if isinstance(chunk_usage, dict):
+            usage = chunk_usage
+        choices = chunk.get("choices")
+        if not isinstance(choices, list):
+            continue
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            delta = choice.get("delta")
+            if not isinstance(delta, dict):
+                continue
+            content = delta.get("content")
+            if isinstance(content, str):
+                content_chunks.append(content)
+            delta_calls = delta.get("tool_calls")
+            if isinstance(delta_calls, list):
+                tool_calls.extend(delta_calls)
+            # reasoning_content is intentionally ignored and never persisted.
+    return {
+        "choices": [{"message": {"content": "".join(content_chunks), "tool_calls": tool_calls}}],
+        "usage": usage or {},
+    }
+
+
+def _http_error(status_code: int) -> tuple[str, str, bool]:
+    mapping = {
+        400: ("DEEPSEEK_INVALID_REQUEST", "DeepSeek rejected the request format.", False),
+        401: ("DEEPSEEK_AUTH_FAILED", "DeepSeek rejected the API key.", False),
+        403: ("DEEPSEEK_AUTH_FAILED", "DeepSeek rejected the API key or access policy.", False),
+        402: ("DEEPSEEK_BALANCE_EXHAUSTED", "DeepSeek account balance is insufficient.", False),
+        422: ("DEEPSEEK_INVALID_PARAMETERS", "DeepSeek rejected one or more request parameters.", False),
+        429: ("DEEPSEEK_RATE_LIMITED", "DeepSeek rate limited the request.", True),
+        500: ("DEEPSEEK_SERVER_ERROR", "DeepSeek reported an internal server error.", True),
+        503: ("DEEPSEEK_SERVER_BUSY", "DeepSeek is temporarily busy.", True),
+    }
+    return mapping.get(
+        status_code,
+        ("PROVIDER_HTTP_ERROR", f"Provider returned HTTP {status_code}.", status_code >= 500),
+    )
+
+
+def _trace_from_telemetry(
+    *,
+    trace_id: str,
+    phase: Literal["validating", "completed", "failed"],
+    provider_id: str,
+    telemetry: Optional[MechanicalPlannerTelemetry],
+    network_call_made: bool,
+    message: str,
+    error_code: Optional[str] = None,
+    fallback_latency_ms: int = 0,
+) -> ProviderExecutionTrace:
+    return ProviderExecutionTrace.new(
+        trace_id=trace_id,
+        phase=phase,
+        provider_id=provider_id,
+        network_call_made=network_call_made,
+        latency_ms=telemetry.latency_ms if telemetry is not None else fallback_latency_ms,
+        input_tokens=telemetry.input_tokens if telemetry is not None else None,
+        output_tokens=telemetry.output_tokens if telemetry is not None else None,
+        total_tokens=telemetry.total_tokens if telemetry is not None else None,
+        prompt_cache_hit_tokens=telemetry.prompt_cache_hit_tokens if telemetry is not None else None,
+        prompt_cache_miss_tokens=telemetry.prompt_cache_miss_tokens if telemetry is not None else None,
+        error_code=error_code,
+        message=message,
+    )
+
+
+def _notify_trace(
+    observer: Optional[Callable[[ProviderExecutionTrace], None]],
+    trace: ProviderExecutionTrace,
+) -> None:
+    if observer is None:
+        return
+    try:
+        observer(trace)
+    except Exception:  # noqa: BLE001 - telemetry must never change Provider outcome.
+        return
 
 
 def _read_secret(value_name: str, file_name: str) -> Optional[str]:

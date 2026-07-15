@@ -825,6 +825,37 @@ export type ProfileSketch = {
 }
 }
 
+export type ProviderConnectionState = {
+  "schema_version": "ProviderConnectionState@1"
+  "status": "offline" | "unconfigured" | "ready" | "degraded" | "failed"
+  "provider_id": string
+  "configured": boolean
+  "metadata_status": "not_checked" | "missing" | "valid" | "invalid" | "unavailable"
+  "secret_status": "not_checked" | "missing" | "available" | "invalid" | "unavailable"
+  "supervisor_status": "not_checked" | "running" | "restart_failed" | "unavailable"
+  "capability_status": "offline" | "ready" | "mismatch" | "unavailable"
+  "network_call_made": boolean
+  "failure_code"?: string | null
+  "message": string
+}
+
+export type ProviderExecutionTrace = {
+  "schema_version": "ProviderExecutionTrace@1"
+  "trace_id": string
+  "phase": "preflight" | "request_started" | "streaming" | "validating" | "completed" | "failed" | "cancelled"
+  "provider_id": string
+  "attempt": number
+  "network_call_made": boolean
+  "latency_ms": number
+  "input_tokens"?: number | null
+  "output_tokens"?: number | null
+  "total_tokens"?: number | null
+  "prompt_cache_hit_tokens"?: number | null
+  "prompt_cache_miss_tokens"?: number | null
+  "error_code"?: string | null
+  "message": string
+}
+
 export type ShapeProgram = {
   "schema_version": "ShapeProgram@1"
   "program_id": string

@@ -2147,6 +2147,16 @@
       "AgentProviderCheckResponse": {
         "additionalProperties": false,
         "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/ProviderConnectionState"
+          },
+          "execution_trace": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderExecutionTrace"
+            },
+            "title": "Execution Trace",
+            "type": "array"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -2174,7 +2184,9 @@
             "enum": [
               "ready",
               "not_configured",
-              "failed"
+              "offline",
+              "failed",
+              "cancelled"
             ],
             "title": "Status",
             "type": "string"
@@ -2184,7 +2196,8 @@
           "status",
           "provider_id",
           "message",
-          "network_call_made"
+          "network_call_made",
+          "connection"
         ],
         "title": "AgentProviderCheckResponse",
         "type": "object"
@@ -9833,6 +9846,256 @@
         "title": "ProposeConnectorSnapRequest",
         "type": "object"
       },
+      "ProviderConnectionState": {
+        "additionalProperties": false,
+        "description": "Redaction-safe facts about the Provider selected by this Agent process.",
+        "properties": {
+          "capability_status": {
+            "enum": [
+              "offline",
+              "ready",
+              "mismatch",
+              "unavailable"
+            ],
+            "title": "Capability Status",
+            "type": "string"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata_status": {
+            "enum": [
+              "not_checked",
+              "missing",
+              "valid",
+              "invalid",
+              "unavailable"
+            ],
+            "title": "Metadata Status",
+            "type": "string"
+          },
+          "network_call_made": {
+            "default": false,
+            "title": "Network Call Made",
+            "type": "boolean"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ProviderConnectionState@1",
+            "default": "ProviderConnectionState@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "secret_status": {
+            "enum": [
+              "not_checked",
+              "missing",
+              "available",
+              "invalid",
+              "unavailable"
+            ],
+            "title": "Secret Status",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "offline",
+              "unconfigured",
+              "ready",
+              "degraded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supervisor_status": {
+            "enum": [
+              "not_checked",
+              "running",
+              "restart_failed",
+              "unavailable"
+            ],
+            "title": "Supervisor Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "provider_id",
+          "configured",
+          "metadata_status",
+          "secret_status",
+          "supervisor_status",
+          "capability_status",
+          "message"
+        ],
+        "title": "ProviderConnectionState",
+        "type": "object"
+      },
+      "ProviderExecutionTrace": {
+        "additionalProperties": false,
+        "description": "One sanitized Provider lifecycle observation.\n\nPrompt text, response text, reasoning content, authorization headers, base\nURLs, API keys and raw model identifiers are intentionally not fields of\nthis contract.",
+        "properties": {
+          "attempt": {
+            "default": 1,
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "latency_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "network_call_made": {
+            "title": "Network Call Made",
+            "type": "boolean"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "phase": {
+            "enum": [
+              "preflight",
+              "request_started",
+              "streaming",
+              "validating",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "prompt_cache_hit_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Cache Hit Tokens"
+          },
+          "prompt_cache_miss_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Cache Miss Tokens"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ProviderExecutionTrace@1",
+            "default": "ProviderExecutionTrace@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "total_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Tokens"
+          },
+          "trace_id": {
+            "pattern": "^ptrace_[a-f0-9]{32}$",
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_id",
+          "phase",
+          "provider_id",
+          "network_call_made",
+          "message"
+        ],
+        "title": "ProviderExecutionTrace",
+        "type": "object"
+      },
       "ProviderSettings": {
         "properties": {
           "base_url": {
@@ -13838,9 +14101,93 @@
         ]
       }
     },
+    "/api/v1/agent/provider": {
+      "get": {
+        "description": "Read the process capability without making an external request.",
+        "operationId": "get_provider_connection_state_api_v1_agent_provider_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConnectionState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Provider Connection State",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/provider-checks/{check_id}/cancel": {
+      "post": {
+        "operationId": "cancel_provider_check_api_v1_agent_provider_checks__check_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "check_id",
+            "required": true,
+            "schema": {
+              "title": "Check Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cancel Provider Check Api V1 Agent Provider Checks  Check Id  Cancel Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Provider Check",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
     "/api/v1/agent/provider:check": {
       "post": {
         "operationId": "check_provider_api_v1_agent_provider_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Provider-Check-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Provider-Check-Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -13851,6 +14198,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Check Provider",

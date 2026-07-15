@@ -121,8 +121,14 @@ def main() -> int:
         assert all(direction.material_direction for direction in plan.directions)
         request_body = FakeProviderHandler.request_body or {}
         assert request_body["model"] == "fake-model"
+        assert request_body["stream"] is True
+        assert request_body["stream_options"] == {"include_usage": True}
         assert request_body["response_format"]["type"] == "json_schema"
         assert "non-functional" in request_body["messages"][0]["content"]
+        assert "versioned_json_output_example" in request_body["messages"][1]["content"]
+        assert planner.last_execution_trace is not None
+        assert planner.last_execution_trace.phase == "completed"
+        assert planner.last_execution_trace.network_call_made is True
     finally:
         server.shutdown()
         thread.join(timeout=2)
@@ -136,11 +142,12 @@ def main() -> int:
             project_id=None,
         )
     except MechanicalPlannerError as exc:
-        assert exc.code == "PLANNER_UNCONFIGURED"
+        assert exc.code == "PROVIDER_UNCONFIGURED"
+        assert exc.network_call_made is False
     else:
         raise AssertionError("unconfigured provider must fail before network access")
 
-    print("G4 mechanical planner smoke passed: deterministic fallback, OpenAI-compatible JSON schema, safe unconfigured failure")
+    print("G4 mechanical planner smoke passed: deterministic fallback, streamed OpenAI-compatible JSON contract, safe unconfigured failure")
     return 0
 
 

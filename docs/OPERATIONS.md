@@ -116,3 +116,5 @@ npm run release:packaging-readiness
 Agent 对 `api.deepseek.com` 使用本机日预算 20 元。请求先按 32k 输入、当前输出上限和缓存未命中价格预留额度；成功后按 Provider 返回的 `prompt_cache_hit_tokens`、`prompt_cache_miss_tokens` 与 `completion_tokens` 结算。当前价格表不是永久事实，发布或修改模型前必须在 DeepSeek 官方价格页复核，并更新实现注释与运营记录。
 
 如 Turn 的 `usage_status=unavailable`，当天后续联网 Provider 请求应保持阻止状态；不要删除预算记录、伪造 usage 或通过自动重试绕过。超时 Turn 可能已有远端扣费，保留其预留额度并要求用户显式重新发起。Key 仅由 Tauri Keychain 注入，排查日志不得打印请求头、Base URL、完整 prompt、思维链或密钥。
+
+排查“调用后没有响应”时先读取工作台四段 preflight：metadata、Keychain、supervisor、capability。`GET /api/v1/agent/provider` 只读取 Agent 进程能力，不联网；只有普通 Turn 或用户主动点击“测试连接（会联网）”才允许外部请求。运行中可取消，Item/响应会保留 preflight→request_started→streaming→validating→completed/failed/cancelled 的脱敏轨迹及 `network_call_made`。400/401/402/422/429/500/503、网络、timeout、空 content、无效 JSON 和 Schema 不符均保留稳定错误；不要用重启、自动重试或 deterministic fallback 掩盖失败。失败与取消不得改变现有 AssetVersion、Snapshot、质量或导出身份。

@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-15：FGC-A003 DeepSeek Provider Gateway 可观察性（已完成；F025 ready）
+
+- 新增 `ProviderConnectionState@1` 与脱敏 `ProviderExecutionTrace@1`。Tauri Provider 保存/清除依次验证 metadata、Keychain、受管 supervisor restart 和本机 Agent capability；未配置固定报告 `unconfigured`、`network_call_made=false`，配置读取/重启/能力失败不再被 UI 吞掉。工作台明确区分“未调用 DeepSeek”“等待显式调用”“测试连接（会联网）”及稳定失败原因。
+- OpenAI-compatible Planner 改用 SSE 并请求最终 usage；普通 Turn 与显式连接测试支持取消，生命周期记录 preflight/request_started/streaming/validating/completed/failed/cancelled、latency、usage/cache token、attempt、网络事实和 `fallback_used=false`。JSON mode prompt 明确要求 JSON 并包含版本化输出示例；`reasoning_content`、完整 prompt/response、Key、header、Base URL 不持久化。
+- DeepSeek 400/401/402/422/429/500/503、网络、timeout、空 content、无效 JSON、Schema 不符和 Tool Calls 均映射为稳定错误。Provider 失败不自动重试、不进入 legacy plan/build，也不静默伪装成 deterministic success；失败、取消及迟到 completion 均不改变 AssetVersion、Snapshot、质量或导出。
+- 新增 `agent:a003-provider-gateway-smoke`、`desktop:a003-provider-connection-smoke` 与 Rust 兼容/脱密测试。最终本机回归通过：A003 两个 Gate、G1–G7、受影响的 Q003/G809/G819/G825/C102、Agent 18 项单测、Rust 6 项、desktop typecheck/build/Tauri check、T002 14/14、T003、Agent-first r3、contracts、docs walkthrough、repository integrity、安全范围、密钥文件与 `git diff --check`。首次 T002 暴露旧前端只读取第一个 `tool_result`，已改为按 `MechanicalConceptPlan` payload 识别并用“Provider trace 在前”夹具回归；不得删除该覆盖。所有联网语义由本机 fake Provider 验证；没有读取真实 Key、执行 E003 或宣称真实模型质量/费用。commit/push 与 PR checks 以本节后续最终记录为准。
+- 下一唯一可领取任务是 `FGC-F025`：只隔离 Agent 主流程中的 legacy 参数、旧导出和 Graph Inspector，并继续拆薄 `CadWorkbenchPanel`；不得在该任务提前改简洁布局、几何、材质或加入第二 renderer。
+
 ## 2026-07-15：FGC-G826 表面完成与稳定 Material Zone 面事实（已完成；A003 ready）
 
 - `GeometryCompileReadback@1` 已增加 `tangent_primitive_count`、逐 primitive surface completion 和 `material_zone_faces`。Worker 在同一 GLB 中写出 `TANGENT`、`_FORGECAD_FACE_ID`、`_FORGECAD_SOURCE_FACE_ID`、稳定 `primitive_id`/`part_instance_id`/zone extras；readback 验证单位 normal/tangent、正交性、handedness、UV0 非退化、face ID 完整唯一、zone 非空不重叠和来源 operation。每个三角面拆分顶点并携带 face 属性，因此顶点/索引重排不能靠顺序丢失映射。
@@ -12,6 +20,7 @@
 - 新增 `agent:g826-surface-readback-smoke`，覆盖基础 primitive、Profile/Extrude/Revolve/Loft/Sweep、edge finish/trim、mirror/array、Manifold CSG、重复 GLB/hash，以及缺失/损坏 tangent、UV 退化、空/重叠 zone、face ID 损坏和半径/细分/三角预算失败。严格 Gate 同时暴露并修复了 legacy Extrude cap/side 的退化 UV 和 legacy Revolve 负 V 坐标；没有降级或跳过旧运行时操作。
 - 本轮通过：G1–G7、G802–G806、G819、Q003、G821–G823、G825、G826、R2 export、M101–M107、18 个 Agent unit、Ruff/compile、contracts、desktop M104–M106、typecheck/build、T002/T003、Agent-first r3、Tauri cargo check、docs walkthrough、repository integrity、安全范围、密钥文件与 `git diff --check`。Vite 仍只有既有 dynamic-import/chunk warning；M103/jsonschema 仍只有既有 `RefResolver` deprecation warning。当前 8000 端口上的用户 Agent 进程未被终止，r3 使用现有运行环境并通过。
 - 下一唯一可领取任务是 `FGC-A003`：DeepSeek Provider metadata/Keychain preflight、真实网络调用标记、流式/取消/用量与稳定错误分类。G826 完成不代表 DeepSeek 已配置，也不代表真实纹理、单一最佳候选或简洁工作台已完成。提交、push 与 PR checks 以本节后续最终命令记录为准。
+- G826 已以 `293a49e` 提交并推送到 `codex/repository-integrity`；PR #3 的 backend/contracts、desktop、macOS packaged、Windows CSG、依赖审计、三平台 cargo、integrity、secrets 和 workbench E2E 全部通过。2026-07-15 已领取 A003；开始前工作区与远端 SHA 一致且干净。
 
 ## 2026-07-15：FGC-G825 单一生产 CSG 与不可变 Feature History（已完成；G826 ready）
 

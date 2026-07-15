@@ -83,7 +83,11 @@ def main() -> int:
             StartAgentTurnRequest(client_request_id="g6-turn", message="设计一台三关节机械臂"),
             "g6-turn",
         )
-        payload = next(item.payload["result"] for item in turn.items if item.item_type == "tool_result")
+        payload = next(
+            item.payload["result"]
+            for item in turn.items
+            if item.item_type == "tool_result" and "result" in item.payload
+        )
         plan = MechanicalConceptPlan.model_validate(payload)
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(

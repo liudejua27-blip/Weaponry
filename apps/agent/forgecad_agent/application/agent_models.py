@@ -10,6 +10,7 @@ from .concept_models import StrictApiModel
 from .domain_packs import DomainPackId
 from .geometry_models import GeometryCompileReadback
 from .mechanical_planner import MechanicalConceptPlan
+from .provider_gateway import ProviderConnectionState, ProviderExecutionTrace
 from .shape_program import AgentAssetGeometryPayload, ShapeProgramPayload
 
 
@@ -1031,8 +1032,10 @@ class ImportAgentGlbResponse(StrictApiModel):
 
 
 class AgentProviderCheckResponse(StrictApiModel):
-    status: Literal["ready", "not_configured", "failed"]
+    status: Literal["ready", "not_configured", "offline", "failed", "cancelled"]
     provider_id: str
     model: Optional[str] = None
     message: str
     network_call_made: bool
+    connection: ProviderConnectionState
+    execution_trace: List[ProviderExecutionTrace] = Field(default_factory=list)

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/provider-connection-state.schema.json",
+  "title": "ProviderConnectionState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "provider_id", "configured", "metadata_status", "secret_status", "supervisor_status", "capability_status", "network_call_made", "message"],
+  "properties": {
+    "schema_version": { "const": "ProviderConnectionState@1" },
+    "status": { "type": "string", "enum": ["offline", "unconfigured", "ready", "degraded", "failed"] },
+    "provider_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "configured": { "type": "boolean" },
+    "metadata_status": { "type": "string", "enum": ["not_checked", "missing", "valid", "invalid", "unavailable"] },
+    "secret_status": { "type": "string", "enum": ["not_checked", "missing", "available", "invalid", "unavailable"] },
+    "supervisor_status": { "type": "string", "enum": ["not_checked", "running", "restart_failed", "unavailable"] },
+    "capability_status": { "type": "string", "enum": ["offline", "ready", "mismatch", "unavailable"] },
+    "network_call_made": { "type": "boolean" },
+    "failure_code": { "type": ["string", "null"], "maxLength": 120 },
+    "message": { "type": "string", "minLength": 1, "maxLength": 500 }
+  }
+}

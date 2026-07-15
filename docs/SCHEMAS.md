@@ -225,6 +225,10 @@ preview | approval_request | artifact
 
 API Key、Authorization header、绝对路径和原始敏感 Provider 响应不得进入这些合同。
 
+### ProviderConnectionState@1 / ProviderExecutionTrace@1（A003）
+
+`ProviderConnectionState@1` 只描述当前进程是否 `unconfigured/offline/ready/degraded/failed`，以及 metadata、secret、supervisor、capability 和 `network_call_made` 的脱敏状态。`ProviderExecutionTrace@1` 每条只保存 trace ID、阶段、attempt、latency、usage/cache token 和稳定错误码。两者的 JSON Schema、Pydantic、生成 TypeScript 和 OpenAPI 同源；合同中没有 API Key、Authorization、Base URL、完整 prompt/response 或 `reasoning_content`。
+
 ### ActiveDesignSnapshot@1（S001–S003 已冻结、M107/C104 扩展持久化状态）
 
 Snapshot 是服务端工作台真值的合同，不是前端缓存。它把 agent 与 legacy 设计建模为判别联合，避免同一 Snapshot 同时携带冲突活动版本：

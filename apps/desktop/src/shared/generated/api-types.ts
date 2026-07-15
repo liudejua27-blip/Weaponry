@@ -337,11 +337,13 @@ export type AgentPartEditOperation = {
 }
 
 export type AgentProviderCheckResponse = {
-  "status": "ready" | "not_configured" | "failed"
+  "status": "ready" | "not_configured" | "offline" | "failed" | "cancelled"
   "provider_id": string
   "model"?: string | null
   "message": string
   "network_call_made": boolean
+  "connection": ProviderConnectionState
+  "execution_trace"?: Array<ProviderExecutionTrace>
 }
 
 export type AgentStructureSuggestion = {
@@ -1600,6 +1602,37 @@ export type ProposeChangeSetRequest = {
 export type ProposeConnectorSnapRequest = {
   "client_request_id": string
   "node_id": string
+}
+
+export type ProviderConnectionState = {
+  "schema_version"?: "ProviderConnectionState@1"
+  "status": "offline" | "unconfigured" | "ready" | "degraded" | "failed"
+  "provider_id": string
+  "configured": boolean
+  "metadata_status": "not_checked" | "missing" | "valid" | "invalid" | "unavailable"
+  "secret_status": "not_checked" | "missing" | "available" | "invalid" | "unavailable"
+  "supervisor_status": "not_checked" | "running" | "restart_failed" | "unavailable"
+  "capability_status": "offline" | "ready" | "mismatch" | "unavailable"
+  "network_call_made"?: boolean
+  "failure_code"?: string | null
+  "message": string
+}
+
+export type ProviderExecutionTrace = {
+  "schema_version"?: "ProviderExecutionTrace@1"
+  "trace_id": string
+  "phase": "preflight" | "request_started" | "streaming" | "validating" | "completed" | "failed" | "cancelled"
+  "provider_id": string
+  "attempt"?: number
+  "network_call_made": boolean
+  "latency_ms"?: number
+  "input_tokens"?: number | null
+  "output_tokens"?: number | null
+  "total_tokens"?: number | null
+  "prompt_cache_hit_tokens"?: number | null
+  "prompt_cache_miss_tokens"?: number | null
+  "error_code"?: string | null
+  "message": string
 }
 
 export type ProviderSettings = {

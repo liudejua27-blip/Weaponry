@@ -26,6 +26,11 @@ export type ProviderConfigMetadata = {
   model: string
   configured: boolean
   storage: string
+  metadata_status: 'not_checked' | 'missing' | 'valid' | 'invalid' | 'unavailable'
+  secret_status: 'not_checked' | 'missing' | 'available' | 'invalid' | 'unavailable'
+  supervisor_status: 'not_checked' | 'running' | 'restart_failed' | 'unavailable'
+  capability_status: 'offline' | 'ready' | 'mismatch' | 'unavailable'
+  failure_code?: string | null
 }
 
 type TauriAgentServiceStatus = {
@@ -82,11 +87,7 @@ export async function restartAgentSupervisor(): Promise<AgentSupervisorStatus> {
 
 export async function getProviderConfig(): Promise<ProviderConfigMetadata | null> {
   if (!isTauriRuntime()) return null
-  try {
-    return await invokeSupervisorCommand<ProviderConfigMetadata>('get_provider_config')
-  } catch {
-    return null
-  }
+  return invokeSupervisorCommand<ProviderConfigMetadata>('get_provider_config')
 }
 
 export async function saveProviderConfig(input: { base_url: string; model: string; api_key: string }): Promise<ProviderConfigMetadata> {

@@ -263,9 +263,18 @@ export class ForgeApiClient {
     return readJson<AgentMaterialTextureObject>(response)
   }
 
-  async checkAgentProvider(): Promise<AgentProviderCheckResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/agent/provider:check`, { method: 'POST' })
+  async checkAgentProvider(checkId?: string): Promise<AgentProviderCheckResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/provider:check`, {
+      method: 'POST',
+      headers: checkId ? { 'X-Provider-Check-Id': checkId } : undefined,
+    })
     return readJson<AgentProviderCheckResponse>(response)
+  }
+
+  async cancelAgentProviderCheck(checkId: string): Promise<{ check_id: string; cancel_requested: boolean }> {
+    return readJson<{ check_id: string; cancel_requested: boolean }>(
+      await fetch(`${this.baseUrl}/api/v1/agent/provider-checks/${encodeURIComponent(checkId)}/cancel`, { method: 'POST' }),
+    )
   }
 
   async buildAgentBlockout(input: BuildAgentBlockoutRequest): Promise<BuildAgentBlockoutResponse> {

@@ -116,6 +116,8 @@ export FORGECAD_AGENT_API_KEY_FILE="$HOME/.config/forgecad/provider.key"
 
 不要把 API Key 放入 shell history、`.env`、SQLite、测试 fixture、日志或截图。真实调用必须由操作者显式执行；默认 smoke 使用确定性或本机 fake Provider。
 
+保存配置后不等于已经调用 DeepSeek。原生工作台会依次显示 metadata、Keychain、受管 supervisor 与 Agent capability 四段 preflight；全部就绪后，普通 Turn 或“测试连接（会联网）”才可能发起真实请求。连接测试可取消，Provider 失败不会自动重试或静默切换为离线 Planner。浏览器调试没有 Tauri/Keychain preflight，只适合使用上面的权限受限 secret file 验证 Agent 端合同。
+
 ## 5. 当前核心验证
 
 快速静态验证：
@@ -136,6 +138,7 @@ npm run agent:g1-kernel-smoke
 npm run agent:g2-contracts-smoke
 npm run agent:g3-shape-program-smoke
 npm run agent:g4-mechanical-planner-smoke
+npm run agent:a003-provider-gateway-smoke
 npm run agent:g5-geometry-worker-smoke
 npm run agent:g801-shape-primitive-smoke
 npm run agent:g802-profile-extrude-smoke
@@ -143,6 +146,7 @@ npm run agent:g803-revolve-smoke
 npm run agent:g804-transform-arrays-smoke
 npm run agent:g805-boolean-smoke
 npm run agent:g806-bevel-surface-panel-smoke
+npm run desktop:a003-provider-connection-smoke
 npm run agent:g807-blockout-diversity-smoke
 npm run agent:g6-segmentation-smoke
 npm run agent:g6-material-catalog-smoke

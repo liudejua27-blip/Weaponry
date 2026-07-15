@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG并固化不可变 Feature History，G826 从同一 GLB 回读 edge finish/normal/UV0/tangent 与稳定 face→part/zone。A003 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826 与 A003 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG并固化不可变 Feature History，G826 从同一 GLB 回读 edge finish/normal/UV0/tangent 与稳定 face→part/zone，A003 建立 Provider preflight/stream/cancel/usage/稳定错误/no-fallback。F025 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1352,8 +1352,8 @@ Remaining blockers:
 | FGC-G824D | done | G824C | Windows x64 frozen sidecar artifact、provenance/readback、生命周期和原子提升证据通过 |
 | FGC-G825 | done | G824D | 唯一 Manifold Python CSG、不可变 feature node/input/result hash、surface/material provenance 与失败零部分 GLB 已通过 |
 | FGC-G826 | done | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
-| FGC-A003 | ready | G826 | DeepSeek Provider metadata/Keychain preflight、流式生命周期、取消、用量与稳定错误分类 |
-| FGC-F025 | blocked | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
+| FGC-A003 | done | G826 | Provider metadata/Keychain/supervisor/capability preflight、SSE 生命周期、取消、用量与稳定错误分类已通过 |
+| FGC-F025 | ready | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
 | FGC-D005 | blocked | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
 | FGC-A004 | blocked | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
 | FGC-V002 | superseded | — | 由 ADR-0010/FGC-V003 取代；不再实现三方向用户选择 |
@@ -1557,7 +1557,7 @@ Remaining blockers:
 
 ### FGC-A003 任务卡
 
-状态：ready（G826 与 Q003 已完成；这是下一唯一可领取任务）。
+状态：done（2026-07-15；G826/Q003 依赖、A003 Gate 与兼容回归均通过）。
 
 目标：把 DeepSeek 接入从“进程启动时可选环境变量 + 同步请求 + 泛化文案”升级为可观察、可取消、可诊断的 Provider Gateway；用户能明确知道当前是否配置、是否真的发起网络请求、请求进行到哪一步、为何失败以及已保存资产是否安全。
 
@@ -1567,11 +1567,13 @@ Remaining blockers:
 
 验收：新增 A003 Rust/Python/desktop Gate，覆盖 metadata 缺失、Keychain 缺失、保存成功但重启失败、离线明确状态、ready、取消、所有 DeepSeek 错误类别、空 JSON、Schema 不符、usage/cache telemetry、日志脱敏、重启恢复和“选择真实 Provider 后不静默离线成功”。本机无配置 fixture 必须稳定报告 `unconfigured + network_call_made=false`。`agent:check`、contracts、desktop typecheck/build、T002/T003、r3、secrets 和安全 Gate 继续通过。
 
-退出：Provider 的配置、网络调用、生命周期和失败均有可读、可审计、无密钥的事实；用户不再把离线 Planner 或泛化错误误认为“DeepSeek 调了但没响应”。G826 未完成前不得领取。
+证据：新增 `ProviderConnectionState@1` 与 `ProviderExecutionTrace@1` Schema/生成类型；Tauri 保存/清除 Provider 后依次回读 metadata、Keychain、受管 supervisor 与 Agent capability。普通 Turn 和显式连接测试都支持取消，SSE 只组装结构化 JSON，记录脱敏 phase、latency、usage/cache、attempt、`network_call_made` 与 `fallback_used=false`。DeepSeek 400/401/402/422/429/500/503、网络、timeout、空 content、无效 JSON、Schema 不符和不支持 Tool Calls 均有稳定错误且不自动重试、不静默离线成功。`agent:a003-provider-gateway-smoke`、`desktop:a003-provider-connection-smoke`、Rust 6 项测试、G4、Agent 18 项单测、contracts、typecheck/build 与任务回归通过；所有联网路径使用本机 fake Provider，没有执行 E003 真实评测。
+
+退出：已满足。Provider 的配置、网络调用、生命周期和失败均有可读、可审计、无密钥的事实；已保存资产在失败/取消时不改变。下一唯一可领取任务为 F025；A003 不证明本机已配置 DeepSeek、真实模型质量或真实费用。
 
 ### FGC-F025 任务卡
 
-状态：blocked（等待 A003；Q003 已作为其前置）。
+状态：ready（A003 与 Q003 已完成；这是下一唯一可领取任务）。
 
 目标：将 legacy 参数、旧导出和 Graph Inspector 从 AgentAssetVersion/ActiveDesignSnapshot 主流程隔离，同时继续将 `CadWorkbenchPanel` 拆为可验证的 Agent 主编排与显式 legacy 只读兼容边界。
 
@@ -1581,7 +1583,7 @@ Remaining blockers:
 
 验收：新增 F025 前端/E2E Gate，至少覆盖 Agent-active 时 Graph Inspector、旧参数和旧导出均不可见且无网络/API 调用；显式 legacy 只读入口仍可查看兼容信息但不能污染 Agent Snapshot/quality/export。覆盖切换项目、重启、迟到响应、undo/redo 与无 Agent 资产状态。`desktop:typecheck`、`desktop:build`、F001/F006、T002/T003、r3 与相关 Agent 合同 Gate 必须通过，且有父层职责/行数下降或模块责任清单的可审计证据。
 
-退出：Agent 主流程不再承载任何 legacy 控制真值；兼容表面仍显式可见、只读、可测试。A003 未完成前不得领取。
+退出：Agent 主流程不再承载任何 legacy 控制真值；兼容表面仍显式可见、只读、可测试。A003 已完成，F025 可以领取。
 
 ### FGC-D005 任务卡
 

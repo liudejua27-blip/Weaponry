@@ -58,7 +58,7 @@ apps/desktop/src/features/cad-workbench/
 ## 3. 当前结构问题
 
 - `CadWorkbenchPanel.tsx` 仍包含 legacy 兼容分支、Agent blockout 候选状态和业务副作用，尚未缩减为最终页面组合层；
-- Provider 配置/诊断不可观察：`getProviderConfig()` 把 Tauri IPC 异常静默转换为 `null`；连接测试把鉴权、余额、参数、限流、服务端、超时和结构化输出错误压缩成“暂时无法连接/测试未完成”。2026-07-14 本机实例没有 Provider metadata 或 Keychain 项，实际运行离线 Planner，但 UI 缺少持续可见的“未调用 DeepSeek”状态和修复入口；
+- A003 已让 Provider 配置读取失败保持可见，并将 metadata、Keychain、supervisor restart 和 Agent capability 组合成启用门；只有四项就绪才允许“测试连接（会联网）”。连接测试与普通 Turn 均显示真实 `network_call_made`/稳定错误，提供取消入口，Provider 失败会中止当前 Agent 路径而不会继续调用 legacy Planner。真实四领域质量评测仍未执行；
 - Agent 对话、Kernel 步骤、分件选择卡和四类抽屉已由 F002–F004 提取为独立组件，legacy Concept 只读提示仍通过 props 显示；
 - Agent 选择、质量和 GLB 导出已读 Snapshot；遗留 Concept 兼容出口不属于 Agent 产品能力；
 - F005 已将四类抽屉的渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的展示层保持既有边界；F019 再将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022 将方向、三项族轮换位置、请求中和可恢复预览错误提取到 `useAgentBlockoutDisplay`，F023 只将该状态转换为“正在生成 / 已准备好 / 暂不能整理部件 / 未生成成功”的普通语言提示，F024 则只从已返回的 plan 记录翻译“本机离线规划 / 已连接模型服务生成 / 来源待确认”。R006 的 `useAgentDirectionConceptPreviews` 只暂存当前 project + plan + request 的三张 PNG data URL，选择方向、换一版、开始新 Brief 或切换项目时清空，并拒绝迟到响应；它不保存 GLB、候选、版本、Snapshot、质量或导出。F024 不读取 Key、不联网、不触发评测，也不显示 Provider、模型或错误内部标识。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有。父层仍超过 2,000 行，且仍会装配 legacy Graph Inspector、旧参数/导出路径与 Agent 主流程；`FGC-F025` 已排在 G819/Q003/G820–G826/A003 后，目标是把它们隔离到 legacy 只读边界，而不再让 Agent 资产路径承载旧控制；

@@ -171,7 +171,9 @@ def _make_asset(factory: SQLiteConnectionFactory) -> tuple[AgentAssetEditingServ
     assets = AgentAssetEditingService(factory)
     thread = kernel.create_thread(CreateAgentThreadRequest(client_request_id="g819-thread", project_id="prj_g819_smoke", title="G819"), "g819-thread")
     turn = kernel.start_turn(thread.thread_id, StartAgentTurnRequest(client_request_id="g819-turn", message="设计一台展示型机械臂"), "g819-turn")
-    plan = MechanicalConceptPlan.model_validate(next(item.payload["result"] for item in turn.items if item.item_type == "tool_result"))
+    plan = MechanicalConceptPlan.model_validate(
+        next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
+    )
     direction_id = plan.directions[0].direction_id
     built = kernel.build_blockout(BuildAgentBlockoutRequest(client_request_id="g819-build", plan=plan, direction_id=direction_id), "g819-build")
     segmented = kernel.segment_blockout(SegmentAgentBlockoutRequest(client_request_id="g819-segment", plan=plan, direction_id=direction_id, artifact_id=built.artifact_id), "g819-segment")

@@ -9,6 +9,7 @@ import type { LegacyCompatibilityDisplay } from './legacyCompatibilityDisplay.js
 import type { AgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation.js'
 import type { AgentPlanSourcePresentation } from './agentPlanSourcePresentation.js'
 import type { AgentDirectionConceptPreview } from './agentDirectionConceptPreviewState.js'
+import { providerConfigPresentation } from './providerConnectionPresentation.js'
 
 export type { AgentClarification, AgentClarificationOption } from './agentConversationState.js'
 
@@ -35,6 +36,8 @@ export type AgentConversationProps = {
   onCancelProviderSetup: () => void
   onTestProvider: () => void | Promise<void>
   onSaveProvider: () => void | Promise<void>
+  activeProviderTurnId: string | null
+  onCancelProviderTurn: () => void | Promise<void>
   assistantMode: 'brief' | 'change'
   selectedNode: string | null
   selectedModuleLabel: string
@@ -80,6 +83,8 @@ export function AgentConversation({
   onCancelProviderSetup,
   onTestProvider,
   onSaveProvider,
+  activeProviderTurnId,
+  onCancelProviderTurn,
   assistantMode,
   selectedNode,
   selectedModuleLabel,
@@ -103,6 +108,7 @@ export function AgentConversation({
   agentPlan,
   onPreviewDirection,
 }: AgentConversationProps) {
+  const providerPresentation = providerConfigPresentation(providerConfig)
   return (
     <>
       {!projectExists && !loading && (
@@ -118,8 +124,8 @@ export function AgentConversation({
       <p className="agent-welcome">用一句话描述汽车、飞机、机械臂或未来概念道具；我会先记录理解，再生成可预览、可继续修改的方向。</p>
       <LegacyCompatibilityNotice display={legacyCompatibility} onRequestLegacyAgentRebuild={onRequestLegacyAgentRebuild} />
       <div className="provider-setup-entry" aria-label="模型服务状态">
-        <span className={providerConfig?.configured ? 'connected' : ''}>
-          {providerConfig?.configured ? '模型服务已配置' : '当前使用本机离线规划'}
+        <span className={providerPresentation.ready ? 'connected' : ''}>
+          {providerPresentation.label}
         </span>
           <button type="button" onClick={onToggleProviderSetup} aria-expanded={providerSetupOpen} aria-controls="forgecad-provider-setup">
           {providerSetupOpen ? '收起配置' : '配置模型服务'}
@@ -134,7 +140,7 @@ export function AgentConversation({
           <label><span>API Key</span><input type="password" value={providerApiKey} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderApiKeyChange(event.target.value)} placeholder="只在本次配置时输入" autoComplete="off" /></label>
           <div className="provider-setup-actions">
             <button type="button" onClick={onCancelProviderSetup} disabled={providerSaving}>取消</button>
-            <button type="button" onClick={onTestProvider} disabled={providerSaving || !providerConfig?.configured}>测试连接</button>
+            <button type="button" onClick={onTestProvider} disabled={providerSaving || !providerPresentation.ready}>测试连接（会联网）</button>
             <button type="button" className="primary" onClick={onSaveProvider} disabled={providerSaving}>{providerSaving ? '保存并连接中…' : '保存并连接'}</button>
           </div>
           <small>浏览器调试预览不提供 Keychain；请按操作文档使用 secret file 启动 Agent。</small>
@@ -153,6 +159,11 @@ export function AgentConversation({
           <PaperPlaneRight size={16} weight="fill" />
         </button>
       </div>
+      {activeProviderTurnId && (
+        <button type="button" className="empty-action" onClick={onCancelProviderTurn}>
+          取消本次模型请求
+        </button>
+      )}
       <div className="concept-family-suggestions" aria-label="概念家族">
         <span>从一个方向开始</span>
         <div>

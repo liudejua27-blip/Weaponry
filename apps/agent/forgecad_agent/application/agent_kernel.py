@@ -5,6 +5,7 @@ import base64
 import inspect
 import json
 import sqlite3
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
@@ -44,7 +45,9 @@ from forgecad_agent.application.mechanical_planner import (
     MechanicalPlannerError,
     MechanicalConceptPlanner,
     mechanical_planner_from_env,
+    planner_connection_state,
 )
+from forgecad_agent.application.provider_gateway import ProviderConnectionState, ProviderExecutionTrace
 from forgecad_agent.application.geometry_worker import build_blockout, resolve_blockout_variant, segment_blockout
 from forgecad_agent.application.agent_rendering import AgentRenderError, render_agent_views
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
@@ -72,6 +75,9 @@ class AgentKernelService:
     ) -> None:
         self.connection_factory = connection_factory
         self.planner = planner or mechanical_planner_from_env()
+        self._provider_cancellations: dict[str, threading.Event] = {}
+        self._provider_cancellations_lock = threading.Lock()
+        self._provider_check_cancellations: dict[str, threading.Event] = {}
 
     def create_thread(
         self,
@@ -305,9 +311,13 @@ class AgentKernelService:
         with SQLiteUnitOfWork(self.connection_factory) as unit:
             return self._thread_detail(unit, thread_id)
 
-    def check_provider(self) -> AgentProviderCheckResponse:
+    def provider_connection_state(self) -> ProviderConnectionState:
+        return planner_connection_state(self.planner)
+
+    def check_provider(self, check_id: Optional[str] = None) -> AgentProviderCheckResponse:
         provider_id = str(getattr(self.planner, "provider_id", "unknown"))
         model = getattr(self.planner, "model_name", None)
+        connection = planner_connection_state(self.planner)
         if provider_id == "deterministic_mechanical_planner":
             return AgentProviderCheckResponse(
                 status="not_configured",
@@ -315,28 +325,63 @@ class AgentKernelService:
                 model=model,
                 message="当前使用本机离线规划，没有发起大模型请求。",
                 network_call_made=False,
+                connection=connection,
             )
+        traces: list[ProviderExecutionTrace] = []
+        cancel_event = threading.Event()
+        if check_id:
+            with self._provider_cancellations_lock:
+                self._provider_check_cancellations[check_id] = cancel_event
         try:
-            self.planner.plan_complete_concept(
+            _plan_complete_concept(
+                self.planner,
                 brief="ForgeCAD Provider connectivity check. Return a valid complete concept plan; do not provide engineering or manufacturing instructions.",
                 pack=domain_pack_by_id("pack_future_weapon_prop"),
                 project_id=None,
+                conversation=None,
+                cancel_event=cancel_event,
+                trace_observer=traces.append,
             )
         except MechanicalPlannerError as exc:
+            trace = getattr(self.planner, "last_execution_trace", None)
+            network_call_made = bool(trace.network_call_made) if isinstance(trace, ProviderExecutionTrace) else exc.network_call_made
             return AgentProviderCheckResponse(
-                status="failed",
+                status="not_configured" if exc.code == "PROVIDER_UNCONFIGURED" else "cancelled" if exc.code == "PROVIDER_CANCELLED" else "failed",
                 provider_id=provider_id,
                 model=model,
                 message=str(exc),
-                network_call_made=True,
+                network_call_made=network_call_made,
+                connection=connection.model_copy(
+                    update={
+                        "status": "unconfigured" if exc.code == "PROVIDER_UNCONFIGURED" else "failed",
+                        "network_call_made": network_call_made,
+                        "failure_code": exc.code,
+                        "message": str(exc),
+                    }
+                ),
+                execution_trace=traces,
             )
+        finally:
+            if check_id:
+                with self._provider_cancellations_lock:
+                    self._provider_check_cancellations.pop(check_id, None)
         return AgentProviderCheckResponse(
             status="ready",
             provider_id=provider_id,
             model=model,
             message="Provider 已返回符合合同的结构化设计计划。",
             network_call_made=True,
+            connection=connection.model_copy(update={"network_call_made": True}),
+            execution_trace=traces,
         )
+
+    def cancel_provider_check(self, check_id: str) -> bool:
+        with self._provider_cancellations_lock:
+            cancel_event = self._provider_check_cancellations.get(check_id)
+            if cancel_event is None:
+                return False
+            cancel_event.set()
+            return True
 
     def start_turn(
         self,
@@ -353,6 +398,7 @@ class AgentKernelService:
         budget_provider_id: Optional[str] = None
         budget_day_utc: Optional[str] = None
         budget_reservation_micros = 0
+        cancel_event: Optional[threading.Event] = None
         with SQLiteUnitOfWork(self.connection_factory) as unit:
             thread = unit.agent_kernel.get_thread(thread_id)
             if thread is None:
@@ -461,6 +507,9 @@ class AgentKernelService:
                         "今日智能设计额度暂时已到上限；你仍可继续查看、编辑和导出当前设计。",
                         status_code=429,
                     )
+            cancel_event = threading.Event()
+            with self._provider_cancellations_lock:
+                self._provider_cancellations[turn_id] = cancel_event
             unit.agent_kernel.add_turn(
                 turn_id=turn_id,
                 thread_id=thread_id,
@@ -494,7 +543,7 @@ class AgentKernelService:
                 updated_at=now,
             )
 
-        assert turn_id is not None and provider_context is not None and domain_pack_id is not None
+        assert turn_id is not None and provider_context is not None and domain_pack_id is not None and cancel_event is not None
         try:
             # Never hold a SQLite transaction while a remote Provider is running.
             plan = _plan_complete_concept(
@@ -503,20 +552,52 @@ class AgentKernelService:
                 pack=domain_pack_by_id(domain_pack_id),
                 project_id=project_id,
                 conversation=provider_context,
+                cancel_event=cancel_event,
+                trace_observer=lambda trace: self._record_provider_execution_trace(
+                    thread_id=thread_id,
+                    turn_id=turn_id,
+                    trace=trace,
+                ),
             )
         except MechanicalPlannerError as exc:
             now = _utc_now()
             with SQLiteUnitOfWork(self.connection_factory) as unit:
+                current_turn = unit.agent_kernel.get_turn(turn_id)
+                actual_cost_micros = _actual_deepseek_cost_micros(getattr(self.planner, "last_call_telemetry", None))
+                if budget_provider_id is not None and budget_day_utc is not None:
+                    unit.agent_kernel.settle_daily_budget(
+                        day_utc=budget_day_utc,
+                        provider_id=budget_provider_id,
+                        reservation_micros=budget_reservation_micros,
+                        actual_micros=actual_cost_micros,
+                        updated_at=now,
+                    )
+                if current_turn is not None and current_turn["status"] == "cancelled":
+                    unit.agent_kernel.update_turn(
+                        turn_id=turn_id,
+                        status="cancelled",
+                        updated_at=now,
+                        error_code="PROVIDER_CANCELLED",
+                        error_message="Provider request was cancelled; saved assets were not changed.",
+                        usage=_usage_from_telemetry(
+                            self.planner,
+                            provider_context,
+                            budget_reservation_micros=budget_reservation_micros,
+                            estimated_cost_micros=actual_cost_micros,
+                        ),
+                    )
+                    return self._turn(unit, turn_id)
                 unit.agent_kernel.update_turn(
                     turn_id=turn_id,
                     status="failed",
                     updated_at=now,
-                    error_code="PROVIDER_OUTCOME_UNKNOWN" if exc.code == "PLANNER_TIMEOUT" else exc.code,
-                    error_message="本次模型请求未完成，请显式重新发起设计请求。" if exc.code == "PLANNER_TIMEOUT" else str(exc),
+                    error_code="PROVIDER_OUTCOME_UNKNOWN" if exc.code == "PROVIDER_TIMEOUT" else exc.code,
+                    error_message="本次模型请求超时且结果未知；不会自动重试或切换离线成功。" if exc.code == "PROVIDER_TIMEOUT" else str(exc),
                     usage=_usage_from_telemetry(
                         self.planner,
                         provider_context,
                         budget_reservation_micros=budget_reservation_micros,
+                        estimated_cost_micros=actual_cost_micros,
                     ),
                 )
                 unit.agent_kernel.update_thread(
@@ -526,7 +607,19 @@ class AgentKernelService:
                     last_turn_id=turn_id,
                     updated_at=now,
                 )
-            raise AgentKernelError(exc.code, str(exc), status_code=400 if not exc.recoverable else 502) from exc
+            raise AgentKernelError(
+                exc.code,
+                str(exc),
+                status_code=_provider_error_status(exc.code, exc.recoverable),
+                details={
+                    "network_call_made": exc.network_call_made,
+                    "saved_assets_safe": True,
+                    "fallback_used": False,
+                },
+            ) from exc
+        finally:
+            with self._provider_cancellations_lock:
+                self._provider_cancellations.pop(turn_id, None)
 
         now = _utc_now()
         with SQLiteUnitOfWork(self.connection_factory) as unit:
@@ -539,6 +632,23 @@ class AgentKernelService:
                     actual_micros=actual_cost_micros,
                     updated_at=now,
                 )
+            current_turn = unit.agent_kernel.get_turn(turn_id)
+            if current_turn is not None and current_turn["status"] == "cancelled":
+                unit.agent_kernel.update_turn(
+                    turn_id=turn_id,
+                    status="cancelled",
+                    updated_at=now,
+                    error_code="PROVIDER_CANCELLED",
+                    error_message="Provider completion arrived after cancellation and was discarded.",
+                    usage=_usage_from_telemetry(
+                        self.planner,
+                        provider_context,
+                        provider=plan.provider_id,
+                        budget_reservation_micros=budget_reservation_micros,
+                        estimated_cost_micros=actual_cost_micros,
+                    ),
+                )
+                return self._turn(unit, turn_id)
             for item_type, payload in self._plan_items(plan, scope_decision):
                 self._add_item(
                     unit,
@@ -733,6 +843,10 @@ class AgentKernelService:
         return response
 
     def cancel_turn(self, turn_id: str, idempotency_key: str) -> AgentTurn:
+        with self._provider_cancellations_lock:
+            cancel_event = self._provider_cancellations.get(turn_id)
+            if cancel_event is not None:
+                cancel_event.set()
         with SQLiteUnitOfWork(self.connection_factory) as unit:
             scope = f"POST /api/v1/agent/turns/{turn_id}/cancel"
             request_hash = _hash_json({"turn_id": turn_id, "action": "cancel"})
@@ -783,6 +897,37 @@ class AgentKernelService:
                 created_at=now,
             )
             return response
+
+    def _record_provider_execution_trace(
+        self,
+        *,
+        thread_id: str,
+        turn_id: str,
+        trace: ProviderExecutionTrace,
+    ) -> None:
+        """Persist only the sanitized lifecycle contract as an Agent Item."""
+        with SQLiteUnitOfWork(self.connection_factory) as unit:
+            turn = unit.agent_kernel.get_turn(turn_id)
+            if turn is None or turn["status"] == "cancelled" and trace.phase != "cancelled":
+                return
+            status = {
+                "failed": "failed",
+                "cancelled": "cancelled",
+                "completed": "completed",
+            }.get(trace.phase, "completed")
+            self._add_item(
+                unit,
+                thread_id=thread_id,
+                turn_id=turn_id,
+                item_type="tool_result" if trace.phase in {"completed", "failed", "cancelled"} else "tool_call",
+                status=status,
+                payload={
+                    "tool": "provider_gateway",
+                    "message": trace.message,
+                    "provider_execution_trace": trace.model_dump(mode="json"),
+                },
+                created_at=_utc_now(),
+            )
 
     def create_approval(
         self,
@@ -1074,6 +1219,8 @@ def _plan_complete_concept(
     pack: Any,
     project_id: Optional[str],
     conversation: Any,
+    cancel_event: Optional[threading.Event] = None,
+    trace_observer: Optional[Any] = None,
 ) -> MechanicalConceptPlan:
     """Pass compiled context to current Providers without breaking test adapters.
 
@@ -1085,15 +1232,19 @@ def _plan_complete_concept(
 
     try:
         parameters = inspect.signature(planner.plan_complete_concept).parameters.values()
-        accepts_conversation = any(
-            parameter.name == "conversation" or parameter.kind is inspect.Parameter.VAR_KEYWORD
-            for parameter in parameters
-        )
+        parameter_list = list(parameters)
+        accepts_kwargs = any(parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameter_list)
+        accepted_names = {parameter.name for parameter in parameter_list}
     except (TypeError, ValueError):
-        accepts_conversation = True
+        accepts_kwargs = True
+        accepted_names = set()
     kwargs: dict[str, Any] = {"brief": brief, "pack": pack, "project_id": project_id}
-    if accepts_conversation:
+    if accepts_kwargs or "conversation" in accepted_names:
         kwargs["conversation"] = conversation
+    if accepts_kwargs or "cancel_event" in accepted_names:
+        kwargs["cancel_event"] = cancel_event
+    if accepts_kwargs or "trace_observer" in accepted_names:
+        kwargs["trace_observer"] = trace_observer
     return planner.plan_complete_concept(**kwargs)
 
 
@@ -1108,6 +1259,7 @@ def _usage_from_telemetry(
     """Persist only redaction-safe Provider accounting fields."""
 
     telemetry = getattr(planner, "last_call_telemetry", None)
+    trace = getattr(planner, "last_execution_trace", None)
     values: dict[str, Any] = {
         "provider": provider or getattr(planner, "provider_id", "unknown"),
         "routing_mode": getattr(context, "routing_mode", "concept_planning"),
@@ -1115,6 +1267,11 @@ def _usage_from_telemetry(
         "prompt_contract_version": getattr(context, "prompt_contract_version", PROMPT_CONTRACT_VERSION),
         "budget_reservation_cny": round(budget_reservation_micros / 1_000_000, 6) if budget_reservation_micros else None,
         "estimated_cost_cny": round(estimated_cost_micros / 1_000_000, 6) if estimated_cost_micros is not None else None,
+        "network_call_made": trace.network_call_made if isinstance(trace, ProviderExecutionTrace) else False,
+        "provider_phase": trace.phase if isinstance(trace, ProviderExecutionTrace) else "unavailable",
+        "provider_error_code": trace.error_code if isinstance(trace, ProviderExecutionTrace) else None,
+        "provider_attempt": trace.attempt if isinstance(trace, ProviderExecutionTrace) else None,
+        "fallback_used": False,
     }
     if telemetry is None:
         values["usage_status"] = "unavailable"
@@ -1161,6 +1318,26 @@ def _actual_deepseek_cost_micros(telemetry: Any) -> Optional[int]:
     # Current price table is versioned in operations docs.  Values here are
     # micros of CNY: 0.025/3/6 CNY per million tokens.
     return int(hit * 0.025 + miss * 3 + output * 6)
+
+
+def _provider_error_status(code: str, recoverable: bool) -> int:
+    return {
+        "PROVIDER_UNCONFIGURED": 503,
+        "DEEPSEEK_INVALID_REQUEST": 400,
+        "DEEPSEEK_AUTH_FAILED": 401,
+        "DEEPSEEK_BALANCE_EXHAUSTED": 402,
+        "DEEPSEEK_INVALID_PARAMETERS": 422,
+        "DEEPSEEK_RATE_LIMITED": 429,
+        "DEEPSEEK_SERVER_ERROR": 502,
+        "DEEPSEEK_SERVER_BUSY": 503,
+        "PROVIDER_NETWORK_ERROR": 502,
+        "PROVIDER_TIMEOUT": 504,
+        "PROVIDER_EMPTY_CONTENT": 502,
+        "PROVIDER_INVALID_JSON": 502,
+        "PROVIDER_SCHEMA_MISMATCH": 502,
+        "PROVIDER_TOOL_CALLS_UNSUPPORTED": 502,
+        "PROVIDER_CANCELLED": 409,
+    }.get(code, 502 if recoverable else 400)
 
 
 def _bound_domain_pack_id(items: list[sqlite3.Row]) -> Optional[DomainPackId]:

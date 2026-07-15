@@ -24,10 +24,30 @@ const plan: MechanicalConceptPlan = {
 }
 
 const planItems: AgentItem[] = [{
-  item_id: 'item_f008_plan',
+  item_id: 'item_a003_provider_trace',
   thread_id: 'thread_f008',
   turn_id: 'turn_f008',
   sequence: 1,
+  item_type: 'tool_result',
+  status: 'completed',
+  payload: {
+    tool: 'provider_gateway',
+    provider_execution_trace: {
+      schema_version: 'ProviderExecutionTrace@1',
+      trace_id: 'trace_f008',
+      provider_id: 'deterministic_mechanical_planner',
+      phase: 'completed',
+      message: '本机离线规划已完成；未调用外部 Provider。',
+      attempt: 1,
+      network_call_made: false,
+    },
+  },
+  created_at: '2026-07-14T00:00:00Z',
+}, {
+  item_id: 'item_f008_plan',
+  thread_id: 'thread_f008',
+  turn_id: 'turn_f008',
+  sequence: 2,
   item_type: 'tool_result',
   status: 'completed',
   payload: { result: plan },

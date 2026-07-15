@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/provider-execution-trace.schema.json",
+  "title": "ProviderExecutionTrace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "trace_id", "phase", "provider_id", "attempt", "network_call_made", "latency_ms", "message"],
+  "properties": {
+    "schema_version": { "const": "ProviderExecutionTrace@1" },
+    "trace_id": { "type": "string", "pattern": "^ptrace_[a-f0-9]{32}$" },
+    "phase": { "type": "string", "enum": ["preflight", "request_started", "streaming", "validating", "completed", "failed", "cancelled"] },
+    "provider_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "attempt": { "type": "integer", "minimum": 1, "maximum": 2 },
+    "network_call_made": { "type": "boolean" },
+    "latency_ms": { "type": "integer", "minimum": 0 },
+    "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "output_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "total_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "prompt_cache_hit_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "prompt_cache_miss_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "error_code": { "type": ["string", "null"], "maxLength": 120 },
+    "message": { "type": "string", "minLength": 1, "maxLength": 500 }
+  }
+}

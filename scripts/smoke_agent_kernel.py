@@ -45,11 +45,23 @@ def main() -> int:
         )
         turn = service.start_turn(thread.thread_id, turn_request, "idem-turn-1")
         assert turn.status == "completed"
-        assert len(turn.items) == 5, [item.item_type for item in turn.items]
-        assert any(item.item_type == "tool_result" for item in turn.items)
+        assert len(turn.items) == 6, [item.item_type for item in turn.items]
+        provider_result = next(
+            item
+            for item in turn.items
+            if item.item_type == "tool_result" and item.payload.get("tool") == "provider_gateway"
+        )
+        provider_trace = provider_result.payload["provider_execution_trace"]
+        assert provider_trace["phase"] == "completed"
+        assert provider_trace["network_call_made"] is False
+        assert provider_trace["attempt"] == 1
         plan_item = next(item for item in turn.items if item.item_type == "plan")
         assert len(plan_item.payload["directions"]) == 3
-        tool_result = next(item for item in turn.items if item.item_type == "tool_result")
+        tool_result = next(
+            item
+            for item in turn.items
+            if item.item_type == "tool_result" and item.payload.get("tool") != "provider_gateway"
+        )
         assert tool_result.payload["result"]["domain_pack_id"] == "pack_vehicle_concept"
         events = service.events(thread.thread_id)
         assert [event.sequence for event in events] == list(range(1, len(events) + 1))

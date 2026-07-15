@@ -33,6 +33,16 @@ struct ProviderConfigMetadata {
     model: String,
     configured: bool,
     storage: String,
+    #[serde(default = "provider_status_not_checked")]
+    metadata_status: String,
+    #[serde(default = "provider_status_not_checked")]
+    secret_status: String,
+    #[serde(default = "provider_status_not_checked")]
+    supervisor_status: String,
+    #[serde(default = "provider_status_unavailable")]
+    capability_status: String,
+    #[serde(default)]
+    failure_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -46,27 +56,50 @@ const KEYCHAIN_SERVICE: &str = "ForgeCAD Agent Provider";
 const KEYCHAIN_ACCOUNT: &str = "default";
 
 #[tauri::command]
-fn get_provider_config() -> Result<ProviderConfigMetadata, String> {
-    let metadata = read_provider_metadata().unwrap_or_else(|_| ProviderConfigMetadata {
+fn get_provider_config(state: State<'_, AgentProcessState>) -> Result<ProviderConfigMetadata, String> {
+    let metadata_path_exists = provider_metadata_path().is_file();
+    let mut metadata = read_provider_metadata().unwrap_or_else(|_| ProviderConfigMetadata {
         base_url: "https://api.deepseek.com".to_string(),
         model: "deepseek-v4-pro".to_string(),
         configured: false,
         storage: provider_storage_name().to_string(),
+        metadata_status: if metadata_path_exists { "invalid" } else { "missing" }.to_string(),
+        secret_status: "not_checked".to_string(),
+        supervisor_status: "not_checked".to_string(),
+        capability_status: "unavailable".to_string(),
+        failure_code: Some(if metadata_path_exists { "PROVIDER_METADATA_INVALID" } else { "PROVIDER_METADATA_MISSING" }.to_string()),
     });
-    let configured = !metadata.base_url.is_empty()
+    if metadata_path_exists && metadata.metadata_status == "not_checked" {
+        metadata.metadata_status = "valid".to_string();
+    }
+    let secret_available = read_provider_secret()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false);
+    metadata.secret_status = if secret_available { "available" } else { "missing" }.to_string();
+    metadata.configured = metadata.metadata_status == "valid"
+        && !metadata.base_url.is_empty()
         && !metadata.model.is_empty()
-        && read_provider_secret()
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false);
-    Ok(ProviderConfigMetadata {
-        configured,
-        ..metadata
-    })
+        && secret_available;
+    metadata.supervisor_status = if matches!(probe_agent(), AgentProbe::Healthy) {
+        "running"
+    } else {
+        "unavailable"
+    }.to_string();
+    metadata.capability_status = probe_agent_provider_capability()
+        .unwrap_or_else(|_| "unavailable".to_string());
+    if metadata.configured && metadata.capability_status != "ready" {
+        metadata.failure_code = Some("PROVIDER_CAPABILITY_MISMATCH".to_string());
+    } else if metadata.configured {
+        metadata.failure_code = None;
+    }
+    let _ = state;
+    Ok(metadata)
 }
 
 #[tauri::command]
 fn save_provider_config(
     request: SaveProviderConfigRequest,
+    state: State<'_, AgentProcessState>,
 ) -> Result<ProviderConfigMetadata, String> {
     let (base_url, model, api_key) = validate_provider_config_input(
         &request.base_url,
@@ -79,9 +112,14 @@ fn save_provider_config(
         model,
         configured: true,
         storage: provider_storage_name().to_string(),
+        metadata_status: "valid".to_string(),
+        secret_status: "available".to_string(),
+        supervisor_status: "not_checked".to_string(),
+        capability_status: "unavailable".to_string(),
+        failure_code: None,
     };
     write_provider_metadata(&metadata)?;
-    Ok(metadata)
+    activate_provider_config(metadata, state)
 }
 
 fn validate_provider_config_input(
@@ -105,16 +143,29 @@ fn validate_provider_config_input(
 }
 
 #[tauri::command]
-fn clear_provider_config() -> Result<ProviderConfigMetadata, String> {
+fn clear_provider_config(state: State<'_, AgentProcessState>) -> Result<ProviderConfigMetadata, String> {
     clear_provider_secret()?;
     let metadata = ProviderConfigMetadata {
         base_url: "https://api.deepseek.com".to_string(),
         model: "deepseek-v4-pro".to_string(),
         configured: false,
         storage: provider_storage_name().to_string(),
+        metadata_status: "valid".to_string(),
+        secret_status: "missing".to_string(),
+        supervisor_status: "not_checked".to_string(),
+        capability_status: "offline".to_string(),
+        failure_code: None,
     };
     write_provider_metadata(&metadata)?;
-    Ok(metadata)
+    activate_provider_config(metadata, state)
+}
+
+fn provider_status_not_checked() -> String {
+    "not_checked".to_string()
+}
+
+fn provider_status_unavailable() -> String {
+    "unavailable".to_string()
 }
 
 impl AgentProcessState {
@@ -312,6 +363,103 @@ fn stop_agent_service(state: State<'_, AgentProcessState>) -> AgentServiceStatus
     state.shutdown_managed();
     let mode = managed_mode_name(&state);
     status_from_probe(probe_agent(), false, None, &mode)
+}
+
+fn activate_provider_config(
+    mut metadata: ProviderConfigMetadata,
+    state: State<'_, AgentProcessState>,
+) -> Result<ProviderConfigMetadata, String> {
+    let verified = read_provider_metadata()
+        .map_err(|_| "Provider metadata could not be read after saving.".to_string())?;
+    let secret_available = read_provider_secret()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false);
+    if verified.base_url != metadata.base_url || verified.model != metadata.model {
+        metadata.metadata_status = "invalid".to_string();
+        metadata.failure_code = Some("PROVIDER_METADATA_INVALID".to_string());
+        return Ok(metadata);
+    }
+    metadata.metadata_status = "valid".to_string();
+    metadata.secret_status = if secret_available { "available" } else { "missing" }.to_string();
+    if metadata.configured && !secret_available {
+        metadata.failure_code = Some("PROVIDER_SECRET_MISSING".to_string());
+        return Ok(metadata);
+    }
+
+    state.shutdown_managed();
+    match probe_agent() {
+        AgentProbe::Healthy => {
+            metadata.supervisor_status = "restart_failed".to_string();
+            metadata.capability_status = probe_agent_provider_capability()
+                .unwrap_or_else(|_| "unavailable".to_string());
+            metadata.failure_code = Some("PROVIDER_SUPERVISOR_UNMANAGED".to_string());
+            return Ok(metadata);
+        }
+        AgentProbe::WrongService(_) => {
+            metadata.supervisor_status = "restart_failed".to_string();
+            metadata.capability_status = "mismatch".to_string();
+            metadata.failure_code = Some("PROVIDER_SUPERVISOR_WRONG_SERVICE".to_string());
+            return Ok(metadata);
+        }
+        AgentProbe::Offline => {}
+    }
+
+    match start_agent_service(state) {
+        Ok(status) if status.running => {
+            metadata.supervisor_status = "running".to_string();
+        }
+        Ok(_) => {
+            metadata.supervisor_status = "restart_failed".to_string();
+            metadata.failure_code = Some("PROVIDER_SUPERVISOR_RESTART_FAILED".to_string());
+            return Ok(metadata);
+        }
+        Err(_) => {
+            metadata.supervisor_status = "restart_failed".to_string();
+            metadata.failure_code = Some("PROVIDER_SUPERVISOR_RESTART_FAILED".to_string());
+            return Ok(metadata);
+        }
+    }
+    metadata.capability_status = probe_agent_provider_capability()
+        .unwrap_or_else(|_| "unavailable".to_string());
+    let expected = if metadata.configured { "ready" } else { "offline" };
+    if metadata.capability_status != expected {
+        metadata.failure_code = Some("PROVIDER_CAPABILITY_MISMATCH".to_string());
+    } else {
+        metadata.failure_code = None;
+    }
+    Ok(metadata)
+}
+
+fn probe_agent_provider_capability() -> Result<String, String> {
+    let addr = SocketAddr::from(([127, 0, 0, 1], AGENT_PORT));
+    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(300))
+        .map_err(|_| "Agent capability endpoint is unavailable.".to_string())?;
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
+    let request = format!(
+        "GET /api/v1/agent/provider HTTP/1.1\r\nHost: {AGENT_HOST}:{AGENT_PORT}\r\nConnection: close\r\n\r\n"
+    );
+    stream
+        .write_all(request.as_bytes())
+        .map_err(|_| "Agent capability request failed.".to_string())?;
+    let mut response = String::new();
+    stream
+        .read_to_string(&mut response)
+        .map_err(|_| "Agent capability response failed.".to_string())?;
+    if !response.starts_with("HTTP/1.1 200") && !response.starts_with("HTTP/1.0 200") {
+        return Err("Agent capability endpoint did not return HTTP 200.".to_string());
+    }
+    let body = response
+        .split_once("\r\n\r\n")
+        .map(|(_, body)| body)
+        .unwrap_or_default();
+    let value: serde_json::Value = serde_json::from_str(body)
+        .map_err(|_| "Agent capability response was not valid JSON.".to_string())?;
+    value
+        .get("capability_status")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| "Agent capability response omitted capability_status.".to_string())
 }
 
 fn main() {
@@ -849,7 +997,7 @@ fn clear_provider_secret() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{agent_health_url, validate_provider_config_input};
+    use super::{agent_health_url, validate_provider_config_input, ProviderConfigMetadata};
 
     #[test]
     fn provider_input_is_trimmed_before_storage() {
@@ -877,6 +1025,37 @@ mod tests {
         assert!(validate_provider_config_input("https://example.test", &"m".repeat(161), "key").is_err());
         assert!(validate_provider_config_input("https://example.test", "model", "").is_err());
         assert!(validate_provider_config_input("https://example.test", "model", &"k".repeat(4097)).is_err());
+    }
+
+    #[test]
+    fn legacy_provider_metadata_defaults_to_explicit_preflight_states() {
+        let metadata: ProviderConfigMetadata = serde_json::from_str(
+            r#"{"base_url":"https://api.deepseek.com","model":"deepseek-v4-pro","configured":true,"storage":"macos-keychain"}"#,
+        )
+        .expect("legacy metadata remains readable");
+        assert_eq!(metadata.metadata_status, "not_checked");
+        assert_eq!(metadata.secret_status, "not_checked");
+        assert_eq!(metadata.supervisor_status, "not_checked");
+        assert_eq!(metadata.capability_status, "unavailable");
+    }
+
+    #[test]
+    fn provider_metadata_serialization_has_no_secret_field() {
+        let metadata = ProviderConfigMetadata {
+            base_url: "https://api.deepseek.com".to_string(),
+            model: "deepseek-v4-pro".to_string(),
+            configured: true,
+            storage: "macos-keychain".to_string(),
+            metadata_status: "valid".to_string(),
+            secret_status: "available".to_string(),
+            supervisor_status: "running".to_string(),
+            capability_status: "ready".to_string(),
+            failure_code: None,
+        };
+        let serialized = serde_json::to_string(&metadata).expect("serialize metadata");
+        assert!(!serialized.contains("api_key"));
+        assert!(!serialized.contains("secret\":"));
+        assert!(serialized.contains("\"capability_status\":\"ready\""));
     }
 
     #[test]

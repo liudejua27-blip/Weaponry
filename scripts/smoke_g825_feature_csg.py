@@ -257,7 +257,7 @@ def assert_preview_confirm() -> None:
             "g825-turn",
         )
         plan = MechanicalConceptPlan.model_validate(
-            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result")
+            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
         )
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(
