@@ -123,13 +123,7 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
         idempotency_key="p002-turn",
         body={"client_request_id": "p002-turn", "message": "设计一台三关节机械臂。"},
     )
-    tool_results = [
-        item["payload"]["result"]
-        for item in turn["items"]
-        if item["item_type"] == "tool_result" and isinstance(item["payload"].get("result"), dict)
-    ]
-    _assert(len(tool_results) == 1 and isinstance(tool_results[0], dict), f"explicit robot-arm request did not produce one plan: {turn}")
-    plan = tool_results[0]
+    plan = _extract_plan_from_turn(turn)
     direction_id = plan["directions"][0]["direction_id"]
     built = _request(
         port,
@@ -226,6 +220,22 @@ def _wait_for_health(port: int, process: subprocess.Popen[str]) -> dict[str, str
         except OSError:
             time.sleep(0.1)
     raise AssertionError("packaged sidecar did not become healthy within 30 seconds")
+
+
+def _extract_plan_from_turn(turn: dict[str, Any]) -> dict[str, Any]:
+    """Read the one plan result from either supported packaged Turn contract."""
+    plan_results = [
+        item["payload"]["result"]
+        for item in turn.get("items", [])
+        if item.get("item_type") == "tool_result"
+        and isinstance(item.get("payload"), dict)
+        and item["payload"].get("tool_name", item["payload"].get("tool")) == "plan_complete_concept"
+        and isinstance(item["payload"].get("result"), dict)
+    ]
+    _assert(len(plan_results) == 1, f"explicit robot-arm request did not produce one plan result: {turn}")
+    plan = plan_results[0].get("plan", plan_results[0])
+    _assert(isinstance(plan, dict), f"explicit robot-arm plan result is missing its plan payload: {turn}")
+    return plan
 
 
 def _free_port() -> int:
