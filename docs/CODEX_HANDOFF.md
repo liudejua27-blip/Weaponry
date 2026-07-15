@@ -9,6 +9,7 @@
 
 - Agent-active 首次进入只读取 Project shell；只有点击“查看旧版只读信息”才读取旧版本、ChangeSet、审计和 ModuleGraph。关闭、项目切换及迟到响应均由 request guard 清理，不能重新挂载 legacy 表面。
 - 新 `WorkbenchInspectorRail` 将 Graph Inspector、`WeaponParameters`、旧质量摘要和 SOURCE ZIP/OBJ/PNG/MP4 说明限制在显式只读边界；Agent 质量/导出抽屉不再接收 legacy props，Agent Turn 和修改意图不再回退调用旧 Planner。
+- 首次推送的 Linux `workbench-e2e` 暴露 D003 路径漂移：真实 Kernel 的 ambiguous clarification 只返回两个推断候选，而 API 错误适配层返回四项。修复后两条路径都保持一个问题和四个安全领域选项，并由后端/UI D003 smoke 共同验证；没有放宽零资产写入或 legacy fallback 断言。
 - F025 Gate 按文本边界记录 `CadWorkbenchPanel.tsx` 从 3,032 行降至 1,872 行；仍只装配一个 `ModuleGraphViewport`。新增 `desktop:f025-legacy-isolation-smoke`，并通过 F001、F006、T002（14/14）、T003、r3、typecheck/build。完整文档/安全/合同 Gate 与最终 commit/push/PR checks 记录以本轮结束结果为准。
 - 下一唯一可领取任务是 `FGC-D005`：只建立四领域非工程语义比例/Style Token 配方与 G808/G811/G819/G826 允许的受限参数绑定，不增加自由尺寸、工程结论或新几何执行路径。
 

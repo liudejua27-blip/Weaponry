@@ -34,6 +34,16 @@ def main() -> int:
             "d003-thread",
         )
         before = {table: _count(factory, table) for table in ("agent_blockout_candidates", "agent_asset_versions")}
+        ambiguous = service.start_turn(
+            thread.thread_id,
+            StartAgentTurnRequest(client_request_id="d003-ambiguous", message="设计一台能飞的无人机载具"),
+            "d003-ambiguous",
+        )
+        assert ambiguous.status == "waiting_for_clarification"
+        ambiguous_clarification = next(item for item in ambiguous.items if item.item_type == "clarification")
+        assert ambiguous_clarification.payload["status"] == "ambiguous"
+        assert len(ambiguous_clarification.payload["options"]) == 4
+        assert ambiguous_clarification.payload["question"] == "你想先设计汽车、飞机、机械臂，还是未来概念道具？"
         turn = service.start_turn(
             thread.thread_id,
             StartAgentTurnRequest(client_request_id="d003-turn", message="我想做一个海洋生物雕塑"),
@@ -66,7 +76,7 @@ def main() -> int:
         assert plan_item.payload["domain_pack_id"] == "pack_aircraft_concept"
         assert before == {table: _count(factory, table) for table in before}
 
-    print("D003 clarification smoke passed: one question, four choices, idempotent replay, zero asset writes")
+    print("D003 clarification smoke passed: ambiguous/unsupported use one question, four choices, idempotent replay, zero asset writes")
     return 0
 
 

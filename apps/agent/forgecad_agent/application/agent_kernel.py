@@ -727,7 +727,7 @@ class AgentKernelService:
         )
         options = _domain_clarification_options(inference)
         if inference.status == "ambiguous":
-            question = "这段创意同时接近多个方向。你想先设计哪一种？"
+            question = "你想先设计汽车、飞机、机械臂，还是未来概念道具？"
         else:
             question = "我还不能判断对象类别。你想先设计汽车、飞机、机械臂，还是未来概念道具？"
         payload = {
@@ -1364,9 +1364,11 @@ _DOMAIN_OPTION_PROMPTS: dict[DomainPackId, str] = {
 
 
 def _domain_clarification_options(inference: Any) -> list[dict[str, str]]:
-    candidate_ids = list(inference.candidate_domain_pack_ids)
-    if inference.status == "unsupported":
-        candidate_ids = [pack.pack_id for pack in list_domain_packs()]
+    # D003 exposes one stable, zero-basics choice surface for both ambiguous
+    # and unsupported inference. Candidate IDs remain diagnostic evidence in
+    # domain_inference; they must not silently narrow the user's safe choices.
+    _ = inference
+    candidate_ids = [pack.pack_id for pack in list_domain_packs()]
     options: list[dict[str, str]] = []
     for pack_id in candidate_ids:
         pack = domain_pack_by_id(pack_id)
