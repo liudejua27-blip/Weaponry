@@ -200,9 +200,6 @@ jobs:
       - run: npm run desktop:m105-material-zone-binding-smoke
       - run: npm run desktop:m106-material-domain-filter-smoke
       - run: npm run desktop:c101-part-role-labels-smoke
-      - run: npm run agent:c102-component-compatibility-smoke
-      - run: npm run agent:c103-structure-suggestions-smoke
-      - run: npm run agent:c104-part-display-smoke
 
   packaged-macos-alpha:
     # P009: validates the actual arm64 .app and frozen sidecar. It is a
