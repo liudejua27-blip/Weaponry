@@ -12,6 +12,7 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from base64 import b64decode
 from pathlib import Path
@@ -38,7 +39,7 @@ def main() -> int:
             payload = _wait_for_health(port, process)
             _assert(payload == {"status": "ok", "service": "wushen-agent", "mode": "sqlite_mock"}, "unexpected health payload")
             _assert((library_root / "library.db").is_file(), "first initialization did not create the library")
-            asset_version_id, export_glb_sha256 = _create_and_export_editable_asset(port, library_root)
+            asset_version_id, export_glb_sha256 = _create_editable_asset_with_navigation(port, library_root)
         finally:
             _stop_sidecar(process)
 
@@ -72,6 +73,7 @@ def main() -> int:
         "editable_glb_export": True,
         "packaged_manifold_csg": True,
         "packaged_visual_pbr_readback": True,
+        "packaged_undo_redo_export": True,
         "restart_recovery": True,
         "provider_calls": 0,
     }))
@@ -113,7 +115,7 @@ def _stop_sidecar(process: subprocess.Popen[str]) -> None:
         process.wait(timeout=10)
 
 
-def _create_and_export_editable_asset(port: int, library_root: Path) -> tuple[str, str]:
+def _create_editable_asset_with_navigation(port: int, library_root: Path) -> tuple[str, str]:
     project = _request(
         port,
         "/api/v1/projects",
@@ -178,12 +180,87 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> tuple[st
         idempotency_key="p002-commit",
         body={"client_request_id": "p002-commit", "project_id": project_id, "artifact_id": segmented["artifact_id"], "summary": "P002 本机 Alpha 可编辑概念资产"},
     )
-    asset_version_id = committed["asset_version_id"]
-    initial_export = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
-    _assert_packaged_visual_pbr(b64decode(initial_export["glb_base64"]))
-    asset = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}")
+    initial_asset_version_id = committed["asset_version_id"]
+    initial_export = _request(port, f"/api/v1/agent/asset-versions/{initial_asset_version_id}:export", method="POST")
+    initial_glb = b64decode(initial_export["glb_base64"])
+    _assert_packaged_visual_pbr(initial_glb)
+    initial_glb_sha256 = hashlib.sha256(initial_glb).hexdigest()
+    asset = _request(port, f"/api/v1/agent/asset-versions/{initial_asset_version_id}")
     target = next(item for item in asset["parts"] if item["editable_parameter_bindings"])
-    tool = next(item for item in asset["parts"] if item["part_id"] != target["part_id"])
+    binding = target["editable_parameter_bindings"][0]
+    candidate_value = float(binding["min"]) + float(binding["step"])
+    if abs(candidate_value - float(binding["default"])) <= 1e-9:
+        candidate_value += float(binding["step"])
+    _assert(candidate_value <= float(binding["max"]), "packaged fixture has no editable parameter value distinct from its default")
+    proposed = _request(
+        port,
+        f"/api/v1/agent/asset-versions/{initial_asset_version_id}/change-sets",
+        method="POST",
+        idempotency_key="p002-propose-edit",
+        body={
+            "client_request_id": "p002-propose-edit",
+            "summary": "P002 packaged undo redo PBR export fixture",
+            "operations": [{
+                "operation_id": "op_p002_adjust_parameter",
+                "op": "set_part_parameter",
+                "part_id": target["part_id"],
+                "path": binding["path"],
+                "value": candidate_value,
+            }],
+        },
+    )
+    previewed = _request(
+        port,
+        f"/api/v1/agent/change-sets/{proposed['change_set_id']}:preview",
+        method="POST",
+        idempotency_key="p002-preview-edit",
+    )
+    _assert(previewed["status"] == "previewed", "packaged editable PBR preview did not enter previewed state")
+    confirmed = _request(
+        port,
+        f"/api/v1/agent/change-sets/{proposed['change_set_id']}:confirm",
+        method="POST",
+        idempotency_key="p002-confirm-edit",
+    )
+    edited_asset_version_id = confirmed["asset_version"]["asset_version_id"]
+    edited_export = _request(port, f"/api/v1/agent/asset-versions/{edited_asset_version_id}:export", method="POST")
+    edited_glb = b64decode(edited_export["glb_base64"])
+    _assert_packaged_visual_pbr(edited_glb)
+    edited_glb_sha256 = hashlib.sha256(edited_glb).hexdigest()
+    _assert(edited_glb_sha256 != initial_glb_sha256, "packaged parameter edit did not change its GLB export")
+
+    active = _request(port, f"/api/v1/projects/{project_id}/active-design")
+    undone = _request(
+        port,
+        f"/api/v1/projects/{project_id}/active-design:undo",
+        method="POST",
+        idempotency_key="p002-undo",
+        body={"client_request_id": "p002-undo", "snapshot_revision": active["revision"]},
+    )
+    undone_asset_version_id = undone["active_design"]["asset_version_id"]
+    _assert(undone_asset_version_id not in {initial_asset_version_id, edited_asset_version_id}, "undo must create an immutable navigation child")
+    undone_export = _request(port, f"/api/v1/agent/asset-versions/{undone_asset_version_id}:export", method="POST")
+    undone_glb = b64decode(undone_export["glb_base64"])
+    _assert_packaged_visual_pbr(undone_glb)
+    _assert(hashlib.sha256(undone_glb).hexdigest() == initial_glb_sha256, "packaged undo did not restore the initial PBR GLB")
+
+    redone = _request(
+        port,
+        f"/api/v1/projects/{project_id}/active-design:redo",
+        method="POST",
+        idempotency_key="p002-redo",
+        body={"client_request_id": "p002-redo", "snapshot_revision": undone["revision"]},
+    )
+    asset_version_id = redone["active_design"]["asset_version_id"]
+    _assert(asset_version_id not in {initial_asset_version_id, edited_asset_version_id, undone_asset_version_id}, "redo must create an immutable navigation child")
+    redone_export = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
+    redone_glb = b64decode(redone_export["glb_base64"])
+    _assert_packaged_visual_pbr(redone_glb)
+    _assert(hashlib.sha256(redone_glb).hexdigest() == edited_glb_sha256, "packaged redo did not restore the edited PBR GLB")
+
+    current_asset = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}")
+    target = next(item for item in current_asset["parts"] if item["part_id"] == target["part_id"])
+    tool = next(item for item in current_asset["parts"] if item["part_id"] != target["part_id"])
     program = boolean_program("subtract", suffix="packaged")
     program["operations"][0]["args"].update({
         "part_role": target["role"],
@@ -255,6 +332,9 @@ def _request(
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise AssertionError(f"request failed for {method} {path}: {error}; response: {detail}") from error
     except Exception as error:
         raise AssertionError(f"request failed for {method} {path}: {error}") from error
 
