@@ -20,6 +20,9 @@ export type ViewportMeasurementPoint = {
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
 const BLOCKOUT_DISPLAY_DIAGONAL_MM = 520
+const BLOCKOUT_FRAME_TARGET_NDC = 0.84
+const DEFAULT_SCENE_FOG_NEAR_MM = 300
+const DEFAULT_SCENE_FOG_FAR_MM = 820
 // Must match ForgeCADVisualEnvironment@1 written into every current ShapeProgram
 // GLB.  The viewport has one renderer/context; this profile only configures its
 // existing RoomEnvironment/PMREM scene and never creates asset state.
@@ -118,6 +121,12 @@ type ViewportRuntime = {
   moduleCache: Map<string, Promise<THREE.Group>>
   graph: Graph | null
   modulesById: Map<string, ModuleAssetRecord>
+  activeBlockoutPreview: {
+    source: THREE.Object3D
+    displayScale: number
+    displayDiagonalMm: number
+    sourceBoundsMm: number[]
+  } | null
   scheduleRender: () => void
 }
 
@@ -144,7 +153,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const neutralLighting = FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(neutralLighting.background)
-    scene.fog = new THREE.Fog(neutralLighting.background, 300, 820)
+    scene.fog = new THREE.Fog(neutralLighting.background, DEFAULT_SCENE_FOG_NEAR_MM, DEFAULT_SCENE_FOG_FAR_MM)
     const camera = new THREE.PerspectiveCamera(FORGECAD_STUDIO_MANIFEST.camera_views.iso.fov_degrees, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     renderer.localClippingEnabled = true
@@ -283,6 +292,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       moduleCache: new Map(),
       graph: null,
       modulesById: new Map(),
+      activeBlockoutPreview: null,
       scheduleRender,
     }
     recordAppliedVisualEnvironment(runtime, host)
@@ -350,8 +360,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       const width = host.clientWidth
       const height = host.clientHeight
       renderer.setSize(width, height, false)
-      camera.aspect = width / Math.max(height, 1)
+      camera.aspect = Math.max(width, 1) / Math.max(height, 1)
       camera.updateProjectionMatrix()
+      if (runtime.activeBlockoutPreview) {
+        refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
+      } else {
+        recordPresentationRuntimeFacts(runtime)
+      }
       scheduleRender()
     }
     const observer = new ResizeObserver(resize)
@@ -403,7 +418,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       clearNodeObjects(runtime)
       setLoadState('empty')
       setLoadMessage('当前版本尚未绑定 ModuleGraph')
-      frameCamera(runtime.camera, runtime.controls, props.cameraView, new THREE.Vector3(), 240)
+      if (runtime.activeBlockoutPreview) {
+        refreshActiveBlockoutFrame(runtime, props.cameraView)
+      } else {
+        frameCamera(runtime.camera, runtime.controls, props.cameraView, new THREE.Vector3(), 240)
+        recordPresentationRuntimeFacts(runtime)
+      }
       runtime.scheduleRender()
       return
     }
@@ -422,7 +442,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         if (cancelled) return
         applyVisualState(runtime, propsRef.current)
         syncTransformControls(runtime, propsRef.current)
-        frameVisibleObjects(runtime, propsRef.current)
+        if (runtime.activeBlockoutPreview) {
+          refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
+        } else {
+          frameVisibleObjects(runtime, propsRef.current)
+          recordPresentationRuntimeFacts(runtime)
+        }
         setLoadState('ready')
         setLoadMessage(`已加载 ${graph.nodes.length} 个真实 GLB 节点`)
         runtime.scheduleRender()
@@ -431,7 +456,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         if (cancelled) return
         setLoadState('failed')
         setLoadMessage(caught instanceof Error ? caught.message : String(caught))
-        frameCamera(runtime.camera, runtime.controls, propsRef.current.cameraView, new THREE.Vector3(), 240)
+        if (runtime.activeBlockoutPreview) {
+          refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
+        } else {
+          frameCamera(runtime.camera, runtime.controls, propsRef.current.cameraView, new THREE.Vector3(), 240)
+          recordPresentationRuntimeFacts(runtime)
+        }
         runtime.scheduleRender()
       })
     return () => { cancelled = true }
@@ -440,12 +470,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
-    clearObjectChildren(runtime.blockoutRoot)
-    runtime.moduleRoot.visible = true
+    restoreModuleGraphPresentation(runtime, propsRef.current)
     if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
-      runtime.axes.visible = true
-      runtime.grid.visible = propsRef.current.showGrid
-      recordBlockoutRuntimeFacts(runtime, null)
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
@@ -484,6 +510,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // accidentally displayed as roughly 1 mm and the shadow catcher dwarfs it.
       source.scale.multiplyScalar(fitScale)
       runtime.moduleRoot.visible = false
+      runtime.transformControls.detach()
+      runtime.transformHelper.visible = false
       source.updateMatrixWorld(true)
       runtime.blockoutRoot.updateMatrixWorld(true)
       bounds = new THREE.Box3().setFromObject(source)
@@ -507,17 +535,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         horizontalRadius * FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
       )
       fitPreviewShadowCamera(runtime, framedSize)
-      recordBlockoutRuntimeFacts(runtime, source, {
+      runtime.activeBlockoutPreview = {
+        source,
         displayScale: fitScale,
         displayDiagonalMm: framedDiagonal,
-      })
-      frameCamera(
-        runtime.camera,
-        runtime.controls,
-        propsRef.current.cameraView,
-        framedCenter,
-        framedDiagonal,
-      )
+        sourceBoundsMm: sourceSize.toArray(),
+      }
+      refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
       setBlockoutLoadState('ready')
       setBlockoutLoadMessage(message)
       runtime.scheduleRender()
@@ -604,7 +628,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           if (cancelled) return
           setBlockoutRenderSource('empty')
           setBlockoutEmbeddedPbrMaterialCount(0)
-          recordBlockoutRuntimeFacts(runtime, null)
+          restoreModuleGraphPresentation(runtime, propsRef.current)
           setBlockoutLoadState('failed')
           setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
           runtime.scheduleRender()
@@ -633,13 +657,16 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       } catch (error) {
         setBlockoutRenderSource('empty')
         setBlockoutEmbeddedPbrMaterialCount(0)
-        recordBlockoutRuntimeFacts(runtime, null)
+        restoreModuleGraphPresentation(runtime, propsRef.current)
         setBlockoutLoadState('failed')
         setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
         runtime.scheduleRender()
       }
     }
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      runtime.activeBlockoutPreview = null
+    }
   }, [
     props.blockoutGlbBase64,
     props.blockoutGlbKind,
@@ -704,8 +731,15 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
 
   useEffect(() => {
     const runtime = runtimeRef.current
-    if (!runtime || runtime.nodeObjects.size === 0) return
-    frameVisibleObjects(runtime, propsRef.current)
+    if (!runtime) return
+    if (runtime.activeBlockoutPreview) {
+      refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
+    } else if (runtime.nodeObjects.size > 0) {
+      frameVisibleObjects(runtime, propsRef.current)
+      recordPresentationRuntimeFacts(runtime)
+    } else {
+      return
+    }
     runtime.scheduleRender()
   }, [props.cameraView, props.focusNodeId, props.qualityHighlightNodeIds, graphHash])
 
@@ -957,6 +991,85 @@ type BlockoutPbrTextureFacts = {
   colorSpacesValid: boolean
 }
 
+type BlockoutFrameNdcFacts = {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+  cameraDistanceMm: number
+}
+
+function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView): void {
+  const active = runtime.activeBlockoutPreview
+  if (!active) return
+  active.source.updateMatrixWorld(true)
+  runtime.blockoutRoot.updateMatrixWorld(true)
+  const bounds = new THREE.Box3().setFromObject(active.source)
+  if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
+  const frameNdc = frameBlockoutCameraToBounds(runtime, view, bounds)
+  recordBlockoutRuntimeFacts(runtime, active.source, {
+    displayScale: active.displayScale,
+    displayDiagonalMm: active.displayDiagonalMm,
+    sourceBoundsMm: active.sourceBoundsMm,
+    frameNdc,
+  })
+  const host = runtime.renderer.domElement.parentElement
+  if (host instanceof HTMLElement) host.dataset.presentationSource = 'blockout'
+  recordPresentationRuntimeFacts(runtime)
+}
+
+function restoreModuleGraphPresentation(runtime: ViewportRuntime, props: ModuleGraphViewportProps): void {
+  runtime.activeBlockoutPreview = null
+  clearObjectChildren(runtime.blockoutRoot)
+  runtime.blockoutRoot.visible = false
+  runtime.moduleRoot.visible = true
+  runtime.axes.visible = true
+  if (runtime.scene.fog instanceof THREE.Fog) {
+    runtime.scene.fog.near = DEFAULT_SCENE_FOG_NEAR_MM
+    runtime.scene.fog.far = DEFAULT_SCENE_FOG_FAR_MM
+  }
+  applyVisualState(runtime, props)
+  syncTransformControls(runtime, props)
+  frameVisibleObjects(runtime, props)
+  recordBlockoutRuntimeFacts(runtime, null)
+  const host = runtime.renderer.domElement.parentElement
+  if (host instanceof HTMLElement) host.dataset.presentationSource = 'module_graph'
+  recordPresentationRuntimeFacts(runtime)
+}
+
+function recordPresentationRuntimeFacts(runtime: ViewportRuntime): void {
+  const host = runtime.renderer.domElement.parentElement
+  if (!(host instanceof HTMLElement)) return
+  const shadowCamera = runtime.keyLight.shadow.camera
+  host.dataset.presentationRuntimeFacts = canonicalJson({
+    module_root_visible: runtime.moduleRoot.visible,
+    blockout_root_visible: runtime.blockoutRoot.visible,
+    axes_visible: runtime.axes.visible,
+    grid_visible: runtime.grid.visible,
+    transform_helper_visible: runtime.transformHelper.visible,
+    display_floor: {
+      position: runtime.displayFloor.position.toArray(),
+      rotation: runtime.displayFloor.rotation.toArray().slice(0, 3),
+      scale: runtime.displayFloor.scale.toArray(),
+    },
+    shadow_camera: {
+      left: shadowCamera.left,
+      right: shadowCamera.right,
+      top: shadowCamera.top,
+      bottom: shadowCamera.bottom,
+      near: shadowCamera.near,
+      far: shadowCamera.far,
+    },
+    camera: {
+      position: runtime.camera.position.toArray(),
+      target: runtime.controls.target.toArray(),
+      aspect: runtime.camera.aspect,
+      near: runtime.camera.near,
+      far: runtime.camera.far,
+    },
+  })
+}
+
 function collectPbrTextureFacts(root: THREE.Object3D): BlockoutPbrTextureFacts {
   const textures = new Set<THREE.Texture>()
   let colorSpacesValid = true
@@ -995,7 +1108,12 @@ function collectPbrTextureFacts(root: THREE.Object3D): BlockoutPbrTextureFacts {
 function recordBlockoutRuntimeFacts(
   runtime: ViewportRuntime,
   source: THREE.Object3D | null,
-  display?: { displayScale: number; displayDiagonalMm: number },
+  display?: {
+    displayScale: number
+    displayDiagonalMm: number
+    sourceBoundsMm: number[]
+    frameNdc: BlockoutFrameNdcFacts
+  },
 ): void {
   const host = runtime.renderer.domElement.parentElement
   if (!(host instanceof HTMLElement)) return
@@ -1005,6 +1123,10 @@ function recordBlockoutRuntimeFacts(
   host.dataset.blockoutPbrColorSpaces = facts ? (facts.colorSpacesValid ? 'valid' : 'invalid') : 'not_applicable'
   host.dataset.blockoutDisplayScale = String(display?.displayScale ?? 0)
   host.dataset.blockoutDisplayDiagonalMm = String(display?.displayDiagonalMm ?? 0)
+  host.dataset.blockoutSourceBoundsMm = JSON.stringify(display?.sourceBoundsMm ?? [])
+  host.dataset.blockoutFrameNdc = JSON.stringify(display?.frameNdc ?? {})
+  host.dataset.blockoutFogNearMm = String(runtime.scene.fog instanceof THREE.Fog ? runtime.scene.fog.near : 0)
+  host.dataset.blockoutFogFarMm = String(runtime.scene.fog instanceof THREE.Fog ? runtime.scene.fog.far : 0)
 }
 
 function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphViewportProps): void {
@@ -1210,6 +1332,11 @@ function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewpor
     : new THREE.Box3().setFromObject(runtime.moduleRoot)
   if (bounds.isEmpty() && targets.length) bounds = new THREE.Box3().setFromObject(runtime.moduleRoot)
   if (bounds.isEmpty()) {
+    runtime.displayFloor.position.set(0, -1, 0)
+    runtime.displayFloor.scale.setScalar(
+      240 * 0.5 * FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
+    )
+    fitPreviewShadowCamera(runtime, new THREE.Vector3(240, 240, 240))
     frameCamera(runtime.camera, runtime.controls, props.cameraView, new THREE.Vector3(), 240)
     return
   }
@@ -1318,6 +1445,80 @@ function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, v
   controls.minDistance = Math.max(size * 0.05, 0.01)
   controls.maxDistance = Math.max(size * 10, 10)
   controls.update()
+}
+
+function frameBlockoutCameraToBounds(
+  runtime: ViewportRuntime,
+  view: CameraView,
+  bounds: THREE.Box3,
+): BlockoutFrameNdcFacts {
+  const { camera, controls } = runtime
+  const center = bounds.getCenter(new THREE.Vector3())
+  const size = bounds.getSize(new THREE.Vector3())
+  const corners = boxCorners(bounds)
+  const direction: Record<CameraView, THREE.Vector3> = {
+    iso: new THREE.Vector3(...FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction),
+    front: new THREE.Vector3(0, 0.08, 1),
+    top: new THREE.Vector3(0, 1, 0.001),
+    right: new THREE.Vector3(1, 0.08, 0),
+  }
+  controls.target.copy(center)
+  camera.position.copy(center).add(direction[view].normalize())
+  controls.update()
+  camera.updateMatrixWorld(true)
+
+  // Use the actual OrbitControls camera basis so near-vertical views and the
+  // live viewport aspect ratio participate in the fit. A diagonal-only
+  // distance can pass loading checks while clipping a wide vehicle or tall arm.
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize()
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize()
+  const backward = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 2).normalize()
+  const tangentY = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)
+  const tangentX = tangentY * Math.max(camera.aspect, 0.01)
+  let distance = 1
+  for (const corner of corners) {
+    const delta = corner.clone().sub(center)
+    const widthDistance = Math.abs(delta.dot(right)) / (BLOCKOUT_FRAME_TARGET_NDC * tangentX)
+    const heightDistance = Math.abs(delta.dot(up)) / (BLOCKOUT_FRAME_TARGET_NDC * tangentY)
+    distance = Math.max(distance, delta.dot(backward) + Math.max(widthDistance, heightDistance))
+  }
+  distance *= 1.01
+  camera.position.copy(center).add(backward.multiplyScalar(distance))
+  camera.near = Math.max(distance / 1000, 0.001)
+  camera.far = Math.max(distance * 20, 100)
+  camera.updateProjectionMatrix()
+  controls.minDistance = Math.max(size.length() * 0.05, 0.01)
+  controls.maxDistance = Math.max(size.length() * 10, 10)
+  controls.update()
+  camera.updateMatrixWorld(true)
+  if (runtime.scene.fog instanceof THREE.Fog) {
+    // Keep the entire object ahead of the studio haze. The old fixed fog
+    // depth made a correctly framed wide/tall model almost black.
+    runtime.scene.fog.near = Math.max(300, distance + size.length())
+    runtime.scene.fog.far = runtime.scene.fog.near + Math.max(520, distance * 1.5)
+  }
+
+  const projected = corners.map((corner) => corner.clone().project(camera))
+  return {
+    minX: Math.min(...projected.map((point) => point.x)),
+    maxX: Math.max(...projected.map((point) => point.x)),
+    minY: Math.min(...projected.map((point) => point.y)),
+    maxY: Math.max(...projected.map((point) => point.y)),
+    cameraDistanceMm: distance,
+  }
+}
+
+function boxCorners(bounds: THREE.Box3): THREE.Vector3[] {
+  return [
+    new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.min.z),
+    new THREE.Vector3(bounds.min.x, bounds.min.y, bounds.max.z),
+    new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.min.z),
+    new THREE.Vector3(bounds.min.x, bounds.max.y, bounds.max.z),
+    new THREE.Vector3(bounds.max.x, bounds.min.y, bounds.min.z),
+    new THREE.Vector3(bounds.max.x, bounds.min.y, bounds.max.z),
+    new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.min.z),
+    new THREE.Vector3(bounds.max.x, bounds.max.y, bounds.max.z),
+  ]
 }
 
 function disposeObject(root: THREE.Object3D) {

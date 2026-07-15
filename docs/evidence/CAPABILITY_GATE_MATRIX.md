@@ -69,6 +69,8 @@ M108 当前工作区增量证据（2026-07-15）：内置视觉 primitive 使用
 
 M108 领域化外观增量（2026-07-15）：四领域 showcase 使用互斥 role 白名单，不再共享按 primitive 顺序生成的装饰布局；代表车辆/飞机/机械臂/虚构道具的轮廓修正继续只使用现有受限 primitive。GLB 材质表含 8 个内置视觉材质，`mat_automotive_paint` 固定 index 7、独立五通道 coated texture set 与 `clearcoatFactor=0.86`，不再别名到 aluminum。G818/PBR Gate 锁定这些事实；它们不是 C105 Recipe、工程材料或人工视觉达标证据。
 
+M108 曲面与安全取景增量（2026-07-16）：cylinder/capsule 固定 24 段并由 GLB `surface_provenance` 锁定 96/432 triangles，不开放自由细分。无评分 kit 的编译 bounds 必须与 GLTFLoader 毫米 bounds 对齐；实际相机按 FOV/aspect/8 角点取景，初始和 1180×1024 resize 后均要求 NDC `[-0.9, 0.9]`、正相机距离和随距离后移的 fog。损坏 GLB 必须恢复基础工作台、300–820 fog、相机/地面/shadow camera，清空旧 facts 且不替换 renderer。24 段 renderer pass 保守上界为 6,776，本轮实际捕获最大 6,080，triangle 上限调整为 7,000，其他 GPU 上限不变。四领域新截图已通过该自动 Gate，但仍是 `not_scored` 开发证据，不能完成 M108。
+
 ## 2. 仅兼容基线
 
 以下能力仍可能有代码和历史 Gate，但不是通用机械 Agent 产品承诺：旧 Weapon 创建、Concept ModuleGraph、Patch、ComfyUI、神经 3D、Unity export/import、Concept OBJ/PNG/turntable。只在 [legacy](../legacy/README.md) 和具体历史 evidence 中追溯。

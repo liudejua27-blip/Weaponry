@@ -57,6 +57,7 @@ def build_kit(output: Path) -> dict[str, object]:
             "glb_sha256": hashlib.sha256(glb_bytes).hexdigest(),
             "glb_byte_size": len(glb_bytes),
             "triangle_count": readback.triangle_count,
+            "bounds_mm": [round(float(value), 4) for value in readback.bounds_mm],
             "material_zone_count": len(readback.material_zone_faces),
             "visual_texture_set_count": len(readback.visual_texture_sets),
             "material_ids": sorted(str(item["material_id"]) for item in readback.visual_texture_sets),

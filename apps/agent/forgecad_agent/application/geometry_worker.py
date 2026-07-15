@@ -146,6 +146,11 @@ MAX_CSG_DEPTH = 8
 MAX_EDGE_FINISH_RADIUS_RATIO = 0.25
 MAX_EDGE_FINISH_SUBDIVISIONS = 3
 VISUAL_UV_REPEAT_MM = 320.0
+# Keep bounded primitives lightweight while avoiding the visibly faceted
+# 16-sided silhouette that dominated wheels, rotors, joints and capsule shells
+# in the real M108 workbench captures.  This is one fixed runtime baseline,
+# not a user-controlled tessellation parameter or a second quality mode.
+RADIAL_PRIMITIVE_SEGMENTS = 24
 
 # Executor identifiers, not another operation allow-list.  The manifest owns
 # the operation -> executor mapping; this set proves the shipped Worker still
@@ -2147,8 +2152,10 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
         return 12
     if primitive.primitive_kind == "wedge":
         return 8
+    if primitive.primitive_kind == "cylinder":
+        return RADIAL_PRIMITIVE_SEGMENTS * 4
     if primitive.primitive_kind == "capsule":
-        return 16 * (10 * 2 - 2)
+        return RADIAL_PRIMITIVE_SEGMENTS * (10 * 2 - 2)
     if primitive.primitive_kind == "extrude":
         return 4 * len(primitive.profile_points) - 4
     if primitive.primitive_kind == "extrude_profile":
@@ -3429,7 +3436,7 @@ def _bevel_box_geometry(bevel: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
 
 
 def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
-    segments = 16
+    segments = RADIAL_PRIMITIVE_SEGMENTS
     cx, cy, cz = (value / 1000 for value in capsule.center_mm)
     radius = min(capsule.radius_mm / 1000, capsule.height_mm / 2000)
     half_straight = max(0.0, capsule.height_mm / 2000 - radius)
@@ -3936,7 +3943,7 @@ def _revolve_contract_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, byt
 
 
 def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
-    segments = 16
+    segments = RADIAL_PRIMITIVE_SEGMENTS
     cx, cy, cz = (value / 1000 for value in cylinder.center_mm)
     radius = cylinder.radius_mm / 1000
     half_height = cylinder.height_mm / 2000

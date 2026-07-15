@@ -33,11 +33,38 @@ const M108_WORKBENCH_GPU_BUDGET = Object.freeze({
   // One visible PBR part participates in the main and shadow passes; the
   // current 25-zone fixtures peak at 75 calls with the shared floor pass.
   renderer_draw_calls: 96,
-  renderer_triangles: 5_000,
+  // The fixed 24-segment cylinder/capsule baseline has a conservative 6,776
+  // triangle pass envelope; 7k keeps the quality increase bounded without
+  // changing draw calls, textures or memory budgets.
+  renderer_triangles: 7_000,
   embedded_pbr_texture_count: 35,
   estimated_gpu_texture_bytes: 4 * 1024 * 1024,
 })
+const M108_NARROW_VIEWPORT = Object.freeze({ width: 1180, height: 1024 })
 let smokeStage = 'initializing'
+
+function assertM108SafeFrame(frameNdc, fogNearMm, fogFarMm, fixtureId, phase) {
+  const frameValues = ['minX', 'maxX', 'minY', 'maxY'].map((key) => Number(frameNdc?.[key]))
+  const cameraDistanceMm = Number(frameNdc?.cameraDistanceMm)
+  if (
+    frameValues.some((value) => !Number.isFinite(value))
+    || !Number.isFinite(cameraDistanceMm)
+    || cameraDistanceMm <= 0
+    || frameValues[0] < -0.9
+    || frameValues[1] > 0.9
+    || frameValues[2] < -0.9
+    || frameValues[3] > 0.9
+    || !Number.isFinite(fogNearMm)
+    || !Number.isFinite(fogFarMm)
+    || fogNearMm <= cameraDistanceMm
+    || fogFarMm <= fogNearMm
+  ) {
+    throw new Error(
+      `M108 model exceeds the camera/fog safe frame during ${phase}: ${fixtureId}; `
+      + `${JSON.stringify({ frame_ndc: frameNdc, fog_near_mm: fogNearMm, fog_far_mm: fogFarMm })}`,
+    )
+  }
+}
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad_r3_workbench_'))
@@ -713,6 +740,8 @@ async function captureM108WorkbenchFixtures(page) {
   if (!rendererGeneration || await page.locator('.weapon-viewport canvas').count() !== 1) {
     throw new Error('M108 workbench capture requires the existing single renderer/canvas')
   }
+  const defaultViewportSize = page.viewportSize()
+  if (!defaultViewportSize) throw new Error('M108 workbench capture requires a fixed browser viewport')
   await mkdir(captureRoot, { recursive: true })
   const records = []
   for (const fixture of manifest.fixtures) {
@@ -810,6 +839,11 @@ async function captureM108WorkbenchFixtures(page) {
       pbr_color_spaces: element.getAttribute('data-blockout-pbr-color-spaces'),
       display_scale: Number(element.getAttribute('data-blockout-display-scale') ?? '0'),
       display_diagonal_mm: Number(element.getAttribute('data-blockout-display-diagonal-mm') ?? '0'),
+      source_bounds_mm: JSON.parse(element.getAttribute('data-blockout-source-bounds-mm') ?? '[]'),
+      frame_ndc: JSON.parse(element.getAttribute('data-blockout-frame-ndc') ?? '{}'),
+      fog_near_mm: Number(element.getAttribute('data-blockout-fog-near-mm') ?? '0'),
+      fog_far_mm: Number(element.getAttribute('data-blockout-fog-far-mm') ?? '0'),
+      presentation_source: element.getAttribute('data-presentation-source'),
     }))
     const liveEnvironmentSha256 = createHash('sha256')
       .update(viewportFacts.visual_environment_recipe ?? '')
@@ -827,15 +861,72 @@ async function captureM108WorkbenchFixtures(page) {
       || viewportFacts.display_scale > 1
       || viewportFacts.display_diagonal_mm < 519
       || viewportFacts.display_diagonal_mm > 521
+      || viewportFacts.presentation_source !== 'blockout'
     ) {
       throw new Error(`M108 viewport PBR/display facts are invalid: ${fixture.fixture_id}; ${JSON.stringify(viewportFacts)}`)
     }
+    if (
+      !Array.isArray(fixture.bounds_mm)
+      || fixture.bounds_mm.length !== 3
+      || !Array.isArray(viewportFacts.source_bounds_mm)
+      || viewportFacts.source_bounds_mm.length !== 3
+      || fixture.bounds_mm.some((expected, index) => {
+        const actual = Number(viewportFacts.source_bounds_mm[index])
+        const tolerance = Math.max(0.1, Math.abs(Number(expected)) * 0.001)
+        return !Number.isFinite(actual) || Math.abs(actual - Number(expected)) > tolerance
+      })
+    ) {
+      throw new Error(`M108 viewport bounds diverge from GLB readback: ${fixture.fixture_id}; ${JSON.stringify(viewportFacts)}`)
+    }
+    assertM108SafeFrame(
+      viewportFacts.frame_ndc,
+      viewportFacts.fog_near_mm,
+      viewportFacts.fog_far_mm,
+      fixture.fixture_id,
+      'initial framing',
+    )
     for (const [metric, limit] of Object.entries(M108_WORKBENCH_GPU_BUDGET)) {
       const value = viewportFacts[metric]
       if (!Number.isFinite(value) || value <= 0 || value > limit) {
         throw new Error(`M108 workbench GPU budget exceeded: ${fixture.fixture_id}; ${metric}=${value}, limit=${limit}`)
       }
     }
+    const initialFrameJson = JSON.stringify(viewportFacts.frame_ndc)
+    await page.setViewportSize(M108_NARROW_VIEWPORT)
+    await page.waitForFunction(
+      (previousFrameJson) => {
+        const element = document.querySelector('.weapon-viewport')
+        const nextFrameJson = element?.getAttribute('data-blockout-frame-ndc') ?? '{}'
+        return nextFrameJson !== previousFrameJson
+          && element?.getAttribute('data-presentation-source') === 'blockout'
+      },
+      initialFrameJson,
+      { timeout: 10_000 },
+    )
+    await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
+    const resizedViewportFacts = await viewport.evaluate((element) => ({
+      frame_ndc: JSON.parse(element.getAttribute('data-blockout-frame-ndc') ?? '{}'),
+      fog_near_mm: Number(element.getAttribute('data-blockout-fog-near-mm') ?? '0'),
+      fog_far_mm: Number(element.getAttribute('data-blockout-fog-far-mm') ?? '0'),
+      presentation_source: element.getAttribute('data-presentation-source'),
+    }))
+    assertM108SafeFrame(
+      resizedViewportFacts.frame_ndc,
+      resizedViewportFacts.fog_near_mm,
+      resizedViewportFacts.fog_far_mm,
+      fixture.fixture_id,
+      `${M108_NARROW_VIEWPORT.width}x${M108_NARROW_VIEWPORT.height} resize`,
+    )
+    const resizedFrameJson = JSON.stringify(resizedViewportFacts.frame_ndc)
+    await page.setViewportSize(defaultViewportSize)
+    await page.waitForFunction(
+      (previousFrameJson) => (
+        document.querySelector('.weapon-viewport')?.getAttribute('data-blockout-frame-ndc') !== previousFrameJson
+      ),
+      resizedFrameJson,
+      { timeout: 10_000 },
+    )
+    await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
     records.push({
       fixture_id: fixture.fixture_id,
       domain_pack_id: fixture.domain_pack_id,
@@ -845,10 +936,134 @@ async function captureM108WorkbenchFixtures(page) {
       screenshot_byte_size: screenshotBytes.length,
       viewport: {
         ...viewportFacts,
+        resize_probe: {
+          viewport_size: M108_NARROW_VIEWPORT,
+          ...resizedViewportFacts,
+        },
         visual_environment_recipe_sha256: liveEnvironmentSha256,
         gpu_budget_status: 'passed',
       },
     })
+  }
+  smokeStage = 'M108 damaged GLB presentation restore probe'
+  const corruptRuntimeFixturePath = join(captureRoot, '.runtime-failure-probe.glb')
+  const serverFixturePath = resolve(kitRoot, manifest.fixtures[0].file)
+  const serverFixtureBase64 = (await readFile(serverFixturePath)).toString('base64')
+  let releaseActiveDesignRequest = () => {}
+  const activeDesignRequestHold = new Promise((resolveHold) => {
+    releaseActiveDesignRequest = resolveHold
+  })
+  let failureRestoreProbe = null
+  try {
+    await writeFile(corruptRuntimeFixturePath, Buffer.from('glTF-not-a-valid-runtime-glb', 'utf8'))
+    await page.route(/\/api\/v1\/agent\/imports:glb$/, async (route) => {
+      const request = route.request()
+      const requestBody = JSON.parse(request.postData() ?? '{}')
+      const headers = { ...request.headers(), 'content-type': 'application/json' }
+      delete headers['content-length']
+      await route.continue({
+        headers,
+        postData: JSON.stringify({ ...requestBody, glb_base64: serverFixtureBase64 }),
+      })
+    }, { times: 1 })
+    await page.route(/\/api\/v1\/projects\/[^/]+\/active-design$/, async (route) => {
+      await activeDesignRequestHold
+      await route.continue()
+    }, { times: 1 })
+    const failureImportResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/agent/imports:glb') && response.request().method() === 'POST',
+    )
+    await page.getByLabel('导入 GLB 参考模型').setInputFiles(corruptRuntimeFixturePath)
+    const failureImportResponse = await failureImportResponsePromise
+    if (!failureImportResponse.ok()) {
+      throw new Error(`M108 runtime failure probe could not establish its server-side control: ${failureImportResponse.status()}`)
+    }
+    await page.waitForFunction(
+      () => document.querySelector('.weapon-viewport')?.getAttribute('data-blockout-load-state') === 'failed',
+      undefined,
+      { timeout: 10_000 },
+    )
+    failureRestoreProbe = await viewport.evaluate((element) => ({
+      blockout_load_state: element.getAttribute('data-blockout-load-state'),
+      blockout_render_source: element.getAttribute('data-blockout-render-source'),
+      presentation_source: element.getAttribute('data-presentation-source'),
+      frame_ndc: JSON.parse(element.getAttribute('data-blockout-frame-ndc') ?? '{}'),
+      source_bounds_mm: JSON.parse(element.getAttribute('data-blockout-source-bounds-mm') ?? '[]'),
+      pbr_texture_count: Number(element.getAttribute('data-blockout-pbr-texture-count') ?? '-1'),
+      fog_near_mm: Number(element.getAttribute('data-blockout-fog-near-mm') ?? '0'),
+      fog_far_mm: Number(element.getAttribute('data-blockout-fog-far-mm') ?? '0'),
+      module_graph_load_state: element.getAttribute('data-load-state'),
+      presentation_runtime_facts: JSON.parse(element.getAttribute('data-presentation-runtime-facts') ?? '{}'),
+      renderer_generation: element.getAttribute('data-renderer-generation'),
+      active_webgl_contexts: Number(element.getAttribute('data-active-webgl-contexts') ?? '0'),
+    }))
+    const restoredPresentation = failureRestoreProbe.presentation_runtime_facts
+    const restoredFloor = restoredPresentation.display_floor ?? {}
+    const restoredShadow = restoredPresentation.shadow_camera ?? {}
+    const restoredCamera = restoredPresentation.camera ?? {}
+    const cameraPosition = Array.isArray(restoredCamera.position) ? restoredCamera.position.map(Number) : []
+    const cameraTarget = Array.isArray(restoredCamera.target) ? restoredCamera.target.map(Number) : []
+    const cameraVector = cameraPosition.length === 3 && cameraTarget.length === 3
+      ? cameraPosition.map((value, index) => value - cameraTarget[index])
+      : []
+    const cameraDistance = cameraVector.length === 3 ? Math.hypot(...cameraVector) : Number.NaN
+    const expectedDirection = [-0.9, 0.85, 1.55]
+    const expectedDirectionLength = Math.hypot(...expectedDirection)
+    const cameraDirectionAlignment = cameraVector.length === 3 && cameraDistance > 0
+      ? cameraVector.reduce(
+        (dot, value, index) => dot + (value / cameraDistance) * (expectedDirection[index] / expectedDirectionLength),
+        0,
+      )
+      : Number.NaN
+    const closeTo = (actual, expected, tolerance = 1e-6) => (
+      Number.isFinite(Number(actual)) && Math.abs(Number(actual) - expected) <= tolerance
+    )
+    if (
+      failureRestoreProbe.blockout_load_state !== 'failed'
+      || failureRestoreProbe.blockout_render_source !== 'empty'
+      || failureRestoreProbe.presentation_source !== 'module_graph'
+      || Object.keys(failureRestoreProbe.frame_ndc).length !== 0
+      || failureRestoreProbe.source_bounds_mm.length !== 0
+      || failureRestoreProbe.pbr_texture_count !== 0
+      || failureRestoreProbe.fog_near_mm !== 300
+      || failureRestoreProbe.fog_far_mm !== 820
+      || failureRestoreProbe.module_graph_load_state !== 'empty'
+      || restoredPresentation.module_root_visible !== true
+      || restoredPresentation.blockout_root_visible !== false
+      || restoredPresentation.axes_visible !== true
+      || restoredPresentation.transform_helper_visible !== false
+      || !Array.isArray(restoredFloor.position)
+      || restoredFloor.position.length !== 3
+      || !restoredFloor.position.every((value, index) => closeTo(value, [0, -1, 0][index]))
+      || !Array.isArray(restoredFloor.rotation)
+      || restoredFloor.rotation.length !== 3
+      || !restoredFloor.rotation.every((value, index) => closeTo(value, [-Math.PI / 2, 0, 0][index]))
+      || !Array.isArray(restoredFloor.scale)
+      || restoredFloor.scale.length !== 3
+      || !restoredFloor.scale.every((value) => closeTo(value, 132))
+      || !closeTo(restoredShadow.left, -172.8)
+      || !closeTo(restoredShadow.right, 172.8)
+      || !closeTo(restoredShadow.top, 172.8)
+      || !closeTo(restoredShadow.bottom, -172.8)
+      || !closeTo(restoredShadow.near, 1)
+      || !Number.isFinite(Number(restoredShadow.far))
+      || Number(restoredShadow.far) < 900
+      || cameraTarget.length !== 3
+      || !cameraTarget.every((value) => closeTo(value, 0))
+      || !closeTo(cameraDistance, 235.2)
+      || !closeTo(cameraDirectionAlignment, 1)
+      || !closeTo(restoredCamera.near, 0.2352)
+      || !closeTo(restoredCamera.far, 4704)
+      || !Number.isFinite(Number(restoredCamera.aspect))
+      || Number(restoredCamera.aspect) <= 0
+      || failureRestoreProbe.renderer_generation !== rendererGeneration
+      || failureRestoreProbe.active_webgl_contexts !== 1
+    ) {
+      throw new Error(`M108 damaged GLB leaked blockout presentation state: ${JSON.stringify(failureRestoreProbe)}`)
+    }
+  } finally {
+    releaseActiveDesignRequest()
+    await rm(corruptRuntimeFixturePath, { force: true })
   }
   if (new Set(records.map((record) => record.screenshot_sha256)).size !== records.length) {
     throw new Error('M108 workbench captures are not visually distinct across the four domain fixtures')
@@ -859,6 +1074,7 @@ async function captureM108WorkbenchFixtures(page) {
     score_status: 'not_scored',
     human_benchmark_evidence: false,
     gpu_budget: M108_WORKBENCH_GPU_BUDGET,
+    damaged_glb_restore_probe: failureRestoreProbe,
     source_manifest_sha256: createHash('sha256').update(await readFile(manifestPath)).digest('hex'),
     captures: records,
   }

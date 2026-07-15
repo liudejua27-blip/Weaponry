@@ -1,7 +1,7 @@
 # ForgeCAD 视觉材质系统
 
-版本：2026-07-15
-状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 正在执行：源码侧已有同源内置 128×128 五通道 PBR、真实 zone→material/role 绑定、实际使用扩展检查、受限 bevel readback 和固定工作室环境；汽车漆是独立 coated/clearcoat 纹理集，不再别名到 aluminum。后端聚合、Khronos Validator 与真实工作台环境/GPU Gate 已进入 CI；tracked macOS arm64 packaged 回归继续覆盖 PBR readback、CSG、undo/redo、导出和重启。优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
+版本：2026-07-16
+状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 正在执行：源码侧已有同源内置 128×128 五通道 PBR、真实 zone→material/role 绑定、实际使用扩展检查、受限 bevel readback 和固定工作室环境；汽车漆是独立 coated/clearcoat 纹理集，不再别名到 aluminum。基础 cylinder/capsule 已使用固定 24 段，真实工作台会核对 GLB bounds 并保证完整模型进入 NDC 安全区。后端聚合、Khronos Validator 与真实工作台环境/GPU Gate 已进入 CI；tracked macOS arm64 packaged 回归继续覆盖 PBR readback、CSG、undo/redo、导出和重启。优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
 
@@ -165,9 +165,9 @@ showcase 外观层按四领域独立的 primary-role 白名单生成；找不到
 
 ### 6.3 视觉环境
 
-真实感还依赖一致展示：当前源代码使用版本化的 `env_forgecad_room_studio_v1` 程序化 RoomEnvironment/PMREM（不是伪称的第三方 HDRI），线性色彩工作流、sRGB 输出、ACES Filmic、1.18 exposure、接触阴影与环境 hash 同时写入 GLB 并在唯一 renderer 中复用。工作台地面是 `THREE.ShadowMaterial`（黑色、0.16 透明度）的只读阴影接收面，默认前向 iso 为 `[-0.9, 0.85, 1.55]`、38° FOV、0.98 距离比；它们是显示合同，不进入资产网格、Snapshot 或版本。经许可 HDRI 仍是后续候选；Poly Haven 等 CC0 来源必须经过显式导入、hash、许可证和离线打包审查，应用不得自动抓取。
+真实感还依赖一致展示：当前源代码使用版本化的 `env_forgecad_room_studio_v1` 程序化 RoomEnvironment/PMREM（不是伪称的第三方 HDRI），线性色彩工作流、sRGB 输出、ACES Filmic、1.18 exposure、接触阴影与环境 hash 同时写入 GLB 并在唯一 renderer 中复用。工作台地面是 `THREE.ShadowMaterial`（黑色、0.16 透明度）的只读阴影接收面，默认前向 iso 为 `[-0.9, 0.85, 1.55]`、38° FOV；0.98 距离比仍用于普通 graph 基线，M108 blockout 则消费真实 bounds、viewport aspect 和 8 角点投影求安全距离，并把 studio fog 移到完整对象之后。它们是显示合同，不进入资产网格、Snapshot 或版本。经许可 HDRI 仍是后续候选；Poly Haven 等 CC0 来源必须经过显式导入、hash、许可证和离线打包审查，应用不得自动抓取。
 
-开发者可先生成无评分 kit，再运行 `npm run agent:m108-visual-benchmark-workbench-capture` 保留开发截图；CI/本机可重复 Gate 使用 `npm run desktop:m108-workbench-renderer-smoke`，它从当前源码生成临时 kit，不信任旧截图。在同一真实工作台、同一 renderer/canvas 中依次捕获四领域 iso + `cad_neutral` PNG，并对实时应用的完整环境 recipe 重新计算 SHA-256；该值必须等于 GLB 环境 hash。GLB 的 metre→millimetre 换算不会被 fit scale 覆盖，默认展示对角线固定为 520 mm，阴影接收面与 shadow camera 只随当前 framed bounds 变化。Gate 同时校验 PBR 颜色空间和固定 renderer/GPU 上限，顺序载入后资源泄漏会累计并失败。当前真实捕获已验证四领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`、环境/颜色空间/预算通过、单 WebGL context 且截图 hash 互异；`committed` 是视口状态，不是 Git 提交。`M108WorkbenchCapture@1` 仍固定为 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`；截图不进入人工响应、不替代至少三位独立 reviewer，也不能把 M108 标为完成。
+开发者可先生成无评分 kit，再运行 `npm run agent:m108-visual-benchmark-workbench-capture` 保留开发截图；CI/本机可重复 Gate 使用 `npm run desktop:m108-workbench-renderer-smoke`，它从当前源码生成临时 kit，不信任旧截图。在同一真实工作台、同一 renderer/canvas 中依次捕获四领域 iso + `cad_neutral` PNG，并对实时应用的完整环境 recipe 重新计算 SHA-256；该值必须等于 GLB 环境 hash。GLB 的 metre→millimetre 换算不会被 fit scale 覆盖，默认展示对角线固定为 520 mm；manifest 编译 bounds 必须等于 GLTFLoader 的毫米 bounds，8 个角点必须完整进入 `[-0.9, 0.9]` NDC，阴影接收面、shadow camera 与 fog 随当前 framed bounds/距离变化。Gate 同时校验 PBR 颜色空间和固定 renderer/GPU 上限；24 段 cylinder/capsule 后 triangle 上限为 7,000，其他资源上限不变，顺序载入后资源泄漏会累计并失败。当前真实捕获已验证四领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`、环境/颜色空间/bounds/安全区/预算通过、单 WebGL context 且截图 hash 互异；`committed` 是视口状态，不是 Git 提交。`M108WorkbenchCapture@1` 仍固定为 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`；截图不进入人工响应、不替代至少三位独立 reviewer，也不能把 M108 标为完成。
 
 ## 7. 工程边界
 

@@ -41,6 +41,7 @@ PBR_TEXTURE_FIELDS = {
     "occlusion": (None, "occlusionTexture"),
     "emissive": (None, "emissiveTexture"),
 }
+RADIAL_TRIANGLES_BY_OPERATION = {"cylinder": 96, "capsule": 432}
 
 
 def _schema_validator() -> Draft202012Validator:
@@ -150,6 +151,24 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
         assert {(item.width, item.height) for item in texture_set.maps} == {(128, 128)}
         assert {item.color_space for item in texture_set.maps if item.texture_role in {"base_color", "emissive"}} == {"srgb"}
         assert {item.color_space for item in texture_set.maps if item.texture_role not in {"base_color", "emissive"}} == {"linear"}
+
+    # The same GLB readback that owns quality facts must prove the fixed M108
+    # radial-surface baseline.  This prevents a renderer-only smoothing trick
+    # or an unchanged 16-sided asset from masquerading as a fidelity upgrade.
+    radial_operation_by_role = {
+        str(item["args"]["part_role"]): str(item["op"])
+        for item in result.shape_program["operations"]
+        if item["op"] in RADIAL_TRIANGLES_BY_OPERATION
+    }
+    readback_triangles_by_role = {
+        item.part_role: sum(surface_range.triangle_count for surface_range in item.surface_ranges)
+        for item in readback.surface_provenance
+    }
+    assert radial_operation_by_role
+    assert all(
+        readback_triangles_by_role[role] == RADIAL_TRIANGLES_BY_OPERATION[operation]
+        for role, operation in radial_operation_by_role.items()
+    )
 
     document, binary = _glb_parts(result.glb_bytes)
     assert len(document["images"]) == len(document["textures"]) == builtin_visual_material_count() * len(PBR_ROLES)

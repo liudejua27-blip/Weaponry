@@ -1,6 +1,6 @@
 # ForgeCAD 文档状态账本
 
-版本：2026-07-15
+版本：2026-07-16
 状态：当前文档维护真值；不是产品运行时能力证明
 
 本文件解决一个具体问题：ForgeCAD 同时有产品说明、目标设计、历史证据、兼容资料和任务计划。没有一个短的状态账本时，后续 Codex 容易把“目标设计”或“过去通过的 smoke”误读为当前已完成能力。
@@ -26,6 +26,8 @@ M108 视口边界现明确区分当前显示 GLB 的来源与渲染能力：`com
 `npm run agent:m108-visual-benchmark-workbench-capture` 只在同一真实工作台、同一 renderer/canvas 内依次捕获四领域 iso + `cad_neutral` 视口 PNG；`npm run desktop:m108-workbench-renderer-smoke` 则从当前源码重建临时 kit 并作为 workbench E2E CI Gate。最新真实捕获已验证四领域均是 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`，并核对保留 GLB metre→millimetre 后的 520 mm 展示对角线、实时环境 recipe hash、PBR 颜色空间、固定 GPU 预算和单 WebGL context；`committed` 只表示当前非 ghost 视口，不是 Git 提交。捕获仍固定标记 `development_visual_audit_only`、`not_scored` 和 `human_benchmark_evidence=false`，只用于开发者发现问题；自动 GPU/环境 Gate 和截图都不是独立人工评分，不能把 M108 改为完成或解除 C105 阻塞。
 
 M108 当前限定视觉修正把通用 showcase 贴片拆成四套互斥的领域/primary-role 白名单；未知或多锚点 fail closed，不引入 C105 Recipe。车辆代表 fixture 已降低座舱、让轮胎接地并增加四个铝轮毂，且显式使用独立 index 7、五通道 coated、`clearcoatFactor=0.86` 的汽车漆；飞机代表 fixture 使用胶囊机身、薄翼/薄旋翼和四个轮毂；机械臂使用胶囊连杆与盒式夹爪；虚构道具移除夸张三角片。它们仍是受限概念 Mesh，不是自由曲面、工程 CAD 或照片级外观；只有独立人工基准可判定是否达到逐领域 4/5 门槛。
+
+M108 进一步把 cylinder/capsule 的固定运行时采样从 16 段提高到 24 段，并由真实 GLB `surface_provenance` 锁定 96/432 triangles；没有新增 operation、自由参数或第二质量模式。评测 manifest 记录真实三轴 `bounds_mm`，工作台核对 GLTFLoader 加载后的毫米 bounds，并按实际 aspect/FOV 投影 8 个角点，要求模型完整落在 NDC `[-0.9, 0.9]` 内；相机距离、动态 fog 和安全区进入无评分捕获，1180×1024 resize 会重新求解，损坏 GLB 会恢复基础工作台并清除旧 blockout facts。本轮实际最大 6,080 renderer triangles；对应上限只因 24 段 pass 保守上界 6,776 从 5,000 调整为 7,000，其余 GPU 上限不变。该自动证据改善棱面和裁切，不证明比例、材质或细节已经达到人工 4/5，M108 仍为 `in_progress`。
 
 同日本机诊断确认 Agent 服务健康，但 ForgeCAD Provider metadata 与 `ForgeCAD Agent Provider/default` Keychain 项均缺失，运行时因此使用确定性离线 Planner，现有日志没有 `provider:check` 或 DeepSeek 请求。A003 现会把该状态明确显示为未配置且 `network_call_made=false`；只有用户显式保存配置、四段 preflight 就绪并主动发起 Turn/连接测试时才可能联网。官方当前模型 `deepseek-v4-pro` 有效，不是此前“无响应”的根因。本结论只描述本机 2026-07-14 配置快照，不代表其他机器或后续配置状态；本轮也未执行真实 Provider 评测。
 
