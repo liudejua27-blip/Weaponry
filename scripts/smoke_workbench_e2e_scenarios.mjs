@@ -47,6 +47,7 @@ async function main() {
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
+    drainProcessOutput(agent)
     processes.push(agent)
     await waitForHttp(`${agentBaseUrl}/api/health`, agent, 'Agent')
 
@@ -59,6 +60,7 @@ async function main() {
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
+    drainProcessOutput(vite)
     processes.push(vite)
     await waitForHttp(viteBaseUrl, vite, 'Vite')
 
@@ -472,6 +474,14 @@ async function waitForHttp(url, child, label) {
     await sleep(200)
   }
   throw new Error(`${label} did not become ready: ${url}`)
+}
+
+function drainProcessOutput(child) {
+  // CI pipes are much smaller than local macOS pipes. Leaving access logs
+  // unread eventually blocks Uvicorn/Vite and makes unrelated API reads time
+  // out late in the scenario suite.
+  child.stdout?.resume()
+  child.stderr?.resume()
 }
 
 async function freePort() {
