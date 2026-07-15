@@ -102,7 +102,7 @@ HTML/React 负责工作台，SVG 负责受限轮廓控制点，GSAP 负责界面
 - 复杂 ShapeProgram 操作、精确碰撞/运动学、外部 GLB 自动重建/深度分件仍未完成；
 - 自由拆分/合并、任意版本历史浏览和多格式 Agent 导出仍未完成；C103 已实现由现有 AssemblyGraph、role、受限 ShapeProgram primitive output 和连接事实驱动的拆分/合并候选，但不推断切割线、工程连接或功能；C104 已将部件锁定、隐藏和单独查看写入 Agent Snapshot：锁定阻止相关 ChangeSet，显示状态只控制同一个视口而不创建几何版本，不是工程装配约束；
 - 完整外观到高多样性 editable asset 的闭环仍是目标，不得写入用户指南为已支持。
-- 运行时操作白名单、实际 GLB 编译/回读质量、ProfileSketch、增强 Extrude/Revolve、受限 Loft/Sweep 和单一 Manifold Python CSG 已由 G819/Q003/G820–G825 实现。G825 将有界封闭 union/subtract、隔离取消/超时、稳定失败和不可变 Feature History 接入生产 Worker；完整 edge finish/UV/tangent/稳定 Material Zone、DeepSeek Provider 可观察性、Agent-first/legacy 隔离、四领域语义比例配方、内部候选评审与单一最佳结果、Codex 式工作台和高真实度 PBR 管线仍是目标设计；实施顺序见 `CODEX_EXECUTION_PLAN.md`。原 `FGC-V002` 已被不显示三方向选择的 `FGC-V003` 取代，不得在当前 Alpha 中宣传为已支持。
+- 运行时操作白名单、实际 GLB 编译/回读质量、ProfileSketch、增强 Extrude/Revolve、受限 Loft/Sweep、单一 Manifold Python CSG，以及几何侧 edge finish/UV0/tangent/稳定 face→part/zone 事实已由 G819/Q003/G820–G826 实现。G826 将稳定 face/source-face ID 写成 GLB 顶点属性并从同一产物回读，但完整纹理、多区 PBR 和展示环境仍须由 M108 实现。DeepSeek Provider 可观察性、Agent-first/legacy 隔离、四领域语义比例配方、内部候选评审与单一最佳结果、Codex 式工作台和高真实度 PBR 管线仍是目标设计；实施顺序见 `CODEX_EXECUTION_PLAN.md`。原 `FGC-V002` 已被不显示三方向选择的 `FGC-V003` 取代，不得在当前 Alpha 中宣传为已支持。
 
 `ActiveDesignSnapshot` 的合同、存储、CAS、API、desktop reducer、Agent 恢复/选择/视口/质量/GLB 导出，以及 legacy 只读重建授权和不可变回退/前进已完成。D003 已提供未知/含糊领域的一问式澄清 UI，F001 已通过本机 Chrome 行为基线。当前仍不能把整个工作台称为生产级运行时：legacy 兼容 UI、原生安装恢复、广泛多客户端压力验证、真实 Provider 评测和打包发布仍待后续。
 
@@ -385,7 +385,7 @@ Graph 必须有一个或多个 root，但不能有环、悬空引用或重复 ID
 
 ShapeProgram 是部件或候选组合的程序化几何真值。
 
-运行时接受集合不在本文重复维护。已实现的 `ShapeProgramRuntimeManifest@1` 位于 `packages/concept-spec/fixtures/shape-program-runtime-manifest.json`，是 Schema、Pydantic、Worker、编译/readback、质量入口和导出共同消费的唯一清单；Schema enum 由 `contracts:types:generate` 生成，运行时会拒绝 schema/manifest 漂移。文档、prompt、Skill 或前端不能单独扩大它。当前仅声明并执行 box、cylinder、wedge、capsule、profile/extrude、revolve、mirror/array/radial_array、受限 union/subtract、bevel_approx 和 surface_panel；未知、缺执行器或运行时非法参数返回 `UNSUPPORTED_RUNTIME_OPERATION`，不得跳过节点后继续成功。质量入口通过 `GeometryCompileReadback@1` 消费同一次编译后的 GLB triangle、bounds、operation、output role、material 和 hash 事实；导出使用同一编译/readback 结果。readback 损坏时质量显式为 unavailable 且导出拒绝，旧估算报告不能被当作当前证据。这仍只是概念 Mesh/GLB 事实，不是工程、结构、材料或安全结论。
+运行时接受集合不在本文重复维护。已实现的 `ShapeProgramRuntimeManifest@1` 位于 `packages/concept-spec/fixtures/shape-program-runtime-manifest.json`，是 Schema、Pydantic、Worker、编译/readback、质量入口和导出共同消费的唯一清单；Schema enum 由 `contracts:types:generate` 生成，运行时会拒绝 schema/manifest 漂移。文档、prompt、Skill 或前端不能单独扩大它。当前仅声明并执行 box、cylinder、wedge、capsule、profile/extrude/revolve、loft、sweep、mirror/array/radial_array、受限 union/subtract、bevel_approx 和 surface_panel；未知、缺执行器或运行时非法参数返回 `UNSUPPORTED_RUNTIME_OPERATION`，不得跳过节点后继续成功。质量入口通过 `GeometryCompileReadback@1` 消费同一次编译后的 GLB triangle、bounds、operation/output role、material、normal/UV0/tangent、稳定 face→part/zone 和 hash 事实；导出使用同一编译/readback 结果。readback 损坏时质量显式为 unavailable 且导出拒绝，旧估算报告不能被当作当前证据。这仍只是概念 Mesh/GLB 事实，不是工程、结构、材料或安全结论。
 
 硬性限制：unknown field 拒绝；数值有限且有范围；引用有序无环；禁止 URL、路径和可执行文本；operation、array、布尔深度、bounds 和 triangle budget 有上限；canonical JSON、validator 与 runtime version 进入 hash。
 
@@ -589,7 +589,7 @@ G824 比较现有 Worker、Manifold Python 与 WASM，G824A–G824D 补齐双平
 → GLB validate/readback
 ```
 
-法线、UV、tangent 和 zone 必须来自真实编译结果；不能由 UI、材质名称或平行估算猜测。优化和压缩必须保留 node/part/zone/material 映射。G826 只建立几何侧表面事实，M108 才把完整纹理集、clearcoat/透明兼容、HDRI 和色彩管理接到这些事实上。
+法线、UV、tangent 和 zone 必须来自真实编译结果；不能由 UI、材质名称或平行估算猜测。G826 已把 `TANGENT`、`_FORGECAD_FACE_ID`、`_FORGECAD_SOURCE_FACE_ID`、part-instance 和 zone 写入同一 GLB，并验证单位/正交 tangent、非退化 UV、完整 face ID 和非空不重叠 zone。优化或重索引必须携带这些顶点属性和 extras；丢失即 readback 失败。受控 edge finish 只允许 X/Z 周边、半径比例不超过 0.25、1–3 级细分，并明确称为 approximation。M108 才把完整纹理集、clearcoat/透明兼容、HDRI 和色彩管理接到这些事实上。
 
 ### 9.6 UI、GSAP 与可丢弃 SDF 边界
 

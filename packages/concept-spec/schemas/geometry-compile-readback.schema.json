@@ -18,7 +18,9 @@
     "material_count",
     "uv0_primitive_count",
     "normal_primitive_count",
+    "tangent_primitive_count",
     "surface_provenance",
+    "material_zone_faces",
     "operation_ids",
     "operation_names",
     "output_roles",
@@ -39,6 +41,7 @@
     "material_count": { "type": "integer", "minimum": 0 },
     "uv0_primitive_count": { "type": "integer", "minimum": 1 },
     "normal_primitive_count": { "type": "integer", "minimum": 1 },
+    "tangent_primitive_count": { "type": "integer", "minimum": 1 },
     "surface_provenance": {
       "type": "array",
       "minItems": 1,
@@ -46,8 +49,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["part_role", "profile_input_id", "surface_roles", "surface_ranges", "uv0_min", "uv0_max", "closed", "boundary_edge_count", "non_manifold_edge_count", "degenerate_triangle_count"],
+        "required": ["primitive_id", "part_instance_id", "part_role", "profile_input_id", "surface_roles", "surface_ranges", "uv0_min", "uv0_max", "closed", "boundary_edge_count", "non_manifold_edge_count", "degenerate_triangle_count", "material_zone_id", "normal_mode", "tangent_min_length", "tangent_max_length", "tangent_handedness", "uv_degenerate_triangle_count", "tangent_fallback_triangle_count", "face_id_min", "face_id_max", "face_id_sha256", "edge_finish", "texture_ready"],
         "properties": {
+          "primitive_id": { "type": "string", "pattern": "^primitive_[a-z0-9_\\-]+$" },
+          "part_instance_id": { "type": "string", "pattern": "^partface_[a-z0-9_\\-]+$" },
           "part_role": { "type": "string", "minLength": 1, "maxLength": 64 },
           "profile_input_id": {
             "anyOf": [
@@ -59,7 +64,7 @@
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] }
+            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut", "trim"] }
           },
           "surface_ranges": {
             "type": "array",
@@ -70,7 +75,7 @@
               "additionalProperties": false,
               "required": ["surface_role", "first_triangle", "triangle_count"],
               "properties": {
-                "surface_role": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] },
+                "surface_role": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut", "trim"] },
                 "first_triangle": { "type": "integer", "minimum": 0 },
                 "triangle_count": { "type": "integer", "minimum": 0 }
               }
@@ -94,18 +99,55 @@
             "uniqueItems": true,
             "items": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" }
           },
-          "material_zone_id": {
-            "anyOf": [
-              { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
-              { "type": "null" }
-            ]
-          },
+          "material_zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
           "boolean_backside": {
             "anyOf": [
               { "type": "boolean" },
               { "type": "null" }
             ]
-          }
+          },
+          "normal_mode": { "type": "string", "enum": ["split", "split_weighted"] },
+          "tangent_min_length": { "type": "number", "minimum": 0.999, "maximum": 1.001 },
+          "tangent_max_length": { "type": "number", "minimum": 0.999, "maximum": 1.001 },
+          "tangent_handedness": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "type": "integer", "enum": [-1, 1] } },
+          "uv_degenerate_triangle_count": { "type": "integer", "minimum": 0 },
+          "tangent_fallback_triangle_count": { "type": "integer", "minimum": 0 },
+          "face_id_min": { "type": "integer", "minimum": 0 },
+          "face_id_max": { "type": "integer", "minimum": 0 },
+          "face_id_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "edge_finish": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode", "edge_set", "selected_edge_count", "radius_ratio", "subdivision_count"],
+            "properties": {
+              "mode": { "type": "string", "enum": ["none", "bevel_approximation"] },
+              "edge_set": { "type": "string", "enum": ["none", "xz_perimeter"] },
+              "selected_edge_count": { "type": "integer", "minimum": 0, "maximum": 4 },
+              "radius_ratio": { "type": "number", "minimum": 0, "maximum": 0.25 },
+              "subdivision_count": { "type": "integer", "minimum": 0, "maximum": 3 }
+            }
+          },
+          "texture_ready": { "const": true }
+        }
+      }
+    },
+    "material_zone_faces": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["primitive_id", "part_instance_id", "material_zone_id", "face_count", "face_id_sha256", "surface_roles", "source_operation_ids", "texture_ready"],
+        "properties": {
+          "primitive_id": { "type": "string", "pattern": "^primitive_[a-z0-9_\\-]+$" },
+          "part_instance_id": { "type": "string", "pattern": "^partface_[a-z0-9_\\-]+$" },
+          "material_zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
+          "face_count": { "type": "integer", "minimum": 1 },
+          "face_id_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "surface_roles": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut", "trim"] } },
+          "source_operation_ids": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" } },
+          "texture_ready": { "const": true }
         }
       }
     },
@@ -166,7 +208,7 @@
             "type": "array",
             "maxItems": 16,
             "uniqueItems": true,
-            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] }
+            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut", "trim"] }
           }
         }
       }

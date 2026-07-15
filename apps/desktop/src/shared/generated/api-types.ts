@@ -1122,13 +1122,23 @@ export type GeometryCompileReadback = {
   "material_count": number
   "uv0_primitive_count": number
   "normal_primitive_count": number
+  "tangent_primitive_count": number
   "surface_provenance": Array<GeometrySurfaceProvenance>
+  "material_zone_faces": Array<GeometryMaterialZoneFaceSet>
   "feature_history"?: Array<GeometryFeatureNodeReadback>
   "operation_ids": Array<string>
   "operation_names": Array<string>
   "output_roles": Array<string>
   "material_ids"?: Array<string>
   "readback_status"?: "passed"
+}
+
+export type GeometryEdgeFinishReadback = {
+  "mode": "none" | "bevel_approximation"
+  "edge_set": "none" | "xz_perimeter"
+  "selected_edge_count": number
+  "radius_ratio": number
+  "subdivision_count": number
 }
 
 export type GeometryFeatureNodeReadback = {
@@ -1149,13 +1159,26 @@ export type GeometryFeatureNodeReadback = {
   "result_closed": boolean
   "material_ids"?: Array<string>
   "material_zone_ids"?: Array<string>
-  "surface_roles"?: Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
+  "surface_roles"?: Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
+}
+
+export type GeometryMaterialZoneFaceSet = {
+  "primitive_id": string
+  "part_instance_id": string
+  "material_zone_id": string
+  "face_count": number
+  "face_id_sha256": string
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
+  "source_operation_ids": Array<string>
+  "texture_ready"?: true
 }
 
 export type GeometrySurfaceProvenance = {
+  "primitive_id": string
+  "part_instance_id": string
   "part_role": string
   "profile_input_id"?: string | null
-  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
   "surface_ranges": Array<GeometrySurfaceRange>
   "uv0_min": Array<number>
   "uv0_max": Array<number>
@@ -1165,12 +1188,23 @@ export type GeometrySurfaceProvenance = {
   "degenerate_triangle_count": number
   "feature_node_id"?: string | null
   "source_operation_ids"?: Array<string>
-  "material_zone_id"?: string | null
+  "material_zone_id": string
   "boolean_backside"?: boolean | null
+  "normal_mode": "split" | "split_weighted"
+  "tangent_min_length": number
+  "tangent_max_length": number
+  "tangent_handedness": Array<-1 | 1>
+  "uv_degenerate_triangle_count": number
+  "tangent_fallback_triangle_count": number
+  "face_id_min": number
+  "face_id_max": number
+  "face_id_sha256": string
+  "edge_finish": GeometryEdgeFinishReadback
+  "texture_ready": boolean
 }
 
 export type GeometrySurfaceRange = {
-  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut"
+  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim"
   "first_triangle": number
   "triangle_count": number
 }

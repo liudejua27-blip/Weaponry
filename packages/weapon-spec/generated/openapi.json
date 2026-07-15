@@ -6839,6 +6839,15 @@
             "title": "Material Ids",
             "type": "array"
           },
+          "material_zone_faces": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryMaterialZoneFaceSet"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Material Zone Faces",
+            "type": "array"
+          },
           "mesh_count": {
             "minimum": 1.0,
             "title": "Mesh Count",
@@ -6919,6 +6928,11 @@
             "title": "Surface Provenance",
             "type": "array"
           },
+          "tangent_primitive_count": {
+            "minimum": 1.0,
+            "title": "Tangent Primitive Count",
+            "type": "integer"
+          },
           "triangle_count": {
             "minimum": 1.0,
             "title": "Triangle Count",
@@ -6942,12 +6956,63 @@
           "material_count",
           "uv0_primitive_count",
           "normal_primitive_count",
+          "tangent_primitive_count",
           "surface_provenance",
+          "material_zone_faces",
           "operation_ids",
           "operation_names",
           "output_roles"
         ],
         "title": "GeometryCompileReadback",
+        "type": "object"
+      },
+      "GeometryEdgeFinishReadback": {
+        "additionalProperties": false,
+        "description": "Bounded visual edge completion; never an engineering fillet claim.",
+        "properties": {
+          "edge_set": {
+            "enum": [
+              "none",
+              "xz_perimeter"
+            ],
+            "title": "Edge Set",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "none",
+              "bevel_approximation"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "radius_ratio": {
+            "maximum": 0.25,
+            "minimum": 0.0,
+            "title": "Radius Ratio",
+            "type": "number"
+          },
+          "selected_edge_count": {
+            "maximum": 4.0,
+            "minimum": 0.0,
+            "title": "Selected Edge Count",
+            "type": "integer"
+          },
+          "subdivision_count": {
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Subdivision Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "edge_set",
+          "selected_edge_count",
+          "radius_ratio",
+          "subdivision_count"
+        ],
+        "title": "GeometryEdgeFinishReadback",
         "type": "object"
       },
       "GeometryFeatureNodeReadback": {
@@ -7069,7 +7134,8 @@
                 "start_cap",
                 "end_cap",
                 "seam",
-                "boolean_cut"
+                "boolean_cut",
+                "trim"
               ],
               "type": "string"
             },
@@ -7092,6 +7158,83 @@
           "result_closed"
         ],
         "title": "GeometryFeatureNodeReadback",
+        "type": "object"
+      },
+      "GeometryMaterialZoneFaceSet": {
+        "additionalProperties": false,
+        "properties": {
+          "face_count": {
+            "minimum": 1.0,
+            "title": "Face Count",
+            "type": "integer"
+          },
+          "face_id_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Face Id Sha256",
+            "type": "string"
+          },
+          "material_zone_id": {
+            "pattern": "^zone_[a-z0-9_\\-]+$",
+            "title": "Material Zone Id",
+            "type": "string"
+          },
+          "part_instance_id": {
+            "pattern": "^partface_[a-z0-9_\\-]+$",
+            "title": "Part Instance Id",
+            "type": "string"
+          },
+          "primitive_id": {
+            "pattern": "^primitive_[a-z0-9_\\-]+$",
+            "title": "Primitive Id",
+            "type": "string"
+          },
+          "source_operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Source Operation Ids",
+            "type": "array"
+          },
+          "surface_roles": {
+            "items": {
+              "enum": [
+                "surface",
+                "side",
+                "loft_side",
+                "sweep_side",
+                "hole_wall",
+                "start_cap",
+                "end_cap",
+                "seam",
+                "boolean_cut",
+                "trim"
+              ],
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Surface Roles",
+            "type": "array"
+          },
+          "texture_ready": {
+            "const": true,
+            "default": true,
+            "title": "Texture Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "primitive_id",
+          "part_instance_id",
+          "material_zone_id",
+          "face_count",
+          "face_id_sha256",
+          "surface_roles",
+          "source_operation_ids"
+        ],
+        "title": "GeometryMaterialZoneFaceSet",
         "type": "object"
       },
       "GeometrySurfaceProvenance": {
@@ -7122,6 +7265,24 @@
             "title": "Degenerate Triangle Count",
             "type": "integer"
           },
+          "edge_finish": {
+            "$ref": "#/components/schemas/GeometryEdgeFinishReadback"
+          },
+          "face_id_max": {
+            "minimum": 0.0,
+            "title": "Face Id Max",
+            "type": "integer"
+          },
+          "face_id_min": {
+            "minimum": 0.0,
+            "title": "Face Id Min",
+            "type": "integer"
+          },
+          "face_id_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Face Id Sha256",
+            "type": "string"
+          },
           "feature_node_id": {
             "anyOf": [
               {
@@ -7135,26 +7296,37 @@
             "title": "Feature Node Id"
           },
           "material_zone_id": {
-            "anyOf": [
-              {
-                "pattern": "^zone_[a-z0-9_\\-]+$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Material Zone Id"
+            "pattern": "^zone_[a-z0-9_\\-]+$",
+            "title": "Material Zone Id",
+            "type": "string"
           },
           "non_manifold_edge_count": {
             "minimum": 0.0,
             "title": "Non Manifold Edge Count",
             "type": "integer"
           },
+          "normal_mode": {
+            "enum": [
+              "split",
+              "split_weighted"
+            ],
+            "title": "Normal Mode",
+            "type": "string"
+          },
+          "part_instance_id": {
+            "pattern": "^partface_[a-z0-9_\\-]+$",
+            "title": "Part Instance Id",
+            "type": "string"
+          },
           "part_role": {
             "maxLength": 64,
             "minLength": 1,
             "title": "Part Role",
+            "type": "string"
+          },
+          "primitive_id": {
+            "pattern": "^primitive_[a-z0-9_\\-]+$",
+            "title": "Primitive Id",
             "type": "string"
           },
           "profile_input_id": {
@@ -7197,7 +7369,8 @@
                 "start_cap",
                 "end_cap",
                 "seam",
-                "boolean_cut"
+                "boolean_cut",
+                "trim"
               ],
               "type": "string"
             },
@@ -7205,6 +7378,40 @@
             "minItems": 1,
             "title": "Surface Roles",
             "type": "array"
+          },
+          "tangent_fallback_triangle_count": {
+            "minimum": 0.0,
+            "title": "Tangent Fallback Triangle Count",
+            "type": "integer"
+          },
+          "tangent_handedness": {
+            "items": {
+              "enum": [
+                -1,
+                1
+              ],
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Tangent Handedness",
+            "type": "array"
+          },
+          "tangent_max_length": {
+            "maximum": 1.001,
+            "minimum": 0.999,
+            "title": "Tangent Max Length",
+            "type": "number"
+          },
+          "tangent_min_length": {
+            "maximum": 1.001,
+            "minimum": 0.999,
+            "title": "Tangent Min Length",
+            "type": "number"
+          },
+          "texture_ready": {
+            "title": "Texture Ready",
+            "type": "boolean"
           },
           "uv0_max": {
             "items": {
@@ -7223,9 +7430,16 @@
             "minItems": 2,
             "title": "Uv0 Min",
             "type": "array"
+          },
+          "uv_degenerate_triangle_count": {
+            "minimum": 0.0,
+            "title": "Uv Degenerate Triangle Count",
+            "type": "integer"
           }
         },
         "required": [
+          "primitive_id",
+          "part_instance_id",
           "part_role",
           "surface_roles",
           "surface_ranges",
@@ -7234,7 +7448,19 @@
           "closed",
           "boundary_edge_count",
           "non_manifold_edge_count",
-          "degenerate_triangle_count"
+          "degenerate_triangle_count",
+          "material_zone_id",
+          "normal_mode",
+          "tangent_min_length",
+          "tangent_max_length",
+          "tangent_handedness",
+          "uv_degenerate_triangle_count",
+          "tangent_fallback_triangle_count",
+          "face_id_min",
+          "face_id_max",
+          "face_id_sha256",
+          "edge_finish",
+          "texture_ready"
         ],
         "title": "GeometrySurfaceProvenance",
         "type": "object"
@@ -7257,7 +7483,8 @@
               "start_cap",
               "end_cap",
               "seam",
-              "boolean_cut"
+              "boolean_cut",
+              "trim"
             ],
             "title": "Surface Role",
             "type": "string"

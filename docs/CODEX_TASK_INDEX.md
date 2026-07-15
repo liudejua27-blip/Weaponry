@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G825 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG，并以真实 GLB readback 固化不可变 Feature History。G826 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG并固化不可变 Feature History，G826 从同一 GLB 回读 edge finish/normal/UV0/tangent 与稳定 face→part/zone。A003 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1351,8 +1351,8 @@ Remaining blockers:
 | FGC-G824C | done | G824B | macOS packaged candidate、预算、许可证/SBOM 与执行宿主选择建议 |
 | FGC-G824D | done | G824C | Windows x64 frozen sidecar artifact、provenance/readback、生命周期和原子提升证据通过 |
 | FGC-G825 | done | G824D | 唯一 Manifold Python CSG、不可变 feature node/input/result hash、surface/material provenance 与失败零部分 GLB 已通过 |
-| FGC-G826 | ready | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
-| FGC-A003 | blocked | G826 | DeepSeek Provider metadata/Keychain preflight、流式生命周期、取消、用量与稳定错误分类 |
+| FGC-G826 | done | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
+| FGC-A003 | ready | G826 | DeepSeek Provider metadata/Keychain preflight、流式生命周期、取消、用量与稳定错误分类 |
 | FGC-F025 | blocked | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
 | FGC-D005 | blocked | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
 | FGC-A004 | blocked | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
@@ -1541,7 +1541,7 @@ Remaining blockers:
 
 ### FGC-G826 任务卡
 
-状态：ready（G825 已完成；这是下一唯一可领取任务）。
+状态：done（2026-07-15；G825 依赖、G826 Gate 与兼容回归均通过）。
 
 目标：建立纹理前的真实表面完成事实：受控 edge finish、法线、UV0、tangent 和稳定 Material Zone face provenance，使 M108 不再从颜色或前端猜测区域。
 
@@ -1551,11 +1551,13 @@ Remaining blockers:
 
 验收：新增 `agent:g826-surface-readback-smoke`，覆盖所有已启用主形体操作的 edge/normals/UV/tangent/zone，seam 和 cap/side/trim 区域，镜像/阵列/CSG 后映射，GLB validator/readback、重复 hash、缺失/损坏/预算失败，以及 M101–M107 兼容。G819/Q003/G821–G825、T003、r3 与导出 Gate 继续通过。
 
-退出：当前 GLB 的表面、UV、tangent 和 zone 均可从同次 compile/readback 证明，M108 可安全消费；G825 未完成前不得领取。
+证据：`GeometryCompileReadback@1` 新增 `tangent_primitive_count`、逐 primitive 的 surface completion 与 `material_zone_faces`；GLB 写出 `TANGENT`、`_FORGECAD_FACE_ID`、`_FORGECAD_SOURCE_FACE_ID` 和稳定 part-instance/zone extras。`agent:g826-surface-readback-smoke` 覆盖 primitive、Extrude/Revolve/Loft/Sweep、edge finish/trim、mirror/array、Manifold CSG、重复 hash、损坏 tangent/UV/face/zone 以及半径/细分/三角预算失败。
+
+退出：已满足。当前 GLB 的表面、UV、tangent 和 zone 均可从同次 compile/readback 证明，M108 可安全消费这些几何前置事实；G826 没有实现完整纹理、HDRI、clearcoat 或工程 fillet。
 
 ### FGC-A003 任务卡
 
-状态：blocked（等待 G826；Q003 已作为几何子链前置）。
+状态：ready（G826 与 Q003 已完成；这是下一唯一可领取任务）。
 
 目标：把 DeepSeek 接入从“进程启动时可选环境变量 + 同步请求 + 泛化文案”升级为可观察、可取消、可诊断的 Provider Gateway；用户能明确知道当前是否配置、是否真的发起网络请求、请求进行到哪一步、为何失败以及已保存资产是否安全。
 

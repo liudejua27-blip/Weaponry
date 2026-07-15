@@ -18,7 +18,35 @@ GeometrySurfaceRole = Literal[
     "end_cap",
     "seam",
     "boolean_cut",
+    "trim",
 ]
+
+GeometryNormalMode = Literal["split", "split_weighted"]
+
+
+class GeometryEdgeFinishReadback(StrictApiModel):
+    """Bounded visual edge completion; never an engineering fillet claim."""
+
+    mode: Literal["none", "bevel_approximation"]
+    edge_set: Literal["none", "xz_perimeter"]
+    selected_edge_count: int = Field(ge=0, le=4)
+    radius_ratio: float = Field(ge=0, le=0.25)
+    subdivision_count: int = Field(ge=0, le=3)
+
+    @model_validator(mode="after")
+    def validate_edge_finish(self) -> "GeometryEdgeFinishReadback":
+        empty = self.mode == "none"
+        if empty != (self.edge_set == "none"):
+            raise ValueError("edge finish mode and edge set must align")
+        if empty and any((self.selected_edge_count, self.radius_ratio, self.subdivision_count)):
+            raise ValueError("empty edge finish cannot report geometry work")
+        if not empty and (
+            self.selected_edge_count != 4
+            or self.radius_ratio <= 0
+            or self.subdivision_count <= 0
+        ):
+            raise ValueError("bevel approximation must report its bounded perimeter work")
+        return self
 
 
 class GeometrySurfaceRange(StrictApiModel):
@@ -28,6 +56,8 @@ class GeometrySurfaceRange(StrictApiModel):
 
 
 class GeometrySurfaceProvenance(StrictApiModel):
+    primitive_id: str = Field(pattern=r"^primitive_[a-z0-9_\-]+$")
+    part_instance_id: str = Field(pattern=r"^partface_[a-z0-9_\-]+$")
     part_role: str = Field(min_length=1, max_length=64)
     profile_input_id: Optional[str] = Field(default=None, pattern=r"^profileinput_[a-z0-9_\-]+$")
     surface_roles: List[GeometrySurfaceRole] = Field(min_length=1, max_length=8)
@@ -40,8 +70,19 @@ class GeometrySurfaceProvenance(StrictApiModel):
     degenerate_triangle_count: int = Field(ge=0)
     feature_node_id: Optional[str] = Field(default=None, pattern=r"^op_[a-z0-9_\-]+$")
     source_operation_ids: List[str] = Field(default_factory=list, max_length=32)
-    material_zone_id: Optional[str] = Field(default=None, pattern=r"^zone_[a-z0-9_\-]+$")
+    material_zone_id: str = Field(pattern=r"^zone_[a-z0-9_\-]+$")
     boolean_backside: Optional[bool] = None
+    normal_mode: GeometryNormalMode
+    tangent_min_length: float = Field(ge=0.999, le=1.001)
+    tangent_max_length: float = Field(ge=0.999, le=1.001)
+    tangent_handedness: List[Literal[-1, 1]] = Field(min_length=1, max_length=2)
+    uv_degenerate_triangle_count: int = Field(ge=0)
+    tangent_fallback_triangle_count: int = Field(ge=0)
+    face_id_min: int = Field(ge=0)
+    face_id_max: int = Field(ge=0)
+    face_id_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    edge_finish: GeometryEdgeFinishReadback
+    texture_ready: bool
 
     @model_validator(mode="after")
     def validate_surface(self) -> "GeometrySurfaceProvenance":
@@ -55,6 +96,33 @@ class GeometrySurfaceProvenance(StrictApiModel):
             raise ValueError("UV0 min must not exceed max")
         if self.closed and (self.boundary_edge_count or self.non_manifold_edge_count or self.degenerate_triangle_count):
             raise ValueError("closed surface cannot report topology failures")
+        if self.face_id_min != 0 or self.face_id_max < self.face_id_min:
+            raise ValueError("surface face ids must start at zero and be bounded")
+        if self.uv_degenerate_triangle_count or self.tangent_fallback_triangle_count or not self.texture_ready:
+            raise ValueError("surface is not ready for a later texture pipeline")
+        if self.tangent_min_length > self.tangent_max_length:
+            raise ValueError("tangent length bounds are reversed")
+        return self
+
+
+class GeometryMaterialZoneFaceSet(StrictApiModel):
+    primitive_id: str = Field(pattern=r"^primitive_[a-z0-9_\-]+$")
+    part_instance_id: str = Field(pattern=r"^partface_[a-z0-9_\-]+$")
+    material_zone_id: str = Field(pattern=r"^zone_[a-z0-9_\-]+$")
+    face_count: int = Field(ge=1)
+    face_id_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    surface_roles: List[GeometrySurfaceRole] = Field(min_length=1, max_length=16)
+    source_operation_ids: List[str] = Field(min_length=1, max_length=32)
+    texture_ready: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_zone_faces(self) -> "GeometryMaterialZoneFaceSet":
+        if len(self.surface_roles) != len(set(self.surface_roles)):
+            raise ValueError("zone surface roles must be unique")
+        if len(self.source_operation_ids) != len(set(self.source_operation_ids)):
+            raise ValueError("zone source operation ids must be unique")
+        if any(not value.startswith("op_") for value in self.source_operation_ids):
+            raise ValueError("zone face provenance must reference operations")
         return self
 
 
@@ -113,7 +181,9 @@ class GeometryCompileReadback(StrictApiModel):
     material_count: int = Field(ge=0)
     uv0_primitive_count: int = Field(ge=1)
     normal_primitive_count: int = Field(ge=1)
+    tangent_primitive_count: int = Field(ge=1)
     surface_provenance: List[GeometrySurfaceProvenance] = Field(min_length=1, max_length=512)
+    material_zone_faces: List[GeometryMaterialZoneFaceSet] = Field(min_length=1, max_length=512)
     feature_history: List[GeometryFeatureNodeReadback] = Field(default_factory=list, max_length=256)
     operation_ids: List[str] = Field(min_length=1, max_length=512)
     operation_names: List[str] = Field(min_length=1, max_length=512)
@@ -131,10 +201,30 @@ class GeometryCompileReadback(StrictApiModel):
             raise ValueError("compile readback operation ids must be unique")
         if any(not item for item in [*self.operation_ids, *self.operation_names, *self.output_roles]):
             raise ValueError("compile readback operation and output facts must be non-empty")
-        if self.uv0_primitive_count != self.primitive_count or self.normal_primitive_count != self.primitive_count:
-            raise ValueError("compile readback requires UV0 and normals on every primitive")
+        if (
+            self.uv0_primitive_count != self.primitive_count
+            or self.normal_primitive_count != self.primitive_count
+            or self.tangent_primitive_count != self.primitive_count
+        ):
+            raise ValueError("compile readback requires UV0, normals and tangents on every primitive")
         if len(self.surface_provenance) != self.primitive_count:
             raise ValueError("compile readback surface provenance must align with primitives")
+        if len(self.material_zone_faces) != self.primitive_count:
+            raise ValueError("compile readback material zones must align with primitives")
+        surface_ids = [item.primitive_id for item in self.surface_provenance]
+        zone_ids = [item.primitive_id for item in self.material_zone_faces]
+        if len(surface_ids) != len(set(surface_ids)) or surface_ids != zone_ids:
+            raise ValueError("surface and zone primitive identities must align uniquely")
+        surface_by_id = {item.primitive_id: item for item in self.surface_provenance}
+        for zone in self.material_zone_faces:
+            surface = surface_by_id[zone.primitive_id]
+            if (
+                zone.part_instance_id != surface.part_instance_id
+                or zone.material_zone_id != surface.material_zone_id
+                or zone.face_id_sha256 != surface.face_id_sha256
+                or zone.face_count != surface.face_id_max + 1
+            ):
+                raise ValueError("material zone face mapping diverges from surface readback")
         if self.feature_history:
             if [item.node_id for item in self.feature_history] != self.operation_ids:
                 raise ValueError("compile readback feature history must align with ordered operations")

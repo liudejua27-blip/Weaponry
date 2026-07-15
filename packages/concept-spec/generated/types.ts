@@ -462,12 +462,15 @@ export type GeometryCompileReadback = {
   "material_count": number
   "uv0_primitive_count": number
   "normal_primitive_count": number
+  "tangent_primitive_count": number
   "surface_provenance": Array<{
+  "primitive_id": string
+  "part_instance_id": string
   "part_role": string
   "profile_input_id": string | null
-  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
   "surface_ranges": Array<{
-  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut"
+  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim"
   "first_triangle": number
   "triangle_count": number
 }>
@@ -479,8 +482,35 @@ export type GeometryCompileReadback = {
   "degenerate_triangle_count": number
   "feature_node_id"?: string | null
   "source_operation_ids"?: Array<string>
-  "material_zone_id"?: string | null
+  "material_zone_id": string
   "boolean_backside"?: boolean | null
+  "normal_mode": "split" | "split_weighted"
+  "tangent_min_length": number
+  "tangent_max_length": number
+  "tangent_handedness": Array<-1 | 1>
+  "uv_degenerate_triangle_count": number
+  "tangent_fallback_triangle_count": number
+  "face_id_min": number
+  "face_id_max": number
+  "face_id_sha256": Sha256
+  "edge_finish": {
+  "mode": "none" | "bevel_approximation"
+  "edge_set": "none" | "xz_perimeter"
+  "selected_edge_count": number
+  "radius_ratio": number
+  "subdivision_count": number
+}
+  "texture_ready": true
+}>
+  "material_zone_faces": Array<{
+  "primitive_id": string
+  "part_instance_id": string
+  "material_zone_id": string
+  "face_count": number
+  "face_id_sha256": Sha256
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
+  "source_operation_ids": Array<string>
+  "texture_ready": true
 }>
   "feature_history"?: Array<{
   "schema_version": "GeometryFeatureNodeReadback@1"
@@ -500,7 +530,7 @@ export type GeometryCompileReadback = {
   "result_closed": boolean
   "material_ids": Array<string>
   "material_zone_ids": Array<string>
-  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
 }>
   "operation_ids": Array<string>
   "operation_names": Array<string>

@@ -99,7 +99,9 @@ class ShapeProgramGlbReadbackFacts:
     material_count: int
     uv0_primitive_count: int
     normal_primitive_count: int
+    tangent_primitive_count: int
     surface_provenance: List[Dict[str, Any]]
+    material_zone_faces: List[Dict[str, Any]]
     feature_history: List[Dict[str, Any]]
 
 
@@ -132,6 +134,8 @@ class ImportedGlbInspection:
 MAX_IMPORTED_GLB_BYTES = 32 * 1024 * 1024
 MAX_IMPORTED_GLB_TRIANGLES = 250_000
 MAX_CSG_DEPTH = 8
+MAX_EDGE_FINISH_RADIUS_RATIO = 0.25
+MAX_EDGE_FINISH_SUBDIVISIONS = 3
 
 # Executor identifiers, not another operation allow-list.  The manifest owns
 # the operation -> executor mapping; this set proves the shipped Worker still
@@ -522,6 +526,14 @@ def compile_shape_program(
                 raise ValueError("bevel_approx requires radius > 0 and 1-3 segments")
             if radius >= min(source[0].size_mm[0], source[0].size_mm[2]) / 2:
                 raise ValueError("bevel_approx radius must be smaller than the source X/Z half-size")
+            radius_ratio = radius / min(source[0].size_mm[0], source[0].size_mm[2])
+            if radius_ratio > MAX_EDGE_FINISH_RADIUS_RATIO:
+                raise ValueError(
+                    "EDGE_FINISH_RADIUS_RATIO_EXCEEDED: bevel_approx radius ratio "
+                    f"{radius_ratio:.6f} exceeds {MAX_EDGE_FINISH_RADIUS_RATIO}"
+                )
+            if segments > MAX_EDGE_FINISH_SUBDIVISIONS:
+                raise ValueError("EDGE_FINISH_SUBDIVISION_BUDGET_EXCEEDED")
             source_primitive = source[0]
             resolved[operation_id] = [replace(
                 source_primitive,
@@ -531,6 +543,7 @@ def compile_shape_program(
                 primitive_kind="bevel_box",
                 bevel_radius_mm=radius,
                 bevel_segments=segments,
+                source_operation_id=operation_id,
             )]
         elif op == "surface_panel":
             inputs = operation.get("inputs", [])
@@ -694,7 +707,9 @@ def compile_shape_program(
         material_count=facts.material_count,
         uv0_primitive_count=facts.uv0_primitive_count,
         normal_primitive_count=facts.normal_primitive_count,
+        tangent_primitive_count=facts.tangent_primitive_count,
         surface_provenance=facts.surface_provenance,
+        material_zone_faces=facts.material_zone_faces,
         feature_history=facts.feature_history,
         operation_ids=[str(item["operation_id"]) for item in operations],
         operation_names=[str(item["op"]) for item in operations],
@@ -749,7 +764,9 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     primitive_count = 0
     uv0_primitive_count = 0
     normal_primitive_count = 0
+    tangent_primitive_count = 0
     surface_provenance: List[Dict[str, Any]] = []
+    material_zone_faces: List[Dict[str, Any]] = []
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
     meshes = document.get("meshes", [])
@@ -793,17 +810,38 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             position_index = attributes.get("POSITION")
             normal_index = attributes.get("NORMAL")
             uv_index = attributes.get("TEXCOORD_0")
+            tangent_index = attributes.get("TANGENT")
+            face_id_index = attributes.get("_FORGECAD_FACE_ID")
+            source_face_id_index = attributes.get("_FORGECAD_SOURCE_FACE_ID")
             index_index = primitive.get("indices")
-            if position_index is None or normal_index is None or uv_index is None or index_index is None:
-                raise ValueError("GLB primitive is missing POSITION, NORMAL, TEXCOORD_0 or indices")
+            if any(value is None for value in (position_index, normal_index, uv_index, tangent_index, face_id_index, source_face_id_index, index_index)):
+                raise ValueError(
+                    "GLB primitive is missing POSITION, NORMAL, TEXCOORD_0, TANGENT, "
+                    "stable face provenance or indices"
+                )
             position_accessor = accessors[int(position_index)]
             normal_accessor = accessors[int(normal_index)]
             uv_accessor = accessors[int(uv_index)]
+            tangent_accessor = accessors[int(tangent_index)]
+            face_id_accessor = accessors[int(face_id_index)]
+            source_face_id_accessor = accessors[int(source_face_id_index)]
             index_accessor = accessors[int(index_index)]
-            if position_accessor.get("type") != "VEC3" or normal_accessor.get("type") != "VEC3" or uv_accessor.get("type") != "VEC2" or index_accessor.get("type") != "SCALAR":
+            if (
+                position_accessor.get("type") != "VEC3"
+                or normal_accessor.get("type") != "VEC3"
+                or uv_accessor.get("type") != "VEC2"
+                or tangent_accessor.get("type") != "VEC4"
+                or face_id_accessor.get("type") != "SCALAR"
+                or source_face_id_accessor.get("type") != "SCALAR"
+                or index_accessor.get("type") != "SCALAR"
+            ):
                 raise ValueError("GLB accessor types are invalid")
-            if normal_accessor.get("count") != position_accessor.get("count") or uv_accessor.get("count") != position_accessor.get("count"):
-                raise ValueError("GLB POSITION/NORMAL/TEXCOORD_0 counts do not align")
+            vertex_count = position_accessor.get("count")
+            if any(
+                accessor.get("count") != vertex_count
+                for accessor in (normal_accessor, uv_accessor, tangent_accessor, face_id_accessor, source_face_id_accessor)
+            ):
+                raise ValueError("GLB surface attribute counts do not align")
             count = int(index_accessor.get("count", 0))
             if count % 3:
                 raise ValueError("GLB index count is not divisible by three")
@@ -811,6 +849,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             primitive_count += 1
             normal_primitive_count += 1
             uv0_primitive_count += 1
+            tangent_primitive_count += 1
             extras = primitive.get("extras", {})
             roles = extras.get("forgecad_surface_roles", []) if isinstance(extras, dict) else []
             ranges = extras.get("forgecad_surface_ranges", []) if isinstance(extras, dict) else []
@@ -843,16 +882,50 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             )
             uv_values = _readback_float_accessor(accessors, views, binary, int(uv_index), 2)
             normal_values = _readback_float_accessor(accessors, views, binary, int(normal_index), 3)
-            if any(not math.isfinite(value) for item in [*uv_values, *normal_values] for value in item):
-                raise ValueError("GLB UV0 or normal contains non-finite values")
+            tangent_values = _readback_float_accessor(accessors, views, binary, int(tangent_index), 4)
+            indices = _readback_index_accessor(accessors, views, binary, int(index_index))
+            face_id_values = _readback_index_accessor(accessors, views, binary, int(face_id_index))
+            source_face_id_values = _readback_index_accessor(accessors, views, binary, int(source_face_id_index))
+            if any(not math.isfinite(value) for item in [*uv_values, *normal_values, *tangent_values] for value in item):
+                raise ValueError("GLB UV0, normal or tangent contains non-finite values")
+            if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
+                raise ValueError("GLB UV0 is outside the normalized baseline")
+            if any(abs(math.sqrt(sum(value * value for value in normal)) - 1) > 1e-3 for normal in normal_values):
+                raise ValueError("GLB contains a non-unit normal")
+            tangent_lengths = [math.sqrt(sum(value * value for value in tangent[:3])) for tangent in tangent_values]
+            if any(abs(length - 1) > 1e-3 for length in tangent_lengths):
+                raise ValueError("GLB contains a non-unit tangent")
+            if any(abs(sum(normal[index] * tangent[index] for index in range(3))) > 1e-3 for normal, tangent in zip(normal_values, tangent_values)):
+                raise ValueError("GLB tangent is not orthogonal to its normal")
+            tangent_handedness = sorted({int(round(tangent[3])) for tangent in tangent_values})
+            if any(value not in {-1, 1} for value in tangent_handedness):
+                raise ValueError("GLB tangent handedness is invalid")
+            face_ids: List[int] = []
+            source_face_ids: List[int] = []
+            uv_degenerate_triangle_count = 0
+            for offset in range(0, len(indices), 3):
+                triangle_indices = indices[offset:offset + 3]
+                triangle_face_ids = {face_id_values[index] for index in triangle_indices}
+                triangle_source_face_ids = {source_face_id_values[index] for index in triangle_indices}
+                if len(triangle_face_ids) != 1 or len(triangle_source_face_ids) != 1:
+                    raise ValueError("GLB stable face provenance is split inside a triangle")
+                face_ids.append(next(iter(triangle_face_ids)))
+                source_face_ids.append(next(iter(triangle_source_face_ids)))
+                uv_a, uv_b, uv_c = [uv_values[index] for index in triangle_indices]
+                determinant = (
+                    (uv_b[0] - uv_a[0]) * (uv_c[1] - uv_a[1])
+                    - (uv_b[1] - uv_a[1]) * (uv_c[0] - uv_a[0])
+                )
+                if abs(determinant) <= 1e-12:
+                    uv_degenerate_triangle_count += 1
+            if sorted(face_ids) != list(range(count // 3)):
+                raise ValueError("GLB stable face ids are missing, duplicated or non-contiguous")
+            if uv_degenerate_triangle_count:
+                raise ValueError("GLB contains UV-degenerate triangles and is not texture ready")
             profile_input_id = extras.get("forgecad_profile_input_id")
             if profile_input_id is not None:
                 if topology["degenerate_triangle_count"]:
                     raise ValueError("profile GLB contains degenerate triangles")
-                if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
-                    raise ValueError("profile GLB UV0 is outside the normalized baseline")
-                if any(math.sqrt(sum(value * value for value in normal)) < 0.5 for normal in normal_values):
-                    raise ValueError("profile GLB contains a degenerate normal")
             csg_provenance = extras.get("forgecad_csg_provenance")
             if csg_provenance is not None and (
                 not isinstance(csg_provenance, dict)
@@ -862,28 +935,79 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                 or not isinstance(csg_provenance.get("boolean_backside"), bool)
             ):
                 raise ValueError("GLB CSG surface provenance is invalid")
+            primitive_id = extras.get("forgecad_primitive_id")
+            part_instance_id = extras.get("forgecad_part_instance_id")
+            material_zone_id = extras.get("forgecad_material_zone_id")
+            normal_mode = extras.get("forgecad_normal_mode")
+            edge_finish = extras.get("forgecad_edge_finish")
+            if (
+                not isinstance(primitive_id, str)
+                or not primitive_id.startswith("primitive_")
+                or not isinstance(part_instance_id, str)
+                or not part_instance_id.startswith("partface_")
+                or not isinstance(material_zone_id, str)
+                or not material_zone_id.startswith("zone_")
+                or normal_mode not in {"split", "split_weighted"}
+            ):
+                raise ValueError("GLB part, primitive, normal or material-zone provenance is invalid")
+            _validate_edge_finish_readback(edge_finish)
+            feature_node_id = extras.get("forgecad_feature_node_id")
+            source_operation_ids = (
+                [str(value) for value in csg_provenance["source_operation_ids"]]
+                if csg_provenance is not None
+                else ([str(feature_node_id)] if isinstance(feature_node_id, str) else [])
+            )
+            if not source_operation_ids or any(not value.startswith("op_") for value in source_operation_ids):
+                raise ValueError("GLB zone faces are missing source operation provenance")
+            face_id_sha256 = hashlib.sha256(_canonical_json({
+                "primitive_id": primitive_id,
+                "part_instance_id": part_instance_id,
+                "material_zone_id": material_zone_id,
+                "face_ids": sorted(face_ids),
+                "source_face_ids": sorted(source_face_ids),
+            }).encode()).hexdigest()
             provenance_item = {
+                "primitive_id": primitive_id,
+                "part_instance_id": part_instance_id,
                 "part_role": str(extras.get("forgecad_part_role", "part")),
                 "profile_input_id": profile_input_id,
                 "surface_roles": roles,
                 "surface_ranges": ranges,
                 "uv0_min": [min(value[index] for value in uv_values) for index in range(2)],
                 "uv0_max": [max(value[index] for value in uv_values) for index in range(2)],
+                "material_zone_id": material_zone_id,
+                "source_operation_ids": source_operation_ids,
+                "normal_mode": normal_mode,
+                "tangent_min_length": min(tangent_lengths),
+                "tangent_max_length": max(tangent_lengths),
+                "tangent_handedness": tangent_handedness,
+                "uv_degenerate_triangle_count": uv_degenerate_triangle_count,
+                "tangent_fallback_triangle_count": 0,
+                "face_id_min": min(face_ids),
+                "face_id_max": max(face_ids),
+                "face_id_sha256": face_id_sha256,
+                "edge_finish": edge_finish,
+                "texture_ready": True,
                 **topology,
             }
-            feature_node_id = extras.get("forgecad_feature_node_id")
             if feature_node_id is not None:
                 provenance_item["feature_node_id"] = str(feature_node_id)
-            material_zone_id = extras.get("forgecad_material_zone_id")
-            if material_zone_id is not None:
-                provenance_item["material_zone_id"] = str(material_zone_id)
             if csg_provenance is not None:
                 provenance_item.update({
-                    "source_operation_ids": [str(value) for value in csg_provenance["source_operation_ids"]],
-                    "material_zone_id": str(csg_provenance["material_zone_id"]),
+                    "source_operation_ids": source_operation_ids,
                     "boolean_backside": bool(csg_provenance["boolean_backside"]),
                 })
             surface_provenance.append(provenance_item)
+            material_zone_faces.append({
+                "primitive_id": primitive_id,
+                "part_instance_id": part_instance_id,
+                "material_zone_id": material_zone_id,
+                "face_count": len(face_ids),
+                "face_id_sha256": face_id_sha256,
+                "surface_roles": roles,
+                "source_operation_ids": source_operation_ids,
+                "texture_ready": True,
+            })
             material_index = primitive.get("material")
             if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
                 raise ValueError("GLB primitive material is invalid")
@@ -894,12 +1018,29 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             for axis in range(3):
                 minimum[axis] = min(minimum[axis], float(lower[axis]) * 1000)
                 maximum[axis] = max(maximum[axis], float(upper[axis]) * 1000)
-            for accessor_index in (position_index, normal_index, uv_index, index_index):
+            for accessor_index in (
+                position_index,
+                normal_index,
+                uv_index,
+                tangent_index,
+                face_id_index,
+                source_face_id_index,
+                index_index,
+            ):
                 accessor = accessors[int(accessor_index)]
                 view = views[int(accessor["bufferView"])]
                 end = int(view.get("byteOffset", 0)) + int(view.get("byteLength", 0))
                 if end > len(binary):
                     raise ValueError("GLB accessor exceeds binary buffer")
+    primitive_ids = [str(item["primitive_id"]) for item in surface_provenance]
+    if len(primitive_ids) != len(set(primitive_ids)):
+        raise ValueError("GLB material zones overlap because primitive identity is duplicated")
+    zone_keys = [
+        (str(item["primitive_id"]), str(item["material_zone_id"]), str(item["face_id_sha256"]))
+        for item in material_zone_faces
+    ]
+    if len(zone_keys) != len(set(zone_keys)):
+        raise ValueError("GLB material-zone face sets overlap")
     return ShapeProgramGlbReadbackFacts(
         triangle_count=triangles,
         bounds_mm=[round(maximum[index] - minimum[index], 4) for index in range(3)],
@@ -908,7 +1049,9 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         material_count=len(materials),
         uv0_primitive_count=uv0_primitive_count,
         normal_primitive_count=normal_primitive_count,
+        tangent_primitive_count=tangent_primitive_count,
         surface_provenance=surface_provenance,
+        material_zone_faces=material_zone_faces,
         feature_history=[dict(item) for item in feature_history],
     )
 
@@ -979,6 +1122,62 @@ def _readback_float_accessor(
         tuple(float(value) for value in struct.unpack_from(f"<{component_count}f", binary, base + index * stride))
         for index in range(count)
     ]
+
+
+def _readback_index_accessor(
+    accessors: List[Any],
+    views: List[Any],
+    binary: bytes,
+    accessor_index: int,
+) -> List[int]:
+    accessor = accessors[accessor_index]
+    if accessor.get("type") != "SCALAR":
+        raise ValueError("GLB integer accessor must be SCALAR")
+    component_type = int(accessor.get("componentType", 0))
+    format_code, byte_size = {5121: ("B", 1), 5123: ("H", 2), 5125: ("I", 4)}.get(
+        component_type,
+        (None, None),
+    )
+    if format_code is None or byte_size is None:
+        raise ValueError("GLB integer accessor has an unsupported component type")
+    view = views[int(accessor["bufferView"])]
+    count = int(accessor["count"])
+    stride = int(view.get("byteStride", byte_size))
+    base = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    return [
+        int(struct.unpack_from(f"<{format_code}", binary, base + index * stride)[0])
+        for index in range(count)
+    ]
+
+
+def _validate_edge_finish_readback(value: Any) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "mode",
+        "edge_set",
+        "selected_edge_count",
+        "radius_ratio",
+        "subdivision_count",
+    }:
+        raise ValueError("GLB edge-finish provenance is invalid")
+    mode = value.get("mode")
+    edge_set = value.get("edge_set")
+    selected = value.get("selected_edge_count")
+    radius_ratio = value.get("radius_ratio")
+    subdivisions = value.get("subdivision_count")
+    if mode == "none":
+        if edge_set != "none" or selected != 0 or radius_ratio != 0 or subdivisions != 0:
+            raise ValueError("GLB empty edge finish reports geometry work")
+        return
+    if (
+        mode != "bevel_approximation"
+        or edge_set != "xz_perimeter"
+        or selected != 4
+        or not isinstance(radius_ratio, (int, float))
+        or not 0 < float(radius_ratio) <= MAX_EDGE_FINISH_RADIUS_RATIO
+        or not isinstance(subdivisions, int)
+        or not 0 < subdivisions <= MAX_EDGE_FINISH_SUBDIVISIONS
+    ):
+        raise ValueError("GLB bevel approximation exceeds its edge-finish contract")
 
 
 def inspect_imported_glb(payload: bytes) -> ImportedGlbInspection:
@@ -1579,6 +1778,8 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
 
 
 def _surface_roles_for_primitive(primitive: BoxPrimitive) -> List[str]:
+    if primitive.primitive_kind == "surface_panel":
+        return ["trim"]
     if primitive.primitive_kind == "extrude_profile":
         return [
             "side",
@@ -1612,6 +1813,8 @@ def _surface_roles_for_primitive(primitive: BoxPrimitive) -> List[str]:
 
 
 def _surface_ranges_for_primitive(primitive: BoxPrimitive) -> List[Dict[str, Any]]:
+    if primitive.primitive_kind == "surface_panel":
+        return [{"surface_role": "trim", "first_triangle": 0, "triangle_count": 12}]
     if primitive.primitive_kind == "extrude_profile":
         ranges: List[Dict[str, Any]] = []
         cursor = 0
@@ -2080,7 +2283,7 @@ def _csg_glb_payloads(primitive: CsgMeshPrimitive) -> List[Dict[str, Any]]:
         normals: List[float] = []
         uvs: List[float] = []
         indices: List[int] = []
-        source_face_ids: set[int] = set()
+        source_face_ids: List[int] = []
         for triangle in grouped[key]:
             points = [[float(value) / 1000 for value in point] for point in triangle["vertices_mm"]]
             ab = [points[1][index] - points[0][index] for index in range(3)]
@@ -2100,7 +2303,7 @@ def _csg_glb_payloads(primitive: CsgMeshPrimitive) -> List[Dict[str, Any]]:
                 normals.extend(normal)
             uvs.extend((0, 0, 1, 0, 0, 1))
             indices.extend((base, base + 1, base + 2))
-            source_face_ids.add(int(triangle["source_face_id"]))
+            source_face_ids.append(int(triangle["source_face_id"]))
         axes = [[positions[offset + axis] for offset in range(0, len(positions), 3)] for axis in range(3)]
         index_component = 5125 if len(positions) // 3 > 65535 else 5123
         index_format = "I" if index_component == 5125 else "H"
@@ -2119,11 +2322,21 @@ def _csg_glb_payloads(primitive: CsgMeshPrimitive) -> List[Dict[str, Any]]:
                 "forgecad_feature_node_id": primitive.feature_node_id,
                 "forgecad_surface_roles": [surface_role],
                 "forgecad_surface_ranges": [{"surface_role": surface_role, "first_triangle": 0, "triangle_count": len(indices) // 3}],
+                "forgecad_material_zone_id": zone_id,
+                "forgecad_normal_mode": "split",
+                "forgecad_edge_finish": {
+                    "mode": "none",
+                    "edge_set": "none",
+                    "selected_edge_count": 0,
+                    "radius_ratio": 0,
+                    "subdivision_count": 0,
+                },
+                "forgecad_source_face_ids": source_face_ids,
                 "forgecad_csg_provenance": {
                     "source_operation_ids": [source_operation_id],
                     "material_zone_id": zone_id,
                     "boolean_backside": backside,
-                    "source_face_ids": sorted(source_face_ids),
+                    "source_face_ids": sorted(set(source_face_ids)),
                 },
             },
         })
@@ -2134,6 +2347,26 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
     if isinstance(primitive, CsgMeshPrimitive):
         return _csg_glb_payloads(primitive)
     positions, normals, uvs, indices, lower, upper = _primitive_geometry(primitive)
+    weighted_kinds = {"cylinder", "capsule", "revolve", "revolve_profile", "sweep_profile", "bevel_box"}
+    if primitive.primitive_kind == "bevel_box":
+        edge_finish = {
+            "mode": "bevel_approximation",
+            "edge_set": "xz_perimeter",
+            "selected_edge_count": 4,
+            "radius_ratio": round(
+                primitive.bevel_radius_mm / min(primitive.size_mm[0], primitive.size_mm[2]),
+                8,
+            ),
+            "subdivision_count": primitive.bevel_segments,
+        }
+    else:
+        edge_finish = {
+            "mode": "none",
+            "edge_set": "none",
+            "selected_edge_count": 0,
+            "radius_ratio": 0,
+            "subdivision_count": 0,
+        }
     return [{
         "positions": positions,
         "normals": normals,
@@ -2150,8 +2383,122 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
             "forgecad_surface_roles": _surface_roles_for_primitive(primitive),
             "forgecad_surface_ranges": _surface_ranges_for_primitive(primitive),
             "forgecad_material_zone_id": primitive.material_zone_id,
+            "forgecad_normal_mode": "split_weighted" if primitive.primitive_kind in weighted_kinds else "split",
+            "forgecad_edge_finish": edge_finish,
+            "forgecad_source_face_ids": list(range(_primitive_triangle_count(primitive))),
         },
     }]
+
+
+def _surface_complete_payload(
+    payload: Mapping[str, Any],
+    *,
+    part_instance_id: str,
+    primitive_id: str,
+) -> Dict[str, Any]:
+    """Split triangles and attach tangent + stable face ids before GLB write.
+
+    Face ids are vertex attributes, so a later vertex/index reorder preserves
+    the face-to-part/zone contract.  Vertices are deliberately split per face
+    to prevent an optimizer from merging different provenance identities.
+    """
+
+    positions = list(struct.unpack(f"<{len(payload['positions']) // 4}f", payload["positions"]))
+    normals = list(struct.unpack(f"<{len(payload['normals']) // 4}f", payload["normals"]))
+    uvs = list(struct.unpack(f"<{len(payload['uvs']) // 4}f", payload["uvs"]))
+    index_component = int(payload["index_component"])
+    index_format, index_size = {5123: ("H", 2), 5125: ("I", 4)}.get(index_component, (None, None))
+    if index_format is None or index_size is None:
+        raise ValueError("surface completion only supports uint16/uint32 indices")
+    indices = list(struct.unpack(f"<{len(payload['indices']) // index_size}{index_format}", payload["indices"]))
+    if len(indices) % 3:
+        raise ValueError("surface completion requires triangle indices")
+    extras = dict(payload["extras"])
+    source_face_ids = extras.pop("forgecad_source_face_ids", None)
+    triangle_count = len(indices) // 3
+    if not isinstance(source_face_ids, list) or len(source_face_ids) != triangle_count:
+        raise ValueError("surface completion source-face provenance does not align")
+    if not isinstance(extras.get("forgecad_material_zone_id"), str):
+        raise ValueError("surface completion requires a stable material zone")
+
+    out_positions: List[float] = []
+    out_normals: List[float] = []
+    out_uvs: List[float] = []
+    out_tangents: List[float] = []
+    out_face_ids: List[int] = []
+    out_source_face_ids: List[int] = []
+    out_indices: List[int] = []
+
+    def vector(values: Sequence[float], index: int, width: int) -> Tuple[float, ...]:
+        return tuple(float(value) for value in values[index * width:(index + 1) * width])
+
+    for face_id, offset in enumerate(range(0, len(indices), 3)):
+        vertex_ids = indices[offset:offset + 3]
+        points = [vector(positions, index, 3) for index in vertex_ids]
+        triangle_uvs = [vector(uvs, index, 2) for index in vertex_ids]
+        edge_one = tuple(points[1][axis] - points[0][axis] for axis in range(3))
+        edge_two = tuple(points[2][axis] - points[0][axis] for axis in range(3))
+        du_one = triangle_uvs[1][0] - triangle_uvs[0][0]
+        dv_one = triangle_uvs[1][1] - triangle_uvs[0][1]
+        du_two = triangle_uvs[2][0] - triangle_uvs[0][0]
+        dv_two = triangle_uvs[2][1] - triangle_uvs[0][1]
+        determinant = du_one * dv_two - dv_one * du_two
+        if abs(determinant) <= 1e-12:
+            raise ValueError("SURFACE_UV_DEGENERATE: tangent basis cannot be derived")
+        inverse = 1.0 / determinant
+        raw_tangent = tuple(inverse * (dv_two * edge_one[axis] - dv_one * edge_two[axis]) for axis in range(3))
+        raw_bitangent = tuple(inverse * (-du_two * edge_one[axis] + du_one * edge_two[axis]) for axis in range(3))
+        for local_index, vertex_id in enumerate(vertex_ids):
+            normal = vector(normals, vertex_id, 3)
+            normal_length = math.sqrt(sum(value * value for value in normal))
+            if normal_length <= 1e-12:
+                raise ValueError("SURFACE_NORMAL_DEGENERATE: tangent basis cannot be derived")
+            normal = tuple(value / normal_length for value in normal)
+            projection = sum(normal[axis] * raw_tangent[axis] for axis in range(3))
+            tangent = tuple(raw_tangent[axis] - normal[axis] * projection for axis in range(3))
+            tangent_length = math.sqrt(sum(value * value for value in tangent))
+            if tangent_length <= 1e-12:
+                tangent = (
+                    raw_bitangent[1] * normal[2] - raw_bitangent[2] * normal[1],
+                    raw_bitangent[2] * normal[0] - raw_bitangent[0] * normal[2],
+                    raw_bitangent[0] * normal[1] - raw_bitangent[1] * normal[0],
+                )
+                tangent_length = math.sqrt(sum(value * value for value in tangent))
+            if tangent_length <= 1e-12:
+                raise ValueError("SURFACE_TANGENT_DEGENERATE: tangent basis cannot be derived")
+            tangent = tuple(value / tangent_length for value in tangent)
+            cross_normal_tangent = (
+                normal[1] * tangent[2] - normal[2] * tangent[1],
+                normal[2] * tangent[0] - normal[0] * tangent[2],
+                normal[0] * tangent[1] - normal[1] * tangent[0],
+            )
+            handedness = -1.0 if sum(cross_normal_tangent[axis] * raw_bitangent[axis] for axis in range(3)) < 0 else 1.0
+            out_positions.extend(points[local_index])
+            out_normals.extend(normal)
+            out_uvs.extend(triangle_uvs[local_index])
+            out_tangents.extend((*tangent, handedness))
+            out_face_ids.append(face_id)
+            out_source_face_ids.append(int(source_face_ids[face_id]))
+            out_indices.append(len(out_indices))
+
+    completed_index_component = 5125 if len(out_positions) // 3 > 65535 else 5123
+    completed_index_format = "I" if completed_index_component == 5125 else "H"
+    extras.update({
+        "forgecad_primitive_id": primitive_id,
+        "forgecad_part_instance_id": part_instance_id,
+    })
+    return {
+        **dict(payload),
+        "positions": struct.pack(f"<{len(out_positions)}f", *out_positions),
+        "normals": struct.pack(f"<{len(out_normals)}f", *out_normals),
+        "uvs": struct.pack(f"<{len(out_uvs)}f", *out_uvs),
+        "tangents": struct.pack(f"<{len(out_tangents)}f", *out_tangents),
+        "face_ids": struct.pack(f"<{len(out_face_ids)}I", *out_face_ids),
+        "source_face_ids": struct.pack(f"<{len(out_source_face_ids)}I", *out_source_face_ids),
+        "indices": struct.pack(f"<{len(out_indices)}{completed_index_format}", *out_indices),
+        "index_component": completed_index_component,
+        "extras": extras,
+    }
 
 
 def _build_glb(
@@ -2165,11 +2512,21 @@ def _build_glb(
     primitives: List[Dict[str, Any]] = []
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
-    for box in boxes:
-        for payload in _glb_payloads_for_primitive(box):
+    for box_index, box in enumerate(boxes):
+        part_role = box.part_role
+        part_instance_id = f"partface_{part_role}_{box_index:04d}"
+        for payload_index, raw_payload in enumerate(_glb_payloads_for_primitive(box)):
+            payload = _surface_complete_payload(
+                raw_payload,
+                part_instance_id=part_instance_id,
+                primitive_id=f"primitive_{box_index:04d}_{payload_index:03d}",
+            )
             positions = payload["positions"]
             normals = payload["normals"]
             uvs = payload["uvs"]
+            tangents = payload["tangents"]
+            face_ids = payload["face_ids"]
+            source_face_ids = payload["source_face_ids"]
             indices = payload["indices"]
             box_min = payload["minimum"]
             box_max = payload["maximum"]
@@ -2179,18 +2536,28 @@ def _build_glb(
             p = _add_accessor(binary, views, accessors, positions, 5126, len(positions) // 12, "VEC3", box_min, box_max)
             n = _add_accessor(binary, views, accessors, normals, 5126, len(normals) // 12, "VEC3")
             uv = _add_accessor(binary, views, accessors, uvs, 5126, len(uvs) // 8, "VEC2")
+            tangent = _add_accessor(binary, views, accessors, tangents, 5126, len(tangents) // 16, "VEC4")
+            face_id = _add_accessor(binary, views, accessors, face_ids, 5125, len(face_ids) // 4, "SCALAR")
+            source_face_id = _add_accessor(binary, views, accessors, source_face_ids, 5125, len(source_face_ids) // 4, "SCALAR")
             index_component = int(payload["index_component"])
             index_size = 4 if index_component == 5125 else 2
             ix = _add_accessor(binary, views, accessors, indices, index_component, len(indices) // index_size, "SCALAR", target=34963)
             primitives.append({
-                "attributes": {"POSITION": p, "NORMAL": n, "TEXCOORD_0": uv},
+                "attributes": {
+                    "POSITION": p,
+                    "NORMAL": n,
+                    "TEXCOORD_0": uv,
+                    "TANGENT": tangent,
+                    "_FORGECAD_FACE_ID": face_id,
+                    "_FORGECAD_SOURCE_FACE_ID": source_face_id,
+                },
                 "indices": ix,
                 "material": payload["material_index"],
                 "mode": 4,
                 "extras": payload["extras"],
             })
     document = {
-        "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram blockout/1"},
+        "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram surface-complete/1"},
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "nodes": [{"name": "FORGECAD_BLOCKOUT", "mesh": 0}],
@@ -2762,13 +3129,21 @@ def _extrude_geometry(extrude: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
     normals: List[float] = []
     uvs: List[float] = []
     indices: List[int] = []
+    min_x, max_x = min(point[0] for point in points), max(point[0] for point in points)
+    min_z, max_z = min(point[1] for point in points), max(point[1] for point in points)
+    span_x, span_z = max(max_x - min_x, 1e-9), max(max_z - min_z, 1e-9)
 
     def add_face(vertices: List[Tuple[float, float, float]], normal: Tuple[float, float, float]) -> None:
         base = len(positions) // 3
         for index, vertex in enumerate(vertices):
             positions.extend((cx + vertex[0] / 1000, cy + vertex[1] / 1000, cz + vertex[2] / 1000))
             normals.extend(normal)
-            uvs.extend((index / max(1, len(vertices) - 1), 0 if normal[1] == 0 else 1))
+            if normal[1] != 0:
+                uvs.extend(((vertex[0] - min_x) / span_x, (vertex[2] - min_z) / span_z))
+            elif len(vertices) == 4:
+                uvs.extend(((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))[index])
+            else:
+                raise ValueError("legacy extrude side UV requires a quad")
         for index in range(1, len(vertices) - 1):
             indices.extend((base, base + index, base + index + 1))
 
@@ -2878,6 +3253,8 @@ def _revolve_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
     normals: List[float] = []
     uvs: List[float] = []
     indices: List[int] = []
+    min_height = min(point[1] for point in points)
+    height_span = max(max(point[1] for point in points) - min_height, 1e-9)
     for segment in range(segments):
         theta = angle * segment / segments
         cos_theta = math.cos(theta)
@@ -2886,7 +3263,7 @@ def _revolve_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
             positions.extend((cx + radius * cos_theta / 1000, cy + height / 1000, cz + radius * sin_theta / 1000))
             normal_length = math.sqrt(radius * radius + 1.0)
             normals.extend((cos_theta * radius / normal_length, 1.0 / normal_length, sin_theta * radius / normal_length))
-            uvs.extend((segment / segments, height / max(1.0, max(abs(point[1]) for point in points))))
+            uvs.extend((segment / segments, (height - min_height) / height_span))
     profile_count = len(points)
     for segment in range(segments):
         next_segment = (segment + 1) % segments if abs(angle - math.pi * 2) < 1e-6 else segment + 1

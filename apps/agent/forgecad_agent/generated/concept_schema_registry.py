@@ -26,7 +26,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
-  "geometry-compile-readback.schema.json": "457c5dd52dab4397cb06be905e598b198bb1f7be95738f93ff68dbe06bf4bcee",
+  "geometry-compile-readback.schema.json": "7a55be1033591638b78158b6ed87a041587148908da281fa8d5f091dc6151f16",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "d4a9f62dfb924b12a1321ee88cb77f144f6d53b076ed0aa15be54f910290e4bf",
   "material-texture-object.schema.json": "98119df4b682ddfe7d914a14e71cc3c9dbaea2d1f665be32207b3db574bdcc45",
@@ -3250,7 +3250,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "start_cap",
                   "end_cap",
                   "seam",
-                  "boolean_cut"
+                  "boolean_cut",
+                  "trim"
                 ],
                 "type": "string"
               },
@@ -3304,6 +3305,80 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "maxItems": 64,
         "type": "array",
         "uniqueItems": true
+      },
+      "material_zone_faces": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "face_count": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "face_id_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "material_zone_id": {
+              "pattern": "^zone_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "part_instance_id": {
+              "pattern": "^partface_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "primitive_id": {
+              "pattern": "^primitive_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "source_operation_ids": {
+              "items": {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "surface_roles": {
+              "items": {
+                "enum": [
+                  "surface",
+                  "side",
+                  "loft_side",
+                  "sweep_side",
+                  "hole_wall",
+                  "start_cap",
+                  "end_cap",
+                  "seam",
+                  "boolean_cut",
+                  "trim"
+                ],
+                "type": "string"
+              },
+              "maxItems": 16,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "texture_ready": {
+              "const": true
+            }
+          },
+          "required": [
+            "primitive_id",
+            "part_instance_id",
+            "material_zone_id",
+            "face_count",
+            "face_id_sha256",
+            "surface_roles",
+            "source_operation_ids",
+            "texture_ready"
+          ],
+          "type": "object"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
       },
       "mesh_count": {
         "minimum": 1,
@@ -3387,6 +3462,59 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "minimum": 0,
               "type": "integer"
             },
+            "edge_finish": {
+              "additionalProperties": false,
+              "properties": {
+                "edge_set": {
+                  "enum": [
+                    "none",
+                    "xz_perimeter"
+                  ],
+                  "type": "string"
+                },
+                "mode": {
+                  "enum": [
+                    "none",
+                    "bevel_approximation"
+                  ],
+                  "type": "string"
+                },
+                "radius_ratio": {
+                  "maximum": 0.25,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "selected_edge_count": {
+                  "maximum": 4,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subdivision_count": {
+                  "maximum": 3,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "mode",
+                "edge_set",
+                "selected_edge_count",
+                "radius_ratio",
+                "subdivision_count"
+              ],
+              "type": "object"
+            },
+            "face_id_max": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "face_id_min": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "face_id_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
             "feature_node_id": {
               "anyOf": [
                 {
@@ -3399,23 +3527,31 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               ]
             },
             "material_zone_id": {
-              "anyOf": [
-                {
-                  "pattern": "^zone_[a-z0-9_\\-]+$",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
+              "pattern": "^zone_[a-z0-9_\\-]+$",
+              "type": "string"
             },
             "non_manifold_edge_count": {
               "minimum": 0,
               "type": "integer"
             },
+            "normal_mode": {
+              "enum": [
+                "split",
+                "split_weighted"
+              ],
+              "type": "string"
+            },
+            "part_instance_id": {
+              "pattern": "^partface_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
             "part_role": {
               "maxLength": 64,
               "minLength": 1,
+              "type": "string"
+            },
+            "primitive_id": {
+              "pattern": "^primitive_[a-z0-9_\\-]+$",
               "type": "string"
             },
             "profile_input_id": {
@@ -3456,7 +3592,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                       "start_cap",
                       "end_cap",
                       "seam",
-                      "boolean_cut"
+                      "boolean_cut",
+                      "trim"
                     ],
                     "type": "string"
                   },
@@ -3487,13 +3624,44 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "start_cap",
                   "end_cap",
                   "seam",
-                  "boolean_cut"
+                  "boolean_cut",
+                  "trim"
                 ],
                 "type": "string"
               },
               "minItems": 1,
               "type": "array",
               "uniqueItems": true
+            },
+            "tangent_fallback_triangle_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "tangent_handedness": {
+              "items": {
+                "enum": [
+                  -1,
+                  1
+                ],
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "tangent_max_length": {
+              "maximum": 1.001,
+              "minimum": 0.999,
+              "type": "number"
+            },
+            "tangent_min_length": {
+              "maximum": 1.001,
+              "minimum": 0.999,
+              "type": "number"
+            },
+            "texture_ready": {
+              "const": true
             },
             "uv0_max": {
               "items": {
@@ -3510,9 +3678,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "maxItems": 2,
               "minItems": 2,
               "type": "array"
+            },
+            "uv_degenerate_triangle_count": {
+              "minimum": 0,
+              "type": "integer"
             }
           },
           "required": [
+            "primitive_id",
+            "part_instance_id",
             "part_role",
             "profile_input_id",
             "surface_roles",
@@ -3522,13 +3696,29 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "closed",
             "boundary_edge_count",
             "non_manifold_edge_count",
-            "degenerate_triangle_count"
+            "degenerate_triangle_count",
+            "material_zone_id",
+            "normal_mode",
+            "tangent_min_length",
+            "tangent_max_length",
+            "tangent_handedness",
+            "uv_degenerate_triangle_count",
+            "tangent_fallback_triangle_count",
+            "face_id_min",
+            "face_id_max",
+            "face_id_sha256",
+            "edge_finish",
+            "texture_ready"
           ],
           "type": "object"
         },
         "maxItems": 512,
         "minItems": 1,
         "type": "array"
+      },
+      "tangent_primitive_count": {
+        "minimum": 1,
+        "type": "integer"
       },
       "triangle_count": {
         "minimum": 1,
@@ -3553,7 +3743,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "material_count",
       "uv0_primitive_count",
       "normal_primitive_count",
+      "tangent_primitive_count",
       "surface_provenance",
+      "material_zone_faces",
       "operation_ids",
       "operation_names",
       "output_roles",

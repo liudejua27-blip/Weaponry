@@ -1,7 +1,7 @@
 # ForgeCAD 视觉材质系统
 
 版本：2026-07-15
-状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101 已补齐兼容的视觉 PBR 字段和材质来源元数据；M102 已扩充为 13 个、覆盖 6 类的内置视觉目录；M103 已实现受控纹理对象登记、来源/许可证边界、对象存在性摘要和参数材质回退；M104 已把这些摘要接入 Material Zone 抽屉，提供当前部件上下文、中文分类筛选和关键词搜索；M105 已增加稳定 zone 选择、部件槽绑定和带 zone 的 ChangeSet 预览；M106 已按真实 `allowed_domains` 提供四领域兼容筛选；M107 已将 zone 选择纳入 ActiveDesignSnapshot/CAS，并覆盖重启与 undo/redo 保留。P0 是视觉 PBR 材质，不是工程材料数据库。
+状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 的完整 PBR 纹理、真实多区绑定和展示环境仍未实现。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
 
@@ -39,7 +39,7 @@ thumbnail_asset_id? / thumbnail_fallback / texture_summary[]
 
 `GET /api/v1/agent/materials` 会对材质引用返回 `texture_summary`（对象 ID、用途、`exists`、来源和许可证摘要），不返回绝对路径。对象文件缺失或哈希不匹配时，材质仍可使用参数 PBR 回退，且不会自动修改 Agent 资产版本。
 
-当前纹理对象只覆盖 `base_color`、`normal`、`thumbnail`，多数确定性 blockout 只有一个 Material Zone；这正是当前模型看起来像低多边形示意件而不像真实产品的重要原因之一。以下高真实度管线均为目标设计，必须由独立任务和 Gate 实现，不能把已有字段存在当成纹理已经生效。
+当前纹理对象只覆盖 `base_color`、`normal`、`thumbnail`，多数确定性 blockout 仍只有一个 Material Zone；G826 只证明网格具备 UV0/tangent 和稳定面区，并没有把完整纹理写入材质。这正是当前模型仍像低多边形示意件而不像真实产品的重要原因之一。以下高真实度管线仍须由 M108 和独立 Gate 实现，不能把表面前置条件通过当成纹理已经生效。
 
 ## 3. P0 材质目录
 

@@ -107,6 +107,8 @@ Provider 配置由 Tauri supervisor 注入本地 Agent。API Key 不属于 Proje
 
 G825 的 `union`/`subtract` 只由 `manifold3d==3.5.2` 生产 handler 执行，不再静默回退旧 box 算法。输入必须封闭并满足深度、输入数与三角预算；内核运行于可取消/超时的隔离进程，不接收数据库、对象库、Snapshot 或文件路径。成功 GLB 的 `GeometryCompileReadback@1.feature_history` 回读每个有序节点的输入/结果 hash、内核版本和 surface/material provenance；失败返回稳定 CSG 错误及 node ID，不产生部分 GLB、版本或 Snapshot 提升。
 
+G826 在同一 GLB 中为每个 primitive 写出 `TANGENT`、`_FORGECAD_FACE_ID`、`_FORGECAD_SOURCE_FACE_ID` 和稳定的 part-instance/Material Zone extras。readback 必须验证 normal/tangent 单位长度与正交性、tangent handedness、UV0 非退化、face ID 完整唯一、zone 非空不重叠，以及 CSG/mirror/array 后的来源；任何损坏都拒绝当前编译/导出。`material_zone_faces` 是 M108 后续绑定纹理的唯一几何面事实，不允许客户端按颜色或朝向重建。edge finish 仍是有界 `bevel_approximation`，不是精确 CAD 圆角。
+
 G820 已冻结 `ProfileSketch@1` 与 `ProfileSectionSet@1` 的机器合同，并允许 ShapeProgram 通过可选 `profile_inputs` 保存规范 payload、合同版本和 SHA-256 provenance。该合同在进入 Worker 前拒绝自由 SVG、非规范坐标、错误闭合/绕序、孔洞、自交、退化、超预算和无序截面；当前 HTTP 请求没有新增轮廓编辑入口，旧 `profile.args.points` 执行路径保持不变。
 
 G821 已让 Worker 的现有 `profile → extrude/revolve` 分支消费 `profile_inputs`。Extrude 可生成带孔封闭壳或显式无 cap 的开放 ribbon；Revolve 可处理轴点、完整/部分角度和部分角 seam cap。结果 GLB 的 UV0、normal、闭合/边界、退化面和 surface triangle ranges 会被重新回读并进入 `GeometryCompileReadback@1`。该能力目前只在 ShapeProgram/Agent 后端合同开放，工作台没有自由 SVG 编辑器，普通 Planner 也尚未自动生成这些新节点。

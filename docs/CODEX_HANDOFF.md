@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-15：FGC-G826 表面完成与稳定 Material Zone 面事实（已完成；A003 ready）
+
+- `GeometryCompileReadback@1` 已增加 `tangent_primitive_count`、逐 primitive surface completion 和 `material_zone_faces`。Worker 在同一 GLB 中写出 `TANGENT`、`_FORGECAD_FACE_ID`、`_FORGECAD_SOURCE_FACE_ID`、稳定 `primitive_id`/`part_instance_id`/zone extras；readback 验证单位 normal/tangent、正交性、handedness、UV0 非退化、face ID 完整唯一、zone 非空不重叠和来源 operation。每个三角面拆分顶点并携带 face 属性，因此顶点/索引重排不能靠顺序丢失映射。
+- 受控 edge finish 仍只复用 `bevel_approx`：X/Z 周边四边、半径比例 `<= 0.25`、1–3 级细分，readback 名称为 `bevel_approximation`。`surface_panel` 明确回读为 `trim`。没有加入纹理、HDRI、clearcoat、工程材质或精确 fillet；M108 后续只能消费这些几何前置事实。
+- 新增 `agent:g826-surface-readback-smoke`，覆盖基础 primitive、Profile/Extrude/Revolve/Loft/Sweep、edge finish/trim、mirror/array、Manifold CSG、重复 GLB/hash，以及缺失/损坏 tangent、UV 退化、空/重叠 zone、face ID 损坏和半径/细分/三角预算失败。严格 Gate 同时暴露并修复了 legacy Extrude cap/side 的退化 UV 和 legacy Revolve 负 V 坐标；没有降级或跳过旧运行时操作。
+- 本轮通过：G1–G7、G802–G806、G819、Q003、G821–G823、G825、G826、R2 export、M101–M107、18 个 Agent unit、Ruff/compile、contracts、desktop M104–M106、typecheck/build、T002/T003、Agent-first r3、Tauri cargo check、docs walkthrough、repository integrity、安全范围、密钥文件与 `git diff --check`。Vite 仍只有既有 dynamic-import/chunk warning；M103/jsonschema 仍只有既有 `RefResolver` deprecation warning。当前 8000 端口上的用户 Agent 进程未被终止，r3 使用现有运行环境并通过。
+- 下一唯一可领取任务是 `FGC-A003`：DeepSeek Provider metadata/Keychain preflight、真实网络调用标记、流式/取消/用量与稳定错误分类。G826 完成不代表 DeepSeek 已配置，也不代表真实纹理、单一最佳候选或简洁工作台已完成。提交、push 与 PR checks 以本节后续最终命令记录为准。
+
 ## 2026-07-15：FGC-G825 单一生产 CSG 与不可变 Feature History（已完成；G826 ready）
 
 - 只按 ADR-0013 将 `manifold3d==3.5.2` 与 NumPy 2.4.6 接入现有 Python sidecar；`manifold_csg.py` 是 union/subtract 的唯一生产 handler，旧 G805 box 路径不再作为 fallback。输入须封闭并满足 8 层深度、32 solids、200,000 输入 triangles 与既有 ShapeProgram 预算；隔离子进程支持取消/5 秒 timeout，且不接收数据库、对象库、Snapshot、URL 或文件路径。

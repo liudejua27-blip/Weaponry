@@ -36,7 +36,7 @@ npm run contracts:types:check
 | `ShapeProgram@1` | 受控程序化几何操作；未知或缺执行器在任一运行时入口以 `UNSUPPORTED_RUNTIME_OPERATION` 拒绝 |
 | `ProfileSketch@1` | 受限二维 line/quadratic/cubic 轮廓、闭合/绕序、孔洞、规范 bounds 与统一重采样声明 |
 | `ProfileSectionSet@1` | 沿一个主轴排序的 2–12 个截面引用、有限 scale/twist/cap 与统一重采样策略 |
-| `GeometryCompileReadback@1` | 同一次 ShapeProgram 编译后从 GLB 回读的 hash、triangle、bounds、mesh/primitive/material、operation 与 output role 事实 |
+| `GeometryCompileReadback@1` | 同一次 ShapeProgram 编译后从 GLB 回读的 hash、triangle、bounds、mesh/primitive/material、operation/output role，以及 normal/UV0/tangent、稳定 face→part/zone 与 edge-finish 事实 |
 | `EditableParameterBinding@1` | 一个 Agent Part 的非执行式、用户可读数值路径声明：稳定 ID、范围、步长、单位和显示名称 |
 | `MaterialPreset@1` | 可追溯 metallic-roughness PBR 预设 |
 | `MaterialBinding@1` | Part Material Zone 到材质预设的绑定 |
@@ -84,7 +84,7 @@ ShapeProgram@1 的 JSON Schema、Pydantic `ShapeProgramPayload` 与 Python valid
 
 G820 新增的 `ProfileSketch@1` 只接受 normalized `[-1,1]` 坐标、最多 64 段的 line/quadratic/cubic、最多 8 个孔洞和 `8..256` 重采样数；Pydantic 再验证闭合/开放、实际绕序、控制点 bounds、自交、孔洞包含/重叠和总段预算。`ProfileSectionSet@1` 只接受 `2..12` 个严格递增位置、已注册 closed cross-section、统一重采样数、`0.25..4` scale、`-45..45°` twist 和首尾 cap policy。规范化把外轮廓统一为 counter-clockwise、孔洞统一为 clockwise，并以排序键、稳定数字和 canonical JSON 计算 SHA-256。ShapeProgram 的可选 `profile_inputs` 同时保存 canonical payload、合同版本和 hash；三者不一致即拒绝。G821 消费单 Profile，G822 消费 section set；Sweep 仍未实现。
 
-G821 让现有 `profile` 通过 `profile_input_id` 与二维 `profile_scale` 消费上述 canonical payload；`extrude` 增加受限 `cap_start/cap_end`，`revolve` 增加受限 seam cap 与 `8..64` radial segments。旧 `args.points` 仍按原合同执行，不能混入新参数。G822 新增唯一 manifest 中的 `loft`：必须引用一个 `profile_section_set`，使用二维 `cross_section_scale`、有界 `axis_length` 和当前唯一 `linear` continuity；不允许 operation input、孔洞 Loft、自由控制网格或相邻截面超过 45° 的翻转风险。G823 新增唯一 manifest 中的 `sweep`：必须引用一个 closed/hole-free `profile_sketch`，并声明 2–32 点有界 path、open/closed、有限 twist 和显式 cap；闭合路径禁止 cap/twist，零长度、过短段、frame 翻转和明显自交会拒绝。`GeometryCompileReadback@1` 从真实 GLB accessor/index 回读 UV0/normal、UV bounds、closed/boundary/non-manifold/degenerate，以及 Loft/Sweep side/seam/cap 连续 triangle ranges。退化三角、UV 越界、range 未覆盖 indices 或写出前预算超限会使编译失败；tangent/稳定 Material Zone 仍未实现。
+G821 让现有 `profile` 通过 `profile_input_id` 与二维 `profile_scale` 消费上述 canonical payload；`extrude` 增加受限 `cap_start/cap_end`，`revolve` 增加受限 seam cap 与 `8..64` radial segments。旧 `args.points` 仍按原合同执行，不能混入新参数。G822 新增唯一 manifest 中的 `loft`：必须引用一个 `profile_section_set`，使用二维 `cross_section_scale`、有界 `axis_length` 和当前唯一 `linear` continuity；不允许 operation input、孔洞 Loft、自由控制网格或相邻截面超过 45° 的翻转风险。G823 新增唯一 manifest 中的 `sweep`：必须引用一个 closed/hole-free `profile_sketch`，并声明 2–32 点有界 path、open/closed、有限 twist 和显式 cap；闭合路径禁止 cap/twist，零长度、过短段、frame 翻转和明显自交会拒绝。G826 使 `GeometryCompileReadback@1` 从真实 GLB accessor/index 回读 UV0/normal/tangent、UV bounds、closed/boundary/non-manifold/degenerate、Loft/Sweep side/seam/cap/trim ranges，以及 `primitive_id`、`part_instance_id` 和 Material Zone face set。每个三角面写出 `_FORGECAD_FACE_ID` 与 `_FORGECAD_SOURCE_FACE_ID` 顶点属性，因而顶点/索引重排不能丢失面身份；缺失/非单位/非正交 tangent、UV 退化、空 zone、重复 primitive/zone、range 未覆盖或预算超限均使 readback 失败。`bevel_approx` 只记录 `bevel_approximation + xz_perimeter + radius_ratio <= 0.25 + subdivisions <= 3`，不表示精确 fillet。
 
 ## 3. DomainPackManifest@1
 
