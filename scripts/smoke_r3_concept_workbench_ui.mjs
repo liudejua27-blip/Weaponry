@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { agentGeometryTimeoutMs, assertGeometryCompileReadbackQuality, selectAgentDirectionAndWaitForCandidate } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright')
@@ -306,9 +307,13 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('ambiguous Agent input incorrectly fell back to legacy Brief interpretation')
     }
     await page.getByLabel('需要确认设计类别').getByRole('button', { name: '飞机与航空器', exact: true }).click()
-    await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: 20_000 })
-    await page.getByLabel('Agent 完整外观方向').getByRole('button').first().click()
-    await page.getByLabel('分件候选').waitFor({ timeout: 20_000 })
+    const agentDirections = page.getByLabel('Agent 完整外观方向')
+    await agentDirections.waitFor({ timeout: 20_000 })
+    await selectAgentDirectionAndWaitForCandidate(
+      page,
+      () => agentDirections.getByRole('button').first().click(),
+      { label: 'R3 aircraft direction preview' },
+    )
     await page.waitForFunction(
       () => {
         const viewport = document.querySelector('.weapon-viewport')
@@ -422,12 +427,23 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('active Agent part selection failed after child version confirmation')
     }
     smokeStage = 'Agent quality and reusable component readback'
-    const agentQualityResponse = page.waitForResponse(
+    const agentQualityResponsePromise = page.waitForResponse(
       (response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST',
-    )
+      { timeout: agentGeometryTimeoutMs() },
+    ).then((response) => ({ response, error: null }), (error) => ({ response: null, error }))
     await page.getByRole('button', { name: '检查这个模型', exact: true }).click()
+    const agentQualityOutcome = await agentQualityResponsePromise
+    if (agentQualityOutcome.error) {
+      throw new Error(`Agent quality readback response timed out: ${agentQualityOutcome.error instanceof Error ? agentQualityOutcome.error.message : String(agentQualityOutcome.error)}`)
+    }
+    const agentQualityResponse = agentQualityOutcome.response
+    if (!agentQualityResponse.ok()) {
+      const qualityFailure = await agentQualityResponse.text().catch(() => '')
+      throw new Error(`Agent quality readback failed (${agentQualityResponse.status()}): ${qualityFailure.slice(0, 2000)}`)
+    }
     await page.getByText(/模型检查(通过|有提示)/).waitFor({ timeout: 20_000 })
-    const qualityReport = await (await agentQualityResponse).json()
+    const qualityReport = await agentQualityResponse.json()
+    assertGeometryCompileReadbackQuality(qualityReport, 'R3 Agent quality report')
     if (!['passed', 'warning'].includes(qualityReport.status)) {
       throw new Error(`concept quality unexpectedly failed: ${JSON.stringify(qualityReport)}`)
     }

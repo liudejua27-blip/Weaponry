@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { selectAgentDirectionAndWaitForCandidate } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -190,9 +191,12 @@ async function main() {
     await clickWithRetry(aircraftChoice, 'aircraft clarification choice')
     const directions = page.getByLabel('Agent 完整外观方向')
     await directions.waitFor({ timeout: 20_000 })
-    await directions.getByRole('button').first().click()
     const candidates = page.getByLabel('分件候选')
-    await candidates.waitFor({ timeout: 20_000 })
+    await selectAgentDirectionAndWaitForCandidate(
+      page,
+      () => directions.getByRole('button').first().click(),
+      { candidateLocator: candidates, label: 'F001 aircraft direction preview' },
+    )
     await assertText(candidates, ['分件候选', '预览状态 · 未写入版本'])
     const afterPreviewSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
     if (!isLegacyOrMissingSnapshot(afterPreviewSnapshot)) {

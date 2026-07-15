@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { agentGeometryTimeoutMs, assertGeometryCompileReadbackQuality, selectAgentDirectionAndWaitForCandidate } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright', 'fgt002-scenarios')
@@ -146,8 +147,11 @@ async function main() {
         assert(beforeSelect.active_design?.asset_version_id === before.active_design?.asset_version_id, 'Action Loop preview must not advance the active asset version')
         const directionButtons = directions.getByRole('button')
         assert(await directionButtons.count() === 3, 'each current direction must remain selectable')
-        await directionButtons.nth(0).click()
-        await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
+        await selectAgentDirectionAndWaitForCandidate(
+          page,
+          () => directionButtons.nth(0).click(),
+          { label: 'T002 Action Loop direction preview' },
+        )
         const after = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
         assert(after.active_design?.asset_version_id === before.active_design?.asset_version_id, 'Action Loop and selected blockout must not write an asset version')
         return evidence(projectId, after, ['single_turn_tool_lifecycle', 'no_hidden_direction_preview_requests', 'preview_no_version_write', 'single_canvas'])
@@ -168,8 +172,11 @@ async function main() {
           const directions = page.getByLabel('Agent 完整外观方向')
           await directions.waitFor({ timeout: TIMEOUT_MS })
           await assertText(directions, ['完整外观方向', '生成轻量 blockout'])
-          await directions.getByRole('button').first().click()
-          await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
+          await selectAgentDirectionAndWaitForCandidate(
+            page,
+            () => directions.getByRole('button').first().click(),
+            { label: `${scenarioId} direction preview` },
+          )
           const snapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
           assert(snapshot.body?.active_design?.source !== 'agent_asset', 'direction selection must remain preview-only')
           return evidence(projectId, snapshot, labels.concat(['three_directions', 'preview_only']))
@@ -183,9 +190,13 @@ async function main() {
         projectId = projectId ?? await waitForProjectId(agentBaseUrl)
         const before = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
         await sendBrief(page, '设计一辆双座冰原探索汽车，完整封闭车身，作为非功能展示模型。')
-        await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: TIMEOUT_MS })
-        await page.getByLabel('Agent 完整外观方向').getByRole('button').first().click()
-        await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
+        const directions = page.getByLabel('Agent 完整外观方向')
+        await directions.waitFor({ timeout: TIMEOUT_MS })
+        await selectAgentDirectionAndWaitForCandidate(
+          page,
+          () => directions.getByRole('button').first().click(),
+          { label: 'T002 preview-only direction' },
+        )
         const after = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
         assert(after.active_design?.asset_version_id === before.active_design?.asset_version_id, 'preview must not advance asset version')
         assert(after.preview === before.preview || after.preview === null, 'preview response must remain Snapshot-owned')
@@ -201,9 +212,13 @@ async function main() {
         const before = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
         if (before.active_design?.source !== 'agent_asset') {
           await sendBrief(page, '设计一辆双座冰原探索汽车，完整封闭车身，作为非功能展示模型。')
-          await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: TIMEOUT_MS })
-          await page.getByLabel('Agent 完整外观方向').getByRole('button').first().click()
-          await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
+          const directions = page.getByLabel('Agent 完整外观方向')
+          await directions.waitFor({ timeout: TIMEOUT_MS })
+          await selectAgentDirectionAndWaitForCandidate(
+            page,
+            () => directions.getByRole('button').first().click(),
+            { label: 'T002 editable-asset direction preview' },
+          )
         }
         await ensureLegacyConversion(page, agentBaseUrl, projectId)
         const saveButton = page.getByRole('button', { name: '保存为可编辑模型', exact: true })
@@ -285,12 +300,28 @@ async function main() {
         const quality = page.locator('.quality-drawer')
         await quality.waitFor({ timeout: TIMEOUT_MS })
         await assertText(quality, ['模型检查', '当前版本'])
-        const qualityResponse = page.waitForResponse((response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST')
+        const qualityResponse = page.waitForResponse(
+          (response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST',
+          { timeout: agentGeometryTimeoutMs() },
+        ).then((response) => ({ response, error: null }), (error) => ({ response: null, error }))
         await quality.getByRole('button', { name: '检查当前 Agent 资产', exact: true }).click()
-        const qualityPayload = await (await qualityResponse).json()
+        const qualityOutcome = await qualityResponse
+        if (qualityOutcome.error) {
+          throw new Error(`quality check response timed out: ${qualityOutcome.error instanceof Error ? qualityOutcome.error.message : String(qualityOutcome.error)}`)
+        }
+        const qualityResult = qualityOutcome.response
+        if (!qualityResult.ok()) {
+          const qualityFailure = await qualityResult.text().catch(() => '')
+          throw new Error(`quality check request failed: ${qualityResult.status()} ${qualityFailure.slice(0, 2000)}`)
+        }
+        const qualityPayload = await qualityResult.json()
+        assertGeometryCompileReadbackQuality(qualityPayload, 'T002 Agent quality report')
         assert(['passed', 'warning'].includes(qualityPayload.status), `quality check returned unexpected status: ${JSON.stringify(qualityPayload)}`)
+        await page.getByText(/模型检查(通过|有提示)/).waitFor({ timeout: TIMEOUT_MS })
         const afterQuality = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
+        assert(qualityPayload.asset_version_id === afterQuality.active_design?.asset_version_id, 'quality response must reference the active version')
         assert(afterQuality.quality?.asset_version_id === afterQuality.active_design?.asset_version_id, 'quality must reference active version')
+        assert(afterQuality.quality?.quality_report_id === qualityPayload.quality_report_id, 'Snapshot must reference this quality response')
         await quality.getByRole('button', { name: '关闭模型检查', exact: true }).click()
         await quality.waitFor({ state: 'detached', timeout: TIMEOUT_MS })
         await page.getByRole('button', { name: '导出', exact: true }).click()
