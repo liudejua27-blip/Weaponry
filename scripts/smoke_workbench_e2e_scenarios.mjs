@@ -14,6 +14,7 @@ import { chromium } from 'playwright-core'
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright', 'fgt002-scenarios')
 const TIMEOUT_MS = 20_000
+const API_TIMEOUT_MS = TIMEOUT_MS
 
 async function main() {
   const tempRoot = await mkdtemp(join(tmpdir(), 'forgecad-t002-workbench-'))
@@ -384,7 +385,7 @@ async function ensureLegacyConversion(page, agentBaseUrl, projectId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `t002-legacy-${Date.now()}` },
       body: JSON.stringify({ client_request_id: `t002-legacy-${Date.now()}`, snapshot_revision: snapshot.revision }),
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     })
     if (!response.ok) throw new Error(`durable legacy conversion handoff failed: ${response.status} ${await response.text()}`)
   }
@@ -421,17 +422,25 @@ async function waitForProjectId(baseUrl) {
 }
 
 async function requestStatus(baseUrl, path) {
-  const response = await fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(5_000) })
+  const response = await fetchWithGateTimeout(baseUrl, path)
   let body = null
   try { body = await response.json() } catch {}
   return { status: response.status, body }
 }
 
 async function jsonRequest(baseUrl, path) {
-  const response = await fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(5_000) })
+  const response = await fetchWithGateTimeout(baseUrl, path)
   const body = await response.json()
   if (!response.ok) throw new Error(`${response.status} ${path}: ${JSON.stringify(body)}`)
   return body
+}
+
+async function fetchWithGateTimeout(baseUrl, path) {
+  try {
+    return await fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(API_TIMEOUT_MS) })
+  } catch (error) {
+    throw new Error(`GET ${path} failed within ${API_TIMEOUT_MS}ms: ${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 async function waitForSnapshot(baseUrl, projectId, predicate) {
