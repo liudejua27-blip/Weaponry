@@ -37,6 +37,7 @@ _MATERIALS: tuple[Mapping[str, object], ...] = (
     {"material_id": "mat_rubber", "name": "橡胶外观", "pattern": "rubber", "base": (34, 39, 46), "metallic": 0, "roughness": 226, "normal_scale": 0.65, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_dark_glass", "name": "深色透明外观", "pattern": "glass", "base": (45, 70, 94), "metallic": 8, "roughness": 48, "normal_scale": 0.12, "clearcoat": 0.18, "transmission": 0.54, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_emissive_blue", "name": "蓝色发光饰条外观", "pattern": "emissive", "base": (30, 92, 174), "metallic": 28, "roughness": 76, "normal_scale": 0.2, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (16, 116, 255)},
+    {"material_id": "mat_automotive_paint", "name": "蓝色汽车漆外观", "pattern": "coated", "base": (61, 120, 184), "metallic": 97, "roughness": 51, "normal_scale": 0.18, "clearcoat": 0.86, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
 )
 
 
@@ -158,6 +159,12 @@ def builtin_visual_texture_set_for_material_index(index: int) -> VisualTextureSe
         return builtin_visual_texture_sets()[index]
     except IndexError as exc:
         raise ValueError(f"unsupported GLB material index for visual texture set: {index}") from exc
+
+
+def builtin_visual_material_count() -> int:
+    """Return the fixed built-in GLB material-table size."""
+
+    return len(_MATERIALS)
 
 
 def visual_texture_png_bytes(texture_id: str) -> bytes:

@@ -22,6 +22,7 @@ from forgecad_agent.application.geometry_worker import (  # noqa: E402
     read_shape_program_glb_facts,
 )
 from forgecad_agent.application.mechanical_planner import DeterministicMechanicalPlanner  # noqa: E402
+from forgecad_agent.application.visual_texture_sets import builtin_visual_material_count  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,13 @@ BRIEFS = (
     "设计一台具有多材质外观的展示型机械臂",
 )
 PBR_ROLES = {"base_color", "metallic_roughness", "normal", "occlusion", "emissive"}
+PBR_TEXTURE_FIELDS = {
+    "base_color": ("pbrMetallicRoughness", "baseColorTexture"),
+    "metallic_roughness": ("pbrMetallicRoughness", "metallicRoughnessTexture"),
+    "normal": (None, "normalTexture"),
+    "occlusion": (None, "occlusionTexture"),
+    "emissive": (None, "emissiveTexture"),
+}
 
 
 def _schema_validator() -> Draft202012Validator:
@@ -82,6 +90,34 @@ def _expect_rejected(payload: bytes, fragment: str) -> None:
     raise AssertionError("corrupted PBR GLB unexpectedly passed readback")
 
 
+def _material_texture_reference(document: dict, material_index: int, role: str) -> dict:
+    parent_field, texture_field = PBR_TEXTURE_FIELDS[role]
+    material = document["materials"][material_index]
+    parent = material[parent_field] if parent_field is not None else material
+    reference = parent[texture_field]
+    assert isinstance(reference, dict) and isinstance(reference.get("index"), int)
+    return reference
+
+
+def _remove_material_texture_reference(document: dict, material_index: int, role: str) -> None:
+    parent_field, texture_field = PBR_TEXTURE_FIELDS[role]
+    material = document["materials"][material_index]
+    parent = material[parent_field] if parent_field is not None else material
+    del parent[texture_field]
+
+
+def _corrupt_material_texture_payload(
+    document: dict,
+    binary: bytearray,
+    material_index: int,
+    role: str,
+) -> None:
+    texture_index = int(_material_texture_reference(document, material_index, role)["index"])
+    image_index = int(document["textures"][texture_index]["source"])
+    view = document["bufferViews"][document["images"][image_index]["bufferView"]]
+    binary[int(view.get("byteOffset", 0)) + 24] ^= 0x01
+
+
 def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     again = build_blockout(
         plan,
@@ -98,6 +134,8 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     assert readback.visual_environment.color_workflow == "linear_srgb"
     assert readback.visual_environment.tone_mapping == "aces_filmic"
     assert readback.visual_environment.contact_shadows is True
+    assert len(readback.material_zone_faces) >= 3
+    assert len({item.material_zone_id for item in readback.material_zone_faces}) >= 3
     assert len(readback.visual_texture_sets) >= 3
     assert len({item.material_index for item in readback.visual_texture_sets}) >= 5
     assert any(item.edge_finish.mode == "bevel_approximation" for item in readback.surface_provenance)
@@ -114,7 +152,7 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
         assert {item.color_space for item in texture_set.maps if item.texture_role not in {"base_color", "emissive"}} == {"linear"}
 
     document, binary = _glb_parts(result.glb_bytes)
-    assert len(document["images"]) == len(document["textures"]) == 35
+    assert len(document["images"]) == len(document["textures"]) == builtin_visual_material_count() * len(PBR_ROLES)
     assert not any("uri" in image for image in document["images"])
     assert {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"} <= set(document["extensionsUsed"])
     assert document["extras"]["forgecad_visual_environment"]["environment_sha256"] == readback.visual_environment.environment_sha256
@@ -135,6 +173,19 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
         assert {"KHR_materials_transmission", "KHR_materials_ior"} <= used_extensions
     if "mat_signal_red" in material_by_role.values():
         assert "KHR_materials_clearcoat" in used_extensions
+    material_index_by_id = {
+        str(material["extras"]["forgecad_texture_material_id"]): index
+        for index, material in enumerate(document["materials"])
+    }
+    automotive_index = material_index_by_id["mat_automotive_paint"]
+    aluminum_index = material_index_by_id["mat_aluminum"]
+    automotive_material = document["materials"][automotive_index]
+    aluminum_material = document["materials"][aluminum_index]
+    assert automotive_index == 7 and automotive_index != aluminum_index
+    assert automotive_material["extras"]["forgecad_visual_texture_set_id"] != aluminum_material["extras"]["forgecad_visual_texture_set_id"]
+    assert automotive_material["pbrMetallicRoughness"]["baseColorTexture"]["index"] != aluminum_material["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+    assert automotive_material["extensions"]["KHR_materials_clearcoat"]["clearcoatFactor"] == 0.86
+    assert "KHR_materials_clearcoat" not in aluminum_material.get("extensions", {})
     semantic_aliases = (
         (("wheel", "track", "tire", "grip", "foot"), "mat_rubber"),
         (("canopy", "cockpit", "glass", "window", "transparent"), "mat_dark_glass"),
@@ -152,6 +203,8 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     if plan.domain_pack_id == "pack_future_weapon_prop":
         assert any(role.startswith("prop_") and material_id == "mat_signal_red" for role, material_id in material_by_role.items())
     elif plan.domain_pack_id == "pack_vehicle_concept":
+        assert "mat_automotive_paint" in material_by_role.values()
+        assert any(item.material_id == "mat_automotive_paint" and item.material_index == 7 for item in readback.visual_texture_sets)
         wheel_roles = [role for role in material_by_role if any(token in role for token in ("wheel", "track", "tire"))]
         if wheel_roles:
             assert all(material_by_role[role] == "mat_rubber" for role in wheel_roles)
@@ -163,24 +216,64 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
         joint_roles = [role for role in material_by_role if any(token in role for token in ("joint", "pivot", "wrist", "turntable"))]
         assert joint_roles and all(material_by_role[role] == "mat_aluminum" for role in joint_roles)
 
-    missing_normal = copy.deepcopy(document)
-    del missing_normal["materials"][0]["normalTexture"]
-    _expect_rejected(_glb_payload(missing_normal, bytearray(binary)), "PBR texture reference is invalid")
+    target_material_index = min(used_material_indices)
+    for role in PBR_TEXTURE_FIELDS:
+        missing_texture = copy.deepcopy(document)
+        _remove_material_texture_reference(missing_texture, target_material_index, role)
+        _expect_rejected(
+            _glb_payload(missing_texture, bytearray(binary)),
+            "PBR texture reference is invalid",
+        )
+
+        corrupt_texture = copy.deepcopy(document)
+        corrupt_binary = bytearray(binary)
+        _corrupt_material_texture_payload(corrupt_texture, corrupt_binary, target_material_index, role)
+        _expect_rejected(
+            _glb_payload(corrupt_texture, corrupt_binary),
+            "hash or mime metadata is invalid",
+        )
 
     wrong_normal_scale = copy.deepcopy(document)
-    wrong_normal_scale["materials"][0]["normalTexture"]["scale"] = 0.99
+    wrong_normal_scale["materials"][target_material_index]["normalTexture"]["scale"] = 0.99
     _expect_rejected(_glb_payload(wrong_normal_scale, bytearray(binary)), "built-in PBR truth")
 
-    if "mat_dark_glass" in material_by_role.values():
+    used_material_ids = {
+        index: str(document["materials"][index]["extras"]["forgecad_texture_material_id"])
+        for index in used_material_indices
+    }
+    dark_glass_indices = [index for index, material_id in used_material_ids.items() if material_id == "mat_dark_glass"]
+    for dark_glass_index in dark_glass_indices:
+        missing_ior = copy.deepcopy(document)
+        del missing_ior["materials"][dark_glass_index]["extensions"]["KHR_materials_ior"]
+        _expect_rejected(
+            _glb_payload(missing_ior, bytearray(binary)),
+            "transmission parameters do not match",
+        )
+
         double_transparency = copy.deepcopy(document)
-        double_transparency["materials"][5]["alphaMode"] = "BLEND"
+        double_transparency["materials"][dark_glass_index]["alphaMode"] = "BLEND"
         _expect_rejected(_glb_payload(double_transparency, bytearray(binary)), "transparent material compatibility")
 
-    corrupt_document = copy.deepcopy(document)
-    view = corrupt_document["bufferViews"][corrupt_document["images"][0]["bufferView"]]
-    corrupt_binary = bytearray(binary)
-    corrupt_binary[int(view.get("byteOffset", 0)) + 24] ^= 0x01
-    _expect_rejected(_glb_payload(corrupt_document, corrupt_binary), "hash or mime metadata is invalid")
+    clearcoat_indices = [
+        index
+        for index in used_material_indices
+        if "KHR_materials_clearcoat" in document["materials"][index].get("extensions", {})
+    ]
+    for clearcoat_index in clearcoat_indices:
+        missing_clearcoat = copy.deepcopy(document)
+        del missing_clearcoat["materials"][clearcoat_index]["extensions"]["KHR_materials_clearcoat"]
+        _expect_rejected(
+            _glb_payload(missing_clearcoat, bytearray(binary)),
+            "clearcoat parameters do not match",
+        )
+
+        wrong_clearcoat = copy.deepcopy(document)
+        clearcoat = wrong_clearcoat["materials"][clearcoat_index]["extensions"]["KHR_materials_clearcoat"]
+        clearcoat["clearcoatFactor"] = float(clearcoat["clearcoatFactor"]) + 0.01
+        _expect_rejected(
+            _glb_payload(wrong_clearcoat, bytearray(binary)),
+            "clearcoat parameters do not match",
+        )
 
 
 def _build_showcase_assets() -> list[tuple[str, bytes]]:

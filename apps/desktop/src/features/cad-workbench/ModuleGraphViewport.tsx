@@ -19,16 +19,36 @@ export type ViewportMeasurementPoint = {
 }
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
+const BLOCKOUT_DISPLAY_DIAGONAL_MM = 520
 // Must match ForgeCADVisualEnvironment@1 written into every current ShapeProgram
 // GLB.  The viewport has one renderer/context; this profile only configures its
 // existing RoomEnvironment/PMREM scene and never creates asset state.
-const FORGECAD_STUDIO_PROFILE = {
-  environmentId: 'env_forgecad_room_studio_v1',
-  environmentSha256: '7173dd0b7c3df1dcf039f6eb6e80a96345873521dc3d07dc6381444a29879655',
-  pmremNear: 0.04,
-  pmremCubeSize: 128,
-  exposure: 1.18,
+const FORGECAD_STUDIO_MANIFEST = {
+  schema_version: 'ForgeCADVisualEnvironment@1',
+  environment_id: 'env_forgecad_room_studio_v1',
+  environment_kind: 'procedural_studio',
+  source: 'forgecad_builtin',
+  license: 'not_applicable',
+  color_workflow: 'linear_srgb',
+  output_color_space: 'srgb',
+  tone_mapping: 'aces_filmic',
+  tone_mapping_exposure: 1.18,
+  contact_shadows: true,
+  pmrem: { near: 0.04, cube_size: 128 },
+  cad_neutral_lighting: {
+    background: '#0b1420',
+    hemisphere: { sky: '#eef6ff', ground: '#111820', intensity: 3.2 },
+    ambient: { color: '#8aa0b8', intensity: 0.58 },
+    key: { color: '#f7fbff', intensity: 4.8, position: [150, 210, 160] as [number, number, number] },
+    rim: { color: '#91b6d9', intensity: 1.35, position: [-160, 110, -120] as [number, number, number] },
+    warm_rim: { color: '#ffd0b5', intensity: 0.45, position: [110, 20, -190] as [number, number, number] },
+    floor: { kind: 'shadow_catcher', color: '#000000', opacity: 0.16, radius_ratio: 1.1 },
+  },
+  camera_views: {
+    iso: { direction: [-0.9, 0.85, 1.55] as [number, number, number], distance_ratio: 0.98, fov_degrees: 38 },
+  },
 } as const
+const FORGECAD_STUDIO_ENVIRONMENT_SHA256 = '7173dd0b7c3df1dcf039f6eb6e80a96345873521dc3d07dc6381444a29879655'
 let viewportRendererGeneration = 0
 let activeViewportContexts = 0
 
@@ -86,6 +106,8 @@ type ViewportRuntime = {
   qualityRoot: THREE.Group
   connectorGeometry: THREE.SphereGeometry
   connectorMaterials: { exclusive: THREE.MeshBasicMaterial; shared: THREE.MeshBasicMaterial }
+  hemisphereLight: THREE.HemisphereLight
+  ambientLight: THREE.AmbientLight
   keyLight: THREE.DirectionalLight
   rimLight: THREE.DirectionalLight
   warmRimLight: THREE.DirectionalLight
@@ -119,10 +141,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    const neutralLighting = FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#0b1420')
-    scene.fog = new THREE.Fog('#0b1420', 300, 820)
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
+    scene.background = new THREE.Color(neutralLighting.background)
+    scene.fog = new THREE.Fog(neutralLighting.background, 300, 820)
+    const camera = new THREE.PerspectiveCamera(FORGECAD_STUDIO_MANIFEST.camera_views.iso.fov_degrees, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     renderer.localClippingEnabled = true
     viewportRendererGeneration += 1
@@ -132,7 +155,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = FORGECAD_STUDIO_PROFILE.exposure
+    renderer.toneMappingExposure = FORGECAD_STUDIO_MANIFEST.tone_mapping_exposure
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     host.appendChild(renderer.domElement)
@@ -140,23 +163,29 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const studioEnvironmentScene = new RoomEnvironment()
     const studioEnvironment = pmremGenerator.fromScene(
       studioEnvironmentScene,
-      FORGECAD_STUDIO_PROFILE.pmremNear,
+      FORGECAD_STUDIO_MANIFEST.pmrem.near,
       32,
-      FORGECAD_STUDIO_PROFILE.pmremCubeSize,
+      FORGECAD_STUDIO_MANIFEST.pmrem.cube_size,
     )
     scene.environment = studioEnvironment.texture
-    scene.userData.forgecadVisualEnvironment = FORGECAD_STUDIO_PROFILE.environmentId
-    host.dataset.visualEnvironmentId = FORGECAD_STUDIO_PROFILE.environmentId
-    host.dataset.visualEnvironmentSha256 = FORGECAD_STUDIO_PROFILE.environmentSha256
+    scene.userData.forgecadVisualEnvironment = FORGECAD_STUDIO_MANIFEST.environment_id
+    host.dataset.visualEnvironmentId = FORGECAD_STUDIO_MANIFEST.environment_id
+    host.dataset.visualEnvironmentSha256 = FORGECAD_STUDIO_ENVIRONMENT_SHA256
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = false
     controls.minDistance = 0.01
     controls.maxDistance = 100000
-    scene.add(new THREE.HemisphereLight('#eef6ff', '#111820', 3.2))
-    scene.add(new THREE.AmbientLight('#8aa0b8', 0.58))
-    const keyLight = new THREE.DirectionalLight('#e8f2ff', 5.6)
-    keyLight.position.set(120, 180, 140)
+    const hemisphereLight = new THREE.HemisphereLight(
+      neutralLighting.hemisphere.sky,
+      neutralLighting.hemisphere.ground,
+      neutralLighting.hemisphere.intensity,
+    )
+    scene.add(hemisphereLight)
+    const ambientLight = new THREE.AmbientLight(neutralLighting.ambient.color, neutralLighting.ambient.intensity)
+    scene.add(ambientLight)
+    const keyLight = new THREE.DirectionalLight(neutralLighting.key.color, neutralLighting.key.intensity)
+    keyLight.position.set(...neutralLighting.key.position)
     keyLight.castShadow = true
     keyLight.shadow.mapSize.set(2048, 2048)
     keyLight.shadow.camera.near = 1
@@ -166,15 +195,19 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     keyLight.shadow.camera.top = 360
     keyLight.shadow.camera.bottom = -360
     scene.add(keyLight)
-    const rimLight = new THREE.DirectionalLight('#4e9cff', 3.2)
-    rimLight.position.set(-140, 80, -100)
+    const rimLight = new THREE.DirectionalLight(neutralLighting.rim.color, neutralLighting.rim.intensity)
+    rimLight.position.set(...neutralLighting.rim.position)
     scene.add(rimLight)
-    const warmRimLight = new THREE.DirectionalLight('#ff8a62', 1.4)
-    warmRimLight.position.set(80, -20, -180)
+    const warmRimLight = new THREE.DirectionalLight(neutralLighting.warm_rim.color, neutralLighting.warm_rim.intensity)
+    warmRimLight.position.set(...neutralLighting.warm_rim.position)
     scene.add(warmRimLight)
     const displayFloor = new THREE.Mesh(
-      new THREE.CircleGeometry(285, 96),
-      new THREE.ShadowMaterial({ color: '#000000', transparent: true, opacity: 0.16 }),
+      new THREE.CircleGeometry(1, 96),
+      new THREE.ShadowMaterial({
+        color: neutralLighting.floor.color,
+        transparent: true,
+        opacity: neutralLighting.floor.opacity,
+      }),
     )
     displayFloor.rotation.x = -Math.PI / 2
     displayFloor.receiveShadow = true
@@ -214,6 +247,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       renderer.render(scene, camera)
       host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
       host.dataset.rendererTextures = String(renderer.info.memory.textures)
+      host.dataset.rendererDrawCalls = String(renderer.info.render.calls)
+      host.dataset.rendererTriangles = String(renderer.info.render.triangles)
+      host.dataset.rendererLines = String(renderer.info.render.lines)
     }
     const scheduleRender = () => {
       if (!frame) frame = requestAnimationFrame(render)
@@ -235,6 +271,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       qualityRoot,
       connectorGeometry,
       connectorMaterials,
+      hemisphereLight,
+      ambientLight,
       keyLight,
       rimLight,
       warmRimLight,
@@ -247,6 +285,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       modulesById: new Map(),
       scheduleRender,
     }
+    recordAppliedVisualEnvironment(runtime, host)
     runtimeRef.current = runtime
 
     const onTransformDragging = (event: { value: unknown }) => {
@@ -406,6 +445,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
       runtime.axes.visible = true
       runtime.grid.visible = propsRef.current.showGrid
+      recordBlockoutRuntimeFacts(runtime, null)
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
@@ -437,11 +477,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       runtime.blockoutRoot.updateMatrixWorld(true)
       let bounds = new THREE.Box3().setFromObject(source)
       if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
-      const currentBounds = new THREE.Box3().setFromObject(runtime.moduleRoot)
-      const currentSize = currentBounds.isEmpty() ? new THREE.Vector3(900, 900, 900) : currentBounds.getSize(new THREE.Vector3())
       const sourceSize = bounds.getSize(new THREE.Vector3())
-      const fitScale = Math.min(1, (currentSize.length() / Math.max(sourceSize.length(), 1)) * 0.35)
-      source.scale.setScalar(fitScale)
+      const fitScale = Math.min(1, BLOCKOUT_DISPLAY_DIAGONAL_MM / Math.max(sourceSize.length(), 1))
+      // GLBLoader has already converted source metres to workbench millimetres.
+      // Multiply that scale instead of replacing it, otherwise a 1 m asset is
+      // accidentally displayed as roughly 1 mm and the shadow catcher dwarfs it.
+      source.scale.multiplyScalar(fitScale)
       runtime.moduleRoot.visible = false
       source.updateMatrixWorld(true)
       runtime.blockoutRoot.updateMatrixWorld(true)
@@ -455,19 +496,27 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       bounds = new THREE.Box3().setFromObject(source)
       const framedCenter = bounds.getCenter(new THREE.Vector3())
       const framedSize = bounds.getSize(new THREE.Vector3())
+      const framedDiagonal = Math.max(framedSize.length(), 1)
       runtime.displayFloor.position.set(
         framedCenter.x,
-        bounds.min.y - Math.max(framedSize.y * 0.025, 2),
+        bounds.min.y - Math.max(framedSize.y * 0.01, 1),
         framedCenter.z,
       )
-      const horizontalFootprint = Math.max(framedSize.x, framedSize.z, 1)
-      runtime.displayFloor.scale.setScalar(Math.max(horizontalFootprint / 260, 0.45))
+      const horizontalRadius = Math.max(Math.hypot(framedSize.x, framedSize.z) * 0.5, 1)
+      runtime.displayFloor.scale.setScalar(
+        horizontalRadius * FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
+      )
+      fitPreviewShadowCamera(runtime, framedSize)
+      recordBlockoutRuntimeFacts(runtime, source, {
+        displayScale: fitScale,
+        displayDiagonalMm: framedDiagonal,
+      })
       frameCamera(
         runtime.camera,
         runtime.controls,
         propsRef.current.cameraView,
         framedCenter,
-        Math.max(framedSize.length(), 1),
+        framedDiagonal,
       )
       setBlockoutLoadState('ready')
       setBlockoutLoadMessage(message)
@@ -507,7 +556,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
                 ))
                 child.geometry.computeBoundingBox()
                 const geometrySize = child.geometry.boundingBox?.getSize(new THREE.Vector3()).length() ?? 0
-                if (!hasTransparentSurface && geometrySize >= 0.08) {
+                const hasCompletePbrSurface = materials.length > 0 && materials.every(isCompletePbrMaterial)
+                // Full PBR assets already carry normal/roughness detail. A
+                // per-mesh line overlay doubles draw calls and gives the
+                // result a toy/CAD-outline look, so keep it only for the
+                // bounded parameter-material fallback.
+                if (!hasCompletePbrSurface && !hasTransparentSurface && geometrySize >= 0.08) {
                   const edgeOverlay = new THREE.LineSegments(
                     new THREE.EdgesGeometry(child.geometry, 42),
                     new THREE.LineBasicMaterial({ color: '#d3dde6', transparent: true, opacity: 0.08 }),
@@ -526,6 +580,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
               return
             }
             source.userData.forgecadEmbeddedPbrMaterialCount = embeddedPbrMaterialCount
+            source.userData.forgecadPbrTextureFacts = collectPbrTextureFacts(source)
             resolve(source)
           }, reject)
         }))
@@ -549,6 +604,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           if (cancelled) return
           setBlockoutRenderSource('empty')
           setBlockoutEmbeddedPbrMaterialCount(0)
+          recordBlockoutRuntimeFacts(runtime, null)
           setBlockoutLoadState('failed')
           setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
           runtime.scheduleRender()
@@ -577,6 +633,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       } catch (error) {
         setBlockoutRenderSource('empty')
         setBlockoutEmbeddedPbrMaterialCount(0)
+        recordBlockoutRuntimeFacts(runtime, null)
         setBlockoutLoadState('failed')
         setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
         runtime.scheduleRender()
@@ -853,15 +910,7 @@ function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return
     for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
-      if (
-        !(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
-        || !material.map
-        || !material.metalnessMap
-        || !material.roughnessMap
-        || !material.normalMap
-        || !material.aoMap
-        || !material.emissiveMap
-      ) continue
+      if (!isCompletePbrMaterial(material)) continue
       const declaredTextureSetId = typeof material.userData.forgecad_visual_texture_set_id === 'string'
         ? material.userData.forgecad_visual_texture_set_id
         : ''
@@ -879,6 +928,83 @@ function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
     }
   })
   return textureSetKeys.size
+}
+
+type CompletePbrMaterial = (THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial) & {
+  map: THREE.Texture
+  metalnessMap: THREE.Texture
+  roughnessMap: THREE.Texture
+  normalMap: THREE.Texture
+  aoMap: THREE.Texture
+  emissiveMap: THREE.Texture
+}
+
+function isCompletePbrMaterial(material: THREE.Material): material is CompletePbrMaterial {
+  return (
+    (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
+    && Boolean(material.map)
+    && Boolean(material.metalnessMap)
+    && Boolean(material.roughnessMap)
+    && Boolean(material.normalMap)
+    && Boolean(material.aoMap)
+    && Boolean(material.emissiveMap)
+  )
+}
+
+type BlockoutPbrTextureFacts = {
+  uniqueTextureCount: number
+  estimatedGpuBytes: number
+  colorSpacesValid: boolean
+}
+
+function collectPbrTextureFacts(root: THREE.Object3D): BlockoutPbrTextureFacts {
+  const textures = new Set<THREE.Texture>()
+  let colorSpacesValid = true
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+      if (!(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)) continue
+      const maps: Array<[THREE.Texture | null, string]> = [
+        [material.map, THREE.SRGBColorSpace],
+        [material.metalnessMap, THREE.NoColorSpace],
+        [material.roughnessMap, THREE.NoColorSpace],
+        [material.normalMap, THREE.NoColorSpace],
+        [material.aoMap, THREE.NoColorSpace],
+        [material.emissiveMap, THREE.SRGBColorSpace],
+      ]
+      for (const [texture, expectedColorSpace] of maps) {
+        if (!texture) continue
+        textures.add(texture)
+        if (texture.colorSpace !== expectedColorSpace) colorSpacesValid = false
+      }
+    }
+  })
+  let estimatedGpuBytes = 0
+  for (const texture of textures) {
+    const image = texture.image as { width?: number; height?: number } | undefined
+    const width = Number(image?.width ?? 0)
+    const height = Number(image?.height ?? 0)
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) continue
+    // Conservative RGBA8 estimate including a complete mip chain. The source
+    // PNG byte size is not a GPU budget and must not be substituted here.
+    estimatedGpuBytes += Math.ceil(width * height * 4 * (4 / 3))
+  }
+  return { uniqueTextureCount: textures.size, estimatedGpuBytes, colorSpacesValid }
+}
+
+function recordBlockoutRuntimeFacts(
+  runtime: ViewportRuntime,
+  source: THREE.Object3D | null,
+  display?: { displayScale: number; displayDiagonalMm: number },
+): void {
+  const host = runtime.renderer.domElement.parentElement
+  if (!(host instanceof HTMLElement)) return
+  const facts = source?.userData.forgecadPbrTextureFacts as BlockoutPbrTextureFacts | undefined
+  host.dataset.blockoutPbrTextureCount = String(facts?.uniqueTextureCount ?? 0)
+  host.dataset.blockoutPbrEstimatedGpuBytes = String(facts?.estimatedGpuBytes ?? 0)
+  host.dataset.blockoutPbrColorSpaces = facts ? (facts.colorSpacesValid ? 'valid' : 'invalid') : 'not_applicable'
+  host.dataset.blockoutDisplayScale = String(display?.displayScale ?? 0)
+  host.dataset.blockoutDisplayDiagonalMm = String(display?.displayDiagonalMm ?? 0)
 }
 
 function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphViewportProps): void {
@@ -932,6 +1058,10 @@ function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphV
 }
 
 function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
+  const recordEnvironment = () => {
+    const host = runtime.renderer.domElement.parentElement
+    if (host instanceof HTMLElement) recordAppliedVisualEnvironment(runtime, host)
+  }
   if (preset === 'soft_studio') {
     runtime.keyLight.color.set('#e8f2ff')
     runtime.keyLight.intensity = 4.2
@@ -942,6 +1072,7 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
     runtime.warmRimLight.color.set('#ffad86')
     runtime.warmRimLight.intensity = 0.4
     runtime.warmRimLight.position.set(70, -10, -150)
+    recordEnvironment()
     return
   }
   if (preset === 'concept_contrast') {
@@ -954,17 +1085,82 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
     runtime.warmRimLight.color.set('#ff724e')
     runtime.warmRimLight.intensity = 2.5
     runtime.warmRimLight.position.set(100, -30, -210)
+    recordEnvironment()
     return
   }
-  runtime.keyLight.color.set('#f7fbff')
-  runtime.keyLight.intensity = 4.8
-  runtime.keyLight.position.set(150, 210, 160)
-  runtime.rimLight.color.set('#91b6d9')
-  runtime.rimLight.intensity = 1.35
-  runtime.rimLight.position.set(-160, 110, -120)
-  runtime.warmRimLight.color.set('#ffd0b5')
-  runtime.warmRimLight.intensity = 0.45
-  runtime.warmRimLight.position.set(110, 20, -190)
+  const neutral = FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting
+  runtime.keyLight.color.set(neutral.key.color)
+  runtime.keyLight.intensity = neutral.key.intensity
+  runtime.keyLight.position.set(...neutral.key.position)
+  runtime.rimLight.color.set(neutral.rim.color)
+  runtime.rimLight.intensity = neutral.rim.intensity
+  runtime.rimLight.position.set(...neutral.rim.position)
+  runtime.warmRimLight.color.set(neutral.warm_rim.color)
+  runtime.warmRimLight.intensity = neutral.warm_rim.intensity
+  runtime.warmRimLight.position.set(...neutral.warm_rim.position)
+  recordEnvironment()
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
+}
+
+function colorHex(color: THREE.Color): string {
+  return `#${color.getHexString(THREE.SRGBColorSpace)}`
+}
+
+function recordAppliedVisualEnvironment(runtime: ViewportRuntime, host: HTMLElement): void {
+  const floorMaterial = runtime.displayFloor.material
+  const manifest = {
+    schema_version: FORGECAD_STUDIO_MANIFEST.schema_version,
+    environment_id: FORGECAD_STUDIO_MANIFEST.environment_id,
+    environment_kind: FORGECAD_STUDIO_MANIFEST.environment_kind,
+    source: FORGECAD_STUDIO_MANIFEST.source,
+    license: FORGECAD_STUDIO_MANIFEST.license,
+    color_workflow: FORGECAD_STUDIO_MANIFEST.color_workflow,
+    output_color_space: runtime.renderer.outputColorSpace === THREE.SRGBColorSpace ? 'srgb' : 'unsupported',
+    tone_mapping: runtime.renderer.toneMapping === THREE.ACESFilmicToneMapping ? 'aces_filmic' : 'unsupported',
+    tone_mapping_exposure: runtime.renderer.toneMappingExposure,
+    contact_shadows: runtime.renderer.shadowMap.enabled && runtime.keyLight.castShadow && runtime.displayFloor.receiveShadow,
+    pmrem: FORGECAD_STUDIO_MANIFEST.pmrem,
+    cad_neutral_lighting: {
+      background: runtime.scene.background instanceof THREE.Color ? colorHex(runtime.scene.background) : 'unsupported',
+      hemisphere: {
+        sky: colorHex(runtime.hemisphereLight.color),
+        ground: colorHex(runtime.hemisphereLight.groundColor),
+        intensity: runtime.hemisphereLight.intensity,
+      },
+      ambient: { color: colorHex(runtime.ambientLight.color), intensity: runtime.ambientLight.intensity },
+      key: { color: colorHex(runtime.keyLight.color), intensity: runtime.keyLight.intensity, position: runtime.keyLight.position.toArray() },
+      rim: { color: colorHex(runtime.rimLight.color), intensity: runtime.rimLight.intensity, position: runtime.rimLight.position.toArray() },
+      warm_rim: {
+        color: colorHex(runtime.warmRimLight.color),
+        intensity: runtime.warmRimLight.intensity,
+        position: runtime.warmRimLight.position.toArray(),
+      },
+      floor: {
+        kind: FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.kind,
+        color: colorHex(floorMaterial.color),
+        opacity: floorMaterial.opacity,
+        radius_ratio: FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
+      },
+    },
+    camera_views: {
+      iso: {
+        direction: FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction,
+        distance_ratio: FORGECAD_STUDIO_MANIFEST.camera_views.iso.distance_ratio,
+        fov_degrees: runtime.camera.fov,
+      },
+    },
+  }
+  host.dataset.visualEnvironmentRecipe = canonicalJson(manifest)
 }
 
 function syncTransformControls(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
@@ -1019,9 +1215,25 @@ function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewpor
   }
   const center = bounds.getCenter(new THREE.Vector3())
   const size = bounds.getSize(new THREE.Vector3())
-  runtime.displayFloor.position.set(center.x, bounds.min.y - Math.max(size.y * 0.13, 4), center.z)
-  runtime.displayFloor.scale.setScalar(Math.max(size.length() / 190, 0.65))
+  runtime.displayFloor.position.set(center.x, bounds.min.y - Math.max(size.y * 0.01, 1), center.z)
+  runtime.displayFloor.scale.setScalar(
+    Math.max(Math.hypot(size.x, size.z) * 0.5, 1)
+      * FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
+  )
+  fitPreviewShadowCamera(runtime, size)
   frameCamera(runtime.camera, runtime.controls, props.cameraView, center, Math.max(size.length(), 1))
+}
+
+function fitPreviewShadowCamera(runtime: ViewportRuntime, size: THREE.Vector3): void {
+  const extent = Math.max(size.x, size.y, size.z, 1) * 0.72
+  const shadowCamera = runtime.keyLight.shadow.camera
+  shadowCamera.left = -extent
+  shadowCamera.right = extent
+  shadowCamera.top = extent
+  shadowCamera.bottom = -extent
+  shadowCamera.near = 1
+  shadowCamera.far = Math.max(runtime.keyLight.position.length() + size.length() * 2, 900)
+  shadowCamera.updateProjectionMatrix()
 }
 
 function base64ToArrayBuffer(value: string): ArrayBuffer {
@@ -1091,12 +1303,12 @@ function disposeNodeInstance(root: THREE.Object3D) {
 function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, view: CameraView, center: THREE.Vector3, size: number) {
   // Keep the assembled concept prominent like a CAD presentation viewport;
   // the old distance left too much empty grid around compact module packs.
-  const distance = Math.max(size * 0.98, 1)
+  const distance = Math.max(size * FORGECAD_STUDIO_MANIFEST.camera_views.iso.distance_ratio, 1)
   const direction: Record<CameraView, THREE.Vector3> = {
     // In the exported Y-up coordinate system, positive Y is above the prop.
     // Keep a prominent depth component while opening the X/Y angle enough to
     // show the top rails and lower display grip on first launch.
-    iso: new THREE.Vector3(-0.9, 0.85, 1.55), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
+    iso: new THREE.Vector3(...FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }
   camera.position.copy(center).add(direction[view].normalize().multiplyScalar(distance))
   camera.near = Math.max(distance / 1000, 0.001)

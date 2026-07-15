@@ -118,8 +118,7 @@ jobs:
           npm run agent:d2-domain-inference-service-smoke
           npm run agent:d3-domain-clarification-smoke
           npm run agent:m107-active-zone-smoke
-          npm run agent:m108-visual-pbr-smoke
-          npm run agent:m108-gltf-validator-smoke
+          npm run agent:m108-gate
       - run: npm run agent:r2-concept-contracts-smoke
       - run: npm run agent:r2-module-registry-smoke
       - run: npm run agent:r3-asset-catalog-smoke
@@ -270,9 +269,15 @@ jobs:
       - run: npm run desktop:t003-performance-smoke
         env:
           FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+      - run: npm run desktop:m108-workbench-renderer-smoke
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+          FORGECAD_M108_RENDERER_OUTPUT_DIR: output/m108-workbench-renderer
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: workbench-evidence
-          path: output/playwright
+          path: |
+            output/playwright
+            output/m108-workbench-renderer/workbench-captures
           if-no-files-found: ignore

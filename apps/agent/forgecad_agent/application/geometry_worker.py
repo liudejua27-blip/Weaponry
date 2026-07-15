@@ -25,6 +25,7 @@ from .shape_program_runtime import (
 from .visual_intent import visual_intent_for_direction
 from .visual_texture_sets import (
     builtin_material_properties,
+    builtin_visual_material_count,
     builtin_visual_texture_set_for_material_index,
     studio_environment_manifest,
     visual_texture_png_bytes,
@@ -1603,7 +1604,7 @@ def _finite_vec3(value: Any) -> bool:
 
 
 def _material_index(material_id: str) -> int:
-    if material_id in {"mat_aluminum", "mat_automotive_paint"}:
+    if material_id == "mat_aluminum":
         return 1
     if material_id == "mat_signal_red":
         return 2
@@ -1615,6 +1616,8 @@ def _material_index(material_id: str) -> int:
         return 5
     if material_id == "mat_emissive_blue":
         return 6
+    if material_id == "mat_automotive_paint":
+        return 7
     return 0
 
 
@@ -1778,93 +1781,176 @@ def _presentation_primitives(
         domain_pack_id=plan.domain_pack_id,
         direction_id=direction_id,
     )
-    count = {"simple": 2, "medium": 3, "dense": 4}.get(intent.detail_density if intent else "medium", 3)
-    anchors = [item for item in boxes if item.primitive_kind == "box"] or [item for item in boxes if item.primitive_kind == "wedge"] or list(boxes)
-    details: List[BoxPrimitive] = []
-    for index, anchor in enumerate(anchors[:count], 1):
-        width, height, depth = anchor.size_mm
-        thickness = max(12.0, min(32.0, min(width, height, depth) * 0.08))
-        details.append(
-            _box(
-                f"visual_panel_{index}",
-                (anchor.center_mm[0], anchor.center_mm[1] + height / 2 + thickness / 2, anchor.center_mm[2]),
-                (max(80.0, width * 0.62), thickness, max(70.0, depth * 0.72)),
-                3,
-                material_id="mat_composite",
-            )
-        )
-        details.append(
-            _box(
-                f"visual_groove_{index}",
-                (anchor.center_mm[0] - width * 0.22, anchor.center_mm[1], anchor.center_mm[2] + depth / 2 + thickness / 2),
-                (max(60.0, width * 0.22), max(48.0, height * 0.34), thickness),
-                0,
-                material_id="mat_rubber",
-            )
-        )
-        if index <= 2:
-            details.append(
-                _wedge(
-                    f"visual_guard_{index}",
-                    (anchor.center_mm[0] + width * 0.29, anchor.center_mm[1] - height * 0.03, anchor.center_mm[2] + depth / 2 + thickness),
-                    (max(70.0, width * 0.2), max(60.0, height * 0.44), thickness * 1.8),
-                    1,
-                    material_id="mat_aluminum",
-                )
-            )
-
-    # A fixed small cluster makes third-level detail readable without exposing
-    # a free feature editor or inventing a real cooling/electrical system.
-    primary = anchors[0]
-    width, height, depth = primary.size_mm
-    thickness = max(10.0, min(24.0, min(width, height, depth) * 0.06))
-    details.append(
-        _box(
-            "visual_light_strip_1",
-            (primary.center_mm[0] - width * 0.22, primary.center_mm[1] + height * 0.16, primary.center_mm[2] + depth / 2 + thickness / 2),
-            (max(70.0, width * 0.24), max(12.0, height * 0.06), thickness),
-            6,
-            material_id="mat_emissive_blue",
-        )
+    detail_level = {"simple": 2, "medium": 3, "dense": 4}.get(
+        intent.detail_density if intent else "medium",
+        3,
     )
-    # This is a shallow, contrasting visual route only.  It is deliberately
-    # not a cable, wiring path or electrical feature and carries no behavior.
-    details.append(
-        _box(
-            "visual_cable_slot_1",
-            (primary.center_mm[0] + width * 0.08, primary.center_mm[1] - height * 0.18, primary.center_mm[2] + depth / 2 + thickness / 2),
-            (max(80.0, width * 0.38), max(12.0, height * 0.055), thickness),
-            0,
-            material_id="mat_rubber",
-        )
-    )
-    vent_radius = max(9.0, min(24.0, min(width, height) * 0.045))
-    for index, y_offset in enumerate((-vent_radius * 1.45, 0.0, vent_radius * 1.45), 1):
-        details.append(
-            _cylinder(
-                f"visual_vent_{index}",
-                (primary.center_mm[0] + width * 0.26, primary.center_mm[1] + y_offset, primary.center_mm[2] + depth / 2 + thickness / 2),
-                vent_radius,
-                thickness,
-                0,
-                (0.0, 0.0, 1.0),
-                material_id="mat_rubber",
-            )
-        )
-    fastener_radius = max(8.0, min(18.0, min(width, depth) * 0.03))
-    for index, x_offset in enumerate((-width * 0.24, width * 0.24), 1):
-        details.append(
-            _cylinder(
-                f"visual_fastener_{index}",
-                (primary.center_mm[0] + x_offset, primary.center_mm[1] + height / 2 + thickness / 2, primary.center_mm[2]),
-                fastener_radius,
-                thickness,
-                1,
-                (0.0, 1.0, 0.0),
-                material_id="mat_aluminum",
-            )
-        )
+    primary = _showcase_primary_anchor(boxes, plan.domain_pack_id)
+    if plan.domain_pack_id == "pack_future_weapon_prop":
+        details = _future_prop_showcase_details(primary, detail_level)
+    elif plan.domain_pack_id == "pack_vehicle_concept":
+        details = _vehicle_showcase_details(primary, detail_level)
+    elif plan.domain_pack_id == "pack_aircraft_concept":
+        details = _aircraft_showcase_details(primary, detail_level)
+    elif plan.domain_pack_id == "pack_robotic_arm_concept":
+        details = _robotic_arm_showcase_details(primary, detail_level)
+    else:
+        raise ValueError(f"showcase detail grammar is not defined for {plan.domain_pack_id}")
     return [*boxes, *details]
+
+
+_SHOWCASE_PRIMARY_ROLE_WHITELIST: Mapping[str, Tuple[str, ...]] = {
+    "pack_future_weapon_prop": (
+        "primary_body", "prop_core", "prop_capsule_body", "prop_front_shell",
+        "prop_long_body", "prop_body_spine", "prop_heavy_body", "prop_energy_body",
+        "prop_energy_handle", "prop_drone_body",
+    ),
+    "pack_vehicle_concept": (
+        "body_shell", "vehicle_chassis", "vehicle_body", "rover_chassis", "rover_front",
+        "crawler_chassis", "racer_front", "racer_delta_body", "racer_capsule_body",
+        "carrier_chassis", "hauler_base", "rescue_bus_body",
+    ),
+    "pack_aircraft_concept": (
+        "fuselage", "airframe_core", "tilt_body", "lift_fan_body", "jet_spine",
+        "needle_fuselage", "interceptor_body", "cargo_fuselage", "passenger_fuselage",
+        "heavy_lifter_body", "scout_flying_wing", "scout_body", "scout_capsule",
+    ),
+    "pack_robotic_arm_concept": (
+        "base", "precision_base", "desktop_base", "rail_base", "handler_base",
+        "handler_pedestal", "welding_base", "maintenance_base", "telescopic_base",
+        "inspection_base", "service_mobile_base", "carousel_base", "service_pedestal",
+    ),
+}
+
+
+def _showcase_primary_anchor(boxes: Sequence[BoxPrimitive], domain_pack_id: str) -> BoxPrimitive:
+    """Resolve one reviewed primary role; never fall back to primitive order."""
+
+    allowed_roles = _SHOWCASE_PRIMARY_ROLE_WHITELIST.get(domain_pack_id)
+    if allowed_roles is None:
+        raise ValueError(f"showcase anchor whitelist is not defined for {domain_pack_id}")
+    matches = [item for item in boxes if item.part_role in allowed_roles]
+    if len(matches) != 1:
+        raise ValueError(
+            f"showcase requires exactly one whitelisted primary role for {domain_pack_id}; "
+            f"found {[item.part_role for item in matches]}"
+        )
+    return matches[0]
+
+
+def _primitive_display_extent(primitive: BoxPrimitive) -> Tuple[float, float, float]:
+    """Return axis-aware dimensions for deterministic visual-layer placement."""
+
+    if primitive.primitive_kind not in {"cylinder", "capsule"}:
+        return primitive.size_mm
+    dimensions = [primitive.radius_mm * 2] * 3
+    dominant = max(range(3), key=lambda index: abs(primitive.axis[index]))
+    dimensions[dominant] = primitive.height_mm
+    return (dimensions[0], dimensions[1], dimensions[2])
+
+
+def _detail_thickness(width: float, height: float, depth: float) -> float:
+    return max(10.0, min(24.0, min(width, height, depth) * 0.06))
+
+
+def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+    """Non-functional prop shell language: dorsal plate and asymmetric side accents."""
+
+    cx, cy, cz = primary.center_mm
+    width, height, depth = _primitive_display_extent(primary)
+    thickness = _detail_thickness(width, height, depth)
+    vent_radius = max(9.0, min(20.0, min(height, depth) * 0.045))
+    details = [
+        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.5, thickness, depth * 0.62), 3, material_id="mat_composite"),
+        _box("visual_groove_prop_side", (cx - width * 0.18, cy - height * 0.05, cz + depth / 2 + thickness / 2), (width * 0.28, height * 0.22, thickness), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_prop_rear", (cx + width * 0.3, cy + height * 0.05, cz + depth / 2 + thickness), (width * 0.22, height * 0.38, thickness * 1.8), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_prop_side", (cx - width * 0.28, cy + height * 0.14, cz + depth / 2 + thickness / 2), (width * 0.2, max(12.0, height * 0.055), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_prop_lower", (cx + width * 0.06, cy - height * 0.24, cz + depth / 2 + thickness / 2), (width * 0.34, max(12.0, height * 0.05), thickness), 0, material_id="mat_rubber"),
+    ]
+    for index, y_offset in enumerate((-vent_radius * 1.4, 0.0, vent_radius * 1.4), 1):
+        details.append(_cylinder(f"visual_vent_prop_{index}", (cx + width * 0.25, cy + y_offset, cz + depth / 2 + thickness / 2), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
+    fastener_radius = max(8.0, min(16.0, min(width, depth) * 0.025))
+    for index, x_offset in enumerate((-width * 0.18, width * 0.2), 1):
+        details.append(_cylinder(f"visual_fastener_prop_{index}", (cx + x_offset, cy + height / 2 + thickness / 2, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+    if detail_level >= 4:
+        details.append(_box("visual_panel_prop_lower", (cx + width * 0.22, cy - height / 2 - thickness / 2, cz), (width * 0.24, thickness, depth * 0.48), 2, material_id="mat_signal_red"))
+    return details
+
+
+def _vehicle_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+    """Vehicle shell language: hood/rocker layers, front lighting and top vents."""
+
+    cx, cy, cz = primary.center_mm
+    width, height, depth = _primitive_display_extent(primary)
+    thickness = _detail_thickness(width, height, depth)
+    details = [
+        _box("visual_panel_vehicle_paint", (cx - width * 0.23, cy + height / 2 + thickness / 2, cz), (width * 0.34, thickness, depth * 0.72), 7, material_id="mat_automotive_paint"),
+        _box("visual_panel_vehicle_deck", (cx + width * 0.3, cy + height / 2 + thickness / 2, cz), (width * 0.24, thickness, depth * 0.58), 3, material_id="mat_composite"),
+        _box("visual_groove_vehicle_rocker_left", (cx + width * 0.02, cy - height * 0.28, cz - depth / 2 - thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _box("visual_groove_vehicle_rocker_right", (cx + width * 0.02, cy - height * 0.28, cz + depth / 2 + thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_vehicle_rear_deck", (cx + width * 0.38, cy + height / 2 + thickness, cz), (width * 0.2, max(60.0, height * 0.3), depth * 0.5), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_vehicle_front", (cx - width / 2 - thickness / 2, cy + height * 0.08, cz), (thickness, max(28.0, height * 0.22), depth * 0.5), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_vehicle_belt", (cx - width * 0.05, cy + height * 0.12, cz + depth / 2 + thickness / 2), (width * 0.46, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
+    ]
+    vent_radius = max(9.0, min(19.0, min(width, depth) * 0.028))
+    for index, z_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
+        details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
+    fastener_radius = max(8.0, min(15.0, min(height, depth) * 0.03))
+    for index, x_offset in enumerate((-width * 0.32, width * 0.32), 1):
+        details.append(_cylinder(f"visual_fastener_vehicle_sill_{index}", (cx + x_offset, cy - height * 0.18, cz + depth / 2 + thickness / 2), fastener_radius, thickness, 1, (0.0, 0.0, 1.0), material_id="mat_aluminum"))
+    if detail_level >= 4:
+        details.append(_box("visual_light_strip_vehicle_rear", (cx + width / 2 + thickness / 2, cy + height * 0.04, cz), (thickness, max(24.0, height * 0.18), depth * 0.38), 6, material_id="mat_emissive_blue"))
+    return details
+
+
+def _aircraft_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+    """Aircraft shell language: dorsal spine, paired chines and wing-tip markers."""
+
+    cx, cy, cz = primary.center_mm
+    width, height, depth = _primitive_display_extent(primary)
+    thickness = _detail_thickness(width, height, depth)
+    details = [
+        _box("visual_panel_aircraft_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.46, thickness, depth * 0.42), 3, material_id="mat_composite"),
+        _box("visual_groove_aircraft_belly", (cx + width * 0.12, cy - height / 2 - thickness / 2, cz), (width * 0.42, thickness, depth * 0.36), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_aircraft_chine_left", (cx - width * 0.02, cy - height * 0.08, cz - depth / 2 - thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
+        _wedge("visual_guard_aircraft_chine_right", (cx - width * 0.02, cy - height * 0.08, cz + depth / 2 + thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_aircraft_port", (cx - width * 0.28, cy + height * 0.06, cz - depth / 2 - thickness / 2), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_light_strip_aircraft_starboard", (cx - width * 0.28, cy + height * 0.06, cz + depth / 2 + thickness / 2), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_aircraft_spine", (cx + width * 0.18, cy + height / 2 + thickness / 2, cz), (width * 0.3, thickness, max(14.0, depth * 0.06)), 0, material_id="mat_rubber"),
+    ]
+    vent_radius = max(9.0, min(18.0, min(height, depth) * 0.04))
+    for index, z_offset in enumerate((-vent_radius * 1.6, vent_radius * 1.6), 1):
+        details.append(_cylinder(f"visual_vent_aircraft_tail_{index}", (cx + width / 2 + thickness / 2, cy - height * 0.1, cz + z_offset), vent_radius, thickness, 0, (1.0, 0.0, 0.0), material_id="mat_rubber"))
+    fastener_radius = max(8.0, min(14.0, min(width, depth) * 0.025))
+    for index, x_offset in enumerate((-width * 0.12, width * 0.16), 1):
+        details.append(_cylinder(f"visual_fastener_aircraft_dorsal_{index}", (cx + x_offset, cy + height / 2 + thickness / 2, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+    if detail_level >= 4:
+        details.append(_box("visual_panel_aircraft_tail", (cx + width * 0.36, cy + height / 2 + thickness / 2, cz), (width * 0.16, thickness, depth * 0.3), 2, material_id="mat_signal_red"))
+    return details
+
+
+def _robotic_arm_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+    """Robot shell language: grounded base fascia, service plate and status bar."""
+
+    cx, cy, cz = primary.center_mm
+    width, height, depth = _primitive_display_extent(primary)
+    thickness = _detail_thickness(width, height, depth)
+    details = [
+        _box("visual_panel_robot_base", (cx, cy + height / 2 + thickness / 2, cz), (width * 0.58, thickness, depth * 0.58), 3, material_id="mat_composite"),
+        _box("visual_groove_robot_plinth", (cx, cy - height * 0.2, cz + depth / 2 + thickness / 2), (width * 0.58, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_robot_corner", (cx + width * 0.3, cy + height * 0.12, cz + depth / 2 + thickness), (width * 0.2, height * 0.44, thickness * 1.8), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_robot_status", (cx - width * 0.32, cy + height * 0.08, cz + depth / 2 + thickness / 2), (max(18.0, width * 0.08), height * 0.42, thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_robot_service", (cx + width * 0.08, cy + height * 0.16, cz + depth / 2 + thickness / 2), (width * 0.34, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
+    ]
+    vent_radius = max(9.0, min(18.0, min(width, height) * 0.04))
+    for index, x_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
+        details.append(_cylinder(f"visual_vent_robot_base_{index}", (cx + width * 0.2 + x_offset, cy - height * 0.1, cz + depth / 2 + thickness / 2), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
+    fastener_radius = max(8.0, min(15.0, min(width, depth) * 0.025))
+    for index, z_offset in enumerate((-depth * 0.22, depth * 0.22), 1):
+        details.append(_cylinder(f"visual_fastener_robot_top_{index}", (cx, cy + height / 2 + thickness / 2, cz + z_offset), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+    if detail_level >= 4:
+        details.append(_box("visual_panel_robot_warning", (cx + width * 0.32, cy - height * 0.02, cz - depth / 2 - thickness / 2), (width * 0.16, height * 0.24, thickness), 2, material_id="mat_signal_red"))
+    return details
 
 
 def _box(
@@ -1909,7 +1995,13 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
     """
     catalog: Dict[str, Dict[str, List[BoxPrimitive]]] = {
         "pack_future_weapon_prop": {
-            "compact_prop_a": [_box("prop_core", (0, 560, 0), (1500, 420, 620), 0), _box("prop_grip", (-180, 180, 0), (340, 600, 300), 1), _wedge("prop_shoulder", (650, 760, 0), (620, 240, 460), 2), _box("prop_sight", (180, 850, 0), (260, 140, 180), 1)],
+            "compact_prop_a": [
+                _capsule("prop_core", (0, 590, 0), 250, 1500, 0, (1, 0, 0)),
+                _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
+                _capsule("prop_grip", (-160, 210, 0), 130, 620, 1),
+                _box("prop_rear_housing", (630, 620, 0), (480, 320, 440), 0),
+                _box("prop_sight", (120, 870, 0), (300, 120, 170), 1),
+            ],
             "compact_prop_b": [_capsule("prop_capsule_body", (0, 570, 0), 300, 1500, 0, (1, 0, 0)), _box("prop_side_housing", (100, 520, -390), (680, 260, 180), 1), _box("prop_grip", (-250, 170, 0), (300, 560, 280), 1), _wedge("prop_optic", (250, 840, 0), (360, 180, 220), 2), _box("prop_panel", (520, 590, 390), (380, 80, 220), 2)],
             "compact_prop_c": [_wedge("prop_front_shell", (-500, 600, 0), (720, 420, 560), 0), _box("prop_rear_shell", (480, 600, 0), (900, 500, 600), 1), _cylinder("prop_muzzle_ring", (-900, 600, 0), 180, 240, 2, (1, 0, 0)), _box("prop_grip", (-120, 170, 0), (320, 560, 300), 1), _box("prop_back_panel", (700, 820, 0), (260, 180, 280), 2)],
             "long_profile_prop_a": [_box("prop_long_body", (0, 590, 0), (2300, 360, 420), 0), _cylinder("prop_front_ring", (-1180, 590, 0), 150, 260, 2, (1, 0, 0)), _box("prop_stock", (980, 510, 0), (560, 340, 360), 1), _wedge("prop_upper_rail", (240, 820, 0), (1100, 120, 180), 2), _box("prop_grip", (-180, 180, 0), (280, 520, 260), 1)],
@@ -1923,7 +2015,20 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
             "energy_visual_prop_c": [_box("prop_drone_body", (0, 760, 0), (1500, 420, 720), 0), _wedge("prop_fin_front", (-700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_back", (700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_left", (0, 820, -520), (520, 260, 340), 1), _wedge("prop_fin_right", (0, 820, 520), (520, 260, 340), 1), _cylinder("prop_sensor", (0, 1040, 0), 150, 240, 2), _box("prop_pod_left", (-80, 420, -420), (280, 300, 240), 2), _box("prop_pod_right", (-80, 420, 420), (280, 300, 240), 2)],
         },
         "pack_vehicle_concept": {
-            "urban_scout_a": [_box("vehicle_chassis", (0, 500, 0), (2100, 320, 900), 0), _wedge("vehicle_nose", (-820, 680, 0), (760, 420, 820), 0), _box("vehicle_cabin", (200, 760, 0), (1050, 520, 820), 0), _wedge("vehicle_canopy", (20, 1040, 0), (820, 280, 650), 1), _cylinder("vehicle_wheel_fl", (-650, 340, -520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_fr", (-650, 340, 520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rl", (650, 340, -520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rr", (650, 340, 520), 220, 220, 2, (0, 0, 1))],
+            "urban_scout_a": [
+                _box("vehicle_chassis", (0, 430, 0), (2200, 280, 980), 0, material_id="mat_automotive_paint"),
+                _box("vehicle_nose", (-850, 550, 0), (720, 280, 900), 0, material_id="mat_automotive_paint"),
+                _box("vehicle_cabin", (240, 630, 0), (1000, 260, 780), 0, material_id="mat_automotive_paint"),
+                _box("vehicle_canopy", (40, 810, 0), (720, 150, 600), 1),
+                _cylinder("vehicle_wheel_fl", (-720, 250, -550), 250, 220, 2, (0, 0, 1)),
+                _cylinder("vehicle_wheel_fr", (-720, 250, 550), 250, 220, 2, (0, 0, 1)),
+                _cylinder("vehicle_wheel_rl", (720, 250, -550), 250, 220, 2, (0, 0, 1)),
+                _cylinder("vehicle_wheel_rr", (720, 250, 550), 250, 220, 2, (0, 0, 1)),
+                _cylinder("vehicle_hub_fl", (-720, 250, -550), 118, 246, 1, (0, 0, 1)),
+                _cylinder("vehicle_hub_fr", (-720, 250, 550), 118, 246, 1, (0, 0, 1)),
+                _cylinder("vehicle_hub_rl", (720, 250, -550), 118, 246, 1, (0, 0, 1)),
+                _cylinder("vehicle_hub_rr", (720, 250, 550), 118, 246, 1, (0, 0, 1)),
+            ],
             "urban_scout_b": [_box("vehicle_body", (0, 620, 0), (2100, 480, 880), 0), _capsule("vehicle_cabin_capsule", (180, 960, 0), 300, 1000, 1, (1, 0, 0)), _cylinder("vehicle_hover_front", (-720, 320, -400), 150, 260, 2, (0, 0, 1)), _cylinder("vehicle_hover_rear", (720, 320, 400), 150, 260, 2, (0, 0, 1)), _box("vehicle_lightbar", (-1040, 760, 0), (100, 160, 560), 2)],
             "urban_scout_c": [_box("vehicle_body", (0, 580, 0), (2200, 520, 760), 0), _wedge("vehicle_cabin", (120, 920, 0), (980, 500, 700), 1), _box("vehicle_track_left", (0, 300, -500), (1800, 260, 220), 2), _box("vehicle_track_right", (0, 300, 500), (1800, 260, 220), 2), _box("vehicle_sensor", (-700, 920, 0), (260, 220, 320), 2)],
             "exploration_vehicle_a": [_box("rover_chassis", (0, 520, 0), (2400, 360, 1000), 0), _box("rover_lab", (260, 920, 0), (900, 600, 860), 1), *[_cylinder(f"rover_wheel_{index}", (center, 300, side), 160, 200, 2, (0, 0, 1)) for index, center in enumerate((-850, -300, 300, 850), 1) for side in (-520, 520)], _wedge("rover_sensor_mast", (-600, 1120, 0), (260, 520, 260), 2)],
@@ -1950,7 +2055,22 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
 def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
     return {
         "pack_aircraft_concept": {
-            "vertical_takeoff_a": [_box("airframe_core", (80, 650, 0), (1700, 360, 520), 0), _wedge("airframe_nose", (-980, 640, 0), (760, 300, 480), 0), _wedge("airframe_canopy", (-460, 890, 0), (640, 260, 380), 1), _box("lift_wing_left", (100, 640, -620), (1100, 100, 900), 3), _box("lift_wing_right", (100, 640, 620), (1100, 100, 900), 3), _wedge("airframe_tail", (800, 840, 0), (520, 420, 440), 1), _cylinder("lift_rotor_front_left", (-350, 720, -960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_front_right", (-350, 720, 960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_left", (600, 720, -960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_right", (600, 720, 960), 220, 140, 2, (0, 1, 0))],
+            "vertical_takeoff_a": [
+                _capsule("airframe_core", (80, 650, 0), 220, 2000, 0, (1, 0, 0)),
+                _wedge("airframe_nose", (-1010, 640, 0), (240, 140, 280), 0),
+                _box("airframe_canopy", (-430, 820, 0), (500, 130, 320), 1),
+                _wedge("lift_wing_left", (120, 630, -610), (1280, 72, 1040), 3),
+                _wedge("lift_wing_right", (120, 630, 610), (1280, 72, 1040), 3),
+                _wedge("airframe_tail", (900, 760, 0), (360, 260, 280), 1),
+                _cylinder("lift_rotor_front_left", (-400, 680, -1050), 205, 54, 3, (0, 1, 0)),
+                _cylinder("lift_rotor_front_right", (-400, 680, 1050), 205, 54, 3, (0, 1, 0)),
+                _cylinder("lift_rotor_rear_left", (620, 680, -1050), 205, 54, 3, (0, 1, 0)),
+                _cylinder("lift_rotor_rear_right", (620, 680, 1050), 205, 54, 3, (0, 1, 0)),
+                _cylinder("lift_hub_front_left", (-400, 705, -1050), 92, 88, 1, (0, 1, 0)),
+                _cylinder("lift_hub_front_right", (-400, 705, 1050), 92, 88, 1, (0, 1, 0)),
+                _cylinder("lift_hub_rear_left", (620, 705, -1050), 92, 88, 1, (0, 1, 0)),
+                _cylinder("lift_hub_rear_right", (620, 705, 1050), 92, 88, 1, (0, 1, 0)),
+            ],
             "vertical_takeoff_b": [_box("tilt_body", (0, 600, 0), (2200, 480, 760), 0), _wedge("tilt_nose", (-850, 700, 0), (720, 420, 720), 1), _cylinder("tilt_pod_left", (100, 450, -720), 180, 420, 2, (1, 0, 0)), _cylinder("tilt_pod_right", (100, 450, 720), 180, 420, 2, (1, 0, 0)), _box("tilt_tail", (850, 820, 0), (520, 520, 420), 1)],
             "vertical_takeoff_c": [_capsule("lift_fan_body", (0, 650, 0), 360, 2100, 0, (1, 0, 0)), _box("lift_fan_canopy", (-450, 940, 0), (620, 320, 520), 1), _cylinder("lift_fan_front", (-500, 500, 0), 250, 180, 2, (1, 0, 0)), _cylinder("lift_fan_rear", (600, 500, 0), 250, 180, 2, (1, 0, 0)), _wedge("lift_fan_tail", (820, 900, 0), (420, 360, 520), 2)],
             "fast_single_seat_a": [_wedge("jet_nose", (-1000, 600, 0), (900, 420, 520), 0), _box("jet_spine", (300, 620, 0), (1900, 360, 500), 0), _box("jet_canopy", (-360, 920, 0), (540, 300, 430), 1), _wedge("jet_delta_left", (180, 560, -820), (1400, 140, 620), 1), _wedge("jet_delta_right", (180, 560, 820), (1400, 140, 620), 1), _cylinder("jet_engine", (1050, 520, 0), 150, 500, 2, (1, 0, 0))],
@@ -1981,16 +2101,16 @@ def _robotic_arm_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
     return {
         "pack_robotic_arm_concept": {
             "precision_light_a": [
-                _box("precision_base", (0, 220, 0), (700, 440, 700), 0),
-                _cylinder("precision_turntable", (0, 520, 0), 220, 200, 2),
-                _cylinder("precision_joint_1", (0, 720, 0), 190, 320, 2, (0, 0, 1)),
-                _box("precision_link_1", (240, 1000, 0), (300, 700, 300), 0),
-                _cylinder("precision_joint_2", (240, 1370, 0), 170, 320, 2, (0, 0, 1)),
-                _box("precision_link_2", (530, 1500, 0), (600, 260, 260), 1),
-                _cylinder("precision_wrist", (830, 1500, 0), 130, 260, 2, (0, 0, 1)),
-                _box("precision_tool_palm", (980, 1500, 0), (260, 220, 360), 1),
-                _box("precision_gripper_upper", (1160, 1600, 0), (300, 80, 120), 4),
-                _box("precision_gripper_lower", (1160, 1400, 0), (300, 80, 120), 4),
+                _box("precision_base", (0, 160, 0), (720, 320, 720), 0),
+                _cylinder("precision_turntable", (0, 380, 0), 230, 120, 2),
+                _cylinder("precision_joint_1", (0, 580, 0), 170, 300, 2, (0, 0, 1)),
+                _capsule("precision_link_1", (210, 850, 0), 130, 620, 0),
+                _cylinder("precision_joint_2", (210, 1160, 0), 155, 300, 2, (0, 0, 1)),
+                _capsule("precision_link_2", (500, 1160, 0), 120, 600, 1, (1, 0, 0)),
+                _cylinder("precision_wrist", (800, 1160, 0), 120, 260, 2, (0, 0, 1)),
+                _box("precision_tool_palm", (930, 1160, 0), (240, 210, 330), 1),
+                _box("precision_gripper_upper", (1100, 1260, 0), (280, 70, 100), 4),
+                _box("precision_gripper_lower", (1100, 1060, 0), (280, 70, 100), 4),
             ],
             "precision_light_b": [_box("desktop_base", (0, 180, 0), (620, 360, 620), 0), _cylinder("desktop_turntable", (0, 500, 0), 180, 280, 2), _capsule("desktop_link", (0, 1050, 0), 120, 820, 1), _cylinder("desktop_wrist", (0, 1550, 0), 130, 260, 2), _box("desktop_tool", (0, 1880, 0), (360, 320, 260), 1)],
             "precision_light_c": [_box("rail_base", (0, 160, 0), (1000, 320, 460), 0), _box("rail_carriage", (-320, 500, 0), (360, 260, 420), 1), _cylinder("rail_pivot", (-320, 800, 0), 140, 300, 2), _box("rail_link", (-320, 1250, 0), (260, 760, 260), 1), _cylinder("rail_wrist", (-320, 1720, 0), 120, 240, 2), _wedge("rail_tool", (-320, 2000, 0), (420, 320, 360), 2)],
@@ -2441,6 +2561,7 @@ def _material_id_for_index(index: int) -> str:
         4: "mat_rubber",
         5: "mat_dark_glass",
         6: "mat_emissive_blue",
+        7: "mat_automotive_paint",
     }.get(index, "mat_primary")
 
 
@@ -2930,7 +3051,7 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
     textures: List[Dict[str, Any]] = []
     materials: List[Dict[str, Any]] = []
     extensions_used: set[str] = set()
-    for material_index in range(7):
+    for material_index in range(builtin_visual_material_count()):
         texture_set = builtin_visual_texture_set_for_material_index(material_index)
         properties = builtin_material_properties(material_index)
         texture_by_role: Dict[str, int] = {}

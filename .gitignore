@@ -17,6 +17,7 @@ __pycache__/
 output/playwright/
 output/evaluations/
 output/m108-visual-benchmark/
+output/m108-workbench-renderer/
 artifacts/design-qa/
 *.db
 *.db-shm

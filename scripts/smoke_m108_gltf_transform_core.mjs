@@ -48,8 +48,8 @@ const readbackProgram = [
   'print(json.dumps(asdict(facts), ensure_ascii=True, sort_keys=True, separators=(\',\', \':\')))',
 ].join('; ');
 
-function readback(payload) {
-  const result = spawnSync(python, ['-c', readbackProgram], {
+function runReadback(payload) {
+  return spawnSync(python, ['-c', readbackProgram], {
     cwd: ROOT,
     input: Buffer.from(payload),
     encoding: 'utf8',
@@ -61,36 +61,81 @@ function readback(payload) {
     },
     maxBuffer: 20 * 1024 * 1024,
   });
+}
+
+function readback(payload) {
+  const result = runReadback(payload);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return JSON.parse(result.stdout);
 }
 
-function requiredMappingFacts(facts) {
-  return {
-    triangle_count: facts.triangle_count,
-    mesh_count: facts.mesh_count,
-    primitive_count: facts.primitive_count,
-    material_count: facts.material_count,
-    uv0_primitive_count: facts.uv0_primitive_count,
-    normal_primitive_count: facts.normal_primitive_count,
-    tangent_primitive_count: facts.tangent_primitive_count,
-    material_zone_faces: facts.material_zone_faces,
-    visual_texture_sets: facts.visual_texture_sets
-      .map(({ material_index, maps, ...textureSet }) => ({
-        ...textureSet,
-        maps: maps.map(({ glb_image_index, glb_texture_index, ...map }) => map),
-      }))
-      .sort((left, right) => left.material_id.localeCompare(right.material_id)),
-    visual_environment: facts.visual_environment,
-  };
+function expectForgeCadReadbackRejected(payload, fixtureId) {
+  const result = runReadback(payload);
+  assert.notEqual(result.status, 0, `${fixtureId}: rewritten GLB unexpectedly remained ForgeCAD-readback valid`);
+  const diagnostic = `${result.stderr ?? ''}\n${result.stdout ?? ''}`;
+  assert.match(
+    diagnostic,
+    /GLB visual material parameters do not match the built-in PBR truth/,
+    `${fixtureId}: writer was rejected for an unexpected reason`,
+  );
+  return 'explicit_default_pbr_parameters_removed';
+}
+
+function expectedPartZoneMaterialMapping(facts) {
+  const textureSetByMaterial = new Map(
+    facts.visual_texture_sets.map((textureSet) => [
+      textureSet.material_id,
+      textureSet.visual_texture_set_id,
+    ]),
+  );
+  return facts.material_zone_faces
+    .map((zone) => ({
+      primitive_id: zone.primitive_id,
+      part_instance_id: zone.part_instance_id,
+      material_zone_id: zone.material_zone_id,
+      material_id: zone.material_id,
+      visual_texture_set_id: textureSetByMaterial.get(zone.material_id),
+    }))
+    .sort((left, right) => left.primitive_id.localeCompare(right.primitive_id));
+}
+
+function documentPartZoneMaterialMapping(document) {
+  const mapping = [];
+  for (const mesh of document.getRoot().listMeshes()) {
+    for (const primitive of mesh.listPrimitives()) {
+      const primitiveExtras = primitive.getExtras();
+      const materialExtras = primitive.getMaterial()?.getExtras() ?? {};
+      assert.equal(
+        materialExtras.forgecad_texture_material_id,
+        primitiveExtras.forgecad_material_id,
+        'glTF Transform reader detached a primitive from its declared visual material',
+      );
+      mapping.push({
+        primitive_id: primitiveExtras.forgecad_primitive_id,
+        part_instance_id: primitiveExtras.forgecad_part_instance_id,
+        material_zone_id: primitiveExtras.forgecad_material_zone_id,
+        material_id: primitiveExtras.forgecad_material_id,
+        visual_texture_set_id: materialExtras.forgecad_visual_texture_set_id,
+      });
+    }
+  }
+  return mapping.sort((left, right) => left.primitive_id.localeCompare(right.primitive_id));
 }
 
 const byteSizes = [];
+const rejectionReasons = [];
 
 for (const fixture of fixtures) {
   const source = new Uint8Array(Buffer.from(fixture.glb_base64, 'base64'));
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   const document = await io.readBinary(source);
+  const sourceFacts = readback(source);
+  const expectedMapping = expectedPartZoneMaterialMapping(sourceFacts);
+  assert.deepEqual(
+    documentPartZoneMaterialMapping(document),
+    expectedMapping,
+    `${fixture.fixture_id}: core reader changed the required Part/zone/material mapping`,
+  );
   const rewritten = await io.writeBinary(document);
   const report = await validateBytes(rewritten, {
     format: 'glb',
@@ -100,25 +145,24 @@ for (const fixture of fixtures) {
   assert.equal(report.issues.numErrors, 0, `${fixture.fixture_id}: rewritten GLB has errors`);
   assert.equal(report.issues.numWarnings, 0, `${fixture.fixture_id}: rewritten GLB has warnings`);
   assert.ok(rewritten.byteLength > 0, `${fixture.fixture_id}: writer produced no GLB bytes`);
-  const sourceFacts = readback(source);
-  const rewrittenFacts = readback(rewritten);
+  const rewrittenDocument = await io.readBinary(rewritten);
   assert.deepEqual(
-    requiredMappingFacts(rewrittenFacts),
-    requiredMappingFacts(sourceFacts),
-    `${fixture.fixture_id}: core reader/writer changed the required Part/zone/material PBR mapping`,
+    documentPartZoneMaterialMapping(rewrittenDocument),
+    expectedMapping,
+    `${fixture.fixture_id}: core writer changed the standard-readable Part/zone/material mapping`,
   );
-  assert.notDeepEqual(
-    rewrittenFacts,
-    sourceFacts,
-    `${fixture.fixture_id}: expected core writer to demonstrate non-identical ForgeCAD readback`,
-  );
+  rejectionReasons.push({
+    fixture_id: fixture.fixture_id,
+    reason: expectForgeCadReadbackRejected(rewritten, fixture.fixture_id),
+  });
   byteSizes.push({ fixture_id: fixture.fixture_id, source: source.byteLength, rewritten: rewritten.byteLength });
 }
 
 console.log(JSON.stringify({
   ok: true,
   decision: 'reject_core_writer_as_export_transform',
-  note: 'glTF Transform preserves the required Part/zone/material PBR mapping, but reindexes resources and changes ForgeCAD readback; it remains evaluation-only and cannot replace the immutable compiled GLB.',
+  note: 'glTF Transform preserves the standard-readable Part/zone/material mapping but removes explicit default PBR parameters required by ForgeCAD readback. Its output is intentionally rejected and cannot replace the immutable compiled GLB.',
+  rejection_reasons: rejectionReasons,
   byte_sizes: byteSizes,
 }));
 process.exit(0);

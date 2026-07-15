@@ -60,7 +60,7 @@ These projects are referenced by the product design or supported as external ada
 | FastAPI | Agent API framework | Automated | Covered by `apps/agent/requirements-release.lock`; transitive Python runtime dependencies are pinned with license metadata. |
 | Phosphor Icons for React | CAD 工作台图标 | Automated | `@phosphor-icons/react@2.1.10`，MIT；由 `package-lock.json` 固定并进入 npm license gate。 |
 | Khronos glTF-Validator | 开发/CI GLB 标准合规检查 | Automated dev dependency | `gltf-validator@2.0.0-dev.3.10`，Apache-2.0；锁定在 `package-lock.json`，只读取原始 GLB 并输出报告，不成为资产或运行时真值。 |
-| glTF Transform core/extensions | M108 GLB reader/writer 采用边界评估 | Automated dev dependency, evaluation-only | `@gltf-transform/core@4.4.1`、`@gltf-transform/extensions@4.4.1`，MIT；锁定在 `package-lock.json`，仅对四份原始 showcase GLB 进行受扩展注册的读写和 readback 比对。评估确认它会重编号资源并改变 ForgeCAD readback，故不能替换不可变编译 GLB，也不打包进桌面运行时。 |
+| glTF Transform core/extensions | M108 GLB reader/writer 采用边界评估 | Automated dev dependency, evaluation-only | `@gltf-transform/core@4.4.1`、`@gltf-transform/extensions@4.4.1`，MIT；锁定在 `package-lock.json`，仅对四份原始 showcase GLB 进行受扩展注册的读写和拒绝决策验证。评估确认标准读取阶段仍保留 Part/zone/material 映射，但 writer 会删除 ForgeCAD 真实 readback 必需的显式默认 PBR 参数；该写出必须被拒绝，不能替换不可变编译 GLB，也不打包进桌面运行时。 |
 
 ## Reference-only GitHub projects
 

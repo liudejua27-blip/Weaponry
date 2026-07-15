@@ -20,7 +20,7 @@ npm run agent:m108-visual-benchmark-kit
 npm run agent:m108-visual-benchmark-kit-smoke
 ```
 
-它只验证审阅包可复现、四领域齐全、每份 GLB 具有多 zone、至少五条实际材质/纹理绑定、统一 128×128 五通道纹理和受限 bevel readback，不产生评分。M108 PBR smoke 另按 primitive 的真实 material index/role 核对轮胎/握把、座舱/玻璃、灯带、关节/旋翼等受限绑定，并且只接受实际使用材质触发的 clearcoat 或 transmission/IOR；仅在 GLB 声明未使用扩展不算通过。当前 fixture 的内置视觉 primitive 还必须回读 `forgecad_visual_uv_repeat_mm=320`；G826 同时锁定封闭 primitive 外向绕序、非退化三角形和正有向体积，并拒绝错误重复元数据或超界 UV。这些是纹理可见性/稳定网格 Gate，不是工程几何证明。
+它只验证审阅包可复现、四领域齐全、每份 GLB 具有多 zone、至少五条实际材质/纹理绑定、统一 128×128 五通道纹理和受限 bevel readback，不产生评分。M108 PBR smoke 另按 primitive 的真实 material index/role 核对轮胎/握把、座舱/玻璃、灯带、关节/旋翼等受限绑定，并且只接受实际使用材质触发的 clearcoat 或 transmission/IOR；仅在 GLB 声明未使用扩展不算通过。汽车代表 fixture 还必须实际使用独立 index 7 的 `mat_automotive_paint`，其 coated texture set 与 clearcoat 不得复用 aluminum；删除或篡改已使用 clearcoat 必须拒绝。当前 fixture 的内置视觉 primitive 还必须回读 `forgecad_visual_uv_repeat_mm=320`；G826 同时锁定封闭 primitive 外向绕序、非退化三角形和正有向体积，并拒绝错误重复元数据或超界 UV。这些是纹理可见性/稳定网格 Gate，不是工程几何证明。
 
 ## 2. 开发视觉审计截图（不是评分）
 
@@ -30,7 +30,17 @@ npm run agent:m108-visual-benchmark-kit-smoke
 npm run agent:m108-visual-benchmark-workbench-capture
 ```
 
-该命令复用 R3 的真实 ForgeCAD 工作台和唯一 renderer/canvas，依次导入四领域 fixture，固定 `iso`、`cad_neutral` 与 `env_forgecad_room_studio_v1`，并使用环境合同中的前向 iso 方向与 `ShadowMaterial` 地面，在 `output/m108-visual-benchmark/workbench-captures/` 写出四张视口 PNG 和 `M108WorkbenchCapture@1`。capture manifest 记录源 manifest hash、GLB/screenshot hash、PBR load state、GLB kind、render source、嵌入 PBR 材质数、环境 hash、`preview_mode`、`xray`、renderer generation 和活动 WebGL context 数，并要求四张截图内容互不相同。最新真实捕获已验证四个领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled` 和单 WebGL context；此处 `committed` 只是非 ghost 的视口状态，不是 Git 提交或新资产版本。
+CI 和本机可重复 renderer Gate 使用：
+
+```bash
+npm run desktop:m108-workbench-renderer-smoke
+```
+
+后一命令会在临时目录重新生成同源 kit，再启动真实工作台完成四领域捕获；设置 `FORGECAD_M108_RENDERER_OUTPUT_DIR=output/m108-workbench-renderer` 时才保留无评分截图工件。它不读取旧截图作为通过依据。
+
+该 Gate 复用 R3 的真实 ForgeCAD 工作台和唯一 renderer/canvas，依次导入四领域 fixture，固定 `iso`、`cad_neutral` 与 `env_forgecad_room_studio_v1`，并使用环境合同中的前向 iso 方向与 `ShadowMaterial` 地面。GLB 的 metre→millimetre 换算先保留，再乘以确定性的视口 fit scale；当前展示对角线固定为 520 mm，不能由隐藏的 legacy graph 尺寸决定。阴影接收面和 shadow camera 随当前 framed bounds 收敛，均不写回资产或 Snapshot。
+
+`M108WorkbenchCapture@1` 除源 manifest、GLB/screenshot、load/render/preview/xray 与单 context 事实外，还必须把工作台实时应用的完整环境配方 canonicalize 后重新计算 SHA-256，并与 GLB 环境 hash 相同；baseColor/emissive 必须为 sRGB，metallicRoughness/normal/AO 必须为数据色彩空间。每个 fixture 还要通过真实 renderer 上限：geometries ≤72、textures ≤48、draw calls ≤96、triangles ≤5,000、实际使用的嵌入 PBR texture ≤35、按 RGBA8 完整 mip chain 保守估算的纹理显存 ≤4 MiB。顺序载入四个 GLB 后仍使用同一 renderer/canvas，因此未释放资源会在后续 fixture 中累计并触发预算失败。最新真实捕获已验证四个领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`、环境 recipe hash 匹配、颜色空间有效、520 mm 展示对角线、预算通过和单 WebGL context；此处 `committed` 只是非 ghost 的视口状态，不是 Git 提交或新资产版本。
 
 这条命令只用于开发视觉审计。其工件固定为 `purpose=development_visual_audit_only`、`score_status=not_scored`、`human_benchmark_evidence=false`；自动截图不会向 `review-responses.json` 写入任何内容，不能成为 reviewer，不能证明比例/材质/细节达到 4/5，也不能完成 M108。若截图暴露比例断裂、材质区不可读或细节重复，应继续修复或在人工评分中如实失败，不能选择性隐藏截图或降低门槛。
 

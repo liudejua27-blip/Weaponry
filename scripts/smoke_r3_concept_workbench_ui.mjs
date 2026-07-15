@@ -27,6 +27,16 @@ const AGENT_FIRST_FAILURE_REPORT = join(OUTPUT_DIR, 'agent-first-workbench-failu
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
 const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 360_000)
+const M108_WORKBENCH_GPU_BUDGET = Object.freeze({
+  renderer_geometries: 72,
+  renderer_textures: 48,
+  // One visible PBR part participates in the main and shadow passes; the
+  // current 25-zone fixtures peak at 75 calls with the shared floor pass.
+  renderer_draw_calls: 96,
+  renderer_triangles: 5_000,
+  embedded_pbr_texture_count: 35,
+  estimated_gpu_texture_bytes: 4 * 1024 * 1024,
+})
 let smokeStage = 'initializing'
 
 async function main() {
@@ -734,8 +744,15 @@ async function captureM108WorkbenchFixtures(page) {
       previousAssetVersionId,
       { timeout: 20_000 },
     )
+    const expectedVisualEnvironment = fixture.visual_environment
+    if (
+      expectedVisualEnvironment?.environment_id !== 'env_forgecad_room_studio_v1'
+      || !/^[a-f0-9]{64}$/.test(expectedVisualEnvironment?.environment_sha256 ?? '')
+    ) {
+      throw new Error(`M108 fixture has no valid visual environment contract: ${fixture.fixture_id}`)
+    }
     await page.waitForFunction(
-      () => {
+      ({ environmentId, environmentSha256 }) => {
         const viewport = document.querySelector('.weapon-viewport')
         return viewport?.getAttribute('data-blockout-load-state') === 'ready'
           && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
@@ -744,9 +761,13 @@ async function captureM108WorkbenchFixtures(page) {
           && viewport.getAttribute('data-light-preset') === 'cad_neutral'
           && viewport.getAttribute('data-preview-mode') === 'committed'
           && viewport.getAttribute('data-xray') === 'disabled'
-          && viewport.getAttribute('data-visual-environment-id') === 'env_forgecad_room_studio_v1'
+          && viewport.getAttribute('data-visual-environment-id') === environmentId
+          && viewport.getAttribute('data-visual-environment-sha256') === environmentSha256
       },
-      undefined,
+      {
+        environmentId: expectedVisualEnvironment.environment_id,
+        environmentSha256: expectedVisualEnvironment.environment_sha256,
+      },
       { timeout: 20_000 },
     )
     await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
@@ -775,11 +796,46 @@ async function captureM108WorkbenchFixtures(page) {
       light_preset: element.getAttribute('data-light-preset'),
       visual_environment_id: element.getAttribute('data-visual-environment-id'),
       visual_environment_sha256: element.getAttribute('data-visual-environment-sha256'),
+      visual_environment_recipe: element.getAttribute('data-visual-environment-recipe'),
       preview_mode: element.getAttribute('data-preview-mode'),
       xray: element.getAttribute('data-xray'),
       renderer_generation: element.getAttribute('data-renderer-generation'),
       active_webgl_contexts: Number(element.getAttribute('data-active-webgl-contexts') ?? '0'),
+      renderer_geometries: Number(element.getAttribute('data-renderer-geometries') ?? '0'),
+      renderer_textures: Number(element.getAttribute('data-renderer-textures') ?? '0'),
+      renderer_draw_calls: Number(element.getAttribute('data-renderer-draw-calls') ?? '0'),
+      renderer_triangles: Number(element.getAttribute('data-renderer-triangles') ?? '0'),
+      embedded_pbr_texture_count: Number(element.getAttribute('data-blockout-pbr-texture-count') ?? '0'),
+      estimated_gpu_texture_bytes: Number(element.getAttribute('data-blockout-pbr-estimated-gpu-bytes') ?? '0'),
+      pbr_color_spaces: element.getAttribute('data-blockout-pbr-color-spaces'),
+      display_scale: Number(element.getAttribute('data-blockout-display-scale') ?? '0'),
+      display_diagonal_mm: Number(element.getAttribute('data-blockout-display-diagonal-mm') ?? '0'),
     }))
+    const liveEnvironmentSha256 = createHash('sha256')
+      .update(viewportFacts.visual_environment_recipe ?? '')
+      .digest('hex')
+    if (liveEnvironmentSha256 !== expectedVisualEnvironment.environment_sha256) {
+      throw new Error(
+        `M108 live renderer recipe diverges from GLB environment truth: ${fixture.fixture_id}; `
+        + `${liveEnvironmentSha256} != ${expectedVisualEnvironment.environment_sha256}`,
+      )
+    }
+    if (
+      viewportFacts.pbr_color_spaces !== 'valid'
+      || viewportFacts.embedded_pbr_texture_count !== viewportFacts.embedded_pbr_material_count * 5
+      || viewportFacts.display_scale <= 0
+      || viewportFacts.display_scale > 1
+      || viewportFacts.display_diagonal_mm < 519
+      || viewportFacts.display_diagonal_mm > 521
+    ) {
+      throw new Error(`M108 viewport PBR/display facts are invalid: ${fixture.fixture_id}; ${JSON.stringify(viewportFacts)}`)
+    }
+    for (const [metric, limit] of Object.entries(M108_WORKBENCH_GPU_BUDGET)) {
+      const value = viewportFacts[metric]
+      if (!Number.isFinite(value) || value <= 0 || value > limit) {
+        throw new Error(`M108 workbench GPU budget exceeded: ${fixture.fixture_id}; ${metric}=${value}, limit=${limit}`)
+      }
+    }
     records.push({
       fixture_id: fixture.fixture_id,
       domain_pack_id: fixture.domain_pack_id,
@@ -787,7 +843,11 @@ async function captureM108WorkbenchFixtures(page) {
       screenshot: `workbench-captures/${fixture.domain_pack_id}.png`,
       screenshot_sha256: createHash('sha256').update(screenshotBytes).digest('hex'),
       screenshot_byte_size: screenshotBytes.length,
-      viewport: viewportFacts,
+      viewport: {
+        ...viewportFacts,
+        visual_environment_recipe_sha256: liveEnvironmentSha256,
+        gpu_budget_status: 'passed',
+      },
     })
   }
   if (new Set(records.map((record) => record.screenshot_sha256)).size !== records.length) {
@@ -798,6 +858,7 @@ async function captureM108WorkbenchFixtures(page) {
     purpose: 'development_visual_audit_only',
     score_status: 'not_scored',
     human_benchmark_evidence: false,
+    gpu_budget: M108_WORKBENCH_GPU_BUDGET,
     source_manifest_sha256: createHash('sha256').update(await readFile(manifestPath)).digest('hex'),
     captures: records,
   }
