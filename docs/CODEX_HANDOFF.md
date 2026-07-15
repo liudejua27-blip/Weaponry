@@ -12,7 +12,8 @@
 - 桌面仍只使用一个 Three.js renderer/context；其 RoomEnvironment/PMREM、linear-sRGB、ACES Filmic、1.18 exposure、接触阴影参数与 GLB 环境合同固定一致。没有新 renderer、没有因环境创建资产版本。
 - `npm run agent:m108-visual-pbr-smoke` 覆盖四领域各 3 个 showcase 多 zone fixture（共 12 个）、确定性重复字节、Schema、五通道、色彩空间、文件预算、环境 hash、clearcoat/透明 extension、缺 normal 与 image hash 损坏拒绝。`agent:g826-surface-readback-smoke`、contracts、迁移和 TypeScript/桌面 Gate 仍需本轮最终回归。
 - 新增锁定开发/CI 依赖 `gltf-validator@2.0.0-dev.3.10` 和 `npm run agent:m108-gltf-validator-smoke`：同一编译链的四领域原始 showcase GLB 必须由 Khronos Validator 得到零 error、零 warning，畸形 GLB 必须被拒绝。该检查发现并修复 `_FORGECAD_FACE_ID`/`_FORGECAD_SOURCE_FACE_ID` 原先写成无效 `UNSIGNED_INT` 顶点属性的问题；现以精确整数 FLOAT custom attribute 保留 readback，不把 Validator 报告当作资产真值。
-- M108 仍是 `in_progress`：glTF Transform/KTX2/BasisU 的平台/provenance benchmark、packaged sidecar、重启/undo/redo/导出端到端与独立人工视觉基准尚无新证据。不能因此把当前 Alpha 描述为照片级真实产品或解除 C105 阻塞。
+- `npm run agent:m108-gltf-transform-evaluation` 锁定 `@gltf-transform/core/extensions@4.4.1` 为开发评估依赖。四份同源 showcase GLB 在扩展注册读写后仍通过 Validator，所需 Part/zone/material PBR 映射也保持；但 writer 会重编号 image/texture 资源并改变 ForgeCAD readback（例如 robotic-arm bounds 由 `2440` 变为 `2440.0001`），所以其写出明确不能进入不可变 export 链。`functions` 的 dedup/prune 在本机 arm64 评估时会通过 `ndarray-pixels` 触发缺失的 sharp 原生运行时，未进入 lockfile；KTX2/BasisU 也没有已验证的编码器、视口解码/回退和 packaged Gate，均保持不采用。
+- 已重建 tracked arm64 frozen sidecar，并扩展 `npm run desktop:packaged-sidecar-alpha-smoke`：showcase PBR 的五通道、固定工作室环境、CSG 后 GLB readback 及重启后同 asset GLB SHA-256 全部通过。M108 仍是 `in_progress`：packaged sidecar 下的 undo/redo→导出一致性与独立人工视觉基准尚无证据。不能因此把当前 Alpha 描述为照片级真实产品或解除 C105 阻塞。
 
 ## 2026-07-15：FGC-A004 受限 Agent Action Loop（已完成；M108 in progress）
 

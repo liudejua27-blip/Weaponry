@@ -1681,7 +1681,7 @@ Remaining blockers:
 
 退出：纹理与多材质真正进入同源 GLB/视口/readback；“更真实”有资产和视觉基准证据，不只是参数或文案。
 
-自动化检查点（2026-07-15）：`VisualTextureSet@1`、五通道内置视觉纹理、同源 GLB images/textures/material extensions、真实 zone→material readback、固定工作室环境 hash 与 12 个四领域多 zone fixture 已实现并由 `agent:m108-visual-pbr-smoke` 覆盖；用户内容纹理扩展到五通道也已完成。新增 `agent:m108-gltf-validator-smoke` 以锁定的 Khronos `gltf-validator@2.0.0-dev.3.10` 对四领域各一份原始 showcase GLB 要求零 error/zero warning，并确认畸形 GLB 被拒绝；因此内部 face provenance 改为精确整数 FLOAT custom attribute，不能再写出无效的 `UNSIGNED_INT` 顶点属性。任务仍未完成：glTF Transform/KTX2/BasisU 的平台 benchmark/采用决策、真实 packaged sidecar 回归，以及独立人工视觉基准尚无证据，故不得宣称“真实产品外观”已达标或解除 C105 阻塞。
+自动化检查点（2026-07-15）：`VisualTextureSet@1`、五通道内置视觉纹理、同源 GLB images/textures/material extensions、真实 zone→material readback、固定工作室环境 hash 与 12 个四领域多 zone fixture 已实现并由 `agent:m108-visual-pbr-smoke` 覆盖；用户内容纹理扩展到五通道也已完成。新增 `agent:m108-gltf-validator-smoke` 以锁定的 Khronos `gltf-validator@2.0.0-dev.3.10` 对四领域各一份原始 showcase GLB 要求零 error/zero warning，并确认畸形 GLB 被拒绝；因此内部 face provenance 改为精确整数 FLOAT custom attribute，不能再写出无效的 `UNSIGNED_INT` 顶点属性。`agent:m108-gltf-transform-evaluation` 以锁定的 `@gltf-transform/core/extensions@4.4.1` 对同四份 GLB 做扩展注册读写、Validator 和真实 readback：所需 Part/zone/material PBR 映射仍在，但 image/texture 会重编号且数值 readback 改变，故明确拒绝把其写出结果接入不可变导出链；`functions` 的 dedup/prune 在当前 arm64 评估中又会经 `ndarray-pixels` 触发不可用的 `sharp` 原生加载，未被安装或采用。KTX2/BasisU 没有已验证的编码器、桌面视口解码/回退或 packaged 平台 Gate，保持不采用。真实 packaged sidecar 的 showcase PBR/readback、CSG 后导出和重启同 hash 已通过。任务仍未完成：packaged 版本的 undo/redo→导出一致性与独立人工视觉基准尚无证据，故不得宣称“真实产品外观”已达标或解除 C105 阻塞。
 
 ### FGC-C105 任务卡
 

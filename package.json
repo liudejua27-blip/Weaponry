@@ -77,6 +77,7 @@
     "agent:m107-active-zone-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_selected_zone.py",
     "agent:m108-visual-pbr-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_m108_visual_pbr.py",
     "agent:m108-gltf-validator-smoke": "node scripts/smoke_m108_gltf_validator.mjs",
+    "agent:m108-gltf-transform-evaluation": "node scripts/smoke_m108_gltf_transform_core.mjs",
     "desktop:s5-active-design-machine-smoke": "node scripts/smoke_active_design_machine.mjs",
     "agent:g2-contracts-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_g2_general_contracts.py",
     "agent:d1-domain-inference-contract-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_domain_inference_contract.py",
@@ -253,6 +254,8 @@
     "npm": ">=10"
   },
   "devDependencies": {
+    "@gltf-transform/core": "4.4.1",
+    "@gltf-transform/extensions": "4.4.1",
     "gltf-validator": "2.0.0-dev.3.10",
     "playwright-core": "^1.61.1"
   }

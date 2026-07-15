@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import signal
 import socket
 import sqlite3
 import subprocess
@@ -36,26 +38,40 @@ def main() -> int:
             payload = _wait_for_health(port, process)
             _assert(payload == {"status": "ok", "service": "wushen-agent", "mode": "sqlite_mock"}, "unexpected health payload")
             _assert((library_root / "library.db").is_file(), "first initialization did not create the library")
-            asset_version_id = _create_and_export_editable_asset(port, library_root)
+            asset_version_id, export_glb_sha256 = _create_and_export_editable_asset(port, library_root)
         finally:
             _stop_sidecar(process)
 
         restart_port = _free_port()
         restarted = _start_sidecar(temporary, environment, restart_port)
+        restarted_stopped = False
         try:
-            _wait_for_health(restart_port, restarted)
+            try:
+                _wait_for_health(restart_port, restarted)
+            except AssertionError as error:
+                _stop_sidecar(restarted)
+                restarted_stopped = True
+                stderr = restarted.stderr.read() if restarted.stderr is not None else ""
+                raise AssertionError(f"restart health failed: {error}; sidecar stderr: {stderr[-2000:]}") from error
             recovered = _request(restart_port, f"/api/v1/agent/asset-versions/{asset_version_id}")
             _assert(recovered["asset_version_id"] == asset_version_id, "restart did not restore the saved editable asset")
             exported = _request(restart_port, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
-            _assert(b64decode(exported["glb_base64"])[:4] == b"glTF", "recovered GLB export is invalid")
+            recovered_glb = b64decode(exported["glb_base64"])
+            _assert(recovered_glb[:4] == b"glTF", "recovered GLB export is invalid")
+            _assert(
+                hashlib.sha256(recovered_glb).hexdigest() == export_glb_sha256,
+                "restart changed the packaged PBR GLB export",
+            )
         finally:
-            _stop_sidecar(restarted)
+            if not restarted_stopped:
+                _stop_sidecar(restarted)
     print(json.dumps({
         "ok": True,
         "packaged_sidecar_health": True,
         "empty_library_initialized": True,
         "editable_glb_export": True,
         "packaged_manifold_csg": True,
+        "packaged_visual_pbr_readback": True,
         "restart_recovery": True,
         "provider_calls": 0,
     }))
@@ -80,19 +96,24 @@ def _start_sidecar(temporary: str, environment: dict[str, str], port: int) -> su
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         text=True,
+        # Manifold uses a bounded child process.  A frozen-server smoke must
+        # own and stop that whole process group before its restart assertion.
+        start_new_session=True,
     )
 
 
 def _stop_sidecar(process: subprocess.Popen[str]) -> None:
-    process.terminate()
+    if process.poll() is not None:
+        return
+    os.killpg(process.pid, signal.SIGTERM)
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
-        process.kill()
+        os.killpg(process.pid, signal.SIGKILL)
         process.wait(timeout=10)
 
 
-def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
+def _create_and_export_editable_asset(port: int, library_root: Path) -> tuple[str, str]:
     project = _request(
         port,
         "/api/v1/projects",
@@ -130,14 +151,25 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
         "/api/v1/agent/blockouts",
         method="POST",
         idempotency_key="p002-build",
-        body={"client_request_id": "p002-build", "plan": plan, "direction_id": direction_id},
+        body={
+            "client_request_id": "p002-build",
+            "plan": plan,
+            "direction_id": direction_id,
+            "presentation_profile": "showcase",
+        },
     )
     segmented = _request(
         port,
         "/api/v1/agent/blockouts:segment",
         method="POST",
         idempotency_key="p002-segment",
-        body={"client_request_id": "p002-segment", "plan": plan, "direction_id": direction_id, "artifact_id": built["artifact_id"]},
+        body={
+            "client_request_id": "p002-segment",
+            "plan": plan,
+            "direction_id": direction_id,
+            "artifact_id": built["artifact_id"],
+            "presentation_profile": "showcase",
+        },
     )
     committed = _request(
         port,
@@ -147,6 +179,8 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
         body={"client_request_id": "p002-commit", "project_id": project_id, "artifact_id": segmented["artifact_id"], "summary": "P002 本机 Alpha 可编辑概念资产"},
     )
     asset_version_id = committed["asset_version_id"]
+    initial_export = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
+    _assert_packaged_visual_pbr(b64decode(initial_export["glb_base64"]))
     asset = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}")
     target = next(item for item in asset["parts"] if item["editable_parameter_bindings"])
     tool = next(item for item in asset["parts"] if item["part_id"] != target["part_id"])
@@ -183,7 +217,24 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
     _assert(csg["kernel_version"] == MANIFOLD_KERNEL_VERSION, "packaged export used an unexpected kernel version")
     _assert(csg["result_closed"] is True, "packaged CSG result is not closed")
     _assert("boolean_cut" in csg["surface_roles"], "packaged CSG cut provenance is missing")
-    return str(asset_version_id)
+    _assert_packaged_visual_pbr(glb)
+    return str(asset_version_id), hashlib.sha256(glb).hexdigest()
+
+
+def _assert_packaged_visual_pbr(glb: bytes) -> None:
+    facts = read_shape_program_glb_facts(glb)
+    _assert(facts.visual_environment["environment_id"] == "env_forgecad_room_studio_v1", "packaged PBR environment is missing")
+    _assert(facts.visual_environment["color_workflow"] == "linear_srgb", "packaged PBR color workflow diverged")
+    _assert(facts.visual_environment["tone_mapping"] == "aces_filmic", "packaged PBR tone mapping diverged")
+    _assert(facts.visual_environment["contact_shadows"] is True, "packaged PBR contact shadows are missing")
+    _assert(facts.visual_texture_sets, "packaged PBR texture readback is empty")
+    for texture_set in facts.visual_texture_sets:
+        _assert(
+            {item["texture_role"] for item in texture_set["maps"]}
+            == {"base_color", "metallic_roughness", "normal", "occlusion", "emissive"},
+            "packaged PBR texture channels are incomplete",
+        )
+        _assert(all(item["fallback"] == "none" for item in texture_set["maps"]), "packaged PBR unexpectedly fell back")
 
 
 def _request(

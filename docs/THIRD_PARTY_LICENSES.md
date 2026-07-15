@@ -60,10 +60,11 @@ These projects are referenced by the product design or supported as external ada
 | FastAPI | Agent API framework | Automated | Covered by `apps/agent/requirements-release.lock`; transitive Python runtime dependencies are pinned with license metadata. |
 | Phosphor Icons for React | CAD 工作台图标 | Automated | `@phosphor-icons/react@2.1.10`，MIT；由 `package-lock.json` 固定并进入 npm license gate。 |
 | Khronos glTF-Validator | 开发/CI GLB 标准合规检查 | Automated dev dependency | `gltf-validator@2.0.0-dev.3.10`，Apache-2.0；锁定在 `package-lock.json`，只读取原始 GLB 并输出报告，不成为资产或运行时真值。 |
+| glTF Transform core/extensions | M108 GLB reader/writer 采用边界评估 | Automated dev dependency, evaluation-only | `@gltf-transform/core@4.4.1`、`@gltf-transform/extensions@4.4.1`，MIT；锁定在 `package-lock.json`，仅对四份原始 showcase GLB 进行受扩展注册的读写和 readback 比对。评估确认它会重编号资源并改变 ForgeCAD readback，故不能替换不可变编译 GLB，也不打包进桌面运行时。 |
 
 ## Reference-only GitHub projects
 
-OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider、JSCAD 和 glTF Transform 当前只作为设计/架构参考，不是 ForgeCAD 的安装依赖或派生代码，因此不因“被引用”进入产品 SBOM。glTF-Validator 已作为开发/CI 依赖列入上表，但不打包进入桌面运行时。若后续实际复制、链接、安装或打包其他参考代码，必须先在本台账增加固定版本、许可证、NOTICE、二进制来源和传递依赖，再修改 lockfile。
+OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider 和 JSCAD 当前只作为设计/架构参考，不是 ForgeCAD 的安装依赖或派生代码，因此不因“被引用”进入产品 SBOM。glTF-Validator 与 glTF Transform core/extensions 已作为开发/CI 依赖列入上表，但都不打包进入桌面运行时。若后续实际复制、链接、安装或打包其他参考代码，必须先在本台账增加固定版本、许可证、NOTICE、二进制来源和传递依赖，再修改 lockfile。
 
 参考用途和采用门见 [AGENT_GITHUB_REFERENCE_ARCHITECTURE.md](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)。
 
