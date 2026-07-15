@@ -46,11 +46,15 @@ def _clamp(value: int) -> int:
 
 def _png_rgb(rows: Iterable[bytes], *, width: int = TEXTURE_WIDTH, height: int = TEXTURE_HEIGHT) -> bytes:
     raw = b"".join(b"\x00" + row for row in rows)
-    chunk = lambda tag, payload: struct.pack(
-        ">I", len(payload)
-    ) + tag + payload + struct.pack(
-        ">I", zlib.crc32(tag + payload) & 0xFFFFFFFF
-    )
+
+    def chunk(tag: bytes, payload: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(payload))
+            + tag
+            + payload
+            + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
+        )
+
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(
         ">IIBBBBB", width, height, 8, 2, 0, 0, 0
     )) + chunk(b"IDAT", zlib.compress(raw, level=9)) + chunk(b"IEND", b"")
