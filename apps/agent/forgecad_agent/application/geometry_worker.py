@@ -2050,7 +2050,7 @@ def _showcase_connection_fairings(
                         rotor.center_mm[0],
                         (wing.center_mm[1] + rotor.center_mm[1]) / 2,
                         rotor.center_mm[2]
-                        + math.copysign(rotor.radius_mm * 0.6, rotor.center_mm[2]),
+                        + math.copysign(rotor.radius_mm * 0.25, rotor.center_mm[2]),
                     ),
                     (
                         rotor.radius_mm * 0.9,

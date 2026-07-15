@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 审阅真值与航空器连接收紧（进行中，未完成）
+
+- M108 工作台捕获现在只接受正常 blockout 展示状态：截图前必须读取并保存 `presentation_runtime_facts`，证明 legacy ModuleGraph root 隐藏、当前 blockout root 可见、axes/grid/transform helper 全部隐藏，并要求真实 renderer line 数为 0。当前源码重建的四领域捕获全部满足这些事实；旧目录中的过暗/带坐标轴截图不会被读取为通过证据。
+- 人工评分校验器不再只相信 manifest 的材质计数。它会逐 GLB 重新 readback，要求至少五套当前 `_builtin_v2` texture-set、每套恰好包含 baseColor/metallicRoughness/normal/occlusion/emissive、map ID 含 `_v2_` 且尺寸为 128×128；旧 v1、少于五套、错误版本 ID、错误尺寸和通道缺失/重复均由 self-test 负例拒绝。
+- “至少五套”同时要求五个不同 material index、texture-set ID 和规范 texture material；重复 authored alias 不能累加。renderer line instrumentation 缺失、非整数或非零都会 fail closed，不能用缺省 0 绕过正常展示状态。
+- 航空器四个旋翼支柱的受限 showcase 偏移已调整，使其进入对应机翼；G818 不是读取生成参数，而是从最终 GLB POSITION accessor 要求每个支柱与机翼的 Z 范围至少重叠 0.07 m，并继续要求支柱与旋翼正体积交叠且有可见外露体积。这只是概念资产的视觉连续性代理，不是实体相交、结构连接或适航证明。
+- 聚焦 `agent:m108-visual-benchmark-score-validator-smoke`、`agent:g818-visual-detail-grammar-smoke`、`agent:m108-visual-pbr-smoke` 和真实四领域工作台捕获已通过；最新捕获最大仍为 6,176 triangles/87 draw calls。工件明确为 `not_scored/human_benchmark_evidence=false`，三位独立人工评审尚未收集，因此 M108 继续 `in_progress`、C105 继续 blocked。
+
 ## 2026-07-16：FGC-M108 纹理连续性与部件嵌合增量（进行中，未完成）
 
 - 真实工作台截图中的汽车漆马赛克不是 Three.js 色彩空间问题，而是旧内置 PNG 的离散格噪声被 320 mm UV 展示基线放大。新生成纹理的 texture-set ID 以 `_builtin_v2` 结尾、map ID 含 `_v2_`、`version=2`，周期平滑微表面替代旧格噪和 composite 硬织纹，coated/brushed/glass 的 baseColor 调制低于 roughness/normal。旧 `builtin` v1 的 40 张图、原 ID 和原字节以固定聚合 hash 保留为历史 GLB readback，不会被 v2 覆盖。
@@ -12,7 +20,7 @@
 - GLB readback 不只相信图片 extras 自报 SHA：authored material 必须命中穷举目录→规范 `texture_material_id` 映射，texture-set/map metadata 与 PNG 字节必须匹配 current/legacy 清单，TextureInfo 固定 UV0 且不允许自定义 sampler/texture transform。同一资产实际使用的材质必须属于同一视觉纹理合同版本；未知材质、ID/index 不一致、v1/v2 混用、布尔伪索引、同步伪造 SHA、缺引用或损坏通道都会明确拒绝。精确 v1 报告仅迁移其缺失的规范材质字段；相对当前 v2 已过期的 GET/幂等重放返回 `stale_compile_readback/unavailable`，不能继续作为当前导出真值。glTF Transform writer 因改变固定采样状态而继续作为导出优化器被拒绝。
 - 四个固定审阅 fixture 只复用现有 cylinder、box+bevel 和 wedge，新增非功能连接外罩：虚构道具 core↔grip 的安装环、车辆 chassis↔左右前后轮的侧围、飞机 wing↔四旋翼的支座、机械臂 joint↔偏置 link 的肩部桥。G818 从最终 GLB POSITION accessor 要求外罩 AABB 与每个目标正体积重叠，且有小体积位于目标 AABB 并集外；这不是实体相交证明。M108 同时要求这些输出封闭、无边界/非流形/退化三角，并具备真实 UV/tangent/zone/material。
 - 最新源码重建的四领域真实工作台捕获仍是 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`。旧离散格状伪影已由自动 Gate 排除，且未在本轮四张截图中再出现；连接层进入同源 GLB。实际最高为航空器 6,176 renderer triangles、87 draw calls，仍低于 7,000/96 上限。主体仍是受限 Alpha blockout，并未引入 C105 Recipe、Loft 自动路由、工程机构或照片级真实性；M108 和 C105 状态不变。
-- 已从最终冻结源码重建 31,793,200-byte、SHA-256 `7254fc99317f1fb601400341157893a428d7ed07dee029b00223cfa95af5b1f0` 的 tracked macOS arm64 sidecar。该精确产物的 require-ready preflight、packaged sidecar smoke、Tauri check、经仓库 Rust wrapper 的 `.app`/DMG build 与 packaged Tauri smoke 均通过；本轮打包前确认没有旧测试 app、sidecar、8000 端口或 ForgeCAD DMG 挂载残留。本机空 Library、当前 PBR readback、Manifold CSG、undo/redo、导出和重启恢复成功，`provider_calls=0`，退出后没有遗留 listener。
+- 已从最终冻结源码重建 31,793,536-byte、SHA-256 `4b0e43b2d5251bd939bcaaa90b4f62f0476d26c9139a49919f2e38abccb62560` 的 tracked macOS arm64 sidecar。该精确产物的 require-ready preflight、packaged sidecar smoke、Tauri check、经仓库 Rust wrapper 的 `.app` build 与 packaged Tauri smoke 均通过；本机空 Library、当前 PBR readback、Manifold CSG、undo/redo、导出和重启恢复成功，`provider_calls=0`，退出后没有遗留 listener。本轮没有生成或验证 DMG、签名、公证或安装结论。
 - 最终 `release:packaging-readiness` 仍按设计失败：Intel macOS、Windows x64 与 Linux x64 的 tracked sidecar 仍是空占位，分别缺少有效 Mach-O/PE/ELF 与可执行条件。不得删除或放宽该阻断；本轮通过结论只覆盖本机 macOS arm64 Alpha，不覆盖跨平台安装、签名、公证或正式发布。
 - PR #3 的首轮 current-head CI 在 R002 只读渲染夹具中发现唯一残留的未注册 `mat_secondary`，严格运行时白名单按设计返回 409 并使后端 Gate 失败。该 ID 在仓库没有生产使用者，因此只把 R002 夹具改为已审阅的 `mat_aluminum`，没有扩宽生产材质映射；本地 R002 已恢复通过，断言也会在未来直接输出非 200 响应。
 

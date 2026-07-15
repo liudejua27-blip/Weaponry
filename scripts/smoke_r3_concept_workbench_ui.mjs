@@ -810,6 +810,34 @@ async function captureM108WorkbenchFixtures(page) {
     ) {
       throw new Error(`M108 fixture replaced or duplicated the workbench renderer: ${fixture.fixture_id}`)
     }
+    const presentationRuntimeFacts = await viewport.evaluate((element) => (
+      JSON.parse(element.getAttribute('data-presentation-runtime-facts') ?? '{}')
+    ))
+    const rendererLinesAttribute = await viewport.getAttribute('data-renderer-lines')
+    if (
+      rendererLinesAttribute === null
+      || !/^(0|[1-9]\d*)$/.test(rendererLinesAttribute)
+      || !Number.isSafeInteger(Number(rendererLinesAttribute))
+    ) {
+      throw new Error(
+        `M108 fixture has no valid renderer line instrumentation: ${fixture.fixture_id}; `
+        + String(rendererLinesAttribute),
+      )
+    }
+    const rendererLines = Number(rendererLinesAttribute)
+    if (
+      presentationRuntimeFacts.module_root_visible !== false
+      || presentationRuntimeFacts.blockout_root_visible !== true
+      || presentationRuntimeFacts.axes_visible !== false
+      || presentationRuntimeFacts.grid_visible !== false
+      || presentationRuntimeFacts.transform_helper_visible !== false
+      || rendererLines !== 0
+    ) {
+      throw new Error(
+        `M108 fixture leaked CAD presentation helpers into the review viewport: ${fixture.fixture_id}; `
+        + JSON.stringify(presentationRuntimeFacts),
+      )
+    }
     const screenshotPath = join(captureRoot, `${fixture.domain_pack_id}.png`)
     await viewport.screenshot({ path: screenshotPath, animations: 'disabled' })
     const screenshotBytes = await readFile(screenshotPath)
@@ -844,7 +872,9 @@ async function captureM108WorkbenchFixtures(page) {
       fog_near_mm: Number(element.getAttribute('data-blockout-fog-near-mm') ?? '0'),
       fog_far_mm: Number(element.getAttribute('data-blockout-fog-far-mm') ?? '0'),
       presentation_source: element.getAttribute('data-presentation-source'),
+      presentation_runtime_facts: JSON.parse(element.getAttribute('data-presentation-runtime-facts') ?? '{}'),
     }))
+    viewportFacts.renderer_lines = rendererLines
     const liveEnvironmentSha256 = createHash('sha256')
       .update(viewportFacts.visual_environment_recipe ?? '')
       .digest('hex')
@@ -862,6 +892,7 @@ async function captureM108WorkbenchFixtures(page) {
       || viewportFacts.display_diagonal_mm < 519
       || viewportFacts.display_diagonal_mm > 521
       || viewportFacts.presentation_source !== 'blockout'
+      || viewportFacts.renderer_lines !== 0
     ) {
       throw new Error(`M108 viewport PBR/display facts are invalid: ${fixture.fixture_id}; ${JSON.stringify(viewportFacts)}`)
     }

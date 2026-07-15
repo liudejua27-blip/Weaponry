@@ -238,6 +238,10 @@ def main() -> int:
             bridge_role,
             (wing_role, rotor_role),
         )
+        pylon_min, pylon_max = selected_bounds["pack_aircraft_concept"][bridge_role]
+        wing_min, wing_max = selected_bounds["pack_aircraft_concept"][wing_role]
+        wing_z_overlap = min(pylon_max[2], wing_max[2]) - max(pylon_min[2], wing_min[2])
+        assert wing_z_overlap >= 0.07, (bridge_role, wing_role, wing_z_overlap)
     robot_ops = selected_operations["pack_robotic_arm_concept"]
     assert robot_ops["precision_link_1"]["op"] == robot_ops["precision_link_2"]["op"] == "capsule"
     assert robot_ops["visual_guard_robot_shoulder_bridge"]["op"] == "box"
