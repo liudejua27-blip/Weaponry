@@ -1,4 +1,4 @@
-import type { AgentComponentCandidate, AgentStructureSuggestion, AgentStructureSuggestionList } from '../../shared/types.js'
+import type { AgentComponentCandidate, AgentStructureSuggestion, AgentStructureSuggestionList, ResolvedSemanticProportionOptions } from '../../shared/types.js'
 
 export type AgentEditAssistPresentationState = {
   projectId: string | null
@@ -7,6 +7,7 @@ export type AgentEditAssistPresentationState = {
   componentCandidates: AgentComponentCandidate[]
   structureSuggestions: AgentStructureSuggestion[]
   structureSuggestionUnavailableMessage: string | null
+  semanticProportions: ResolvedSemanticProportionOptions | null
   loading: boolean
   latestRequestId: number
 }
@@ -18,6 +19,7 @@ export const initialAgentEditAssistPresentationState: AgentEditAssistPresentatio
   componentCandidates: [],
   structureSuggestions: [],
   structureSuggestionUnavailableMessage: null,
+  semanticProportions: null,
   loading: false,
   latestRequestId: 0,
 }
@@ -33,6 +35,7 @@ export type AgentEditAssistPresentationAction =
     requestId: number
     componentCandidates: AgentComponentCandidate[]
     structure: AgentStructureSuggestionList
+    semanticProportions: ResolvedSemanticProportionOptions | null
   }
   | { type: 'read_failed'; projectId: string; assetVersionId: string; selectedPartId: string; requestId: number }
 
@@ -74,6 +77,10 @@ export function agentEditAssistPresentationReducer(
           && (suggestion.part_id === state.selectedPartId || suggestion.target_part_id === state.selectedPartId)
         )),
         structureSuggestionUnavailableMessage: action.structure.unavailable_message ?? null,
+        semanticProportions: action.semanticProportions?.asset_version_id === state.assetVersionId
+          && action.semanticProportions?.part_id === state.selectedPartId
+          ? action.semanticProportions
+          : null,
         loading: false,
       }
     case 'read_failed':
@@ -83,6 +90,7 @@ export function agentEditAssistPresentationReducer(
           componentCandidates: [],
           structureSuggestions: [],
           structureSuggestionUnavailableMessage: '暂时无法读取结构建议；模型没有被修改。',
+          semanticProportions: null,
           loading: false,
         }
         : state

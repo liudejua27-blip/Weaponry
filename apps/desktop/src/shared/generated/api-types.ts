@@ -1423,6 +1423,24 @@ export type MechanicalConceptPlan = {
   "shape_program_ready"?: boolean
 }
 
+export type MechanicalStyleToken = {
+  "schema_version"?: "MechanicalStyleToken@1"
+  "token_id": string
+  "version"?: "1"
+  "display_name": string
+  "description": string
+  "proportion_profile": "compact" | "balanced" | "elongated" | "substantial"
+  "edge_language": "soft" | "controlled" | "crisp"
+  "surface_tension": "relaxed" | "neutral" | "taut"
+  "detail_density": "low" | "medium"
+  "symmetry": "bilateral" | "radial" | "assembly_driven"
+  "material_palette": "dark_metal" | "clean_coating" | "technical_composite" | "mixed_industrial"
+  "lighting_profile": "cad_neutral" | "soft_studio" | "concept_contrast"
+  "allowed_domains": Array<"pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept">
+  "visual_only"?: true
+  "provenance"?: "forgecad_builtin"
+}
+
 export type ModelQualityReport = {
   "schema_version"?: "ModelQualityReport@1"
   "report_id": string
@@ -1729,6 +1747,35 @@ export type ResolveAgentApprovalRequest = {
   "client_request_id": string
   "decision": "approved" | "rejected"
   "note"?: string
+}
+
+export type ResolvedSemanticProportionOption = {
+  "schema_version"?: "ResolvedSemanticProportionOption@1"
+  "recipe_id": string
+  "style_token": MechanicalStyleToken
+  "display_name": string
+  "description": string
+  "path": "transform.scale.x" | "transform.scale.y" | "transform.scale.z"
+  "current_value": number
+  "target_value": number
+  "min": number
+  "max": number
+  "step": number
+  "unit"?: "ratio"
+  "source_operation_ids": Array<string>
+}
+
+export type ResolvedSemanticProportionOptions = {
+  "schema_version"?: "ResolvedSemanticProportionOptions@1"
+  "asset_version_id": string
+  "part_id": string
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "runtime_manifest_version"?: "ShapeProgramRuntimeManifest@1"
+  "shape_program_sha256": string
+  "glb_sha256": string
+  "locked": boolean
+  "options"?: Array<ResolvedSemanticProportionOption>
+  "unavailable_message"?: string | null
 }
 
 export type RuntimeRecoveryItem = {

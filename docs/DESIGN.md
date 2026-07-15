@@ -332,7 +332,7 @@ allowed_domains[]
 provenance
 ```
 
-示例包括 `compact_rounded`、`industrial_heavy`、`clean_consumer`、`aerodynamic` 和 `retro_mechanical`。所有数值是有界比率或离散档位；Token 只能投影到 Recipe 已声明且运行时已实现的参数绑定，不能产生 mm、壁厚、载荷、推力、气动或制造建议。四领域语义比例由 D005 管理，Style Token 不创建第二套参数真值。
+D005 当前实现 `compact_rounded`、`aerodynamic_sleek`、`industrial_substantial` 与 `clean_balanced` 四个 builtin Token，并为四领域各提供 4 个普通语言比例 Recipe。Recipe 先解析稳定语义部件槽，再同时核对当前 G808 ratio binding 与 G826 GLB surface provenance；只输出一个声明步长的 preview 输入。所有数值是有界比率或离散档位，不能产生 mm、壁厚、载荷、推力、气动或制造建议；Style Token 不创建第二套参数真值。更多 Token、连续参数和 Agent 自动选择仍是后续范围。
 
 ### 6.2.4 ProfileSketch@1 与 ProfileSectionSet@1
 

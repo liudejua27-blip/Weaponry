@@ -149,6 +149,8 @@ blockout
 
 Agent 可以建议分件，但正式分件必须通过 AssemblyGraph 校验。目标编辑集合包含选择、隔离、隐藏、锁定、移动、旋转、缩放、参数修改、换材质、替换和保存为组件；当前只完成其中的受限比例/位置/关节姿态、材质、组件保存与同角色替换。
 
+D005 为四个 Pack 各提供 4 个非工程语义比例 Recipe，并共用 4 个版本化 builtin Style Token。Recipe 不依赖变体内部 role 名称，而是将 `primary_form`、`secondary_form`、`cabin_form`、`base_form`、`upper_link_form`、`end_effector_form` 等稳定语义槽确定性映射到当前 AssemblyGraph Part；只有该 Part 同时存在 G808 ratio binding 和 G826 GLB surface provenance 时才返回一步比例预览。它不增加领域包可执行代码、工程尺寸、功能机构或性能结论。
+
 ### 9.1 领域建模配方
 
 每个正式 Domain Pack 的目标数据还必须声明：

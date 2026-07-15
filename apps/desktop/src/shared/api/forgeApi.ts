@@ -90,6 +90,7 @@ import type {
   AgentComponentRecord,
   AgentComponentCandidate,
   AgentStructureSuggestionList,
+  ResolvedSemanticProportionOptions,
   SaveAgentComponentRequest,
   ActiveDesignSnapshot,
   ActiveDesignNavigation,
@@ -427,6 +428,12 @@ export class ForgeApiClient {
   async listAgentStructureSuggestions(assetVersionId: string): Promise<AgentStructureSuggestionList> {
     return readJson<AgentStructureSuggestionList>(
       await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/structure-suggestions`),
+    )
+  }
+
+  async listAgentSemanticProportions(assetVersionId: string, partId: string): Promise<ResolvedSemanticProportionOptions> {
+    return readJson<ResolvedSemanticProportionOptions>(
+      await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/parts/${encodeURIComponent(partId)}/semantic-proportions`),
     )
   }
 

@@ -1967,6 +1967,13 @@
 .agent-parameter-stepper button { min-height: 25px; padding: 0 7px; border: 1px solid #38526a; border-radius: 5px; color: #bad4ea; background: #142538; font-size: 11px; cursor: pointer; }
 .agent-parameter-stepper button:hover:not(:disabled) { border-color: #4ba4ed; color: #fff; }
 .agent-parameter-stepper button:disabled { opacity: .55; cursor: default; }
+.agent-semantic-proportions { display: grid; gap: 7px; padding: 8px; border: 1px solid #315876; border-radius: 6px; background: #102437; }
+.agent-semantic-proportion-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 6px; }
+.agent-semantic-proportion-list button { display: grid; gap: 3px; min-height: 48px; padding: 7px 8px; border: 1px solid #38526a; border-radius: 5px; color: #dbeeff; background: #142538; text-align: left; cursor: pointer; }
+.agent-semantic-proportion-list button:hover:not(:disabled) { border-color: #4ba4ed; background: #17314a; }
+.agent-semantic-proportion-list button:disabled { opacity: .55; cursor: default; }
+.agent-semantic-proportion-list strong { font-size: 11px; }
+.agent-semantic-proportion-list small { color: #91b9d9; font-size: 11px; }
 .agent-asset-change-review strong { color: #f0f7ff; font-size: 11px; }
 .agent-asset-change-review small { color: #8ea8bd; font-size: 11px; }
 .agent-material-preview { display: grid; gap: 7px; margin-top: 16px; padding: 10px; border: 1px solid #2b4965; border-radius: 7px; background: #0e1d2c; }

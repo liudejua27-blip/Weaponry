@@ -25,12 +25,14 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
   "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
+  "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-compile-readback.schema.json": "7a55be1033591638b78158b6ed87a041587148908da281fa8d5f091dc6151f16",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "d4a9f62dfb924b12a1321ee88cb77f144f6d53b076ed0aa15be54f910290e4bf",
   "material-texture-object.schema.json": "98119df4b682ddfe7d914a14e71cc3c9dbaea2d1f665be32207b3db574bdcc45",
   "mechanical-concept-spec.schema.json": "f16ec5a742e26f01cb7f70e69a10203b1e94f55abaf2aa76504724ec56125b6f",
+  "mechanical-style-token.schema.json": "771af5f26d368dc7081b2c9a8a7749c2304bfc5b07420689098b1c07ce0704a2",
   "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
@@ -39,6 +41,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
   "provider-connection-state.schema.json": "b3e683f4d2ec694fe1a8b35c3662c7123883eb68da25459194d22031fdcb2c8a",
   "provider-execution-trace.schema.json": "be119b3631dd5588b6f2cdeea2c44211ea4ad8a8434745a6a178a19806f08b6c",
+  "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
   "shape-program.schema.json": "112b6e5c33333ce5c9cd5a31a4e908c47b31313de2a6c3fae986ea5876a8c72e",
   "visual-intent-mapping.schema.json": "e610720b36ad0a22e4815f067d4ae416d12e2f64fee0780e4c43fa5716fcc57c",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
@@ -2850,6 +2853,116 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "DomainPackManifest",
     "type": "object"
   },
+  "domain-semantic-proportion-recipe.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/domain-semantic-proportion-recipe.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "adjustments": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "enum": [
+                "transform.scale.x",
+                "transform.scale.y",
+                "transform.scale.z"
+              ],
+              "type": "string"
+            },
+            "role_selector": {
+              "enum": [
+                "primary_form",
+                "secondary_form",
+                "cabin_form",
+                "base_form",
+                "upper_link_form",
+                "end_effector_form"
+              ],
+              "type": "string"
+            },
+            "step_delta": {
+              "enum": [
+                -1,
+                1
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "role_selector",
+            "path",
+            "step_delta"
+          ],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array"
+      },
+      "description": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "intent_phrases": {
+        "items": {
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "recipe_id": {
+        "pattern": "^proportion_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "DomainSemanticProportionRecipe@1"
+      },
+      "style_token_id": {
+        "pattern": "^style_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "version": {
+        "const": "1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "recipe_id",
+      "version",
+      "domain_pack_id",
+      "style_token_id",
+      "display_name",
+      "description",
+      "intent_phrases",
+      "adjustments",
+      "non_functional_only"
+    ],
+    "title": "DomainSemanticProportionRecipe",
+    "type": "object"
+  },
   "formal-module-review.schema.json": {
     "$id": "https://forgecad.local/schemas/formal-module-review.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4452,6 +4565,130 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "MechanicalConceptSpec",
     "type": "object"
   },
+  "mechanical-style-token.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/mechanical-style-token.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "allowed_domains": {
+        "items": {
+          "enum": [
+            "pack_future_weapon_prop",
+            "pack_vehicle_concept",
+            "pack_aircraft_concept",
+            "pack_robotic_arm_concept"
+          ],
+          "type": "string"
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "description": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": "string"
+      },
+      "detail_density": {
+        "enum": [
+          "low",
+          "medium"
+        ],
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "edge_language": {
+        "enum": [
+          "soft",
+          "controlled",
+          "crisp"
+        ],
+        "type": "string"
+      },
+      "lighting_profile": {
+        "enum": [
+          "cad_neutral",
+          "soft_studio",
+          "concept_contrast"
+        ],
+        "type": "string"
+      },
+      "material_palette": {
+        "enum": [
+          "dark_metal",
+          "clean_coating",
+          "technical_composite",
+          "mixed_industrial"
+        ],
+        "type": "string"
+      },
+      "proportion_profile": {
+        "enum": [
+          "compact",
+          "balanced",
+          "elongated",
+          "substantial"
+        ],
+        "type": "string"
+      },
+      "provenance": {
+        "const": "forgecad_builtin"
+      },
+      "schema_version": {
+        "const": "MechanicalStyleToken@1"
+      },
+      "surface_tension": {
+        "enum": [
+          "relaxed",
+          "neutral",
+          "taut"
+        ],
+        "type": "string"
+      },
+      "symmetry": {
+        "enum": [
+          "bilateral",
+          "radial",
+          "assembly_driven"
+        ],
+        "type": "string"
+      },
+      "token_id": {
+        "pattern": "^style_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "version": {
+        "const": "1"
+      },
+      "visual_only": {
+        "const": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "token_id",
+      "version",
+      "display_name",
+      "description",
+      "proportion_profile",
+      "edge_language",
+      "surface_tension",
+      "detail_density",
+      "symmetry",
+      "material_palette",
+      "lighting_profile",
+      "allowed_domains",
+      "visual_only",
+      "provenance"
+    ],
+    "title": "MechanicalStyleToken",
+    "type": "object"
+  },
   "model-quality-report.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/model-quality-report.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5695,6 +5932,148 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "message"
     ],
     "title": "ProviderExecutionTrace",
+    "type": "object"
+  },
+  "resolved-semantic-proportion-options.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/resolved-semantic-proportion-options.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "glb_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "locked": {
+        "type": "boolean"
+      },
+      "options": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "current_value": {
+              "type": "number"
+            },
+            "description": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "display_name": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "max": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number"
+            },
+            "path": {
+              "enum": [
+                "transform.scale.x",
+                "transform.scale.y",
+                "transform.scale.z"
+              ],
+              "type": "string"
+            },
+            "recipe_id": {
+              "pattern": "^proportion_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "ResolvedSemanticProportionOption@1"
+            },
+            "source_operation_ids": {
+              "items": {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "step": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "style_token": {
+              "$ref": "mechanical-style-token.schema.json"
+            },
+            "target_value": {
+              "type": "number"
+            },
+            "unit": {
+              "const": "ratio"
+            }
+          },
+          "required": [
+            "schema_version",
+            "recipe_id",
+            "style_token",
+            "display_name",
+            "description",
+            "path",
+            "current_value",
+            "target_value",
+            "min",
+            "max",
+            "step",
+            "unit",
+            "source_operation_ids"
+          ],
+          "type": "object"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
+      "part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "runtime_manifest_version": {
+        "const": "ShapeProgramRuntimeManifest@1"
+      },
+      "schema_version": {
+        "const": "ResolvedSemanticProportionOptions@1"
+      },
+      "shape_program_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "unavailable_message": {
+        "maxLength": 240,
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "asset_version_id",
+      "part_id",
+      "domain_pack_id",
+      "runtime_manifest_version",
+      "shape_program_sha256",
+      "glb_sha256",
+      "locked",
+      "options",
+      "unavailable_message"
+    ],
+    "title": "ResolvedSemanticProportionOptions",
     "type": "object"
   },
   "shape-program.schema.json": {

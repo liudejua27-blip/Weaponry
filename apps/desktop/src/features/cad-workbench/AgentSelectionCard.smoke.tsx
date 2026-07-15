@@ -115,6 +115,26 @@ const props: AgentSelectionCardProps = {
     summary: '将两个已连接的外观部件合并为一个可编辑部件',
   }],
   structureSuggestionUnavailableMessage: null,
+  semanticProportions: {
+    asset_version_id: 'asset_smoke',
+    part_id: part.part_id,
+    domain_pack_id: 'pack_robotic_arm_concept',
+    runtime_manifest_version: 'ShapeProgramRuntimeManifest@1',
+    shape_program_sha256: 'a'.repeat(64),
+    glb_sha256: 'b'.repeat(64),
+    locked: false,
+    options: [{
+      recipe_id: 'proportion_arm_sleek',
+      style_token: {
+        token_id: 'style_aerodynamic_sleek', version: '1', display_name: '修长流线', description: '延展主方向比例',
+        proportion_profile: 'elongated', edge_language: 'controlled', surface_tension: 'taut', detail_density: 'low',
+        symmetry: 'assembly_driven', material_palette: 'technical_composite', lighting_profile: 'concept_contrast',
+        allowed_domains: ['pack_robotic_arm_concept'], visual_only: true, provenance: 'forgecad_builtin',
+      },
+      display_name: '上臂更修长', description: '延展上臂连杆的视觉跨度。', path: 'transform.scale.x',
+      current_value: 1, target_value: 1.1, min: 0.6, max: 1.4, step: 0.1, unit: 'ratio', source_operation_ids: ['op_joint'],
+    }],
+  },
   editAssistLoading: false,
   blockoutPreviewPresentation: { tone: 'ready', title: '完整外观预览已准备好', detail: '可以保存为可编辑模型，或先换一版外观。' },
   onSelectPart: () => undefined,
@@ -179,6 +199,8 @@ export function runAgentSelectionCardSmoke(): void {
   assert(text.includes('来源检查通过') && text.includes('保留当前连接位置'), 'selection card must render a factual compatibility explanation')
   assert(text.includes('预览合并') && text.includes('只会依据当前已知的部件关系'), 'selection card must render evidence-bound structure suggestion actions')
   assert(text.includes('锁定此部件') && text.includes('隐藏此部件') && text.includes('只看这个部件'), 'selection card must expose plain-language part protection and display actions')
+  assert(text.includes('外观比例配方') && text.includes('上臂更修长'), 'selection card must render a resolved semantic proportion recipe')
+  assert(text.includes('不代表尺寸、结构、性能或制造结论'), 'semantic proportion UI must retain the non-engineering boundary')
   assert(text.includes('检查这个模型'), 'selection card must render quality action')
   const previewProps: AgentSelectionCardProps = {
     ...props,
@@ -202,6 +224,10 @@ export function runAgentSelectionCardSmoke(): void {
   assert(calls.length === 1, 'declared parameter decrement must request exactly one ChangeSet preview')
   assert(JSON.stringify(calls[0].operation).includes('"path":"transform.scale.x"') && JSON.stringify(calls[0].operation).includes('"value":0.9'), 'declared parameter decrement must use the binding path and step')
   assert(calls[0].summary.includes('长度比例') && calls[0].summary.includes('0.9 比例（ratio）'), 'preview summary must identify the declared value')
+  const recipe = findHostButton(AgentSelectionCard(controlProps), '上臂更修长；延展上臂连杆的视觉跨度。')
+  assert(recipe && !recipe.props.disabled && recipe.props.onClick, 'resolved semantic recipe must be available')
+  recipe.props.onClick()
+  assert(Number(calls.length) === 2 && JSON.stringify(calls[1].operation).includes('"value":1.1'), 'semantic recipe must request one existing bounded parameter preview')
 
   let regenerated = 0
   const regenerate = findHostButton(AgentSelectionCard({ ...previewProps, onRegenerateBlockout: () => { regenerated += 1 } }), '换一版外观')

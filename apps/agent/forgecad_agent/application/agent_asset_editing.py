@@ -36,6 +36,8 @@ from forgecad_agent.application.agent_models import (
     ImportAgentGlbResponse,
     ImportedGlbInspectionResponse,
     ProposeAgentAssetChangeSetRequest,
+    ResolvedSemanticProportionOption,
+    ResolvedSemanticProportionOptions,
     SaveAgentComponentRequest,
 )
 from forgecad_agent.application.material_catalog import material_preset_map
@@ -49,6 +51,7 @@ from forgecad_agent.application.agent_rendering import AgentRenderError, Explode
 from forgecad_agent.application.domain_packs import list_domain_packs
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
 from forgecad_agent.application.shape_program_runtime import UnsupportedRuntimeOperationError
+from forgecad_agent.application.semantic_proportions import part_id_for_role_selector, recipes_for_domain, style_token_map
 from forgecad_agent.infrastructure.db.agent_repositories import (
     ActiveDesignSnapshotConflict,
     ActiveDesignSnapshotError,
@@ -170,6 +173,123 @@ class AgentAssetEditingService:
             if row is None:
                 raise AgentAssetError("ASSET_VERSION_NOT_FOUND", "可编辑资产版本不存在。", status_code=404)
             return _version_from_row(row)
+
+    def list_semantic_proportions(
+        self,
+        asset_version_id: str,
+        *,
+        part_id: str,
+    ) -> ResolvedSemanticProportionOptions:
+        """Resolve visual recipes against active Snapshot, G808 bindings and GLB readback.
+
+        This read never creates a version. A returned option is merely a safe
+        input for the existing preview-first ``set_part_parameter`` ChangeSet.
+        Missing evidence produces an explicit empty state instead of guessing.
+        """
+        with SQLiteUnitOfWork(self.connection_factory) as unit:
+            row = unit.agent_assets.get_version(asset_version_id)
+            if row is None:
+                raise AgentAssetError("ASSET_VERSION_NOT_FOUND", "可编辑资产版本不存在。", status_code=404)
+            version = _version_from_row(row)
+            locked_part_ids = _active_snapshot_locked_part_ids(unit, version, purpose="读取外观比例配方")
+            if _is_external_glb_reference(version):
+                raise AgentAssetError(
+                    "EXTERNAL_REFERENCE_NOT_EDITABLE",
+                    "导入 GLB 当前仅作为参考模型；请让 Agent 重建后再使用外观比例配方。",
+                    status_code=409,
+                )
+            part = next((item for item in version.parts if item.part_id == part_id), None)
+            if part is None:
+                raise AgentAssetError("PART_NOT_FOUND", "找不到要调整的部件。", status_code=404)
+            try:
+                compiled = compile_shape_program(version.shape_program)
+            except GeometryCompileReadbackError as exc:
+                raise _geometry_readback_failed(exc) from exc
+            except (ShapeProgramValidationError, UnsupportedRuntimeOperationError, ValueError) as exc:
+                raise _runtime_operation_rejected(exc) from exc
+
+            readback = compiled.readback
+            surface_facts = [
+                raw.model_dump(mode="json") if hasattr(raw, "model_dump") else raw
+                for raw in readback.surface_provenance
+            ]
+            surface_facts = [
+                item for item in surface_facts
+                if item.get("part_role") == part.role
+                and item.get("material_zone_id") in set(part.material_zone_ids)
+                and item.get("texture_ready") is True
+            ]
+            source_operation_ids = sorted({
+                str(operation_id)
+                for item in surface_facts
+                for operation_id in item.get("source_operation_ids", [])
+                if isinstance(operation_id, str)
+            })
+            locked = part_id in locked_part_ids or part.locked
+            bindings = {
+                binding.path: binding for binding in part.editable_parameter_bindings
+                if binding.unit == "ratio" and binding.path.startswith("transform.scale.")
+            }
+            graph_part = next((
+                item for item in version.assembly_graph.get("parts", [])
+                if isinstance(item, dict) and item.get("part_id") == part_id
+            ), None)
+            graph_scale = (
+                graph_part.get("transform", {}).get("scale", [1.0, 1.0, 1.0])
+                if isinstance(graph_part, dict) else [1.0, 1.0, 1.0]
+            )
+            tokens = style_token_map()
+            options: list[ResolvedSemanticProportionOption] = []
+            if source_operation_ids and not locked:
+                for recipe in recipes_for_domain(version.domain_pack_id):
+                    for adjustment in recipe.adjustments:
+                        if part_id_for_role_selector(version.parts, version.assembly_graph, adjustment.role_selector) != part.part_id:
+                            continue
+                        binding = bindings.get(adjustment.path)
+                        token = tokens.get(recipe.style_token_id)
+                        if binding is None or token is None or version.domain_pack_id not in token.allowed_domains:
+                            continue
+                        axis = "xyz".index(adjustment.path.rsplit(".", 1)[1])
+                        current = float(graph_scale[axis]) if isinstance(graph_scale, list) and len(graph_scale) == 3 else binding.default
+                        if not math.isfinite(current) or current < binding.min - 1e-9 or current > binding.max + 1e-9:
+                            continue
+                        target = round(current + binding.step * adjustment.step_delta, 10)
+                        if target < binding.min - 1e-9 or target > binding.max + 1e-9:
+                            continue
+                        options.append(ResolvedSemanticProportionOption(
+                            recipe_id=recipe.recipe_id,
+                            style_token=token,
+                            display_name=recipe.display_name,
+                            description=recipe.description,
+                            path=adjustment.path,
+                            current_value=current,
+                            target_value=target,
+                            min=binding.min,
+                            max=binding.max,
+                            step=binding.step,
+                            source_operation_ids=source_operation_ids,
+                        ))
+
+            if locked:
+                unavailable = "该部件已锁定。解除锁定后才能预览外观比例配方。"
+            elif not source_operation_ids:
+                unavailable = "真实编译结果没有找到该部件的稳定表面来源，未提供比例配方。"
+            elif not bindings:
+                unavailable = "该部件没有受限比例参数，Agent 不会猜测或创建自由参数。"
+            elif not options:
+                unavailable = "当前部件没有适用且仍在安全范围内的领域比例配方。"
+            else:
+                unavailable = None
+            return ResolvedSemanticProportionOptions(
+                asset_version_id=version.asset_version_id,
+                part_id=part.part_id,
+                domain_pack_id=version.domain_pack_id,
+                shape_program_sha256=readback.shape_program_sha256,
+                glb_sha256=readback.glb_sha256,
+                locked=locked,
+                options=options,
+                unavailable_message=unavailable,
+            )
 
     def list_structure_suggestions(self, asset_version_id: str) -> AgentStructureSuggestionList:
         """Return evidence-bound split/merge ideas without creating a version.

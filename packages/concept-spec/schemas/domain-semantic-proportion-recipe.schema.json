@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/domain-semantic-proportion-recipe.schema.json",
+  "title": "DomainSemanticProportionRecipe",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "recipe_id", "version", "domain_pack_id", "style_token_id", "display_name", "description", "intent_phrases", "adjustments", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "DomainSemanticProportionRecipe@1" },
+    "recipe_id": { "type": "string", "pattern": "^proportion_[a-z0-9_\\-]+$" },
+    "version": { "const": "1" },
+    "domain_pack_id": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "style_token_id": { "type": "string", "pattern": "^style_[a-z0-9_\\-]+$" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "intent_phrases": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+    "adjustments": {
+      "type": "array", "minItems": 1, "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["role_selector", "path", "step_delta"],
+        "properties": {
+          "role_selector": { "type": "string", "enum": ["primary_form", "secondary_form", "cabin_form", "base_form", "upper_link_form", "end_effector_form"] },
+          "path": { "type": "string", "enum": ["transform.scale.x", "transform.scale.y", "transform.scale.z"] },
+          "step_delta": { "type": "integer", "enum": [-1, 1] }
+        }
+      }
+    },
+    "non_functional_only": { "const": true }
+  }
+}

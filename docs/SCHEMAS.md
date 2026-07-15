@@ -13,6 +13,8 @@ packages/weapon-spec/      legacy Weapon/Unity runtime
 packages/concept-spec/     当前通用机械概念 Agent 工作台
 ```
 
+D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；三者均已进入 JSON Schema、Pydantic、生成 TypeScript/OpenAPI 与任务 Gate。
+
 当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。这些合同已经有 JSON Schema、TypeScript/Python registry 或 OpenAPI 类型与 smoke；G3 已有受限 ShapeProgram/领域 blockout 生成链，G6 已有声明式 Connector 吸附与 GLB readback，G6.5 可引入只读 `ExternalGLBReference@1`。G807 另有运行时版本化变体目录；G812 在 build/segment OpenAPI 请求与响应中增加可选、受限的 `variant_id`，G813 再增加仅为 `0..2` 的 `variation_index`（旧响应缺失时默认为 `0`）。G815 的 `VisualIntentMapping@1` 将三张方向的有限轮廓、细节、色彩和展示姿态分类映射到同一 Pack 已审核的 0–3 视觉族；实际 ID/index 只用于同一方向三项视觉预览的一致性，经候选 JSON 与已保存的 ShapeProgram/AssemblyGraph 可追溯；它们不改变 `ModuleAssetManifest@1` 或 `ActiveDesignSnapshot` 合同，也不开放自由参数。G811 已将当前 AssetVersion 的受限声明接入零基础步进控件，不开放自由参数、单位换算或新几何执行；真实碰撞、外部 GLB 的自动重建与深度分件仍未完成。
 
 生成与漂移检查：
@@ -173,6 +175,12 @@ metadata
 每个 `BlockoutPartCandidate` 可选携带最多六个 `editable_parameter_bindings`。每项都必须包含 `editparam_` 稳定 ID、当前执行器已认识的六个 position/scale 数值路径之一、零基础用户可读的显示名称、`millimeter` 或 `ratio`、默认值、最小/最大值和正步长。Pydantic 同时校验有限数值、范围、单位-路径匹配、缩放 `0.1..10`、位置 `-100000..100000`，以及同一 Part 内 ID/路径唯一；旧资产没有该字段时安全默认为空。
 
 它不运行表达式、代码、URL 或路径，不增加新的 ChangeSet path，也不代表工程尺寸、制造参数或现实武器功能。G809 已使既有 `set_part_parameter` 在非空声明存在时按该 Part 的路径、范围和步长校验；G810 使四领域新 blockout 的单一 `box`/`wedge` 输出生成三条 `scale.x/y/z` 声明（`0.6..1.4`、步长 `0.1`），而重复 role 与当前 cylinder/capsule 输出保持空声明，避免假装为独立参数。历史资产的空列表仅保留原六路径和全局概念边界兼容，绝不开放任意参数。G811 的桌面控件只读取当前 AssetVersion 的 AssemblyGraph 值或该绑定的声明默认值，并以一个声明步长创建 preview；它不保存本地参数草稿，确认仍由既有 preview→confirm 创建版本。
+
+### 6.2 MechanicalStyleToken / DomainSemanticProportionRecipe（D005）
+
+`MechanicalStyleToken@1` 只保存版本、中文名称、离散比例/边缘/表面/细节/对称/材质调色板/灯光语言、允许领域和 builtin 来源。`DomainSemanticProportionRecipe@1` 将普通语言意图绑定到 `primary_form`、`cabin_form`、`upper_link_form` 等有限语义部件槽，以及唯一的 `transform.scale.x/y/z` 路径和 `-1|+1` 声明步长；它不包含 mm、自由表达式或 ShapeProgram operation。
+
+`ResolvedSemanticProportionOptions@1` 是活动资产的只读派生结果，绑定 asset/part/domain、runtime manifest、ShapeProgram/GLB hash、锁定状态与选项。每个选项都带真实 G808 binding 的 current/target/min/max/step/unit，以及 G826 readback 的非空 `source_operation_ids`。解析失败返回明确 `unavailable_message`，不能静默猜测。该对象不进入 Snapshot 或 localStorage，也不替代 ChangeSet。
 
 ## 7. MaterialPreset 与 Binding
 

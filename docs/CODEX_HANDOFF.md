@@ -5,6 +5,13 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-15：FGC-D005 四领域语义比例配方（已完成；A004 ready）
+
+- 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1`、`ResolvedSemanticProportionOptions@1`，四领域各 4 个普通语言配方。实际候选使用大量变体 role，因此 D005 以稳定语义部件槽映射当前 AssemblyGraph Part，再要求真实 G808 ratio binding 与 G826 GLB `surface_provenance/source_operation_ids` 同时存在；不按猜测角色或 UI 估算提供按钮。
+- 新只读 API 为当前活动 asset/part 返回 ShapeProgram/GLB hash、锁定状态、current/target/min/max/step/unit 与来源操作；无绑定、无表面来源、锁定和外部 GLB 明确回退。桌面 `AgentSemanticProportionControls` 只创建现有 `set_part_parameter` preview，确认仍由 ChangeSet/CAS 创建不可变子版本；无 localStorage/Snapshot 配方偏好或新几何 operation。
+- 专属 Gate 已通过四领域目录、JSON/Pydantic/OpenAPI、真实编译/GLB readback、锁定/越界/步长拒绝、无绑定回退、preview 取消/确认、Q003 质量、重启和 undo/redo；UI Gate 覆盖中文、相对倍数、范围/步长和非工程提示。下一唯一可领取任务为 `FGC-A004`，用于受限 Product Tool Registry Action Loop；D005 本身没有让 Planner/DeepSeek 自动选择配方。
+- 本轮最终通过 `contracts:types:check`、`agent:check`、Agent 18 项单测、G6/G808–G810/G819/Q003/G826/D005、desktop D005/typecheck/build/F006/F025/T002（14/14）/T003/r3，以及 docs walkthrough、repository integrity、safety scope、secret files 和 `git diff --check`。Vite 仍报告既有单 chunk 警告，但 T003 最终 bundle 1,076,132 bytes 低于 1,200,000 bytes 门槛；无 Gate 失败。工作分支为 `codex/repository-integrity`，提交与远端 PR 结果以 Git 历史/PR checks 为准。
+
 ## 2026-07-15：FGC-F025 Agent/legacy 工作台隔离（已完成；D005 ready）
 
 - Agent-active 首次进入只读取 Project shell；只有点击“查看旧版只读信息”才读取旧版本、ChangeSet、审计和 ModuleGraph。关闭、项目切换及迟到响应均由 request guard 清理，不能重新挂载 legacy 表面。

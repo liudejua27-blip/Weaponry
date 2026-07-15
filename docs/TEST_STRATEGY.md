@@ -111,6 +111,8 @@ npm run desktop:s5-active-design-machine-smoke
 
 `FGC-G809` 必须验证 ChangeSet 在非空 `EditableParameterBinding@1` 存在时仅接受该 Part 的已声明路径，并拒绝未声明、越界和非步进数值；C104 锁定必须先于参数声明拒绝。旧资产的空绑定只兼容原六条 position/scale 路径及原全局概念边界，不能变成任意路径。smoke 还必须证明 preview 不创建版本、confirm 创建不可变子版本且 Agent head、Snapshot/export 与绑定声明保持一致。命令为 `npm run agent:g809-parameter-binding-changesets-smoke`，并回归 G6/C104/G808 与 `contracts:types:check`。该 Gate 不证明参数面板、自由尺寸、单位转换或新的 ShapeProgram 执行。
 
+`FGC-D005` 必须在四领域真实生成/编译结果上验证 Style Token/Recipe、语义部件槽、G808 ratio binding、G819 operation manifest 与 G826 GLB surface provenance 一致，并覆盖锁定、越界、步长、无绑定回退、preview 取消/确认、Q003、重启和 undo/redo。命令为 `npm run agent:d005-semantic-proportions-smoke` 与 `npm run desktop:d005-semantic-proportions-smoke`；UI Gate 还检查中文、相对倍数和非工程提示。它不证明 Agent 已自动选择配方。
+
 `FGC-G810` 必须验证四领域默认确定性分件均有至少一个非空 `EditableParameterBinding@1`，且每个声明只对应唯一 role 的单一 `box`/`wedge` ShapeProgram 输出和真实 `args.size`。三条比例声明固定为 `scale.x/y/z`、ratio、默认 1、范围 `0.6..1.4`、步长 `0.1`；重复 role 和当前 cylinder/capsule 输出不得伪造独立控制。命令为 `npm run agent:g810-generated-parameter-bindings-smoke`，并回归 G6/G809/G807/C104。该 Gate 不证明参数 UI、operation-level 编辑、自由尺寸或新几何执行。
 
 `FGC-G811` 必须验证零基础参数控件只读取当前选中 Part 的 `editable_parameter_bindings` 和当前 AgentAssetVersion 的 AssemblyGraph 变换：每项显示声明名称、当前值、范围、步长与中文“比例（ratio）”单位；减少/增加仅以一个声明步长创建 `set_part_parameter` preview。空声明显示明确不可编辑说明而不生成猜测控件，锁定或已有 preview 时控件禁用；取消、确认、刷新与版本切换仍从 Snapshot/活动资产读取，且工作台保持单一 WebGL canvas。命令为 `npm run desktop:f003-agent-selection-card-smoke`、`npm run desktop:t002-workbench-e2e-scenarios`、`npm run desktop:r3-concept-workbench-smoke`、G809/G810、typecheck、build 和性能回归。该 Gate 不支持自由输入、单位换算、工程尺寸或新的几何执行。
@@ -160,6 +162,7 @@ npm run desktop:f023-agent-blockout-preview-presentation-smoke
 npm run desktop:r006-direction-concept-preview-state-smoke
 npm run desktop:f024-agent-plan-source-presentation-smoke
 npm run desktop:f025-legacy-isolation-smoke
+npm run desktop:d005-semantic-proportions-smoke
 npm run desktop:t002-workbench-e2e-scenarios
 npm run desktop:f001-workbench-characterization
 npm run desktop:r3-concept-workbench-smoke

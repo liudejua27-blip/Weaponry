@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/resolved-semantic-proportion-options.schema.json",
+  "title": "ResolvedSemanticProportionOptions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "asset_version_id", "part_id", "domain_pack_id", "runtime_manifest_version", "shape_program_sha256", "glb_sha256", "locked", "options", "unavailable_message"],
+  "properties": {
+    "schema_version": { "const": "ResolvedSemanticProportionOptions@1" },
+    "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+    "domain_pack_id": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "runtime_manifest_version": { "const": "ShapeProgramRuntimeManifest@1" },
+    "shape_program_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "glb_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "locked": { "type": "boolean" },
+    "options": {
+      "type": "array", "maxItems": 16,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["schema_version", "recipe_id", "style_token", "display_name", "description", "path", "current_value", "target_value", "min", "max", "step", "unit", "source_operation_ids"],
+        "properties": {
+          "schema_version": { "const": "ResolvedSemanticProportionOption@1" },
+          "recipe_id": { "type": "string", "pattern": "^proportion_[a-z0-9_\\-]+$" },
+          "style_token": { "$ref": "mechanical-style-token.schema.json" },
+          "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "path": { "type": "string", "enum": ["transform.scale.x", "transform.scale.y", "transform.scale.z"] },
+          "current_value": { "type": "number" },
+          "target_value": { "type": "number" },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "step": { "type": "number", "exclusiveMinimum": 0 },
+          "unit": { "const": "ratio" },
+          "source_operation_ids": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" } }
+        }
+      }
+    },
+    "unavailable_message": { "type": ["string", "null"], "maxLength": 240 }
+  }
+}

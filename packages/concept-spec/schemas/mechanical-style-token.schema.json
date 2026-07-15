@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/mechanical-style-token.schema.json",
+  "title": "MechanicalStyleToken",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "token_id", "version", "display_name", "description", "proportion_profile", "edge_language", "surface_tension", "detail_density", "symmetry", "material_palette", "lighting_profile", "allowed_domains", "visual_only", "provenance"],
+  "properties": {
+    "schema_version": { "const": "MechanicalStyleToken@1" },
+    "token_id": { "type": "string", "pattern": "^style_[a-z0-9_\\-]+$" },
+    "version": { "const": "1" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "proportion_profile": { "type": "string", "enum": ["compact", "balanced", "elongated", "substantial"] },
+    "edge_language": { "type": "string", "enum": ["soft", "controlled", "crisp"] },
+    "surface_tension": { "type": "string", "enum": ["relaxed", "neutral", "taut"] },
+    "detail_density": { "type": "string", "enum": ["low", "medium"] },
+    "symmetry": { "type": "string", "enum": ["bilateral", "radial", "assembly_driven"] },
+    "material_palette": { "type": "string", "enum": ["dark_metal", "clean_coating", "technical_composite", "mixed_industrial"] },
+    "lighting_profile": { "type": "string", "enum": ["cad_neutral", "soft_studio", "concept_contrast"] },
+    "allowed_domains": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] } },
+    "visual_only": { "const": true },
+    "provenance": { "const": "forgecad_builtin" }
+  }
+}

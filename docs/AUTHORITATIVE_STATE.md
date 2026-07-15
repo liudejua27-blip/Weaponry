@@ -1,9 +1,11 @@
 # ForgeCAD 唯一权威状态设计
 
 版本：2026-07-15
-状态：S001–S008、D001–D003、F001–F006、T001–T004、G801–G825、R001–R004、M101–M107、C101–C104 与 Q002–Q003 的当前原子任务已按各自边界完成；F001/T002/T003 已在本机 Chrome 验证启动、澄清、预览不写盘、Agent 提交、Snapshot/导出一致、重启和单 WebGL canvas。当前 Agent 路径的恢复、选择、预览、质量、回退/前进和 GLB 导出已读取同一 Snapshot；R003 的爆炸概念图和 R004 的 PNG/manifest 图包均是条件式只读派生物；Q002 将质量写入收紧为 ETag + Idempotency-Key 重放，任务级 CAS 竞争已有 smoke，广泛多客户端压力矩阵仍未完成。
+状态：S001–S008、D001–D005、F001–F006、T001–T004、G801–G826、R001–R004、M101–M107、C101–C104 与 Q002–Q003 的当前原子任务已按各自边界完成；F001/T002/T003 已在本机 Chrome 验证启动、澄清、预览不写盘、Agent 提交、Snapshot/导出一致、重启和单 WebGL canvas。当前 Agent 路径的恢复、选择、预览、质量、回退/前进和 GLB 导出已读取同一 Snapshot；R003 的爆炸概念图和 R004 的 PNG/manifest 图包均是条件式只读派生物；Q002 将质量写入收紧为 ETag + Idempotency-Key 重放，任务级 CAS 竞争已有 smoke，广泛多客户端压力矩阵仍未完成。
 
 2026-07-15 增量真值：G819 已将 ShapeProgram 操作接受/拒绝收敛到单一 manifest；Q003 已将质量与导出的 triangle、bounds、hash、operation/output/material 证据收敛到当次 `GeometryCompileReadback@1`。G825 再把每个有序 ShapeProgram node 的输入/结果/参数/provenance hash、runtime/kernel version 和 CSG surface/material 来源收敛到同次 GLB 回读的不可变 `feature_history`；该历史是资产内容的派生证据，不是第二个 Project/Version/FeatureGraph 真值。旧估算报告和缺少 Feature History 的新编译均不是当前资产质量真值。
+
+D005 增量真值：Style Token 和语义比例 Recipe 是版本化只读目录，不保存当前参数值。可用选项每次从当前活动 `AgentAssetVersion` 的 AssemblyGraph、G808 binding 和同一 ShapeProgram 的 G826 GLB readback 重新解析；当前比例值来自 AssemblyGraph transform。点击配方仍创建普通 ChangeSet preview，只有 confirm 创建不可变子版本并更新 Snapshot。配方选择本身不写 localStorage/Snapshot，也不能扩大路径、范围、步长或 G819 operation manifest。
 
 ## 1. 历史问题与当前边界
 

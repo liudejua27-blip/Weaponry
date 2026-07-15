@@ -450,11 +450,12 @@ export function CadWorkbenchPanel() {
     const requestId = startAgentEditAssistRead(projectId, assetVersionId, partId)
     if (requestId === null) return
     try {
-      const [candidates, structure] = await Promise.all([
+      const [candidates, structure, semanticProportions] = await Promise.all([
         api.listAgentComponentCandidates(assetVersionId, partId),
         api.listAgentStructureSuggestions(assetVersionId),
+        api.listAgentSemanticProportions(assetVersionId, partId).catch(() => null),
       ])
-      receiveAgentEditAssistRead(projectId, assetVersionId, partId, requestId, candidates, structure)
+      receiveAgentEditAssistRead(projectId, assetVersionId, partId, requestId, candidates, structure, semanticProportions)
     } catch {
       failAgentEditAssistRead(projectId, assetVersionId, partId, requestId)
     }
@@ -1565,6 +1566,7 @@ export function CadWorkbenchPanel() {
                 agentComponentCandidates={agentComponentCandidates}
                 agentStructureSuggestions={agentStructureSuggestions}
                 structureSuggestionUnavailableMessage={structureSuggestionUnavailableMessage}
+                semanticProportions={agentEditAssistPresentation.semanticProportions}
                 editAssistLoading={agentEditAssistPresentation.loading}
                 blockoutPreviewPresentation={blockoutPreviewPresentation}
                 onSelectPart={selectAgentPart}

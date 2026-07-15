@@ -618,6 +618,93 @@ class AgentStructureSuggestionList(StrictApiModel):
     unavailable_message: Optional[str] = Field(default=None, max_length=240)
 
 
+SemanticProportionPath = Literal[
+    "transform.scale.x",
+    "transform.scale.y",
+    "transform.scale.z",
+]
+
+
+class MechanicalStyleToken(StrictApiModel):
+    """A visual-only mechanical language token, never an engineering preset."""
+
+    schema_version: Literal["MechanicalStyleToken@1"] = "MechanicalStyleToken@1"
+    token_id: str = Field(pattern=r"^style_[a-z0-9_\-]+$")
+    version: Literal["1"] = "1"
+    display_name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=240)
+    proportion_profile: Literal["compact", "balanced", "elongated", "substantial"]
+    edge_language: Literal["soft", "controlled", "crisp"]
+    surface_tension: Literal["relaxed", "neutral", "taut"]
+    detail_density: Literal["low", "medium"]
+    symmetry: Literal["bilateral", "radial", "assembly_driven"]
+    material_palette: Literal["dark_metal", "clean_coating", "technical_composite", "mixed_industrial"]
+    lighting_profile: Literal["cad_neutral", "soft_studio", "concept_contrast"]
+    allowed_domains: List[DomainPackId] = Field(min_length=1, max_length=4)
+    visual_only: Literal[True] = True
+    provenance: Literal["forgecad_builtin"] = "forgecad_builtin"
+
+
+SemanticProportionRoleSelector = Literal[
+    "primary_form",
+    "secondary_form",
+    "cabin_form",
+    "base_form",
+    "upper_link_form",
+    "end_effector_form",
+]
+
+
+class SemanticProportionAdjustment(StrictApiModel):
+    role_selector: SemanticProportionRoleSelector
+    path: SemanticProportionPath
+    step_delta: Literal[-1, 1]
+
+
+class DomainSemanticProportionRecipe(StrictApiModel):
+    """One bounded domain recipe resolved only against a real G808 binding."""
+
+    schema_version: Literal["DomainSemanticProportionRecipe@1"] = "DomainSemanticProportionRecipe@1"
+    recipe_id: str = Field(pattern=r"^proportion_[a-z0-9_\-]+$")
+    version: Literal["1"] = "1"
+    domain_pack_id: DomainPackId
+    style_token_id: str = Field(pattern=r"^style_[a-z0-9_\-]+$")
+    display_name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=240)
+    intent_phrases: List[str] = Field(min_length=1, max_length=8)
+    adjustments: List[SemanticProportionAdjustment] = Field(min_length=1, max_length=8)
+    non_functional_only: Literal[True] = True
+
+
+class ResolvedSemanticProportionOption(StrictApiModel):
+    schema_version: Literal["ResolvedSemanticProportionOption@1"] = "ResolvedSemanticProportionOption@1"
+    recipe_id: str = Field(pattern=r"^proportion_[a-z0-9_\-]+$")
+    style_token: MechanicalStyleToken
+    display_name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=240)
+    path: SemanticProportionPath
+    current_value: float
+    target_value: float
+    min: float
+    max: float
+    step: float = Field(gt=0)
+    unit: Literal["ratio"] = "ratio"
+    source_operation_ids: List[str] = Field(min_length=1, max_length=32)
+
+
+class ResolvedSemanticProportionOptions(StrictApiModel):
+    schema_version: Literal["ResolvedSemanticProportionOptions@1"] = "ResolvedSemanticProportionOptions@1"
+    asset_version_id: str = Field(pattern=r"^assetver_[a-z0-9_\-]+$")
+    part_id: str = Field(pattern=r"^part_[a-z0-9_\-]+$")
+    domain_pack_id: DomainPackId
+    runtime_manifest_version: Literal["ShapeProgramRuntimeManifest@1"] = "ShapeProgramRuntimeManifest@1"
+    shape_program_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    glb_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    locked: bool
+    options: List[ResolvedSemanticProportionOption] = Field(default_factory=list, max_length=16)
+    unavailable_message: Optional[str] = Field(default=None, max_length=240)
+
+
 class SaveAgentComponentRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     part_id: str = Field(pattern=r"^part_[a-z0-9_\-]+$")

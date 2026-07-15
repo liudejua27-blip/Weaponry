@@ -25,6 +25,7 @@ from forgecad_agent.application.agent_models import (
     ImportAgentGlbRequest,
     ImportAgentGlbResponse,
     ProposeAgentAssetChangeSetRequest,
+    ResolvedSemanticProportionOptions,
     SaveAgentComponentRequest,
 )
 
@@ -94,6 +95,19 @@ def build_agent_asset_router(service: AgentAssetEditingService) -> APIRouter:
                     "X-ForgeCAD-Render-Set-SHA256": manifest.render_set_sha256,
                 },
             )
+        except AgentAssetError as exc:
+            return _agent_error(exc)
+
+    @router.get(
+        "/asset-versions/{asset_version_id}/parts/{part_id}/semantic-proportions",
+        response_model=ResolvedSemanticProportionOptions,
+    )
+    def list_semantic_proportions(
+        asset_version_id: str,
+        part_id: str,
+    ) -> Union[ResolvedSemanticProportionOptions, JSONResponse]:
+        try:
+            return service.list_semantic_proportions(asset_version_id, part_id=part_id)
         except AgentAssetError as exc:
             return _agent_error(exc)
 

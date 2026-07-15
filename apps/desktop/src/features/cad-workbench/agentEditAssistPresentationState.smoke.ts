@@ -1,4 +1,4 @@
-import type { AgentComponentCandidate, AgentStructureSuggestionList } from '../../shared/types.js'
+import type { AgentComponentCandidate, AgentStructureSuggestionList, ResolvedSemanticProportionOptions } from '../../shared/types.js'
 import {
   agentEditAssistPresentationReducer,
   initialAgentEditAssistPresentationState,
@@ -22,6 +22,17 @@ const structure = (assetVersionId: string, partId: string): AgentStructureSugges
   suggestions: [{ suggestion_id: `suggestion-${partId}`, kind: 'split_part', asset_version_id: assetVersionId, part_id: partId, affected_part_ids: [partId], source_facts: ['stable_role'], summary: '依据现有关系预览拆分' }],
 })
 
+const semantic = (assetVersionId: string, partId: string): ResolvedSemanticProportionOptions => ({
+  asset_version_id: assetVersionId,
+  part_id: partId,
+  domain_pack_id: 'pack_robotic_arm_concept',
+  runtime_manifest_version: 'ShapeProgramRuntimeManifest@1',
+  shape_program_sha256: 'a'.repeat(64),
+  glb_sha256: 'b'.repeat(64),
+  locked: false,
+  options: [],
+})
+
 export function runAgentEditAssistPresentationStateSmoke(): void {
   let state = agentEditAssistPresentationReducer(initialAgentEditAssistPresentationState, {
     type: 'open_context', projectId: 'project-a', assetVersionId: 'asset-a', selectedPartId: 'part-a', requestId: 1,
@@ -36,6 +47,7 @@ export function runAgentEditAssistPresentationStateSmoke(): void {
       ...structure('asset-a', 'part-a'),
       suggestions: [...(structure('asset-a', 'part-a').suggestions ?? []), ...(structure('asset-b', 'part-a').suggestions ?? [])],
     },
+    semanticProportions: semantic('asset-a', 'part-a'),
   })
   assert(
     state.componentCandidates.length === 1 && state.structureSuggestions.length === 1 && !state.loading,
@@ -51,7 +63,7 @@ export function runAgentEditAssistPresentationStateSmoke(): void {
   )
   const lateRead = agentEditAssistPresentationReducer(state, {
     type: 'read_received', projectId: 'project-a', assetVersionId: 'asset-a', selectedPartId: 'part-a', requestId: 2,
-    componentCandidates: [candidate('asset-a', 'part-a')], structure: structure('asset-a', 'part-a'),
+    componentCandidates: [candidate('asset-a', 'part-a')], structure: structure('asset-a', 'part-a'), semanticProportions: semantic('asset-a', 'part-a'),
   })
   assert(lateRead === state, 'late reads from a prior part must not overwrite the current selection context')
 
@@ -71,7 +83,7 @@ export function runAgentEditAssistPresentationStateSmoke(): void {
   })
   const fields = Object.keys(state).sort().join(',')
   assert(
-    fields === 'assetVersionId,componentCandidates,latestRequestId,loading,projectId,selectedPartId,structureSuggestionUnavailableMessage,structureSuggestions',
+    fields === 'assetVersionId,componentCandidates,latestRequestId,loading,projectId,selectedPartId,semanticProportions,structureSuggestionUnavailableMessage,structureSuggestions',
     'edit-assist state must not contain Snapshot, quality, ChangeSet, export, component catalog, renderer, or asset-head truth',
   )
 }

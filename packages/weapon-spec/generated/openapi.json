@@ -8796,6 +8796,147 @@
         "title": "MechanicalConceptPlan",
         "type": "object"
       },
+      "MechanicalStyleToken": {
+        "additionalProperties": false,
+        "description": "A visual-only mechanical language token, never an engineering preset.",
+        "properties": {
+          "allowed_domains": {
+            "items": {
+              "enum": [
+                "pack_future_weapon_prop",
+                "pack_vehicle_concept",
+                "pack_aircraft_concept",
+                "pack_robotic_arm_concept"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Allowed Domains",
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "detail_density": {
+            "enum": [
+              "low",
+              "medium"
+            ],
+            "title": "Detail Density",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "edge_language": {
+            "enum": [
+              "soft",
+              "controlled",
+              "crisp"
+            ],
+            "title": "Edge Language",
+            "type": "string"
+          },
+          "lighting_profile": {
+            "enum": [
+              "cad_neutral",
+              "soft_studio",
+              "concept_contrast"
+            ],
+            "title": "Lighting Profile",
+            "type": "string"
+          },
+          "material_palette": {
+            "enum": [
+              "dark_metal",
+              "clean_coating",
+              "technical_composite",
+              "mixed_industrial"
+            ],
+            "title": "Material Palette",
+            "type": "string"
+          },
+          "proportion_profile": {
+            "enum": [
+              "compact",
+              "balanced",
+              "elongated",
+              "substantial"
+            ],
+            "title": "Proportion Profile",
+            "type": "string"
+          },
+          "provenance": {
+            "const": "forgecad_builtin",
+            "default": "forgecad_builtin",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "MechanicalStyleToken@1",
+            "default": "MechanicalStyleToken@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "surface_tension": {
+            "enum": [
+              "relaxed",
+              "neutral",
+              "taut"
+            ],
+            "title": "Surface Tension",
+            "type": "string"
+          },
+          "symmetry": {
+            "enum": [
+              "bilateral",
+              "radial",
+              "assembly_driven"
+            ],
+            "title": "Symmetry",
+            "type": "string"
+          },
+          "token_id": {
+            "pattern": "^style_[a-z0-9_\\-]+$",
+            "title": "Token Id",
+            "type": "string"
+          },
+          "version": {
+            "const": "1",
+            "default": "1",
+            "title": "Version",
+            "type": "string"
+          },
+          "visual_only": {
+            "const": true,
+            "default": true,
+            "title": "Visual Only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "token_id",
+          "display_name",
+          "description",
+          "proportion_profile",
+          "edge_language",
+          "surface_tension",
+          "detail_density",
+          "symmetry",
+          "material_palette",
+          "lighting_profile",
+          "allowed_domains"
+        ],
+        "title": "MechanicalStyleToken",
+        "type": "object"
+      },
       "ModelQualityReport": {
         "additionalProperties": false,
         "properties": {
@@ -10695,6 +10836,178 @@
           "decision"
         ],
         "title": "ResolveAgentApprovalRequest",
+        "type": "object"
+      },
+      "ResolvedSemanticProportionOption": {
+        "additionalProperties": false,
+        "properties": {
+          "current_value": {
+            "title": "Current Value",
+            "type": "number"
+          },
+          "description": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "max": {
+            "title": "Max",
+            "type": "number"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          },
+          "path": {
+            "enum": [
+              "transform.scale.x",
+              "transform.scale.y",
+              "transform.scale.z"
+            ],
+            "title": "Path",
+            "type": "string"
+          },
+          "recipe_id": {
+            "pattern": "^proportion_[a-z0-9_\\-]+$",
+            "title": "Recipe Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ResolvedSemanticProportionOption@1",
+            "default": "ResolvedSemanticProportionOption@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Source Operation Ids",
+            "type": "array"
+          },
+          "step": {
+            "exclusiveMinimum": 0.0,
+            "title": "Step",
+            "type": "number"
+          },
+          "style_token": {
+            "$ref": "#/components/schemas/MechanicalStyleToken"
+          },
+          "target_value": {
+            "title": "Target Value",
+            "type": "number"
+          },
+          "unit": {
+            "const": "ratio",
+            "default": "ratio",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe_id",
+          "style_token",
+          "display_name",
+          "description",
+          "path",
+          "current_value",
+          "target_value",
+          "min",
+          "max",
+          "step",
+          "source_operation_ids"
+        ],
+        "title": "ResolvedSemanticProportionOption",
+        "type": "object"
+      },
+      "ResolvedSemanticProportionOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "enum": [
+              "pack_future_weapon_prop",
+              "pack_vehicle_concept",
+              "pack_aircraft_concept",
+              "pack_robotic_arm_concept"
+            ],
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "glb_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Glb Sha256",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedSemanticProportionOption"
+            },
+            "maxItems": 16,
+            "title": "Options",
+            "type": "array"
+          },
+          "part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "runtime_manifest_version": {
+            "const": "ShapeProgramRuntimeManifest@1",
+            "default": "ShapeProgramRuntimeManifest@1",
+            "title": "Runtime Manifest Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ResolvedSemanticProportionOptions@1",
+            "default": "ResolvedSemanticProportionOptions@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shape_program_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Shape Program Sha256",
+            "type": "string"
+          },
+          "unavailable_message": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Message"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "part_id",
+          "domain_pack_id",
+          "shape_program_sha256",
+          "glb_sha256",
+          "locked"
+        ],
+        "title": "ResolvedSemanticProportionOptions",
         "type": "object"
       },
       "RuntimeRecoveryItem": {
@@ -12997,6 +13310,57 @@
           }
         },
         "summary": "List Component Candidates",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}/parts/{part_id}/semantic-proportions": {
+      "get": {
+        "operationId": "list_semantic_proportions_api_v1_agent_asset_versions__asset_version_id__parts__part_id__semantic_proportions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "part_id",
+            "required": true,
+            "schema": {
+              "title": "Part Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedSemanticProportionOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Semantic Proportions",
         "tags": [
           "agent-assets"
         ]

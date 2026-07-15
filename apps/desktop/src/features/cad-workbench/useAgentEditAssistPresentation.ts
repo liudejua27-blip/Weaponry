@@ -1,5 +1,5 @@
 import { useCallback, useReducer, useRef } from 'react'
-import type { AgentComponentCandidate, AgentStructureSuggestionList } from '../../shared/types.js'
+import type { AgentComponentCandidate, AgentStructureSuggestionList, ResolvedSemanticProportionOptions } from '../../shared/types.js'
 import {
   agentEditAssistPresentationReducer,
   initialAgentEditAssistPresentationState,
@@ -46,9 +46,10 @@ export function useAgentEditAssistPresentation() {
     requestId: number,
     componentCandidates: AgentComponentCandidate[],
     structure: AgentStructureSuggestionList,
+    semanticProportions: ResolvedSemanticProportionOptions | null,
   ) => {
     if (!isCurrentContextRequest(contextRef.current, projectId, assetVersionId, selectedPartId, requestId, requestIdRef.current)) return false
-    dispatch({ type: 'read_received', projectId, assetVersionId, selectedPartId, requestId, componentCandidates, structure })
+    dispatch({ type: 'read_received', projectId, assetVersionId, selectedPartId, requestId, componentCandidates, structure, semanticProportions })
     return true
   }, [])
   const failAgentEditAssistRead = useCallback((projectId: string, assetVersionId: string, selectedPartId: string, requestId: number) => {

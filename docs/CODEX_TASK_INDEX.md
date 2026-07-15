@@ -1589,7 +1589,7 @@ Remaining blockers:
 
 ### FGC-D005 任务卡
 
-状态：ready（F025、G811、G826 已完成；这是下一唯一可领取任务）。
+状态：done（2026-07-15；F025、G811、G819、Q003、G826 与 D005 Gate 已通过）。
 
 目标：为未来武器概念道具、汽车、飞机和机械臂四个 Domain Pack 提供版本化的非工程语义比例配方，并把其中可编辑项绑定到当前真实可执行的、范围/步长/单位/显示名均被冻结的受限参数路径。
 
@@ -1599,7 +1599,9 @@ Remaining blockers:
 
 验收：新增 D005 合同/服务/UI Gate，覆盖四领域的配方目录、允许绑定、范围/步长/单位显示、preview 取消/确认、越界/锁定拒绝、无绑定回退、重启与 undo/redo；断言所有实际执行操作均在 G819 白名单中，质量来自 Q003 真实 readback。F025、G808/G811、G819/Q003、G6、T002/T003、r3、typecheck/build 与文档 Gate 必须通过。
 
-退出：四领域都有受限、普通语言可解释、非工程的比例/Style Token 配方，并且只能修改当前已验证的绑定；F025、Q003 与 G826 完成前不得领取。
+证据：新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1` JSON/Pydantic/OpenAPI 合同；四领域各 4 个普通语言配方通过稳定语义部件槽解析到当前变体的真实 Part，再同时核对 G808 ratio binding 与 G826 GLB `surface_provenance/source_operation_ids`。只读解析 API 不写版本；桌面卡片只把命中的 `path + target_value` 交给既有 `set_part_parameter` preview。锁定、越界、步长、不存在绑定、编译/readback 失败均拒绝或明确回退。`agent:d005-semantic-proportions-smoke` 覆盖四领域、preview 取消/确认、重启、undo/redo 与 Q003；`desktop:d005-semantic-proportions-smoke` 覆盖中文、范围/步长、非工程提示和单次 preview。
+
+退出：已满足。四领域都有受限、普通语言可解释、非工程的比例/Style Token 配方，并且只能修改当前已验证的绑定。下一唯一可领取任务为 `FGC-A004`。
 
 ### FGC-V002 任务卡
 
@@ -1609,7 +1611,7 @@ Remaining blockers:
 
 ### FGC-A004 任务卡
 
-状态：blocked（等待 D005、A003、G819、G826）。
+状态：ready（D005、A003、G819、G826 已完成；这是下一唯一可领取任务）。
 
 目标：建立 Codex/Claude Code 式但仅面向 ForgeCAD 产品工具的 `AgentActionLoop@1`，让 DeepSeek 可以在一个 Turn 内规划、调用受限工具、读取工具结果、继续判断并停止，而不是一次请求后由前端串接另一套 legacy API。
 

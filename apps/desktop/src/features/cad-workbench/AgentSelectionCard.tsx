@@ -6,8 +6,10 @@ import type {
   ActiveDesignPartDisplay,
   AgentStructureSuggestion,
   SegmentAgentBlockoutResponse,
+  ResolvedSemanticProportionOptions,
 } from '../../shared/types'
 import { AgentParameterControls } from './AgentParameterControls.js'
+import { AgentSemanticProportionControls } from './AgentSemanticProportionControls.js'
 import { displayPartRole, isJointPartRole } from './partRoleLabels.js'
 import type { AgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation.js'
 
@@ -28,6 +30,7 @@ export type AgentSelectionCardProps = {
   agentComponentCandidates: AgentComponentCandidate[]
   agentStructureSuggestions: AgentStructureSuggestion[]
   structureSuggestionUnavailableMessage: string | null
+  semanticProportions: ResolvedSemanticProportionOptions | null
   editAssistLoading: boolean
   blockoutPreviewPresentation: AgentBlockoutPreviewPresentation | null
   onSelectPart: (partId: string) => void | Promise<void>
@@ -61,6 +64,7 @@ export function AgentSelectionCard({
   agentComponentCandidates,
   agentStructureSuggestions,
   structureSuggestionUnavailableMessage,
+  semanticProportions,
   editAssistLoading,
   blockoutPreviewPresentation,
   onSelectPart,
@@ -185,6 +189,13 @@ export function AgentSelectionCard({
             selectedPart={selectedPart}
             isLocked={isSelectedPartLocked}
             hasPendingChange={persistedActionsDisabled}
+            onPreviewEdit={onPreviewEdit}
+          />
+          <AgentSemanticProportionControls
+            semanticProportions={semanticProportions}
+            isLocked={isSelectedPartLocked}
+            hasPendingChange={persistedActionsDisabled}
+            loading={editAssistLoading}
             onPreviewEdit={onPreviewEdit}
           />
           <div className="agent-part-action-row">
