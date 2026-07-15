@@ -8,7 +8,7 @@ from pathlib import Path
 from shutil import copy2
 
 from forgecad_agent.application.agent_kernel import AgentKernelService
-from forgecad_agent.application.agent_models import CreateAgentApprovalRequest, CreateAgentThreadRequest, StartAgentTurnRequest
+from forgecad_agent.application.agent_models import CreateAgentThreadRequest, StartAgentTurnRequest
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteMigrationRunner
 
 
@@ -76,32 +76,37 @@ def _migration_upgrade_preserves_kernel_rows() -> None:
         old_migrations = root / "migrations-before-d003"
         old_migrations.mkdir()
         for migration in (ROOT / "migrations").glob("*.sql"):
-            if migration.name != "0027_agent_clarification_items.sql":
+            version = int(migration.name.split("_", 1)[0])
+            if version < 27:
                 copy2(migration, old_migrations / migration.name)
         factory = SQLiteConnectionFactory(root / "library.db")
         SQLiteMigrationRunner(factory, old_migrations).run()
-        service = AgentKernelService(factory)
-        thread = service.create_thread(CreateAgentThreadRequest(client_request_id="d003-old-thread"), "d003-old-thread")
-        turn = service.start_turn(
-            thread.thread_id,
-            StartAgentTurnRequest(client_request_id="d003-old-turn", message="设计一辆未来汽车"),
-            "d003-old-turn",
-        )
-        approval = service.create_approval(
-            thread.thread_id,
-            CreateAgentApprovalRequest(
-                client_request_id="d003-old-approval",
-                turn_id=turn.turn_id,
-                action="commit_shape_program",
-                payload={"candidate_id": "d003-old-candidate"},
-            ),
-            "d003-old-approval",
-        )
+        connection = factory.connect()
+        try:
+            connection.execute(
+                "INSERT INTO agent_threads(thread_id, title, status, created_at, updated_at, last_turn_id) VALUES (?, ?, ?, ?, ?, ?)",
+                ("thread_d003_old", "D003 migration fixture", "idle", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", "turn_d003_old"),
+            )
+            connection.execute(
+                "INSERT INTO agent_turns(turn_id, thread_id, request_text, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                ("turn_d003_old", "thread_d003_old", "设计一辆未来汽车", "completed", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            connection.execute(
+                "INSERT INTO agent_items(item_id, thread_id, turn_id, sequence, item_type, status, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("item_d003_old", "thread_d003_old", "turn_d003_old", 1, "approval_request", "completed", "{}", "2026-01-01T00:00:00Z"),
+            )
+            connection.execute(
+                "INSERT INTO agent_approvals(approval_id, thread_id, turn_id, item_id, action, status, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("approval_d003_old", "thread_d003_old", "turn_d003_old", "item_d003_old", "commit_shape_program", "pending", "{}", "2026-01-01T00:00:00Z"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
         SQLiteMigrationRunner(factory, ROOT / "migrations").run()
-        restored = AgentKernelService(factory).get_thread(thread.thread_id)
-        assert restored.turns[0].turn_id == turn.turn_id
+        restored = AgentKernelService(factory).get_thread("thread_d003_old")
+        assert restored.turns[0].turn_id == "turn_d003_old"
         assert restored.turns[0].items
-        assert restored.turns[0].approvals[0].approval_id == approval.approval_id
+        assert restored.turns[0].approvals[0].approval_id == "approval_d003_old"
         connection = factory.connect()
         try:
             assert connection.execute("PRAGMA foreign_key_check").fetchall() == []

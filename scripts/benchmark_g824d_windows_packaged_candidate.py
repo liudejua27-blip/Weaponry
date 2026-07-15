@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import json
 import os
@@ -283,6 +284,12 @@ def main() -> int:
                 )
             )
             promotion = _rollback_and_success(factory)
+            # sqlite3 context managers commit/rollback but do not close the
+            # connection themselves.  CPython normally reclaims the final
+            # short-lived evidence connection immediately; force collection
+            # before Windows removes the temporary database, where an open
+            # handle cannot be unlinked as it can on Unix.
+            gc.collect()
         report = {
             "schema_version": "ForgeCADCSGWindowsPackagedEvidence@1",
             "machine": {
