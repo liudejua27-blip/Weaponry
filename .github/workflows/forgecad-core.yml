@@ -118,6 +118,8 @@ jobs:
           npm run agent:d2-domain-inference-service-smoke
           npm run agent:d3-domain-clarification-smoke
           npm run agent:m107-active-zone-smoke
+          npm run agent:m108-visual-pbr-smoke
+          npm run agent:m108-gltf-validator-smoke
       - run: npm run agent:r2-concept-contracts-smoke
       - run: npm run agent:r2-module-registry-smoke
       - run: npm run agent:r3-asset-catalog-smoke

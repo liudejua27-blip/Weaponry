@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+import base64
 import copy
 import json
 import struct
@@ -125,10 +127,9 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     _expect_rejected(_glb_payload(corrupt_document, corrupt_binary), "hash or mime metadata is invalid")
 
 
-def main() -> int:
-    validator = _schema_validator()
+def _build_showcase_assets() -> list[tuple[str, bytes]]:
     planner = DeterministicMechanicalPlanner()
-    asset_count = 0
+    assets: list[tuple[str, bytes]] = []
     for brief in BRIEFS:
         pack = domain_pack_for_message(brief)
         plan = planner.plan_complete_concept(
@@ -141,8 +142,49 @@ def main() -> int:
             candidates = [item for item in list_blockout_variants(pack.pack_id) if item.endswith(f"_{variant_id}")]
             assert len(candidates) == 4, (pack.pack_id, variant_id, candidates)
             result = build_blockout(plan, plan.directions[0].direction_id, variant_id=candidates[0], presentation_profile="showcase")
-            _assert_asset(result, plan, validator)
-            asset_count += 1
+            assets.append((f"{pack.pack_id}:{candidates[0]}", result.glb_bytes))
+    return assets
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--emit-validator-fixtures",
+        action="store_true",
+        help="write one deterministic showcase GLB per domain as base64 JSON for the external standard validator smoke",
+    )
+    args = parser.parse_args()
+    assets = _build_showcase_assets()
+    if args.emit_validator_fixtures:
+        # Keep the external validator independent of ForgeCAD readback: it
+        # receives raw bytes for one representative asset in each domain.
+        fixtures = [
+            {"fixture_id": fixture_id, "glb_base64": base64.b64encode(glb_bytes).decode("ascii")}
+            for fixture_id, glb_bytes in assets[::3]
+        ]
+        assert len(fixtures) == 4
+        print(json.dumps(fixtures, separators=(",", ":")))
+        return 0
+
+    validator = _schema_validator()
+    asset_count = 0
+    for fixture_id, glb_bytes in assets:
+        # The plan is deterministic and this smoke exercises all domain
+        # variants above; reconstruct only the result needed by the existing
+        # assertion helper without introducing a second compile path.
+        pack_id, candidate = fixture_id.split(":", 1)
+        brief = next(item for item in BRIEFS if domain_pack_for_message(item).pack_id == pack_id)
+        pack = domain_pack_for_message(brief)
+        plan = DeterministicMechanicalPlanner().plan_complete_concept(
+            brief=brief,
+            pack=pack,
+            project_id="prj_m108_smoke",
+            action_loop_enabled=False,
+        )
+        result = build_blockout(plan, plan.directions[0].direction_id, variant_id=candidate, presentation_profile="showcase")
+        assert result.glb_bytes == glb_bytes
+        _assert_asset(result, plan, validator)
+        asset_count += 1
     assert asset_count == 12
     print("M108 visual PBR smoke passed: 12 multi-zone assets across four domains use one embedded GLB/readback texture truth")
     return 0

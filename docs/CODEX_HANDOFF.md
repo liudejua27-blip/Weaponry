@@ -11,7 +11,8 @@
 - `_build_glb` 将 images/textures、metallic-roughness、normal/occlusion/emissive、清漆和受限 transparent/IOR extension 写入同一产物；`read_shape_program_glb_facts` 对嵌入 bytes/hash/色彩空间、五个 channel、透明兼容、真实 primitive `material_id`、G826 zone face set 和固定 `env_forgecad_room_studio_v1` hash 一次回读。缺 map、损坏 image、缺透明 IOR 或 zone/material 偏离都会明确拒绝，质量/导出继续消费同一次编译 readback。
 - 桌面仍只使用一个 Three.js renderer/context；其 RoomEnvironment/PMREM、linear-sRGB、ACES Filmic、1.18 exposure、接触阴影参数与 GLB 环境合同固定一致。没有新 renderer、没有因环境创建资产版本。
 - `npm run agent:m108-visual-pbr-smoke` 覆盖四领域各 3 个 showcase 多 zone fixture（共 12 个）、确定性重复字节、Schema、五通道、色彩空间、文件预算、环境 hash、clearcoat/透明 extension、缺 normal 与 image hash 损坏拒绝。`agent:g826-surface-readback-smoke`、contracts、迁移和 TypeScript/桌面 Gate 仍需本轮最终回归。
-- M108 仍是 `in_progress`：Khronos glTF-Validator、glTF Transform/KTX2/BasisU 的锁定依赖和平台/provenance benchmark、packaged sidecar、重启/undo/redo/导出端到端与独立人工视觉基准尚无新证据。不能因此把当前 Alpha 描述为照片级真实产品或解除 C105 阻塞。
+- 新增锁定开发/CI 依赖 `gltf-validator@2.0.0-dev.3.10` 和 `npm run agent:m108-gltf-validator-smoke`：同一编译链的四领域原始 showcase GLB 必须由 Khronos Validator 得到零 error、零 warning，畸形 GLB 必须被拒绝。该检查发现并修复 `_FORGECAD_FACE_ID`/`_FORGECAD_SOURCE_FACE_ID` 原先写成无效 `UNSIGNED_INT` 顶点属性的问题；现以精确整数 FLOAT custom attribute 保留 readback，不把 Validator 报告当作资产真值。
+- M108 仍是 `in_progress`：glTF Transform/KTX2/BasisU 的平台/provenance benchmark、packaged sidecar、重启/undo/redo/导出端到端与独立人工视觉基准尚无新证据。不能因此把当前 Alpha 描述为照片级真实产品或解除 C105 阻塞。
 
 ## 2026-07-15：FGC-A004 受限 Agent Action Loop（已完成；M108 in progress）
 

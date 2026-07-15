@@ -895,8 +895,13 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             normal_values = _readback_float_accessor(accessors, views, binary, int(normal_index), 3)
             tangent_values = _readback_float_accessor(accessors, views, binary, int(tangent_index), 4)
             indices = _readback_index_accessor(accessors, views, binary, int(index_index))
-            face_id_values = _readback_index_accessor(accessors, views, binary, int(face_id_index))
-            source_face_id_values = _readback_index_accessor(accessors, views, binary, int(source_face_id_index))
+            face_id_values = _readback_stable_face_id_accessor(accessors, views, binary, int(face_id_index))
+            source_face_id_values = _readback_stable_face_id_accessor(
+                accessors,
+                views,
+                binary,
+                int(source_face_id_index),
+            )
             if any(not math.isfinite(value) for item in [*uv_values, *normal_values, *tangent_values] for value in item):
                 raise ValueError("GLB UV0, normal or tangent contains non-finite values")
             if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
@@ -1314,6 +1319,28 @@ def _readback_index_accessor(
         int(struct.unpack_from(f"<{format_code}", binary, base + index * stride)[0])
         for index in range(count)
     ]
+
+
+def _readback_stable_face_id_accessor(
+    accessors: List[Any],
+    views: List[Any],
+    binary: bytes,
+    accessor_index: int,
+) -> List[int]:
+    """Read ForgeCAD's per-vertex face provenance from a standard float attribute.
+
+    glTF restricts mesh vertex attributes to FLOAT, UNSIGNED_BYTE or
+    UNSIGNED_SHORT component types.  The provenance IDs need to preserve the
+    complete triangle range, so the compiler stores finite integral values in
+    FLOAT accessors rather than emitting invalid UNSIGNED_INT attributes.
+    """
+    values = _readback_float_accessor(accessors, views, binary, accessor_index, 1)
+    result: List[int] = []
+    for (value,) in values:
+        if not math.isfinite(value) or value < 0 or not value.is_integer():
+            raise ValueError("GLB stable face provenance must contain non-negative integral floats")
+        result.append(int(value))
+    return result
 
 
 def _validate_edge_finish_readback(value: Any) -> None:
@@ -2661,8 +2688,11 @@ def _surface_complete_payload(
         "normals": struct.pack(f"<{len(out_normals)}f", *out_normals),
         "uvs": struct.pack(f"<{len(out_uvs)}f", *out_uvs),
         "tangents": struct.pack(f"<{len(out_tangents)}f", *out_tangents),
-        "face_ids": struct.pack(f"<{len(out_face_ids)}I", *out_face_ids),
-        "source_face_ids": struct.pack(f"<{len(out_source_face_ids)}I", *out_source_face_ids),
+        # Standard glTF mesh attributes cannot use UNSIGNED_INT.  Float keeps
+        # the bounded per-primitive IDs exact while remaining a valid custom
+        # vertex attribute component type.
+        "face_ids": struct.pack(f"<{len(out_face_ids)}f", *out_face_ids),
+        "source_face_ids": struct.pack(f"<{len(out_source_face_ids)}f", *out_source_face_ids),
         "indices": struct.pack(f"<{len(out_indices)}{completed_index_format}", *out_indices),
         "index_component": completed_index_component,
         "extras": extras,
@@ -2705,8 +2735,8 @@ def _build_glb(
             n = _add_accessor(binary, views, accessors, normals, 5126, len(normals) // 12, "VEC3")
             uv = _add_accessor(binary, views, accessors, uvs, 5126, len(uvs) // 8, "VEC2")
             tangent = _add_accessor(binary, views, accessors, tangents, 5126, len(tangents) // 16, "VEC4")
-            face_id = _add_accessor(binary, views, accessors, face_ids, 5125, len(face_ids) // 4, "SCALAR")
-            source_face_id = _add_accessor(binary, views, accessors, source_face_ids, 5125, len(source_face_ids) // 4, "SCALAR")
+            face_id = _add_accessor(binary, views, accessors, face_ids, 5126, len(face_ids) // 4, "SCALAR")
+            source_face_id = _add_accessor(binary, views, accessors, source_face_ids, 5126, len(source_face_ids) // 4, "SCALAR")
             index_component = int(payload["index_component"])
             index_size = 4 if index_component == 5125 else 2
             ix = _add_accessor(binary, views, accessors, indices, index_component, len(indices) // index_size, "SCALAR", target=34963)

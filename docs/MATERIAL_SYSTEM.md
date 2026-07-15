@@ -1,7 +1,7 @@
 # ForgeCAD 视觉材质系统
 
 版本：2026-07-15
-状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 已完成源码侧的同源内置五通道 PBR、真实 zone→material 绑定和固定工作室环境 readback；Khronos Validator、优化/压缩平台采用、packaged sidecar 与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
+状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 已完成源码侧的同源内置五通道 PBR、真实 zone→material 绑定、固定工作室环境 readback，并以 Khronos Validator 对四领域原始 GLB 做零 error/zero warning 自动检查；优化/压缩平台采用、packaged sidecar 与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
 
@@ -141,7 +141,7 @@ transmission / thickness?（仅透明外观兼容集）
 
 每个通道记录内容 hash、用途、色彩空间（sRGB 或 linear）、分辨率、来源、许可证、版本和回退。base color/emissive 使用 sRGB；metallic-roughness、normal、occlusion 等数据纹理使用 linear。网格使用稳定 UV0；normal/clearcoat normal 生效前必须有可验证 tangent space。没有 UV 或 tangent 时明确拒绝当前正式 PBR GLB，不能把纹理字段写入 GLB 后仍声称已生效。
 
-glTF 2.0 metallic-roughness 是默认互操作基线。当前内置 GLB 已为涂层使用 `KHR_materials_clearcoat`，并只为受限透明外观同时写出 `KHR_materials_transmission`/`KHR_materials_ior` 和 `alphaMode=BLEND`；readback 缺少任一兼容字段即拒绝。纹理压缩 `KHR_texture_basisu`/KTX2 以及 glTF Transform inspect/validate/dedup/prune/压缩均已评估为**不采用**：当前没有锁定依赖、Khronos Validator 结果、目标平台基线或 provenance 保留基准，不能以减小文件为由引入第二资产真值。只有 Three.js、GLB readback、Khronos Validator、映射保留和目标平台 smoke 全部通过后，才可另立 ADR 采用。
+glTF 2.0 metallic-roughness 是默认互操作基线。当前内置 GLB 已为涂层使用 `KHR_materials_clearcoat`，并只为受限透明外观同时写出 `KHR_materials_transmission`/`KHR_materials_ior` 和 `alphaMode=BLEND`；readback 缺少任一兼容字段即拒绝。`gltf-validator@2.0.0-dev.3.10` 作为开发/CI 门禁，对四领域各一份同一编译路径的原始 GLB 要求零 error、零 warning，并验证畸形 GLB 被拒绝；它不替代 `GeometryCompileReadback@1` 的资产真值。为了让这些标准 GLB 合规，内部稳定面追踪属性使用精确整数值的 FLOAT custom attribute，而不是 glTF 禁止用于顶点属性的 `UNSIGNED_INT`。纹理压缩 `KHR_texture_basisu`/KTX2 以及 glTF Transform inspect/validate/dedup/prune/压缩仍是**未采用**：尚无目标平台基线或 provenance 保留基准，不能以减小文件为由引入第二资产真值。只有 Three.js、GLB readback、映射保留和目标平台 smoke 全部通过后，才可另立 ADR 采用。
 
 ### 6.2 多材质区目标
 

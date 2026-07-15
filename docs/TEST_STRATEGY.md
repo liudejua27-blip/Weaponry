@@ -139,7 +139,7 @@ ADR-0011 的几何子链必须逐项建立独立 Gate。G820 已覆盖合同。`
 
 ADR-0010 已将 `FGC-V002` 标记为 superseded，不再为三方向解释/重混增加 Gate。`FGC-A004` 已由 `npm run agent:a004-action-loop-smoke` 覆盖 13 项代码所有 Tool Registry、正常 plan→build→GLB readback→四视图→evaluate→preview、输入 Schema/G819 未实现操作拒绝、12 次上限、取消/timeout/Provider 断线、重复 Registry/Tool Call ID、stale Snapshot、DeepSeek `reasoning_content` 续传且不落盘、审批前零永久资产/ChangeSet/Snapshot 副作用和 completed/failed Turn 重启可读；G1 另验证 Tool Item 与 SSE sequence，桌面 F008 验证嵌套 plan result，不构成真实 DeepSeek 质量证据。`FGC-V003` 必须覆盖从产品结构到已实现建模语法/Recipe 的路由、内部多候选、真实编译/readback/概念渲染硬门、确定性评分/唯一 winner/无 winner、候选零版本副作用，并断言默认 UI 方向卡数为 0、最佳结果卡为 1。`FGC-F026` 必须覆盖左上 mini 与中央 focus 共用同一 canvas/renderer，快速切换、焦点、窗口/项目/抽屉/模型重载和资源计数；GSAP 动画中断与 reduced-motion 分支不得改变状态真值。`FGC-A005` 必须覆盖专属 Skill Schema、严格工具交集、examples/evals、版本/provenance、越权拒绝和 dry-run 零副作用。
 
-`FGC-M108` 必须消费 G826 的真实多 zone/UV/tangent 事实，并覆盖完整 PBR 通道、色彩空间、来源/许可证、纹理缺失/损坏、clearcoat/透明兼容、HDRI/色彩管理、Khronos Validator 与优化前后 Part/zone/material 映射，并加入独立人工视觉基准。`FGC-C105` 必须覆盖 Profile/section/feature/参数/Connector/zone/child slot 配方的循环、质量、来源和版本；`FGC-R007`、`FGC-D006` 分别覆盖只读参考不变与新资产 provenance，以及新领域包的 draft/evaluated/enabled 晋级和未知领域零万能 fallback。
+`FGC-M108` 已由 `npm run agent:m108-visual-pbr-smoke` 覆盖四领域 12 个同源多 zone PBR fixture、色彩空间、来源/许可证、纹理缺失/损坏、clearcoat/透明兼容和环境 hash；`npm run agent:m108-gltf-validator-smoke` 使用锁定的 Khronos `gltf-validator@2.0.0-dev.3.10` 对四领域原始 GLB 断言零 error/zero warning，并验证畸形 GLB 拒绝。该外部标准报告不替代 `GeometryCompileReadback@1`。M108 仍需优化前后 Part/zone/material 映射、KTX2/平台决策、packaged sidecar、重启/undo/redo/导出端到端与独立人工视觉基准。`FGC-C105` 必须覆盖 Profile/section/feature/参数/Connector/zone/child slot 配方的循环、质量、来源和版本；`FGC-R007`、`FGC-D006` 分别覆盖只读参考不变与新资产 provenance，以及新领域包的 draft/evaluated/enabled 晋级和未知领域零万能 fallback。
 
 ### L3：工作台 E2E
 

@@ -1681,7 +1681,7 @@ Remaining blockers:
 
 退出：纹理与多材质真正进入同源 GLB/视口/readback；“更真实”有资产和视觉基准证据，不只是参数或文案。
 
-自动化检查点（2026-07-15）：`VisualTextureSet@1`、五通道内置视觉纹理、同源 GLB images/textures/material extensions、真实 zone→material readback、固定工作室环境 hash 与 12 个四领域多 zone fixture 已实现并由 `agent:m108-visual-pbr-smoke` 覆盖；用户内容纹理扩展到五通道也已完成。任务仍未完成：Khronos glTF-Validator、glTF Transform/KTX2/BasisU 的平台 benchmark/采用决策、真实 packaged sidecar 回归，以及独立人工视觉基准尚无证据，故不得宣称“真实产品外观”已达标或解除 C105 阻塞。
+自动化检查点（2026-07-15）：`VisualTextureSet@1`、五通道内置视觉纹理、同源 GLB images/textures/material extensions、真实 zone→material readback、固定工作室环境 hash 与 12 个四领域多 zone fixture 已实现并由 `agent:m108-visual-pbr-smoke` 覆盖；用户内容纹理扩展到五通道也已完成。新增 `agent:m108-gltf-validator-smoke` 以锁定的 Khronos `gltf-validator@2.0.0-dev.3.10` 对四领域各一份原始 showcase GLB 要求零 error/zero warning，并确认畸形 GLB 被拒绝；因此内部 face provenance 改为精确整数 FLOAT custom attribute，不能再写出无效的 `UNSIGNED_INT` 顶点属性。任务仍未完成：glTF Transform/KTX2/BasisU 的平台 benchmark/采用决策、真实 packaged sidecar 回归，以及独立人工视觉基准尚无证据，故不得宣称“真实产品外观”已达标或解除 C105 阻塞。
 
 ### FGC-C105 任务卡
 
