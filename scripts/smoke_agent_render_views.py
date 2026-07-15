@@ -145,7 +145,7 @@ def _seed_render_agent(factory: Any, project_id: str) -> str:
                 "operation_id": "op_r002_cabin",
                 "op": "box",
                 "inputs": [],
-                "args": {"part_role": "cabin", "size": [70, 40, 50], "position": [38, 46, 0], "rotation": [0, 0, 0], "material_id": "mat_secondary"},
+                "args": {"part_role": "cabin", "size": [70, 40, 50], "position": [38, 46, 0], "rotation": [0, 0, 0], "material_id": "mat_aluminum"},
             },
         ],
         "outputs": [
@@ -247,7 +247,7 @@ def main() -> int:
 
         url = f"/api/v1/agent/asset-versions/{asset_version_id}:render?width=128&height=128"
         status, _, first = asyncio.run(_request(app, "GET", url))
-        assert status == 200
+        assert status == 200, (status, first)
         assert first["asset_version_id"] == asset_version_id
         assert first["renderer_id"] == "forgecad-agent-software-raster@1"
         assert [item["view_id"] for item in first["views"]] == ["iso", "front", "side", "top", "exploded_iso"]

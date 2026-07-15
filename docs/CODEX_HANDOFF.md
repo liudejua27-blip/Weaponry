@@ -14,6 +14,7 @@
 - 最新源码重建的四领域真实工作台捕获仍是 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`。旧离散格状伪影已由自动 Gate 排除，且未在本轮四张截图中再出现；连接层进入同源 GLB。实际最高为航空器 6,176 renderer triangles、87 draw calls，仍低于 7,000/96 上限。主体仍是受限 Alpha blockout，并未引入 C105 Recipe、Loft 自动路由、工程机构或照片级真实性；M108 和 C105 状态不变。
 - 已从最终冻结源码重建 31,793,200-byte、SHA-256 `7254fc99317f1fb601400341157893a428d7ed07dee029b00223cfa95af5b1f0` 的 tracked macOS arm64 sidecar。该精确产物的 require-ready preflight、packaged sidecar smoke、Tauri check、经仓库 Rust wrapper 的 `.app`/DMG build 与 packaged Tauri smoke 均通过；本轮打包前确认没有旧测试 app、sidecar、8000 端口或 ForgeCAD DMG 挂载残留。本机空 Library、当前 PBR readback、Manifold CSG、undo/redo、导出和重启恢复成功，`provider_calls=0`，退出后没有遗留 listener。
 - 最终 `release:packaging-readiness` 仍按设计失败：Intel macOS、Windows x64 与 Linux x64 的 tracked sidecar 仍是空占位，分别缺少有效 Mach-O/PE/ELF 与可执行条件。不得删除或放宽该阻断；本轮通过结论只覆盖本机 macOS arm64 Alpha，不覆盖跨平台安装、签名、公证或正式发布。
+- PR #3 的首轮 current-head CI 在 R002 只读渲染夹具中发现唯一残留的未注册 `mat_secondary`，严格运行时白名单按设计返回 409 并使后端 Gate 失败。该 ID 在仓库没有生产使用者，因此只把 R002 夹具改为已审阅的 `mat_aluminum`，没有扩宽生产材质映射；本地 R002 已恢复通过，断言也会在未来直接输出非 200 响应。
 
 ## 2026-07-16：FGC-M108 曲面与真实取景增量（进行中，未完成）
 
