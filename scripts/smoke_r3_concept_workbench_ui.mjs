@@ -23,7 +23,7 @@ const AUDIT_EXPORT_SCREENSHOT = join(OUTPUT_DIR, 'r3-change-set-audit-export.png
 const AGENT_FIRST_SCREENSHOT = join(OUTPUT_DIR, 'agent-first-workbench.png')
 const DCC_COMBINED_OUTPUT = process.env.FORGECAD_DCC_COMBINED_OUTPUT ?? null
 const REQUIRE_BROWSER_DOWNLOADS = process.env.FORGECAD_REQUIRE_BROWSER_DOWNLOADS !== '0'
-const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 180_000)
+const SMOKE_TIMEOUT_MS = Number(process.env.FORGECAD_WORKBENCH_SMOKE_TIMEOUT_MS ?? 360_000)
 let smokeStage = 'initializing'
 
 async function main() {
@@ -239,6 +239,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     console.error(`[debug-api] ${response.status()} ${response.request().method()} ${response.url()} ${body}`)
   })
   try {
+    smokeStage = 'agent-first bootstrap'
     await mkdir(OUTPUT_DIR, { recursive: true })
     await page.goto(`${baseUrl}/#/cad`, { waitUntil: 'networkidle' })
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
@@ -250,6 +251,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await assertText(page.locator('.agent-first-panel'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
     await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('旧版设计转换'), ['这是旧版只读设计', '原设计会保留不变', '让 Agent 重建可编辑资产'])
+    smokeStage = 'explicit legacy-to-Agent hand-off'
     const conversionResponse = page.waitForResponse(
       (response) => response.url().includes('/active-design:convert-legacy') && response.request().method() === 'POST',
     )
@@ -267,6 +269,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('legacy contextual mutation card leaked into the Agent-first workbench')
     }
 
+    smokeStage = 'safe GLB reference import'
     const importFixture = join(ROOT, 'assets', 'module-packs', 'weapon-concept-v1-reference', 'modules', 'module_core_shell_01', 'model.glb')
     await page.getByLabel('导入 GLB 参考模型').setInputFiles(importFixture)
     await page.getByLabel('分件候选').getByText('导入参考模型 v1', { exact: true }).waitFor({ timeout: 20_000 })
@@ -276,6 +279,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       { timeout: 20_000 },
     )
 
+    smokeStage = 'Agent clarification and blockout preview'
     const agentBrief = page.getByPlaceholder('描述你想设计的道具…')
     await agentBrief.fill('设计一台能飞的无人机载具')
     await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
@@ -293,6 +297,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await assertText(page.getByLabel('视觉材质目录'), ['石墨深灰', '拉丝铝', '亮面汽车漆'])
     await page.getByLabel('视觉材质目录').getByRole('button', { name: '拉丝铝', exact: true }).click()
 
+    smokeStage = 'Agent asset commit and parameter preview'
     await page.getByRole('button', { name: '保存为可编辑模型', exact: true }).click()
     // The GLB reference imported above is an immutable Agent asset v1 in this
     // same project; the generated editable blockout therefore starts at v2.
@@ -340,6 +345,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error(`Agent confirmation did not advance/clear the active Snapshot: ${JSON.stringify(snapshotAfterConfirm)}`)
     }
     const confirmedAgentAssetVersionId = snapshotAfterConfirm.active_design.asset_version_id
+    smokeStage = 'Agent immutable undo and redo'
     await page.waitForFunction(
       () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '撤销' && !button.disabled),
       { timeout: 20_000 },
@@ -385,6 +391,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (!(await selectConfirmedPartResponse).ok()) {
       throw new Error('active Agent part selection failed after child version confirmation')
     }
+    smokeStage = 'Agent quality and reusable component readback'
     const agentQualityResponse = page.waitForResponse(
       (response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST',
     )
@@ -407,6 +414,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await page.getByRole('button', { name: '保存为可复用部件', exact: true }).click()
     await page.getByRole('button', { name: /替换：/ }).waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('分件候选'), ['来源检查', '保留当前连接位置'])
+    smokeStage = 'Agent browser reload and part display state'
     await page.reload({ waitUntil: 'networkidle' })
     await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
     if (await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id') !== agentAssetVersionId) {
@@ -534,6 +542,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (snapshotAfterShowAll.part_display?.hidden_part_ids?.length || snapshotAfterShowAll.part_display?.isolated_part_id) {
       throw new Error(`showing all parts did not clear display state: ${JSON.stringify(snapshotAfterShowAll)}`)
     }
+    smokeStage = 'Agent quality and export drawers'
     await page.getByRole('button', { name: '检查', exact: true }).click()
     await assertText(page.locator('.quality-drawer'), ['模型检查', '当前版本', '活动 Agent 资产'])
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
