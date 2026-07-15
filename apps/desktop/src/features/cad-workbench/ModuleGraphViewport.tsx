@@ -24,7 +24,7 @@ const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
 // existing RoomEnvironment/PMREM scene and never creates asset state.
 const FORGECAD_STUDIO_PROFILE = {
   environmentId: 'env_forgecad_room_studio_v1',
-  environmentSha256: 'cf4990be641f4f94172623fda07c22cbe3579088d6a73cdfb483be51b4e1b67a',
+  environmentSha256: '7173dd0b7c3df1dcf039f6eb6e80a96345873521dc3d07dc6381444a29879655',
   pmremNear: 0.04,
   pmremCubeSize: 128,
   exposure: 1.18,
@@ -79,7 +79,8 @@ type ViewportRuntime = {
   sectionPlane: THREE.Plane
   sectionHelper: THREE.PlaneHelper
   grid: THREE.GridHelper
-  displayFloor: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>
+  axes: THREE.AxesHelper
+  displayFloor: THREE.Mesh<THREE.CircleGeometry, THREE.ShadowMaterial>
   moduleRoot: THREE.Group
   blockoutRoot: THREE.Group
   qualityRoot: THREE.Group
@@ -119,8 +120,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const host = hostRef.current
     if (!host) return
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#08111c')
-    scene.fog = new THREE.Fog('#08111c', 260, 720)
+    scene.background = new THREE.Color('#0b1420')
+    scene.fog = new THREE.Fog('#0b1420', 300, 820)
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     renderer.localClippingEnabled = true
@@ -152,8 +153,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     controls.enableDamping = false
     controls.minDistance = 0.01
     controls.maxDistance = 100000
-    scene.add(new THREE.HemisphereLight('#c8ddff', '#07101a', 2.65))
-    scene.add(new THREE.AmbientLight('#4f6686', 0.42))
+    scene.add(new THREE.HemisphereLight('#eef6ff', '#111820', 3.2))
+    scene.add(new THREE.AmbientLight('#8aa0b8', 0.58))
     const keyLight = new THREE.DirectionalLight('#e8f2ff', 5.6)
     keyLight.position.set(120, 180, 140)
     keyLight.castShadow = true
@@ -173,15 +174,17 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     scene.add(warmRimLight)
     const displayFloor = new THREE.Mesh(
       new THREE.CircleGeometry(285, 96),
-      new THREE.MeshStandardMaterial({ color: '#0a1420', metalness: 0.5, roughness: 0.7, transparent: true, opacity: 0.78 }),
+      new THREE.ShadowMaterial({ color: '#000000', transparent: true, opacity: 0.16 }),
     )
     displayFloor.rotation.x = -Math.PI / 2
     displayFloor.receiveShadow = true
     displayFloor.name = 'DisplayFloor'
     scene.add(displayFloor)
-    const grid = new THREE.GridHelper(420, 42, '#2f66ff', '#263747')
+    const grid = new THREE.GridHelper(420, 42, '#28466a', '#223244')
     scene.add(grid)
-    scene.add(new THREE.AxesHelper(28))
+    const axes = new THREE.AxesHelper(28)
+    axes.name = 'ForgeCADCoordinateAxes'
+    scene.add(axes)
     const sectionPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)
     const sectionHelper = new THREE.PlaneHelper(sectionPlane, 180, '#f0b84b')
     sectionHelper.visible = false
@@ -225,6 +228,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       sectionPlane,
       sectionHelper,
       grid,
+      axes,
       displayFloor,
       moduleRoot,
       blockoutRoot,
@@ -400,6 +404,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     clearObjectChildren(runtime.blockoutRoot)
     runtime.moduleRoot.visible = true
     if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
+      runtime.axes.visible = true
+      runtime.grid.visible = propsRef.current.showGrid
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
@@ -417,6 +423,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       }
       runtime.blockoutRoot.add(source)
       runtime.blockoutRoot.visible = true
+      runtime.axes.visible = false
+      runtime.grid.visible = false
       setBlockoutPreviewPrimitiveKinds(Array.isArray(source.userData.forgecadPreviewPrimitiveKinds)
         ? source.userData.forgecadPreviewPrimitiveKinds.filter((item: unknown): item is string => typeof item === 'string')
         : [])
@@ -443,6 +451,24 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // showing the complete generated silhouette.
       source.position.sub(bounds.getCenter(new THREE.Vector3()))
       source.updateMatrixWorld(true)
+      runtime.blockoutRoot.updateMatrixWorld(true)
+      bounds = new THREE.Box3().setFromObject(source)
+      const framedCenter = bounds.getCenter(new THREE.Vector3())
+      const framedSize = bounds.getSize(new THREE.Vector3())
+      runtime.displayFloor.position.set(
+        framedCenter.x,
+        bounds.min.y - Math.max(framedSize.y * 0.025, 2),
+        framedCenter.z,
+      )
+      const horizontalFootprint = Math.max(framedSize.x, framedSize.z, 1)
+      runtime.displayFloor.scale.setScalar(Math.max(horizontalFootprint / 260, 0.45))
+      frameCamera(
+        runtime.camera,
+        runtime.controls,
+        propsRef.current.cameraView,
+        framedCenter,
+        Math.max(framedSize.length(), 1),
+      )
       setBlockoutLoadState('ready')
       setBlockoutLoadMessage(message)
       runtime.scheduleRender()
@@ -473,6 +499,24 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
                 child.material = Array.isArray(child.material)
                   ? child.material.map((material) => material.clone())
                   : child.material.clone()
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                const hasTransparentSurface = materials.some((material) => (
+                  material.transparent
+                  || material.opacity < 0.99
+                  || (material instanceof THREE.MeshPhysicalMaterial && material.transmission > 0)
+                ))
+                child.geometry.computeBoundingBox()
+                const geometrySize = child.geometry.boundingBox?.getSize(new THREE.Vector3()).length() ?? 0
+                if (!hasTransparentSurface && geometrySize >= 0.08) {
+                  const edgeOverlay = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(child.geometry, 42),
+                    new THREE.LineBasicMaterial({ color: '#d3dde6', transparent: true, opacity: 0.08 }),
+                  )
+                  edgeOverlay.name = 'ForgeCADAgentEdgeOverlay'
+                  edgeOverlay.renderOrder = 3
+                  edgeOverlay.userData.forgecadAgentEdgeOverlay = true
+                  child.add(edgeOverlay)
+                }
               }
             })
             applyAgentBlockoutVisualState(source, propsRef.current)
@@ -637,7 +681,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         data-agent-isolated-part-id={props.isolatedAgentPartId ?? ''}
         data-agent-locked-part-ids={props.lockedAgentPartIds.join(',')}
       />
-      {loadState !== 'ready' && (
+      {loadState !== 'ready' && blockoutLoadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
           <strong>{loadState === 'loading' ? '加载 ModuleGraph' : loadState === 'failed' ? 'GLB 无法显示' : '等待模块组合'}</strong>
           <span>{loadMessage}</span>
@@ -748,7 +792,7 @@ function loadModuleSource(
 
 function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
   applyLightPreset(runtime, props.lightPreset)
-  runtime.grid.visible = props.showGrid
+  runtime.grid.visible = props.showGrid && runtime.moduleRoot.visible
   runtime.sectionPlane.constant = props.sectionOffset
   runtime.sectionHelper.visible = props.sectionEnabled
   runtime.renderer.clippingPlanes = props.sectionEnabled ? [runtime.sectionPlane] : []
@@ -805,20 +849,36 @@ function applyAgentBlockoutVisualState(root: THREE.Object3D, props: ModuleGraphV
 }
 
 function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
-  const materials = new Set<THREE.Material>()
+  const textureSetKeys = new Set<string>()
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return
-    for (const material of Array.isArray(child.material) ? child.material : [child.material]) materials.add(material)
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+      if (
+        !(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
+        || !material.map
+        || !material.metalnessMap
+        || !material.roughnessMap
+        || !material.normalMap
+        || !material.aoMap
+        || !material.emissiveMap
+      ) continue
+      const declaredTextureSetId = typeof material.userData.forgecad_visual_texture_set_id === 'string'
+        ? material.userData.forgecad_visual_texture_set_id
+        : ''
+      const declaredMaterialId = typeof material.userData.forgecad_texture_material_id === 'string'
+        ? material.userData.forgecad_texture_material_id
+        : ''
+      textureSetKeys.add(declaredTextureSetId || declaredMaterialId || [
+        material.map.uuid,
+        material.metalnessMap.uuid,
+        material.roughnessMap.uuid,
+        material.normalMap.uuid,
+        material.aoMap.uuid,
+        material.emissiveMap.uuid,
+      ].join(':'))
+    }
   })
-  return [...materials].filter((material) => (
-    (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
-    && material.map
-    && material.metalnessMap
-    && material.roughnessMap
-    && material.normalMap
-    && material.aoMap
-    && material.emissiveMap
-  )).length
+  return textureSetKeys.size
 }
 
 function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphViewportProps): void {
@@ -896,15 +956,15 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
     runtime.warmRimLight.position.set(100, -30, -210)
     return
   }
-  runtime.keyLight.color.set('#e8f2ff')
-  runtime.keyLight.intensity = 5.6
-  runtime.keyLight.position.set(120, 180, 140)
-  runtime.rimLight.color.set('#4e9cff')
-  runtime.rimLight.intensity = 3.2
-  runtime.rimLight.position.set(-140, 80, -100)
-  runtime.warmRimLight.color.set('#ff8a62')
-  runtime.warmRimLight.intensity = 1.4
-  runtime.warmRimLight.position.set(80, -20, -180)
+  runtime.keyLight.color.set('#f7fbff')
+  runtime.keyLight.intensity = 4.8
+  runtime.keyLight.position.set(150, 210, 160)
+  runtime.rimLight.color.set('#91b6d9')
+  runtime.rimLight.intensity = 1.35
+  runtime.rimLight.position.set(-160, 110, -120)
+  runtime.warmRimLight.color.set('#ffd0b5')
+  runtime.warmRimLight.intensity = 0.45
+  runtime.warmRimLight.position.set(110, 20, -190)
 }
 
 function syncTransformControls(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
@@ -1036,7 +1096,7 @@ function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, v
     // In the exported Y-up coordinate system, positive Y is above the prop.
     // Keep a prominent depth component while opening the X/Y angle enough to
     // show the top rails and lower display grip on first launch.
-    iso: new THREE.Vector3(0.9, 0.85, 1.55), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
+    iso: new THREE.Vector3(-0.9, 0.85, 1.55), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
   }
   camera.position.copy(center).add(direction[view].normalize().multiplyScalar(distance))
   camera.near = Math.max(distance / 1000, 0.001)

@@ -144,6 +144,7 @@ MAX_IMPORTED_GLB_TRIANGLES = 250_000
 MAX_CSG_DEPTH = 8
 MAX_EDGE_FINISH_RADIUS_RATIO = 0.25
 MAX_EDGE_FINISH_SUBDIVISIONS = 3
+VISUAL_UV_REPEAT_MM = 320.0
 
 # Executor identifiers, not another operation allow-list.  The manifest owns
 # the operation -> executor mapping; this set proves the shipped Worker still
@@ -904,8 +905,15 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             )
             if any(not math.isfinite(value) for item in [*uv_values, *normal_values, *tangent_values] for value in item):
                 raise ValueError("GLB UV0, normal or tangent contains non-finite values")
-            if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
-                raise ValueError("GLB UV0 is outside the normalized baseline")
+            uv_repeat_mm = extras.get("forgecad_visual_uv_repeat_mm") if isinstance(extras, dict) else None
+            if uv_repeat_mm is None:
+                if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
+                    raise ValueError("GLB UV0 is outside the normalized baseline")
+            else:
+                if not isinstance(uv_repeat_mm, (int, float)) or not math.isclose(float(uv_repeat_mm), VISUAL_UV_REPEAT_MM):
+                    raise ValueError("GLB visual UV repeat metadata is invalid")
+                if any(value < -1e-6 or value > 64 + 1e-6 for uv in uv_values for value in uv):
+                    raise ValueError("GLB UV0 is outside the bounded visual repeat baseline")
             if any(abs(math.sqrt(sum(value * value for value in normal)) - 1) > 1e-3 for normal in normal_values):
                 raise ValueError("GLB contains a non-unit normal")
             tangent_lengths = [math.sqrt(sum(value * value for value in tangent[:3])) for tangent in tangent_values]
@@ -1112,6 +1120,9 @@ def _read_visual_pbr_facts(
     if not used:
         raise ValueError("GLB has no material-zone PBR bindings")
 
+    def number_matches(value: Any, expected: float) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)) and math.isclose(float(value), expected)
+
     def texture_map(texture_index: Any, role: str) -> Dict[str, Any]:
         if not isinstance(texture_index, int) or texture_index < 0 or texture_index >= len(textures):
             raise ValueError("GLB PBR texture reference is invalid")
@@ -1191,8 +1202,54 @@ def _read_visual_pbr_facts(
         allowed_extensions = {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"}
         if any(key not in allowed_extensions for key in extensions):
             raise ValueError("GLB material uses an unsupported visual extension")
+        expected_properties = builtin_material_properties(material_index)
+        expected_base_factor = [1, 1, 1, float(expected_properties["alpha"])]
+        normal_texture = material.get("normalTexture")
+        occlusion_texture = material.get("occlusionTexture")
+        if (
+            pbr.get("baseColorFactor") != expected_base_factor
+            or not number_matches(pbr.get("metallicFactor"), 1)
+            or not number_matches(pbr.get("roughnessFactor"), 1)
+            or not isinstance(normal_texture, dict)
+            or not number_matches(normal_texture.get("scale"), float(expected_properties["normal_scale"]))
+            or not isinstance(occlusion_texture, dict)
+            or not number_matches(occlusion_texture.get("strength"), 1)
+            or material.get("emissiveFactor") != [1, 1, 1]
+        ):
+            raise ValueError("GLB visual material parameters do not match the built-in PBR truth")
+        expected_clearcoat = float(expected_properties["clearcoat"])
+        clearcoat = extensions.get("KHR_materials_clearcoat")
+        if expected_clearcoat > 0:
+            if (
+                not isinstance(clearcoat, dict)
+                or not number_matches(clearcoat.get("clearcoatFactor"), expected_clearcoat)
+                or not number_matches(clearcoat.get("clearcoatRoughnessFactor"), 0.2)
+            ):
+                raise ValueError("GLB clearcoat parameters do not match the built-in PBR truth")
+        elif clearcoat is not None:
+            raise ValueError("GLB clearcoat is not allowed for this built-in material")
+        expected_transmission = float(expected_properties["transmission"])
+        transmission = extensions.get("KHR_materials_transmission")
+        ior = extensions.get("KHR_materials_ior")
+        if expected_transmission > 0:
+            if (
+                not isinstance(transmission, dict)
+                or not number_matches(transmission.get("transmissionFactor"), expected_transmission)
+                or not isinstance(ior, dict)
+                or not number_matches(ior.get("ior"), float(expected_properties["ior"]))
+            ):
+                raise ValueError("GLB transmission parameters do not match the built-in PBR truth")
+        elif transmission is not None or ior is not None:
+            raise ValueError("GLB transmission is not allowed for this built-in material")
         if "KHR_materials_transmission" in extensions:
-            if material.get("alphaMode") != "BLEND" or "KHR_materials_ior" not in extensions:
+            base_color_factor = pbr.get("baseColorFactor", [1, 1, 1, 1])
+            if (
+                "KHR_materials_ior" not in extensions
+                or material.get("alphaMode", "OPAQUE") != "OPAQUE"
+                or not isinstance(base_color_factor, list)
+                or len(base_color_factor) != 4
+                or not number_matches(base_color_factor[3], 1)
+            ):
                 raise ValueError("GLB transparent material compatibility metadata is incomplete")
         results.append({
             "schema_version": "VisualTextureSet@1",
@@ -1224,7 +1281,27 @@ def _read_visual_environment_facts(document: Mapping[str, Any]) -> Dict[str, Any
     expected = studio_environment_manifest()
     if environment != expected:
         raise ValueError("GLB visual environment does not match the fixed studio profile")
-    return dict(environment)
+    # The raw GLB keeps the full renderer recipe so it can be audited against
+    # the desktop implementation.  The stable public readback remains the
+    # versioned ForgeCADVisualEnvironment@1 summary plus its hash; adding
+    # renderer-internal fields must not silently widen that API contract.
+    return {
+        key: environment[key]
+        for key in (
+            "schema_version",
+            "environment_id",
+            "environment_kind",
+            "environment_sha256",
+            "source",
+            "license",
+            "color_workflow",
+            "output_color_space",
+            "tone_mapping",
+            "tone_mapping_exposure",
+            "contact_shadows",
+            "pmrem",
+        )
+    }
 
 
 def _readback_primitive_topology(
@@ -1702,7 +1779,7 @@ def _presentation_primitives(
         direction_id=direction_id,
     )
     count = {"simple": 2, "medium": 3, "dense": 4}.get(intent.detail_density if intent else "medium", 3)
-    anchors = [item for item in boxes if item.primitive_kind in {"box", "wedge"}] or list(boxes)
+    anchors = [item for item in boxes if item.primitive_kind == "box"] or [item for item in boxes if item.primitive_kind == "wedge"] or list(boxes)
     details: List[BoxPrimitive] = []
     for index, anchor in enumerate(anchors[:count], 1):
         width, height, depth = anchor.size_mm
@@ -1722,7 +1799,7 @@ def _presentation_primitives(
                 (anchor.center_mm[0] - width * 0.22, anchor.center_mm[1], anchor.center_mm[2] + depth / 2 + thickness / 2),
                 (max(60.0, width * 0.22), max(48.0, height * 0.34), thickness),
                 0,
-                material_id="mat_graphite",
+                material_id="mat_rubber",
             )
         )
         if index <= 2:
@@ -1758,7 +1835,7 @@ def _presentation_primitives(
             (primary.center_mm[0] + width * 0.08, primary.center_mm[1] - height * 0.18, primary.center_mm[2] + depth / 2 + thickness / 2),
             (max(80.0, width * 0.38), max(12.0, height * 0.055), thickness),
             0,
-            material_id="mat_graphite",
+            material_id="mat_rubber",
         )
     )
     vent_radius = max(9.0, min(24.0, min(width, height) * 0.045))
@@ -1771,7 +1848,7 @@ def _presentation_primitives(
                 thickness,
                 0,
                 (0.0, 0.0, 1.0),
-                material_id="mat_graphite",
+                material_id="mat_rubber",
             )
         )
     fastener_radius = max(8.0, min(18.0, min(width, depth) * 0.03))
@@ -1846,7 +1923,7 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
             "energy_visual_prop_c": [_box("prop_drone_body", (0, 760, 0), (1500, 420, 720), 0), _wedge("prop_fin_front", (-700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_back", (700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_left", (0, 820, -520), (520, 260, 340), 1), _wedge("prop_fin_right", (0, 820, 520), (520, 260, 340), 1), _cylinder("prop_sensor", (0, 1040, 0), 150, 240, 2), _box("prop_pod_left", (-80, 420, -420), (280, 300, 240), 2), _box("prop_pod_right", (-80, 420, 420), (280, 300, 240), 2)],
         },
         "pack_vehicle_concept": {
-            "urban_scout_a": [_wedge("vehicle_nose", (-850, 620, 0), (700, 420, 760), 0), _box("vehicle_cabin", (160, 900, 0), (1100, 560, 820), 1), _cylinder("vehicle_wheel_fl", (-520, 320, -520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_fr", (-520, 320, 520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rl", (720, 320, -520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rr", (720, 320, 520), 180, 220, 2, (0, 0, 1))],
+            "urban_scout_a": [_box("vehicle_chassis", (0, 500, 0), (2100, 320, 900), 0), _wedge("vehicle_nose", (-820, 680, 0), (760, 420, 820), 0), _box("vehicle_cabin", (200, 760, 0), (1050, 520, 820), 0), _wedge("vehicle_canopy", (20, 1040, 0), (820, 280, 650), 1), _cylinder("vehicle_wheel_fl", (-650, 340, -520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_fr", (-650, 340, 520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rl", (650, 340, -520), 220, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rr", (650, 340, 520), 220, 220, 2, (0, 0, 1))],
             "urban_scout_b": [_box("vehicle_body", (0, 620, 0), (2100, 480, 880), 0), _capsule("vehicle_cabin_capsule", (180, 960, 0), 300, 1000, 1, (1, 0, 0)), _cylinder("vehicle_hover_front", (-720, 320, -400), 150, 260, 2, (0, 0, 1)), _cylinder("vehicle_hover_rear", (720, 320, 400), 150, 260, 2, (0, 0, 1)), _box("vehicle_lightbar", (-1040, 760, 0), (100, 160, 560), 2)],
             "urban_scout_c": [_box("vehicle_body", (0, 580, 0), (2200, 520, 760), 0), _wedge("vehicle_cabin", (120, 920, 0), (980, 500, 700), 1), _box("vehicle_track_left", (0, 300, -500), (1800, 260, 220), 2), _box("vehicle_track_right", (0, 300, 500), (1800, 260, 220), 2), _box("vehicle_sensor", (-700, 920, 0), (260, 220, 320), 2)],
             "exploration_vehicle_a": [_box("rover_chassis", (0, 520, 0), (2400, 360, 1000), 0), _box("rover_lab", (260, 920, 0), (900, 600, 860), 1), *[_cylinder(f"rover_wheel_{index}", (center, 300, side), 160, 200, 2, (0, 0, 1)) for index, center in enumerate((-850, -300, 300, 850), 1) for side in (-520, 520)], _wedge("rover_sensor_mast", (-600, 1120, 0), (260, 520, 260), 2)],
@@ -1873,7 +1950,7 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
 def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
     return {
         "pack_aircraft_concept": {
-            "vertical_takeoff_a": [_box("airframe_core", (0, 620, 0), (1900, 420, 700), 0), _box("airframe_canopy", (-500, 920, 0), (600, 360, 520), 1), _cylinder("lift_rotor_left", (-300, 820, -700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_right", (-300, 820, 700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_left", (700, 820, -700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_right", (700, 820, 700), 180, 180, 2, (0, 1, 0))],
+            "vertical_takeoff_a": [_box("airframe_core", (80, 650, 0), (1700, 360, 520), 0), _wedge("airframe_nose", (-980, 640, 0), (760, 300, 480), 0), _wedge("airframe_canopy", (-460, 890, 0), (640, 260, 380), 1), _box("lift_wing_left", (100, 640, -620), (1100, 100, 900), 3), _box("lift_wing_right", (100, 640, 620), (1100, 100, 900), 3), _wedge("airframe_tail", (800, 840, 0), (520, 420, 440), 1), _cylinder("lift_rotor_front_left", (-350, 720, -960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_front_right", (-350, 720, 960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_left", (600, 720, -960), 220, 140, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_right", (600, 720, 960), 220, 140, 2, (0, 1, 0))],
             "vertical_takeoff_b": [_box("tilt_body", (0, 600, 0), (2200, 480, 760), 0), _wedge("tilt_nose", (-850, 700, 0), (720, 420, 720), 1), _cylinder("tilt_pod_left", (100, 450, -720), 180, 420, 2, (1, 0, 0)), _cylinder("tilt_pod_right", (100, 450, 720), 180, 420, 2, (1, 0, 0)), _box("tilt_tail", (850, 820, 0), (520, 520, 420), 1)],
             "vertical_takeoff_c": [_capsule("lift_fan_body", (0, 650, 0), 360, 2100, 0, (1, 0, 0)), _box("lift_fan_canopy", (-450, 940, 0), (620, 320, 520), 1), _cylinder("lift_fan_front", (-500, 500, 0), 250, 180, 2, (1, 0, 0)), _cylinder("lift_fan_rear", (600, 500, 0), 250, 180, 2, (1, 0, 0)), _wedge("lift_fan_tail", (820, 900, 0), (420, 360, 520), 2)],
             "fast_single_seat_a": [_wedge("jet_nose", (-1000, 600, 0), (900, 420, 520), 0), _box("jet_spine", (300, 620, 0), (1900, 360, 500), 0), _box("jet_canopy", (-360, 920, 0), (540, 300, 430), 1), _wedge("jet_delta_left", (180, 560, -820), (1400, 140, 620), 1), _wedge("jet_delta_right", (180, 560, 820), (1400, 140, 620), 1), _cylinder("jet_engine", (1050, 520, 0), 150, 500, 2, (1, 0, 0))],
@@ -1892,18 +1969,29 @@ def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
 def _robotic_arm_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
     def chain(prefix: str, heights: Tuple[int, ...], tool: str, material: int = 1) -> List[BoxPrimitive]:
         boxes: List[BoxPrimitive] = [_box(f"{prefix}_base", (0, 220, 0), (620, 440, 620), 0)]
-        y = 620
+        top = 440.0
         for index, height in enumerate(heights, 1):
-            boxes.append(_cylinder(f"{prefix}_joint_{index}", (0, y, 0), 150 + index * 20, 260, 2))
-            y += 240
-            boxes.append(_box(f"{prefix}_link_{index}", (0, y, 0), (260 + index * 30, height, 260 + index * 30), material))
-            y += height
-        boxes.append(_wedge(tool, (0, y + 180, 0), (460, 360, 460), 2))
+            boxes.append(_cylinder(f"{prefix}_joint_{index}", (0, top + 130, 0), 150 + index * 20, 260, 2))
+            top += 260
+            boxes.append(_box(f"{prefix}_link_{index}", (0, top + height / 2, 0), (260 + index * 30, height, 260 + index * 30), material))
+            top += height
+        boxes.append(_wedge(tool, (0, top + 180, 0), (460, 360, 460), 2))
         return boxes
 
     return {
         "pack_robotic_arm_concept": {
-            "precision_light_a": chain("precision", (560, 420), "precision_gripper"),
+            "precision_light_a": [
+                _box("precision_base", (0, 220, 0), (700, 440, 700), 0),
+                _cylinder("precision_turntable", (0, 520, 0), 220, 200, 2),
+                _cylinder("precision_joint_1", (0, 720, 0), 190, 320, 2, (0, 0, 1)),
+                _box("precision_link_1", (240, 1000, 0), (300, 700, 300), 0),
+                _cylinder("precision_joint_2", (240, 1370, 0), 170, 320, 2, (0, 0, 1)),
+                _box("precision_link_2", (530, 1500, 0), (600, 260, 260), 1),
+                _cylinder("precision_wrist", (830, 1500, 0), 130, 260, 2, (0, 0, 1)),
+                _box("precision_tool_palm", (980, 1500, 0), (260, 220, 360), 1),
+                _box("precision_gripper_upper", (1160, 1600, 0), (300, 80, 120), 4),
+                _box("precision_gripper_lower", (1160, 1400, 0), (300, 80, 120), 4),
+            ],
             "precision_light_b": [_box("desktop_base", (0, 180, 0), (620, 360, 620), 0), _cylinder("desktop_turntable", (0, 500, 0), 180, 280, 2), _capsule("desktop_link", (0, 1050, 0), 120, 820, 1), _cylinder("desktop_wrist", (0, 1550, 0), 130, 260, 2), _box("desktop_tool", (0, 1880, 0), (360, 320, 260), 1)],
             "precision_light_c": [_box("rail_base", (0, 160, 0), (1000, 320, 460), 0), _box("rail_carriage", (-320, 500, 0), (360, 260, 420), 1), _cylinder("rail_pivot", (-320, 800, 0), 140, 300, 2), _box("rail_link", (-320, 1250, 0), (260, 760, 260), 1), _cylinder("rail_wrist", (-320, 1720, 0), 120, 240, 2), _wedge("rail_tool", (-320, 2000, 0), (420, 320, 360), 2)],
             "heavy_handler_a": chain("handler", (900, 760, 620), "handler_claw", 0),
@@ -1940,7 +2028,7 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
     if primitive.primitive_kind == "wedge":
         return 8
     if primitive.primitive_kind == "capsule":
-        return 16 * 10 * 2
+        return 16 * (10 * 2 - 2)
     if primitive.primitive_kind == "extrude":
         return 4 * len(primitive.profile_points) - 4
     if primitive.primitive_kind == "extrude_profile":
@@ -1966,7 +2054,7 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
         return edge_count * len(primitive.profile_points) * 2 + cap_count * int(primitive.cap_start and not primitive.path_closed) + cap_count * int(primitive.cap_end and not primitive.path_closed)
     if primitive.primitive_kind == "bevel_box":
         ring_points = 4 * (primitive.bevel_segments + 1)
-        return 4 * ring_points - 4
+        return 4 * ring_points
     return 64
 
 
@@ -2200,9 +2288,8 @@ def _program_for_boxes(
             "position": list(box.center_mm),
             "part_role": box.part_role,
             "zone_id": f"zone_{box.part_role}",
+            "material_id": _visual_material_id_for_primitive(box),
         }
-        if box.material_id is not None:
-            args["material_id"] = box.material_id
         inputs: List[str] = []
         if box.primitive_kind == "cylinder":
             op_name = "cylinder"
@@ -2223,10 +2310,28 @@ def _program_for_boxes(
             op_name = "box"
             args["size"] = list(box.size_mm)
         operations.append({"operation_id": op_id, "op": op_name, "inputs": inputs, "args": args})
+        output_operation_id = op_id
+        if presentation_profile == "showcase" and op_name == "box":
+            edge_operation_id = f"{op_id}_edge"
+            edge_radius = round(min(box.size_mm[0], box.size_mm[2]) * 0.08, 4)
+            operations.append({
+                "operation_id": edge_operation_id,
+                "op": "bevel_approx",
+                "inputs": [op_id],
+                "args": {
+                    "position": list(box.center_mm),
+                    "part_role": box.part_role,
+                    "zone_id": f"zone_{box.part_role}",
+                    "material_id": _visual_material_id_for_primitive(box),
+                    "radius": edge_radius,
+                    "segments": 3,
+                },
+            })
+            output_operation_id = edge_operation_id
         outputs.append(
             {
                 "output_id": f"output_{index + 1}_{box.part_role}",
-                "operation_id": op_id,
+                "operation_id": output_operation_id,
                 "kind": "mesh",
                 "part_role": box.part_role,
             }
@@ -2337,6 +2442,28 @@ def _material_id_for_index(index: int) -> str:
         5: "mat_dark_glass",
         6: "mat_emissive_blue",
     }.get(index, "mat_primary")
+
+
+def _visual_material_id_for_primitive(primitive: BoxPrimitive) -> str:
+    """Preserve authored material intent and apply reviewed visual role aliases.
+
+    The variant catalog predates explicit material ids, so its numeric material
+    field must not disappear when converted into ShapeProgram.  A small fixed
+    role table improves visual readability without exposing an engineering
+    material inference path or any user-controlled executable behavior.
+    """
+    if primitive.material_id is not None:
+        return primitive.material_id
+    role = primitive.part_role.lower()
+    if any(token in role for token in ("wheel", "track", "tire", "grip", "foot")):
+        return "mat_rubber"
+    if any(token in role for token in ("canopy", "cockpit", "glass", "window", "transparent")):
+        return "mat_dark_glass"
+    if any(token in role for token in ("light", "lamp", "emissive")):
+        return "mat_emissive_blue"
+    if any(token in role for token in ("joint", "rotor", "nacelle", "ring", "pivot", "wrist", "turntable")):
+        return "mat_aluminum"
+    return _material_id_for_index(primitive.material_index)
 
 
 def _primitive_csg_solid(primitive: GeometryPrimitive) -> Dict[str, Any]:
@@ -2579,6 +2706,9 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
             "forgecad_surface_ranges": _surface_ranges_for_primitive(primitive),
             "forgecad_material_zone_id": primitive.material_zone_id,
             "forgecad_normal_mode": "split_weighted" if primitive.primitive_kind in weighted_kinds else "split",
+            "forgecad_visual_uv_repeat_mm": VISUAL_UV_REPEAT_MM if primitive.primitive_kind in {
+                "box", "surface_panel", "wedge", "cylinder", "capsule", "bevel_box",
+            } else None,
             "forgecad_edge_finish": edge_finish,
             "forgecad_source_face_ids": list(range(_primitive_triangle_count(primitive))),
         },
@@ -2829,7 +2959,7 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
         material: Dict[str, Any] = {
             "name": f"MAT_{texture_set.material_id.removeprefix('mat_')}",
             "pbrMetallicRoughness": pbr,
-            "normalTexture": {"index": texture_by_role["normal"], "scale": 1},
+            "normalTexture": {"index": texture_by_role["normal"], "scale": float(properties["normal_scale"])},
             "occlusionTexture": {"index": texture_by_role["occlusion"], "strength": 1},
             "emissiveTexture": {"index": texture_by_role["emissive"]},
             "emissiveFactor": [1, 1, 1],
@@ -2839,6 +2969,8 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
                 "forgecad_visual_only": True,
             },
         }
+        if float(properties["alpha"]) < 1:
+            material["alphaMode"] = "BLEND"
         extensions: Dict[str, Any] = {}
         if float(properties["clearcoat"]) > 0:
             extensions["KHR_materials_clearcoat"] = {
@@ -2846,7 +2978,6 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
                 "clearcoatRoughnessFactor": 0.2,
             }
         if float(properties["transmission"]) > 0:
-            material["alphaMode"] = "BLEND"
             extensions["KHR_materials_transmission"] = {
                 "transmissionFactor": float(properties["transmission"]),
             }
@@ -2866,25 +2997,26 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
 def _box_geometry(box: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
     cx, cy, cz = (value / 1000 for value in box.center_mm)
     hx, hy, hz = (value / 2000 for value in box.size_mm)
+    uv_unit = VISUAL_UV_REPEAT_MM / 1000
     faces = (
-        ((1, 0, 0), ((hx, -hy, -hz), (hx, -hy, hz), (hx, hy, hz), (hx, hy, -hz))),
-        ((-1, 0, 0), ((-hx, -hy, hz), (-hx, -hy, -hz), (-hx, hy, -hz), (-hx, hy, hz))),
-        ((0, 1, 0), ((-hx, hy, -hz), (hx, hy, -hz), (hx, hy, hz), (-hx, hy, hz))),
-        ((0, -1, 0), ((-hx, -hy, hz), (hx, -hy, hz), (hx, -hy, -hz), (-hx, -hy, -hz))),
-        ((0, 0, 1), ((hx, -hy, hz), (-hx, -hy, hz), (-hx, hy, hz), (hx, hy, hz))),
-        ((0, 0, -1), ((-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz))),
+        ((1, 0, 0), ((hx, -hy, -hz), (hx, -hy, hz), (hx, hy, hz), (hx, hy, -hz)), 2 * hz / uv_unit, 2 * hy / uv_unit),
+        ((-1, 0, 0), ((-hx, -hy, hz), (-hx, -hy, -hz), (-hx, hy, -hz), (-hx, hy, hz)), 2 * hz / uv_unit, 2 * hy / uv_unit),
+        ((0, 1, 0), ((-hx, hy, -hz), (hx, hy, -hz), (hx, hy, hz), (-hx, hy, hz)), 2 * hx / uv_unit, 2 * hz / uv_unit),
+        ((0, -1, 0), ((-hx, -hy, hz), (hx, -hy, hz), (hx, -hy, -hz), (-hx, -hy, -hz)), 2 * hx / uv_unit, 2 * hz / uv_unit),
+        ((0, 0, 1), ((hx, -hy, hz), (-hx, -hy, hz), (-hx, hy, hz), (hx, hy, hz)), 2 * hx / uv_unit, 2 * hy / uv_unit),
+        ((0, 0, -1), ((-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz)), 2 * hx / uv_unit, 2 * hy / uv_unit),
     )
     positions: List[float] = []
     normals: List[float] = []
     uvs: List[float] = []
     indices: List[int] = []
-    for face_index, (normal, vertices) in enumerate(faces):
+    for face_index, (normal, vertices, repeat_u, repeat_v) in enumerate(faces):
         base = face_index * 4
         for x, y, z in vertices:
             positions.extend((cx + x, cy + y, cz + z))
             normals.extend(normal)
-        uvs.extend((0, 0, 1, 0, 1, 1, 0, 1))
-        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+        uvs.extend((0, 0, repeat_u, 0, repeat_u, repeat_v, 0, repeat_v))
+        indices.extend((base, base + 2, base + 1, base, base + 3, base + 2))
     return (
         struct.pack(f"<{len(positions)}f", *positions),
         struct.pack(f"<{len(normals)}f", *normals),
@@ -3125,30 +3257,44 @@ def _bevel_box_geometry(bevel: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
         return index
 
     ring_count = len(points)
+    uv_unit = VISUAL_UV_REPEAT_MM / 1000
+    perimeter_offsets = [0.0]
+    for index in range(ring_count):
+        perimeter_offsets.append(perimeter_offsets[-1] + math.dist(points[index], points[(index + 1) % ring_count]))
     for index in range(ring_count):
         next_index = (index + 1) % ring_count
         x0, z0 = points[index]
         x1, z1 = points[next_index]
-        radial = (x0 + x1, 0.0, z0 + z1)
-        radial_length = math.sqrt(radial[0] * radial[0] + radial[2] * radial[2]) or 1.0
-        normal = (radial[0] / radial_length, 0.0, radial[2] / radial_length)
+        dx, dz = x1 - x0, z1 - z0
+        normal_length = math.sqrt(dx * dx + dz * dz) or 1.0
+        normal = (dz / normal_length, 0.0, -dx / normal_length)
         base = len(positions) // 3
-        append_vertex(x0, -hy, z0, normal, (index / ring_count, 0.0))
-        append_vertex(x1, -hy, z1, normal, ((index + 1) / ring_count, 0.0))
-        append_vertex(x1, hy, z1, normal, ((index + 1) / ring_count, 1.0))
-        append_vertex(x0, hy, z0, normal, (index / ring_count, 1.0))
-        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+        u0, u1 = perimeter_offsets[index] / uv_unit, perimeter_offsets[index + 1] / uv_unit
+        repeat_v = 2 * hy / uv_unit
+        append_vertex(x0, -hy, z0, normal, (u0, 0.0))
+        append_vertex(x1, -hy, z1, normal, (u1, 0.0))
+        append_vertex(x1, hy, z1, normal, (u1, repeat_v))
+        append_vertex(x0, hy, z0, normal, (u0, repeat_v))
+        indices.extend((base, base + 2, base + 1, base, base + 3, base + 2))
 
-    for cap_y, cap_normal, reverse in ((-hy, (0.0, -1.0, 0.0), True), (hy, (0.0, 1.0, 0.0), False)):
-        center = append_vertex(0.0, cap_y, 0.0, cap_normal, (0.5, 0.5))
-        for index in range(1, ring_count - 1):
-            append_vertex(*((points[0][0], cap_y, points[0][1])), cap_normal, (0.0, 0.0))
-            second = append_vertex(*(points[index][0], cap_y, points[index][1]), cap_normal, (1.0, 0.0))
-            third = append_vertex(*((points[index + 1][0], cap_y, points[index + 1][1])), cap_normal, (1.0, 1.0))
-            if reverse:
-                indices.extend((center, third, second))
+    for cap_y, cap_normal in ((-hy, (0.0, -1.0, 0.0)), (hy, (0.0, 1.0, 0.0))):
+        center = append_vertex(0.0, cap_y, 0.0, cap_normal, (hx / uv_unit, hz / uv_unit))
+        for index in range(ring_count):
+            next_index = (index + 1) % ring_count
+            first_point = points[index]
+            second_point = points[next_index]
+            first = append_vertex(
+                first_point[0], cap_y, first_point[1], cap_normal,
+                ((first_point[0] + hx) / uv_unit, (first_point[1] + hz) / uv_unit),
+            )
+            second = append_vertex(
+                second_point[0], cap_y, second_point[1], cap_normal,
+                ((second_point[0] + hx) / uv_unit, (second_point[1] + hz) / uv_unit),
+            )
+            if cap_normal[1] > 0:
+                indices.extend((center, second, first))
             else:
-                indices.extend((center, second, third))
+                indices.extend((center, first, second))
     minimum = [min(positions[index::3]) for index in range(3)]
     maximum = [max(positions[index::3]) for index in range(3)]
     return (
@@ -3176,10 +3322,10 @@ def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
 
     def map_local(local_x: float, local_y: float, local_z: float) -> Tuple[float, float, float]:
         if dominant == 0:
-            return (local_y * sign, local_x, local_z)
+            return (local_y * sign, -local_x * sign, local_z)
         if dominant == 2:
-            return (local_x, local_z, local_y * sign)
-        return (local_x, local_y * sign, local_z)
+            return (local_x, -local_z * sign, local_y * sign)
+        return (local_x, local_y * sign, local_z * sign)
 
     profile: List[Tuple[float, float, Tuple[float, float]]] = []
     for index in range(6):
@@ -3189,6 +3335,8 @@ def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
         theta = (math.pi / 2) + (math.pi / 2) * index / 5
         profile.append((-half_straight + radius * math.cos(theta), radius * math.sin(theta), (math.sin(theta), math.cos(theta))))
 
+    uv_unit = VISUAL_UV_REPEAT_MM / 1000
+    profile_top = profile[0][0]
     for ring_index, (local_y, ring_radius, normal_yz) in enumerate(profile):
         for segment in range(segments):
             angle = 2 * math.pi * segment / segments
@@ -3198,13 +3346,16 @@ def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
             positions.extend((cx + mapped[0], cy + mapped[1], cz + mapped[2]))
             normal = map_local(normal_yz[0] * math.cos(angle), normal_yz[1], normal_yz[0] * math.sin(angle))
             normals.extend(normal)
-            uvs.extend((segment / segments, ring_index / (len(profile) - 1)))
+            uvs.extend(((2 * math.pi * radius * segment / segments) / uv_unit, (profile_top - local_y) / uv_unit))
     for ring in range(len(profile) - 1):
         for segment in range(segments):
             next_segment = (segment + 1) % segments
             base = ring * segments + segment
             upper = (ring + 1) * segments + segment
-            indices.extend((base, ring * segments + next_segment, upper, ring * segments + next_segment, (ring + 1) * segments + next_segment, upper))
+            if ring > 0:
+                indices.extend((base, ring * segments + next_segment, upper))
+            if ring < len(profile) - 2:
+                indices.extend((ring * segments + next_segment, (ring + 1) * segments + next_segment, upper))
     minimum = [min(positions[index::3]) for index in range(3)]
     maximum = [max(positions[index::3]) for index in range(3)]
     return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
@@ -3214,7 +3365,7 @@ def _wedge_geometry(wedge: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, Li
     cx, cy, cz = (value / 1000 for value in wedge.center_mm)
     hx, hy, hz = (value / 2000 for value in wedge.size_mm)
     vertices = ((-hx, -hy, -hz), (hx, -hy, -hz), (hx, -hy, hz), (-hx, -hy, hz), (-hx, hy, -hz), (-hx, hy, hz))
-    faces = ((0, 1, 2, 3), (0, 4, 5, 3), (1, 2, 5, 4), (0, 1, 4), (3, 5, 2))
+    faces = ((0, 1, 2, 3), (0, 3, 5, 4), (1, 4, 5, 2), (0, 4, 1), (3, 2, 5))
     positions: List[float] = []
     normals: List[float] = []
     uvs: List[float] = []
@@ -3227,11 +3378,17 @@ def _wedge_geometry(wedge: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, Li
         length = math.sqrt(sum(value * value for value in normal)) or 1.0
         normal = tuple(value / length for value in normal)
         base = len(positions) // 3
-        for uv_index, vertex_index in enumerate(face):
+        dominant_axis = max(range(3), key=lambda axis: abs(normal[axis]))
+        uv_axes = [axis for axis in range(3) if axis != dominant_axis]
+        uv_min = [min(vertices[vertex_index][axis] for vertex_index in face) for axis in uv_axes]
+        for vertex_index in face:
             vertex = vertices[vertex_index]
             positions.extend((cx + vertex[0], cy + vertex[1], cz + vertex[2]))
             normals.extend(normal)
-            uvs.extend(((uv_index == 1 or uv_index == 2), (uv_index >= 2)))
+            uvs.extend(tuple(
+                (vertex[axis] - uv_min[index]) / (VISUAL_UV_REPEAT_MM / 1000)
+                for index, axis in enumerate(uv_axes)
+            ))
         if len(face) == 3:
             indices.extend((base, base + 1, base + 2))
         else:
@@ -3672,10 +3829,10 @@ def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, byt
 
     def map_local(local_x: float, local_y: float, local_z: float) -> Tuple[float, float, float]:
         if dominant == 0:
-            return (local_y * sign, local_x, local_z)
+            return (local_y * sign, -local_x * sign, local_z)
         if dominant == 2:
-            return (local_x, local_z, local_y * sign)
-        return (local_x, local_y * sign, local_z)
+            return (local_x, -local_z * sign, local_y * sign)
+        return (local_x, local_y * sign, local_z * sign)
 
     def append_vertex(local: Tuple[float, float, float], local_normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
         mapped = map_local(*local)
@@ -3690,20 +3847,23 @@ def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, byt
         a1 = 2 * math.pi * (segment + 1) / segments
         x0, z0 = radius * math.cos(a0), radius * math.sin(a0)
         x1, z1 = radius * math.cos(a1), radius * math.sin(a1)
+        uv_unit = VISUAL_UV_REPEAT_MM / 1000
+        u0, u1 = radius * a0 / uv_unit, radius * a1 / uv_unit
+        repeat_v = 2 * half_height / uv_unit
         base = len(positions) // 3
-        append_vertex((x0, -half_height, z0), (math.cos(a0), 0, math.sin(a0)), (segment / segments, 0))
-        append_vertex((x1, -half_height, z1), (math.cos(a1), 0, math.sin(a1)), ((segment + 1) / segments, 0))
-        append_vertex((x1, half_height, z1), (math.cos(a1), 0, math.sin(a1)), ((segment + 1) / segments, 1))
-        append_vertex((x0, half_height, z0), (math.cos(a0), 0, math.sin(a0)), (segment / segments, 1))
-        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
-        bottom_center = append_vertex((0, -half_height, 0), (0, -1, 0), (0.5, 0.5))
-        bottom0 = append_vertex((x0, -half_height, z0), (0, -1, 0), (0, 0))
-        bottom1 = append_vertex((x1, -half_height, z1), (0, -1, 0), (1, 0))
-        indices.extend((bottom_center, bottom1, bottom0))
-        top_center = append_vertex((0, half_height, 0), (0, 1, 0), (0.5, 0.5))
-        top0 = append_vertex((x0, half_height, z0), (0, 1, 0), (0, 0))
-        top1 = append_vertex((x1, half_height, z1), (0, 1, 0), (1, 0))
-        indices.extend((top_center, top0, top1))
+        append_vertex((x0, -half_height, z0), (math.cos(a0), 0, math.sin(a0)), (u0, 0))
+        append_vertex((x1, -half_height, z1), (math.cos(a1), 0, math.sin(a1)), (u1, 0))
+        append_vertex((x1, half_height, z1), (math.cos(a1), 0, math.sin(a1)), (u1, repeat_v))
+        append_vertex((x0, half_height, z0), (math.cos(a0), 0, math.sin(a0)), (u0, repeat_v))
+        indices.extend((base, base + 2, base + 1, base, base + 3, base + 2))
+        bottom_center = append_vertex((0, -half_height, 0), (0, -1, 0), (radius / uv_unit, radius / uv_unit))
+        bottom0 = append_vertex((x0, -half_height, z0), (0, -1, 0), ((x0 + radius) / uv_unit, (z0 + radius) / uv_unit))
+        bottom1 = append_vertex((x1, -half_height, z1), (0, -1, 0), ((x1 + radius) / uv_unit, (z1 + radius) / uv_unit))
+        indices.extend((bottom_center, bottom0, bottom1))
+        top_center = append_vertex((0, half_height, 0), (0, 1, 0), (radius / uv_unit, radius / uv_unit))
+        top0 = append_vertex((x0, half_height, z0), (0, 1, 0), ((x0 + radius) / uv_unit, (z0 + radius) / uv_unit))
+        top1 = append_vertex((x1, half_height, z1), (0, 1, 0), ((x1 + radius) / uv_unit, (z1 + radius) / uv_unit))
+        indices.extend((top_center, top1, top0))
     minimum = [min(positions[index::3]) for index in range(3)]
     maximum = [max(positions[index::3]) for index in range(3)]
     return (

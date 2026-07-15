@@ -59,6 +59,19 @@ def build_kit(output: Path) -> dict[str, object]:
             "triangle_count": readback.triangle_count,
             "material_zone_count": len(readback.material_zone_faces),
             "visual_texture_set_count": len(readback.visual_texture_sets),
+            "material_ids": sorted(str(item["material_id"]) for item in readback.visual_texture_sets),
+            "texture_dimensions": [
+                list(item)
+                for item in sorted({
+                    (int(texture_map["width"]), int(texture_map["height"]))
+                    for texture_set in readback.visual_texture_sets
+                    for texture_map in texture_set["maps"]
+                })
+            ],
+            "edge_finished_primitive_count": sum(
+                item["edge_finish"]["mode"] == "bevel_approximation"
+                for item in readback.surface_provenance
+            ),
             "visual_environment": asdict(readback)["visual_environment"],
         })
     if len(records) != 4 or {str(item["domain_pack_id"]) for item in records} != set(DOMAINS):
@@ -105,8 +118,16 @@ def verify_kit() -> None:
             if hashlib.sha256(payload).hexdigest() != fixture["glb_sha256"]:
                 raise ValueError("benchmark fixture hash mismatch")
             facts = read_shape_program_glb_facts(payload)
-            if len(facts.visual_texture_sets) < 3 or len(facts.material_zone_faces) < 3:
+            if len(facts.visual_texture_sets) < 5 or len(facts.material_zone_faces) < 3:
                 raise ValueError("benchmark fixture lacks the required multi-zone PBR evidence")
+            if {
+                (int(item["width"]), int(item["height"]))
+                for texture_set in facts.visual_texture_sets
+                for item in texture_set["maps"]
+            } != {(128, 128)}:
+                raise ValueError("benchmark fixture does not use the reviewed texture resolution")
+            if not any(item["edge_finish"]["mode"] == "bevel_approximation" for item in facts.surface_provenance):
+                raise ValueError("benchmark fixture lacks the reviewed showcase edge finish")
 
 
 def main() -> int:

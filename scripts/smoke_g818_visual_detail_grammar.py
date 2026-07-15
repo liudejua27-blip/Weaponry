@@ -53,9 +53,14 @@ def main() -> int:
         assert len(categories) == len(DETAIL_PREFIXES), (pack.pack_id, categories)
         assert not any(role.startswith("visual_") for role in [item["args"]["part_role"] for item in quick.shape_program["operations"]])
         visual_operations = [item for item in showcase.shape_program["operations"] if item["args"]["part_role"].startswith("visual_")]
-        assert 7 <= len(visual_operations) <= 20
-        assert {item["args"].get("material_id") for item in visual_operations} >= {
-            "mat_graphite", "mat_composite", "mat_aluminum", "mat_emissive_blue",
+        visual_primitives = [item for item in visual_operations if item["op"] != "bevel_approx"]
+        visual_edge_finishes = [item for item in visual_operations if item["op"] == "bevel_approx"]
+        assert 7 <= len(visual_primitives) <= 20
+        assert visual_edge_finishes
+        assert len(visual_edge_finishes) <= sum(item["op"] == "box" for item in visual_primitives)
+        assert all(len(item["inputs"]) == 1 for item in visual_edge_finishes)
+        assert {item["args"].get("material_id") for item in visual_primitives} >= {
+            "mat_rubber", "mat_composite", "mat_aluminum", "mat_emissive_blue",
         }
         rebuilt_glb, rebuilt_bounds, rebuilt_triangles = build_glb_from_shape_program(showcase.shape_program)
         assert (rebuilt_bounds, rebuilt_triangles) == (showcase.bounds_mm, showcase.triangle_count)

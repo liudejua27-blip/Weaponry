@@ -77,6 +77,7 @@
     "agent:m107-active-zone-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_selected_zone.py",
     "agent:m108-visual-pbr-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_m108_visual_pbr.py",
     "agent:m108-visual-benchmark-kit": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/prepare_m108_visual_benchmark.py --output output/m108-visual-benchmark",
+    "agent:m108-visual-benchmark-workbench-capture": "FORGECAD_AGENT_FIRST_ONLY=1 FORGECAD_M108_WORKBENCH_CAPTURE=1 node scripts/smoke_r3_concept_workbench_ui.mjs",
     "agent:m108-visual-benchmark-kit-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/prepare_m108_visual_benchmark.py --verify",
     "agent:m108-visual-benchmark-score-validator-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/validate_m108_visual_benchmark_scores.py --self-test",
     "agent:m108-gltf-validator-smoke": "node scripts/smoke_m108_gltf_validator.mjs",

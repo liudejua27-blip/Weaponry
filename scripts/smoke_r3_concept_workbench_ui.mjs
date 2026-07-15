@@ -73,6 +73,11 @@ async function main() {
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
     smokeStage = 'running browser workbench flow'
     const result = await runWorkbenchUi(viteBaseUrl, agentBaseUrl, seeded)
+    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1') {
+      smokeStage = 'writing M108 workbench capture result'
+      console.log(JSON.stringify({ ok: true, ...seeded, ...result }, null, 2))
+      return
+    }
     smokeStage = 'stopping initial agent'
     await stopProcess(agent)
     const restartPort = await freePort()
@@ -250,6 +255,9 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       undefined,
       { timeout: 20_000 },
     )
+    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1') {
+      return await captureM108WorkbenchFixtures(page)
+    }
     await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
     await assertText(page.locator('.agent-first-panel'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
     await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
@@ -647,6 +655,143 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
   } finally {
     await context.close()
     await browser.close()
+  }
+}
+
+async function captureM108WorkbenchFixtures(page) {
+  const kitRoot = resolve(
+    ROOT,
+    process.env.FORGECAD_M108_KIT_DIR ?? join('output', 'm108-visual-benchmark'),
+  )
+  const captureRoot = join(kitRoot, 'workbench-captures')
+  const manifestPath = join(kitRoot, 'manifest.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+  if (manifest.schema_version !== 'M108VisualBenchmarkKit@1' || manifest.score_status !== 'not_scored') {
+    throw new Error('M108 workbench capture requires an unscored M108VisualBenchmarkKit@1 manifest')
+  }
+  if (!Array.isArray(manifest.fixtures) || manifest.fixtures.length !== 4) {
+    throw new Error('M108 workbench capture requires exactly four domain fixtures')
+  }
+  await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
+  const conversionResponsePromise = page.waitForResponse(
+    (response) => response.url().includes('/active-design:convert-legacy') && response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true }).click()
+  const conversionResponse = await conversionResponsePromise
+  if (!conversionResponse.ok()) {
+    const conversionFailure = await conversionResponse.text().catch(() => '')
+    throw new Error(`M108 workbench capture legacy hand-off failed (${conversionResponse.status()}): ${conversionFailure.slice(0, 1200)}`)
+  }
+  const viewport = page.locator('.weapon-viewport')
+  const rendererGeneration = await viewport.getAttribute('data-renderer-generation')
+  if (!rendererGeneration || await page.locator('.weapon-viewport canvas').count() !== 1) {
+    throw new Error('M108 workbench capture requires the existing single renderer/canvas')
+  }
+  await mkdir(captureRoot, { recursive: true })
+  const records = []
+  for (const fixture of manifest.fixtures) {
+    const fixturePath = resolve(kitRoot, fixture.file)
+    if (!fixturePath.startsWith(`${kitRoot}/`)) throw new Error(`unsafe M108 fixture path: ${fixture.file}`)
+    const glbBytes = await readFile(fixturePath)
+    const glbSha256 = createHash('sha256').update(glbBytes).digest('hex')
+    if (glbSha256 !== fixture.glb_sha256) {
+      throw new Error(`M108 fixture hash mismatch before workbench import: ${fixture.fixture_id}`)
+    }
+
+    smokeStage = `M108 workbench capture ${fixture.fixture_id}`
+    const previousAssetVersionId = await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id').catch(() => null)
+    const importResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/agent/imports:glb') && response.request().method() === 'POST',
+    )
+    await page.getByLabel('导入 GLB 参考模型').setInputFiles(fixturePath)
+    const importResponse = await importResponsePromise
+    if (!importResponse.ok()) {
+      const importFailure = await importResponse.text().catch(() => '')
+      throw new Error(`M108 fixture import failed (${importResponse.status()}): ${fixture.fixture_id}; ${importFailure.slice(0, 1200)}`)
+    }
+    await page.waitForFunction(
+      (previousId) => {
+        const card = document.querySelector('[aria-label="分件候选"]')
+        const currentId = card?.getAttribute('data-agent-asset-version-id')
+        return Boolean(currentId && currentId !== previousId && card?.getAttribute('data-external-glb-reference') === 'true')
+      },
+      previousAssetVersionId,
+      { timeout: 20_000 },
+    )
+    await page.waitForFunction(
+      () => {
+        const viewport = document.querySelector('.weapon-viewport')
+        return viewport?.getAttribute('data-blockout-load-state') === 'ready'
+          && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
+          && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
+          && viewport.getAttribute('data-camera-view') === 'iso'
+          && viewport.getAttribute('data-light-preset') === 'cad_neutral'
+          && viewport.getAttribute('data-preview-mode') === 'committed'
+          && viewport.getAttribute('data-xray') === 'disabled'
+          && viewport.getAttribute('data-visual-environment-id') === 'env_forgecad_room_studio_v1'
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
+    if (await page.locator('.viewport-data-state:visible').count()) {
+      throw new Error(`M108 fixture is ready but a stale viewport state still obscures it: ${fixture.fixture_id}`)
+    }
+    if (
+      await viewport.getAttribute('data-renderer-generation') !== rendererGeneration
+      || await viewport.getAttribute('data-active-webgl-contexts') !== '1'
+      || await page.locator('.weapon-viewport canvas').count() !== 1
+    ) {
+      throw new Error(`M108 fixture replaced or duplicated the workbench renderer: ${fixture.fixture_id}`)
+    }
+    const screenshotPath = join(captureRoot, `${fixture.domain_pack_id}.png`)
+    await viewport.screenshot({ path: screenshotPath, animations: 'disabled' })
+    const screenshotBytes = await readFile(screenshotPath)
+    if (screenshotBytes.length < 10_000) {
+      throw new Error(`M108 workbench screenshot is unexpectedly small: ${fixture.fixture_id}`)
+    }
+    const viewportFacts = await viewport.evaluate((element) => ({
+      load_state: element.getAttribute('data-blockout-load-state'),
+      glb_kind: element.getAttribute('data-blockout-glb-kind'),
+      render_source: element.getAttribute('data-blockout-render-source'),
+      embedded_pbr_material_count: Number(element.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0'),
+      camera_view: element.getAttribute('data-camera-view'),
+      light_preset: element.getAttribute('data-light-preset'),
+      visual_environment_id: element.getAttribute('data-visual-environment-id'),
+      visual_environment_sha256: element.getAttribute('data-visual-environment-sha256'),
+      preview_mode: element.getAttribute('data-preview-mode'),
+      xray: element.getAttribute('data-xray'),
+      renderer_generation: element.getAttribute('data-renderer-generation'),
+      active_webgl_contexts: Number(element.getAttribute('data-active-webgl-contexts') ?? '0'),
+    }))
+    records.push({
+      fixture_id: fixture.fixture_id,
+      domain_pack_id: fixture.domain_pack_id,
+      glb_sha256: glbSha256,
+      screenshot: `workbench-captures/${fixture.domain_pack_id}.png`,
+      screenshot_sha256: createHash('sha256').update(screenshotBytes).digest('hex'),
+      screenshot_byte_size: screenshotBytes.length,
+      viewport: viewportFacts,
+    })
+  }
+  if (new Set(records.map((record) => record.screenshot_sha256)).size !== records.length) {
+    throw new Error('M108 workbench captures are not visually distinct across the four domain fixtures')
+  }
+  const captureManifest = {
+    schema_version: 'M108WorkbenchCapture@1',
+    purpose: 'development_visual_audit_only',
+    score_status: 'not_scored',
+    human_benchmark_evidence: false,
+    source_manifest_sha256: createHash('sha256').update(await readFile(manifestPath)).digest('hex'),
+    captures: records,
+  }
+  const captureManifestPath = join(captureRoot, 'capture-manifest.json')
+  await writeFile(captureManifestPath, `${JSON.stringify(captureManifest, null, 2)}\n`, 'utf8')
+  return {
+    m108_workbench_capture: true,
+    capture_manifest: captureManifestPath,
+    capture_count: records.length,
+    score_status: 'not_scored',
   }
 }
 

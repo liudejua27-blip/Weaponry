@@ -99,6 +99,8 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     assert readback.visual_environment.tone_mapping == "aces_filmic"
     assert readback.visual_environment.contact_shadows is True
     assert len(readback.visual_texture_sets) >= 3
+    assert len({item.material_index for item in readback.visual_texture_sets}) >= 5
+    assert any(item.edge_finish.mode == "bevel_approximation" for item in readback.surface_provenance)
     zones_by_material: dict[str, set[str]] = {}
     for zone in readback.material_zone_faces:
         zones_by_material.setdefault(zone.material_id, set()).add(zone.material_zone_id)
@@ -107,6 +109,7 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
         assert {item.texture_role for item in texture_set.maps} == PBR_ROLES
         assert texture_set.texture_byte_size == sum(item.byte_size for item in texture_set.maps)
         assert all(item.fallback == "none" and item.byte_size <= 4_000_000 for item in texture_set.maps)
+        assert {(item.width, item.height) for item in texture_set.maps} == {(128, 128)}
         assert {item.color_space for item in texture_set.maps if item.texture_role in {"base_color", "emissive"}} == {"srgb"}
         assert {item.color_space for item in texture_set.maps if item.texture_role not in {"base_color", "emissive"}} == {"linear"}
 
@@ -115,10 +118,63 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> None:
     assert not any("uri" in image for image in document["images"])
     assert {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"} <= set(document["extensionsUsed"])
     assert document["extras"]["forgecad_visual_environment"]["environment_sha256"] == readback.visual_environment.environment_sha256
+    primitives = document["meshes"][0]["primitives"]
+    assert {float(item["extras"].get("forgecad_visual_uv_repeat_mm", 0)) for item in primitives} == {320.0}
+    used_material_indices = {int(item["material"]) for item in primitives}
+    assert len(used_material_indices) >= 5
+    material_by_role = {
+        str(item["extras"]["forgecad_part_role"]): str(item["extras"]["forgecad_material_id"])
+        for item in primitives
+    }
+    used_extensions = {
+        extension
+        for material_index in used_material_indices
+        for extension in document["materials"][material_index].get("extensions", {})
+    }
+    if "mat_dark_glass" in material_by_role.values():
+        assert {"KHR_materials_transmission", "KHR_materials_ior"} <= used_extensions
+    if "mat_signal_red" in material_by_role.values():
+        assert "KHR_materials_clearcoat" in used_extensions
+    semantic_aliases = (
+        (("wheel", "track", "tire", "grip", "foot"), "mat_rubber"),
+        (("canopy", "cockpit", "glass", "window", "transparent"), "mat_dark_glass"),
+        (("light", "lamp", "emissive"), "mat_emissive_blue"),
+        (("joint", "rotor", "nacelle", "ring", "pivot", "wrist", "turntable"), "mat_aluminum"),
+    )
+    matched_aliases = 0
+    for role, material_id in material_by_role.items():
+        for tokens, expected_material_id in semantic_aliases:
+            if any(token in role.lower() for token in tokens):
+                assert material_id == expected_material_id, (role, material_id, expected_material_id)
+                matched_aliases += 1
+                break
+    assert matched_aliases > 0
+    if plan.domain_pack_id == "pack_future_weapon_prop":
+        assert any(role.startswith("prop_") and material_id == "mat_signal_red" for role, material_id in material_by_role.items())
+    elif plan.domain_pack_id == "pack_vehicle_concept":
+        wheel_roles = [role for role in material_by_role if any(token in role for token in ("wheel", "track", "tire"))]
+        if wheel_roles:
+            assert all(material_by_role[role] == "mat_rubber" for role in wheel_roles)
+    elif plan.domain_pack_id == "pack_aircraft_concept":
+        canopy_roles = [role for role in material_by_role if any(token in role for token in ("canopy", "cockpit", "glass"))]
+        if canopy_roles:
+            assert all(material_by_role[role] == "mat_dark_glass" for role in canopy_roles)
+    else:
+        joint_roles = [role for role in material_by_role if any(token in role for token in ("joint", "pivot", "wrist", "turntable"))]
+        assert joint_roles and all(material_by_role[role] == "mat_aluminum" for role in joint_roles)
 
     missing_normal = copy.deepcopy(document)
     del missing_normal["materials"][0]["normalTexture"]
     _expect_rejected(_glb_payload(missing_normal, bytearray(binary)), "PBR texture reference is invalid")
+
+    wrong_normal_scale = copy.deepcopy(document)
+    wrong_normal_scale["materials"][0]["normalTexture"]["scale"] = 0.99
+    _expect_rejected(_glb_payload(wrong_normal_scale, bytearray(binary)), "built-in PBR truth")
+
+    if "mat_dark_glass" in material_by_role.values():
+        double_transparency = copy.deepcopy(document)
+        double_transparency["materials"][5]["alphaMode"] = "BLEND"
+        _expect_rejected(_glb_payload(double_transparency, bytearray(binary)), "transparent material compatibility")
 
     corrupt_document = copy.deepcopy(document)
     view = corrupt_document["bufferViews"][corrupt_document["images"][0]["bufferView"]]

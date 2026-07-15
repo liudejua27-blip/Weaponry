@@ -48,6 +48,41 @@ def primitive_program() -> dict:
     }
 
 
+def cardinal_axis_program() -> dict:
+    axes = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
+    operations = []
+    for kind_index, kind in enumerate(("cylinder", "capsule")):
+        for axis_index, axis in enumerate(axes):
+            role = f"{kind}_axis_{kind_index}_{axis_index}"
+            operations.append({
+                "operation_id": f"op_{role}",
+                "op": kind,
+                "inputs": [],
+                "args": {
+                    "position": [axis_index * 500, kind_index * 700, 0],
+                    "radius": 120,
+                    "height": 420,
+                    "axis": list(axis),
+                    "part_role": role,
+                    "zone_id": f"zone_{role}",
+                },
+            })
+    return {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_g826_cardinal_axes",
+        "units": "millimeter",
+        "seed": 826,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": operations,
+        "outputs": [
+            {"output_id": f"output_{item['operation_id']}", "operation_id": item["operation_id"], "kind": "mesh", "part_role": item["args"]["part_role"]}
+            for item in operations
+        ],
+        "non_functional_only": True,
+    }
+
+
 def transform_program() -> dict:
     return {
         "schema_version": "ShapeProgram@1",
@@ -107,6 +142,64 @@ def accessor_offset(document: dict, accessor_index: int) -> int:
     accessor = document["accessors"][accessor_index]
     view = document["bufferViews"][accessor["bufferView"]]
     return int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+
+
+def accessor_values(document: dict, binary: bytearray, accessor_index: int) -> list[tuple[float | int, ...]]:
+    accessor = document["accessors"][accessor_index]
+    view = document["bufferViews"][accessor["bufferView"]]
+    component = {5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}[accessor["componentType"]]
+    components = {"SCALAR": 1, "VEC3": 3}[accessor["type"]]
+    element_size = component[1] * components
+    stride = int(view.get("byteStride", element_size))
+    offset = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    return [
+        struct.unpack_from(f"<{components}{component[0]}", binary, offset + index * stride)
+        for index in range(int(accessor["count"]))
+    ]
+
+
+def assert_closed_primitive_winding(payload: bytes, *, edge_finish_only: bool = False) -> None:
+    document, binary = _glb_parts(payload)
+    primitives = document["meshes"][0]["primitives"]
+    if edge_finish_only:
+        primitives = [item for item in primitives if item["extras"]["forgecad_edge_finish"]["mode"] == "bevel_approximation"]
+        assert primitives
+    for primitive in primitives:
+        positions = accessor_values(document, binary, primitive["attributes"]["POSITION"])
+        normals = accessor_values(document, binary, primitive["attributes"]["NORMAL"])
+        indices = [int(item[0]) for item in accessor_values(document, binary, primitive["indices"])]
+        assert set(indices) == set(range(len(positions)))
+        signed_volume = 0.0
+        shifted_volume = 0.0
+        for offset in range(0, len(indices), 3):
+            i0, i1, i2 = indices[offset:offset + 3]
+            points = [tuple(float(value) for value in positions[index]) for index in (i0, i1, i2)]
+            edge_a = tuple(points[1][axis] - points[0][axis] for axis in range(3))
+            edge_b = tuple(points[2][axis] - points[0][axis] for axis in range(3))
+            face_normal = (
+                edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
+                edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
+                edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
+            )
+            assert sum(value * value for value in face_normal) > 1e-12
+            declared = tuple(sum(float(normals[index][axis]) for index in (i0, i1, i2)) for axis in range(3))
+            assert sum(face_normal[axis] * declared[axis] for axis in range(3)) > 0
+
+            def tetrahedron_volume(vertices: list[tuple[float, ...]]) -> float:
+                first, second, third = vertices
+                return (
+                    first[0] * (second[1] * third[2] - second[2] * third[1])
+                    + first[1] * (second[2] * third[0] - second[0] * third[2])
+                    + first[2] * (second[0] * third[1] - second[1] * third[0])
+                ) / 6
+
+            signed_volume += tetrahedron_volume(points)
+            shifted_volume += tetrahedron_volume([
+                tuple(value - (13.0, -7.0, 19.0)[axis] for axis, value in enumerate(point))
+                for point in points
+            ])
+        assert signed_volume > 1e-9
+        assert abs(signed_volume - shifted_volume) <= max(1e-9, signed_volume * 1e-6)
 
 
 def expect_readback_rejected(payload: bytes, text: str) -> None:
@@ -174,6 +267,19 @@ def assert_corruption_failures(payload: bytes) -> None:
 
     expect_readback_rejected(rewrite_glb(payload, degenerate_uv), "UV-degenerate")
 
+    invalid_repeat = rewrite_glb(
+        payload,
+        lambda document, _binary: document["meshes"][0]["primitives"][0]["extras"].update({"forgecad_visual_uv_repeat_mm": 321}),
+    )
+    expect_readback_rejected(invalid_repeat, "visual UV repeat metadata")
+
+    def overflow_uv(document: dict, binary: bytearray) -> None:
+        primitive = document["meshes"][0]["primitives"][0]
+        offset = accessor_offset(document, primitive["attributes"]["TEXCOORD_0"])
+        struct.pack_into("<2f", binary, offset, 65, 0)
+
+    expect_readback_rejected(rewrite_glb(payload, overflow_uv), "bounded visual repeat baseline")
+
     empty_zone = rewrite_glb(
         payload,
         lambda document, _binary: document["meshes"][0]["primitives"][0]["extras"].update({"forgecad_material_zone_id": ""}),
@@ -190,6 +296,9 @@ def assert_corruption_failures(payload: bytes) -> None:
 
 def main() -> int:
     primitive_glb = assert_surface_contract(primitive_program(), expected_roles={"surface"})
+    assert_closed_primitive_winding(primitive_glb)
+    cardinal_glb = assert_surface_contract(cardinal_axis_program(), expected_roles={"surface"})
+    assert_closed_primitive_winding(cardinal_glb)
     assert_surface_contract(
         profile_program(shell_profile(sketch_id="sketch_g826_extrude"), operation="extrude", suffix="g826_extrude"),
         expected_roles={"side", "start_cap", "end_cap"},
@@ -203,6 +312,7 @@ def main() -> int:
 
     edge_glb = assert_surface_contract(bevel_panel_program(bevel_segments=3, radius=60, suffix="g826_edge"), expected_roles={"surface", "trim"})
     edge_readback = read_shape_program_glb_facts(edge_glb)
+    assert_closed_primitive_winding(edge_glb, edge_finish_only=True)
     finished = next(item for item in edge_readback.surface_provenance if item["edge_finish"]["mode"] == "bevel_approximation")
     assert finished["edge_finish"] == {
         "mode": "bevel_approximation",
@@ -244,7 +354,7 @@ def main() -> int:
     budget["operations"][-1]["args"]["count"] = 10
     expect_compile_rejected(budget, "triangle count")
 
-    print("G826 surface readback smoke passed: bounded edge finish, normals, UV0, tangents and stable part/zone faces survive GLB readback")
+    print("G826 surface readback smoke passed: outward winding on six cardinal axes, bounded edge finish, normals, UV0, tangents and stable part/zone faces survive GLB readback")
     return 0
 
 
