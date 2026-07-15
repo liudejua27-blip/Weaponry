@@ -1,0 +1,41 @@
+{
+  "candidate": {
+    "build_ms": 33012.222,
+    "executable_bytes": 35788283,
+    "health": {"cold_start_ms": 2528.125, "passed": true},
+    "name": "manifold_python",
+    "provider_calls": 0,
+    "source_commit": "11235e6b8ebea2dbed8aec4285685aafd3d95667",
+    "version": "manifold3d==3.5.2"
+  },
+  "decision": {
+    "candidate": "manifold_python",
+    "production_dependency_added": false,
+    "remaining_blocker": "superseding ADR must formally adopt the candidate before G825",
+    "status": "windows_packaged_runtime_passed"
+  },
+  "lifecycle_cases": [
+    {"authoritative_paths_passed_to_child": false, "database_unchanged": true, "error_code": "CSG_CANCELLED", "object_store_unchanged": true, "partial_glb_emitted": false, "process_reaped": true, "staging_cleanup_verified": true, "valid_staged_glb_existed": false, "window": "kernel_running"},
+    {"authoritative_paths_passed_to_child": false, "database_unchanged": true, "error_code": "CSG_TIMEOUT", "object_store_unchanged": true, "partial_glb_emitted": false, "process_reaped": true, "staging_cleanup_verified": true, "valid_staged_glb_existed": false, "window": "kernel_running"},
+    {"authoritative_paths_passed_to_child": false, "database_unchanged": true, "error_code": "CSG_CANCELLED", "object_store_unchanged": true, "partial_glb_emitted": false, "process_reaped": true, "staging_cleanup_verified": true, "valid_staged_glb_existed": true, "window": "candidate_ready_before_promotion"}
+  ],
+  "machine": {"machine": "AMD64", "platform": "Windows-10-10.0.20348-SP0", "python": "3.11.9"},
+  "packaged_provenance": {
+    "deterministic_provenance": true,
+    "fixtures": {
+      "aircraft_canopy_subtract": {"forgecad_readback_verified": true, "glb_provenance_verified": true, "glb_sha256": "6e83547370a9d7c9ab3bf6283e58e182f271e11e68b8d19854c88683b2525152", "has_backside_cut_surface": true, "material_count": 2, "material_ids": ["material_cut", "material_shell"], "primitive_count": 10, "source_face_ids": [0, 2, 3, 8, 10, 12, 15, 17, 23, 26], "source_ids": ["source_base", "source_tool"], "status": "passed", "triangle_count": 32, "zone_ids": ["zone_cut", "zone_shell"]},
+      "appliance_vent_subtract": {"forgecad_readback_verified": true, "glb_provenance_verified": true, "glb_sha256": "bb4680a6bd6bfe35370dabca09b9bb919955d226f3da92cf33985dca61d90a03", "has_backside_cut_surface": true, "material_count": 2, "material_ids": ["material_cut", "material_shell"], "primitive_count": 10, "source_face_ids": [0, 1, 4, 5, 7, 8, 14, 17, 22, 24], "source_ids": ["source_base", "source_tool"], "status": "passed", "triangle_count": 32, "zone_ids": ["zone_cut", "zone_shell"]},
+      "coplanar_subtract": {"forgecad_readback_verified": true, "glb_provenance_verified": true, "glb_sha256": "27c8d962a390dd8aa558516f7bf450c43bdcbbd72128046897cfa80196118bdf", "has_backside_cut_surface": true, "material_count": 2, "material_ids": ["material_cut", "material_shell"], "primitive_count": 10, "source_face_ids": [0, 1, 2, 6, 7, 9, 11, 14, 22, 23], "source_ids": ["source_base", "source_tool"], "status": "passed", "triangle_count": 28, "zone_ids": ["zone_cut", "zone_shell"]},
+      "near_degenerate_subtract": {"error_code": "CSG_DEGENERATE_OUTPUT", "forgecad_readback_verified": false, "glb_provenance_verified": false, "partial_glb_emitted": false, "status": "rejected", "triangle_count": 32},
+      "robot_arm_housing_union": {"forgecad_readback_verified": true, "glb_provenance_verified": true, "glb_sha256": "d625e626d53e18113900a225b86ed569c3a6bbaaaaef3355b17818b0827e1c79", "has_backside_cut_surface": false, "material_count": 2, "material_ids": ["material_cut", "material_shell"], "primitive_count": 14, "source_face_ids": [0, 2, 3, 4, 7, 12, 14, 18, 20, 22, 26, 28, 35, 36], "source_ids": ["source_base", "source_tool"], "status": "passed", "triangle_count": 44, "zone_ids": ["zone_cut", "zone_shell"]},
+      "vehicle_window_subtract": {"forgecad_readback_verified": true, "glb_provenance_verified": true, "glb_sha256": "cc4b2a3222735a1f0aea47810b5ce24f22678ffab2e80baf435bfda0a52d532f", "has_backside_cut_surface": true, "material_count": 2, "material_ids": ["material_cut", "material_shell"], "primitive_count": 10, "source_face_ids": [0, 2, 3, 5, 11, 12, 15, 17, 18, 24], "source_ids": ["source_base", "source_tool"], "status": "passed", "triangle_count": 32, "zone_ids": ["zone_cut", "zone_shell"]}
+    },
+    "machine": "AMD64",
+    "platform": "Windows-10-10.0.20348-SP0",
+    "property_channels_verified": true,
+    "schema_version": "ForgeCADG824DPackagedProvenance@1",
+    "simplify_provenance_verified": true
+  },
+  "promotion_transaction": {"injected_failure_rollback_verified": true, "uow_type": "SQLiteUnitOfWork", "version_head_snapshot_atomic_success_verified": true},
+  "schema_version": "ForgeCADCSGWindowsPackagedEvidence@1"
+}

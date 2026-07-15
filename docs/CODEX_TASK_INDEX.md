@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G824C 已完成；G824D 已建立 Windows x64 frozen sidecar 内 provenance/readback、取消/超时、staging 和原子提升 runner 与独立 CI artifact，但远端 Windows runner 尚未执行，因此保持 `in_progress`。G825 及依赖主链继续 blocked；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G824D 已完成；Windows run `29383382978` 的真实 frozen sidecar artifact 已通过独立校验，ADR-0013 选择 Manifold Python 作为唯一 G825 生产候选。G825 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1349,8 +1349,8 @@ Remaining blockers:
 | FGC-G824A | done | G824 | 候选 provenance、GLB readback、近退化拒绝与隔离取消补证 |
 | FGC-G824B | done | G824A | 生产式 staging、真实 SQLite/对象库与权威状态原子提升边界 |
 | FGC-G824C | done | G824B | macOS packaged candidate、预算、许可证/SBOM 与执行宿主选择建议 |
-| FGC-G824D | blocked | G824C | runner/CI 已完成；等待有效 GitHub 凭证、push 授权和真实 Windows x64 artifact |
-| FGC-G825 | blocked | G824D | 接入唯一生产 CSG，保存不可变 feature node/input hash 与表面 provenance |
+| FGC-G824D | done | G824C | Windows x64 frozen sidecar artifact、provenance/readback、生命周期和原子提升证据通过 |
+| FGC-G825 | ready | G824D | 按 ADR-0013 接入唯一 Manifold Python CSG，保存不可变 feature node/input hash 与表面 provenance |
 | FGC-G826 | blocked | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
 | FGC-A003 | blocked | G826 | DeepSeek Provider metadata/Keychain preflight、流式生命周期、取消、用量与稳定错误分类 |
 | FGC-F025 | blocked | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
@@ -1509,7 +1509,7 @@ Remaining blockers:
 
 ### FGC-G824D 任务卡
 
-状态：blocked（2026-07-15；连续三个目标回合确认同一外部阻断：runner/CI 已实现，但无 Windows 环境、有效 GitHub 凭证、push 授权或真实 x64 artifact）。
+状态：done（2026-07-15；GitHub Actions run `29383382978` 的 Windows x64 artifact 已下载并通过独立校验）。
 
 目标：让 Windows x64 runner 构建当前真实 sidecar 入口，并在 frozen executable 内执行与 macOS 同源的 Manifold Python provenance/readback 和候选生命周期证据，消除 ADR-0012 最后一个平台事实缺口。
 
@@ -1519,13 +1519,13 @@ Remaining blockers:
 
 验收：Windows job 生成 `ForgeCADCSGWindowsPackagedEvidence@1` 报告并由 `check_g824d_windows_packaged_candidate.py` 验证；报告必须证明真实 x64、frozen health、六组 fixture、三个中断窗口、零权威提升、事务回滚/提交、`provider_calls: 0` 和 `production_dependency_added: false`。无论成功或失败都上传 `g824d-windows-packaged-candidate` artifact。
 
-当前证据：runtime hook 已在本机隔离候选目录验证六组 provenance/readback 与 near-degenerate 稳定拒绝；Python compile、Ruff 和 `git diff --check` 通过。`.github/workflows/forgecad-core.yml` 已有独立 `windows-2022` job。当前 GitHub CLI 凭证失效且工作区未被授权 push，远端 runner 没有执行本工作区，因此任务不能标为 done。
+当前证据：`evaluations/csg-g824d/windows-report.json` 来自 run `29383382978` 的真实 `windows-2022` frozen executable。五组有效 fixture 通过 provenance/GLB readback，near-degenerate 以 `CSG_DEGENERATE_OUTPUT` 在写出前拒绝；cancel/timeout/ready-before-promotion 均回收进程且保持 SQLite、对象库和部分 GLB 不变，Version/head/Snapshot 原子回滚/提交通过，Provider 调用为零。
 
-退出：未满足。解除需要用户恢复 GitHub 认证并明确授权 commit/push，或提供可运行该 job 的 Windows x64 环境；随后取得真实 artifact、通过校验并将报告同步到 ADR-0012/状态账本，才可新增 superseding ADR 正式采用 Python 候选。
+退出：已满足。artifact 经 `check_g824d_windows_packaged_candidate.py` 通过，ADR-0013 已取代 ADR-0012 的不采用结论并选择 Python；生产依赖和默认 handler 仍未改变，只允许下一原子任务 G825 开始集成。
 
 ### FGC-G825 任务卡
 
-状态：blocked（等待 G824D 的真实 Windows x64 artifact；随后仍需 superseding ADR 正式选择 Python）。
+状态：ready（G824D artifact 和 ADR-0013 已完成；这是唯一可领取任务）。
 
 目标：只接入 G824 选定的一种生产 CSG，实现可靠的受限 union/subtract，并将每次建模保存为不可变 feature node/input hash，而不是破坏性改写旧顶点。
 

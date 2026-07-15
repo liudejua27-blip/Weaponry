@@ -1,6 +1,6 @@
 # ADR-0012：G824 布尔内核 benchmark 暂不采用候选
 
-- 状态：Accepted（拒绝采用；G825 blocked）
+- 状态：Superseded（原拒绝采用结论已由 ADR-0013 取代）
 - 日期：2026-07-15
 - 决策者：项目维护者
 - 补充：ADR-0011 第 4 项的生产内核选择门
@@ -86,4 +86,4 @@ G824 在临时目录固定比较：
 
 仓库已新增 `g824d_packaged_candidate_runtime_hook.py`、`benchmark_g824d_windows_packaged_candidate.py` 和独立 `windows-2022` CI job。该 runner 构建当前 sidecar 入口，并要求 frozen executable 自身执行六组 provenance/readback、near-degenerate 写出前拒绝和三个候选中断窗口；外层真实临时 SQLite、对象库和 UnitOfWork 再验证零权威提升与原子回滚/提交。报告只允许记录机器、固定版本、hash、readback 和生命周期事实，Provider 配置会被移除。
 
-这只是可执行验证路径，不是 Windows 已通过证据。当前工作区没有真实 Windows x64 artifact，因此 G824D 保持 `in_progress`，本 ADR 仍不采用候选。只有 artifact 经 `check_g824d_windows_packaged_candidate.py` 通过后，才能追加平台结论并起草 superseding ADR。
+GitHub Actions run `29383382978` 已在真实 Windows x64 frozen executable 内通过上述证据路径，并上传 `evaluations/csg-g824d/windows-report.json`；报告已由 `check_g824d_windows_packaged_candidate.py` 独立校验。ADR-0012 的全部解除条件至此满足，其“不采用候选”结论由 ADR-0013 取代。ADR-0013 只选择 Manifold Python 并允许领取 G825，不代表生产 handler 已完成集成。

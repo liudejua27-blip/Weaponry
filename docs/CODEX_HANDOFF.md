@@ -5,7 +5,15 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
-## 2026-07-15：FGC-G824D Windows packaged evidence runner（blocked；等待外部认证、授权与真实 artifact）
+## 2026-07-15：FGC-G824D Windows packaged evidence（已完成；G825 ready）
+
+- GitHub 登录已恢复，用户明确授权 commit/push 当前工作区；分支 `codex/repository-integrity` 已推送到 Draft PR #3。主工作区提交为 `f12aa381`，后续 CI 修复截至 `6a9edefa`。
+- GitHub Actions run `29383382978` 的真实 `windows-2022` frozen sidecar job 已通过并上传 `g824d-windows-packaged-candidate`。报告保存为 `evaluations/csg-g824d/windows-report.json`，再次运行 `check_g824d_windows_packaged_candidate.py` 通过。
+- Windows AMD64/Python 3.11.9：executable 35,788,283 bytes，健康冷启动 2,528.125 ms；五组有效 fixture 的 provenance/GLB readback 通过，near-degenerate 在写出前拒绝；三个中断窗口均回收进程、清理 staging、保持 SQLite/对象库不变，Version/head/Snapshot 原子回滚/提交通过，Provider 调用为零。
+- ADR-0013 已选择 `manifold3d==3.5.2` 作为 G825 唯一生产候选。当前生产依赖和默认 handler 仍未改变；G825 是唯一 `ready`，完成前不得宣称稳健通用 CSG 已实现。
+- 为使干净 runner 与 Windows 语义一致，修复了 PyInstaller `_MEIPASS` 资源定位、C104 完整 ShapeProgram fixture、F006 10px 文本、desktop/Agent CI 隔离、sidecar 空输入临时夹具、D003 历史迁移夹具及 Windows SQLite 清理。backend、desktop 与 G824D 已在同一 run 通过；完整 PR checks 仍应以 `gh pr checks 3` 的最终状态为准。
+
+## 2026-07-15：FGC-G824D Windows packaged evidence runner（历史阻断记录；已由上节解除）
 
 - 新增 Windows x64 PyInstaller runner：实际当前 sidecar 入口通过 runtime hook 在 frozen binary 内运行 Manifold Python 六组 provenance/readback、near-degenerate 拒绝，以及 busy cancel、busy timeout、valid GLB ready-before-promotion 三个窗口；父进程用真实临时 SQLite、对象库和 UnitOfWork 验证零部分提升与原子回滚/提交。
 - `.github/workflows/forgecad-core.yml` 新增独立 `windows-2022` job，固定 Python 3.11、PyInstaller 6.16.0、Manifold 3.5.2、NumPy 2.4.6；成功或失败均尝试上传 `g824d-windows-packaged-candidate` JSON artifact。候选进程只接收 staging marker/result/GLB 路径，不接收权威路径或 Provider 配置。

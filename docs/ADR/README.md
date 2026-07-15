@@ -12,5 +12,6 @@
 - [ADR-0010：Agent 自动选择单一最佳方案、Codex 式工作台与视觉真实度管线](0010-agent-selected-realistic-workbench.md)
 - [ADR-0011：以轮廓、特征与组件配方构建 3D 机械设计系统](0011-3d-mechanical-design-system.md)
 - [ADR-0012：G824 布尔内核 benchmark 暂不采用候选](0012-csg-kernel-benchmark-no-adoption.md)
+- [ADR-0013：选择 Manifold Python 作为唯一生产 CSG 实现](0013-adopt-manifold-python-csg.md)（取代 ADR-0012 的不采用结论；允许领取 G825）
 
 Accepted ADR 的修改应通过新增 superseding ADR 完成，不直接抹掉历史决策。

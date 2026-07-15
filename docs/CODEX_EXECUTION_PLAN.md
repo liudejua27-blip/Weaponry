@@ -61,7 +61,7 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G824C`、`FGC-Q002`–`FGC-Q003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F024`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A/B 已证明两个候选在 macOS arm64 的 provenance/readback、隔离取消和真实临时权威状态提升；G824C 又实际冻结并启动含 `manifold3d`/NumPy 的 macOS arm64 sidecar，Python 候选通过包体、相对冷启动、进程树 RSS 和许可证文件门，WASM 因现有 Python sidecar 没有执行宿主不推荐。G824D 已实现 Windows x64 frozen sidecar 内同源 provenance/lifecycle runner 和独立 CI artifact 路径；但连续三个目标回合均确认无 Windows 环境、有效 GitHub 凭证、push 授权或远端 artifact，因此 G824D 现为 `blocked`。仍没有接入默认 handler；ADR-0012 继续不正式采用候选，因此 `G825 → G826 → A003` 主链当前 blocked。解除条件见 G824D/ADR-0012，不能硬选内核。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G824D`、`FGC-Q002`–`FGC-Q003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F024`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A–G824C 已证明候选在 macOS arm64 的 provenance/readback、隔离取消、真实临时权威状态提升以及 packaged 预算/许可证；G824D 由 run `29383382978` 在真实 Windows x64 frozen sidecar 内通过同源证据。ADR-0013 选择 Manifold Python 作为唯一生产候选，因此 G825 是唯一 `ready`；默认 handler 和生产依赖仍未改变。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
 
 ## 4. S1：ActiveDesignSnapshot
 
