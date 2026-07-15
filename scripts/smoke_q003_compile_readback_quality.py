@@ -61,9 +61,8 @@ def _make_asset(factory: SQLiteConnectionFactory, suffix: str, message: str, exp
         StartAgentTurnRequest(client_request_id=f"q003-turn-{suffix}", message=message),
         f"q003-turn-{suffix}",
     )
-    plan = MechanicalConceptPlan.model_validate(
-        next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
-    )
+    plan_result = next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and item.payload.get("tool_name") == "plan_complete_concept")
+    plan = MechanicalConceptPlan.model_validate(plan_result["plan"])
     assert plan.domain_pack_id == expected_pack, plan.domain_pack_id
     direction_id = plan.directions[0].direction_id
     built = kernel.build_blockout(

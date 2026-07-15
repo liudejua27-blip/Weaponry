@@ -48,6 +48,7 @@ from forgecad_agent.application.mechanical_planner import (
     planner_connection_state,
 )
 from forgecad_agent.application.provider_gateway import ProviderConnectionState, ProviderExecutionTrace
+from forgecad_agent.application.agent_action_loop import AgentActionToolEvent, ProductToolRegistryManifest
 from forgecad_agent.application.geometry_worker import build_blockout, resolve_blockout_variant, segment_blockout
 from forgecad_agent.application.agent_rendering import AgentRenderError, render_agent_views
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
@@ -314,6 +315,11 @@ class AgentKernelService:
     def provider_connection_state(self) -> ProviderConnectionState:
         return planner_connection_state(self.planner)
 
+    def product_tool_registry_manifest(self) -> ProductToolRegistryManifest:
+        from forgecad_agent.application.product_tool_registry import forgecad_product_tool_registry
+
+        return forgecad_product_tool_registry().public_manifest()
+
     def check_provider(self, check_id: Optional[str] = None) -> AgentProviderCheckResponse:
         provider_id = str(getattr(self.planner, "provider_id", "unknown"))
         model = getattr(self.planner, "model_name", None)
@@ -341,6 +347,7 @@ class AgentKernelService:
                 conversation=None,
                 cancel_event=cancel_event,
                 trace_observer=traces.append,
+                action_loop_enabled=False,
             )
         except MechanicalPlannerError as exc:
             trace = getattr(self.planner, "last_execution_trace", None)
@@ -557,6 +564,11 @@ class AgentKernelService:
                     thread_id=thread_id,
                     turn_id=turn_id,
                     trace=trace,
+                ),
+                action_observer=lambda event: self._record_action_tool_event(
+                    thread_id=thread_id,
+                    turn_id=turn_id,
+                    event=event,
                 ),
             )
         except MechanicalPlannerError as exc:
@@ -1086,21 +1098,6 @@ class AgentKernelService:
                 },
             ),
             (
-                "tool_call",
-                {
-                    "tool": "plan_complete_concept",
-                    "arguments": {"brief": plan.brief, "domain_pack_id": plan.domain_pack_id},
-                    "mode": "structured_preview",
-                },
-            ),
-            (
-                "tool_result",
-                {
-                    "tool": "plan_complete_concept",
-                    "result": plan_payload,
-                },
-            ),
-            (
                 "assistant_message",
                 {
                     "text": "我已生成三个完整外观方向。请选择一个方向，确认后再生成可预览的 3D blockout。",
@@ -1111,6 +1108,35 @@ class AgentKernelService:
                 },
             ),
         ]
+
+    def _record_action_tool_event(
+        self,
+        *,
+        thread_id: str,
+        turn_id: str,
+        event: AgentActionToolEvent,
+    ) -> None:
+        """Persist only public tool lifecycle facts, never hidden reasoning."""
+
+        normalized = event.model_copy(update={"parent_turn_id": turn_id})
+        payload = normalized.model_dump(mode="json", exclude_none=True)
+        # Defense in depth for future Provider adapters: these fields are never
+        # part of AgentActionToolEvent@1 and must not appear in durable items.
+        payload.pop("reasoning_content", None)
+        payload.pop("raw_reasoning", None)
+        with SQLiteUnitOfWork(self.connection_factory) as unit:
+            current = unit.agent_kernel.get_turn(turn_id)
+            if current is None or str(current["thread_id"]) != thread_id:
+                return
+            self._add_item(
+                unit,
+                thread_id=thread_id,
+                turn_id=turn_id,
+                item_type=normalized.event_kind,
+                status=normalized.status,
+                payload=payload,
+                created_at=_utc_now(),
+            )
 
     def _add_item(
         self,
@@ -1221,6 +1247,8 @@ def _plan_complete_concept(
     conversation: Any,
     cancel_event: Optional[threading.Event] = None,
     trace_observer: Optional[Any] = None,
+    action_observer: Optional[Any] = None,
+    action_loop_enabled: bool = True,
 ) -> MechanicalConceptPlan:
     """Pass compiled context to current Providers without breaking test adapters.
 
@@ -1245,6 +1273,10 @@ def _plan_complete_concept(
         kwargs["cancel_event"] = cancel_event
     if accepts_kwargs or "trace_observer" in accepted_names:
         kwargs["trace_observer"] = trace_observer
+    if accepts_kwargs or "action_observer" in accepted_names:
+        kwargs["action_observer"] = action_observer
+    if accepts_kwargs or "action_loop_enabled" in accepted_names:
+        kwargs["action_loop_enabled"] = action_loop_enabled
     return planner.plan_complete_concept(**kwargs)
 
 
@@ -1300,11 +1332,12 @@ def _deepseek_budget_provider_id(planner: MechanicalConceptPlanner) -> Optional[
 
 
 def _maximum_deepseek_reservation_micros(context: Any) -> int:
-    # CNY per million tokens: cache miss 3, output 6.  Reserve the pessimistic
-    # maximum input for one turn, then settle against the Provider-reported use.
+    # CNY per million tokens: cache miss 3, output 6.  A004 permits at most 12
+    # sequential sub-requests, so reserve that pessimistic upper bound and then
+    # settle against the Provider-reported aggregate use.
     prompt_limit = 32_000
     output_limit = int(getattr(context, "max_output_tokens", 1800))
-    return int((prompt_limit * 3 + output_limit * 6) * 1_000_000 / 1_000_000)
+    return int((prompt_limit * 3 + output_limit * 6) * 12)
 
 
 def _actual_deepseek_cost_micros(telemetry: Any) -> Optional[int]:

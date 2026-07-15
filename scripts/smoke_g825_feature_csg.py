@@ -256,9 +256,8 @@ def assert_preview_confirm() -> None:
             StartAgentTurnRequest(client_request_id="g825-turn", message="设计一台三关节机械臂"),
             "g825-turn",
         )
-        plan = MechanicalConceptPlan.model_validate(
-            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
-        )
+        plan_result = next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and item.payload.get("tool_name") == "plan_complete_concept")
+        plan = MechanicalConceptPlan.model_validate(plan_result["plan"])
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(
             BuildAgentBlockoutRequest(client_request_id="g825-build", plan=plan, direction_id=direction_id),

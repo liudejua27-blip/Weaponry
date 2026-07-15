@@ -61,7 +61,7 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。D005 已让四领域语义部件槽只解析到当前真实 G808 binding 与 G826 GLB surface provenance，并继续复用 ChangeSet/Snapshot；`FGC-A004` 是唯一 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A004`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。A004 已让离线 Planner 与 DeepSeek 在同一 Turn 内使用代码所有的 Product Tool Registry 完成候选构建、真实 readback、渲染、硬门与未保存 preview；`FGC-M108` 是唯一主链 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
 
 ## 4. S1：ActiveDesignSnapshot
 
@@ -192,7 +192,7 @@ FGC-G819 运行时操作白名单单一真值
 - A003 已解决未配置却像“无响应”的问题：metadata/Keychain/supervisor/capability preflight、真实网络调用标记、stream/cancel、用量和 DeepSeek 400/401/402/422/429/500/503/空 JSON/Schema 错误均有 Gate；失败不静默回退并冒充 Provider 成功；
 - F025 只隔离 legacy 参数、旧导出和 Graph Inspector，不移动 Agent Snapshot/CAS、ChangeSet、质量、下载或 renderer 真值；
 - D005 只能声明四领域的概念比例/姿态配方和有界步长，不增加自由工程尺寸、制造参数或功能结论；
-- A004 只允许 DeepSeek 调用 ForgeCAD Product Tool Registry，遵守 G819、批准、轮数、时间和费用，并按官方 thinking/tool-call 合同在同一短生命周期上下文续传 `reasoning_content`；
+- A004 已只允许 DeepSeek/离线 Planner 调用 13 个 ForgeCAD Product Tool，遵守 G819、审批、12 次调用、时间和费用，并按官方 thinking/tool-call 合同在同一短生命周期上下文续传 `reasoning_content`；工具 Item 不保存原始隐藏推理，桌面不再自动串接三次方向预览请求；
 - M108/C105 在 G826 真实表面事实之上依次建立完整 PBR/多材质区与可编辑组件 Recipe；V003 随后才能让 Agent 自动选择已实现建模语法、Recipe 和最佳候选，只展示一个通过硬门的结果；原 V002 三方向选择目标不再实施；
 - F026 只调整组合层与信息架构：3D 默认缩到左上，点击后移动同一 canvas 到中央 focus，不创建第二 renderer；
 - A005 的专属 Skill 必须声明 Schema、严格工具策略、示例/eval、版本和来源，不允许任意代码/URL/路径；

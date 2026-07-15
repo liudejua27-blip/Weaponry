@@ -86,9 +86,9 @@ def main() -> int:
         payload = next(
             item.payload["result"]
             for item in turn.items
-            if item.item_type == "tool_result" and "result" in item.payload
+            if item.item_type == "tool_result" and item.payload.get("tool_name") == "plan_complete_concept"
         )
-        plan = MechanicalConceptPlan.model_validate(payload)
+        plan = MechanicalConceptPlan.model_validate(payload["plan"])
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(
             BuildAgentBlockoutRequest(client_request_id="g6-build", plan=plan, direction_id=direction_id),

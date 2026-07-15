@@ -168,7 +168,13 @@ export function parseAgentTurnPresentation(items: AgentItem[], requestText: stri
 
   const plan = items
     .filter((item) => item.item_type === 'tool_result')
-    .map((item) => item.payload.result)
+    .map((item) => {
+      const result = item.payload.result
+      if (typeof result === 'object' && result !== null && 'plan' in result) {
+        return (result as { plan?: unknown }).plan
+      }
+      return result
+    })
     .find((resultPayload): resultPayload is MechanicalConceptPlan => (
       typeof resultPayload === 'object'
       && resultPayload !== null

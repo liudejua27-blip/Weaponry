@@ -94,6 +94,8 @@ class MechanicalConceptPlanner(Protocol):
         conversation: Optional[ProviderConversation] = None,
         cancel_event: Optional[threading.Event] = None,
         trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
+        action_observer: Optional[Callable[[Any], None]] = None,
+        action_loop_enabled: bool = True,
     ) -> MechanicalConceptPlan:
         ...
 
@@ -140,6 +142,8 @@ class DeterministicMechanicalPlanner:
         conversation: Optional[ProviderConversation] = None,
         cancel_event: Optional[threading.Event] = None,
         trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
+        action_observer: Optional[Callable[[Any], None]] = None,
+        action_loop_enabled: bool = True,
     ) -> MechanicalConceptPlan:
         del conversation
         if cancel_event is not None and cancel_event.is_set():
@@ -160,7 +164,7 @@ class DeterministicMechanicalPlanner:
             direction_ids=direction_ids,
         )
         directions = _directions_for_pack(pack.domain, roles, visual_intent)
-        return MechanicalConceptPlan(
+        plan = MechanicalConceptPlan(
             plan_id=_new_plan_id(),
             domain_pack_id=pack.pack_id,
             brief=brief,
@@ -169,6 +173,13 @@ class DeterministicMechanicalPlanner:
             provider_id=self.provider_id,
             model=None,
             shape_program_ready=False,
+        )
+        if not action_loop_enabled:
+            return plan
+        return _run_deterministic_action_loop(
+            plan=plan,
+            cancel_event=cancel_event,
+            action_observer=action_observer,
         )
 
 
@@ -204,6 +215,8 @@ class OpenAICompatibleMechanicalPlanner:
         conversation: Optional[ProviderConversation] = None,
         cancel_event: Optional[threading.Event] = None,
         trace_observer: Optional[Callable[[ProviderExecutionTrace], None]] = None,
+        action_observer: Optional[Callable[[Any], None]] = None,
+        action_loop_enabled: bool = True,
     ) -> MechanicalConceptPlan:
         trace_id = f"ptrace_{uuid.uuid4().hex}"
         started_at = time.monotonic()
@@ -278,6 +291,20 @@ class OpenAICompatibleMechanicalPlanner:
                 ),
             }
         ]
+        if action_loop_enabled and "api.deepseek.com" in self.config.base_url.casefold():
+            return self._plan_with_deepseek_action_loop(
+                brief=brief,
+                pack=pack,
+                project_id=project_id,
+                conversation=conversation,
+                stable_messages=stable_messages,
+                dynamic_messages=dynamic_messages,
+                trace_id=trace_id,
+                started_at=started_at,
+                cancel_event=cancel_event,
+                trace_observer=trace_observer,
+                action_observer=action_observer,
+            )
         payload = {
             "model": self.config.model,
             "messages": [*stable_messages, *dynamic_messages],
@@ -442,6 +469,257 @@ class OpenAICompatibleMechanicalPlanner:
         _notify_trace(trace_observer, completed)
         return normalized
 
+    def _plan_with_deepseek_action_loop(
+        self,
+        *,
+        brief: str,
+        pack: DomainPackManifest,
+        project_id: Optional[str],
+        conversation: Optional[ProviderConversation],
+        stable_messages: list[dict[str, Any]],
+        dynamic_messages: list[dict[str, Any]],
+        trace_id: str,
+        started_at: float,
+        cancel_event: Optional[threading.Event],
+        trace_observer: Optional[Callable[[ProviderExecutionTrace], None]],
+        action_observer: Optional[Callable[[Any], None]],
+    ) -> MechanicalConceptPlan:
+        from .agent_action_loop import (
+            AgentActionContext,
+            AgentActionLoop,
+            AgentActionLoopConfig,
+            AgentActionLoopError,
+            ProviderActionStep,
+            ProviderToolCall,
+        )
+        from .product_tool_registry import forgecad_product_tool_registry
+
+        action_system = {
+            "role": "system",
+            "content": (
+                "Use only the supplied ForgeCAD Product Tools. First call plan_complete_concept with one "
+                "MechanicalConceptPlan@1 containing exactly three full-exterior directions. Then call, in order, "
+                "build_candidate_geometry for the strongest direction, compile_readback_candidate, "
+                "render_candidate_views, evaluate_candidate, and prepare_candidate_preview. Stop after the preview "
+                "tool succeeds and return a short user-facing summary. Never call shell, code execution, URL, file, "
+                "database, MCP, or permanent mutation tools. This is non-functional visual concept work only."
+            ),
+        }
+        messages = [action_system, *stable_messages[1:], *dynamic_messages]
+        usage_totals: dict[str, int] = {}
+        request_started_sent = False
+
+        def provider(
+            request_messages: list[dict[str, Any]],
+            tools: list[dict[str, Any]],
+            event: Optional[threading.Event],
+        ) -> ProviderActionStep:
+            nonlocal request_started_sent
+            if event is not None and event.is_set():
+                raise AgentActionLoopError(
+                    "PROVIDER_CANCELLED",
+                    "Provider request was cancelled.",
+                    category="cancelled",
+                )
+            payload = {
+                "model": self.config.model,
+                "messages": request_messages,
+                "tools": tools,
+                "tool_choice": "auto",
+                "stream": True,
+                "stream_options": {"include_usage": True},
+                "max_tokens": max(
+                    512,
+                    min(
+                        conversation.max_output_tokens if conversation is not None else self.config.max_output_tokens,
+                        self.config.max_output_tokens,
+                        16_384,
+                    ),
+                ),
+                "thinking": {
+                    "type": "enabled"
+                    if conversation is None or conversation.thinking_enabled
+                    else "disabled"
+                },
+            }
+            if conversation is None or conversation.thinking_enabled:
+                payload["reasoning_effort"] = "high"
+            request = urllib.request.Request(
+                self.config.base_url.rstrip("/") + "/chat/completions",
+                data=_canonical_json(payload).encode("utf-8"),
+                method="POST",
+            )
+            request.add_header("Content-Type", "application/json")
+            request.add_header("Accept", "text/event-stream, application/json")
+            request.add_header("Authorization", f"Bearer {self.config.api_key}")
+            if not request_started_sent:
+                request_started_sent = True
+                trace = ProviderExecutionTrace.new(
+                    trace_id=trace_id,
+                    phase="request_started",
+                    provider_id=self.provider_id,
+                    network_call_made=True,
+                    message="DeepSeek Agent Action Loop request started.",
+                )
+                self.last_execution_trace = trace
+                _notify_trace(trace_observer, trace)
+            try:
+                with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
+                    response_payload = _read_provider_response(
+                        response,
+                        cancel_event=event,
+                        on_streaming=lambda: self._streaming_trace(trace_id, started_at, trace_observer),
+                    )
+            except urllib.error.HTTPError as exc:
+                code, message, recoverable = _http_error(exc.code)
+                raise AgentActionLoopError(code, message, category="provider", recoverable=recoverable) from exc
+            except MechanicalPlannerError as exc:
+                category = "cancelled" if exc.code == "PROVIDER_CANCELLED" else "provider"
+                raise AgentActionLoopError(
+                    exc.code,
+                    str(exc),
+                    category=category,
+                    recoverable=exc.recoverable,
+                ) from exc
+            except (socket.timeout, TimeoutError) as exc:
+                raise AgentActionLoopError(
+                    "PROVIDER_TIMEOUT",
+                    "Provider request timed out; its outcome is unknown.",
+                    category="timeout",
+                    recoverable=True,
+                ) from exc
+            except (urllib.error.URLError, OSError) as exc:
+                raise AgentActionLoopError(
+                    "PROVIDER_NETWORK_ERROR",
+                    "Provider network request failed.",
+                    category="provider",
+                    recoverable=True,
+                ) from exc
+            usage = response_payload.get("usage") if isinstance(response_payload, dict) else None
+            if isinstance(usage, dict):
+                for key in (
+                    "prompt_tokens",
+                    "completion_tokens",
+                    "total_tokens",
+                    "prompt_cache_hit_tokens",
+                    "prompt_cache_miss_tokens",
+                ):
+                    value = usage.get(key)
+                    if isinstance(value, int) and value >= 0:
+                        usage_totals[key] = usage_totals.get(key, 0) + value
+            try:
+                message = response_payload["choices"][0]["message"]
+                raw_calls = message.get("tool_calls") or []
+                calls = [
+                    ProviderToolCall(
+                        call_id=raw["id"],
+                        name=raw["function"]["name"],
+                        arguments_json=raw["function"]["arguments"],
+                    )
+                    for raw in raw_calls
+                ]
+                return ProviderActionStep(
+                    content=message.get("content") or "",
+                    reasoning_content=message.get("reasoning_content") or "",
+                    tool_calls=calls,
+                    total_tokens=usage.get("total_tokens") if isinstance(usage, dict) else None,
+                )
+            except (KeyError, IndexError, TypeError, ValidationError) as exc:
+                raise AgentActionLoopError(
+                    "PROVIDER_SCHEMA_MISMATCH",
+                    "DeepSeek response did not contain a valid completion or Tool Call.",
+                    category="provider",
+                ) from exc
+
+        context_hash = conversation.context_hash if conversation is not None else None
+        context = AgentActionContext(
+            parent_turn_id=f"action_{uuid.uuid4().hex}",
+            cancel_event=cancel_event,
+            expected_snapshot_fingerprint=context_hash,
+            current_snapshot_fingerprint=context_hash,
+            state={
+                "brief": brief,
+                "domain_pack_id": pack.pack_id,
+                "provider_id": self.provider_id,
+                "model": self.model_name,
+                "project_id": project_id,
+            },
+        )
+        try:
+            action_result = AgentActionLoop(
+                forgecad_product_tool_registry(),
+                AgentActionLoopConfig(
+                    max_tool_calls=12,
+                    max_wall_seconds=self.config.timeout_seconds,
+                ),
+            ).run(
+                messages=messages,
+                provider=provider,
+                context=context,
+                observer=action_observer,
+            )
+        except AgentActionLoopError as exc:
+            self.last_call_telemetry = MechanicalPlannerTelemetry(
+                latency_ms=_elapsed_ms(started_at),
+                input_tokens=usage_totals.get("prompt_tokens"),
+                output_tokens=usage_totals.get("completion_tokens"),
+                total_tokens=usage_totals.get("total_tokens"),
+                prompt_cache_hit_tokens=usage_totals.get("prompt_cache_hit_tokens"),
+                prompt_cache_miss_tokens=usage_totals.get("prompt_cache_miss_tokens"),
+            )
+            if exc.category == "cancelled":
+                self._cancel_trace(trace_id, started_at, request_started_sent, trace_observer)
+            else:
+                self._fail_trace(
+                    trace_id,
+                    exc.code,
+                    str(exc),
+                    started_at,
+                    request_started_sent,
+                    trace_observer,
+                )
+            raise MechanicalPlannerError(
+                exc.code,
+                str(exc),
+                recoverable=exc.recoverable,
+                network_call_made=request_started_sent,
+            ) from exc
+        self.last_call_telemetry = MechanicalPlannerTelemetry(
+            latency_ms=_elapsed_ms(started_at),
+            input_tokens=usage_totals.get("prompt_tokens"),
+            output_tokens=usage_totals.get("completion_tokens"),
+            total_tokens=usage_totals.get("total_tokens"),
+            prompt_cache_hit_tokens=usage_totals.get("prompt_cache_hit_tokens"),
+            prompt_cache_miss_tokens=usage_totals.get("prompt_cache_miss_tokens"),
+        )
+        result = action_result.state.get("plan")
+        if not isinstance(result, MechanicalConceptPlan):
+            self._fail_trace(
+                trace_id,
+                "ACTION_LOOP_PLAN_MISSING",
+                "DeepSeek Action Loop stopped without a validated plan.",
+                started_at,
+                request_started_sent,
+                trace_observer,
+            )
+            raise MechanicalPlannerError(
+                "ACTION_LOOP_PLAN_MISSING",
+                "DeepSeek Action Loop stopped without a validated plan.",
+                recoverable=False,
+                network_call_made=request_started_sent,
+            )
+        completed = _trace_from_telemetry(
+            trace_id=trace_id,
+            phase="completed",
+            provider_id=self.provider_id,
+            telemetry=self.last_call_telemetry,
+            network_call_made=request_started_sent,
+            message="DeepSeek Action Loop completed with validated GLB readback and concept render evidence.",
+        )
+        self.last_execution_trace = completed
+        _notify_trace(trace_observer, completed)
+        return result
+
     def _streaming_trace(
         self,
         trace_id: str,
@@ -501,6 +779,139 @@ class OpenAICompatibleMechanicalPlanner:
         )
         self.last_execution_trace = trace
         _notify_trace(observer, trace)
+
+
+def _run_deterministic_action_loop(
+    *,
+    plan: MechanicalConceptPlan,
+    cancel_event: Optional[threading.Event],
+    action_observer: Optional[Callable[[Any], None]],
+) -> MechanicalConceptPlan:
+    """Run the offline planner through the same Product Tool lifecycle.
+
+    This keeps the default local Alpha honest: its tool/readback/render evidence
+    is real even though the provider decisions are deterministic and make no
+    network call.
+    """
+
+    from .agent_action_loop import (
+        AgentActionContext,
+        AgentActionLoop,
+        AgentActionLoopError,
+        ProviderActionStep,
+        ProviderToolCall,
+    )
+    from .product_tool_registry import forgecad_product_tool_registry
+
+    scripted = [
+        ProviderActionStep(
+            reasoning_content="offline-planner-private-step",
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_plan",
+                    name="plan_complete_concept",
+                    arguments_json=_canonical_json({"plan": plan.model_dump(mode="json")}),
+                )
+            ],
+        ),
+        ProviderActionStep(
+            reasoning_content="offline-builder-private-step",
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_build",
+                    name="build_candidate_geometry",
+                    arguments_json=_canonical_json(
+                        {
+                            "direction_id": plan.directions[0].direction_id,
+                            "presentation_profile": "quick_sketch",
+                        }
+                    ),
+                )
+            ],
+        ),
+        ProviderActionStep(
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_readback",
+                    name="compile_readback_candidate",
+                    arguments_json="{}",
+                )
+            ]
+        ),
+        ProviderActionStep(
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_render",
+                    name="render_candidate_views",
+                    arguments_json="{}",
+                )
+            ]
+        ),
+        ProviderActionStep(
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_evaluate",
+                    name="evaluate_candidate",
+                    arguments_json="{}",
+                )
+            ]
+        ),
+        ProviderActionStep(
+            tool_calls=[
+                ProviderToolCall(
+                    call_id="offline_preview",
+                    name="prepare_candidate_preview",
+                    arguments_json="{}",
+                )
+            ]
+        ),
+        ProviderActionStep(content="本机已完成候选构建、真实回读、四视图渲染与硬门检查。"),
+    ]
+
+    def provider(messages: list[dict[str, Any]], tools: list[dict[str, Any]], event: Optional[threading.Event]) -> Any:
+        del messages, tools
+        if event is not None and event.is_set():
+            raise MechanicalPlannerError("PROVIDER_CANCELLED", "Provider request was cancelled.", recoverable=False)
+        if not scripted:
+            raise MechanicalPlannerError(
+                "DETERMINISTIC_ACTION_SCRIPT_EXHAUSTED",
+                "Offline Action Loop script ended unexpectedly.",
+                recoverable=False,
+            )
+        return scripted.pop(0)
+
+    context = AgentActionContext(
+        parent_turn_id=f"offline_{plan.plan_id}",
+        cancel_event=cancel_event,
+        state={
+            "brief": plan.brief,
+            "domain_pack_id": plan.domain_pack_id,
+            "provider_id": plan.provider_id,
+            "model": plan.model,
+        },
+    )
+    try:
+        result = AgentActionLoop(forgecad_product_tool_registry()).run(
+            messages=[{"role": "user", "content": plan.brief}],
+            provider=provider,
+            context=context,
+            observer=action_observer,
+        )
+    except AgentActionLoopError as exc:
+        raise MechanicalPlannerError(
+            exc.code,
+            str(exc),
+            recoverable=exc.recoverable,
+            network_call_made=False,
+        ) from exc
+    validated = result.state.get("plan")
+    if not isinstance(validated, MechanicalConceptPlan):
+        raise MechanicalPlannerError(
+            "ACTION_LOOP_PLAN_MISSING",
+            "Offline Action Loop did not return a validated plan.",
+            recoverable=False,
+        )
+    return validated
 
 
 def mechanical_planner_from_env() -> MechanicalConceptPlanner:
@@ -691,8 +1102,9 @@ def _read_provider_response(
         return value
 
     content_chunks: List[str] = []
+    reasoning_chunks: List[str] = []
     usage: Optional[Dict[str, Any]] = None
-    tool_calls: List[Any] = []
+    tool_calls: Dict[int, Dict[str, Any]] = {}
     stream_started = False
     for raw_line in response:
         if cancel_event is not None and cancel_event.is_set():
@@ -737,12 +1149,47 @@ def _read_provider_response(
             content = delta.get("content")
             if isinstance(content, str):
                 content_chunks.append(content)
+            reasoning_content = delta.get("reasoning_content")
+            if isinstance(reasoning_content, str):
+                reasoning_chunks.append(reasoning_content)
             delta_calls = delta.get("tool_calls")
             if isinstance(delta_calls, list):
-                tool_calls.extend(delta_calls)
-            # reasoning_content is intentionally ignored and never persisted.
+                for fallback_index, fragment in enumerate(delta_calls):
+                    if not isinstance(fragment, dict):
+                        continue
+                    index = fragment.get("index", fallback_index)
+                    if not isinstance(index, int) or index < 0 or index >= 12:
+                        raise MechanicalPlannerError(
+                            "PROVIDER_SCHEMA_MISMATCH",
+                            "Provider tool call stream contained an invalid index.",
+                            recoverable=False,
+                            network_call_made=True,
+                        )
+                    merged = tool_calls.setdefault(
+                        index,
+                        {"id": "", "type": "function", "function": {"name": "", "arguments": ""}},
+                    )
+                    call_id = fragment.get("id")
+                    if isinstance(call_id, str):
+                        merged["id"] += call_id
+                    function = fragment.get("function")
+                    if isinstance(function, dict):
+                        name = function.get("name")
+                        arguments = function.get("arguments")
+                        if isinstance(name, str):
+                            merged["function"]["name"] += name
+                        if isinstance(arguments, str):
+                            merged["function"]["arguments"] += arguments
     return {
-        "choices": [{"message": {"content": "".join(content_chunks), "tool_calls": tool_calls}}],
+        "choices": [
+            {
+                "message": {
+                    "content": "".join(content_chunks),
+                    "reasoning_content": "".join(reasoning_chunks),
+                    "tool_calls": [tool_calls[index] for index in sorted(tool_calls)],
+                }
+            }
+        ],
         "usage": usage or {},
     }
 

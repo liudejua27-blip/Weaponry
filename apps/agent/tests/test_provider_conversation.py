@@ -105,7 +105,7 @@ def test_deepseek_usage_settles_daily_reservation(tmp_path):
         "idem-turn",
     )
     assert turn.usage["estimated_cost_cny"] == 0.000236
-    assert turn.usage["budget_reservation_cny"] == 0.1068
+    assert turn.usage["budget_reservation_cny"] == 1.2816
     with SQLiteUnitOfWork(factory) as unit:
         row = unit.require_connection().execute(
             "SELECT spent_micros, reserved_micros, unmetered_turns FROM agent_provider_daily_budgets"

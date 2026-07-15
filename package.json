@@ -60,6 +60,7 @@
   "agent:check": "python3 -m compileall -q apps/agent/wushen_agent apps/agent/forgecad_agent scripts",
     "agent:unit": "PYTHONPATH=apps/agent .venv/bin/pytest -q apps/agent/tests",
     "agent:a003-provider-gateway-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_a003_provider_gateway.py",
+    "agent:a004-action-loop-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_a004_agent_action_loop.py",
     "agent:g1-kernel-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_agent_kernel.py",
     "agent:s1-active-design-snapshot-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_snapshot_contract.py",
     "agent:s2-active-design-snapshot-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_snapshot_repository.py",

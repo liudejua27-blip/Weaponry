@@ -244,7 +244,7 @@ proposed
 6. 当前请求阶段、耗时、用量与缓存；
 7. 错误类别与已有资产安全状态。
 
-错误已区分：请求格式、API Key、余额不足、参数/模型、请求过多、服务故障、超时/网络、空 JSON、无效 JSON 和 Schema 不符。连接测试和普通 Turn 都可以取消。选择真实 Provider 后失败不会静默回退为“DeepSeek 已成功”；已有资产保持不变，由用户显式重试。独立诊断抽屉和更精简的顶栏仍由 F025/F026 后续整理。
+错误已区分：请求格式、API Key、余额不足、参数/模型、请求过多、服务故障、超时/网络、空 JSON、无效 JSON、Schema 不符，以及 Action Loop 的 Tool Call 上限、重复 ID、stale Snapshot 和未注册工具。连接测试和普通 Turn 都可以取消；取消会传播到 Provider 和可取消 Worker。选择真实 Provider 后失败不会静默回退为“DeepSeek 已成功”；已有资产保持不变，由用户显式重试。`GET /api/v1/agent/product-tools` 可用于核对当前固定工具合同，但不会执行工具；原始 `reasoning_content` 不会出现在 Item 或日志中。更精简的顶栏仍由 F026 后续整理。
 
 ## 10. GSAP 动画边界
 

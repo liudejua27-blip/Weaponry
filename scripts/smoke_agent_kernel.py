@@ -45,7 +45,7 @@ def main() -> int:
         )
         turn = service.start_turn(thread.thread_id, turn_request, "idem-turn-1")
         assert turn.status == "completed"
-        assert len(turn.items) == 6, [item.item_type for item in turn.items]
+        assert len(turn.items) == 16, [item.item_type for item in turn.items]
         provider_result = next(
             item
             for item in turn.items
@@ -57,15 +57,33 @@ def main() -> int:
         assert provider_trace["attempt"] == 1
         plan_item = next(item for item in turn.items if item.item_type == "plan")
         assert len(plan_item.payload["directions"]) == 3
-        tool_result = next(
+        action_calls = [
+            item.payload["tool_name"]
+            for item in turn.items
+            if item.item_type == "tool_call" and item.payload.get("schema_version") == "AgentActionToolEvent@1"
+        ]
+        assert action_calls == [
+            "plan_complete_concept",
+            "build_candidate_geometry",
+            "compile_readback_candidate",
+            "render_candidate_views",
+            "evaluate_candidate",
+            "prepare_candidate_preview",
+        ], action_calls
+        preview_result = next(
             item
             for item in turn.items
-            if item.item_type == "tool_result" and item.payload.get("tool") != "provider_gateway"
+            if item.item_type == "tool_result" and item.payload.get("tool_name") == "prepare_candidate_preview"
         )
-        assert tool_result.payload["result"]["domain_pack_id"] == "pack_vehicle_concept"
+        assert preview_result.payload["result"]["permanent_side_effects"] == 0
+        assert preview_result.payload["result"]["requires_user_confirmation"] is True
+        assert all("reasoning_content" not in str(item.payload) for item in turn.items)
         events = service.events(thread.thread_id)
         assert [event.sequence for event in events] == list(range(1, len(events) + 1))
         assert service.events(thread.thread_id, after=2)[0].sequence == 3
+        restarted = AgentKernelService(factory).get_thread(thread.thread_id)
+        assert restarted.turns[-1].status == "completed"
+        assert len(restarted.turns[-1].items) == len(turn.items)
 
         approval = service.create_approval(
             thread.thread_id,

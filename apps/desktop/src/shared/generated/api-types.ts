@@ -1605,6 +1605,20 @@ export type PlannedChangeSetRecord = {
   "job_id": string
 }
 
+export type ProductToolManifest = {
+  "tool_id": string
+  "name": string
+  "description": string
+  "input_schema": Record<string, unknown>
+  "output_schema": Record<string, unknown>
+  "approval_policy": "read_only" | "candidate_only" | "user_confirmation_required"
+}
+
+export type ProductToolRegistryManifest = {
+  "schema_version"?: "ForgeCADProductToolRegistry@1"
+  "tools": Array<ProductToolManifest>
+}
+
 export type ProposeAgentAssetChangeSetRequest = {
   "client_request_id": string
   "summary": string

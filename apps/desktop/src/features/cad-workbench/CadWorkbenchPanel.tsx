@@ -171,9 +171,6 @@ export function CadWorkbenchPanel() {
   const {
     agentDirectionConceptPreviewState,
     openDirectionConceptPreviewProject,
-    startDirectionConceptPreviews,
-    receiveDirectionConceptPreview,
-    failDirectionConceptPreview,
     clearDirectionConceptPreviews,
   } = useAgentDirectionConceptPreviews()
   const {
@@ -782,22 +779,6 @@ export function CadWorkbenchPanel() {
     }
   }, [activeDesignSnapshot?.active_design.source, concept.closeLegacyDetails, concept.legacyDetailsEnabled])
 
-  const requestAgentDirectionConceptPreviews = useCallback((plan: NonNullable<typeof agentPlan>, projectId: string | null) => {
-    const requestId = startDirectionConceptPreviews(projectId, plan)
-    void Promise.all(plan.directions.map(async (direction) => {
-      try {
-        const preview = await api.renderAgentBlockoutConceptPreview({
-          client_request_id: `agent-concept-preview-${Date.now()}-${direction.direction_id}`,
-          plan,
-          direction_id: direction.direction_id,
-        })
-        receiveDirectionConceptPreview(projectId, plan.plan_id, requestId, preview)
-      } catch {
-        failDirectionConceptPreview(projectId, plan.plan_id, requestId, direction.direction_id)
-      }
-    }))
-  }, [api, failDirectionConceptPreview, receiveDirectionConceptPreview, startDirectionConceptPreviews])
-
   const recordAgentTurn = useCallback(async (message: string, clarificationDomainPackId?: string): Promise<AgentTurnRecordResult> => {
     const projectId = concept.project?.project_id ?? null
     const { requestId } = startAgentConversationRequest(projectId)
@@ -858,7 +839,6 @@ export function CadWorkbenchPanel() {
         setAssistantNote(presentation.clarification.question)
         return { recorded: true, clarification: true, cancelled: false, failed: false }
       }
-      if (presentation.plan) requestAgentDirectionConceptPreviews(presentation.plan, projectId)
       return { recorded: true, clarification: false, cancelled: false, failed: false }
     } catch (caught) {
       if (!isCurrentAgentConversationRequest(projectId, requestId)) {
@@ -890,7 +870,7 @@ export function CadWorkbenchPanel() {
       }
       return { recorded: false, clarification: false, cancelled: false, failed: false }
     }
-  }, [agentThreadId, api, clearAgentAssetWorkspace, clearBlockoutDisplay, clearDirectionConceptPreviews, concept.project?.name, concept.project?.project_id, isCurrentAgentConversationRequest, markAgentKernelUnavailable, parseAgentTurnPresentation, receiveAgentClarification, receiveAgentTurn, requestAgentDirectionConceptPreviews, startAgentConversationRequest])
+  }, [agentThreadId, api, clearAgentAssetWorkspace, clearBlockoutDisplay, clearDirectionConceptPreviews, concept.project?.name, concept.project?.project_id, isCurrentAgentConversationRequest, markAgentKernelUnavailable, parseAgentTurnPresentation, receiveAgentClarification, receiveAgentTurn, startAgentConversationRequest])
 
   const cancelActiveProviderTurn = useCallback(async () => {
     if (!activeProviderTurnId && !activeProviderCheckId) return

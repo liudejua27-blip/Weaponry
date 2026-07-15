@@ -125,31 +125,32 @@ async function main() {
       } finally { await page.close() }
     })
 
-    await runScenario(results, 'T002-04b-unsaved-direction-concept-images-no-write', async () => {
+    await runScenario(results, 'T002-04b-single-turn-action-loop-no-write', async () => {
       const page = await openWorkbench(context, viteBaseUrl)
       try {
         projectId = projectId ?? await waitForProjectId(agentBaseUrl)
         const before = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
+        let automaticDirectionPreviewRequests = 0
+        page.on('request', (request) => {
+          if (request.url().includes('/api/v1/agent/blockouts:concept-preview')) automaticDirectionPreviewRequests += 1
+        })
         await sendBrief(page, '设计一辆双座冰原探索汽车，完整封闭车身，深色耐候外观，作为非功能展示模型。')
         const directions = page.getByLabel('Agent 完整外观方向')
         await directions.waitFor({ timeout: TIMEOUT_MS })
-        await page.waitForFunction(
-          () => document.querySelectorAll('img.agent-direction-concept-image').length === 3,
-          undefined,
-          { timeout: TIMEOUT_MS },
-        )
-        assert(await page.locator('img.agent-direction-concept-image').count() === 3, 'three current directions must receive disposable software concept images')
-        assert(await page.locator('.weapon-viewport canvas').count() === 1, 'concept image cards must not create a second WebGL canvas')
+        assert(await page.locator('[data-agent-item-type="tool_call"]').count() >= 1, 'the recent Turn window must expose its final bounded Product Tool call')
+        assert(await page.locator('[data-agent-item-type="tool_result"]').count() >= 1, 'the recent Turn window must expose its final Product Tool result')
+        assert(automaticDirectionPreviewRequests === 0, 'the desktop must not splice three hidden concept-preview requests after the Turn')
+        assert(await page.locator('img.agent-direction-concept-image').count() === 0, 'A004 direction cards use the server Action Loop instead of three automatic images')
+        assert(await page.locator('.weapon-viewport canvas').count() === 1, 'Action Loop items must not create a second WebGL canvas')
         const beforeSelect = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-        assert(beforeSelect.active_design?.asset_version_id === before.active_design?.asset_version_id, 'concept images must not advance the active asset version')
+        assert(beforeSelect.active_design?.asset_version_id === before.active_design?.asset_version_id, 'Action Loop preview must not advance the active asset version')
         const directionButtons = directions.getByRole('button')
         assert(await directionButtons.count() === 3, 'each current direction must remain selectable')
         await directionButtons.nth(0).click()
         await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
-        assert(await page.locator('img.agent-direction-concept-image').count() === 0, 'selecting a direction must discard the now-stale concept images')
         const after = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-        assert(after.active_design?.asset_version_id === before.active_design?.asset_version_id, 'temporary image and selected blockout must not write an asset version')
-        return evidence(projectId, after, ['three_software_concept_images', 'same_source_direction_context', 'discard_on_selection', 'preview_no_version_write', 'single_canvas'])
+        assert(after.active_design?.asset_version_id === before.active_design?.asset_version_id, 'Action Loop and selected blockout must not write an asset version')
+        return evidence(projectId, after, ['single_turn_tool_lifecycle', 'no_hidden_direction_preview_requests', 'preview_no_version_write', 'single_canvas'])
       } finally { await page.close() }
     })
 

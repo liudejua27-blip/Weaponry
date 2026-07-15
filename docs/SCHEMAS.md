@@ -13,7 +13,7 @@ packages/weapon-spec/      legacy Weapon/Unity runtime
 packages/concept-spec/     当前通用机械概念 Agent 工作台
 ```
 
-D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；三者均已进入 JSON Schema、Pydantic、生成 TypeScript/OpenAPI 与任务 Gate。
+D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；A004 新增 Pydantic/OpenAPI `ForgeCADProductToolRegistry@1`、`ProductToolManifest` 与持久化 Tool Item 使用的 `AgentActionToolEvent@1`。这些合同均已进入生成类型或 OpenAPI 与任务 Gate。
 
 当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。这些合同已经有 JSON Schema、TypeScript/Python registry 或 OpenAPI 类型与 smoke；G3 已有受限 ShapeProgram/领域 blockout 生成链，G6 已有声明式 Connector 吸附与 GLB readback，G6.5 可引入只读 `ExternalGLBReference@1`。G807 另有运行时版本化变体目录；G812 在 build/segment OpenAPI 请求与响应中增加可选、受限的 `variant_id`，G813 再增加仅为 `0..2` 的 `variation_index`（旧响应缺失时默认为 `0`）。G815 的 `VisualIntentMapping@1` 将三张方向的有限轮廓、细节、色彩和展示姿态分类映射到同一 Pack 已审核的 0–3 视觉族；实际 ID/index 只用于同一方向三项视觉预览的一致性，经候选 JSON 与已保存的 ShapeProgram/AssemblyGraph 可追溯；它们不改变 `ModuleAssetManifest@1` 或 `ActiveDesignSnapshot` 合同，也不开放自由参数。G811 已将当前 AssetVersion 的受限声明接入零基础步进控件，不开放自由参数、单位换算或新几何执行；真实碰撞、外部 GLB 的自动重建与深度分件仍未完成。
 
@@ -56,6 +56,8 @@ npm run contracts:types:check
 | `AgentThread@1` | 设计会话 |
 | `AgentTurn@1` | 一次用户请求和预算/状态 |
 | `AgentItem@1` | 消息、计划、工具、预览、澄清、批准和工件 |
+| `ForgeCADProductToolRegistry@1` | 代码所有、不可动态扩展的 13 项产品工具清单，包含稳定 ID、输入/输出 Schema 和审批策略 |
+| `AgentActionToolEvent@1` | 同一 Turn 的 tool call/result 公开事实：call/tool ID、状态、耗时、幂等键、失败类别与审批策略；不含隐藏推理 |
 | `ApprovalRequest@1` | 永久副作用确认 |
 | `ModelQualityReport@1` | 通用 Mesh/Assembly/Material/Domain Finding |
 

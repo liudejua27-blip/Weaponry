@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826、A003 与 F025 已完成；F025 将 Agent 主流程和 legacy 控制隔离。D005 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826、A003、F025、D005 与 A004 已完成；A004 将受限产品工具、真实 readback/渲染和 DeepSeek thinking Tool Call 收束到同一 Turn。M108 现在是唯一主链 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1354,10 +1354,10 @@ Remaining blockers:
 | FGC-G826 | done | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
 | FGC-A003 | done | G826 | Provider metadata/Keychain/supervisor/capability preflight、SSE 生命周期、取消、用量与稳定错误分类已通过 |
 | FGC-F025 | done | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 已隔离；父层继续拆薄 |
-| FGC-D005 | ready | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
-| FGC-A004 | blocked | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
+| FGC-D005 | done | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
+| FGC-A004 | done | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
 | FGC-V002 | superseded | — | 由 ADR-0010/FGC-V003 取代；不再实现三方向用户选择 |
-| FGC-M108 | blocked | A004、G826、Q003、D005 | 稳定多材质区、完整 PBR 纹理与展示环境，消费真实 UV/tangent/zone facts |
+| FGC-M108 | ready | A004、G826、Q003、D005 | 稳定多材质区、完整 PBR 纹理与展示环境，消费真实 UV/tangent/zone facts |
 | FGC-C105 | blocked | M108、C104、G826、D005 | 可编辑组件配方与轮廓/特征/装配/比例/材质受限组合 |
 | FGC-V003 | blocked | A004、C105、M108、D005、Q003、R006 | 自动选择建模语法和内部候选，只展示一个最佳结果 |
 | FGC-F026 | blocked | F025、V003 | Codex 式工作台；3D 左上 mini，点击后同一 canvas 中央 focus |
@@ -1611,7 +1611,7 @@ Remaining blockers:
 
 ### FGC-A004 任务卡
 
-状态：ready（D005、A003、G819、G826 已完成；这是下一唯一可领取任务）。
+状态：done（2026-07-15；A004、A003、G819/Q003、D005、G1、T002/T003、r3 与安全/文档 Gate 已通过）。
 
 目标：建立 Codex/Claude Code 式但仅面向 ForgeCAD 产品工具的 `AgentActionLoop@1`，让 DeepSeek 可以在一个 Turn 内规划、调用受限工具、读取工具结果、继续判断并停止，而不是一次请求后由前端串接另一套 legacy API。
 
@@ -1621,7 +1621,9 @@ Remaining blockers:
 
 验收：A004 smoke 覆盖正常 plan→build→readback→render→evaluate、工具 Schema 拒绝、G819 未实现操作拒绝、Tool Call 上限、取消/timeout、Provider 断线、重复 tool ID、stale Snapshot、`reasoning_content` 续传与不落盘、approval 前零永久副作用、重启后 completed/failed Turn 可读。A003、G819/Q003、D005、G1、T002/T003、r3 和安全 Gate 继续通过。
 
-退出：一个 Turn 的模型、工具、检查和停止形成可恢复的单一生命周期；所有工具都由代码白名单/Schema/权限验证，前端不再拼接第二套隐式 Agent 流程。
+证据：新增 `AgentActionLoop@1`、代码所有的 `ForgeCADProductToolRegistry@1` 与只读 `/api/v1/agent/product-tools`。13 个工具只有 domain/reference/style/profile/shape/build/readback/render/evaluate/preview 能力；工具参数与结果均经过 JSON Schema，永久修改工具不能注册。离线 Planner 与 DeepSeek 均执行 plan→build→真实 GLB readback→四视图→硬门→临时 preview；DeepSeek 每次工具结果回送下一子请求并在内存续传 `reasoning_content`，持久化 Item 只含 stable tool ID、父 Turn、状态、耗时、幂等键、失败类别和审批策略。桌面不再在 Turn 完成后自动并发三次 concept-preview API。`agent:a004-action-loop-smoke` 覆盖成功链、Schema/G819、12 次上限、取消/timeout/断线、重复 ID、stale Snapshot、推理不落盘、零永久副作用和 completed/failed 重启读取。
+
+退出：已满足。一个 Turn 的模型、工具、检查和停止形成可恢复的单一生命周期；所有工具都由代码白名单/Schema/权限验证，前端不再拼接第二套隐式 Agent 流程。下一唯一主链任务为 `FGC-M108`。
 
 ### FGC-V003 任务卡
 
@@ -1667,7 +1669,7 @@ Remaining blockers:
 
 ### FGC-M108 任务卡
 
-状态：blocked（等待 A004、G826、Q003、D005）。
+状态：ready（A004、G826、Q003、D005 已完成；这是下一唯一主链任务）。
 
 目标：消费 G826 已回读的稳定 zone/UV/tangent，把当前单区参数材质提升为完整 PBR 纹理和可复现展示环境，使模型外观显著接近真实产品，而不把视觉材质冒充工程材料。
 

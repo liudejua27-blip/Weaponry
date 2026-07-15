@@ -5,6 +5,13 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-15：FGC-A004 受限 Agent Action Loop（已完成；M108 ready）
+
+- 新增 `AgentActionLoop@1` 与不可动态扩展的 `ForgeCADProductToolRegistry@1`。13 个工具覆盖领域推断、受审本地参考查询、Style Token/比例配方、Profile/ShapeProgram author+validate、候选 build、真实 compile/readback、四视图 render、硬门 evaluate 和未保存 preview；没有 shell、Python/JavaScript、任意 URL/路径、通用 MCP、数据库或永久修改工具。
+- 离线 Planner 与 DeepSeek 都通过同一工具循环执行 plan→build→GLB readback→render→evaluate→preview。DeepSeek Tool Call 的 `reasoning_content` 只在同一 Turn 的内存消息中续传；持久化 Item 只记录 stable tool/call ID、父 Turn、Schema 后事实、状态、耗时、幂等键、失败类别与审批策略。12 次调用、wall time、取消、Provider 断线、重复 call ID、stale Snapshot 和 G819 未知操作都 fail closed。
+- `npm run agent:a004-action-loop-smoke` 覆盖正常链、DeepSeek 多轮续传且推理不落盘、Schema/G819 拒绝、上限、取消/timeout/断线、重复 Registry/Tool Call ID、stale Snapshot、审批前 `agent_asset_versions`/ChangeSet/Snapshot 为零，以及 completed/failed Turn 重启读取。新增只读 `GET /api/v1/agent/product-tools`；桌面 Turn 完成后不再自动并发三次方向 concept-preview API，当前三方向 UI 仍保留到 V003。
+- 下一唯一主链任务是 `FGC-M108`：只消费 G826 的真实 zone/UV/tangent，完成多区 PBR 纹理、色彩空间、环境与 GLB/视口/readback 一致性；不得提前实现 C105/V003/F026。
+
 ## 2026-07-15：FGC-D005 四领域语义比例配方（已完成；A004 ready）
 
 - 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1`、`ResolvedSemanticProportionOptions@1`，四领域各 4 个普通语言配方。实际候选使用大量变体 role，因此 D005 以稳定语义部件槽映射当前 AssemblyGraph Part，再要求真实 G808 ratio binding 与 G826 GLB `surface_provenance/source_operation_ids` 同时存在；不按猜测角色或 UI 估算提供按钮。

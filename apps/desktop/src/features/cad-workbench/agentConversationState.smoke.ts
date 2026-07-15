@@ -50,7 +50,11 @@ const planItems: AgentItem[] = [{
   sequence: 2,
   item_type: 'tool_result',
   status: 'completed',
-  payload: { result: plan },
+  payload: {
+    schema_version: 'AgentActionToolEvent@1',
+    tool_name: 'plan_complete_concept',
+    result: { plan, accepted: true },
+  },
   created_at: '2026-07-14T00:00:00Z',
 }]
 

@@ -41,6 +41,7 @@ from forgecad_agent.application.material_textures import (
 from forgecad_agent.application.domain_packs import DomainPackManifest, list_domain_packs
 from forgecad_agent.application.material_catalog import list_material_presets
 from forgecad_agent.application.provider_gateway import ProviderConnectionState
+from forgecad_agent.application.agent_action_loop import ProductToolRegistryManifest
 
 
 def build_agent_router(
@@ -127,6 +128,11 @@ def build_agent_router(
     def get_provider_connection_state() -> ProviderConnectionState:
         """Read the process capability without making an external request."""
         return service.provider_connection_state()
+
+    @router.get("/product-tools", response_model=ProductToolRegistryManifest)
+    def get_product_tools() -> ProductToolRegistryManifest:
+        """Return the immutable product registry; this endpoint never executes a tool."""
+        return service.product_tool_registry_manifest()
 
     @router.post("/blockouts", response_model=BuildAgentBlockoutResponse, status_code=201)
     def build_blockout(

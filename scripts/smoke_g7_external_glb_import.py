@@ -46,9 +46,8 @@ def main() -> int:
             StartAgentTurnRequest(client_request_id="import-turn", message="设计一辆适合冰原探索的未来车辆"),
             "import-turn",
         )
-        plan = MechanicalConceptPlan.model_validate(
-            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
-        )
+        plan_result = next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and item.payload.get("tool_name") == "plan_complete_concept")
+        plan = MechanicalConceptPlan.model_validate(plan_result["plan"])
         built = kernel.build_blockout(
             BuildAgentBlockoutRequest(client_request_id="import-build", plan=plan, direction_id=plan.directions[0].direction_id),
             "import-build",

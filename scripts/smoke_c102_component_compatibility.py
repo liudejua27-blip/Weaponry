@@ -90,9 +90,8 @@ def main() -> int:
         assets = AgentAssetEditingService(factory)
         thread = kernel.create_thread(CreateAgentThreadRequest(client_request_id="c102-thread", project_id="prj_agent_asset_smoke", title="C102 组件兼容"), "c102-thread")
         turn = kernel.start_turn(thread.thread_id, StartAgentTurnRequest(client_request_id="c102-turn", message="设计一台三关节机械臂"), "c102-turn")
-        plan = MechanicalConceptPlan.model_validate(
-            next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and "result" in item.payload)
-        )
+        plan_result = next(item.payload["result"] for item in turn.items if item.item_type == "tool_result" and item.payload.get("tool_name") == "plan_complete_concept")
+        plan = MechanicalConceptPlan.model_validate(plan_result["plan"])
         direction_id = plan.directions[0].direction_id
         built = kernel.build_blockout(BuildAgentBlockoutRequest(client_request_id="c102-build", plan=plan, direction_id=direction_id), "c102-build")
         segmented = kernel.segment_blockout(SegmentAgentBlockoutRequest(client_request_id="c102-segment", plan=plan, direction_id=direction_id, artifact_id=built.artifact_id), "c102-segment")

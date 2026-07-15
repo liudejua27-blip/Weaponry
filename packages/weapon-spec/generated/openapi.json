@@ -9902,6 +9902,81 @@
         "title": "PlannedChangeSetRecord",
         "type": "object"
       },
+      "ProductToolManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_policy": {
+            "enum": [
+              "read_only",
+              "candidate_only",
+              "user_confirmation_required"
+            ],
+            "title": "Approval Policy",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "title": "Output Schema",
+            "type": "object"
+          },
+          "tool_id": {
+            "pattern": "^forgecad\\.[a-z0-9_.\\-]+\\.v1$",
+            "title": "Tool Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_id",
+          "name",
+          "description",
+          "input_schema",
+          "output_schema",
+          "approval_policy"
+        ],
+        "title": "ProductToolManifest",
+        "type": "object"
+      },
+      "ProductToolRegistryManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": "ForgeCADProductToolRegistry@1",
+            "default": "ForgeCADProductToolRegistry@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ProductToolManifest"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tools"
+        ],
+        "title": "ProductToolRegistryManifest",
+        "type": "object"
+      },
       "ProposeAgentAssetChangeSetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -14460,6 +14535,28 @@
           }
         },
         "summary": "Get Materials",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/product-tools": {
+      "get": {
+        "description": "Return the immutable product registry; this endpoint never executes a tool.",
+        "operationId": "get_product_tools_api_v1_agent_product_tools_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductToolRegistryManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Product Tools",
         "tags": [
           "agent-kernel"
         ]
