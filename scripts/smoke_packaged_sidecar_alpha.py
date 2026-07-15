@@ -123,7 +123,11 @@ def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
         idempotency_key="p002-turn",
         body={"client_request_id": "p002-turn", "message": "设计一台三关节机械臂。"},
     )
-    tool_results = [item["payload"].get("result") for item in turn["items"] if item["item_type"] == "tool_result"]
+    tool_results = [
+        item["payload"]["result"]
+        for item in turn["items"]
+        if item["item_type"] == "tool_result" and isinstance(item["payload"].get("result"), dict)
+    ]
     _assert(len(tool_results) == 1 and isinstance(tool_results[0], dict), f"explicit robot-arm request did not produce one plan: {turn}")
     plan = tool_results[0]
     direction_id = plan["directions"][0]["direction_id"]
