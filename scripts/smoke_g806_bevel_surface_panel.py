@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Smoke the restricted bevel approximation and attached surface panel paths."""
 
-from forgecad_agent.application.geometry_worker import build_glb_from_shape_program, read_shape_program_glb
+from forgecad_agent.application.geometry_worker import (
+    build_glb_from_shape_program,
+    read_shape_program_glb,
+    read_shape_program_glb_facts,
+)
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
 
 
@@ -28,21 +32,61 @@ def program(*, bevel_segments: int = 1, radius: float = 40, panel_size: list[flo
     }
 
 
+def assert_glb_readback(payload: bytes, bounds: list[float], triangles: int, *, bevel_segments: int) -> None:
+    expected_bevel_triangles = 16 * (bevel_segments + 1)
+    expected_triangles = expected_bevel_triangles + 12
+    assert triangles == expected_triangles
+    assert read_shape_program_glb(payload) == (triangles, bounds)
+    facts = read_shape_program_glb_facts(payload)
+    assert facts.triangle_count == expected_triangles
+    assert facts.bounds_mm == bounds
+    assert facts.mesh_count == 1
+    assert facts.primitive_count == 2
+    assert facts.uv0_primitive_count == facts.primitive_count
+    assert facts.normal_primitive_count == facts.primitive_count
+    assert facts.tangent_primitive_count == facts.primitive_count
+    assert sum(item["face_count"] for item in facts.material_zone_faces) == triangles
+    surfaces = {item["part_role"]: item for item in facts.surface_provenance}
+    assert set(surfaces) == {"body_shell", "body_panel"}
+    bevel = surfaces["body_shell"]
+    panel = surfaces["body_panel"]
+    for surface in surfaces.values():
+        assert surface["closed"] is True
+        assert surface["boundary_edge_count"] == 0
+        assert surface["non_manifold_edge_count"] == 0
+        assert surface["degenerate_triangle_count"] == 0
+        assert surface["texture_ready"] is True
+    assert bevel["surface_ranges"] == [
+        {"surface_role": "surface", "first_triangle": 0, "triangle_count": expected_bevel_triangles}
+    ]
+    assert panel["surface_ranges"] == [
+        {"surface_role": "trim", "first_triangle": 0, "triangle_count": 12}
+    ]
+    finished = bevel["edge_finish"]
+    assert finished["edge_set"] == "xz_perimeter"
+    assert finished["selected_edge_count"] == 4
+    assert finished["subdivision_count"] == bevel_segments
+    features = {item["node_id"]: item for item in facts.feature_history}
+    assert features["op_bevel"]["result_triangle_count"] == expected_bevel_triangles
+    assert features["op_bevel"]["result_closed"] is True
+    assert features["op_panel"]["result_triangle_count"] == expected_triangles
+    assert features["op_panel"]["result_closed"] is True
+
+
 def main() -> int:
     low = program(bevel_segments=1, suffix="low")
     validate_shape_program(low)
     payload, bounds, triangles = build_glb_from_shape_program(low)
-    assert triangles == 28 + 12, triangles
     assert bounds == [1000.0, 620.0, 700.0], bounds
-    assert read_shape_program_glb(payload) == (triangles, bounds)
+    assert_glb_readback(payload, bounds, triangles, bevel_segments=1)
     assert build_glb_from_shape_program(low)[0] == payload
 
     smooth = program(bevel_segments=3, radius=60, panel_size=[400, 30, 260], offset=[100, -80], suffix="smooth")
     validate_shape_program(smooth)
     smooth_payload, smooth_bounds, smooth_triangles = build_glb_from_shape_program(smooth)
-    assert smooth_triangles == 60 + 12, smooth_triangles
+    assert smooth_triangles > triangles
     assert smooth_bounds == [1000.0, 630.0, 700.0], smooth_bounds
-    assert read_shape_program_glb(smooth_payload) == (smooth_triangles, smooth_bounds)
+    assert_glb_readback(smooth_payload, smooth_bounds, smooth_triangles, bevel_segments=3)
 
     too_large = program(radius=500, suffix="too_large")
     validate_shape_program(too_large)
