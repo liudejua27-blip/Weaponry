@@ -1520,6 +1520,18 @@
             "title": "Emissive Strength",
             "type": "number"
           },
+          "emissive_texture_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emissive Texture Asset Id"
+          },
           "ior": {
             "default": 1.5,
             "maximum": 3.0,
@@ -1532,6 +1544,18 @@
             "minimum": 0.0,
             "title": "Metallic",
             "type": "number"
+          },
+          "metallic_roughness_texture_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metallic Roughness Texture Asset Id"
           },
           "normal_strength": {
             "default": 1,
@@ -1551,6 +1575,18 @@
               }
             ],
             "title": "Normal Texture Asset Id"
+          },
+          "occlusion_texture_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occlusion Texture Asset Id"
           },
           "opacity": {
             "exclusiveMinimum": 0.0,
@@ -1854,7 +1890,10 @@
           "texture_role": {
             "enum": [
               "base_color",
+              "metallic_roughness",
               "normal",
+              "occlusion",
+              "emissive",
               "thumbnail"
             ],
             "title": "Texture Role",
@@ -1970,7 +2009,10 @@
           "texture_role": {
             "enum": [
               "base_color",
+              "metallic_roughness",
               "normal",
+              "occlusion",
+              "emissive",
               "thumbnail"
             ],
             "title": "Texture Role",
@@ -6955,6 +6997,18 @@
             "minimum": 1.0,
             "title": "Uv0 Primitive Count",
             "type": "integer"
+          },
+          "visual_environment": {
+            "$ref": "#/components/schemas/GeometryVisualEnvironmentReadback"
+          },
+          "visual_texture_sets": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryVisualTextureSetReadback"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Visual Texture Sets",
+            "type": "array"
           }
         },
         "required": [
@@ -6972,6 +7026,8 @@
           "tangent_primitive_count",
           "surface_provenance",
           "material_zone_faces",
+          "visual_texture_sets",
+          "visual_environment",
           "operation_ids",
           "operation_names",
           "output_roles"
@@ -7186,6 +7242,11 @@
             "title": "Face Id Sha256",
             "type": "string"
           },
+          "material_id": {
+            "pattern": "^mat_[a-z0-9_\\-]+$",
+            "title": "Material Id",
+            "type": "string"
+          },
           "material_zone_id": {
             "pattern": "^zone_[a-z0-9_\\-]+$",
             "title": "Material Zone Id",
@@ -7242,6 +7303,7 @@
           "primitive_id",
           "part_instance_id",
           "material_zone_id",
+          "material_id",
           "face_count",
           "face_id_sha256",
           "surface_roles",
@@ -7514,6 +7576,292 @@
           "triangle_count"
         ],
         "title": "GeometrySurfaceRange",
+        "type": "object"
+      },
+      "GeometryVisualEnvironmentReadback": {
+        "additionalProperties": false,
+        "properties": {
+          "color_workflow": {
+            "const": "linear_srgb",
+            "title": "Color Workflow",
+            "type": "string"
+          },
+          "contact_shadows": {
+            "const": true,
+            "title": "Contact Shadows",
+            "type": "boolean"
+          },
+          "environment_id": {
+            "pattern": "^env_[a-z0-9_\\-]+$",
+            "title": "Environment Id",
+            "type": "string"
+          },
+          "environment_kind": {
+            "const": "procedural_studio",
+            "title": "Environment Kind",
+            "type": "string"
+          },
+          "environment_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Environment Sha256",
+            "type": "string"
+          },
+          "license": {
+            "const": "not_applicable",
+            "title": "License",
+            "type": "string"
+          },
+          "output_color_space": {
+            "const": "srgb",
+            "title": "Output Color Space",
+            "type": "string"
+          },
+          "pmrem": {
+            "$ref": "#/components/schemas/GeometryVisualPmremReadback"
+          },
+          "schema_version": {
+            "const": "ForgeCADVisualEnvironment@1",
+            "default": "ForgeCADVisualEnvironment@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "const": "forgecad_builtin",
+            "title": "Source",
+            "type": "string"
+          },
+          "tone_mapping": {
+            "const": "aces_filmic",
+            "title": "Tone Mapping",
+            "type": "string"
+          },
+          "tone_mapping_exposure": {
+            "maximum": 3.0,
+            "minimum": 0.1,
+            "title": "Tone Mapping Exposure",
+            "type": "number"
+          }
+        },
+        "required": [
+          "environment_id",
+          "environment_kind",
+          "environment_sha256",
+          "source",
+          "license",
+          "color_workflow",
+          "output_color_space",
+          "tone_mapping",
+          "tone_mapping_exposure",
+          "contact_shadows",
+          "pmrem"
+        ],
+        "title": "GeometryVisualEnvironmentReadback",
+        "type": "object"
+      },
+      "GeometryVisualPmremReadback": {
+        "additionalProperties": false,
+        "properties": {
+          "cube_size": {
+            "const": 128,
+            "title": "Cube Size",
+            "type": "integer"
+          },
+          "near": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Near",
+            "type": "number"
+          }
+        },
+        "required": [
+          "near",
+          "cube_size"
+        ],
+        "title": "GeometryVisualPmremReadback",
+        "type": "object"
+      },
+      "GeometryVisualTextureMapReadback": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4000000.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "color_space": {
+            "enum": [
+              "srgb",
+              "linear"
+            ],
+            "title": "Color Space",
+            "type": "string"
+          },
+          "fallback": {
+            "enum": [
+              "none",
+              "parameter",
+              "unavailable"
+            ],
+            "title": "Fallback",
+            "type": "string"
+          },
+          "glb_image_index": {
+            "minimum": 0.0,
+            "title": "Glb Image Index",
+            "type": "integer"
+          },
+          "glb_texture_index": {
+            "minimum": 0.0,
+            "title": "Glb Texture Index",
+            "type": "integer"
+          },
+          "height": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4096.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "license": {
+            "enum": [
+              "not_applicable",
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "License",
+            "type": "string"
+          },
+          "mime_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/webp"
+            ],
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "forgecad_builtin",
+              "user_created",
+              "imported_reference"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "texture_id": {
+            "pattern": "^vtex_[a-z0-9_\\-]+$",
+            "title": "Texture Id",
+            "type": "string"
+          },
+          "texture_role": {
+            "enum": [
+              "base_color",
+              "metallic_roughness",
+              "normal",
+              "occlusion",
+              "emissive"
+            ],
+            "title": "Texture Role",
+            "type": "string"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4096.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "texture_id",
+          "texture_role",
+          "mime_type",
+          "byte_size",
+          "sha256",
+          "color_space",
+          "width",
+          "height",
+          "source",
+          "license",
+          "fallback",
+          "glb_image_index",
+          "glb_texture_index"
+        ],
+        "title": "GeometryVisualTextureMapReadback",
+        "type": "object"
+      },
+      "GeometryVisualTextureSetReadback": {
+        "additionalProperties": false,
+        "properties": {
+          "extensions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Extensions",
+            "type": "array"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryVisualTextureMapReadback"
+            },
+            "maxItems": 5,
+            "minItems": 5,
+            "title": "Maps",
+            "type": "array"
+          },
+          "material_id": {
+            "pattern": "^mat_[a-z0-9_\\-]+$",
+            "title": "Material Id",
+            "type": "string"
+          },
+          "material_index": {
+            "minimum": 0.0,
+            "title": "Material Index",
+            "type": "integer"
+          },
+          "material_zone_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Material Zone Ids",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "VisualTextureSet@1",
+            "default": "VisualTextureSet@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "texture_byte_size": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 20000000.0,
+            "title": "Texture Byte Size",
+            "type": "integer"
+          },
+          "visual_texture_set_id": {
+            "pattern": "^vtexset_[a-z0-9_\\-]+$",
+            "title": "Visual Texture Set Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visual_texture_set_id",
+          "material_id",
+          "material_index",
+          "material_zone_ids",
+          "maps",
+          "texture_byte_size"
+        ],
+        "title": "GeometryVisualTextureSetReadback",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -10743,7 +11091,10 @@
           "texture_role": {
             "enum": [
               "base_color",
+              "metallic_roughness",
               "normal",
+              "occlusion",
+              "emissive",
               "thumbnail"
             ],
             "title": "Texture Role",

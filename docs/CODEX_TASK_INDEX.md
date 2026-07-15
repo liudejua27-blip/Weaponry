@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826、A003、F025、D005 与 A004 已完成；A004 将受限产品工具、真实 readback/渲染和 DeepSeek thinking Tool Call 收束到同一 Turn。M108 现在是唯一主链 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826、A003、F025、D005 与 A004 已完成；A004 将受限产品工具、真实 readback/渲染和 DeepSeek thinking Tool Call 收束到同一 Turn。M108 正在执行；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1357,7 +1357,7 @@ Remaining blockers:
 | FGC-D005 | done | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
 | FGC-A004 | done | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
 | FGC-V002 | superseded | — | 由 ADR-0010/FGC-V003 取代；不再实现三方向用户选择 |
-| FGC-M108 | ready | A004、G826、Q003、D005 | 稳定多材质区、完整 PBR 纹理与展示环境，消费真实 UV/tangent/zone facts |
+| FGC-M108 | in_progress | A004、G826、Q003、D005 | 稳定多材质区、完整 PBR 纹理与展示环境，消费真实 UV/tangent/zone facts |
 | FGC-C105 | blocked | M108、C104、G826、D005 | 可编辑组件配方与轮廓/特征/装配/比例/材质受限组合 |
 | FGC-V003 | blocked | A004、C105、M108、D005、Q003、R006 | 自动选择建模语法和内部候选，只展示一个最佳结果 |
 | FGC-F026 | blocked | F025、V003 | Codex 式工作台；3D 左上 mini，点击后同一 canvas 中央 focus |
@@ -1669,7 +1669,7 @@ Remaining blockers:
 
 ### FGC-M108 任务卡
 
-状态：ready（A004、G826、Q003、D005 已完成；这是下一唯一主链任务）。
+状态：in_progress（A004、G826、Q003、D005 已完成；当前仅执行此原子任务）。
 
 目标：消费 G826 已回读的稳定 zone/UV/tangent，把当前单区参数材质提升为完整 PBR 纹理和可复现展示环境，使模型外观显著接近真实产品，而不把视觉材质冒充工程材料。
 
@@ -1680,6 +1680,8 @@ Remaining blockers:
 验收：四领域各至少 3 个多 zone 资产；UV/tangent/readback、色彩空间、纹理缺失/损坏、clearcoat/透明兼容、GPU/文件预算、环境 hash、GLB Validator、优化前后 Part/zone/material 映射、重启/undo/redo/导出一致、人工视觉基准中比例/材质/细节中位数 ≥4/5。M101–M107、Q003、D005、T003、r3 继续通过。
 
 退出：纹理与多材质真正进入同源 GLB/视口/readback；“更真实”有资产和视觉基准证据，不只是参数或文案。
+
+自动化检查点（2026-07-15）：`VisualTextureSet@1`、五通道内置视觉纹理、同源 GLB images/textures/material extensions、真实 zone→material readback、固定工作室环境 hash 与 12 个四领域多 zone fixture 已实现并由 `agent:m108-visual-pbr-smoke` 覆盖；用户内容纹理扩展到五通道也已完成。任务仍未完成：Khronos glTF-Validator、glTF Transform/KTX2/BasisU 的平台 benchmark/采用决策、真实 packaged sidecar 回归，以及独立人工视觉基准尚无证据，故不得宣称“真实产品外观”已达标或解除 C105 阻塞。
 
 ### FGC-C105 任务卡
 

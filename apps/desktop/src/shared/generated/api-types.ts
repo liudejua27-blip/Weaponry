@@ -257,7 +257,10 @@ export type AgentMaterialPbr = {
   "roughness": number
   "opacity": number
   "base_color_texture_asset_id"?: string | null
+  "metallic_roughness_texture_asset_id"?: string | null
   "normal_texture_asset_id"?: string | null
+  "occlusion_texture_asset_id"?: string | null
+  "emissive_texture_asset_id"?: string | null
   "normal_strength"?: number
   "emissive_color"?: string
   "emissive_strength"?: number
@@ -293,7 +296,7 @@ export type AgentMaterialTextureListResponse = {
 export type AgentMaterialTextureObject = {
   "schema_version"?: "MaterialTextureObject@1"
   "texture_asset_id": string
-  "texture_role": "base_color" | "normal" | "thumbnail"
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
   "display_name": string
   "mime_type": "image/png" | "image/jpeg" | "image/webp"
   "byte_size": number
@@ -313,7 +316,7 @@ export type AgentMaterialTextureObject = {
 
 export type AgentMaterialTextureSummary = {
   "texture_asset_id": string
-  "texture_role": "base_color" | "normal" | "thumbnail"
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
   "exists": boolean
   "source"?: "forgecad_builtin" | "user_created" | "imported_reference" | null
   "license"?: "not_applicable" | "self_declared_original" | "third_party" | "unknown" | null
@@ -1127,6 +1130,8 @@ export type GeometryCompileReadback = {
   "tangent_primitive_count": number
   "surface_provenance": Array<GeometrySurfaceProvenance>
   "material_zone_faces": Array<GeometryMaterialZoneFaceSet>
+  "visual_texture_sets": Array<GeometryVisualTextureSetReadback>
+  "visual_environment": GeometryVisualEnvironmentReadback
   "feature_history"?: Array<GeometryFeatureNodeReadback>
   "operation_ids": Array<string>
   "operation_names": Array<string>
@@ -1168,6 +1173,7 @@ export type GeometryMaterialZoneFaceSet = {
   "primitive_id": string
   "part_instance_id": string
   "material_zone_id": string
+  "material_id": string
   "face_count": number
   "face_id_sha256": string
   "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
@@ -1209,6 +1215,53 @@ export type GeometrySurfaceRange = {
   "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim"
   "first_triangle": number
   "triangle_count": number
+}
+
+export type GeometryVisualEnvironmentReadback = {
+  "schema_version"?: "ForgeCADVisualEnvironment@1"
+  "environment_id": string
+  "environment_kind": "procedural_studio"
+  "environment_sha256": string
+  "source": "forgecad_builtin"
+  "license": "not_applicable"
+  "color_workflow": "linear_srgb"
+  "output_color_space": "srgb"
+  "tone_mapping": "aces_filmic"
+  "tone_mapping_exposure": number
+  "contact_shadows": true
+  "pmrem": GeometryVisualPmremReadback
+}
+
+export type GeometryVisualPmremReadback = {
+  "near": number
+  "cube_size": 128
+}
+
+export type GeometryVisualTextureMapReadback = {
+  "texture_id": string
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive"
+  "mime_type": "image/png" | "image/jpeg" | "image/webp"
+  "byte_size": number
+  "sha256": string
+  "color_space": "srgb" | "linear"
+  "width": number
+  "height": number
+  "source": "forgecad_builtin" | "user_created" | "imported_reference"
+  "license": "not_applicable" | "self_declared_original" | "third_party" | "unknown"
+  "fallback": "none" | "parameter" | "unavailable"
+  "glb_image_index": number
+  "glb_texture_index": number
+}
+
+export type GeometryVisualTextureSetReadback = {
+  "schema_version"?: "VisualTextureSet@1"
+  "visual_texture_set_id": string
+  "material_id": string
+  "material_index": number
+  "material_zone_ids": Array<string>
+  "maps": Array<GeometryVisualTextureMapReadback>
+  "extensions"?: Array<string>
+  "texture_byte_size": number
 }
 
 export type HTTPValidationError = {
@@ -1730,7 +1783,7 @@ export type QualityRunRecord = {
 
 export type RegisterAgentMaterialTextureRequest = {
   "display_name": string
-  "texture_role": "base_color" | "normal" | "thumbnail"
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
   "mime_type": "image/png" | "image/jpeg" | "image/webp"
   "payload_base64": string
   "source": "forgecad_builtin" | "user_created" | "imported_reference"

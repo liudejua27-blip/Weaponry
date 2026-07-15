@@ -148,7 +148,10 @@ class MaterialTextureService:
             for preset in presets:
                 texture_ids = [
                     ("base_color", preset.pbr.base_color_texture_asset_id),
+                    ("metallic_roughness", preset.pbr.metallic_roughness_texture_asset_id),
                     ("normal", preset.pbr.normal_texture_asset_id),
+                    ("occlusion", preset.pbr.occlusion_texture_asset_id),
+                    ("emissive", preset.pbr.emissive_texture_asset_id),
                     ("thumbnail", preset.thumbnail_asset_id),
                 ]
                 summaries: list[AgentMaterialTextureSummary] = []

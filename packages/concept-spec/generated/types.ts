@@ -523,12 +523,54 @@ export type GeometryCompileReadback = {
   "primitive_id": string
   "part_instance_id": string
   "material_zone_id": string
+  "material_id": string
   "face_count": number
   "face_id_sha256": Sha256
   "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut" | "trim">
   "source_operation_ids": Array<string>
   "texture_ready": true
 }>
+  "visual_texture_sets": Array<{
+  "schema_version": "VisualTextureSet@1"
+  "visual_texture_set_id": string
+  "material_id": string
+  "material_index": number
+  "material_zone_ids": Array<string>
+  "maps": Array<{
+  "texture_id": string
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive"
+  "mime_type": "image/png"
+  "byte_size": number
+  "sha256": Sha256
+  "color_space": "srgb" | "linear"
+  "width": number
+  "height": number
+  "source": "forgecad_builtin"
+  "license": "not_applicable"
+  "fallback": "none" | "parameter" | "unavailable"
+  "glb_image_index": number
+  "glb_texture_index": number
+}>
+  "extensions": Array<"KHR_materials_clearcoat" | "KHR_materials_transmission" | "KHR_materials_ior">
+  "texture_byte_size": number
+}>
+  "visual_environment": {
+  "schema_version": "ForgeCADVisualEnvironment@1"
+  "environment_id": string
+  "environment_kind": "procedural_studio"
+  "environment_sha256": Sha256
+  "source": "forgecad_builtin"
+  "license": "not_applicable"
+  "color_workflow": "linear_srgb"
+  "output_color_space": "srgb"
+  "tone_mapping": "aces_filmic"
+  "tone_mapping_exposure": number
+  "contact_shadows": true
+  "pmrem": {
+  "near": number
+  "cube_size": 128
+}
+}
   "feature_history"?: Array<{
   "schema_version": "GeometryFeatureNodeReadback@1"
   "node_id": string
@@ -584,7 +626,10 @@ export type MaterialPreset = {
   "roughness": number
   "opacity": number
   "base_color_texture_asset_id"?: string | null
+  "metallic_roughness_texture_asset_id"?: string | null
   "normal_texture_asset_id"?: string | null
+  "occlusion_texture_asset_id"?: string | null
+  "emissive_texture_asset_id"?: string | null
   "normal_strength"?: number
   "emissive_color"?: HexColor
   "emissive_strength"?: number
@@ -605,7 +650,7 @@ export type MaterialPreset = {
   "thumbnail_fallback"?: "parameter" | "texture" | "unavailable"
   "texture_summary"?: Array<{
   "texture_asset_id": string
-  "texture_role": "base_color" | "normal" | "thumbnail"
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
   "exists": boolean
   "source"?: "forgecad_builtin" | "user_created" | "imported_reference" | null
   "license"?: "not_applicable" | "self_declared_original" | "third_party" | "unknown" | null
@@ -616,7 +661,7 @@ export type MaterialPreset = {
 export type MaterialTextureObject = {
   "schema_version": "MaterialTextureObject@1"
   "texture_asset_id": string
-  "texture_role": "base_color" | "normal" | "thumbnail"
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
   "display_name": string
   "mime_type": "image/png" | "image/jpeg" | "image/webp"
   "byte_size": number
@@ -994,6 +1039,33 @@ export type VisualIntentMapping = {
   "pose_category": "neutral" | "grounded" | "elevated" | "extended"
   "variant_family_index": number
 }>
+}
+
+export type VisualTextureSet = {
+  "schema_version": "VisualTextureSet@1"
+  "visual_texture_set_id": string
+  "material_id": string
+  "display_name": string
+  "maps": Array<{
+  "texture_id": string
+  "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive"
+  "mime_type": "image/png" | "image/jpeg" | "image/webp"
+  "byte_size": number
+  "sha256": Sha256
+  "color_space": "srgb" | "linear"
+  "width": number
+  "height": number
+  "source": "forgecad_builtin" | "user_created" | "imported_reference"
+  "license": "not_applicable" | "self_declared_original" | "third_party" | "unknown"
+  "license_ref"?: string | null
+  "fallback": "none" | "parameter" | "unavailable"
+  "visual_only": true
+}>
+  "source": "forgecad_builtin" | "user_created" | "imported_reference"
+  "license": "not_applicable" | "self_declared_original" | "third_party" | "unknown"
+  "license_ref"?: string | null
+  "version": string
+  "visual_only": true
 }
 
 export type WeaponConceptSpec = {

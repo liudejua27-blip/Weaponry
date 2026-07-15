@@ -23,6 +23,12 @@ from .shape_program_runtime import (
     assert_worker_executor_coverage,
 )
 from .visual_intent import visual_intent_for_direction
+from .visual_texture_sets import (
+    builtin_material_properties,
+    builtin_visual_texture_set_for_material_index,
+    studio_environment_manifest,
+    visual_texture_png_bytes,
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +108,8 @@ class ShapeProgramGlbReadbackFacts:
     tangent_primitive_count: int
     surface_provenance: List[Dict[str, Any]]
     material_zone_faces: List[Dict[str, Any]]
+    visual_texture_sets: List[Dict[str, Any]]
+    visual_environment: Dict[str, Any]
     feature_history: List[Dict[str, Any]]
 
 
@@ -710,6 +718,8 @@ def compile_shape_program(
         tangent_primitive_count=facts.tangent_primitive_count,
         surface_provenance=facts.surface_provenance,
         material_zone_faces=facts.material_zone_faces,
+        visual_texture_sets=facts.visual_texture_sets,
+        visual_environment=facts.visual_environment,
         feature_history=facts.feature_history,
         operation_ids=[str(item["operation_id"]) for item in operations],
         operation_names=[str(item["op"]) for item in operations],
@@ -767,6 +777,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     tangent_primitive_count = 0
     surface_provenance: List[Dict[str, Any]] = []
     material_zone_faces: List[Dict[str, Any]] = []
+    primitive_material_bindings: List[Tuple[int, str, str]] = []
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
     meshes = document.get("meshes", [])
@@ -997,20 +1008,25 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                     "source_operation_ids": source_operation_ids,
                     "boolean_backside": bool(csg_provenance["boolean_backside"]),
                 })
+            material_index = primitive.get("material")
+            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
+                raise ValueError("GLB primitive material is invalid")
+            material_id = extras.get("forgecad_material_id")
+            if not isinstance(material_id, str) or not material_id.startswith("mat_"):
+                raise ValueError("GLB primitive material identity is invalid")
             surface_provenance.append(provenance_item)
             material_zone_faces.append({
                 "primitive_id": primitive_id,
                 "part_instance_id": part_instance_id,
                 "material_zone_id": material_zone_id,
+                "material_id": material_id,
                 "face_count": len(face_ids),
                 "face_id_sha256": face_id_sha256,
                 "surface_roles": roles,
                 "source_operation_ids": source_operation_ids,
                 "texture_ready": True,
             })
-            material_index = primitive.get("material")
-            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
-                raise ValueError("GLB primitive material is invalid")
+            primitive_material_bindings.append((material_index, material_id, material_zone_id))
             lower = position_accessor.get("min")
             upper = position_accessor.get("max")
             if not isinstance(lower, list) or not isinstance(upper, list) or len(lower) != 3 or len(upper) != 3:
@@ -1041,6 +1057,14 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     ]
     if len(zone_keys) != len(set(zone_keys)):
         raise ValueError("GLB material-zone face sets overlap")
+    visual_texture_sets = _read_visual_pbr_facts(
+        document=document,
+        binary=binary,
+        views=views,
+        materials=materials,
+        primitive_material_bindings=primitive_material_bindings,
+    )
+    visual_environment = _read_visual_environment_facts(document)
     return ShapeProgramGlbReadbackFacts(
         triangle_count=triangles,
         bounds_mm=[round(maximum[index] - minimum[index], 4) for index in range(3)],
@@ -1052,8 +1076,150 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         tangent_primitive_count=tangent_primitive_count,
         surface_provenance=surface_provenance,
         material_zone_faces=material_zone_faces,
+        visual_texture_sets=visual_texture_sets,
+        visual_environment=visual_environment,
         feature_history=[dict(item) for item in feature_history],
     )
+
+
+def _read_visual_pbr_facts(
+    *,
+    document: Mapping[str, Any],
+    binary: bytes,
+    views: Sequence[Any],
+    materials: Sequence[Any],
+    primitive_material_bindings: Sequence[Tuple[int, str, str]],
+) -> List[Dict[str, Any]]:
+    """Verify the exact embedded PBR payload consumed by GLB/quality/export.
+
+    This is intentionally stricter than a presentation-side material guess:
+    every bound zone must reference a GLB material with five embedded maps,
+    correct channel colour spaces and hash-verified image bytes.
+    """
+
+    images = document.get("images", [])
+    textures = document.get("textures", [])
+    if not isinstance(images, list) or not isinstance(textures, list):
+        raise ValueError("GLB visual texture resources are invalid")
+    used: Dict[Tuple[int, str], set[str]] = {}
+    for material_index, material_id, zone_id in primitive_material_bindings:
+        used.setdefault((material_index, material_id), set()).add(zone_id)
+    if not used:
+        raise ValueError("GLB has no material-zone PBR bindings")
+
+    def texture_map(texture_index: Any, role: str) -> Dict[str, Any]:
+        if not isinstance(texture_index, int) or texture_index < 0 or texture_index >= len(textures):
+            raise ValueError("GLB PBR texture reference is invalid")
+        texture = textures[texture_index]
+        if not isinstance(texture, dict):
+            raise ValueError("GLB texture entry is invalid")
+        image_index = texture.get("source")
+        if not isinstance(image_index, int) or image_index < 0 or image_index >= len(images):
+            raise ValueError("GLB PBR texture does not embed an image")
+        image = images[image_index]
+        if not isinstance(image, dict) or "uri" in image or image.get("mimeType") != "image/png":
+            raise ValueError("GLB PBR image must be embedded PNG data")
+        view_index = image.get("bufferView")
+        if not isinstance(view_index, int) or view_index < 0 or view_index >= len(views):
+            raise ValueError("GLB PBR image buffer view is invalid")
+        view = views[view_index]
+        if not isinstance(view, dict):
+            raise ValueError("GLB PBR image view is invalid")
+        offset = int(view.get("byteOffset", 0))
+        length = view.get("byteLength")
+        if offset < 0 or not isinstance(length, int) or length <= 0 or offset + length > len(binary):
+            raise ValueError("GLB PBR image exceeds its binary buffer")
+        payload = binary[offset:offset + length]
+        width, height = _readback_png_dimensions(payload)
+        extras = image.get("extras")
+        metadata = extras.get("forgecad_visual_texture") if isinstance(extras, dict) else None
+        if not isinstance(metadata, dict) or metadata.get("texture_role") != role:
+            raise ValueError("GLB PBR image metadata does not match its channel")
+        if metadata.get("mime_type") != "image/png" or metadata.get("sha256") != hashlib.sha256(payload).hexdigest():
+            raise ValueError("GLB PBR image hash or mime metadata is invalid")
+        if metadata.get("byte_size") != len(payload) or metadata.get("width") != width or metadata.get("height") != height:
+            raise ValueError("GLB PBR image dimensions do not match metadata")
+        expected_space = "srgb" if role in {"base_color", "emissive"} else "linear"
+        if metadata.get("color_space") != expected_space:
+            raise ValueError("GLB PBR image has an invalid colour space")
+        if metadata.get("source") != "forgecad_builtin" or metadata.get("license") != "not_applicable":
+            raise ValueError("GLB PBR image provenance is outside the built-in boundary")
+        return {
+            "texture_id": metadata.get("texture_id"),
+            "texture_role": role,
+            "mime_type": "image/png",
+            "byte_size": len(payload),
+            "sha256": metadata.get("sha256"),
+            "color_space": metadata.get("color_space"),
+            "width": width,
+            "height": height,
+            "source": metadata.get("source"),
+            "license": metadata.get("license"),
+            "fallback": metadata.get("fallback"),
+            "glb_image_index": image_index,
+            "glb_texture_index": texture_index,
+        }
+
+    results: List[Dict[str, Any]] = []
+    for (material_index, material_id), zone_ids in sorted(used.items()):
+        material = materials[material_index]
+        if not isinstance(material, dict):
+            raise ValueError("GLB material entry is invalid")
+        extras = material.get("extras")
+        texture_set_id = extras.get("forgecad_visual_texture_set_id") if isinstance(extras, dict) else None
+        if not isinstance(texture_set_id, str) or not texture_set_id.startswith("vtexset_"):
+            raise ValueError("GLB material lacks a VisualTextureSet identity")
+        pbr = material.get("pbrMetallicRoughness")
+        if not isinstance(pbr, dict):
+            raise ValueError("GLB material lacks metallic-roughness PBR")
+        refs = {
+            "base_color": pbr.get("baseColorTexture", {}).get("index") if isinstance(pbr.get("baseColorTexture"), dict) else None,
+            "metallic_roughness": pbr.get("metallicRoughnessTexture", {}).get("index") if isinstance(pbr.get("metallicRoughnessTexture"), dict) else None,
+            "normal": material.get("normalTexture", {}).get("index") if isinstance(material.get("normalTexture"), dict) else None,
+            "occlusion": material.get("occlusionTexture", {}).get("index") if isinstance(material.get("occlusionTexture"), dict) else None,
+            "emissive": material.get("emissiveTexture", {}).get("index") if isinstance(material.get("emissiveTexture"), dict) else None,
+        }
+        maps = [texture_map(refs[role], role) for role in ("base_color", "metallic_roughness", "normal", "occlusion", "emissive")]
+        extensions = material.get("extensions", {})
+        if not isinstance(extensions, dict):
+            raise ValueError("GLB material extensions are invalid")
+        allowed_extensions = {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"}
+        if any(key not in allowed_extensions for key in extensions):
+            raise ValueError("GLB material uses an unsupported visual extension")
+        if "KHR_materials_transmission" in extensions:
+            if material.get("alphaMode") != "BLEND" or "KHR_materials_ior" not in extensions:
+                raise ValueError("GLB transparent material compatibility metadata is incomplete")
+        results.append({
+            "schema_version": "VisualTextureSet@1",
+            "visual_texture_set_id": texture_set_id,
+            "material_id": material_id,
+            "material_index": material_index,
+            "material_zone_ids": sorted(zone_ids),
+            "maps": maps,
+            "extensions": sorted(extensions),
+            "texture_byte_size": sum(item["byte_size"] for item in maps),
+        })
+    return results
+
+
+def _readback_png_dimensions(payload: bytes) -> Tuple[int, int]:
+    if len(payload) < 24 or payload[:8] != b"\x89PNG\r\n\x1a\n" or payload[12:16] != b"IHDR":
+        raise ValueError("GLB PBR image is not a valid PNG")
+    width, height = struct.unpack(">II", payload[16:24])
+    if not 0 < width <= 4096 or not 0 < height <= 4096:
+        raise ValueError("GLB PBR image dimensions are outside budget")
+    return width, height
+
+
+def _read_visual_environment_facts(document: Mapping[str, Any]) -> Dict[str, Any]:
+    extras = document.get("extras")
+    environment = extras.get("forgecad_visual_environment") if isinstance(extras, dict) else None
+    if not isinstance(environment, dict):
+        raise ValueError("GLB visual environment is missing")
+    expected = studio_environment_manifest()
+    if environment != expected:
+        raise ValueError("GLB visual environment does not match the fixed studio profile")
+    return dict(environment)
 
 
 def _readback_primitive_topology(
@@ -2318,6 +2484,7 @@ def _csg_glb_payloads(primitive: CsgMeshPrimitive) -> List[Dict[str, Any]]:
             "material_index": _material_index(material_id),
             "extras": {
                 "forgecad_part_role": primitive.part_role,
+                "forgecad_material_id": material_id,
                 "forgecad_profile_input_id": None,
                 "forgecad_feature_node_id": primitive.feature_node_id,
                 "forgecad_surface_roles": [surface_role],
@@ -2378,6 +2545,7 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
         "material_index": primitive.material_index,
         "extras": {
             "forgecad_part_role": primitive.part_role,
+            "forgecad_material_id": primitive.material_id or _material_id_for_index(primitive.material_index),
             "forgecad_profile_input_id": primitive.profile_input_id,
             "forgecad_feature_node_id": primitive.source_operation_id,
             "forgecad_surface_roles": _surface_roles_for_primitive(primitive),
@@ -2556,25 +2724,24 @@ def _build_glb(
                 "mode": 4,
                 "extras": payload["extras"],
             })
+    visual_resources = _append_visual_pbr_resources(binary, views)
     document = {
         "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram surface-complete/1"},
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "nodes": [{"name": "FORGECAD_BLOCKOUT", "mesh": 0}],
         "meshes": [{"name": "FORGECAD_SHAPE_PROGRAM_MESH", "primitives": primitives}],
-        "materials": [
-            {"name": "MAT_primary", "pbrMetallicRoughness": {"baseColorFactor": [0.10, 0.13, 0.17, 1], "metallicFactor": 0.78, "roughnessFactor": 0.3}},
-            {"name": "MAT_secondary", "pbrMetallicRoughness": {"baseColorFactor": [0.22, 0.27, 0.32, 1], "metallicFactor": 0.64, "roughnessFactor": 0.38}},
-            {"name": "MAT_accent", "pbrMetallicRoughness": {"baseColorFactor": [0.72, 0.08, 0.05, 1], "metallicFactor": 0.48, "roughnessFactor": 0.32}},
-            {"name": "MAT_composite", "pbrMetallicRoughness": {"baseColorFactor": [0.12, 0.18, 0.23, 1], "metallicFactor": 0.18, "roughnessFactor": 0.52}},
-            {"name": "MAT_rubber", "pbrMetallicRoughness": {"baseColorFactor": [0.025, 0.035, 0.045, 1], "metallicFactor": 0.02, "roughnessFactor": 0.82}},
-            {"name": "MAT_dark_glass", "pbrMetallicRoughness": {"baseColorFactor": [0.04, 0.10, 0.16, 0.72], "metallicFactor": 0.08, "roughnessFactor": 0.12}, "alphaMode": "BLEND"},
-            {"name": "MAT_emissive_blue", "pbrMetallicRoughness": {"baseColorFactor": [0.05, 0.28, 0.82, 1], "metallicFactor": 0.16, "roughnessFactor": 0.24}, "emissiveFactor": [0.03, 0.42, 1.0]},
-        ],
+        "materials": visual_resources["materials"],
+        "images": visual_resources["images"],
+        "textures": visual_resources["textures"],
+        "extensionsUsed": visual_resources["extensions_used"],
         "buffers": [{"byteLength": len(binary)}],
         "bufferViews": views,
         "accessors": accessors,
-        "extras": {"forgecad_feature_history": list(feature_history)},
+        "extras": {
+            "forgecad_feature_history": list(feature_history),
+            "forgecad_visual_environment": studio_environment_manifest(),
+        },
     }
     json_chunk = json.dumps(document, separators=(",", ":")).encode("utf-8")
     json_chunk += b" " * ((4 - len(json_chunk) % 4) % 4)
@@ -2588,6 +2755,82 @@ def _build_glb(
         + bytes(binary)
     )
     return payload, [round((maximum[i] - minimum[i]) * 1000, 4) for i in range(3)]
+
+
+def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Embed complete visual-only PBR maps in the same GLB as geometry.
+
+    Geometry emits a fixed, bounded material-index table.  A user-facing
+    material id may alias an index (for example ``mat_graphite`` uses the
+    primary visual set); primitive extras preserve that exact id while this
+    table remains the single texture byte source.
+    """
+
+    images: List[Dict[str, Any]] = []
+    textures: List[Dict[str, Any]] = []
+    materials: List[Dict[str, Any]] = []
+    extensions_used: set[str] = set()
+    for material_index in range(7):
+        texture_set = builtin_visual_texture_set_for_material_index(material_index)
+        properties = builtin_material_properties(material_index)
+        texture_by_role: Dict[str, int] = {}
+        for texture_map in texture_set.maps:
+            payload = visual_texture_png_bytes(texture_map.texture_id)
+            if hashlib.sha256(payload).hexdigest() != texture_map.sha256 or len(payload) != texture_map.byte_size:
+                raise ValueError("built-in visual texture bytes do not match their manifest")
+            view_index = _add_binary_view(binary, views, payload)
+            image_index = len(images)
+            images.append({
+                "name": texture_map.texture_id,
+                "bufferView": view_index,
+                "mimeType": texture_map.mime_type,
+                "extras": {"forgecad_visual_texture": texture_map.model_dump(mode="json")},
+            })
+            texture_index = len(textures)
+            textures.append({"name": texture_map.texture_id, "source": image_index})
+            texture_by_role[texture_map.texture_role] = texture_index
+        pbr: Dict[str, Any] = {
+            "baseColorFactor": [1, 1, 1, float(properties["alpha"])],
+            "metallicFactor": 1,
+            "roughnessFactor": 1,
+            "baseColorTexture": {"index": texture_by_role["base_color"]},
+            "metallicRoughnessTexture": {"index": texture_by_role["metallic_roughness"]},
+        }
+        material: Dict[str, Any] = {
+            "name": f"MAT_{texture_set.material_id.removeprefix('mat_')}",
+            "pbrMetallicRoughness": pbr,
+            "normalTexture": {"index": texture_by_role["normal"], "scale": 1},
+            "occlusionTexture": {"index": texture_by_role["occlusion"], "strength": 1},
+            "emissiveTexture": {"index": texture_by_role["emissive"]},
+            "emissiveFactor": [1, 1, 1],
+            "extras": {
+                "forgecad_visual_texture_set_id": texture_set.visual_texture_set_id,
+                "forgecad_texture_material_id": texture_set.material_id,
+                "forgecad_visual_only": True,
+            },
+        }
+        extensions: Dict[str, Any] = {}
+        if float(properties["clearcoat"]) > 0:
+            extensions["KHR_materials_clearcoat"] = {
+                "clearcoatFactor": float(properties["clearcoat"]),
+                "clearcoatRoughnessFactor": 0.2,
+            }
+        if float(properties["transmission"]) > 0:
+            material["alphaMode"] = "BLEND"
+            extensions["KHR_materials_transmission"] = {
+                "transmissionFactor": float(properties["transmission"]),
+            }
+            extensions["KHR_materials_ior"] = {"ior": float(properties["ior"])}
+        if extensions:
+            material["extensions"] = extensions
+            extensions_used.update(extensions)
+        materials.append(material)
+    return {
+        "images": images,
+        "textures": textures,
+        "materials": materials,
+        "extensions_used": sorted(extensions_used),
+    }
 
 
 def _box_geometry(box: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
@@ -3441,6 +3684,16 @@ def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, byt
         minimum,
         maximum,
     )
+
+
+def _add_binary_view(binary: bytearray, views: List[Dict[str, Any]], payload: bytes) -> int:
+    """Append a self-contained non-geometry buffer view (for embedded images)."""
+
+    binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+    offset = len(binary)
+    binary.extend(payload)
+    views.append({"buffer": 0, "byteOffset": offset, "byteLength": len(payload)})
+    return len(views) - 1
 
 
 def _add_accessor(binary: bytearray, views: List[Dict[str, Any]], accessors: List[Dict[str, Any]], payload: bytes, component_type: int, count: int, value_type: str, minimum: List[float] = None, maximum: List[float] = None, *, target: int = 34962) -> int:

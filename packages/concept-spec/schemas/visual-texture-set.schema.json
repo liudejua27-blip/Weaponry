@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/visual-texture-set.schema.json",
+  "title": "VisualTextureSet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "visual_texture_set_id", "material_id", "display_name", "maps", "source", "license", "version", "visual_only"],
+  "properties": {
+    "schema_version": { "const": "VisualTextureSet@1" },
+    "visual_texture_set_id": { "type": "string", "pattern": "^vtexset_[a-z0-9_\\-]+$" },
+    "material_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "maps": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["texture_id", "texture_role", "mime_type", "byte_size", "sha256", "color_space", "width", "height", "source", "license", "fallback", "visual_only"],
+        "properties": {
+          "texture_id": { "type": "string", "pattern": "^vtex_[a-z0-9_\\-]+$" },
+          "texture_role": { "type": "string", "enum": ["base_color", "metallic_roughness", "normal", "occlusion", "emissive"] },
+          "mime_type": { "type": "string", "enum": ["image/png", "image/jpeg", "image/webp"] },
+          "byte_size": { "type": "integer", "minimum": 1, "maximum": 4000000 },
+          "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "color_space": { "type": "string", "enum": ["srgb", "linear"] },
+          "width": { "type": "integer", "minimum": 1, "maximum": 4096 },
+          "height": { "type": "integer", "minimum": 1, "maximum": 4096 },
+          "source": { "type": "string", "enum": ["forgecad_builtin", "user_created", "imported_reference"] },
+          "license": { "type": "string", "enum": ["not_applicable", "self_declared_original", "third_party", "unknown"] },
+          "license_ref": { "type": ["string", "null"], "minLength": 1, "maxLength": 240 },
+          "fallback": { "type": "string", "enum": ["none", "parameter", "unavailable"] },
+          "visual_only": { "const": true }
+        }
+      }
+    },
+    "source": { "type": "string", "enum": ["forgecad_builtin", "user_created", "imported_reference"] },
+    "license": { "type": "string", "enum": ["not_applicable", "self_declared_original", "third_party", "unknown"] },
+    "license_ref": { "type": ["string", "null"], "minLength": 1, "maxLength": 240 },
+    "version": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$" },
+    "visual_only": { "const": true }
+  }
+}

@@ -18,6 +18,16 @@ export type ViewportMeasurementPoint = {
 }
 
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
+// Must match ForgeCADVisualEnvironment@1 written into every current ShapeProgram
+// GLB.  The viewport has one renderer/context; this profile only configures its
+// existing RoomEnvironment/PMREM scene and never creates asset state.
+const FORGECAD_STUDIO_PROFILE = {
+  environmentId: 'env_forgecad_room_studio_v1',
+  environmentSha256: 'cf4990be641f4f94172623fda07c22cbe3579088d6a73cdfb483be51b4e1b67a',
+  pmremNear: 0.04,
+  pmremCubeSize: 128,
+  exposure: 1.18,
+} as const
 let viewportRendererGeneration = 0
 let activeViewportContexts = 0
 
@@ -117,14 +127,22 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.18
+    renderer.toneMappingExposure = FORGECAD_STUDIO_PROFILE.exposure
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     host.appendChild(renderer.domElement)
     const pmremGenerator = new THREE.PMREMGenerator(renderer)
     const studioEnvironmentScene = new RoomEnvironment()
-    const studioEnvironment = pmremGenerator.fromScene(studioEnvironmentScene, 0.04, 32, 128)
+    const studioEnvironment = pmremGenerator.fromScene(
+      studioEnvironmentScene,
+      FORGECAD_STUDIO_PROFILE.pmremNear,
+      32,
+      FORGECAD_STUDIO_PROFILE.pmremCubeSize,
+    )
     scene.environment = studioEnvironment.texture
+    scene.userData.forgecadVisualEnvironment = FORGECAD_STUDIO_PROFILE.environmentId
+    host.dataset.visualEnvironmentId = FORGECAD_STUDIO_PROFILE.environmentId
+    host.dataset.visualEnvironmentSha256 = FORGECAD_STUDIO_PROFILE.environmentSha256
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = false

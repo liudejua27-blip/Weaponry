@@ -27,10 +27,10 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
-  "geometry-compile-readback.schema.json": "7a55be1033591638b78158b6ed87a041587148908da281fa8d5f091dc6151f16",
+  "geometry-compile-readback.schema.json": "77337890803a031116bc7af546830db685f7c20b2e29ebf802f44aa001d79430",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
-  "material-preset.schema.json": "d4a9f62dfb924b12a1321ee88cb77f144f6d53b076ed0aa15be54f910290e4bf",
-  "material-texture-object.schema.json": "98119df4b682ddfe7d914a14e71cc3c9dbaea2d1f665be32207b3db574bdcc45",
+  "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
+  "material-texture-object.schema.json": "5818946a17dfa9dd19b13133aa3afab6717604f7b8258e17332d341271bfc1d2",
   "mechanical-concept-spec.schema.json": "f16ec5a742e26f01cb7f70e69a10203b1e94f55abaf2aa76504724ec56125b6f",
   "mechanical-style-token.schema.json": "771af5f26d368dc7081b2c9a8a7749c2304bfc5b07420689098b1c07ce0704a2",
   "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
@@ -44,6 +44,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
   "shape-program.schema.json": "112b6e5c33333ce5c9cd5a31a4e908c47b31313de2a6c3fae986ea5876a8c72e",
   "visual-intent-mapping.schema.json": "e610720b36ad0a22e4815f067d4ae416d12e2f64fee0780e4c43fa5716fcc57c",
+  "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
 ''')
@@ -3432,6 +3433,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "face_id_sha256": {
               "$ref": "common.schema.json#/$defs/sha256"
             },
+            "material_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
             "material_zone_id": {
               "pattern": "^zone_[a-z0-9_\\-]+$",
               "type": "string"
@@ -3483,6 +3488,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "primitive_id",
             "part_instance_id",
             "material_zone_id",
+            "material_id",
             "face_count",
             "face_id_sha256",
             "surface_roles",
@@ -3842,6 +3848,234 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "uv0_primitive_count": {
         "minimum": 1,
         "type": "integer"
+      },
+      "visual_environment": {
+        "additionalProperties": false,
+        "properties": {
+          "color_workflow": {
+            "const": "linear_srgb"
+          },
+          "contact_shadows": {
+            "const": true
+          },
+          "environment_id": {
+            "pattern": "^env_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "environment_kind": {
+            "const": "procedural_studio"
+          },
+          "environment_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "license": {
+            "const": "not_applicable"
+          },
+          "output_color_space": {
+            "const": "srgb"
+          },
+          "pmrem": {
+            "additionalProperties": false,
+            "properties": {
+              "cube_size": {
+                "const": 128
+              },
+              "near": {
+                "exclusiveMinimum": 0,
+                "maximum": 1,
+                "type": "number"
+              }
+            },
+            "required": [
+              "near",
+              "cube_size"
+            ],
+            "type": "object"
+          },
+          "schema_version": {
+            "const": "ForgeCADVisualEnvironment@1"
+          },
+          "source": {
+            "const": "forgecad_builtin"
+          },
+          "tone_mapping": {
+            "const": "aces_filmic"
+          },
+          "tone_mapping_exposure": {
+            "maximum": 3,
+            "minimum": 0.1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "schema_version",
+          "environment_id",
+          "environment_kind",
+          "environment_sha256",
+          "source",
+          "license",
+          "color_workflow",
+          "output_color_space",
+          "tone_mapping",
+          "tone_mapping_exposure",
+          "contact_shadows",
+          "pmrem"
+        ],
+        "type": "object"
+      },
+      "visual_texture_sets": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "extensions": {
+              "items": {
+                "enum": [
+                  "KHR_materials_clearcoat",
+                  "KHR_materials_transmission",
+                  "KHR_materials_ior"
+                ],
+                "type": "string"
+              },
+              "maxItems": 8,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "maps": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "byte_size": {
+                    "maximum": 4000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "color_space": {
+                    "enum": [
+                      "srgb",
+                      "linear"
+                    ],
+                    "type": "string"
+                  },
+                  "fallback": {
+                    "enum": [
+                      "none",
+                      "parameter",
+                      "unavailable"
+                    ],
+                    "type": "string"
+                  },
+                  "glb_image_index": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "glb_texture_index": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "height": {
+                    "maximum": 4096,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "license": {
+                    "const": "not_applicable"
+                  },
+                  "mime_type": {
+                    "const": "image/png"
+                  },
+                  "sha256": {
+                    "$ref": "common.schema.json#/$defs/sha256"
+                  },
+                  "source": {
+                    "const": "forgecad_builtin"
+                  },
+                  "texture_id": {
+                    "pattern": "^vtex_[a-z0-9_\\-]+$",
+                    "type": "string"
+                  },
+                  "texture_role": {
+                    "enum": [
+                      "base_color",
+                      "metallic_roughness",
+                      "normal",
+                      "occlusion",
+                      "emissive"
+                    ],
+                    "type": "string"
+                  },
+                  "width": {
+                    "maximum": 4096,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "texture_id",
+                  "texture_role",
+                  "mime_type",
+                  "byte_size",
+                  "sha256",
+                  "color_space",
+                  "width",
+                  "height",
+                  "source",
+                  "license",
+                  "fallback",
+                  "glb_image_index",
+                  "glb_texture_index"
+                ],
+                "type": "object"
+              },
+              "maxItems": 5,
+              "minItems": 5,
+              "type": "array"
+            },
+            "material_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "material_index": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "material_zone_ids": {
+              "items": {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 512,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "schema_version": {
+              "const": "VisualTextureSet@1"
+            },
+            "texture_byte_size": {
+              "maximum": 20000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "visual_texture_set_id": {
+              "pattern": "^vtexset_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema_version",
+            "visual_texture_set_id",
+            "material_id",
+            "material_index",
+            "material_zone_ids",
+            "maps",
+            "extensions",
+            "texture_byte_size"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
       }
     },
     "required": [
@@ -3861,6 +4095,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "tangent_primitive_count",
       "surface_provenance",
       "material_zone_faces",
+      "visual_texture_sets",
+      "visual_environment",
       "operation_ids",
       "operation_names",
       "output_roles",
@@ -4056,6 +4292,13 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "minimum": 0,
             "type": "number"
           },
+          "emissive_texture_asset_id": {
+            "pattern": "^asset_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "ior": {
             "maximum": 3,
             "minimum": 1,
@@ -4066,12 +4309,26 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "minimum": 0,
             "type": "number"
           },
+          "metallic_roughness_texture_asset_id": {
+            "pattern": "^asset_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "normal_strength": {
             "maximum": 2,
             "minimum": 0,
             "type": "number"
           },
           "normal_texture_asset_id": {
+            "pattern": "^asset_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occlusion_texture_asset_id": {
             "pattern": "^asset_[a-z0-9_\\-]+$",
             "type": [
               "string",
@@ -4182,7 +4439,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "texture_role": {
               "enum": [
                 "base_color",
+                "metallic_roughness",
                 "normal",
+                "occlusion",
+                "emissive",
                 "thumbnail"
               ],
               "type": "string"
@@ -4322,7 +4582,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "texture_role": {
         "enum": [
           "base_color",
+          "metallic_roughness",
           "normal",
+          "occlusion",
+          "emissive",
           "thumbnail"
         ],
         "type": "string"
@@ -6556,6 +6819,182 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "directions"
     ],
     "title": "VisualIntentMapping",
+    "type": "object"
+  },
+  "visual-texture-set.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/visual-texture-set.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "display_name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "license": {
+        "enum": [
+          "not_applicable",
+          "self_declared_original",
+          "third_party",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "license_ref": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "maps": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "byte_size": {
+              "maximum": 4000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "color_space": {
+              "enum": [
+                "srgb",
+                "linear"
+              ],
+              "type": "string"
+            },
+            "fallback": {
+              "enum": [
+                "none",
+                "parameter",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "maximum": 4096,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "license": {
+              "enum": [
+                "not_applicable",
+                "self_declared_original",
+                "third_party",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "license_ref": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mime_type": {
+              "enum": [
+                "image/png",
+                "image/jpeg",
+                "image/webp"
+              ],
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "source": {
+              "enum": [
+                "forgecad_builtin",
+                "user_created",
+                "imported_reference"
+              ],
+              "type": "string"
+            },
+            "texture_id": {
+              "pattern": "^vtex_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "texture_role": {
+              "enum": [
+                "base_color",
+                "metallic_roughness",
+                "normal",
+                "occlusion",
+                "emissive"
+              ],
+              "type": "string"
+            },
+            "visual_only": {
+              "const": true
+            },
+            "width": {
+              "maximum": 4096,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "texture_id",
+            "texture_role",
+            "mime_type",
+            "byte_size",
+            "sha256",
+            "color_space",
+            "width",
+            "height",
+            "source",
+            "license",
+            "fallback",
+            "visual_only"
+          ],
+          "type": "object"
+        },
+        "maxItems": 5,
+        "minItems": 5,
+        "type": "array"
+      },
+      "material_id": {
+        "pattern": "^mat_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualTextureSet@1"
+      },
+      "source": {
+        "enum": [
+          "forgecad_builtin",
+          "user_created",
+          "imported_reference"
+        ],
+        "type": "string"
+      },
+      "version": {
+        "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$",
+        "type": "string"
+      },
+      "visual_only": {
+        "const": true
+      },
+      "visual_texture_set_id": {
+        "pattern": "^vtexset_[a-z0-9_\\-]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "visual_texture_set_id",
+      "material_id",
+      "display_name",
+      "maps",
+      "source",
+      "license",
+      "version",
+      "visual_only"
+    ],
+    "title": "VisualTextureSet",
     "type": "object"
   },
   "weapon-concept-spec.schema.json": {

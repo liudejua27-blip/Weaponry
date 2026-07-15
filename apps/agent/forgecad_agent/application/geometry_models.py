@@ -109,6 +109,7 @@ class GeometryMaterialZoneFaceSet(StrictApiModel):
     primitive_id: str = Field(pattern=r"^primitive_[a-z0-9_\-]+$")
     part_instance_id: str = Field(pattern=r"^partface_[a-z0-9_\-]+$")
     material_zone_id: str = Field(pattern=r"^zone_[a-z0-9_\-]+$")
+    material_id: str = Field(pattern=r"^mat_[a-z0-9_\-]+$")
     face_count: int = Field(ge=1)
     face_id_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     surface_roles: List[GeometrySurfaceRole] = Field(min_length=1, max_length=16)
@@ -124,6 +125,66 @@ class GeometryMaterialZoneFaceSet(StrictApiModel):
         if any(not value.startswith("op_") for value in self.source_operation_ids):
             raise ValueError("zone face provenance must reference operations")
         return self
+
+
+class GeometryVisualTextureMapReadback(StrictApiModel):
+    texture_id: str = Field(pattern=r"^vtex_[a-z0-9_\-]+$")
+    texture_role: Literal["base_color", "metallic_roughness", "normal", "occlusion", "emissive"]
+    mime_type: Literal["image/png", "image/jpeg", "image/webp"]
+    byte_size: int = Field(gt=0, le=4_000_000)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    color_space: Literal["srgb", "linear"]
+    width: int = Field(gt=0, le=4096)
+    height: int = Field(gt=0, le=4096)
+    source: Literal["forgecad_builtin", "user_created", "imported_reference"]
+    license: Literal["not_applicable", "self_declared_original", "third_party", "unknown"]
+    fallback: Literal["none", "parameter", "unavailable"]
+    glb_image_index: int = Field(ge=0)
+    glb_texture_index: int = Field(ge=0)
+
+
+class GeometryVisualTextureSetReadback(StrictApiModel):
+    schema_version: Literal["VisualTextureSet@1"] = "VisualTextureSet@1"
+    visual_texture_set_id: str = Field(pattern=r"^vtexset_[a-z0-9_\-]+$")
+    material_id: str = Field(pattern=r"^mat_[a-z0-9_\-]+$")
+    material_index: int = Field(ge=0)
+    material_zone_ids: List[str] = Field(min_length=1, max_length=512)
+    maps: List[GeometryVisualTextureMapReadback] = Field(min_length=5, max_length=5)
+    extensions: List[str] = Field(default_factory=list, max_length=8)
+    texture_byte_size: int = Field(gt=0, le=20_000_000)
+
+    @model_validator(mode="after")
+    def validate_texture_set(self) -> "GeometryVisualTextureSetReadback":
+        if len(self.material_zone_ids) != len(set(self.material_zone_ids)):
+            raise ValueError("visual texture zones must be unique")
+        roles = [item.texture_role for item in self.maps]
+        if len(roles) != len(set(roles)) or set(roles) != {
+            "base_color", "metallic_roughness", "normal", "occlusion", "emissive"
+        }:
+            raise ValueError("visual texture readback must contain every PBR map once")
+        if self.texture_byte_size != sum(item.byte_size for item in self.maps):
+            raise ValueError("visual texture byte budget does not match maps")
+        return self
+
+
+class GeometryVisualEnvironmentReadback(StrictApiModel):
+    schema_version: Literal["ForgeCADVisualEnvironment@1"] = "ForgeCADVisualEnvironment@1"
+    environment_id: str = Field(pattern=r"^env_[a-z0-9_\-]+$")
+    environment_kind: Literal["procedural_studio"]
+    environment_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source: Literal["forgecad_builtin"]
+    license: Literal["not_applicable"]
+    color_workflow: Literal["linear_srgb"]
+    output_color_space: Literal["srgb"]
+    tone_mapping: Literal["aces_filmic"]
+    tone_mapping_exposure: float = Field(ge=0.1, le=3)
+    contact_shadows: Literal[True]
+    pmrem: "GeometryVisualPmremReadback"
+
+
+class GeometryVisualPmremReadback(StrictApiModel):
+    near: float = Field(gt=0, le=1)
+    cube_size: Literal[128]
 
 
 class GeometryFeatureNodeReadback(StrictApiModel):
@@ -184,6 +245,8 @@ class GeometryCompileReadback(StrictApiModel):
     tangent_primitive_count: int = Field(ge=1)
     surface_provenance: List[GeometrySurfaceProvenance] = Field(min_length=1, max_length=512)
     material_zone_faces: List[GeometryMaterialZoneFaceSet] = Field(min_length=1, max_length=512)
+    visual_texture_sets: List[GeometryVisualTextureSetReadback] = Field(min_length=1, max_length=64)
+    visual_environment: GeometryVisualEnvironmentReadback
     feature_history: List[GeometryFeatureNodeReadback] = Field(default_factory=list, max_length=256)
     operation_ids: List[str] = Field(min_length=1, max_length=512)
     operation_names: List[str] = Field(min_length=1, max_length=512)
@@ -225,6 +288,14 @@ class GeometryCompileReadback(StrictApiModel):
                 or zone.face_count != surface.face_id_max + 1
             ):
                 raise ValueError("material zone face mapping diverges from surface readback")
+        zones_by_material: dict[str, set[str]] = {}
+        for zone in self.material_zone_faces:
+            zones_by_material.setdefault(zone.material_id, set()).add(zone.material_zone_id)
+        if {item.material_id for item in self.visual_texture_sets} != set(zones_by_material):
+            raise ValueError("visual texture sets must cover exactly the GLB material-zone materials")
+        for texture_set in self.visual_texture_sets:
+            if set(texture_set.material_zone_ids) != zones_by_material[texture_set.material_id]:
+                raise ValueError("visual texture set zones diverge from GLB material-zone readback")
         if self.feature_history:
             if [item.node_id for item in self.feature_history] != self.operation_ids:
                 raise ValueError("compile readback feature history must align with ordered operations")

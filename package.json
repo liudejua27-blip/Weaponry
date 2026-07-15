@@ -75,6 +75,7 @@
     "agent:q002-active-design-contract-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_q002_active_design_contract.py",
     "agent:q003-compile-readback-quality-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_q003_compile_readback_quality.py",
     "agent:m107-active-zone-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_selected_zone.py",
+    "agent:m108-visual-pbr-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_m108_visual_pbr.py",
     "desktop:s5-active-design-machine-smoke": "node scripts/smoke_active_design_machine.mjs",
     "agent:g2-contracts-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_g2_general_contracts.py",
     "agent:d1-domain-inference-contract-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_domain_inference_contract.py",

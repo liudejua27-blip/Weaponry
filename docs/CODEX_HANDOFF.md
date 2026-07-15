@@ -5,13 +5,21 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
-## 2026-07-15：FGC-A004 受限 Agent Action Loop（已完成；M108 ready）
+## 2026-07-15：FGC-M108 同源视觉 PBR 自动化检查点（进行中，未完成）
+
+- 新增 `VisualTextureSet@1` 与五通道 `base_color`/`metallic_roughness`/`normal`/`occlusion`/`emissive` 合同；用户登记纹理对象也扩展为五通道。当前 ShapeProgram Worker 仅使用本机确定性程序化 PNG，逐张将 hash、sRGB/linear、32×32 尺寸、`forgecad_builtin/not_applicable` 与 `fallback=none` 写入同一 GLB；没有 URL、绝对路径、抓取或伪造许可证。
+- `_build_glb` 将 images/textures、metallic-roughness、normal/occlusion/emissive、清漆和受限 transparent/IOR extension 写入同一产物；`read_shape_program_glb_facts` 对嵌入 bytes/hash/色彩空间、五个 channel、透明兼容、真实 primitive `material_id`、G826 zone face set 和固定 `env_forgecad_room_studio_v1` hash 一次回读。缺 map、损坏 image、缺透明 IOR 或 zone/material 偏离都会明确拒绝，质量/导出继续消费同一次编译 readback。
+- 桌面仍只使用一个 Three.js renderer/context；其 RoomEnvironment/PMREM、linear-sRGB、ACES Filmic、1.18 exposure、接触阴影参数与 GLB 环境合同固定一致。没有新 renderer、没有因环境创建资产版本。
+- `npm run agent:m108-visual-pbr-smoke` 覆盖四领域各 3 个 showcase 多 zone fixture（共 12 个）、确定性重复字节、Schema、五通道、色彩空间、文件预算、环境 hash、clearcoat/透明 extension、缺 normal 与 image hash 损坏拒绝。`agent:g826-surface-readback-smoke`、contracts、迁移和 TypeScript/桌面 Gate 仍需本轮最终回归。
+- M108 仍是 `in_progress`：Khronos glTF-Validator、glTF Transform/KTX2/BasisU 的锁定依赖和平台/provenance benchmark、packaged sidecar、重启/undo/redo/导出端到端与独立人工视觉基准尚无新证据。不能因此把当前 Alpha 描述为照片级真实产品或解除 C105 阻塞。
+
+## 2026-07-15：FGC-A004 受限 Agent Action Loop（已完成；M108 in progress）
 
 - 新增 `AgentActionLoop@1` 与不可动态扩展的 `ForgeCADProductToolRegistry@1`。13 个工具覆盖领域推断、受审本地参考查询、Style Token/比例配方、Profile/ShapeProgram author+validate、候选 build、真实 compile/readback、四视图 render、硬门 evaluate 和未保存 preview；没有 shell、Python/JavaScript、任意 URL/路径、通用 MCP、数据库或永久修改工具。
 - 离线 Planner 与 DeepSeek 都通过同一工具循环执行 plan→build→GLB readback→render→evaluate→preview。DeepSeek Tool Call 的 `reasoning_content` 只在同一 Turn 的内存消息中续传；持久化 Item 只记录 stable tool/call ID、父 Turn、Schema 后事实、状态、耗时、幂等键、失败类别与审批策略。12 次调用、wall time、取消、Provider 断线、重复 call ID、stale Snapshot 和 G819 未知操作都 fail closed。
 - `npm run agent:a004-action-loop-smoke` 覆盖正常链、DeepSeek 多轮续传且推理不落盘、Schema/G819 拒绝、上限、取消/timeout/断线、重复 Registry/Tool Call ID、stale Snapshot、审批前 `agent_asset_versions`/ChangeSet/Snapshot 为零，以及 completed/failed Turn 重启读取。新增只读 `GET /api/v1/agent/product-tools`；桌面 Turn 完成后不再自动并发三次方向 concept-preview API，当前三方向 UI 仍保留到 V003。
 - A004 后续修正 packaged Alpha smoke：它只按 `plan_complete_concept` 提取计划，并显式兼容当前 `{tool_name, result: {plan}}` 与冻结 sidecar 的 legacy `{tool, result: plan}` 合同，不能再把同一 Turn 的 readback/render/evaluate/preview 误判为计划。本机冻结 arm64 sidecar 已越过该解析点，但其 GLB 早于 G826、缺少 UV/tangent/provenance，因而不能作为当前表面合同的本地证明；当前源码打包 CI 才是此 Gate 的有效证据。
-- 下一唯一主链任务是 `FGC-M108`：只消费 G826 的真实 zone/UV/tangent，完成多区 PBR 纹理、色彩空间、环境与 GLB/视口/readback 一致性；不得提前实现 C105/V003/F026。
+- 当前唯一主链任务为 `FGC-M108`：只消费 G826 的真实 zone/UV/tangent，完成多区 PBR 纹理、色彩空间、环境与 GLB/视口/readback 一致性；不得提前实现 C105/V003/F026。
 
 ## 2026-07-15：FGC-D005 四领域语义比例配方（已完成；A004 ready）
 

@@ -308,7 +308,16 @@ MaterialCategory = Literal[
 
 MaterialSource = Literal["forgecad_builtin", "user_created", "imported_reference"]
 MaterialLicense = Literal["not_applicable", "self_declared_original", "third_party", "unknown"]
-MaterialTextureRole = Literal["base_color", "normal", "thumbnail"]
+MaterialTextureRole = Literal[
+    "base_color",
+    "metallic_roughness",
+    "normal",
+    "occlusion",
+    "emissive",
+    "thumbnail",
+]
+VisualTextureColorSpace = Literal["srgb", "linear"]
+VisualTextureFallback = Literal["none", "parameter", "unavailable"]
 
 
 class AgentMaterialTextureSummary(StrictApiModel):
@@ -371,6 +380,64 @@ class AgentMaterialTextureListResponse(StrictApiModel):
     items: List[AgentMaterialTextureObject] = Field(default_factory=list)
 
 
+class VisualTextureMap(StrictApiModel):
+    """One content-addressed visual-only PBR texture channel.
+
+    The map describes bytes embedded in a ForgeCAD GLB (or a separately
+    registered bounded texture object).  It intentionally contains no URL,
+    filesystem path, or engineering material claim.
+    """
+
+    texture_id: str = Field(pattern=r"^vtex_[a-z0-9_\-]+$")
+    texture_role: Literal["base_color", "metallic_roughness", "normal", "occlusion", "emissive"]
+    mime_type: Literal["image/png", "image/jpeg", "image/webp"]
+    byte_size: int = Field(gt=0, le=4_000_000)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    color_space: VisualTextureColorSpace
+    width: int = Field(gt=0, le=4096)
+    height: int = Field(gt=0, le=4096)
+    source: MaterialSource
+    license: MaterialLicense
+    license_ref: Optional[str] = Field(default=None, min_length=1, max_length=240)
+    fallback: VisualTextureFallback = "none"
+    visual_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_provenance(self) -> "VisualTextureMap":
+        _validate_texture_provenance(self.source, self.license, self.license_ref)
+        if self.texture_role in {"base_color", "emissive"} and self.color_space != "srgb":
+            raise ValueError("base-color and emissive textures must use sRGB")
+        if self.texture_role in {"metallic_roughness", "normal", "occlusion"} and self.color_space != "linear":
+            raise ValueError("non-colour PBR textures must use linear colour space")
+        return self
+
+
+class VisualTextureSet(StrictApiModel):
+    """The one versioned PBR texture contract consumed by GLB/readback."""
+
+    schema_version: Literal["VisualTextureSet@1"] = "VisualTextureSet@1"
+    visual_texture_set_id: str = Field(pattern=r"^vtexset_[a-z0-9_\-]+$")
+    material_id: str = Field(pattern=r"^mat_[a-z0-9_\-]+$")
+    display_name: str = Field(min_length=1, max_length=120)
+    maps: List[VisualTextureMap] = Field(min_length=5, max_length=5)
+    source: MaterialSource
+    license: MaterialLicense
+    license_ref: Optional[str] = Field(default=None, min_length=1, max_length=240)
+    version: str = Field(pattern=r"^[0-9]+(?:\.[0-9]+){0,2}$")
+    visual_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_complete_pbr_map_set(self) -> "VisualTextureSet":
+        _validate_texture_provenance(self.source, self.license, self.license_ref)
+        roles = [item.texture_role for item in self.maps]
+        required = {"base_color", "metallic_roughness", "normal", "occlusion", "emissive"}
+        if len(roles) != len(set(roles)) or set(roles) != required:
+            raise ValueError("visual texture set must contain every supported PBR map exactly once")
+        if any(item.source != self.source or item.license != self.license for item in self.maps):
+            raise ValueError("visual texture map provenance must match its set")
+        return self
+
+
 def _validate_texture_provenance(
     source: MaterialSource,
     license: MaterialLicense,
@@ -404,7 +471,10 @@ class AgentMaterialPbr(StrictApiModel):
     roughness: float = Field(ge=0, le=1)
     opacity: float = Field(gt=0, le=1)
     base_color_texture_asset_id: Optional[str] = Field(default=None, pattern=r"^asset_[a-z0-9_\-]+$")
+    metallic_roughness_texture_asset_id: Optional[str] = Field(default=None, pattern=r"^asset_[a-z0-9_\-]+$")
     normal_texture_asset_id: Optional[str] = Field(default=None, pattern=r"^asset_[a-z0-9_\-]+$")
+    occlusion_texture_asset_id: Optional[str] = Field(default=None, pattern=r"^asset_[a-z0-9_\-]+$")
+    emissive_texture_asset_id: Optional[str] = Field(default=None, pattern=r"^asset_[a-z0-9_\-]+$")
     normal_strength: float = Field(default=1, ge=0, le=2)
     emissive_color: str = Field(default="#000000", pattern=r"^#[0-9A-Fa-f]{6}$")
     emissive_strength: float = Field(default=0, ge=0, le=100)

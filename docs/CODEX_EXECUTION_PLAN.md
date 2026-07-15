@@ -61,7 +61,7 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A004`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。A004 已让离线 Planner 与 DeepSeek 在同一 Turn 内使用代码所有的 Product Tool Registry 完成候选构建、真实 readback、渲染、硬门与未保存 preview；`FGC-M108` 是唯一主链 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A004`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。A004 已让离线 Planner 与 DeepSeek 在同一 Turn 内使用代码所有的 Product Tool Registry 完成候选构建、真实 readback、渲染、硬门与未保存 preview；`FGC-M108` 正在执行，仍是唯一主链原子任务。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
 
 ## 4. S1：ActiveDesignSnapshot
 
