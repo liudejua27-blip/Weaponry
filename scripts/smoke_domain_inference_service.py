@@ -56,7 +56,11 @@ def main() -> int:
         assert ambiguous_turn.status == "waiting_for_clarification"
         ambiguous_item = next(item for item in ambiguous_turn.items if item.item_type == "clarification")
         assert ambiguous_item.payload["status"] == "ambiguous"
-        assert len(ambiguous_item.payload["options"]) == 2
+        assert len(ambiguous_item.payload["options"]) == 4
+        assert set(ambiguous_item.payload["domain_inference"]["candidate_domain_pack_ids"]) == {
+            "pack_vehicle_concept",
+            "pack_aircraft_concept",
+        }
         assert service.start_turn(
             thread.thread_id,
             StartAgentTurnRequest(client_request_id="domain-turn-1", message="设计一台能飞的无人机载具"),
