@@ -94,7 +94,7 @@ async function main() {
     await waitForHttp(`${restartBaseUrl}/api/health`, restartedAgent, 'restarted agent health')
     smokeStage = 'verifying persistence after agent restart'
     const restartVerified = process.env.FORGECAD_AGENT_FIRST_ONLY === '1'
-      ? await verifyAgentFirstRestart(restartBaseUrl, seeded.project_id, result.version_id)
+      ? await verifyAgentFirstRestart(restartBaseUrl, seeded.project_id, result.agent_asset_version_id)
       : await verifyReplacement(
         restartBaseUrl,
         seeded.project_id,
@@ -212,7 +212,7 @@ async function seedConceptGraph(baseUrl) {
   }
 }
 
-async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
+async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
   const browser = await launchSystemBrowser()
   const context = await browser.newContext({
     acceptDownloads: true,
@@ -221,7 +221,23 @@ async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
   })
   const page = await context.newPage()
   const browserErrors = []
+  let legacyConceptExportPosts = 0
+  let legacyBriefInterpretPosts = 0
   page.on('pageerror', (error) => browserErrors.push(error.message))
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(request.url())) {
+      legacyConceptExportPosts += 1
+    }
+    if (request.method() === 'POST' && request.url().includes('/brief:interpret')) {
+      legacyBriefInterpretPosts += 1
+    }
+  })
+  page.on('response', async (response) => {
+    if (process.env.FORGECAD_DEBUG_API !== '1' || response.status() < 400) return
+    let body = ''
+    try { body = (await response.text()).slice(0, 1200) } catch {}
+    console.error(`[debug-api] ${response.status()} ${response.request().method()} ${response.url()} ${body}`)
+  })
   try {
     await mkdir(OUTPUT_DIR, { recursive: true })
     await page.goto(`${baseUrl}/#/cad`, { waitUntil: 'networkidle' })
@@ -231,7 +247,18 @@ async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
       { timeout: 20_000 },
     )
     await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
-    await assertText(page.locator('.agent-first-panel'), ['设计助手', '侦察短构', '棱镜脉冲'])
+    await assertText(page.locator('.agent-first-panel'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
+    await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('旧版设计转换'), ['这是旧版只读设计', '原设计会保留不变', '让 Agent 重建可编辑资产'])
+    const conversionResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:convert-legacy') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true }).click()
+    if (!(await conversionResponse).ok()) throw new Error('legacy Agent rebuild hand-off failed')
+    await page.getByRole('button', { name: '配置模型服务', exact: true }).click()
+    await page.getByLabel('配置模型服务').waitFor()
+    await assertText(page.getByLabel('配置模型服务'), ['连接你的大模型 API', 'API Base URL', 'Model', 'API Key', 'secret file'])
+    await page.getByLabel('配置模型服务').getByRole('button', { name: '取消', exact: true }).click()
     await page.getByPlaceholder('描述你想设计的道具…').waitFor()
     if (await page.locator('.cad-right-rail').isVisible()) {
       throw new Error('legacy permanent property panel remains visible')
@@ -239,12 +266,315 @@ async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
     await page.getByTestId('contextual-edit-card').waitFor({ timeout: 20_000 })
     await assertText(page.getByTestId('contextual-edit-card'), ['已选中部件', '替换', '让 Agent 调整', '精确调整'])
 
-    await page.getByRole('button', { name: '导出', exact: true }).click()
-    await assertText(page.locator('.export-drawer'), ['你准备如何使用它？', '展示设计', '游戏 / 影视项目', '交给三维设计师', '保存完整设计资料'])
-    await page.getByRole('button', { name: /游戏 \/ 影视项目/ }).click()
-    await assertText(page.locator('.export-ready-summary'), ['GLB 展示模型'])
-    await page.getByRole('button', { name: '关闭导出' }).click()
+    const importFixture = join(ROOT, 'assets', 'module-packs', 'weapon-concept-v1-reference', 'modules', 'module_core_shell_01', 'model.glb')
+    await page.getByLabel('导入 GLB 参考模型').setInputFiles(importFixture)
+    await page.getByLabel('分件候选').getByText('导入参考模型 v1', { exact: true }).waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('分件候选'), ['导入模型已通过 GLB 安全检查', '请让 Agent 重建后再进行部件级编辑'])
+    await page.waitForFunction(
+      () => document.querySelector('.weapon-viewport')?.getAttribute('data-blockout-load-state') === 'ready',
+      { timeout: 20_000 },
+    )
 
+    const agentBrief = page.getByPlaceholder('描述你想设计的道具…')
+    await agentBrief.fill('设计一台能飞的无人机载具')
+    await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
+    await page.getByLabel('需要确认设计类别').waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('需要确认设计类别'), ['先确认设计对象', '同时接近多个方向', '汽车与地面载具', '飞机与航空器'])
+    if (legacyBriefInterpretPosts !== 0) {
+      throw new Error('ambiguous Agent input incorrectly fell back to legacy Brief interpretation')
+    }
+    await page.getByLabel('需要确认设计类别').getByRole('button', { name: '飞机与航空器', exact: true }).click()
+    await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: 20_000 })
+    await page.getByLabel('Agent 完整外观方向').getByRole('button').first().click()
+    await page.getByLabel('分件候选').waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('分件候选'), ['分件候选', '可调整', '预览状态'])
+    await page.getByLabel('视觉材质目录').waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('视觉材质目录'), ['石墨深灰', '拉丝铝', '亮面汽车漆'])
+    await page.getByLabel('视觉材质目录').getByRole('button', { name: '拉丝铝', exact: true }).click()
+
+    await page.getByRole('button', { name: '保存为可编辑模型', exact: true }).click()
+    // The GLB reference imported above is an immutable Agent asset v1 in this
+    // same project; the generated editable blockout therefore starts at v2.
+    await page.getByLabel('分件候选').getByText('可编辑资产 v2', { exact: true }).waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('分件候选'), ['可编辑资产 v2'])
+    // Primitive kinds vary by direction: a capsule/cylinder intentionally has
+    // no independent scale bindings. Select a server-declared adjustable part
+    // instead of assuming the visual first part exposes “长度比例”.
+    const firstAgentPart = page.getByLabel('分件候选').locator('.agent-segmentation-list button').filter({ hasText: '可调整' }).first()
+    const selectActivePartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
+    )
+    await firstAgentPart.click()
+    const selectedActivePartResponse = await selectActivePartResponse
+    if (!selectedActivePartResponse.ok()) {
+      throw new Error(`active Agent part selection failed: ${selectedActivePartResponse.status()}`)
+    }
+    await assertText(page.getByLabel('分件候选'), ['可编辑资产 v2', '修改只作用于此部件', '只会依据当前已知的部件关系', '当前部件暂不能建议拆分或合并'])
+    const selectedSnapshot = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (
+      selectedSnapshot.active_design?.source !== 'agent_asset'
+      || !selectedSnapshot.selected_part_id
+      || selectedSnapshot.active_design.asset_version_id !== await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id')
+    ) {
+      throw new Error(`workbench selection is not bound to the active Snapshot: ${JSON.stringify(selectedSnapshot)}`)
+    }
+    const initialDecreaseButton = page.getByLabel('部件可调参数').locator('button[aria-label^="减小 "]').first()
+    const initialDecreaseLabel = await initialDecreaseButton.getAttribute('aria-label')
+    if (!initialDecreaseLabel) throw new Error('selected adjustable part has no declared decrement control')
+    await initialDecreaseButton.click()
+    await page.getByLabel('可编辑资产修改预览').waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('可编辑资产修改预览'), [initialDecreaseLabel.replace('减小 ', ''), '比例（ratio）', '保留并创建新版本'])
+    const snapshotWithPreview = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (
+      snapshotWithPreview.preview?.base_asset_version_id !== snapshotWithPreview.active_design?.asset_version_id
+      || !snapshotWithPreview.preview?.change_set_id
+    ) {
+      throw new Error(`Agent preview was not bound to the active Snapshot: ${JSON.stringify(snapshotWithPreview)}`)
+    }
+    await page.getByLabel('可编辑资产修改预览').getByRole('button', { name: '保留并创建新版本', exact: true }).click()
+    await page.getByLabel('分件候选').getByText('可编辑资产 v3', { exact: true }).waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('分件候选'), ['可编辑资产 v3'])
+    const snapshotAfterConfirm = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (snapshotAfterConfirm.preview !== null || snapshotAfterConfirm.active_design?.asset_version_id === snapshotWithPreview.active_design?.asset_version_id) {
+      throw new Error(`Agent confirmation did not advance/clear the active Snapshot: ${JSON.stringify(snapshotAfterConfirm)}`)
+    }
+    const confirmedAgentAssetVersionId = snapshotAfterConfirm.active_design.asset_version_id
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '撤销' && !button.disabled),
+      { timeout: 20_000 },
+    )
+    const undoResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/active-design:undo') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '撤销', exact: true }).click()
+    const undoResponse = await undoResponsePromise
+    if (!undoResponse.ok()) throw new Error(`Agent undo failed: ${undoResponse.status()}`)
+    await page.getByLabel('分件候选').getByText('可编辑资产 v4', { exact: true }).waitFor({ timeout: 20_000 })
+    const snapshotAfterUndo = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (
+      snapshotAfterUndo.active_design?.asset_version_id === confirmedAgentAssetVersionId
+      || snapshotAfterUndo.selected_part_id !== selectedSnapshot.selected_part_id
+      || snapshotAfterUndo.selected_material_zone_id !== selectedSnapshot.selected_material_zone_id
+      || snapshotAfterUndo.preview !== null
+      || snapshotAfterUndo.quality !== null
+    ) {
+      throw new Error(`Agent undo did not atomically advance/clear the Snapshot: ${JSON.stringify(snapshotAfterUndo)}`)
+    }
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '重做' && !button.disabled),
+      { timeout: 20_000 },
+    )
+    const redoResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/active-design:redo') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '重做', exact: true }).click()
+    const redoResponse = await redoResponsePromise
+    if (!redoResponse.ok()) throw new Error(`Agent redo failed: ${redoResponse.status()}`)
+    await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
+    const snapshotAfterRedo = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (snapshotAfterRedo.active_design?.asset_version_id === snapshotAfterUndo.active_design?.asset_version_id) {
+      throw new Error(`Agent redo did not advance the active Snapshot: ${JSON.stringify(snapshotAfterRedo)}`)
+    }
+    const agentAssetVersionId = await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id')
+    if (!agentAssetVersionId) throw new Error('agent asset version id is missing after confirmation')
+    const selectConfirmedPartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
+    )
+    await page.getByLabel('分件候选').locator('.agent-segmentation-list button').first().click()
+    if (!(await selectConfirmedPartResponse).ok()) {
+      throw new Error('active Agent part selection failed after child version confirmation')
+    }
+    const agentQualityResponse = page.waitForResponse(
+      (response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '检查这个模型', exact: true }).click()
+    await page.getByText(/模型检查(通过|有提示)/).waitFor({ timeout: 20_000 })
+    const qualityReport = await (await agentQualityResponse).json()
+    if (!['passed', 'warning'].includes(qualityReport.status)) {
+      throw new Error(`concept quality unexpectedly failed: ${JSON.stringify(qualityReport)}`)
+    }
+    if (qualityReport.asset_version_id !== agentAssetVersionId) {
+      throw new Error(`quality report did not use the active Agent asset: ${JSON.stringify(qualityReport)}`)
+    }
+    const snapshotAfterQuality = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (
+      snapshotAfterQuality.quality?.quality_report_id !== qualityReport.quality_report_id
+      || snapshotAfterQuality.quality?.asset_version_id !== agentAssetVersionId
+    ) {
+      throw new Error(`quality report was not bound to the active Snapshot: ${JSON.stringify(snapshotAfterQuality)}`)
+    }
+    await page.getByRole('button', { name: '保存为可复用部件', exact: true }).click()
+    await page.getByRole('button', { name: /替换：/ }).waitFor({ timeout: 20_000 })
+    await assertText(page.getByLabel('分件候选'), ['来源检查', '保留当前连接位置'])
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
+    if (await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id') !== agentAssetVersionId) {
+      throw new Error('Agent asset head was not restored in the workbench after browser restart')
+    }
+    // C104 persists display/protection state in the active Snapshot. It is not
+    // a client-only toggle and it must survive a browser restart without
+    // constructing another WebGL renderer.
+    // The reusable-component flow deliberately selects an arbitrary source
+    // part. Select a server-declared adjustable part again before verifying
+    // that C104 disables its actual declared control after locking.
+    const lockablePart = page.getByLabel('分件候选').locator('.agent-segmentation-list button').filter({ hasText: '可调整' }).first()
+    const selectLockablePartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
+    )
+    await lockablePart.click()
+    if (!(await selectLockablePartResponse).ok()) {
+      throw new Error('active adjustable Agent part selection failed before lock verification')
+    }
+    const lockedDecreaseButton = page.getByLabel('部件可调参数').locator('button[aria-label^="减小 "]').first()
+    const lockedDecreaseLabel = await lockedDecreaseButton.getAttribute('aria-label')
+    if (!lockedDecreaseLabel) throw new Error('lock verification part has no declared decrement control')
+    const snapshotBeforeLock = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    const lockedPartId = snapshotBeforeLock.selected_part_id
+    if (!lockedPartId) throw new Error(`expected a selected Agent part before C104 display verification: ${JSON.stringify(snapshotBeforeLock)}`)
+    if (snapshotBeforeLock.part_display?.locked_part_ids?.includes(lockedPartId)) {
+      throw new Error(`C104 baseline unexpectedly restored ${lockedPartId} as locked before the lock action: ${JSON.stringify(snapshotBeforeLock)}`)
+    }
+    await page.waitForFunction(() => {
+      const button = document.querySelector('button[aria-label="锁定部件"]')
+      return button instanceof HTMLButtonElement && !button.disabled
+    }, undefined, { timeout: 20_000 })
+    const lockPartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    ).then((response) => ({ response }), (error) => ({ error }))
+    const lockButton = page.getByRole('button', { name: '锁定部件', exact: true })
+    if (await lockButton.textContent() !== '锁定此部件') {
+      throw new Error(`C104 lock control changed before the lock action: ${await lockButton.textContent()}`)
+    }
+    await lockButton.click()
+    const lockResult = await lockPartResponse
+    if ('error' in lockResult) {
+      const diagnostic = await page.evaluate(() => ({
+        buttonDisabled: document.querySelector('button[aria-label="锁定部件"]')?.disabled ?? null,
+        agentCardVersion: document.querySelector('[aria-label="分件候选"]')?.getAttribute('data-agent-asset-version-id') ?? null,
+        workbenchText: document.querySelector('.agent-first-panel')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+      }))
+      throw new Error(`locking an Agent part did not issue a part-display request: ${JSON.stringify(diagnostic)}; original=${lockResult.error instanceof Error ? lockResult.error.message : String(lockResult.error)}`)
+    }
+    if (!lockResult.response.ok()) throw new Error('locking an Agent part failed')
+    const snapshotAfterLock = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (!snapshotAfterLock.part_display?.locked_part_ids?.includes(lockedPartId)) {
+      throw new Error(`part lock was not persisted to the active Snapshot: ${JSON.stringify(snapshotAfterLock)}`)
+    }
+    if (!(await page.getByLabel('部件可调参数').getByRole('button', { name: lockedDecreaseLabel, exact: true }).isDisabled())) {
+      throw new Error('locked Agent part still permits part-level ChangeSet controls')
+    }
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
+    const snapshotAfterLockRestart = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (!snapshotAfterLockRestart.part_display?.locked_part_ids?.includes(lockedPartId)) {
+      throw new Error(`part lock was not restored after browser restart: ${JSON.stringify(snapshotAfterLockRestart)}`)
+    }
+    if (snapshotAfterLockRestart.selected_part_id !== lockedPartId) {
+      throw new Error(`part selection was not restored with the locked part after browser restart: ${JSON.stringify(snapshotAfterLockRestart)}`)
+    }
+    await page.locator(`[aria-label="分件候选"][data-active-agent-asset-version-id="${snapshotAfterLockRestart.active_design.asset_version_id}"][data-selected-part-id="${lockedPartId}"]`).waitFor({ timeout: 20_000 })
+    try {
+      await waitForEnabledButton(page, '解除部件锁定', '解除锁定')
+    } catch (caught) {
+      const diagnostic = await page.evaluate(() => ({
+        card: document.querySelector('[aria-label="分件候选"]')?.outerHTML.slice(0, 1000) ?? null,
+        selectedPartAvailable: document.querySelector('[aria-label="分件候选"]')?.getAttribute('data-selected-part-available') ?? null,
+        externalReference: document.querySelector('[aria-label="分件候选"]')?.getAttribute('data-external-glb-reference') ?? null,
+        viewportLockedParts: document.querySelector('.weapon-viewport')?.getAttribute('data-agent-locked-part-ids') ?? null,
+      }))
+      throw new Error(`locked part was not projected into the restarted workbench: ${JSON.stringify(diagnostic)}; original=${caught instanceof Error ? caught.message : String(caught)}`)
+    }
+    const unlockPartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '解除部件锁定', exact: true }).click()
+    if (!(await unlockPartResponse).ok()) throw new Error('unlocking an Agent part failed')
+
+    await waitForEnabledButton(page, '只看当前部件', '只看这个部件')
+    const isolatePartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '只看当前部件', exact: true }).click()
+    if (!(await isolatePartResponse).ok()) throw new Error('isolating an Agent part failed')
+    await page.locator(`.weapon-viewport[data-agent-isolated-part-id="${lockedPartId}"]`).waitFor({ timeout: 20_000 })
+    const clearIsolationButton = page.getByLabel('部件级调整').getByRole('button', { name: '结束单独查看', exact: true })
+    await clearIsolationButton.waitFor({ state: 'visible', timeout: 20_000 })
+    await page.waitForFunction(() => {
+      const controls = document.querySelector('[aria-label="部件级调整"]')
+      const button = [...(controls?.querySelectorAll('button') ?? [])].find((element) => element.textContent?.trim() === '结束单独查看')
+      return button instanceof HTMLButtonElement && !button.disabled
+    }, undefined, { timeout: 20_000 })
+    const clearIsolationResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    )
+    await clearIsolationButton.click()
+    const clearIsolationResult = await clearIsolationResponse
+    if (!clearIsolationResult.ok()) throw new Error(`clearing Agent part isolation failed: ${clearIsolationResult.status()} ${await clearIsolationResult.text()}`)
+    await page.locator('.weapon-viewport[data-agent-isolated-part-id=""]').waitFor({ timeout: 20_000 })
+
+    await waitForEnabledButton(page, '隐藏当前部件', '隐藏此部件')
+    const hidePartResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '隐藏当前部件', exact: true }).click()
+    if (!(await hidePartResponse).ok()) throw new Error('hiding an Agent part failed')
+    const snapshotAfterHide = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (snapshotAfterHide.selected_part_id !== null || !snapshotAfterHide.part_display?.hidden_part_ids?.includes(lockedPartId)) {
+      throw new Error(`hiding a part did not clear selection and persist display state: ${JSON.stringify(snapshotAfterHide)}`)
+    }
+    await page.locator(`.weapon-viewport[data-agent-hidden-part-ids*="${lockedPartId}"]`).waitFor({ timeout: 20_000 })
+    await waitForEnabledButton(page, '显示所有部件')
+    const showAllPartsResponse = page.waitForResponse(
+      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: '显示所有部件', exact: true }).click()
+    if (!(await showAllPartsResponse).ok()) throw new Error('showing all Agent parts failed')
+    const snapshotAfterShowAll = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
+    if (snapshotAfterShowAll.part_display?.hidden_part_ids?.length || snapshotAfterShowAll.part_display?.isolated_part_id) {
+      throw new Error(`showing all parts did not clear display state: ${JSON.stringify(snapshotAfterShowAll)}`)
+    }
+    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await assertText(page.locator('.quality-drawer'), ['模型检查', '当前版本', '活动 Agent 资产'])
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
+    await page.keyboard.press('Escape')
+    await page.locator('[data-forgecad-drawer="quality"]').waitFor({ state: 'detached', timeout: 20_000 })
+    if (!(await page.getByRole('button', { name: '检查', exact: true }).evaluate((element) => element === document.activeElement))) {
+      throw new Error('Escape did not return focus to the quality drawer trigger')
+    }
+    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await page.locator('.quality-drawer').waitFor()
+    await page.getByRole('button', { name: '关闭模型检查' }).click()
+
+    await page.getByRole('button', { name: '导出', exact: true }).click()
+    await assertText(page.locator('.export-drawer'), ['选择你现在需要的内容', '下载 3D 模型 (GLB)', '概念视图'])
+    if (await page.getByText('交给三维设计师', { exact: true }).count()) {
+      throw new Error('Agent asset export drawer must not show legacy export choices')
+    }
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
+    const agentExportDownload = page.waitForEvent('download')
+    await page.getByRole('button', { name: '下载 3D 模型 (GLB)', exact: true }).click()
+    const downloadedAgentGlb = await agentExportDownload
+    if (!downloadedAgentGlb.suggestedFilename().endsWith('.glb')) {
+      throw new Error(`Agent asset export did not produce GLB: ${downloadedAgentGlb.suggestedFilename()}`)
+    }
+    if (legacyConceptExportPosts !== 0) {
+      throw new Error('Agent asset GLB export incorrectly fell back to a legacy Concept export')
+    }
+    await page.getByRole('button', { name: '关闭导出' }).click()
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((element) => element.textContent?.trim() === '导出' && element === document.activeElement))
+
+    // Agent assets and legacy ModuleGraph assets must not share a replacement
+    // ChangeSet. The legacy component drawer remains available for browsing,
+    // but its write action remains intentionally disabled while an Agent asset
+    // is active. Agent component replacement is handled separately by C102.
+    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).click()
+    await page.locator('.contextual-library').waitFor()
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
+    await page.keyboard.press('Escape')
+    await page.locator('[data-forgecad-drawer="component"]').waitFor({ state: 'detached', timeout: 20_000 })
+    if (!(await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).evaluate((element) => element === document.activeElement))) {
+      throw new Error('Escape did not return focus to the component drawer trigger')
+    }
     await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).click()
     await page.locator('.contextual-library').waitFor()
     await assertText(page.locator('.contextual-library'), ['替换', '只显示当前部件可用的替换建议', 'Front Shell 01', 'Front Shell 02'])
@@ -252,56 +582,26 @@ async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
       throw new Error('contextual replacement drawer must limit the first view to compatible components')
     }
     await page.getByRole('button', { name: /Front Shell 02/ }).click()
-    const replacementPreviewPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':preview')
-        && response.request().method() === 'POST',
-    )
-    await page.locator('.contextual-library').getByRole('button', { name: '预览替换', exact: true }).click()
-    const replacementPreviewResponse = await replacementPreviewPromise
-    if (!replacementPreviewResponse.ok()) throw new Error(`replacement preview failed: ${replacementPreviewResponse.status()}`)
-    await page.getByTestId('agent-change-review').waitFor()
-    await assertText(page.getByTestId('agent-change-review'), ['本次修改', '组件替换预览已准备好', '撤销本次修改', '保留此修改'])
-    const replacementConfirmPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':confirm')
-        && response.request().method() === 'POST',
-    )
-    await page.getByTestId('agent-change-review').getByRole('button', { name: '保留此修改', exact: true }).click()
-    const replacementConfirmResponse = await replacementConfirmPromise
-    if (!replacementConfirmResponse.ok()) throw new Error(`replacement confirmation failed: ${replacementConfirmResponse.status()}`)
-    await page.getByTestId('agent-change-review').waitFor({ state: 'detached', timeout: 20_000 })
-    await page.waitForFunction(
-      () => document.querySelector('.cad-status-bar')?.textContent?.includes('版本：v3'),
-      { timeout: 20_000 },
-    )
-
-    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '让 Agent 调整', exact: true }).click()
-    await page.getByPlaceholder(/告诉我怎么调整/).fill('整体更紧凑，增加精密细节，并使用信号蓝点缀配色')
-    const changePreviewPromise = page.waitForResponse(
-      (response) => response.url().includes('change-sets:plan')
-        && response.request().method() === 'POST',
-    )
-    await page.getByRole('button', { name: '发送设计需求' }).click()
-    const changePreviewResponse = await changePreviewPromise
-    if (!changePreviewResponse.ok()) throw new Error(`agent change preview failed: ${changePreviewResponse.status()}`)
-    await page.getByTestId('agent-change-review').waitFor()
-    await assertText(page.getByTestId('agent-change-review'), ['本次修改', '撤销本次修改', '保留此修改'])
-    await page.getByTestId('agent-change-review').getByRole('button', { name: '撤销本次修改', exact: true }).click()
-    await page.getByTestId('agent-change-review').waitFor({ state: 'detached', timeout: 20_000 })
-
+    const legacyReplacementButton = page.locator('.contextual-library').getByRole('button', { name: '预览替换', exact: true })
+    if (!(await legacyReplacementButton.isDisabled())) {
+      throw new Error(`legacy replacement must be disabled while an Agent asset is active: disabled=${await legacyReplacementButton.getAttribute('disabled')}, status=${await page.locator('.cad-status-bar').innerText()}`)
+    }
     await page.getByRole('button', { name: '关闭组件选择' }).click()
     await page.locator('.contextual-library').waitFor({ state: 'detached', timeout: 20_000 })
 
     await page.getByRole('button', { name: '检查', exact: true }).click()
-    await assertText(page.locator('.quality-drawer'), ['模型检查', '展示组件已加载', '运行模型检查'])
+    await assertText(page.locator('.quality-drawer'), ['模型检查', '展示组件已加载', '检查当前 Agent 资产'])
     await page.getByRole('button', { name: '关闭模型检查' }).click()
     await page.screenshot({ path: AGENT_FIRST_SCREENSHOT, fullPage: true })
     if ((await stat(AGENT_FIRST_SCREENSHOT)).size < 20_000) {
       throw new Error('agent-first workbench screenshot is unexpectedly small')
     }
     if (browserErrors.length > 0) throw new Error(`browser errors: ${browserErrors.join(' | ')}`)
-    return { version_id: seeded.version_id, agent_first_screenshot: AGENT_FIRST_SCREENSHOT }
+    return {
+      version_id: seeded.version_id,
+      agent_asset_version_id: agentAssetVersionId,
+      agent_first_screenshot: AGENT_FIRST_SCREENSHOT,
+    }
   } finally {
     await context.close()
     await browser.close()
@@ -310,7 +610,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, seeded) {
 
 async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
   if (process.env.FORGECAD_AGENT_FIRST_ONLY === '1') {
-    return runAgentFirstWorkbenchUi(baseUrl, seeded)
+    return runAgentFirstWorkbenchUi(baseUrl, agentApiBaseUrl, seeded)
   }
   const browser = await launchSystemBrowser()
   const context = await browser.newContext({
@@ -1317,18 +1617,25 @@ async function performanceMetric(session, name) {
   return result.metrics.find((metric) => metric.name === name)?.value ?? 0
 }
 
-async function verifyAgentFirstRestart(baseUrl, projectId) {
+async function verifyAgentFirstRestart(baseUrl, projectId, agentAssetVersionId) {
   const project = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}`)
   const version = await jsonRequest(baseUrl, `/api/v1/versions/${project.current_version_id}`)
   const graph = await jsonRequest(baseUrl, `/api/v1/module-graphs/${version.module_graph_id}`)
   const frontNode = graph.graph.nodes.find((node) => node.node_id === 'node_front')
-  if ((project.versions ?? []).length < 3 || frontNode?.module_id !== 'module_front_shell_02') {
-    throw new Error(`agent-first restart did not preserve confirmed replacement: ${JSON.stringify({ versions: project.versions?.length, frontNode })}`)
+  if ((project.versions ?? []).length !== 2 || frontNode?.module_id !== 'module_front_shell_01') {
+    throw new Error(`agent-first restart must leave the legacy graph unchanged: ${JSON.stringify({ versions: project.versions?.length, frontNode })}`)
+  }
+  if (!agentAssetVersionId) throw new Error('agent asset version id was not exposed by the workbench')
+  const agentAssetVersion = await jsonRequest(baseUrl, `/api/v1/agent/asset-versions/${agentAssetVersionId}`)
+  if (agentAssetVersion.version_no !== 5 || agentAssetVersion.stage !== 'editable_asset') {
+    throw new Error(`agent asset version did not survive restart: ${JSON.stringify(agentAssetVersion)}`)
   }
   return {
     version_id: version.version_id,
     graph_id: graph.graph.graph_id,
     module_id: frontNode.module_id,
+    agent_asset_version_id: agentAssetVersion.asset_version_id,
+    agent_asset_version_no: agentAssetVersion.version_no,
   }
 }
 
@@ -1602,6 +1909,15 @@ function stopProcess(child) {
     })
     child.kill('SIGTERM')
   })
+}
+
+async function waitForEnabledButton(page, accessibleName, text = accessibleName) {
+  const button = page.getByRole('button', { name: accessibleName, exact: true })
+  await button.waitFor({ state: 'visible', timeout: 20_000 })
+  await page.waitForFunction((expectedName) => {
+    const candidate = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === expectedName)
+    return candidate instanceof HTMLButtonElement && !candidate.disabled
+  }, text, { timeout: 20_000 })
 }
 
 async function assertText(locator, expected) {

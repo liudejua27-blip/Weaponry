@@ -25,6 +25,7 @@ DATABASE_NAME = "library.db"
 OBJECT_TABLES = (
     ("asset_files", "file_id"),
     ("concept_assets", "asset_id"),
+    ("agent_imported_glbs", "import_id"),
 )
 COUNTED_TABLES = (
     "weapons",
@@ -40,6 +41,7 @@ COUNTED_TABLES = (
     "change_set_audit_exports",
     "concept_assets",
     "concept_jobs",
+    "agent_imported_glbs",
 )
 
 

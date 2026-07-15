@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Local macOS verification entrypoint for the Tauri workbench.
-# This intentionally uses the development Python Agent fallback. It is not a
-# release-packaging command: the checked-in packaged sidecar is still a
-# placeholder and cannot support a standalone installation.
+# Local macOS verification entrypoint for the Tauri workbench. It uses the
+# development Python-Agent path; the separate packaged-sidecar native E2E
+# remains tracked as unfinished FGC-P002 work.
 
 MODE="${1:-run}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -94,25 +93,13 @@ launch_app() {
     echo "Expected app bundle was not created: $APP_BUNDLE" >&2
     exit 1
   fi
-  # Use LaunchServices so macOS keeps the GUI process alive. Publish only
-  # non-secret local test paths to that process environment because `open -n`
-  # intentionally does not preserve shell exports. This makes a Blender
-  # candidate pack testable in the real native workbench without touching the
-  # user's default library. Model credentials are intentionally never set here.
-  if [[ -n "${FORGECAD_BUNDLED_MODULE_PACK:-}" ]]; then
-    launchctl setenv FORGECAD_BUNDLED_MODULE_PACK "$FORGECAD_BUNDLED_MODULE_PACK"
-  fi
-  if [[ -n "${WUSHEN_LIBRARY_ROOT:-}" ]]; then
-    launchctl setenv WUSHEN_LIBRARY_ROOT "$WUSHEN_LIBRARY_ROOT"
-  else
-    launchctl unsetenv WUSHEN_LIBRARY_ROOT || true
-  fi
-  # Keep localized author/reviewer defaults in the Python source instead of
-  # launchctl. Some macOS LaunchServices paths garble non-ASCII environment
-  # values before the Tauri child starts.
-  launchctl unsetenv FORGECAD_ASSET_CREATOR_NAME || true
-  launchctl unsetenv FORGECAD_ASSET_REVIEWER_NAME || true
-  /usr/bin/open -n "$APP_BUNDLE"
+  # Run the bundle binary directly for verification so the Rust supervisor
+  # receives the same non-secret runtime paths as this shell. LaunchServices
+  # drops shell variables in CI/headless sessions and can leave a GUI process
+  # alive without starting its managed Agent. Credentials are never exported.
+  "$APP_BINARY" >"$ROOT_DIR/.wushen-tauri.log" 2>&1 &
+  TAURI_APP_PID=$!
+  disown "$TAURI_APP_PID" 2>/dev/null || true
 }
 
 wait_for_agent() {

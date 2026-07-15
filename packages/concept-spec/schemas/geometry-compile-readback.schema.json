@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/geometry-compile-readback.schema.json",
+  "title": "GeometryCompileReadback",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "runtime_manifest_version",
+    "program_id",
+    "shape_program_sha256",
+    "glb_sha256",
+    "glb_byte_size",
+    "triangle_count",
+    "bounds_mm",
+    "mesh_count",
+    "primitive_count",
+    "material_count",
+    "uv0_primitive_count",
+    "normal_primitive_count",
+    "surface_provenance",
+    "operation_ids",
+    "operation_names",
+    "output_roles",
+    "material_ids",
+    "readback_status"
+  ],
+  "properties": {
+    "schema_version": { "const": "GeometryCompileReadback@1" },
+    "runtime_manifest_version": { "const": "ShapeProgramRuntimeManifest@1" },
+    "program_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "shape_program_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "glb_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "glb_byte_size": { "type": "integer", "minimum": 20, "maximum": 67108864 },
+    "triangle_count": { "type": "integer", "minimum": 1 },
+    "bounds_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+    "mesh_count": { "type": "integer", "minimum": 1 },
+    "primitive_count": { "type": "integer", "minimum": 1 },
+    "material_count": { "type": "integer", "minimum": 0 },
+    "uv0_primitive_count": { "type": "integer", "minimum": 1 },
+    "normal_primitive_count": { "type": "integer", "minimum": 1 },
+    "surface_provenance": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_role", "profile_input_id", "surface_roles", "surface_ranges", "uv0_min", "uv0_max", "closed", "boundary_edge_count", "non_manifold_edge_count", "degenerate_triangle_count"],
+        "properties": {
+          "part_role": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "profile_input_id": {
+            "anyOf": [
+              { "type": "string", "pattern": "^profileinput_[a-z0-9_\\-]+$" },
+              { "type": "null" }
+            ]
+          },
+          "surface_roles": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam"] }
+          },
+          "surface_ranges": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["surface_role", "first_triangle", "triangle_count"],
+              "properties": {
+                "surface_role": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam"] },
+                "first_triangle": { "type": "integer", "minimum": 0 },
+                "triangle_count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          "uv0_min": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } },
+          "uv0_max": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } },
+          "closed": { "type": "boolean" },
+          "boundary_edge_count": { "type": "integer", "minimum": 0 },
+          "non_manifold_edge_count": { "type": "integer", "minimum": 0 },
+          "degenerate_triangle_count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "operation_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "operation_names": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "output_roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "material_ids": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "readback_status": { "const": "passed" }
+  }
+}

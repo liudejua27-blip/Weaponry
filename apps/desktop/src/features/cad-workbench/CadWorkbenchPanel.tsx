@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   ArrowsClockwise,
   ArrowsLeftRight,
@@ -6,7 +6,6 @@ import {
   CaretDown,
   CaretUp,
   ChartLineUp,
-  ChatCircleDots,
   Check,
   ClockCounterClockwise,
   Crosshair,
@@ -21,7 +20,6 @@ import {
   GridFour,
   House,
   MagnifyingGlass,
-  PaperPlaneRight,
   Plus,
   Ruler,
   SelectionAll,
@@ -31,18 +29,68 @@ import {
   Sparkle,
   WarningCircle,
 } from '@phosphor-icons/react'
-import { forgeApi } from '../../shared/api/forgeApi'
-import type { DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
+import { ForgeApiError, forgeApi, mapActiveDesignError } from '../../shared/api/forgeApi'
+import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
+import { useRuntime } from '../../app/providers/RuntimeProvider'
+import {
+  getProviderConfig as getTauriProviderConfig,
+  restartAgentSupervisor,
+  saveProviderConfig as saveTauriProviderConfig,
+  type ProviderConfigMetadata,
+} from '../../shared/tauri/agentSupervisor'
 import { ModuleGraphViewport, type ViewportMeasurementPoint } from './ModuleGraphViewport'
+import { AgentConversation } from './AgentConversation'
+import { AgentSelectionCard } from './AgentSelectionCard'
+import { selectAgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation'
+import { selectAgentPlanSourcePresentation } from './agentPlanSourcePresentation'
+import {
+  ComponentDrawer,
+  COMPONENT_CATEGORIES,
+  MODULE_CATEGORY_LABELS,
+  ORIGIN_CLAIM_LABELS,
+  QUALITY_STATUS_LABELS,
+  REVIEW_STATUS_LABELS,
+  type ModuleCategory,
+  type QualityStatus,
+} from './ComponentDrawer'
+import { ExportDrawer, type ExportFormat, type ExportPurpose, type ExportPurposeOption } from './ExportDrawer'
+import { MaterialDrawer } from './MaterialDrawer'
+import { QualityDrawer } from './QualityDrawer'
+import { WorkbenchDrawerStack } from './WorkbenchDrawerStack'
+import { displayPartRole } from './partRoleLabels.js'
+import {
+  activeDesignCanSelectParts,
+  activeDesignPartDisplay,
+  activeDesignPartIsLocked,
+  activeDesignSelectedMaterialZoneId,
+  activeDesignSelectedPartId,
+} from './activeDesignMachine'
+import { useWorkbenchLifecycle } from './useWorkbenchLifecycle'
+import { parseAgentTurnPresentation, type AgentClarification, type AgentClarificationOption } from './agentConversationState'
+import { useAgentConversationPresentation } from './useAgentConversationPresentation'
+import { useAgentBlockoutDisplay } from './useAgentBlockoutDisplay'
+import { useAgentDirectionConceptPreviews } from './useAgentDirectionConceptPreviews'
+import { useAgentAssetWorkspace } from './useAgentAssetWorkspace'
+import { getLegacyCompatibilityDisplay } from './legacyCompatibilityDisplay'
+import { useComponentLibraryPreferences } from './useComponentLibraryPreferences'
+import { filterComponentLibraryRecords } from './componentLibraryPreferencesState'
+import { useViewportDisplayPreferences } from './useViewportDisplayPreferences'
+import { useLegacyModuleGraphWorkspace } from './useLegacyModuleGraphWorkspace'
+import { useLegacyModuleGraphOverlay } from './useLegacyModuleGraphOverlay'
+import { useAgentRenderPresentation } from './useAgentRenderPresentation'
+import { useAgentEditAssistPresentation } from './useAgentEditAssistPresentation'
+import { useAgentMaterialCatalogPresentation } from './useAgentMaterialCatalogPresentation'
+import { useAgentMaterialFilterPresentation } from './useAgentMaterialFilterPresentation'
+import { useAgentMaterialPreselectionPresentation } from './useAgentMaterialPreselectionPresentation'
+import { useComponentCatalogPresentation } from './useComponentCatalogPresentation'
 import { useConceptWorkbench } from './useConceptWorkbench'
 import './cad-workbench.css'
 
 type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
-type AssistantMode = 'brief' | 'change'
-type ComponentDrawerMode = 'recommended' | 'all'
-type ExportPurpose = 'presentation' | 'production' | 'handoff' | 'archive'
+type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
+type AgentTurnRecordResult = { recorded: boolean; clarification: boolean; cancelled: boolean }
 
 type WeaponParameters = {
   overallLength: number
@@ -53,6 +101,19 @@ type WeaponParameters = {
   detailDensity: number
 }
 
+const DEFAULT_AGENT_MATERIAL_PRESETS: AgentMaterialPreset[] = [
+  { schema_version: 'MaterialPreset@1', material_id: 'mat_graphite', display_name: '石墨深灰', category: 'metal', pbr: { base_color: '#26313b', metallic: 0.78, roughness: 0.34, opacity: 1 }, visual_only: true, allowed_domains: ['future_weapon_prop', 'vehicle_concept', 'aircraft_concept', 'robotic_arm_concept'], provenance: 'forgecad_builtin' },
+  { schema_version: 'MaterialPreset@1', material_id: 'mat_aluminum', display_name: '拉丝铝', category: 'metal', pbr: { base_color: '#8a9aa8', metallic: 0.88, roughness: 0.28, opacity: 1 }, visual_only: true, allowed_domains: ['future_weapon_prop', 'vehicle_concept', 'aircraft_concept', 'robotic_arm_concept'], provenance: 'forgecad_builtin' },
+  { schema_version: 'MaterialPreset@1', material_id: 'mat_automotive_paint', display_name: '亮面汽车漆', category: 'coating', pbr: { base_color: '#3d78b8', metallic: 0.38, roughness: 0.2, opacity: 1 }, visual_only: true, allowed_domains: ['vehicle_concept', 'future_weapon_prop'], provenance: 'forgecad_builtin' },
+]
+
+const DOMAIN_TYPE_BY_PACK: Record<string, string> = {
+  pack_future_weapon_prop: 'future_weapon_prop',
+  pack_vehicle_concept: 'vehicle_concept',
+  pack_aircraft_concept: 'aircraft_concept',
+  pack_robotic_arm_concept: 'robotic_arm_concept',
+}
+
 type MeasurementAnnotation = {
   annotationId: string
   kind: 'distance' | 'normal_angle'
@@ -61,169 +122,31 @@ type MeasurementAnnotation = {
   angleDeg: number
 }
 
-type ModuleCategory = ModuleAssetRecord['manifest']['category']
-type ComponentCategory = 'all' | ModuleCategory
-type ComponentFilter = ComponentCategory | 'installed' | 'compatible' | 'favorites' | 'recent'
-type ReviewStatus = 'draft' | 'pending_review' | 'approved' | 'restricted'
-type QualityStatus = 'passed' | 'warning' | 'failed' | 'unavailable'
-
-type WorkbenchSession = {
-  inspectorTab: InspectorTab
-  activeTool: Tool
-  transformSpace: 'world' | 'local'
-  snapEnabled: boolean
-  cameraView: CameraView
-  showGrid: boolean
-  wireframe: boolean
-  xRay: boolean
-  sectionOffset: number
-  selectedComponent: string
-  selectedLibraryModuleId: string
-  showConnectors: boolean
-  explodeFactor: number
-  measurementMode: 'distance' | 'normal_angle'
-  componentCategory: ComponentFilter
-  reviewStatusFilter: ReviewStatus | ''
-  drawerExpanded: boolean
-  drawerHeight: number
-}
-
-// CAD-only session state. The v3 key deliberately ignores the retired
-// multi-workbench navigation, task views, and asset-library page state.
-// v5 resets retired CAD-tool state so first use opens in simple selection mode.
-const WORKBENCH_SESSION_KEY = 'forgecad.cad.session.v5'
-
-const DEFAULT_WORKBENCH_SESSION: WorkbenchSession = {
-  inspectorTab: 'parameters',
-  activeTool: 'select',
-  transformSpace: 'world',
-  snapEnabled: true,
-  cameraView: 'iso',
-  showGrid: true,
-  wireframe: false,
-  xRay: false,
-  sectionOffset: 0,
-  selectedComponent: '',
-  selectedLibraryModuleId: '',
-  showConnectors: false,
-  explodeFactor: 0,
-  measurementMode: 'distance',
-  componentCategory: 'all',
-  reviewStatusFilter: '',
-  drawerExpanded: false,
-  drawerHeight: 368,
-}
-
-const DEFAULT_CONCEPT_BRIEF = '紧凑、精密硬表面、石墨灰与信号红点缀的非功能未来概念展示资产'
+const DEFAULT_CONCEPT_BRIEF = '一台结构清晰、比例协调、适合继续编辑的未来机械概念展示模型'
 const DEFAULT_HIDDEN_NODE_IDS = ['node_storage']
 const CONCEPT_FAMILY_SUGGESTIONS = [
-  ['侦察短构', '侦察轻型、紧凑、未来工业、蓝色点缀的非功能展示道具'],
-  ['堡垒装甲', '堡垒重装、层级装甲、石墨灰与信号红的非功能展示道具'],
-  ['典藏长轴', '典藏仪式、长轴展示、精密硬表面、低饱和金属的非功能影视道具'],
-  ['棱镜脉冲', '棱镜能量、非对称、脉冲视觉、深色金属与冷色点缀的非功能游戏道具'],
+  ['冰原探索车', '一台适合冰原探索的紧凑未来概念车，四轮独立悬挂、分层外壳、耐候材料'],
+  ['垂直起降器', '一架用于城市救援的轻型垂直起降飞行器，明确机身、旋翼舱和维护面板'],
+  ['三关节机械臂', '一台桌面级三关节机械臂，底座、关节、末端工具分件清晰，适合继续调整比例'],
+  ['未来概念道具', '一件非功能性的未来概念展示道具，外观完整、模块清楚、使用深色金属与冷色点缀'],
 ] as const
 
-const EXPORT_PURPOSES: Array<{
-  id: ExportPurpose
-  title: string
-  description: string
-  format: 'SOURCE ZIP' | 'GLB' | 'OBJ' | 'PNG' | 'MP4'
-}> = [
+const DEFAULT_AGENT_CLARIFICATION_OPTIONS: AgentClarificationOption[] = [
+  { domain_pack_id: 'pack_vehicle_concept', label: '汽车与地面载具', prompt: CONCEPT_FAMILY_SUGGESTIONS[0][1] },
+  { domain_pack_id: 'pack_aircraft_concept', label: '飞机与航空器', prompt: CONCEPT_FAMILY_SUGGESTIONS[1][1] },
+  { domain_pack_id: 'pack_robotic_arm_concept', label: '机械臂与机器人机构', prompt: CONCEPT_FAMILY_SUGGESTIONS[2][1] },
+  { domain_pack_id: 'pack_future_weapon_prop', label: '未来武器概念道具', prompt: CONCEPT_FAMILY_SUGGESTIONS[3][1] },
+]
+
+const EXPORT_PURPOSES: ExportPurposeOption[] = [
   { id: 'presentation', title: '展示设计', description: '用于方案评审或展示画面', format: 'PNG' },
   { id: 'production', title: '游戏 / 影视项目', description: '保留展示模型与材质', format: 'GLB' },
   { id: 'handoff', title: '交给三维设计师', description: '继续在三维软件中处理', format: 'OBJ' },
   { id: 'archive', title: '保存完整设计资料', description: '包含当前版本与概念资料', format: 'SOURCE ZIP' },
 ]
 
-function readWorkbenchSession(): WorkbenchSession {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(WORKBENCH_SESSION_KEY) ?? '{}') as Partial<WorkbenchSession>
-    return {
-      ...DEFAULT_WORKBENCH_SESSION,
-      inspectorTab: isOneOf(value.inspectorTab, ['parameters', 'appearance', 'connections', 'inspection']) ? value.inspectorTab : 'parameters',
-      activeTool: isOneOf(value.activeTool, ['select', 'move', 'rotate', 'scale', 'orbit', 'measure', 'section']) ? value.activeTool : 'select',
-      transformSpace: isOneOf(value.transformSpace, ['world', 'local']) ? value.transformSpace : 'world',
-      snapEnabled: typeof value.snapEnabled === 'boolean' ? value.snapEnabled : true,
-      cameraView: isOneOf(value.cameraView, ['iso', 'front', 'top', 'right']) ? value.cameraView : 'iso',
-      showGrid: typeof value.showGrid === 'boolean' ? value.showGrid : true,
-      wireframe: typeof value.wireframe === 'boolean' ? value.wireframe : false,
-      xRay: typeof value.xRay === 'boolean' ? value.xRay : false,
-      sectionOffset: boundedNumber(value.sectionOffset, -100, 100, 0),
-      selectedComponent: typeof value.selectedComponent === 'string' ? value.selectedComponent : '',
-      selectedLibraryModuleId: typeof value.selectedLibraryModuleId === 'string' ? value.selectedLibraryModuleId : '',
-      showConnectors: typeof value.showConnectors === 'boolean' ? value.showConnectors : false,
-      explodeFactor: boundedNumber(value.explodeFactor, 0, 1, 0),
-      measurementMode: isOneOf(value.measurementMode, ['distance', 'normal_angle']) ? value.measurementMode : 'distance',
-      componentCategory: isComponentFilter(value.componentCategory) ? value.componentCategory : 'all',
-      reviewStatusFilter: isOneOf(value.reviewStatusFilter, ['', 'draft', 'pending_review', 'approved', 'restricted']) ? value.reviewStatusFilter : '',
-      drawerExpanded: typeof value.drawerExpanded === 'boolean' ? value.drawerExpanded : false,
-      drawerHeight: boundedNumber(value.drawerHeight, 280, 520, 368),
-    }
-  } catch {
-    return DEFAULT_WORKBENCH_SESSION
-  }
-}
-
-function isOneOf<T extends string>(value: unknown, options: readonly T[]): value is T {
-  return typeof value === 'string' && options.includes(value as T)
-}
-
-function boundedNumber(value: unknown, min: number, max: number, fallback: number) {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(min, Math.min(max, value))
-    : fallback
-}
-
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
-}
-
-function isComponentFilter(value: unknown): value is ComponentFilter {
-  return isOneOf(value, ['all', 'installed', 'compatible', 'favorites', 'recent', ...Object.keys(MODULE_CATEGORY_LABELS)])
-}
-
-const MODULE_CATEGORY_LABELS: Record<ModuleCategory, string> = {
-  core_shell: '核心外壳',
-  front_shell: '前部外壳',
-  rear_shell: '后部外壳',
-  grip_shell: '握持外壳',
-  top_accessory: '顶部附件',
-  side_accessory: '侧部附件',
-  lower_structure: '下部结构',
-  storage_visual: '储存视觉',
-  armor_panel: '装甲面板',
-}
-
-const COMPONENT_CATEGORIES: Array<{ id: ComponentFilter; label: string }> = [
-  { id: 'all', label: '全部组件' },
-  { id: 'installed', label: '当前装配' },
-  { id: 'compatible', label: '可替换' },
-  { id: 'favorites', label: '收藏' },
-  { id: 'recent', label: '最近使用' },
-  ...Object.entries(MODULE_CATEGORY_LABELS).map(([id, label]) => ({
-    id: id as ModuleCategory,
-    label,
-  })),
-]
-
-const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  draft: '草稿',
-  pending_review: '待审',
-  approved: '已批准',
-  restricted: '受限',
-}
-
-const ORIGIN_CLAIM_LABELS = {
-  self_declared_original: '本人原创声明',
-  third_party: '第三方来源',
-  unknown: '来源待补充',
-} as const
-
-const QUALITY_STATUS_LABELS: Record<QualityStatus, string> = {
-  passed: '通过',
-  warning: '警告',
-  failed: '失败',
-  unavailable: '未检查',
 }
 
 const TOOL_ITEMS: Array<{
@@ -244,51 +167,224 @@ const TOOL_ITEMS: Array<{
 
 export function CadWorkbenchPanel() {
   const concept = useConceptWorkbench()
-  const [restoredSession] = useState(readWorkbenchSession)
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(() => restoredSession.inspectorTab)
-  const [activeTool, setActiveTool] = useState<Tool>(() => restoredSession.activeTool)
-  const [transformSpace, setTransformSpace] = useState<'world' | 'local'>(() => restoredSession.transformSpace)
-  const [snapEnabled, setSnapEnabled] = useState(() => restoredSession.snapEnabled)
-  const [cameraView, setCameraView] = useState<CameraView>(() => restoredSession.cameraView)
-  const [showGrid, setShowGrid] = useState(() => restoredSession.showGrid)
-  const [wireframe, setWireframe] = useState(() => restoredSession.wireframe)
-  const [xRay, setXRay] = useState(() => restoredSession.xRay)
-  const [sectionOffset, setSectionOffset] = useState(() => restoredSession.sectionOffset)
-  const [selectedComponent, setSelectedComponent] = useState(() => restoredSession.selectedComponent)
-  const [selectedLibraryModuleId, setSelectedLibraryModuleId] = useState(() => restoredSession.selectedLibraryModuleId)
-  // The optional visual-storage module remains part of the 9-node graph, but
-  // opening with it hidden gives the compact prop a single-grip silhouette.
-  // Selecting it exposes the ordinary “显示” action in the property panel.
-  const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>(DEFAULT_HIDDEN_NODE_IDS)
-  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
-  const [qualityHighlightNodeIds, setQualityHighlightNodeIds] = useState<string[]>([])
-  const [qualityGeometryRefs, setQualityGeometryRefs] = useState<
-    NonNullable<QualityFinding['geometry_refs']>
-  >([])
-  const [showConnectors, setShowConnectors] = useState(() => restoredSession.showConnectors)
-  const [explodeFactor, setExplodeFactor] = useState(() => restoredSession.explodeFactor)
+  const { api, checkService } = useRuntime()
+  const {
+    activeDesignState,
+    openProject,
+    startActiveDesignRequest,
+    isCurrentActiveDesignRequest,
+    receiveActiveDesignSnapshot,
+    failActiveDesignRequest,
+    drawerFocusRef,
+    componentDrawerOpen,
+    exportOpen,
+    qualityOpen,
+    hasOpenDrawer,
+    openDrawer,
+    closeDrawers,
+  } = useWorkbenchLifecycle()
+  const {
+    agentConversationState,
+    openConversationProject,
+    startAgentConversationRequest,
+    isCurrentAgentConversationRequest,
+    receiveAgentTurn,
+    receiveAgentClarification,
+    markAgentKernelUnavailable,
+    setChatInput,
+    setAssistantMode,
+    setAssistantNote,
+  } = useAgentConversationPresentation()
+  const {
+    chatInput,
+    assistantMode,
+    assistantNote,
+    agentThreadId,
+    agentKernelItems,
+    agentKernelUnavailable,
+    agentClarification,
+    agentPlan,
+  } = agentConversationState
+  const {
+    agentBlockoutDisplay,
+    openBlockoutProject,
+    startDirectionPreview,
+    isCurrentDirectionPreview,
+    receiveBlockoutBuild,
+    receiveSegmentation,
+    failSegmentation,
+    failDirectionPreview,
+    hydrateBlockoutDisplay,
+    setBlockoutGlb,
+    setBlockoutShapeProgram,
+    clearBlockoutDisplay,
+  } = useAgentBlockoutDisplay()
+  const {
+    agentDirectionConceptPreviewState,
+    openDirectionConceptPreviewProject,
+    startDirectionConceptPreviews,
+    receiveDirectionConceptPreview,
+    failDirectionConceptPreview,
+    clearDirectionConceptPreviews,
+  } = useAgentDirectionConceptPreviews()
+  const {
+    agentAssetWorkspace,
+    openAgentAssetWorkspaceProject,
+    startAgentAssetWorkspaceHydration,
+    receiveAgentAssetWorkspaceAsset,
+    projectAgentAssetWorkspaceSelection,
+    receiveAgentAssetWorkspaceQuality,
+    receiveAgentAssetWorkspaceNavigation,
+    clearAgentAssetWorkspaceQuality,
+    clearAgentAssetWorkspace,
+  } = useAgentAssetWorkspace()
+  const {
+    componentLibraryPreferences,
+    openComponentLibraryPreferences,
+    setComponentCategory,
+    setComponentQuery,
+    setReviewStatusFilter,
+    toggleLibraryFavorite,
+    recordRecentLibraryModule,
+    setDrawerExpanded,
+    setDrawerHeight,
+    setComponentDrawerMode,
+    toggleComponentDrawerMode,
+  } = useComponentLibraryPreferences()
+  const {
+    viewportDisplayPreferences,
+    openViewportDisplayPreferences,
+    setViewportTool,
+    setViewportShowConnectors,
+    setViewportExplodeFactor,
+    setViewportSectionOffset,
+  } = useViewportDisplayPreferences()
+  const {
+    legacyModuleGraphWorkspace,
+    legacyModuleGraphWorkspacePreferenceKey,
+    openLegacyModuleGraphWorkspace,
+    setLegacyInspectorTab,
+    setLegacyTransformSpace,
+    setLegacySnapEnabled,
+    selectLegacyModuleGraphNode,
+    setLegacySelectedModule,
+    clearLegacyModuleGraphSelection,
+    setLegacyMeasurementMode,
+    reconcileLegacyModuleGraphSelection,
+  } = useLegacyModuleGraphWorkspace()
+  const {
+    legacyModuleGraphOverlay,
+    legacyModuleGraphOverlayContextKey,
+    thumbnailFailures,
+    openLegacyModuleGraphOverlay,
+    reconcileLegacyModuleGraphOverlayNodes,
+    toggleLegacyHiddenNode,
+    setLegacyFocusNode,
+    setLegacyQualityOverlay,
+    clearLegacyQualityOverlay,
+    recordLegacyThumbnailFailure,
+  } = useLegacyModuleGraphOverlay()
+  const {
+    agentRenderPresentation,
+    openAgentRenderPresentation,
+    startAgentRenderRequest,
+    receiveAgentRenderSet,
+    failAgentRenderRequest,
+    startAgentRenderPackageRequest,
+    finishAgentRenderPackageRequest,
+    closeAgentRenderPresentation,
+  } = useAgentRenderPresentation()
+  const {
+    agentEditAssistPresentation,
+    openAgentEditAssistPresentation,
+    startAgentEditAssistRead,
+    receiveAgentEditAssistRead,
+    failAgentEditAssistRead,
+    clearAgentEditAssistPresentation,
+  } = useAgentEditAssistPresentation()
+  const {
+    agentMaterialCatalogPresentation,
+    openAgentMaterialCatalogPresentation,
+    startAgentMaterialCatalogRead,
+    receiveAgentMaterialCatalog,
+    failAgentMaterialCatalog,
+  } = useAgentMaterialCatalogPresentation()
+  const {
+    agentMaterialFilterPresentation,
+    openAgentMaterialFilterPresentation,
+    setMaterialFilterQuery,
+    setMaterialFilterCategory,
+    setMaterialFilterCompatibilityOnly,
+  } = useAgentMaterialFilterPresentation()
+  const {
+    agentMaterialPreselectionPresentation,
+    openAgentMaterialPreselectionPresentation,
+    selectMaterialPreselection,
+  } = useAgentMaterialPreselectionPresentation()
+  const { componentCatalogPresentation, openComponentCatalog, startComponentCatalogRead, receiveComponentCatalog, failComponentCatalog } = useComponentCatalogPresentation()
+  const {
+    glbBase64: agentBlockoutGlbBase64,
+    shapeProgram: agentBlockoutShapeProgram,
+    segmentation: agentBlockoutSegmentation,
+  } = agentBlockoutDisplay
+  const blockoutPreviewPresentation = selectAgentBlockoutPreviewPresentation(agentBlockoutDisplay)
+  const agentPlanSourcePresentation = selectAgentPlanSourcePresentation(agentPlan)
+  const [cameraView, setCameraView] = useState<CameraView>('iso')
+  const [lightPreset, setLightPreset] = useState<LightPreset>('cad_neutral')
   const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
   const [measurementAnnotations, setMeasurementAnnotations] = useState<MeasurementAnnotation[]>([])
-  const [measurementMode, setMeasurementMode] = useState<'distance' | 'normal_angle'>(() => restoredSession.measurementMode)
-  const [componentCategory, setComponentCategory] = useState<ComponentFilter>(() => restoredSession.componentCategory)
-  const [componentQuery, setComponentQuery] = useState('')
-  const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatus | ''>(() => restoredSession.reviewStatusFilter)
-  const [drawerExpanded, setDrawerExpanded] = useState(() => restoredSession.drawerExpanded)
-  const [drawerHeight, setDrawerHeight] = useState(() => restoredSession.drawerHeight)
-  const [componentDrawerOpen, setComponentDrawerOpen] = useState(false)
-  const [componentDrawerMode, setComponentDrawerMode] = useState<ComponentDrawerMode>('recommended')
   const [showPrecisionAdjustments, setShowPrecisionAdjustments] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
+  const [presentationProfile, setPresentationProfile] = useState<'quick_sketch' | 'showcase'>('showcase')
   const [exportPurpose, setExportPurpose] = useState<ExportPurpose>('presentation')
-  const [qualityOpen, setQualityOpen] = useState(false)
-  const [favoriteModuleIds, setFavoriteModuleIds] = useState<string[]>([])
-  const [recentModuleIds, setRecentModuleIds] = useState<string[]>([])
-  const [thumbnailFailures, setThumbnailFailures] = useState<Set<string>>(() => new Set())
-  const [chatInput, setChatInput] = useState('')
-  const [assistantMode, setAssistantMode] = useState<AssistantMode>('brief')
-  const [assistantNote, setAssistantNote] = useState(
-    '输入概念需求后生成受限设计方向；AI 只使用已注册的展示模块。',
+  const [agentAssetChangeSet, setAgentAssetChangeSet] = useState<AgentAssetChangeSet | null>(null)
+  const [agentCandidateSelectedPartId, setAgentCandidateSelectedPartId] = useState<string | null>(null)
+  const agentAssetVersion = agentAssetWorkspace.assetVersion
+  const agentQualityReport = agentAssetWorkspace.qualityReport
+  const agentNavigation = agentAssetWorkspace.navigation
+  const activeDesignSnapshot = activeDesignState.snapshot
+  const {
+    activeTool,
+    showGrid,
+    wireframe,
+    xRay,
+    showConnectors,
+    explodeFactor,
+    sectionOffset,
+  } = viewportDisplayPreferences
+  const {
+    inspectorTab,
+    transformSpace,
+    snapEnabled,
+    selectedNodeId: selectedComponent,
+    selectedModuleId: selectedLibraryModuleId,
+    measurementMode,
+  } = legacyModuleGraphWorkspace
+  const activeDesignAssetVersionId = activeDesignSnapshot?.active_design.source === 'agent_asset'
+    ? activeDesignSnapshot.active_design.asset_version_id
+    : null
+  const activeAgentAssetVersion = activeDesignAssetVersionId === agentAssetVersion?.asset_version_id
+    ? agentAssetVersion
+    : null
+  const legacyCompatibility = useMemo(
+    () => getLegacyCompatibilityDisplay(activeDesignSnapshot, activeDesignState.operation),
+    [activeDesignSnapshot, activeDesignState.operation],
   )
+  const legacyDesignReadOnly = legacyCompatibility.isLegacyReadOnly
+  const agentComponentCandidates = agentEditAssistPresentation.componentCandidates
+  const agentStructureSuggestions = agentEditAssistPresentation.structureSuggestions
+  const structureSuggestionUnavailableMessage = agentEditAssistPresentation.structureSuggestionUnavailableMessage
+  // Once an Agent asset is active, selection must be projected from the
+  // server-owned Snapshot. The local value remains only for an uncommitted
+  // blockout candidate before a Snapshot asset exists.
+  const displayedAgentSelectedPartId = activeAgentAssetVersion
+    ? agentAssetWorkspace.selectedPartId
+    : agentCandidateSelectedPartId
+  const selectedAgentPart = agentAssetVersion?.parts.find((part) => part.part_id === displayedAgentSelectedPartId)
+  const activePartDisplay = activeDesignPartDisplay(activeDesignSnapshot)
+  const selectedAgentPartLocked = selectedAgentPart
+    ? activeDesignPartIsLocked(activeDesignSnapshot, selectedAgentPart.part_id)
+    : false
+  const [appearanceMaterialZoneId, setAppearanceMaterialZoneId] = useState('')
   const [exportFormat, setExportFormat] = useState('SOURCE ZIP')
   const [parameters, setParameters] = useState<WeaponParameters>({
     overallLength: 230,
@@ -298,7 +394,295 @@ export function CadWorkbenchPanel() {
     shellThickness: 2.5,
     detailDensity: 68,
   })
+
+  useEffect(() => {
+    if (activeDesignSnapshot?.selected_material_zone_id) {
+      setAppearanceMaterialZoneId(activeDesignSnapshot.selected_material_zone_id)
+    } else if (selectedAgentPart) {
+      setAppearanceMaterialZoneId(selectedAgentPart.material_zone_ids[0] ?? '')
+    } else {
+      setAppearanceMaterialZoneId('')
+    }
+  }, [activeDesignSnapshot?.selected_material_zone_id, displayedAgentSelectedPartId, agentAssetVersion?.asset_version_id])
+
+  const activeMaterialDomain = DOMAIN_TYPE_BY_PACK[
+    activeAgentAssetVersion?.domain_pack_id ?? agentPlan?.domain_pack_id ?? ''
+  ] ?? null
+  const materialPresets = agentMaterialCatalogPresentation.materialPresets
+  const catalogModules = componentCatalogPresentation.modules
+  const materialQuery = agentMaterialFilterPresentation.query
+  const materialCategory = agentMaterialFilterPresentation.category
+  const materialCompatibilityOnly = agentMaterialFilterPresentation.compatibilityOnly
+  const appearanceMaterialId = agentMaterialPreselectionPresentation.materialId
   const [transformDraft, setTransformDraft] = useState<Transform>(() => identityTransform())
+  const [providerConfig, setProviderConfig] = useState<ProviderConfigMetadata | null>(null)
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false)
+  const [providerBaseUrl, setProviderBaseUrl] = useState('https://api.deepseek.com')
+  const [providerModel, setProviderModel] = useState('deepseek-v4-pro')
+  const [providerApiKey, setProviderApiKey] = useState('')
+  const [providerSaving, setProviderSaving] = useState(false)
+  const [importingGlb, setImportingGlb] = useState(false)
+  const importGlbInputRef = useRef<HTMLInputElement | null>(null)
+  const {
+    componentCategory,
+    componentQuery,
+    reviewStatusFilter,
+    favoriteModuleIds,
+    recentModuleIds,
+    drawerExpanded,
+    drawerHeight,
+    componentDrawerMode,
+  } = componentLibraryPreferences
+  const isExternalGlbReference = agentAssetVersion?.shape_program?.schema_version === 'ExternalGLBReference@1'
+
+  useEffect(() => {
+    openAgentRenderPresentation(
+      activeAgentAssetVersion ? concept.project?.project_id ?? null : null,
+      activeAgentAssetVersion?.asset_version_id ?? null,
+    )
+  }, [activeAgentAssetVersion?.asset_version_id, concept.project?.project_id, openAgentRenderPresentation])
+
+  const refreshActiveDesign = useCallback(async (projectId: string) => {
+    const requestId = startActiveDesignRequest('loading')
+    try {
+      const response = await api.getActiveDesign(projectId)
+      if (!receiveActiveDesignSnapshot(projectId, requestId, response)) return null
+      if (response.data.render_preset) {
+        setCameraView(response.data.render_preset.camera_view ?? 'iso')
+        setLightPreset(response.data.render_preset.light_preset ?? 'cad_neutral')
+      } else if (response.data.active_design.source !== 'agent_asset') {
+        setCameraView('iso')
+        setLightPreset('cad_neutral')
+      }
+      if (response.data.active_design.source !== 'agent_asset') {
+        clearAgentAssetWorkspace()
+        clearAgentEditAssistPresentation()
+        setAgentCandidateSelectedPartId(null)
+        return response.data
+      }
+      const workspaceRequestId = startAgentAssetWorkspaceHydration(
+        projectId,
+        response.data.active_design.asset_version_id,
+        activeDesignSelectedPartId(response.data),
+      )
+      const version = await api.getAgentAssetVersion(response.data.active_design.asset_version_id)
+      if (!isCurrentActiveDesignRequest(requestId) || !receiveAgentAssetWorkspaceAsset(projectId, workspaceRequestId, version)) return null
+      void api.getActiveDesignNavigation(response.data.project_id)
+        .then((navigation) => { receiveAgentAssetWorkspaceNavigation(projectId, workspaceRequestId, navigation) })
+        .catch(() => { receiveAgentAssetWorkspaceNavigation(projectId, workspaceRequestId, null) })
+      if (response.data.quality?.asset_version_id === version.asset_version_id) {
+        void api.getAgentQualityReport(response.data.quality.quality_report_id)
+          .then((report) => {
+            receiveAgentAssetWorkspaceQuality(projectId, workspaceRequestId, report)
+          })
+          .catch(() => {
+            receiveAgentAssetWorkspaceQuality(projectId, workspaceRequestId, null)
+          })
+      } else {
+        clearAgentAssetWorkspaceQuality(projectId)
+      }
+      clearAgentEditAssistPresentation()
+      const isImportedReference = version.shape_program?.schema_version === 'ExternalGLBReference@1'
+      hydrateBlockoutDisplay(projectId, {
+        shapeProgram: isImportedReference ? null : version.shape_program,
+        segmentation: {
+          artifact_id: version.artifact_id,
+          plan_id: version.plan_id,
+          direction_id: version.direction_id,
+          domain_pack_id: version.domain_pack_id,
+          segmentation_status: 'candidate',
+          parts: version.parts,
+          assembly_graph: version.assembly_graph,
+        },
+      })
+      if (isImportedReference) {
+        void api.exportAgentAssetGlb(version.asset_version_id).then((exported) => {
+          if (isCurrentActiveDesignRequest(requestId)) setBlockoutGlb(projectId, exported.glb_base64)
+        }).catch(() => {
+          if (isCurrentActiveDesignRequest(requestId)) setAssistantNote('导入参考模型的原始 GLB 不可读取；不会影响其他项目版本。')
+        })
+      }
+      return response.data
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return null
+      // A freshly created project has no Snapshot until its first Agent asset
+      // is committed. This is an empty state, not a user-facing failure.
+      if (error.kind !== 'not_found') {
+        setAssistantNote(error.message)
+      }
+      return null
+    }
+  }, [api, clearAgentAssetWorkspace, clearAgentAssetWorkspaceQuality, clearAgentEditAssistPresentation, failActiveDesignRequest, hydrateBlockoutDisplay, isCurrentActiveDesignRequest, receiveActiveDesignSnapshot, receiveAgentAssetWorkspaceAsset, receiveAgentAssetWorkspaceNavigation, receiveAgentAssetWorkspaceQuality, setBlockoutGlb, startActiveDesignRequest, startAgentAssetWorkspaceHydration])
+
+  const updateRenderPreset = useCallback(async (next: { cameraView?: CameraView; lightPreset?: LightPreset }) => {
+    const nextCameraView = next.cameraView ?? cameraView
+    const nextLightPreset = next.lightPreset ?? lightPreset
+    setCameraView(nextCameraView)
+    setLightPreset(nextLightPreset)
+    const snapshot = activeDesignSnapshot
+    const etag = activeDesignState.snapshotEtag
+    if (!snapshot || snapshot.active_design.source !== 'agent_asset' || !etag) return
+    const requestId = startActiveDesignRequest('setting_render_preset')
+    try {
+      const response = await api.setActiveDesignRenderPreset(
+        snapshot.project_id,
+        {
+          client_request_id: `render-preset-${requestId}`,
+          snapshot_revision: snapshot.revision,
+          camera_view: nextCameraView,
+          light_preset: nextLightPreset,
+        },
+        { ifMatch: etag },
+      )
+      receiveActiveDesignSnapshot(snapshot.project_id, requestId, response)
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      if (error.shouldReloadSnapshot) void refreshActiveDesign(snapshot.project_id)
+      setAssistantNote(error.message)
+    }
+  }, [activeDesignSnapshot, activeDesignState.snapshotEtag, api, cameraView, failActiveDesignRequest, lightPreset, receiveActiveDesignSnapshot, refreshActiveDesign, startActiveDesignRequest])
+
+  useEffect(() => {
+    const projectId = concept.project?.project_id
+    if (!projectId) return
+    openProject(projectId)
+    openAgentAssetWorkspaceProject(projectId)
+    void refreshActiveDesign(projectId)
+  }, [concept.project?.project_id, openAgentAssetWorkspaceProject, openProject, refreshActiveDesign])
+
+  const loadAgentEditAssist = useCallback(async (projectId: string, assetVersionId: string, partId: string) => {
+    const requestId = startAgentEditAssistRead(projectId, assetVersionId, partId)
+    if (requestId === null) return
+    try {
+      const [candidates, structure] = await Promise.all([
+        api.listAgentComponentCandidates(assetVersionId, partId),
+        api.listAgentStructureSuggestions(assetVersionId),
+      ])
+      receiveAgentEditAssistRead(projectId, assetVersionId, partId, requestId, candidates, structure)
+    } catch {
+      failAgentEditAssistRead(projectId, assetVersionId, partId, requestId)
+    }
+  }, [api, failAgentEditAssistRead, receiveAgentEditAssistRead, startAgentEditAssistRead])
+
+  useEffect(() => {
+    const projectId = activeAgentAssetVersion && !isExternalGlbReference
+      ? concept.project?.project_id ?? null
+      : null
+    const assetVersionId = projectId ? activeAgentAssetVersion?.asset_version_id ?? null : null
+    const selectedPartId = assetVersionId ? selectedAgentPart?.part_id ?? null : null
+    openAgentEditAssistPresentation(projectId, assetVersionId, selectedPartId)
+    if (!projectId || !assetVersionId || !selectedPartId) return
+    void loadAgentEditAssist(projectId, assetVersionId, selectedPartId)
+  }, [
+    activeAgentAssetVersion?.asset_version_id,
+    concept.project?.project_id,
+    isExternalGlbReference,
+    loadAgentEditAssist,
+    openAgentEditAssistPresentation,
+    selectedAgentPart?.part_id,
+  ])
+
+  useEffect(() => {
+    const context = {
+      projectId: concept.project?.project_id ?? null,
+      packId: concept.project?.profile.pack_id ?? null,
+      source: activeDesignSnapshot?.active_design.source === 'agent_asset' ? 'agent_asset' as const : concept.project ? 'legacy' as const : 'none' as const,
+    }
+    openComponentCatalog(context)
+    if (!context.packId) return
+    const requestId = startComponentCatalogRead(context)
+    if (requestId === null) return
+    void api.listModuleAssets(context.packId).then((response) => {
+      receiveComponentCatalog(context, requestId, response.items ?? [])
+    }).catch(() => { failComponentCatalog(context, requestId) })
+  }, [activeDesignSnapshot?.active_design.source, api, concept.project, failComponentCatalog, openComponentCatalog, receiveComponentCatalog, startComponentCatalogRead])
+
+  useEffect(() => {
+    const context = {
+      projectId: concept.project?.project_id ?? null,
+      assetVersionId: activeAgentAssetVersion?.asset_version_id ?? null,
+      domainPackId: activeAgentAssetVersion?.domain_pack_id ?? agentPlan?.domain_pack_id ?? null,
+      source: isExternalGlbReference ? 'external_glb' as const : activeAgentAssetVersion ? 'agent_asset' as const : agentPlan ? 'blockout' as const : 'none' as const,
+    }
+    openAgentMaterialCatalogPresentation(context)
+    const requestId = startAgentMaterialCatalogRead(context)
+    if (requestId === null) return
+    void api.listAgentMaterials().then((items) => {
+      receiveAgentMaterialCatalog(context, requestId, items)
+    }).catch(() => {
+      failAgentMaterialCatalog(context, requestId, DEFAULT_AGENT_MATERIAL_PRESETS)
+    })
+  }, [
+    activeAgentAssetVersion?.asset_version_id,
+    activeAgentAssetVersion?.domain_pack_id,
+    agentPlan?.domain_pack_id,
+    api,
+    concept.project?.project_id,
+    failAgentMaterialCatalog,
+    isExternalGlbReference,
+    openAgentMaterialCatalogPresentation,
+    receiveAgentMaterialCatalog,
+    startAgentMaterialCatalogRead,
+  ])
+
+  useEffect(() => {
+    openAgentMaterialFilterPresentation({
+      projectId: concept.project?.project_id ?? null,
+      domainPackId: activeAgentAssetVersion?.domain_pack_id ?? agentPlan?.domain_pack_id ?? null,
+      source: isExternalGlbReference
+        ? 'external_glb'
+        : legacyDesignReadOnly
+          ? 'legacy'
+          : activeAgentAssetVersion
+            ? 'agent_asset'
+            : agentPlan
+              ? 'blockout'
+              : 'none',
+    })
+  }, [
+    activeAgentAssetVersion?.domain_pack_id,
+    agentPlan?.domain_pack_id,
+    concept.project?.project_id,
+    isExternalGlbReference,
+    legacyDesignReadOnly,
+    openAgentMaterialFilterPresentation,
+  ])
+
+  useEffect(() => {
+    openAgentMaterialPreselectionPresentation({
+      projectId: concept.project?.project_id ?? null,
+      assetVersionId: activeAgentAssetVersion?.asset_version_id ?? null,
+      selectedPartId: selectedAgentPart?.part_id ?? null,
+      source: isExternalGlbReference
+        ? 'external_glb'
+        : legacyDesignReadOnly
+          ? 'legacy'
+          : activeAgentAssetVersion
+            ? 'agent_asset'
+            : agentPlan
+              ? 'blockout'
+              : 'none',
+    })
+  }, [
+    activeAgentAssetVersion?.asset_version_id,
+    agentPlan?.domain_pack_id,
+    concept.project?.project_id,
+    isExternalGlbReference,
+    legacyDesignReadOnly,
+    openAgentMaterialPreselectionPresentation,
+    selectedAgentPart?.part_id,
+  ])
+
+  useEffect(() => {
+    void getTauriProviderConfig().then((config) => {
+      if (!config) return
+      setProviderConfig(config)
+      setProviderBaseUrl(config.base_url)
+      setProviderModel(config.model)
+    })
+  }, [])
 
   useEffect(() => {
     const spec = concept.version?.spec
@@ -313,109 +697,31 @@ export function CadWorkbenchPanel() {
   }, [concept.version])
 
   useEffect(() => {
-    try {
-      // Draft parameters and ChangeSet previews are intentionally omitted:
-      // only confirmed Versions are durable design truth.
-      window.localStorage.setItem(WORKBENCH_SESSION_KEY, JSON.stringify({
-        inspectorTab,
-        activeTool,
-        transformSpace,
-        snapEnabled,
-        cameraView,
-        showGrid,
-        wireframe,
-        xRay,
-        sectionOffset,
-        selectedComponent,
-        selectedLibraryModuleId,
-        showConnectors,
-        explodeFactor,
-        measurementMode,
-        componentCategory,
-        reviewStatusFilter,
-        drawerExpanded,
-        drawerHeight,
-      } satisfies WorkbenchSession))
-    } catch {
-      // A storage failure must not prevent a local workbench session from opening.
-    }
-  }, [
-    activeTool,
-    cameraView,
-    componentCategory,
-    drawerExpanded,
-    drawerHeight,
-    explodeFactor,
-    inspectorTab,
-    measurementMode,
-    reviewStatusFilter,
-    sectionOffset,
-    selectedComponent,
-    selectedLibraryModuleId,
-    showConnectors,
-    showGrid,
-    snapEnabled,
-    transformSpace,
-    wireframe,
-    xRay,
-  ])
-
-  useEffect(() => {
-    // A project reload briefly clears graphRecord while API requests are in
-    // flight. Preserve the stored selection during that gap so a restart does
-    // not replace it with the root node before the same graph returns.
+    // The compatibility graph may briefly clear during reload. Its local
+    // selection is reconciled only against the returned legacy graph; it never
+    // becomes the Agent Snapshot selection.
     if (!concept.graphRecord) return
     const nodes = concept.graphRecord?.graph.nodes ?? []
-    if (nodes.length === 0) {
-      setSelectedComponent('')
-      setSelectedLibraryModuleId('')
-      return
-    }
-    setSelectedComponent((current) => {
-      const existingNode = nodes.find((node) => node.node_id === current)
-      const nextNode = (existingNode && existingNode.node_id !== concept.graphRecord?.graph.root_node_id && !existingNode.locked
-        ? existingNode
-        : undefined)
-        ?? nodes.find((node) => node.node_id !== concept.graphRecord?.graph.root_node_id && !node.locked)
-        ?? nodes[0]
-      setSelectedLibraryModuleId((currentModuleId) => currentModuleId || nextNode.module_id)
-      return nextNode.node_id
-    })
-    setHiddenNodeIds((current) => current.filter((nodeId) => nodes.some((node) => node.node_id === nodeId)))
-  }, [concept.graphRecord])
-
-  const catalogPreferenceKey = concept.project
-    ? `forgecad.component-library.preferences.v1.${concept.project.profile.pack_id}`
-    : null
-
-  useEffect(() => {
-    if (!catalogPreferenceKey) return
-    try {
-      const stored = window.localStorage.getItem(catalogPreferenceKey)
-      const parsed = stored ? JSON.parse(stored) : null
-      setFavoriteModuleIds(Array.isArray(parsed?.favorites) ? parsed.favorites : [])
-      setRecentModuleIds(Array.isArray(parsed?.recent) ? parsed.recent : [])
-    } catch {
-      setFavoriteModuleIds([])
-      setRecentModuleIds([])
-    }
-  }, [catalogPreferenceKey])
-
-  useEffect(() => {
-    if (!catalogPreferenceKey) return
-    window.localStorage.setItem(catalogPreferenceKey, JSON.stringify({
-      favorites: favoriteModuleIds,
-      recent: recentModuleIds,
-    }))
-  }, [catalogPreferenceKey, favoriteModuleIds, recentModuleIds])
+    reconcileLegacyModuleGraphSelection(
+      nodes.map((node) => ({ nodeId: node.node_id, moduleId: node.module_id, locked: Boolean(node.locked) })),
+      concept.graphRecord.graph.root_node_id,
+    )
+    reconcileLegacyModuleGraphOverlayNodes(nodes.map((node) => node.node_id))
+  }, [
+    concept.graphRecord,
+    legacyModuleGraphOverlayContextKey,
+    legacyModuleGraphWorkspacePreferenceKey,
+    reconcileLegacyModuleGraphOverlayNodes,
+    reconcileLegacyModuleGraphSelection,
+  ])
 
   const selectedNode = concept.graphRecord?.graph.nodes.find(
     (node) => node.node_id === selectedComponent,
   ) ?? null
-  const selectedModule = concept.modules.find(
+  const selectedModule = catalogModules.find(
     (module) => module.manifest.module_id === selectedNode?.module_id,
   ) ?? null
-  const selectedLibraryModule = concept.modules.find(
+  const selectedLibraryModule = catalogModules.find(
     (module) => module.manifest.module_id === selectedLibraryModuleId,
   ) ?? null
   const selectedModuleLabel = selectedModule
@@ -486,46 +792,20 @@ export function CadWorkbenchPanel() {
   )
 
   const visibleComponents = useMemo(() => {
-    const query = componentQuery.trim().toLowerCase()
     const installedModuleIds = new Set(
       (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
     )
-    const selectedCategory = selectedModule?.manifest.category
-    const categoryItems = componentCategory === 'all'
-      ? concept.modules
-      : componentCategory === 'installed'
-      ? concept.modules.filter((component) => installedModuleIds.has(component.manifest.module_id))
-      : componentCategory === 'compatible'
-      ? concept.modules.filter((component) => (
-        selectedNode !== null
-        && !selectedNode.locked
-        && component.manifest.category === selectedCategory
-      ))
-      : componentCategory === 'favorites'
-      ? concept.modules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id))
-      : componentCategory === 'recent'
-      ? concept.modules.filter((component) => recentModuleIds.includes(component.manifest.module_id))
-      : concept.modules.filter((component) => component.manifest.category === componentCategory)
-    return categoryItems.filter((component) => {
-      const metadata = component.catalog_metadata
-      const haystack = [
-        component.manifest.module_id,
-        MODULE_CATEGORY_LABELS[component.manifest.category],
-        metadata.display_name,
-        metadata.description,
-        ...(metadata.tags ?? []),
-      ].join(' ').toLowerCase()
-      return (!query || haystack.includes(query))
-        && (!reviewStatusFilter || metadata.review_status === reviewStatusFilter)
+    return filterComponentLibraryRecords({
+      modules: catalogModules,
+      installedModuleIds,
+      selectedModuleCategory: selectedModule?.manifest.category ?? null,
+      selectedNodeUnlocked: Boolean(selectedNode && !selectedNode.locked),
+      preferences: componentLibraryPreferences,
     })
   }, [
-    componentCategory,
-    componentQuery,
+    componentLibraryPreferences,
     concept.graphRecord,
-    concept.modules,
-    favoriteModuleIds,
-    recentModuleIds,
-    reviewStatusFilter,
+    catalogModules,
     selectedModule,
     selectedNode,
   ])
@@ -535,16 +815,16 @@ export function CadWorkbenchPanel() {
       (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
     )
     const compatibleCount = selectedNode && !selectedNode.locked && selectedModule
-      ? concept.modules.filter((component) => component.manifest.category === selectedModule.manifest.category).length
+      ? catalogModules.filter((component) => component.manifest.category === selectedModule.manifest.category).length
       : 0
     return {
-      all: concept.modules.length,
+      all: catalogModules.length,
       installed: installedModuleIds.size,
       compatible: compatibleCount,
-      favorites: concept.modules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id)).length,
-      recent: concept.modules.filter((component) => recentModuleIds.includes(component.manifest.module_id)).length,
+      favorites: catalogModules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id)).length,
+      recent: catalogModules.filter((component) => recentModuleIds.includes(component.manifest.module_id)).length,
     }
-  }, [concept.graphRecord, concept.modules, favoriteModuleIds, recentModuleIds, selectedModule, selectedNode])
+  }, [catalogModules, concept.graphRecord, favoriteModuleIds, recentModuleIds, selectedModule, selectedNode])
 
   const displayedComponents = useMemo(
     () => componentDrawerMode === 'recommended' ? visibleComponents.slice(0, 3) : visibleComponents,
@@ -573,26 +853,17 @@ export function CadWorkbenchPanel() {
     .sort((left, right) => right.version_no - left.version_no)[0]?.version_id ?? null
 
   const selectGraphNode = useCallback((nodeId: string) => {
-    setSelectedComponent(nodeId)
     const node = concept.graphRecord?.graph.nodes.find((item) => item.node_id === nodeId)
-    if (node) setSelectedLibraryModuleId(node.module_id)
-  }, [concept.graphRecord])
+    selectLegacyModuleGraphNode(nodeId, node?.module_id ?? '')
+  }, [concept.graphRecord, selectLegacyModuleGraphNode])
 
   const selectLibraryModule = useCallback((module: ModuleAssetRecord) => {
     const moduleId = module.manifest.module_id
-    setSelectedLibraryModuleId(moduleId)
-    setRecentModuleIds((current) => [moduleId, ...current.filter((item) => item !== moduleId)].slice(0, 12))
+    setLegacySelectedModule(moduleId)
+    recordRecentLibraryModule(moduleId)
     const graphNode = concept.graphRecord?.graph.nodes.find((node) => node.module_id === moduleId)
-    if (graphNode && !componentDrawerOpen) setSelectedComponent(graphNode.node_id)
-  }, [componentDrawerOpen, concept.graphRecord])
-
-  const toggleLibraryFavorite = useCallback((moduleId: string) => {
-    setFavoriteModuleIds((current) => (
-      current.includes(moduleId)
-        ? current.filter((item) => item !== moduleId)
-        : [...current, moduleId]
-    ))
-  }, [])
+    if (graphNode && !componentDrawerOpen) selectLegacyModuleGraphNode(graphNode.node_id, graphNode.module_id)
+  }, [componentDrawerOpen, concept.graphRecord, recordRecentLibraryModule, selectLegacyModuleGraphNode, setLegacySelectedModule])
 
   const beginDrawerResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drawerExpanded) return
@@ -609,6 +880,28 @@ export function CadWorkbenchPanel() {
     window.addEventListener('pointerup', onUp)
   }, [drawerExpanded, drawerHeight])
 
+  const resizeDrawerByKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!drawerExpanded && event.key !== 'Enter' && event.key !== ' ') return
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Home' || event.key === 'End' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      setDrawerExpanded(true)
+      return
+    }
+    if (event.key === 'ArrowUp') setDrawerHeight(drawerHeight + 24)
+    if (event.key === 'ArrowDown') setDrawerHeight(drawerHeight - 24)
+    if (event.key === 'Home') setDrawerHeight(280)
+    if (event.key === 'End') setDrawerHeight(520)
+  }, [drawerExpanded, drawerHeight, setDrawerExpanded, setDrawerHeight])
+
+  const closeAllDrawers = useCallback(() => {
+    closeAgentRenderPresentation()
+    closeDrawers()
+  }, [closeAgentRenderPresentation, closeDrawers])
+  const openExportDrawer = useCallback(() => openDrawer('export'), [openDrawer])
+  const openQualityDrawer = useCallback(() => openDrawer('quality'), [openDrawer])
+
   const focusQualityFinding = useCallback((finding: QualityFinding) => {
     const validNodeIds = (finding.node_ids ?? []).filter((candidate) => (
       concept.graphRecord?.graph.nodes.some((node) => node.node_id === candidate)
@@ -616,19 +909,22 @@ export function CadWorkbenchPanel() {
     const nodeId = validNodeIds[0]
     if (!nodeId) return
     selectGraphNode(nodeId)
-    setFocusedNodeId(nodeId)
-    setQualityHighlightNodeIds(validNodeIds)
-    setQualityGeometryRefs(
+    setLegacyFocusNode(nodeId)
+    setLegacyQualityOverlay(
+      validNodeIds,
       (finding.geometry_refs ?? []).filter((reference) => validNodeIds.includes(reference.node_id)),
     )
-  }, [concept.graphRecord, selectGraphNode])
+  }, [concept.graphRecord, selectGraphNode, setLegacyFocusNode, setLegacyQualityOverlay])
 
   useEffect(() => {
-    setQualityHighlightNodeIds([])
-    setQualityGeometryRefs([])
-  }, [concept.qualityRun?.quality_run_id, concept.version?.version_id])
+    clearLegacyQualityOverlay()
+  }, [clearLegacyQualityOverlay, concept.qualityRun?.quality_run_id, concept.version?.version_id])
 
   const handleCreateExport = useCallback(async () => {
+    if (activeDesignSnapshot?.active_design.source === 'agent_asset') {
+      setAssistantNote('当前 Agent 设计请使用“下载 3D 模型 (GLB)”，不会回退到旧 Concept 版本。')
+      return
+    }
     const currentExport = concept.lastExport?.version_id === concept.version?.version_id
       ? concept.lastExport
       : null
@@ -655,7 +951,71 @@ export function CadWorkbenchPanel() {
     } catch (caught) {
       setAssistantNote(`导出已生成，但浏览器下载失败：${errorText(caught)}`)
     }
-  }, [concept, exportFormat])
+  }, [activeDesignSnapshot, concept, exportFormat])
+
+  const handleDownloadAgentGlb = useCallback(async () => {
+    if (!activeAgentAssetVersion) {
+      setAssistantNote('正在同步当前设计版本，请稍后再下载。')
+      return
+    }
+    try {
+      const result = await api.exportAgentAssetGlb(activeAgentAssetVersion.asset_version_id)
+      downloadBase64File(result.glb_base64, `${activeAgentAssetVersion.asset_version_id}.glb`, 'model/gltf-binary')
+      setAssistantNote(`已下载当前 Agent 设计 v${activeAgentAssetVersion.version_no} 的 GLB；下载前已完成 ${result.readback_triangle_count.toLocaleString()} 三角形回读。`)
+    } catch (caught) {
+      setAssistantNote(`3D 模型下载失败：${errorText(caught)}`)
+    }
+  }, [activeAgentAssetVersion, api])
+
+  const handleRenderAgentViews = useCallback(async () => {
+    const projectId = concept.project?.project_id
+    if (!activeAgentAssetVersion || !projectId) return
+    const requestId = startAgentRenderRequest(projectId, activeAgentAssetVersion.asset_version_id)
+    if (requestId === null) return
+    try {
+      const result = await api.renderAgentAssetViews(activeAgentAssetVersion.asset_version_id, { width: 512, height: 512 })
+      if (!receiveAgentRenderSet(projectId, activeAgentAssetVersion.asset_version_id, requestId, result)) return
+      setAssistantNote(result.exploded_view_available
+        ? '已生成四视图和爆炸概念图。它们均为当前 Agent 资产的只读透明预览，不会改变模型版本。'
+        : '已生成四张概念视图。当前模型不能安全分离出爆炸概念图；模型版本没有变化。')
+    } catch (caught) {
+      if (!failAgentRenderRequest(projectId, activeAgentAssetVersion.asset_version_id, requestId)) return
+      setAssistantNote(`概念图生成失败：${errorText(caught)}`)
+    }
+  }, [activeAgentAssetVersion, api, concept.project?.project_id, failAgentRenderRequest, receiveAgentRenderSet, startAgentRenderRequest])
+
+  const handleDownloadAgentRenderView = useCallback((view: AgentAssetRenderView) => {
+    downloadBase64File(view.png_base64, `${activeAgentAssetVersion?.asset_version_id ?? 'agent-asset'}-${view.view_id}.png`, 'image/png')
+  }, [activeAgentAssetVersion])
+
+  const handleDownloadAgentRenderPackage = useCallback(async () => {
+    const projectId = concept.project?.project_id
+    const agentRenderSet = agentRenderPresentation.renderSet
+    if (!activeAgentAssetVersion || !projectId || !agentRenderSet) return
+    if (agentRenderSet.asset_version_id !== activeAgentAssetVersion.asset_version_id) {
+      setAssistantNote('概念图对应的设计版本已变化，请重新生成后再下载。')
+      return
+    }
+    const requestId = startAgentRenderPackageRequest(
+      projectId,
+      activeAgentAssetVersion.asset_version_id,
+      agentRenderSet.render_set_sha256,
+    )
+    if (requestId === null) return
+    try {
+      const result = await api.downloadAgentAssetRenderPackage(activeAgentAssetVersion.asset_version_id, agentRenderSet)
+      if (!finishAgentRenderPackageRequest(projectId, activeAgentAssetVersion.asset_version_id, requestId, agentRenderSet.render_set_sha256)) return
+      if (result.renderSetSha256 && result.renderSetSha256 !== agentRenderSet.render_set_sha256) {
+        setAssistantNote('概念图包与当前预览不一致，未开始下载。请重新生成概念图。')
+        return
+      }
+      downloadBlobFile(result.blob, result.filename)
+      setAssistantNote('已下载概念图包：只包含当前概念 PNG 与来源清单，不包含模型源文件或工程信息。')
+    } catch (caught) {
+      if (!finishAgentRenderPackageRequest(projectId, activeAgentAssetVersion.asset_version_id, requestId, agentRenderSet.render_set_sha256)) return
+      setAssistantNote(`概念图包下载失败：${errorText(caught)}`)
+    }
+  }, [activeAgentAssetVersion, agentRenderPresentation.renderSet, api, concept.project?.project_id, finishAgentRenderPackageRequest, startAgentRenderPackageRequest])
 
   const downloadExistingExport = useCallback((url: string, filename: string) => {
     downloadBrowserFile(url, filename).catch((caught) => {
@@ -664,10 +1024,18 @@ export function CadWorkbenchPanel() {
   }, [])
 
   const handleReplaceSelected = useCallback(() => {
+    if (activeDesignSnapshot?.active_design.source === 'agent_asset') {
+      setAssistantNote('当前是 Agent 资产；请在“分件候选”中选择部件，旧版组件替换入口不会修改 Agent 版本。')
+      return
+    }
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     if (!selectedNode || !selectedLibraryModule) return
     concept.previewModuleReplacement(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
       .catch(() => undefined)
-  }, [concept, selectedLibraryModule, selectedNode])
+  }, [activeDesignSnapshot, concept, legacyDesignReadOnly, selectedLibraryModule, selectedNode])
 
   const openComponentReplacement = useCallback(() => {
     if (!selectedNode || selectedNode.locked) return
@@ -676,14 +1044,18 @@ export function CadWorkbenchPanel() {
     setReviewStatusFilter('')
     setComponentDrawerMode('recommended')
     setDrawerExpanded(false)
-    setComponentDrawerOpen(true)
-  }, [selectedNode])
+    openDrawer('component')
+  }, [openDrawer, selectedNode, setComponentCategory, setComponentDrawerMode, setComponentQuery, setDrawerExpanded, setReviewStatusFilter])
 
   const handleToggleMirrorX = useCallback(() => {
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     if (!selectedNode) return
     const nextAxis = selectedNode.mirror_axis === 'x' ? 'none' : 'x'
     concept.setMirror(selectedNode.node_id, nextAxis).catch(() => undefined)
-  }, [concept, selectedNode])
+  }, [concept, legacyDesignReadOnly, selectedNode])
 
   const updateTransformDraft = useCallback((
     field: keyof Transform,
@@ -699,11 +1071,19 @@ export function CadWorkbenchPanel() {
   }, [])
 
   const previewTransformDraft = useCallback(() => {
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     if (!selectedNode) return
     concept.previewNodeTransform(selectedNode.node_id, transformDraft).catch(() => undefined)
-  }, [concept, selectedNode, transformDraft])
+  }, [concept, legacyDesignReadOnly, selectedNode, transformDraft])
 
   const previewQuickTransform = useCallback((action: 'smaller' | 'larger' | 'forward' | 'backward' | 'rotateLeft' | 'rotateRight') => {
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     if (!selectedNode || selectedNode.locked || concept.loading || concept.pendingPreview) return
     const next = copyTransform(selectedNode.transform)
     if (action === 'smaller' || action === 'larger') {
@@ -718,17 +1098,21 @@ export function CadWorkbenchPanel() {
     }
     setTransformDraft(next)
     concept.previewNodeTransform(selectedNode.node_id, next).catch(() => undefined)
-  }, [concept, selectedNode])
+  }, [concept, legacyDesignReadOnly, selectedNode])
 
   const handleTransformCommit = useCallback((nodeId: string, transform: Transform) => {
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     setTransformDraft(copyTransform(transform))
     concept.previewNodeTransform(nodeId, transform).catch(() => undefined)
-  }, [concept.previewNodeTransform])
+  }, [concept.previewNodeTransform, legacyDesignReadOnly])
 
   const handleMeasurePoint = useCallback((point: ViewportMeasurementPoint) => {
-    setSelectedComponent(point.nodeId)
+    selectGraphNode(point.nodeId)
     setMeasurementPoints((current) => current.length >= 2 ? [point] : [...current, point])
-  }, [])
+  }, [selectGraphNode])
 
   const saveMeasurementAnnotations = useCallback((next: MeasurementAnnotation[]) => {
     setMeasurementAnnotations(next)
@@ -760,13 +1144,13 @@ export function CadWorkbenchPanel() {
       if (element?.matches('input, textarea, select, [contenteditable="true"]')) return
       if (event.key === 'g' || event.key === 'G') {
         event.preventDefault()
-        setActiveTool('move')
+        setViewportTool('move')
       } else if (event.key === 'r' || event.key === 'R') {
         event.preventDefault()
-        setActiveTool('rotate')
+        setViewportTool('rotate')
       } else if (event.key === 's' || event.key === 'S') {
         event.preventDefault()
-        setActiveTool('scale')
+        setViewportTool('scale')
       } else if (event.key === 'Escape' && concept.pendingManualChange) {
         event.preventDefault()
         concept.discardManualChange().catch(() => undefined)
@@ -776,20 +1160,65 @@ export function CadWorkbenchPanel() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [concept.discardManualChange, concept.pendingManualChange])
 
+  useEffect(() => {
+    if (!hasOpenDrawer) return
+
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    const focusInitialControl = () => {
+      const drawer = drawerFocusRef.current
+      if (!drawer) return
+      const initial = drawer.querySelector<HTMLElement>('[data-dialog-initial-focus="true"]')
+        ?? drawer.querySelector<HTMLElement>(focusableSelector)
+      initial?.focus()
+    }
+    const frame = window.requestAnimationFrame(focusInitialControl)
+    const onDrawerKeyDown = (event: KeyboardEvent) => {
+      const drawer = drawerFocusRef.current
+      if (!drawer) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeAllDrawers()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => !element.hasAttribute('disabled') && element.offsetParent !== null)
+      if (focusable.length === 0) {
+        event.preventDefault()
+        drawer.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!drawer.contains(document.activeElement)) {
+        event.preventDefault()
+        first.focus()
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onDrawerKeyDown, true)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', onDrawerKeyDown, true)
+    }
+  }, [closeAllDrawers, hasOpenDrawer])
+
   const toggleSelectedNodeVisibility = useCallback(() => {
     if (!selectedNode) return
-    setHiddenNodeIds((current) => (
-      current.includes(selectedNode.node_id)
-        ? current.filter((nodeId) => nodeId !== selectedNode.node_id)
-        : [...current, selectedNode.node_id]
-    ))
-  }, [selectedNode])
+    toggleLegacyHiddenNode(selectedNode.node_id)
+  }, [selectedNode, toggleLegacyHiddenNode])
 
   const handleModuleDrop = useCallback((nodeId: string, moduleId: string) => {
     selectGraphNode(nodeId)
-    setSelectedLibraryModuleId(moduleId)
+    setLegacySelectedModule(moduleId)
     setAssistantNote(`已将 ${moduleId} 设为 ${nodeId} 的替换候选；点击“替换并创建新版本”后才会提交 ChangeSet。`)
-  }, [selectGraphNode])
+  }, [selectGraphNode, setLegacySelectedModule])
 
   const updateParameter = (key: keyof WeaponParameters, value: number) => {
     setParameters((current) => ({ ...current, [key]: value }))
@@ -819,9 +1248,505 @@ export function CadWorkbenchPanel() {
     setAssistantNote('参数已生成 ghost preview；确认后会创建不可变新版本。')
   }
 
+  useEffect(() => {
+    openConversationProject(concept.project?.project_id ?? null)
+    openBlockoutProject(concept.project?.project_id ?? null)
+    openDirectionConceptPreviewProject(concept.project?.project_id ?? null)
+    openAgentAssetWorkspaceProject(concept.project?.project_id ?? null)
+    openComponentLibraryPreferences(concept.project?.project_id ?? null, concept.project?.profile.pack_id ?? null)
+    openViewportDisplayPreferences(concept.project?.project_id ?? null)
+    setAgentAssetChangeSet(null)
+    setAgentCandidateSelectedPartId(null)
+  }, [concept.project?.profile.pack_id, concept.project?.project_id, openAgentAssetWorkspaceProject, openBlockoutProject, openComponentLibraryPreferences, openConversationProject, openDirectionConceptPreviewProject, openViewportDisplayPreferences])
+
+  useEffect(() => {
+    openLegacyModuleGraphWorkspace(
+      legacyCompatibility.isLegacyReadOnly ? concept.project?.project_id ?? null : null,
+    )
+  }, [concept.project?.project_id, legacyCompatibility.isLegacyReadOnly, openLegacyModuleGraphWorkspace])
+
+  useEffect(() => {
+    openLegacyModuleGraphOverlay(
+      legacyCompatibility.isLegacyReadOnly ? concept.project?.project_id ?? null : null,
+      legacyCompatibility.isLegacyReadOnly ? concept.graphRecord?.graph.graph_id ?? null : null,
+      legacyCompatibility.isLegacyReadOnly ? DEFAULT_HIDDEN_NODE_IDS : [],
+    )
+  }, [
+    concept.graphRecord?.graph.graph_id,
+    concept.project?.project_id,
+    legacyCompatibility.isLegacyReadOnly,
+    openLegacyModuleGraphOverlay,
+  ])
+
+  const requestAgentDirectionConceptPreviews = useCallback((plan: NonNullable<typeof agentPlan>, projectId: string | null) => {
+    const requestId = startDirectionConceptPreviews(projectId, plan)
+    void Promise.all(plan.directions.map(async (direction) => {
+      try {
+        const preview = await api.renderAgentBlockoutConceptPreview({
+          client_request_id: `agent-concept-preview-${Date.now()}-${direction.direction_id}`,
+          plan,
+          direction_id: direction.direction_id,
+        })
+        receiveDirectionConceptPreview(projectId, plan.plan_id, requestId, preview)
+      } catch {
+        failDirectionConceptPreview(projectId, plan.plan_id, requestId, direction.direction_id)
+      }
+    }))
+  }, [api, failDirectionConceptPreview, receiveDirectionConceptPreview, startDirectionConceptPreviews])
+
+  const recordAgentTurn = useCallback(async (message: string, clarificationDomainPackId?: string): Promise<AgentTurnRecordResult> => {
+    const projectId = concept.project?.project_id ?? null
+    const { requestId } = startAgentConversationRequest(projectId)
+    clearDirectionConceptPreviews(projectId)
+    try {
+      let threadId = agentThreadId
+      if (!threadId) {
+        const created = await api.createAgentThread({
+          client_request_id: `agent-thread-${Date.now()}`,
+          project_id: concept.project?.project_id,
+          title: concept.project?.name ? `${concept.project.name} · Agent` : '新建设计会话',
+        })
+        threadId = created.thread_id
+        if (!isCurrentAgentConversationRequest(projectId, requestId)) {
+          return { recorded: false, clarification: false, cancelled: true }
+        }
+      }
+      const turn = await api.startAgentTurn(threadId, {
+        client_request_id: `agent-turn-${Date.now()}`,
+        message,
+        ...(clarificationDomainPackId ? { clarification_domain_pack_id: clarificationDomainPackId } : {}),
+      })
+      const presentation = parseAgentTurnPresentation(turn.items, turn.request_text)
+      if (!receiveAgentTurn(projectId, requestId, threadId, turn.items, presentation)) {
+        return { recorded: false, clarification: false, cancelled: true }
+      }
+      if (presentation.clarification) {
+        clearBlockoutDisplay(projectId)
+        clearAgentAssetWorkspace()
+        setAgentAssetChangeSet(null)
+        setAgentCandidateSelectedPartId(null)
+        setAssistantNote(presentation.clarification.question)
+        return { recorded: true, clarification: true, cancelled: false }
+      }
+      if (presentation.plan) requestAgentDirectionConceptPreviews(presentation.plan, projectId)
+      return { recorded: true, clarification: false, cancelled: false }
+    } catch (caught) {
+      if (!isCurrentAgentConversationRequest(projectId, requestId)) {
+        return { recorded: false, clarification: false, cancelled: true }
+      }
+      if (caught instanceof ForgeApiError && (caught.code === 'DOMAIN_AMBIGUOUS' || caught.code === 'DOMAIN_UNSUPPORTED')) {
+        const clarification: AgentClarification = {
+          status: caught.code === 'DOMAIN_AMBIGUOUS' ? 'ambiguous' : 'unsupported',
+          kind: 'domain',
+          question: caught.message,
+          options: DEFAULT_AGENT_CLARIFICATION_OPTIONS,
+          originalMessage: message,
+        }
+        if (!receiveAgentClarification(projectId, requestId, clarification)) {
+          return { recorded: false, clarification: false, cancelled: true }
+        }
+        setAssistantNote(caught.message)
+        return { recorded: false, clarification: true, cancelled: false }
+      }
+      // The compatibility planner remains usable when the new kernel is not
+      // available yet (for example while an older local Agent is running).
+      if (!markAgentKernelUnavailable(projectId, requestId)) {
+        return { recorded: false, clarification: false, cancelled: true }
+      }
+      return { recorded: false, clarification: false, cancelled: false }
+    }
+  }, [agentThreadId, api, clearAgentAssetWorkspace, clearBlockoutDisplay, clearDirectionConceptPreviews, concept.project?.name, concept.project?.project_id, isCurrentAgentConversationRequest, markAgentKernelUnavailable, parseAgentTurnPresentation, receiveAgentClarification, receiveAgentTurn, requestAgentDirectionConceptPreviews, startAgentConversationRequest])
+
+  const previewAgentDirection = useCallback(async (directionId: string, variationIndex = 0, requestedProfile = presentationProfile) => {
+    if (!agentPlan) return
+    const projectId = concept.project?.project_id ?? null
+    clearDirectionConceptPreviews(projectId)
+    const requestId = startDirectionPreview(projectId, directionId, variationIndex)
+    setAssistantNote('正在生成轻量 3D blockout 预览…')
+    try {
+      const result = await api.buildAgentBlockout({
+        client_request_id: `agent-blockout-${Date.now()}`,
+        plan: agentPlan,
+        direction_id: directionId,
+        variation_index: variationIndex,
+        presentation_profile: requestedProfile,
+      })
+      if (!receiveBlockoutBuild(projectId, requestId, result.glb_base64, result.shape_program)) return
+      clearAgentAssetWorkspace()
+      setAgentAssetChangeSet(null)
+      setAgentCandidateSelectedPartId(null)
+      try {
+        const segmentation = await api.segmentAgentBlockout({
+          client_request_id: `agent-segment-${Date.now()}`,
+          plan: agentPlan,
+          direction_id: directionId,
+          variant_id: result.variant_id,
+          variation_index: result.variation_index,
+          presentation_profile: result.presentation_profile,
+          artifact_id: result.artifact_id,
+        })
+        if (!receiveSegmentation(projectId, requestId, segmentation)) return
+      } catch {
+        if (!failSegmentation(projectId, requestId)) return
+      }
+      if (!isCurrentDirectionPreview(projectId, requestId)) return
+      setAssistantNote(`${requestedProfile === 'showcase' ? '展示模型' : '快速草图'}已生成 ${result.triangle_count.toLocaleString()} 个展示面；确认前不会写入正式版本。`)
+    } catch {
+      if (!failDirectionPreview(projectId, requestId)) return
+      setAssistantNote('blockout 预览生成失败；当前设计仍未写入版本。')
+    }
+  }, [agentPlan, api, clearAgentAssetWorkspace, clearDirectionConceptPreviews, concept.project?.project_id, failDirectionPreview, failSegmentation, isCurrentDirectionPreview, presentationProfile, receiveBlockoutBuild, receiveSegmentation, startDirectionPreview])
+
+  const regenerateAgentBlockoutAppearance = useCallback(() => {
+    if (!agentBlockoutSegmentation || !agentPlan || agentBlockoutSegmentation.plan_id !== agentPlan.plan_id) {
+      setAssistantNote('请先选择一个完整外观方向，再换一版外观。')
+      return
+    }
+    const nextVariationIndex = ((agentBlockoutSegmentation.variation_index ?? 0) + 1) % 3
+    void previewAgentDirection(agentBlockoutSegmentation.direction_id, nextVariationIndex)
+  }, [agentBlockoutSegmentation, agentPlan, previewAgentDirection])
+
+  const commitAgentBlockout = useCallback(async () => {
+    if (!agentBlockoutSegmentation) return
+    setAssistantNote('正在把分件候选保存为可编辑资产…')
+    try {
+      const version = await api.commitAgentBlockout({
+        client_request_id: `agent-asset-commit-${Date.now()}`,
+        artifact_id: agentBlockoutSegmentation.artifact_id,
+        project_id: concept.project?.project_id,
+        summary: '确认分件候选并保存为可编辑资产',
+      })
+      clearAgentEditAssistPresentation()
+      setAgentAssetChangeSet(null)
+      setAgentCandidateSelectedPartId(null)
+      if (concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+      setAssistantNote(`已保存为可编辑资产 v${version.version_no}；之后的部件修改都会先预览再创建新版本。`)
+    } catch (caught) {
+      const message = caught instanceof ForgeApiError ? `${caught.message}（${caught.code}）` : '保存可编辑资产失败。'
+      setAssistantNote(`${message} 当前仍保留候选预览，未覆盖已有版本。`)
+    }
+  }, [agentBlockoutSegmentation, api, clearAgentEditAssistPresentation, concept.project?.project_id, refreshActiveDesign])
+
+  const selectAgentPart = useCallback(async (partId: string) => {
+    if (
+      !agentAssetVersion
+      || !activeDesignSnapshot
+      || !activeDesignCanSelectParts(activeDesignSnapshot)
+      || !('asset_version_id' in activeDesignSnapshot.active_design)
+    ) {
+      setAgentCandidateSelectedPartId(partId)
+      return
+    }
+    if (activeDesignSnapshot.active_design.asset_version_id !== agentAssetVersion.asset_version_id) {
+      setAssistantNote('当前显示的模型不是活动设计版本，正在同步后重试。')
+      if (concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+      return
+    }
+    const requestId = startActiveDesignRequest('selecting')
+    try {
+      const response = await api.selectActiveDesignPart(
+        activeDesignSnapshot.project_id,
+        {
+          client_request_id: `active-design-select-${Date.now()}`,
+          snapshot_revision: activeDesignSnapshot.revision,
+          selected_part_id: partId,
+          selected_material_zone_id: agentAssetVersion.parts.find((part) => part.part_id === partId)?.material_zone_ids[0] ?? null,
+        },
+        { ifMatch: activeDesignState.snapshotEtag ?? undefined },
+      )
+      if (!receiveActiveDesignSnapshot(activeDesignSnapshot.project_id, requestId, response)) return
+      if ('asset_version_id' in response.data.active_design) {
+        projectAgentAssetWorkspaceSelection(
+          response.data.project_id,
+          response.data.active_design.asset_version_id,
+          activeDesignSelectedPartId(response.data),
+        )
+      }
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      setAssistantNote(error.message)
+      if (error.shouldReloadSnapshot && concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+    }
+  }, [activeDesignSnapshot, activeDesignState.snapshotEtag, agentAssetVersion, api, concept.project?.project_id, failActiveDesignRequest, receiveActiveDesignSnapshot, refreshActiveDesign, startActiveDesignRequest])
+
+  const setAgentPartDisplay = useCallback(async (
+    action: 'lock' | 'unlock' | 'hide' | 'show' | 'isolate' | 'clear_isolation' | 'show_all',
+    partId?: string,
+  ) => {
+    const snapshot = activeDesignSnapshot
+    if (!snapshot || snapshot.active_design.source !== 'agent_asset' || agentAssetChangeSet) {
+      setAssistantNote('正在同步当前设计版本；同步完成后才能修改部件显示状态。')
+      return
+    }
+    const requestId = startActiveDesignRequest('setting_part_display')
+    try {
+      const response = await api.setActiveDesignPartDisplay(
+        snapshot.project_id,
+        {
+          client_request_id: `active-design-part-display-${action}-${Date.now()}`,
+          snapshot_revision: snapshot.revision,
+          action,
+          ...(partId ? { part_id: partId } : {}),
+        },
+        { ifMatch: activeDesignState.snapshotEtag ?? undefined },
+      )
+      if (!receiveActiveDesignSnapshot(snapshot.project_id, requestId, response)) return
+      if ('asset_version_id' in response.data.active_design) {
+        projectAgentAssetWorkspaceSelection(
+          response.data.project_id,
+          response.data.active_design.asset_version_id,
+          activeDesignSelectedPartId(response.data),
+        )
+      }
+      const message = {
+        lock: '已锁定这个部件；后续修改会被安全阻止。',
+        unlock: '已解除部件锁定。',
+        hide: '已隐藏这个部件；模型内容没有被删除。',
+        show: '已显示这个部件。',
+        isolate: '现在只显示这个部件。',
+        clear_isolation: '已结束单独查看。',
+        show_all: '已显示所有部件。',
+      }[action]
+      setAssistantNote(message)
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      setAssistantNote(error.message)
+      if (error.shouldReloadSnapshot) await refreshActiveDesign(snapshot.project_id)
+    }
+  }, [activeDesignSnapshot, activeDesignState.snapshotEtag, agentAssetChangeSet, api, failActiveDesignRequest, receiveActiveDesignSnapshot, refreshActiveDesign, startActiveDesignRequest])
+
+  const selectMaterialZone = useCallback(async (zoneId: string) => {
+    setAppearanceMaterialZoneId(zoneId)
+    const selectedPartId = activeDesignSelectedPartId(activeDesignSnapshot)
+    if (
+      !activeDesignSnapshot
+      || !selectedPartId
+      || !activeDesignCanSelectParts(activeDesignSnapshot)
+      || !('asset_version_id' in activeDesignSnapshot.active_design)
+      || legacyDesignReadOnly
+    ) return
+    const requestId = startActiveDesignRequest('selecting')
+    try {
+      const response = await api.selectActiveDesignPart(
+        activeDesignSnapshot.project_id,
+        {
+          client_request_id: `active-design-zone-${Date.now()}`,
+          snapshot_revision: activeDesignSnapshot.revision,
+          selected_part_id: selectedPartId,
+          selected_material_zone_id: zoneId,
+        },
+        { ifMatch: activeDesignState.snapshotEtag ?? undefined },
+      )
+      if (!receiveActiveDesignSnapshot(activeDesignSnapshot.project_id, requestId, response)) return
+      if ('asset_version_id' in response.data.active_design) {
+        projectAgentAssetWorkspaceSelection(
+          response.data.project_id,
+          response.data.active_design.asset_version_id,
+          activeDesignSelectedPartId(response.data),
+        )
+      }
+      setAppearanceMaterialZoneId(activeDesignSelectedMaterialZoneId(response.data) ?? zoneId)
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      setAssistantNote(error.message)
+      if (error.shouldReloadSnapshot && concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+    }
+  }, [activeDesignSnapshot, activeDesignState.snapshotEtag, api, concept.project?.project_id, failActiveDesignRequest, legacyDesignReadOnly, receiveActiveDesignSnapshot, refreshActiveDesign, startActiveDesignRequest])
+
+  const requestLegacyAgentRebuild = useCallback(async () => {
+    if (
+      !activeDesignSnapshot
+      || !legacyDesignReadOnly
+      || !('legacy_version_id' in activeDesignSnapshot.active_design)
+    ) return
+    const requestId = startActiveDesignRequest('converting_legacy')
+    try {
+      const result = await api.convertLegacyActiveDesign(
+        activeDesignSnapshot.project_id,
+        {
+          client_request_id: `legacy-agent-rebuild-${Date.now()}`,
+          snapshot_revision: activeDesignSnapshot.revision,
+        },
+        { ifMatch: activeDesignState.snapshotEtag ?? undefined },
+      )
+      setAssistantMode('brief')
+      setAssistantNote(`${result.data.message} 请描述希望保留或重新设计的外观，Agent 会生成新的可编辑候选。`)
+      await refreshActiveDesign(activeDesignSnapshot.project_id)
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      setAssistantNote(error.message)
+      if (error.shouldReloadSnapshot && concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+    }
+  }, [activeDesignSnapshot, activeDesignState.snapshotEtag, api, concept.project?.project_id, failActiveDesignRequest, legacyDesignReadOnly, refreshActiveDesign, startActiveDesignRequest])
+
+  const previewAgentAssetEdit = useCallback(async (operation: AgentPartEditOperation, summary: string) => {
+    if (!agentAssetVersion) return
+    setAssistantNote('正在预览部件修改…')
+    try {
+      const proposed = await api.proposeAgentAssetChangeSet(agentAssetVersion.asset_version_id, {
+        client_request_id: `agent-asset-change-${Date.now()}`,
+        summary,
+        operations: [operation],
+      })
+      const preview = await api.previewAgentAssetChangeSet(proposed.change_set_id, `agent-asset-preview-${Date.now()}`)
+      setAgentAssetChangeSet(preview)
+      if (preview.preview) {
+        setBlockoutShapeProgram(concept.project?.project_id ?? null, preview.preview.shape_program)
+      }
+      setAssistantNote(`已生成“${summary}”预览；确认后才会创建新版本。`)
+    } catch {
+      setAssistantNote('部件修改预览失败；当前资产版本没有变化。')
+    }
+  }, [agentAssetVersion, api, concept.project?.project_id, setBlockoutShapeProgram])
+
+  const saveSelectedAgentComponent = useCallback(async () => {
+    if (!agentAssetVersion || !selectedAgentPart) return
+    try {
+      const component = await api.saveAgentComponent(agentAssetVersion.asset_version_id, {
+        client_request_id: `agent-component-${Date.now()}`,
+        part_id: selectedAgentPart.part_id,
+        display_name: `${displayPartRole(selectedAgentPart.role)} · 可复用部件`,
+        description: `来自 Agent 资产 v${agentAssetVersion.version_no} 的概念部件`,
+      })
+      const projectId = concept.project?.project_id
+      if (projectId) void loadAgentEditAssist(projectId, agentAssetVersion.asset_version_id, selectedAgentPart.part_id)
+      setAssistantNote(`已保存「${component.display_name}」到当前项目的 Agent 部件库。`)
+    } catch {
+      setAssistantNote('保存可复用部件失败；当前资产版本没有变化。')
+    }
+  }, [agentAssetVersion, api, concept.project?.project_id, loadAgentEditAssist, selectedAgentPart])
+
+  const replaceWithAgentComponent = useCallback(async (candidate: AgentComponentCandidate) => {
+    if (!selectedAgentPart) return
+    await previewAgentAssetEdit({
+      operation_id: `op_replace_${Date.now().toString(36)}`,
+      op: 'replace_part',
+      part_id: selectedAgentPart.part_id,
+      replacement_component_id: candidate.component.component_id,
+    }, `替换为「${candidate.component.display_name}」`)
+  }, [previewAgentAssetEdit, selectedAgentPart])
+
+  const previewStructureSuggestion = useCallback(async (suggestion: AgentStructureSuggestion) => {
+    const operation: AgentPartEditOperation = suggestion.kind === 'split_part'
+      ? {
+          operation_id: `op_split_${Date.now().toString(36)}`,
+          op: 'split_part',
+          part_id: suggestion.part_id,
+          structure_suggestion_id: suggestion.suggestion_id,
+        }
+      : {
+          operation_id: `op_merge_${Date.now().toString(36)}`,
+          op: 'merge_parts',
+          part_id: suggestion.part_id,
+          target_part_id: suggestion.target_part_id ?? undefined,
+          structure_suggestion_id: suggestion.suggestion_id,
+        }
+    await previewAgentAssetEdit(operation, suggestion.summary)
+  }, [previewAgentAssetEdit])
+
+  const confirmAgentAssetEdit = useCallback(async () => {
+    if (!agentAssetChangeSet) return
+    try {
+      const confirmed = await api.confirmAgentAssetChangeSet(agentAssetChangeSet.change_set_id, `agent-asset-confirm-${Date.now()}`)
+      setAgentAssetChangeSet(null)
+      setBlockoutShapeProgram(concept.project?.project_id ?? null, confirmed.asset_version.shape_program)
+      clearAgentAssetWorkspaceQuality(concept.project?.project_id ?? null)
+      if (concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+      setAssistantNote(`已确认修改并创建可编辑资产 v${confirmed.asset_version.version_no}。`)
+    } catch {
+      setAssistantNote('确认部件修改失败；请重新预览，当前版本未被覆盖。')
+    }
+  }, [agentAssetChangeSet, api, clearAgentAssetWorkspaceQuality, concept.project?.project_id, refreshActiveDesign, setBlockoutShapeProgram])
+
+  const rejectAgentAssetEdit = useCallback(async () => {
+    if (!agentAssetChangeSet) return
+    try {
+      await api.rejectAgentAssetChangeSet(agentAssetChangeSet.change_set_id, `agent-asset-reject-${Date.now()}`)
+      setAgentAssetChangeSet(null)
+      if (agentAssetChangeSet.project_id) await refreshActiveDesign(agentAssetChangeSet.project_id)
+      setAssistantNote('已取消本次部件修改；当前资产版本没有变化。')
+    } catch {
+      setAssistantNote('取消修改失败，请稍后重试。')
+    }
+  }, [agentAssetChangeSet, api, refreshActiveDesign])
+
+  const navigateAgentAsset = useCallback(async (action: 'undo' | 'redo') => {
+    if (!activeDesignSnapshot || !activeAgentAssetVersion || agentAssetChangeSet) return
+    const requestId = startActiveDesignRequest(action === 'undo' ? 'undoing' : 'redoing')
+    setAssistantNote(action === 'undo' ? '正在返回上一个 Agent 资产版本…' : '正在重做上一次 Agent 修改…')
+    try {
+      const input = {
+        client_request_id: `active-design-${action}-${Date.now()}`,
+        snapshot_revision: activeDesignSnapshot.revision,
+      }
+      const response = action === 'undo'
+        ? await api.undoActiveDesign(activeDesignSnapshot.project_id, input, { ifMatch: activeDesignState.snapshotEtag ?? undefined })
+        : await api.redoActiveDesign(activeDesignSnapshot.project_id, input, { ifMatch: activeDesignState.snapshotEtag ?? undefined })
+      if (!receiveActiveDesignSnapshot(activeDesignSnapshot.project_id, requestId, response)) return
+      setAgentAssetChangeSet(null)
+      await refreshActiveDesign(activeDesignSnapshot.project_id)
+      setAssistantNote(action === 'undo'
+        ? '已返回上一版内容，并创建新的可恢复资产版本。'
+        : '已重做上一次内容，并创建新的可恢复资产版本。')
+    } catch (caught) {
+      const error = failActiveDesignRequest(requestId, caught)
+      if (!error) return
+      setAssistantNote(error.message)
+      if (error.shouldReloadSnapshot && concept.project?.project_id) await refreshActiveDesign(concept.project.project_id)
+    }
+  }, [activeAgentAssetVersion, activeDesignSnapshot, activeDesignState.snapshotEtag, agentAssetChangeSet, api, concept.project?.project_id, failActiveDesignRequest, receiveActiveDesignSnapshot, refreshActiveDesign, startActiveDesignRequest])
+
+  const inspectAgentAsset = useCallback(async () => {
+    if (!activeAgentAssetVersion) {
+      setAssistantNote('请先同步一个活动 Agent 资产，再运行检查。')
+      return
+    }
+    if (!activeDesignState.snapshotEtag) {
+      setAssistantNote('当前工作台版本尚未同步完成；请稍后再检查模型。')
+      return
+    }
+    setAssistantNote('正在检查当前 Agent 资产…')
+    try {
+      const report = await api.qualityAgentAssetVersion(activeAgentAssetVersion.asset_version_id, {
+        idempotencyKey: `agent-asset-quality-${Date.now()}`,
+        ifMatch: activeDesignState.snapshotEtag,
+      })
+      clearAgentAssetWorkspaceQuality(activeAgentAssetVersion.project_id)
+      if (activeAgentAssetVersion.project_id) await refreshActiveDesign(activeAgentAssetVersion.project_id)
+      setAssistantNote(report.status === 'passed'
+        ? `模型检查通过：${report.triangle_count.toLocaleString()} 三角形，部件层级和关节引用正常。`
+        : `模型检查${report.status === 'warning' ? '有提示' : '未通过'}：${report.findings?.[0]?.message ?? '请查看检查结果。'}`)
+    } catch {
+      setAssistantNote('模型检查失败；当前资产版本没有变化。')
+    }
+  }, [activeAgentAssetVersion, activeDesignState.snapshotEtag, api])
+
   const submitAssistantInstruction = async () => {
-    const instruction = chatInput.trim() || DEFAULT_CONCEPT_BRIEF
+    return submitAssistantInstructionWithText(chatInput.trim() || DEFAULT_CONCEPT_BRIEF)
+  }
+
+  const submitAssistantInstructionWithText = async (requestedText: string, clarificationDomainPackId?: string) => {
+    const instruction = requestedText.trim() || DEFAULT_CONCEPT_BRIEF
     setAssistantNote(`正在解释 Brief：“${instruction}”`)
+    const kernelResult = await recordAgentTurn(instruction, clarificationDomainPackId)
+    if (kernelResult.cancelled) return
+    if (kernelResult.clarification) {
+      setChatInput('')
+      return
+    }
+    if (legacyDesignReadOnly) {
+      if (!kernelResult.recorded) {
+        setAssistantNote('请先点击“让 Agent 重建可编辑资产”，并确认本地 Agent 已启动。旧版设计不会被修改。')
+      } else {
+        setAssistantNote('Agent 已生成新的设计方向。选择一个方向后保存为可编辑资产，即会安全替换活动设计；旧版数据仍保留。')
+      }
+      setChatInput('')
+      return
+    }
     const result = await concept.planBrief(instruction)
     if (!result) return
     const provenance = result.brief.planner_provenance
@@ -835,15 +1760,26 @@ export function CadWorkbenchPanel() {
     }))
     setAssistantNote(
       `已解析 ${result.variants.length} 个受限设计方向 · ${provenance.generator}`
-      + `${provenance.fallback_used ? ' · Provider 失败后已显式降级' : ''}。`,
+      + `${provenance.fallback_used ? ' · Provider 失败后已显式降级' : ''}`
+      + `${kernelResult.recorded ? ' · Agent Kernel 已记录步骤' : ''}。`,
     )
     setChatInput('')
   }
 
   const previewChangeInstruction = async () => {
+    if (legacyDesignReadOnly) {
+      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
+      return
+    }
     const instruction = chatInput.trim()
     if (!instruction) return
     setAssistantNote(`正在规划修改：“${instruction}”`)
+    const kernelResult = await recordAgentTurn(instruction)
+    if (kernelResult.cancelled) return
+    if (kernelResult.clarification) {
+      setChatInput('')
+      return
+    }
     const result = await concept.planChange(instruction, {
       selectedNodeId: selectedNode?.node_id,
       selectedModuleId: selectedLibraryModule?.manifest.module_id,
@@ -858,7 +1794,8 @@ export function CadWorkbenchPanel() {
       detailDensity: Math.round(previewSpec.style.detail_density * 100),
     }))
     setAssistantNote(
-      `已生成 ${result.planned.change_set.operations.length} 个受限操作；当前仅为幽灵预览。`,
+      `已生成 ${result.planned.change_set.operations.length} 个受限操作；当前仅为幽灵预览。`
+      + `${kernelResult.recorded ? ' Agent Kernel 已记录步骤。' : ''}`,
     )
     setChatInput('')
   }
@@ -868,6 +1805,103 @@ export function CadWorkbenchPanel() {
       ? submitAssistantInstruction()
       : previewChangeInstruction()
   )
+
+  const saveProvider = useCallback(async () => {
+    if (!providerApiKey.trim()) {
+      setAssistantNote('请填写 API Key；密钥只会保存到 macOS Keychain，不会写入项目。')
+      return
+    }
+    setProviderSaving(true)
+    try {
+      const saved = await saveTauriProviderConfig({
+        base_url: providerBaseUrl,
+        model: providerModel,
+        api_key: providerApiKey,
+      })
+      setProviderConfig(saved)
+      setProviderApiKey('')
+      setProviderSetupOpen(false)
+      const restarted = await restartAgentSupervisor()
+      checkService()
+      setAssistantNote(restarted.running ? '模型服务已保存并重新连接；现在可以让 Agent 生成真实设计方向。' : '配置已保存，但本地 Agent 尚未连接，请检查服务状态。')
+    } catch (caught) {
+      setAssistantNote(`模型服务配置失败：${errorText(caught)}`)
+    } finally {
+      setProviderSaving(false)
+    }
+  }, [checkService, providerApiKey, providerBaseUrl, providerModel])
+
+  const testProvider = useCallback(async () => {
+    setProviderSaving(true)
+    try {
+      const result = await api.checkAgentProvider()
+      setAssistantNote(result.status === 'ready'
+        ? '模型服务连接成功，已返回结构化设计计划。'
+        : result.status === 'not_configured'
+        ? '当前仍是本机离线规划，没有发起大模型请求。'
+        : '模型服务暂时无法连接。已保存设计没有变化；请检查配置后再试。')
+    } catch {
+      setAssistantNote('模型服务测试未完成。已保存设计没有变化；请稍后重试。')
+    } finally {
+      setProviderSaving(false)
+    }
+  }, [api])
+
+  const importGlbReference = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!concept.project?.project_id) {
+      setAssistantNote('请先创建或打开一个设计项目，再导入 GLB。')
+      return
+    }
+    if (!file.name.toLowerCase().endsWith('.glb')) {
+      setAssistantNote('当前只支持自包含的 .glb 文件。')
+      return
+    }
+    if (file.size > 32 * 1024 * 1024) {
+      setAssistantNote('GLB 超过 32 MB 轻量导入限制；请先在 DCC 软件中简化。')
+      return
+    }
+    setImportingGlb(true)
+    setAssistantNote(`正在检查并导入「${file.name}」…`)
+    try {
+      const payload = arrayBufferToBase64(await file.arrayBuffer())
+      const response = await api.importAgentGlb({
+        client_request_id: `agent-glb-import-${Date.now()}`,
+        project_id: concept.project.project_id,
+        domain_pack_id: agentPlan?.domain_pack_id ?? inferImportDomainPack(file.name),
+        file_name: file.name,
+        glb_base64: payload,
+        summary: `导入参考模型：${file.name}`,
+      })
+      const version = response.asset_version
+      setAgentAssetChangeSet(null)
+      hydrateBlockoutDisplay(concept.project.project_id, {
+        glbBase64: payload,
+        shapeProgram: null,
+        segmentation: {
+          artifact_id: version.artifact_id,
+          plan_id: version.plan_id,
+          direction_id: version.direction_id,
+          domain_pack_id: version.domain_pack_id,
+          segmentation_status: 'candidate',
+          parts: version.parts,
+          assembly_graph: version.assembly_graph,
+        },
+      })
+      setAgentCandidateSelectedPartId(null)
+      clearAgentAssetWorkspaceQuality(concept.project.project_id)
+      await refreshActiveDesign(concept.project.project_id)
+      setAssistantNote(`已导入参考模型：${response.inspection.triangle_count.toLocaleString()} 三角形、${response.inspection.material_count} 个材质。它不会被伪装成可编辑模型；可让 Agent 依据它重建。`)
+    } catch (caught) {
+      setAssistantNote(`GLB 导入失败：${errorText(caught)}`)
+    } finally {
+      setImportingGlb(false)
+    }
+  }, [agentPlan?.domain_pack_id, api, clearAgentAssetWorkspaceQuality, concept.project?.project_id, hydrateBlockoutDisplay, refreshActiveDesign])
+
+    ?? agentBlockoutSegmentation?.parts.find((part) => part.part_id === displayedAgentSelectedPartId)
 
   return (
     <div className="cad-workbench" data-testid="cad-workbench">
@@ -882,14 +1916,39 @@ export function CadWorkbenchPanel() {
         </div>
         <div className="cad-global-actions" aria-label="工作区操作">
           <button
+            type="button"
             className="text-action"
-            onClick={() => undoVersionId && concept.selectVersion(undoVersionId)}
-            disabled={!undoVersionId || concept.loading}
-            title="返回上一个已确认版本"
+            onClick={() => activeAgentAssetVersion ? void navigateAgentAsset('undo') : undoVersionId && concept.selectVersion(undoVersionId)}
+            disabled={activeAgentAssetVersion
+              ? !agentNavigation?.can_undo || Boolean(agentAssetChangeSet)
+              : !undoVersionId || concept.loading || legacyDesignReadOnly}
+            title={activeAgentAssetVersion ? '返回上一版 Agent 内容，并保留完整版本历史' : '返回上一个 legacy 已确认版本'}
           ><ClockCounterClockwise size={16} /> 撤销</button>
-          <button className="text-action" onClick={() => setQualityOpen(true)}><Check size={16} /> 检查</button>
-          <button className="export-action" onClick={() => setExportOpen(true)}><Export size={16} /> 导出</button>
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => void navigateAgentAsset('redo')}
+            disabled={!activeAgentAssetVersion || !agentNavigation?.can_redo || Boolean(agentAssetChangeSet)}
+            title="重做上一次 Agent 修改，并保留完整版本历史"
+          ><ArrowsClockwise size={16} /> 重做</button>
+          <button
+            type="button"
+            className="text-action"
+            onClick={() => importGlbInputRef.current?.click()}
+            disabled={!concept.project || importingGlb}
+            title="导入自包含 GLB 作为参考模型"
+          ><FolderOpen size={16} /> {importingGlb ? '导入中…' : '导入参考'}</button>
+          <button type="button" className="text-action" onClick={openQualityDrawer} aria-label="检查"><Check size={16} /> 检查</button>
+          <button type="button" className="export-action" onClick={openExportDrawer} aria-label="导出"><Export size={16} /> 导出</button>
         </div>
+        <input
+          ref={importGlbInputRef}
+          className="visually-hidden"
+          type="file"
+          accept=".glb,model/gltf-binary"
+          onChange={importGlbReference}
+          aria-label="导入 GLB 参考模型"
+        />
       </header>
 
       <div className="cad-layout">
@@ -897,49 +1956,127 @@ export function CadWorkbenchPanel() {
           <section className="cad-panel assistant-panel agent-first-panel">
             <div className="cad-panel-title">
               <span><Sparkle size={16} weight="fill" /> 设计助手</span>
-              <span className="assistant-state">
+              <span className="assistant-state" role="status" aria-live="polite">
                 {concept.loading ? '正在工作' : '准备就绪'}
               </span>
             </div>
-            {!concept.project && !concept.loading && (
-              <button className="empty-action" onClick={() => concept.createStarterProject()}>
-                <Plus size={14} /> 创建第一个设计
-              </button>
-            )}
-            {concept.project && !concept.version?.module_graph_id && (
-              <button className="empty-action" onClick={() => concept.initializeCurrentProject()} disabled={concept.loading}>
-                <Cube size={14} /> 准备展示组件
-              </button>
-            )}
-            <p className="agent-welcome">用一句话描述你想要的虚构展示道具；我会生成可预览、可继续修改的方向。</p>
-            <div className="assistant-composer agent-composer">
-              <ChatCircleDots size={17} />
-              <input
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                onKeyDown={(event) => event.key === 'Enter' && runAssistantAction()}
-                placeholder={assistantMode === 'change' && selectedNode ? `告诉我怎么调整这个${selectedModuleLabel}…` : '描述你想设计的道具…'}
+            <AgentConversation
+              loading={concept.loading}
+              projectExists={Boolean(concept.project)}
+              projectNeedsInitialization={Boolean(concept.project && !concept.version?.module_graph_id)}
+              legacyCompatibility={legacyCompatibility}
+              onCreateStarterProject={() => void concept.createStarterProject()}
+              onInitializeCurrentProject={() => void concept.initializeCurrentProject()}
+              onRequestLegacyAgentRebuild={() => void requestLegacyAgentRebuild()}
+              providerConfig={providerConfig}
+              providerSetupOpen={providerSetupOpen}
+              providerBaseUrl={providerBaseUrl}
+              providerModel={providerModel}
+              providerApiKey={providerApiKey}
+              providerSaving={providerSaving}
+              onToggleProviderSetup={() => setProviderSetupOpen((current) => !current)}
+              onProviderBaseUrlChange={setProviderBaseUrl}
+              onProviderModelChange={setProviderModel}
+              onProviderApiKeyChange={setProviderApiKey}
+              onCancelProviderSetup={() => setProviderSetupOpen(false)}
+              onTestProvider={() => void testProvider()}
+              onSaveProvider={() => void saveProvider()}
+              assistantMode={assistantMode}
+              selectedNode={selectedNode?.node_id ?? null}
+              selectedModuleLabel={selectedModuleLabel}
+              chatInput={chatInput}
+              assistantNote={assistantNote}
+              errorMessage={concept.error}
+              blockoutPreviewPresentation={blockoutPreviewPresentation}
+              agentPlanSourcePresentation={agentPlanSourcePresentation}
+              directionConceptPreviews={agentDirectionConceptPreviewState.previews}
+              conceptFamilySuggestions={CONCEPT_FAMILY_SUGGESTIONS}
+              presentationProfile={presentationProfile}
+              onAssistantModeChange={setAssistantMode}
+              onChatInputChange={setChatInput}
+              onRunAssistantAction={runAssistantAction}
+              onSuggestionSelect={setChatInput}
+              onPresentationProfileChange={(profile) => {
+                setPresentationProfile(profile)
+                if (agentBlockoutSegmentation) {
+                  void previewAgentDirection(
+                    agentBlockoutSegmentation.direction_id,
+                    agentBlockoutSegmentation.variation_index ?? 0,
+                    profile,
+                  )
+                }
+              }}
+              onClarificationSelect={(option) => void submitAssistantInstructionWithText(
+                `${agentClarification?.originalMessage ? `${agentClarification.originalMessage}\n` : ''}${option.prompt}`,
+                option.domain_pack_id,
+              )}
+              agentClarification={agentClarification}
+              agentKernelItems={agentKernelItems}
+              agentKernelUnavailable={agentKernelUnavailable}
+              agentPlan={agentPlan}
+              onPreviewDirection={(directionId) => void previewAgentDirection(directionId)}
+            />
+            {agentBlockoutSegmentation && (
+              <AgentSelectionCard
+                segmentation={agentBlockoutSegmentation}
+                agentAssetVersion={agentAssetVersion}
+                activeAgentAssetVersion={activeAgentAssetVersion}
+                selectedPart={selectedAgentPart}
+                selectedPartId={displayedAgentSelectedPartId}
+                partDisplay={activePartDisplay}
+                isSelectedPartLocked={selectedAgentPartLocked}
+                isExternalGlbReference={isExternalGlbReference}
+                isSnapshotActionPending={activeDesignState.operation === 'setting_part_display'}
+                agentAssetChangeSet={agentAssetChangeSet}
+                agentComponentCandidates={agentComponentCandidates}
+                agentStructureSuggestions={agentStructureSuggestions}
+                structureSuggestionUnavailableMessage={structureSuggestionUnavailableMessage}
+                editAssistLoading={agentEditAssistPresentation.loading}
+                blockoutPreviewPresentation={blockoutPreviewPresentation}
+                onSelectPart={selectAgentPart}
+                onCommitBlockout={commitAgentBlockout}
+                onRegenerateBlockout={regenerateAgentBlockoutAppearance}
+                onPreviewEdit={previewAgentAssetEdit}
+                onSaveSelectedComponent={saveSelectedAgentComponent}
+                onReplaceComponent={replaceWithAgentComponent}
+                onPreviewStructureSuggestion={previewStructureSuggestion}
+                onSetPartDisplay={setAgentPartDisplay}
+                onInspectAsset={inspectAgentAsset}
+                onRejectChange={rejectAgentAssetEdit}
+                onConfirmChange={confirmAgentAssetEdit}
               />
-              <button onClick={runAssistantAction} aria-label="发送设计需求" disabled={concept.loading}>
-                <PaperPlaneRight size={16} weight="fill" />
-              </button>
-            </div>
-            <div className="concept-family-suggestions" aria-label="概念家族">
-              <span>从一个方向开始</span>
-              <div>
-                {CONCEPT_FAMILY_SUGGESTIONS.map(([label, prompt]) => (
-                  <button key={label} type="button" onClick={() => { setAssistantMode('brief'); setChatInput(prompt) }}>{label}</button>
-                ))}
-              </div>
-            </div>
-            {selectedNode && (
-              <button
-                type="button"
-                className={`agent-selection-context ${assistantMode === 'change' ? 'active' : ''}`}
-                onClick={() => setAssistantMode('change')}
-              >正在调整：{selectedModuleLabel}</button>
             )}
-            <div className={`assistant-message ${concept.error ? 'error' : ''}`}>{concept.error ?? assistantNote}</div>
+            {agentBlockoutShapeProgram && materialPresets.length > 0 && !isExternalGlbReference && (
+              <div className="agent-material-preview" aria-label="视觉材质目录">
+                <div className="assistant-directions-heading">
+                  <span>换一个视觉材质</span>
+                  <small>{agentAssetVersion ? '先预览，再确认版本' : '只影响当前预览'}</small>
+                </div>
+                <div className="agent-material-preview-list">
+                  {materialPresets.slice(0, 5).map((preset) => (
+                    <button
+                      key={preset.material_id}
+                      type="button"
+                      className={appearanceMaterialId === preset.material_id ? 'active' : ''}
+                      onClick={() => {
+                        selectMaterialPreselection(preset.material_id)
+                        if (agentAssetVersion && selectedAgentPart) {
+                          void previewAgentAssetEdit({
+                            operation_id: `op_material_${Date.now().toString(36)}`,
+                            op: 'apply_material_preset',
+                            part_id: selectedAgentPart.part_id,
+                            material_id: preset.material_id,
+                          }, `换成${preset.display_name}`)
+                        } else {
+                          setAssistantNote(`已将 blockout 预览材质切换为「${preset.display_name}」；保存为可编辑模型后才能确认材质版本。`)
+                        }
+                      }}
+                      disabled={Boolean(agentAssetChangeSet)}
+                    >{preset.display_name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             {concept.variants.length > 0 && (
               <div className="assistant-directions" aria-label="AI 设计方向">
                 <div className="assistant-directions-heading">
@@ -986,24 +2123,32 @@ export function CadWorkbenchPanel() {
                   active={activeTool === tool.id}
                   disabled={!tool.implemented}
                   title={tool.unavailableReason}
-                  onClick={() => setActiveTool(tool.id)}
+                  onClick={() => setViewportTool(tool.id)}
                 />
               ))}
             </div>
             <ModuleGraphViewport
               graphRecord={concept.graphRecord}
-              modules={concept.modules}
+              modules={catalogModules}
               cameraView={cameraView}
+              lightPreset={lightPreset}
               showGrid={showGrid}
               wireframe={wireframe}
               xRay={xRay}
               sectionEnabled={activeTool === 'section'}
               sectionOffset={sectionOffset}
               selectedNodeId={selectedComponent}
-              hiddenNodeIds={hiddenNodeIds}
-              focusNodeId={focusedNodeId}
-              qualityHighlightNodeIds={qualityHighlightNodeIds}
-              qualityGeometryRefs={qualityGeometryRefs}
+              hiddenNodeIds={legacyModuleGraphOverlay.hiddenNodeIds}
+              focusNodeId={legacyModuleGraphOverlay.focusNodeId}
+              qualityHighlightNodeIds={legacyModuleGraphOverlay.qualityHighlightNodeIds}
+              qualityGeometryRefs={legacyModuleGraphOverlay.qualityGeometryRefs}
+              blockoutGlbBase64={agentBlockoutGlbBase64}
+              blockoutShapeProgram={agentBlockoutShapeProgram}
+              blockoutMaterialOverride={agentBlockoutShapeProgram ? appearanceMaterialId : null}
+              selectedAgentPartId={displayedAgentSelectedPartId}
+              hiddenAgentPartIds={activePartDisplay?.hidden_part_ids ?? []}
+              isolatedAgentPartId={activePartDisplay?.isolated_part_id ?? null}
+              lockedAgentPartIds={activePartDisplay?.locked_part_ids ?? []}
               showConnectors={showConnectors}
               explodeFactor={explodeFactor}
               ghostPreview={Boolean(concept.pendingPreview)}
@@ -1025,8 +2170,8 @@ export function CadWorkbenchPanel() {
             {activeTool === 'measure' && (
               <div className="measurement-overlay" data-testid="measurement-overlay">
                 <div className="measurement-mode-toggle">
-                  <button className={measurementMode === 'distance' ? 'active' : ''} onClick={() => { setMeasurementMode('distance'); setMeasurementPoints([]) }}>距离</button>
-                  <button className={measurementMode === 'normal_angle' ? 'active' : ''} onClick={() => { setMeasurementMode('normal_angle'); setMeasurementPoints([]) }}>法线夹角</button>
+                  <button className={measurementMode === 'distance' ? 'active' : ''} onClick={() => { setLegacyMeasurementMode('distance'); setMeasurementPoints([]) }}>距离</button>
+                  <button className={measurementMode === 'normal_angle' ? 'active' : ''} onClick={() => { setLegacyMeasurementMode('normal_angle'); setMeasurementPoints([]) }}>法线夹角</button>
                 </div>
                 {measurementDistance == null ? (
                   <span>{measurementPoints.length === 0 ? '点击模型设置起点' : '点击模型设置终点'}</span>
@@ -1048,20 +2193,28 @@ export function CadWorkbenchPanel() {
             {activeTool === 'section' && (
               <label className="section-overlay" data-testid="section-overlay">
                 <span>X 向裁切平面 · {sectionOffset.toFixed(0)} mm</span>
-                <input aria-label="截面偏移" type="range" min="-120" max="120" step="1" value={sectionOffset} onChange={(event) => setSectionOffset(Number(event.target.value))} />
+                <input aria-label="截面偏移" type="range" min="-120" max="120" step="1" value={sectionOffset} onChange={(event) => setViewportSectionOffset(Number(event.target.value))} />
               </label>
             )}
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
-              <IconButton icon={House} label="等轴" active={cameraView === 'iso'} onClick={() => setCameraView('iso')} />
-              <IconButton icon={Crosshair} label="正视" active={cameraView === 'front'} onClick={() => setCameraView('front')} />
-              <IconButton icon={GridFour} label="顶视" active={cameraView === 'top'} onClick={() => setCameraView('top')} />
-              <IconButton icon={Cube} label="右视" active={cameraView === 'right'} onClick={() => setCameraView('right')} />
+              <IconButton icon={House} label="等轴" active={cameraView === 'iso'} onClick={() => void updateRenderPreset({ cameraView: 'iso' })} />
+              <IconButton icon={Crosshair} label="正视" active={cameraView === 'front'} onClick={() => void updateRenderPreset({ cameraView: 'front' })} />
+              <IconButton icon={GridFour} label="顶视" active={cameraView === 'top'} onClick={() => void updateRenderPreset({ cameraView: 'top' })} />
+              <IconButton icon={Cube} label="右视" active={cameraView === 'right'} onClick={() => void updateRenderPreset({ cameraView: 'right' })} />
+              <label className="viewport-light-preset">
+                <span>灯光</span>
+                <select aria-label="灯光预设" value={lightPreset} onChange={(event) => void updateRenderPreset({ lightPreset: event.target.value as LightPreset })}>
+                  <option value="cad_neutral">CAD 中性</option>
+                  <option value="soft_studio">柔和棚拍</option>
+                  <option value="concept_contrast">概念对比</option>
+                </select>
+              </label>
               <IconButton
                 icon={ArrowsOutCardinal}
                 label="爆炸视图"
                 active={explodeFactor > 0}
-                onClick={() => setExplodeFactor((current) => current > 0 ? 0 : 0.42)}
+                onClick={() => setViewportExplodeFactor(explodeFactor > 0 ? 0 : 0.42)}
               />
             </div>
             <div className="viewport-readout">
@@ -1075,12 +2228,12 @@ export function CadWorkbenchPanel() {
                     <span>已选中部件</span>
                     <strong>{selectedModuleLabel}</strong>
                   </div>
-                  <button type="button" onClick={() => setSelectedComponent('')} aria-label="关闭部件编辑">×</button>
+                  <button type="button" onClick={clearLegacyModuleGraphSelection} aria-label="关闭部件编辑">×</button>
                 </div>
                 <div className="contextual-edit-actions">
                   <button type="button" onClick={openComponentReplacement} disabled={selectedNode.locked || concept.loading}>替换</button>
                   <button type="button" onClick={() => { setAssistantMode('change'); setAssistantNote(`告诉我如何调整这个${selectedModuleLabel}。`) }} disabled={selectedNode.locked}>让 Agent 调整</button>
-                  <button type="button" onClick={toggleSelectedNodeVisibility}>{hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}</button>
+                  <button type="button" onClick={toggleSelectedNodeVisibility}>{legacyModuleGraphOverlay.hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}</button>
                 </div>
                 <div className="contextual-adjustments">
                   <span>快速调整</span>
@@ -1114,240 +2267,95 @@ export function CadWorkbenchPanel() {
               </section>
             )}
           </div>
-
-          {componentDrawerOpen && <section className={`component-library contextual-library ${componentDrawerMode === 'all' ? 'expanded' : ''}`}>
-            <div
-              className="component-library-resize-handle"
-              onPointerDown={beginDrawerResize}
-              aria-hidden="true"
+{componentDrawerOpen || exportOpen || qualityOpen ? (
+            <WorkbenchDrawerStack
+              componentDrawerOpen={componentDrawerOpen}
+              exportOpen={exportOpen}
+              qualityOpen={qualityOpen}
+              component={{
+                mode: componentDrawerMode,
+                selectedModuleLabel: selectedModuleLabel,
+                componentCategory: componentCategory,
+                reviewStatusFilter: reviewStatusFilter,
+                categories: COMPONENT_CATEGORIES,
+                filterCounts: componentFilterCounts,
+                query: componentQuery,
+                displayedComponents: displayedComponents,
+                totalModuleCount: catalogModules.length,
+                selectedLibraryModule: selectedLibraryModule,
+                selectedLibraryModuleId: selectedLibraryModuleId,
+                selectedNode: selectedNode ? { node_id: selectedNode.node_id, module_id: selectedNode.module_id, locked: selectedNode.locked } : null,
+                selectedModuleCategory: selectedModule?.manifest.category ?? null,
+                graphNodes: concept.graphRecord?.graph.nodes ?? [],
+                favoriteModuleIds: favoriteModuleIds,
+                thumbnailFailures: thumbnailFailures,
+                drawerRef: drawerFocusRef,
+                canReplaceSelected: canReplaceSelected,
+                expanded: drawerExpanded,
+                loading: concept.loading || componentCatalogPresentation.loading,
+                legacyDesignReadOnly: legacyDesignReadOnly,
+                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
+                qualityStatusFor: qualityStatusFor,
+                onResizeStart: beginDrawerResize,
+                onResizeKeyDown: resizeDrawerByKeyboard,
+                onCategoryChange: setComponentCategory,
+                onReviewStatusChange: setReviewStatusFilter,
+                onQueryChange: setComponentQuery,
+                onModeToggle: toggleComponentDrawerMode,
+                onClose: closeAllDrawers,
+                onSelectModule: selectLibraryModule,
+                onToggleFavorite: toggleLibraryFavorite,
+                onThumbnailError: recordLegacyThumbnailFailure,
+                onLocateModule: (module) => {
+                  const node = concept.graphRecord?.graph.nodes.find((item) => item.module_id === module.manifest.module_id)
+                  if (node) selectGraphNode(node.node_id)
+                  else setAssistantNote('候选资产已选中；主视图只显示已确认版本，替换会先创建 ChangeSet 预览。')
+                },
+                onPreviewReplace: handleReplaceSelected,
+                onDiscardReplacement: () => concept.discardModuleReplacement(),
+                onConfirmReplacement: () => concept.confirmModuleReplacement(),
+                thumbnailUrl: (moduleId) => forgeApi.getModuleAssetThumbnailUrl(moduleId),
+              }}
+              exportDrawer={{
+                exportPurpose: exportPurpose,
+                exportPurposeOptions: EXPORT_PURPOSES,
+                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
+                activeAgentAssetVersion: activeAgentAssetVersion,
+                activeDesignIdle: activeDesignState.operation === 'idle',
+                activeVersionLabel: activeVersionSummary ? `v${activeVersionSummary.version_no}` : '—',
+                originLabel: ORIGIN_CLAIM_LABELS[selectedModule?.catalog_metadata.origin_claim ?? 'unknown'],
+                hasLegacyVersion: Boolean(concept.version?.module_graph_id),
+                loading: concept.loading,
+                drawerRef: drawerFocusRef,
+                onClose: closeAllDrawers,
+                onPurposeChange: (purpose, format: ExportFormat) => { setExportPurpose(purpose); setExportFormat(format) },
+                onExport: handleCreateExport,
+                onDownloadAgentGlb: handleDownloadAgentGlb,
+                renderSet: agentRenderPresentation.renderSet,
+                renderLoading: agentRenderPresentation.renderLoading,
+                renderPackageLoading: agentRenderPresentation.renderPackageLoading,
+                onRenderViews: handleRenderAgentViews,
+                onDownloadRenderView: handleDownloadAgentRenderView,
+                onDownloadRenderPackage: handleDownloadAgentRenderPackage,
+              }}
+              quality={{
+                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
+                activeAgentAssetVersion: activeAgentAssetVersion,
+                agentQualityReport: agentQualityReport,
+                agentAssetChangeSet: agentAssetChangeSet,
+                graphReady: Boolean(concept.graphRecord),
+                legacyVersionReady: Boolean(concept.version?.module_graph_id),
+                legacyQualityStatus: concept.qualityRun?.report.status,
+                legacyFindings: concept.qualityRun?.report.findings ?? [],
+                loading: concept.loading,
+                drawerRef: drawerFocusRef,
+                onClose: closeAllDrawers,
+                onFocusLegacyFinding: (finding) => { focusQualityFinding(finding); closeAllDrawers() },
+                onInspectAgentAsset: () => void inspectAgentAsset(),
+                onRunLegacyInspection: () => concept.runQualityInspection(),
+              }}
             />
-            <div className="component-library-header">
-              <div className="component-library-title">
-                <Cube size={15} weight="duotone" />
-                {componentDrawerMode === 'recommended'
-                  ? `替换「${selectedModuleLabel}」`
-                  : '选择展示组件'}
-              </div>
-              <div className="component-library-header-actions">
-                {componentDrawerMode === 'all' && <>
-                  <select
-                    className="component-status-filter"
-                    aria-label="部件审阅状态"
-                    value={reviewStatusFilter}
-                    onChange={(event) => setReviewStatusFilter(event.target.value as ReviewStatus | '')}
-                  >
-                    <option value="">全部状态</option>
-                    {Object.entries(REVIEW_STATUS_LABELS).map(([status, label]) => (
-                      <option key={status} value={status}>{label}</option>
-                    ))}
-                  </select>
-                  <div className="component-search">
-                    <MagnifyingGlass size={15} />
-                    <input
-                      value={componentQuery}
-                      onChange={(event) => setComponentQuery(event.target.value)}
-                      placeholder="搜索名称、描述或标签…"
-                    />
-                    <Funnel size={14} />
-                  </div>
-                </>}
-                <button
-                  type="button"
-                  className="component-drawer-toggle text"
-                  onClick={() => setComponentDrawerMode((current) => current === 'recommended' ? 'all' : 'recommended')}
-                >
-                  {componentDrawerMode === 'recommended' ? '查看更多' : '返回推荐'}
-                </button>
-                <button type="button" className="component-drawer-toggle" onClick={() => setComponentDrawerOpen(false)} aria-label="关闭组件选择">×</button>
-              </div>
-            </div>
-            <div className="component-library-body">
-              <>
-                {componentDrawerMode === 'all' &&
-                  <nav className="component-categories">
-                    {COMPONENT_CATEGORIES.map((category) => (
-                      <button
-                        key={category.id}
-                        className={componentCategory === category.id ? 'active' : ''}
-                        onClick={() => setComponentCategory(category.id)}
-                      >
-                        <span>{category.label}</span>
-                        <small>{
-                          category.id === 'all'
-                            ? componentFilterCounts.all
-                            : category.id === 'installed'
-                            ? componentFilterCounts.installed
-                            : category.id === 'compatible'
-                            ? componentFilterCounts.compatible
-                            : category.id === 'favorites'
-                            ? componentFilterCounts.favorites
-                            : category.id === 'recent'
-                            ? componentFilterCounts.recent
-                            : concept.modules.filter((module) => module.manifest.category === category.id).length
-                        }</small>
-                      </button>
-                    ))}
-                  </nav>
-                }
-                  <div className="component-library-content">
-                    <div className="module-replace-bar">
-                      <span>{componentDrawerMode === 'recommended' ? '只显示当前部件可用的替换建议' : '选择一个组件后，可先预览再决定保留'}</span>
-                      <span className="component-result-count">显示 {displayedComponents.length} / {concept.modules.length}</span>
-                      <button
-                        onClick={handleReplaceSelected}
-                        disabled={!canReplaceSelected || concept.loading}
-                        title={selectedNode?.locked
-                          ? '锁定节点不能替换'
-                          : selectedLibraryModule?.catalog_metadata.review_status === 'restricted'
-                          ? '受限资产不能用于替换'
-                          : qualityStatusFor(selectedLibraryModule?.manifest.module_id ?? '') === 'failed'
-                          ? '质量检查失败的资产不能用于替换'
-                          : '通过 ChangeSet preview/confirm 创建子版本'}
-                      >
-                        预览替换
-                      </button>
-                    </div>
-            <div className="component-grid">
-                      {displayedComponents.map((component) => {
-                        const ComponentIcon = componentIconFor(component.manifest.category)
-                        const graphNode = concept.graphRecord?.graph.nodes.find(
-                          (node) => node.module_id === component.manifest.module_id,
-                        )
-                        const isActiveNode = Boolean(graphNode && selectedComponent === graphNode.node_id)
-                        const isCandidate = selectedLibraryModuleId === component.manifest.module_id
-                        const isInstalled = Boolean(graphNode)
-                        const compatible = Boolean(
-                          selectedNode
-                          && !selectedNode.locked
-                          && selectedModule?.manifest.category === component.manifest.category,
-                        )
-                        const metadata = component.catalog_metadata
-                        const reviewStatus = metadata.review_status as ReviewStatus
-                        const qualityStatus = qualityStatusFor(component.manifest.module_id)
-                        const thumbnailFailed = thumbnailFailures.has(component.manifest.module_id)
-                        return (
-                          <button
-                            key={component.manifest.module_id}
-                            className={`component-card ${isActiveNode ? 'active' : ''} ${isCandidate ? 'candidate' : ''}`.trim()}
-                            draggable
-                            onDragStart={(event) => {
-                              event.dataTransfer.effectAllowed = 'copy'
-                              event.dataTransfer.setData('application/x-forgecad-module-id', component.manifest.module_id)
-                              event.dataTransfer.setData('text/plain', component.manifest.module_id)
-                            }}
-                            onClick={() => {
-                              selectLibraryModule(component)
-                            }}
-                          >
-                            <span className="component-visual">
-                              {!thumbnailFailed && <img
-                                src={forgeApi.getModuleAssetThumbnailUrl(component.manifest.module_id)}
-                                alt={`${component.manifest.module_id} 模块缩略图`}
-                                onError={() => setThumbnailFailures((current) => new Set(current).add(component.manifest.module_id))}
-                              />}
-                              <span className="component-icon-fallback" hidden={!thumbnailFailed}>
-                                <ComponentIcon size={34} weight="duotone" />
-                              </span>
-                              <span className={`component-state ${reviewStatus}`}>
-                                {REVIEW_STATUS_LABELS[reviewStatus]}
-                              </span>
-                            </span>
-                            <strong>{metadata.display_name}</strong>
-                            <small>
-                              {MODULE_CATEGORY_LABELS[component.manifest.category]} · {component.manifest.triangle_count.toLocaleString()} tris · {(component.manifest.connectors ?? []).length} 接口
-                            </small>
-                            <span className="component-card-activity">
-                              {isActiveNode ? '当前节点' : isCandidate ? '替换候选' : isInstalled ? '已装配' : compatible ? '可替换' : QUALITY_STATUS_LABELS[qualityStatus]}
-                            </span>
-                          </button>
-                        )
-                      })}
-                      {displayedComponents.length === 0 && (
-                        <div className="component-empty">
-                          <strong>暂时没有可直接替换的组件</strong>
-                          <span>当前组件库没有同类、兼容且可用的展示组件；你可以继续用 Agent 调整，或稍后添加原创组件。</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {drawerExpanded && selectedLibraryModule && (
-                    <aside className="component-inspector" data-testid="component-inspector">
-                      <div className="component-inspector-visual">
-                        {!thumbnailFailures.has(selectedLibraryModule.manifest.module_id) && (
-                          <img
-                            src={forgeApi.getModuleAssetThumbnailUrl(selectedLibraryModule.manifest.module_id)}
-                            alt={`${selectedLibraryModule.catalog_metadata.display_name} 预览`}
-                            onError={() => setThumbnailFailures((current) => new Set(current).add(selectedLibraryModule.manifest.module_id))}
-                          />
-                        )}
-                        <span>{selectedLibraryModule.catalog_metadata.catalog_path}</span>
-                      </div>
-                      <div className="component-inspector-heading">
-                        <div>
-                          <strong>{selectedLibraryModule.catalog_metadata.display_name}</strong>
-                          <span>{selectedLibraryModule.manifest.module_id}</span>
-                        </div>
-                        <button
-                          type="button"
-                          className={favoriteModuleIds.includes(selectedLibraryModule.manifest.module_id) ? 'active' : ''}
-                          onClick={() => toggleLibraryFavorite(selectedLibraryModule.manifest.module_id)}
-                          aria-label="切换组件收藏"
-                          title="切换组件收藏"
-                        >
-                          <Star size={16} weight={favoriteModuleIds.includes(selectedLibraryModule.manifest.module_id) ? 'fill' : 'regular'} />
-                        </button>
-                      </div>
-                      <p>{selectedLibraryModule.catalog_metadata.description}</p>
-                      <div className="component-inspector-statuses">
-                        <span className={`review-status ${selectedLibraryModule.catalog_metadata.review_status}`}>
-                          {REVIEW_STATUS_LABELS[selectedLibraryModule.catalog_metadata.review_status as ReviewStatus]}
-                        </span>
-                        <span className={`quality-status ${qualityStatusFor(selectedLibraryModule.manifest.module_id)}`}>
-                          质量：{QUALITY_STATUS_LABELS[qualityStatusFor(selectedLibraryModule.manifest.module_id)]}
-                        </span>
-                      </div>
-                      <dl className="component-spec-list">
-                        <div><dt>尺寸</dt><dd>{selectedLibraryModule.manifest.bounds_mm.map((value) => `${value} mm`).join(' × ')}</dd></div>
-                        <div><dt>几何</dt><dd>{selectedLibraryModule.manifest.triangle_count.toLocaleString()} tris · {selectedLibraryModule.manifest.material_slots.length} 材质槽</dd></div>
-                        <div><dt>连接器</dt><dd>{(selectedLibraryModule.manifest.connectors ?? []).length} 个 · {(selectedLibraryModule.manifest.connectors ?? []).map((item) => item.slot).join('、') || '无'}</dd></div>
-                        <div><dt>适配</dt><dd>{canReplaceSelected ? '可替换当前节点' : selectedNode?.locked ? '当前节点已锁定' : '选择同分类节点后验证'}</dd></div>
-                        <div><dt>来源</dt><dd>{ORIGIN_CLAIM_LABELS[selectedLibraryModule.catalog_metadata.origin_claim ?? 'unknown']}</dd></div>
-                        <div><dt>审阅</dt><dd>{selectedLibraryModule.catalog_metadata.reviewer_name ? `${selectedLibraryModule.catalog_metadata.reviewer_name} · ${selectedLibraryModule.catalog_metadata.reviewed_at ? `已记录 ${selectedLibraryModule.catalog_metadata.reviewed_at}` : '已指派，待完成'}` : '等待独立审阅'}</dd></div>
-                      </dl>
-                      {(selectedLibraryModule.catalog_metadata.tags ?? []).length > 0 && (
-                        <div className="component-tags">
-                          {(selectedLibraryModule.catalog_metadata.tags ?? []).map((tag) => <span key={tag}>#{tag}</span>)}
-                        </div>
-                      )}
-                      <div className="component-inspector-actions">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const node = concept.graphRecord?.graph.nodes.find((item) => item.module_id === selectedLibraryModule.manifest.module_id)
-                            if (node) selectGraphNode(node.node_id)
-                            else setAssistantNote('候选资产已选中；主视图只显示已确认版本，替换会先创建 ChangeSet 预览。')
-                          }}
-                        >{concept.graphRecord?.graph.nodes.some((item) => item.module_id === selectedLibraryModule.manifest.module_id) ? '定位主视图' : '设置替换候选'}</button>
-                        <button
-                          type="button"
-                          className="primary"
-                          disabled={!canReplaceSelected || concept.loading}
-                          onClick={handleReplaceSelected}
-                        >预览替换</button>
-                      </div>
-                      {concept.pendingReplacement && (
-                        <div className="component-replacement-preview" data-testid="component-replacement-preview">
-                          <span>幽灵预览已就绪，当前版本尚未改动。</span>
-                          <button type="button" onClick={() => concept.discardModuleReplacement()} disabled={concept.loading}>放弃</button>
-                          <button type="button" className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading}>确认并创建新版本</button>
-                        </div>
-                      )}
-                    </aside>
-                  )}
-              </>
-            </div>
-          </section>
-          }
+          ) : null}
         </main>
 
         <aside className="cad-right-rail">
@@ -1360,7 +2368,7 @@ export function CadWorkbenchPanel() {
                 ['connections', '连接'],
                 ['inspection', '检查'],
               ] as Array<[InspectorTab, string]>).map(([id, label]) => (
-                <button key={id} className={inspectorTab === id ? 'active' : ''} onClick={() => setInspectorTab(id)}>
+                <button key={id} className={inspectorTab === id ? 'active' : ''} onClick={() => setLegacyInspectorTab(id)}>
                   {label}
                 </button>
               ))}
@@ -1370,18 +2378,18 @@ export function CadWorkbenchPanel() {
               <label className="wide-field"><span>模块资产</span><input value={selectedModule?.manifest.module_id ?? '—'} readOnly /></label>
               <div className="node-actions">
                 <button onClick={toggleSelectedNodeVisibility} disabled={!selectedNode}>
-                  <Eye size={13} /> {selectedNode && hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}
+                  <Eye size={13} /> {selectedNode && legacyModuleGraphOverlay.hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}
                 </button>
-                <button onClick={() => selectedNode && setFocusedNodeId(selectedNode.node_id)} disabled={!selectedNode}>
+                <button onClick={() => selectedNode && setLegacyFocusNode(selectedNode.node_id)} disabled={!selectedNode}>
                   <Crosshair size={13} /> 聚焦
                 </button>
-                <button className={showConnectors ? 'active' : ''} onClick={() => setShowConnectors((current) => !current)}>
+                <button className={showConnectors ? 'active' : ''} onClick={() => setViewportShowConnectors(!showConnectors)}>
                   <ShareNetwork size={13} /> Connector
                 </button>
                 <button
                   className={selectedNode?.mirror_axis === 'x' ? 'active' : ''}
                   onClick={handleToggleMirrorX}
-                  disabled={!selectedNode || selectedNode.locked || concept.loading}
+                  disabled={!selectedNode || selectedNode.locked || concept.loading || legacyDesignReadOnly}
                   title={selectedNode?.locked ? '锁定节点不能镜像' : '通过 ChangeSet 创建 X 轴镜像子版本'}
                 >
                   <ArrowsLeftRight size={13} /> {selectedNode?.mirror_axis === 'x' ? '取消镜像' : 'X 镜像'}
@@ -1405,19 +2413,19 @@ export function CadWorkbenchPanel() {
               <div className="transform-command-controls" data-testid="transform-command-controls">
                 <button
                   className={transformSpace === 'world' ? 'active' : ''}
-                  onClick={() => setTransformSpace((current) => current === 'world' ? 'local' : 'world')}
-                  disabled={!selectedNode || selectedNode.locked || concept.loading}
+                  onClick={() => setLegacyTransformSpace(transformSpace === 'world' ? 'local' : 'world')}
+                  disabled={!selectedNode || selectedNode.locked || concept.loading || legacyDesignReadOnly}
                 >{transformSpace === 'world' ? '世界坐标' : '本地坐标'}</button>
                 <button
                   className={snapEnabled ? 'active' : ''}
-                  onClick={() => setSnapEnabled((current) => !current)}
+                  onClick={() => setLegacySnapEnabled(!snapEnabled)}
                   disabled={!selectedNode || selectedNode.locked || concept.loading}
                 >{snapEnabled ? '吸附：1 mm / 15°' : '吸附：关'}</button>
               </div>
               <button
                 className="transform-preview-action"
                 onClick={previewTransformDraft}
-                disabled={!selectedNode || selectedNode.locked || selectedNode.node_id === concept.graphRecord?.graph.root_node_id || concept.loading || Boolean(concept.pendingPreview)}
+                disabled={!selectedNode || selectedNode.locked || selectedNode.node_id === concept.graphRecord?.graph.root_node_id || concept.loading || Boolean(concept.pendingPreview) || legacyDesignReadOnly}
                 title="移动、旋转和缩放先写入 ChangeSet 幽灵预览；确认后才创建子版本"
               >预览变换</button>
               <label className="wide-field"><span>镜像轴</span><input value={selectedNode?.mirror_axis ?? 'none'} readOnly /></label>
@@ -1429,17 +2437,50 @@ export function CadWorkbenchPanel() {
               <PropertyNumber label="握持角度" value={parameters.gripAngle} unit="°" onChange={(value) => updateParameter('gripAngle', value)} />
               <PropertyNumber label="外壳厚度" value={parameters.shellThickness} unit="mm" onChange={(value) => updateParameter('shellThickness', value)} />
             </>}
-            {inspectorTab === 'appearance' && <>
-              <label className="wide-field"><span>表面主题</span><select defaultValue="arctic"><option value="arctic">寒地石墨</option><option value="industrial">工业枪灰</option><option value="prototype">原型树脂</option></select></label>
-              <PropertyNumber label="细节密度" value={parameters.detailDensity} unit="%" onChange={(value) => updateParameter('detailDensity', value)} />
-              <div className="appearance-swatches"><button aria-label="石墨黑" /><button aria-label="枪灰" /><button aria-label="信号红" /></div>
-            </>}
+            {inspectorTab === 'appearance' && (
+              <MaterialDrawer
+                materialPresets={materialPresets}
+                selectedMaterialId={appearanceMaterialId}
+                detailDensity={parameters.detailDensity}
+                selectedPartLabel={selectedAgentPart ? `已选部件 · ${displayPartRole(selectedAgentPart.role)}` : '当前预览部件'}
+                selectedZoneLabel={appearanceMaterialZoneId ? `材质区 ${appearanceMaterialZoneId}` : '主材质区'}
+                materialZoneIds={selectedAgentPart?.material_zone_ids ?? []}
+                selectedZoneId={activeDesignSelectedMaterialZoneId(activeDesignSnapshot) ?? appearanceMaterialZoneId}
+                activeDomain={activeMaterialDomain}
+                compatibilityOnly={materialCompatibilityOnly}
+                query={materialQuery}
+                category={materialCategory}
+                catalogLoading={agentMaterialCatalogPresentation.loading}
+                catalogMessage={agentMaterialCatalogPresentation.catalogMessage}
+                disabled={legacyDesignReadOnly || isExternalGlbReference || Boolean(agentAssetChangeSet)}
+                onMaterialChange={selectMaterialPreselection}
+                onDetailDensityChange={(value) => updateParameter('detailDensity', value)}
+                onZoneChange={(zoneId) => { void selectMaterialZone(zoneId) }}
+                onCompatibilityChange={setMaterialFilterCompatibilityOnly}
+                onQueryChange={setMaterialFilterQuery}
+                onCategoryChange={setMaterialFilterCategory}
+                onPreviewMaterial={(preset, zoneId) => {
+                  if (agentAssetVersion && selectedAgentPart) {
+                    void previewAgentAssetEdit({
+                      operation_id: `op_material_${Date.now().toString(36)}`,
+                      op: 'apply_material_preset',
+                      part_id: selectedAgentPart.part_id,
+                      material_id: preset.material_id,
+                      material_zone_id: zoneId,
+                    }, `将${zoneId}换成${preset.display_name}`)
+                  } else {
+                    setAssistantNote(`已预览「${preset.display_name}」；保存为可编辑模型并选中部件后，才能确认材质区修改。`)
+                  }
+                }}
+                onPreviewNote={(preset) => setAssistantNote(`已将 blockout 预览材质切换为「${preset.display_name}」；确认型材质 ChangeSet 仍未写入版本。`)}
+              />
+            )}
             {inspectorTab === 'connections' && <div className="connection-list">
               <div className="connection-summary">
                 <span>{selectedNodeConnections.length} 条真实连接</span>
                 <button
                   onClick={() => selectedNode && concept.previewConnectorSnap(selectedNode.node_id)}
-                  disabled={!canSnapSelectedNode || concept.loading || Boolean(concept.pendingPreview)}
+                  disabled={!canSnapSelectedNode || concept.loading || Boolean(concept.pendingPreview) || legacyDesignReadOnly}
                   title={!canSnapSelectedNode ? '选择一个未锁定、已连接的非根节点以修复吸附。' : '以父 Connector 为基准生成可确认的吸附 ChangeSet。'}
                 >修复并预览吸附</button>
               </div>
@@ -1497,7 +2538,7 @@ export function CadWorkbenchPanel() {
               <div className="dfm-suggestion"><WarningCircle size={15} /> 几何检查不代表结构强度、制造可行性或使用安全验证。</div>
               <button
                 className="secondary-action"
-                disabled={concept.loading || !concept.version?.module_graph_id}
+                disabled={concept.loading || !concept.version?.module_graph_id || legacyDesignReadOnly}
                 onClick={() => concept.runQualityInspection()}
                 title="检查索引、退化面、法线、UV0、拓扑、Connector 对齐与未连接组件精确穿插"
               >
@@ -1509,8 +2550,8 @@ export function CadWorkbenchPanel() {
                 <div><strong>{concept.pendingManualChange.summary.startsWith('Snap ') ? 'Connector 吸附预览 · 待确认' : '变换幽灵预览 · 待确认'}</strong><span>{concept.pendingManualChange.summary}</span></div>
                 <ul>{concept.pendingManualChange.operations.map((operation) => <li key={operation.operation_id}>{formatChangeOperation(operation)}</li>)}</ul>
                 <div className="change-preview-actions">
-                  <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>放弃预览</button>
-                  <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>确认并创建新版本</button>
+                  <button onClick={() => concept.discardManualChange()} disabled={concept.loading || legacyDesignReadOnly}>放弃预览</button>
+                  <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading || legacyDesignReadOnly}>确认并创建新版本</button>
                 </div>
               </div>
             )}
@@ -1623,72 +2664,32 @@ export function CadWorkbenchPanel() {
             {concept.pendingReplacement && <small>当前设计尚未被覆盖；确认后会保存为新版本。</small>}
           </div>
           <div className="agent-change-review-actions">
-            {concept.pendingChange && <button onClick={() => concept.discardPlannedChange()} disabled={concept.loading}>撤销本次修改</button>}
-            {concept.pendingManualChange && <button onClick={() => concept.discardManualChange()} disabled={concept.loading}>撤销本次修改</button>}
-            {concept.pendingReplacement && <button onClick={() => concept.discardModuleReplacement()} disabled={concept.loading}>撤销本次修改</button>}
-            {concept.pendingChange && <button className="confirm" onClick={() => concept.confirmPlannedChange()} disabled={concept.loading}>保留此修改</button>}
-            {concept.pendingManualChange && <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading}>保留此修改</button>}
-            {concept.pendingReplacement && <button className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading}>保留此修改</button>}
+            {concept.pendingChange && <button onClick={() => concept.discardPlannedChange()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
+            {concept.pendingManualChange && <button onClick={() => concept.discardManualChange()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
+            {concept.pendingReplacement && <button onClick={() => concept.discardModuleReplacement()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
+            {concept.pendingChange && <button className="confirm" onClick={() => concept.confirmPlannedChange()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
+            {concept.pendingManualChange && <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
+            {concept.pendingReplacement && <button className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
           </div>
         </section>
       )}
 
-      {exportOpen && (
-        <div className="workbench-overlay" role="presentation" onMouseDown={() => setExportOpen(false)}>
-          <section className="workbench-drawer export-drawer" role="dialog" aria-label="导出设计" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="drawer-heading"><div><span>导出当前设计</span><strong>你准备如何使用它？</strong></div><button onClick={() => setExportOpen(false)} aria-label="关闭导出">×</button></div>
-            <div className="export-purpose-list">
-              {EXPORT_PURPOSES.map((purpose) => (
-                <button
-                  key={purpose.id}
-                  className={exportPurpose === purpose.id ? 'active' : ''}
-                  onClick={() => { setExportPurpose(purpose.id); setExportFormat(purpose.format) }}
-                >
-                  <strong>{purpose.title}</strong><span>{purpose.description}</span>
-                </button>
-              ))}
-            </div>
-            <div className="export-ready-summary">
-              <span>将导出：<strong>{exportPurpose === 'presentation' ? '展示图像' : exportPurpose === 'production' ? 'GLB 展示模型' : exportPurpose === 'handoff' ? 'OBJ 模型' : '概念源包'}</strong></span>
-              <small>{concept.version ? `当前版本 v${activeVersionSummary?.version_no ?? '—'} · ${ORIGIN_CLAIM_LABELS[selectedModule?.catalog_metadata.origin_claim ?? 'unknown']}` : '请先创建或打开一个设计'}</small>
-            </div>
-            <button className="drawer-primary-action" onClick={handleCreateExport} disabled={!concept.version?.module_graph_id || concept.loading}>
-              <FileArrowDown size={16} /> 导出当前版本
-            </button>
-            <button className="drawer-secondary-action" onClick={() => setExportOpen(false)}>取消</button>
-          </section>
-        </div>
-      )}
 
-      {qualityOpen && (
-        <div className="workbench-overlay" role="presentation" onMouseDown={() => setQualityOpen(false)}>
-          <section className="workbench-drawer quality-drawer" role="dialog" aria-label="模型检查" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="drawer-heading"><div><span>模型检查</span><strong>{qualityStatusLabel(concept.qualityRun?.report.status)}</strong></div><button onClick={() => setQualityOpen(false)} aria-label="关闭模型检查">×</button></div>
-            <p>这里仅在需要时显示模型连接和几何质量信息，不会干扰设计过程。</p>
-            <div className="quality-overview">
-              <DfmRow label="展示组件已加载" value={concept.graphRecord ? '已就绪' : '未准备'} ok={Boolean(concept.graphRecord)} />
-              <DfmRow label="当前版本" value={concept.version ? '可保存' : '未创建'} ok={Boolean(concept.version)} />
-              <DfmRow label="几何检查" value={qualityStatusLabel(concept.qualityRun?.report.status)} ok={concept.qualityRun?.report.status === 'passed'} />
-            </div>
-            {(concept.qualityRun?.report.findings ?? []).slice(0, 3).map((finding) => (
-              <button type="button" className={`quality-finding ${finding.severity}`} key={finding.finding_id} onClick={() => { focusQualityFinding(finding); setQualityOpen(false) }}>
-                <strong>{finding.check_id}</strong><span>{finding.message}</span>
-              </button>
-            ))}
-            <button className="drawer-primary-action" disabled={concept.loading || !concept.version?.module_graph_id} onClick={() => concept.runQualityInspection()}>
-              {concept.loading ? '检查中…' : '运行模型检查'}
-            </button>
-          </section>
-        </div>
-      )}
-
-      <footer className="cad-status-bar">
+      <footer className="cad-status-bar" role="status" aria-live="polite" aria-label="工作台状态">
         <span>{concept.loading ? 'Agent 正在处理' : '设计就绪'}</span>
         <span>{selectedNode ? `正在调整：${selectedModuleLabel}` : '点击模型的任意部件即可调整'}</span>
-        <span>版本：{activeVersionSummary ? `v${activeVersionSummary.version_no}` : '草稿'}</span>
+        <span>版本：{activeDesignSnapshot?.active_design.source === 'agent_asset'
+          ? `Agent v${activeAgentAssetVersion?.version_no ?? '同步中'}`
+          : activeDesignSnapshot
+          ? '旧版只读设计'
+          : activeVersionSummary
+          ? `v${activeVersionSummary.version_no}`
+          : '草稿'}</span>
         <span>单位：mm</span>
         <span className="status-spacer" />
-        <span>{qualityStatusLabel(concept.qualityRun?.report.status)} · 模型检查</span>
+        <span>{activeDesignSnapshot?.active_design.source === 'agent_asset'
+          ? (agentQualityReport?.status === 'passed' ? '通过' : agentQualityReport?.status === 'warning' ? '需复核' : agentQualityReport?.status === 'failed' ? '未通过' : '未检查')
+          : qualityStatusLabel(concept.qualityRun?.report.status)} · 模型检查</span>
       </footer>
     </div>
   )
@@ -1844,21 +2845,6 @@ function formatChangeOperation(operation: DesignChangeSet['operations'][number])
   return operation.op
 }
 
-function componentIconFor(category: ModuleCategory) {
-  const icons: Record<ModuleCategory, typeof Cube> = {
-    core_shell: SelectionAll,
-    front_shell: Ruler,
-    rear_shell: ArrowsClockwise,
-    grip_shell: GridFour,
-    top_accessory: ChartLineUp,
-    side_accessory: Crosshair,
-    lower_structure: ArrowsOutCardinal,
-    storage_visual: Cube,
-    armor_panel: SelectionAll,
-  }
-  return icons[category]
-}
-
 function formatVersionTime(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -1928,6 +2914,41 @@ async function downloadBrowserFile(url: string, fallbackName?: string): Promise<
   anchor.click()
   anchor.remove()
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+}
+
+function downloadBase64File(encoded: string, filename: string, mime: string): void {
+  const bytes = Uint8Array.from(window.atob(encoded), (character) => character.charCodeAt(0))
+  downloadBlobFile(new Blob([bytes], { type: mime }), filename)
+}
+
+function downloadBlobFile(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)))
+  }
+  return window.btoa(binary)
+}
+
+function inferImportDomainPack(fileName: string): 'pack_future_weapon_prop' | 'pack_vehicle_concept' | 'pack_aircraft_concept' | 'pack_robotic_arm_concept' {
+  const value = fileName.toLowerCase()
+  if (/(car|vehicle|truck|auto|汽车|车辆|载具)/.test(value)) return 'pack_vehicle_concept'
+  if (/(plane|aircraft|drone|jet|飞机|飞行|无人机)/.test(value)) return 'pack_aircraft_concept'
+  if (/(arm|robot|joint|机械臂|机器人|关节)/.test(value)) return 'pack_robotic_arm_concept'
+  return 'pack_future_weapon_prop'
 }
 
 function exportDownloadFilename(exportId: string, format: string): string {

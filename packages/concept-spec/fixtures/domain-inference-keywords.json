@@ -1,0 +1,26 @@
+{
+  "schema_version": "DomainInferenceKeywordFixture@1",
+  "purpose": "Deterministic lexical evidence for the four first-party domain packs. This fixture is not a user-visible taxonomy and cannot create a plan or asset by itself.",
+  "packs": [
+    {
+      "domain_pack_id": "pack_future_weapon_prop",
+      "keywords": ["未来武器", "科幻武器", "未来概念道具", "未来机械概念道具", "概念道具", "游戏道具", "影视道具", "展示道具", "能量道具"],
+      "synonyms": ["future weapon prop", "future mechanical prop", "sci-fi prop", "game prop", "film prop"]
+    },
+    {
+      "domain_pack_id": "pack_vehicle_concept",
+      "keywords": ["汽车", "车辆", "载具", "探索车", "越野车", "赛车", "运输车"],
+      "synonyms": ["car", "vehicle", "rover", "racer", "ground vehicle"]
+    },
+    {
+      "domain_pack_id": "pack_aircraft_concept",
+      "keywords": ["飞机", "飞行器", "无人机", "无人航空器", "垂直起降", "航空器"],
+      "synonyms": ["aircraft", "air vehicle", "drone", "vtol"]
+    },
+    {
+      "domain_pack_id": "pack_robotic_arm_concept",
+      "keywords": ["机械臂", "机器人臂", "工业机器人", "机械手", "关节", "连杆"],
+      "synonyms": ["robotic arm", "robot arm", "manipulator", "industrial robot"]
+    }
+  ]
+}

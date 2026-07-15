@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/domain-inference-result.schema.json",
+  "title": "DomainInferenceResult",
+  "description": "A non-persisting classification result used before a mechanical concept plan or asset can be created.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "domain_pack_id", "candidate_domain_pack_ids", "matched_terms"],
+      "properties": {
+        "schema_version": { "const": "DomainInferenceResult@1" },
+        "status": { "const": "recognized" },
+        "domain_pack_id": { "$ref": "#/$defs/domain_pack_id" },
+        "candidate_domain_pack_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/domain_pack_id" }
+        },
+        "matched_terms": { "$ref": "#/$defs/matched_terms" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "domain_pack_id": { "const": "pack_future_weapon_prop" } } },
+          "then": { "properties": { "candidate_domain_pack_ids": { "contains": { "const": "pack_future_weapon_prop" } } } }
+        },
+        {
+          "if": { "properties": { "domain_pack_id": { "const": "pack_vehicle_concept" } } },
+          "then": { "properties": { "candidate_domain_pack_ids": { "contains": { "const": "pack_vehicle_concept" } } } }
+        },
+        {
+          "if": { "properties": { "domain_pack_id": { "const": "pack_aircraft_concept" } } },
+          "then": { "properties": { "candidate_domain_pack_ids": { "contains": { "const": "pack_aircraft_concept" } } } }
+        },
+        {
+          "if": { "properties": { "domain_pack_id": { "const": "pack_robotic_arm_concept" } } },
+          "then": { "properties": { "candidate_domain_pack_ids": { "contains": { "const": "pack_robotic_arm_concept" } } } }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "domain_pack_id", "candidate_domain_pack_ids", "matched_terms"],
+      "properties": {
+        "schema_version": { "const": "DomainInferenceResult@1" },
+        "status": { "const": "ambiguous" },
+        "domain_pack_id": { "type": "null" },
+        "candidate_domain_pack_ids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/domain_pack_id" }
+        },
+        "matched_terms": { "$ref": "#/$defs/matched_terms" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "domain_pack_id", "candidate_domain_pack_ids", "matched_terms"],
+      "properties": {
+        "schema_version": { "const": "DomainInferenceResult@1" },
+        "status": { "const": "unsupported" },
+        "domain_pack_id": { "type": "null" },
+        "candidate_domain_pack_ids": { "type": "array", "maxItems": 0 },
+        "matched_terms": { "type": "array", "maxItems": 0 }
+      }
+    }
+  ],
+  "$defs": {
+    "domain_pack_id": {
+      "type": "string",
+      "enum": [
+        "pack_future_weapon_prop",
+        "pack_vehicle_concept",
+        "pack_aircraft_concept",
+        "pack_robotic_arm_concept"
+      ]
+    },
+    "matched_terms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+    }
+  }
+}

@@ -17,6 +17,8 @@ from .concept_repositories import (
     ModuleRepository,
     QualityRepository,
 )
+from .agent_repositories import ActiveDesignSnapshotRepository, AgentAssetRepository, AgentKernelRepository
+from .material_texture_repositories import MaterialTextureRepository
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
 
 
@@ -40,6 +42,10 @@ class SQLiteUnitOfWork:
         self.change_set_audit_exports: ChangeSetAuditExportRepository
         self.brief_variants: BriefVariantRepository
         self.concept_jobs: ConceptJobRepository
+        self.agent_kernel: AgentKernelRepository
+        self.agent_assets: AgentAssetRepository
+        self.active_designs: ActiveDesignSnapshotRepository
+        self.material_textures: MaterialTextureRepository
 
     def __enter__(self) -> "SQLiteUnitOfWork":
         connection = self.connection_factory.connect()
@@ -58,6 +64,10 @@ class SQLiteUnitOfWork:
         self.change_set_audit_exports = ChangeSetAuditExportRepository(connection)
         self.brief_variants = BriefVariantRepository(connection)
         self.concept_jobs = ConceptJobRepository(connection)
+        self.agent_kernel = AgentKernelRepository(connection)
+        self.agent_assets = AgentAssetRepository(connection)
+        self.active_designs = ActiveDesignSnapshotRepository(connection)
+        self.material_textures = MaterialTextureRepository(connection)
         return self
 
     def __exit__(

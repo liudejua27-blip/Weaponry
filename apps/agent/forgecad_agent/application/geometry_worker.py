@@ -1,0 +1,2699 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import struct
+from dataclasses import dataclass, replace
+from typing import Any, Dict, List, Mapping, Tuple
+
+from .geometry_models import GeometryCompileReadback
+from .mechanical_planner import MechanicalConceptPlan
+from .shape_program import validate_shape_program
+from .shape_program_runtime import (
+    MANIFEST_SCHEMA_VERSION,
+    UnsupportedRuntimeOperationError,
+    assert_worker_executor_coverage,
+)
+from .visual_intent import visual_intent_for_direction
+
+
+@dataclass(frozen=True)
+class BoxPrimitive:
+    part_role: str
+    center_mm: Tuple[float, float, float]
+    size_mm: Tuple[float, float, float]
+    material_index: int
+    primitive_kind: str = "box"
+    radius_mm: float = 0.0
+    height_mm: float = 0.0
+    axis: Tuple[float, float, float] = (0.0, 1.0, 0.0)
+    wedge_slope: float = 1.0
+    profile_points: Tuple[Tuple[float, float], ...] = ()
+    profile_holes: Tuple[Tuple[Tuple[float, float], ...], ...] = ()
+    profile_closed: bool = True
+    profile_input_id: str | None = None
+    revolve_angle: float = math.pi * 2
+    cap_start: bool = True
+    cap_end: bool = True
+    radial_segments: int = 16
+    loft_rings_mm: Tuple[Tuple[Tuple[float, float, float], ...], ...] = ()
+    loft_profiles: Tuple[Tuple[Tuple[float, float], ...], ...] = ()
+    loft_axis: str = "x"
+    loft_cap_start_normal: Tuple[float, float, float] | None = None
+    loft_cap_end_normal: Tuple[float, float, float] | None = None
+    sweep_path_mm: Tuple[Tuple[float, float, float], ...] = ()
+    path_closed: bool = False
+    path_twist_degrees: float = 0.0
+    bevel_radius_mm: float = 0.0
+    bevel_segments: int = 1
+    material_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GeometryBuildResult:
+    glb_bytes: bytes
+    shape_program: Dict[str, Any]
+    assembly_graph: Dict[str, Any]
+    bounds_mm: List[float]
+    triangle_count: int
+    topology_hash: str
+    direction_id: str
+    compile_readback: GeometryCompileReadback
+    variant_id: str | None = None
+    presentation_profile: str = "quick_sketch"
+
+
+@dataclass(frozen=True)
+class GeometryCompileResult:
+    glb_bytes: bytes
+    readback: GeometryCompileReadback
+
+
+@dataclass(frozen=True)
+class ShapeProgramGlbReadbackFacts:
+    triangle_count: int
+    bounds_mm: List[float]
+    mesh_count: int
+    primitive_count: int
+    material_count: int
+    uv0_primitive_count: int
+    normal_primitive_count: int
+    surface_provenance: List[Dict[str, Any]]
+
+
+class GeometryCompileReadbackError(ValueError):
+    """Compilation produced bytes whose GLB facts cannot be trusted."""
+
+    code = "GEOMETRY_READBACK_FAILED"
+
+
+@dataclass(frozen=True)
+class ImportedGlbInspection:
+    """Safe, metadata-only inspection result for a user supplied GLB.
+
+    Imported geometry is a reference asset until an Agent rebuilds it as a
+    ShapeProgram.  This inspector deliberately accepts only self-contained
+    glTF 2.0 binary files and never evaluates extensions, shaders, URLs or
+    application code embedded in a document.
+    """
+
+    sha256: str
+    byte_size: int
+    triangle_count: int
+    bounds_mm: List[float]
+    mesh_count: int
+    primitive_count: int
+    material_count: int
+    node_count: int
+
+
+MAX_IMPORTED_GLB_BYTES = 32 * 1024 * 1024
+MAX_IMPORTED_GLB_TRIANGLES = 250_000
+
+# Executor identifiers, not another operation allow-list.  The manifest owns
+# the operation -> executor mapping; this set proves the shipped Worker still
+# contains each declared implementation and gives tests a deterministic way to
+# simulate a missing executor.
+_WORKER_EXECUTOR_IDS = frozenset({
+    "primitive_box",
+    "primitive_cylinder",
+    "primitive_capsule",
+    "primitive_wedge",
+    "profile_sketch",
+    "profile_extrude",
+    "profile_revolve",
+    "profile_loft",
+    "profile_sweep",
+    "mirror_transform",
+    "linear_array",
+    "radial_array",
+    "restricted_union",
+    "restricted_subtract",
+    "bevel_approximation",
+    "surface_panel_attachment",
+})
+
+
+def assert_shape_program_runtime_compatible(program: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate manifest/schema input and fail closed if a Worker executor is absent.
+
+    This remains compile-free so callers can guard inputs before work starts;
+    Q003 quality then consumes ``compile_shape_program`` readback facts.
+    """
+
+    candidate = validate_shape_program(program)
+    assert_worker_executor_coverage(_WORKER_EXECUTOR_IDS)
+    return candidate
+
+
+def _runtime_operation_error(operation_id: str, op: Any, reason: str) -> UnsupportedRuntimeOperationError:
+    return UnsupportedRuntimeOperationError(
+        operation_id=operation_id,
+        op=op if isinstance(op, str) else "<invalid-op>",
+        reason=reason,
+    )
+
+
+BLOCKOUT_VARIANT_IDS: Dict[str, Tuple[str, ...]] = {
+    "pack_future_weapon_prop": (
+        "compact_prop_a", "compact_prop_b", "compact_prop_c",
+        "long_profile_prop_a", "long_profile_prop_b", "long_profile_prop_c",
+        "heavy_support_prop_a", "heavy_support_prop_b", "heavy_support_prop_c",
+        "energy_visual_prop_a", "energy_visual_prop_b", "energy_visual_prop_c",
+    ),
+    "pack_vehicle_concept": (
+        "urban_scout_a", "urban_scout_b", "urban_scout_c",
+        "exploration_vehicle_a", "exploration_vehicle_b", "exploration_vehicle_c",
+        "low_racer_a", "low_racer_b", "low_racer_c",
+        "heavy_transport_a", "heavy_transport_b", "heavy_transport_c",
+    ),
+    "pack_aircraft_concept": (
+        "vertical_takeoff_a", "vertical_takeoff_b", "vertical_takeoff_c",
+        "fast_single_seat_a", "fast_single_seat_b", "fast_single_seat_c",
+        "wide_body_transport_a", "wide_body_transport_b", "wide_body_transport_c",
+        "uncrewed_scout_a", "uncrewed_scout_b", "uncrewed_scout_c",
+    ),
+    "pack_robotic_arm_concept": (
+        "precision_light_a", "precision_light_b", "precision_light_c",
+        "heavy_handler_a", "heavy_handler_b", "heavy_handler_c",
+        "long_reach_maintenance_a", "long_reach_maintenance_b", "long_reach_maintenance_c",
+        "dual_tool_service_a", "dual_tool_service_b", "dual_tool_service_c",
+    ),
+}
+
+
+def list_blockout_variants(pack_id: str) -> List[str]:
+    """Return the versioned deterministic blockout catalog for one domain pack."""
+    try:
+        return list(BLOCKOUT_VARIANT_IDS[pack_id])
+    except KeyError as exc:
+        raise ValueError(f"unknown domain pack for blockout catalog: {pack_id}") from exc
+
+
+_VARIANT_FAMILY_BY_SILHOUETTE = {
+    "compact": 0,
+    "balanced": 1,
+    "extended": 2,
+    "industrial": 3,
+    "organic": 3,
+}
+
+
+def resolve_blockout_variant(
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    variant_id: str | None = None,
+    variation_index: int = 0,
+) -> str:
+    """Resolve one pre-reviewed visual variant without exposing free-form geometry.
+
+    A caller can name a catalog entry for a repeatable preview. Ordinary
+    workbench calls omit it: then the direction silhouette picks one related
+    three-item family and the direction ID chooses a stable starting member.
+    ``variation_index`` rotates only within that three-item family. When an
+    exact catalog entry is supplied it remains authoritative; the index is
+    retained by API callers solely as preview provenance. The result is
+    visual-only; it never carries functional, manufacturing, or engineering
+    data.
+    """
+    direction = next((item for item in plan.directions if item.direction_id == direction_id), None)
+    if direction is None:
+        raise ValueError(f"direction not found: {direction_id}")
+    if variation_index not in {0, 1, 2}:
+        raise ValueError("variation_index must be between 0 and 2")
+    variants = list_blockout_variants(plan.domain_pack_id)
+    if variant_id is not None:
+        if variant_id not in variants:
+            raise ValueError(f"unknown blockout variant {variant_id!r} for {plan.domain_pack_id}")
+        return variant_id
+    mapping_payload = plan.spec.get("visual_intent_mapping") if isinstance(plan.spec, dict) else None
+    intent = visual_intent_for_direction(
+        mapping_payload,
+        domain_pack_id=plan.domain_pack_id,
+        direction_id=direction_id,
+    )
+    # Old, imported or malformed plans keep the G812 silhouette fallback. A
+    # valid G815 mapping can only choose an existing 0..3 catalog family.
+    family = intent.variant_family_index if intent is not None else _VARIANT_FAMILY_BY_SILHOUETTE.get(direction.silhouette, 1)
+    family_start = family * 3
+    digest = hashlib.sha256(f"{plan.plan_id}:{direction_id}".encode("utf-8")).digest()
+    return variants[family_start + ((digest[0] + variation_index) % 3)]
+
+
+def build_blockout(
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    variant_id: str | None = None,
+    presentation_profile: str = "quick_sketch",
+) -> GeometryBuildResult:
+    direction = next((item for item in plan.directions if item.direction_id == direction_id), None)
+    if direction is None:
+        raise ValueError(f"direction not found: {direction_id}")
+    if variant_id is not None and variant_id not in BLOCKOUT_VARIANT_IDS.get(plan.domain_pack_id, ()):
+        raise ValueError(f"unknown blockout variant {variant_id!r} for {plan.domain_pack_id}")
+    if presentation_profile not in {"quick_sketch", "showcase"}:
+        raise ValueError("presentation_profile must be quick_sketch or showcase")
+    boxes = _presentation_primitives(
+        _boxes_for_domain(plan.domain_pack_id, direction.silhouette, variant_id),
+        plan=plan,
+        direction_id=direction_id,
+        presentation_profile=presentation_profile,
+    )
+    program = _program_for_boxes(
+        plan,
+        direction_id,
+        boxes,
+        variant_id=variant_id,
+        presentation_profile=presentation_profile,
+    )
+    # Candidate GLB bytes must travel through the same manifest-guarded
+    # compile/readback entry point as later preview and export paths.
+    compiled = compile_shape_program(program)
+    assembly_graph = _assembly_graph(
+        plan,
+        direction_id,
+        boxes,
+        variant_id=variant_id,
+        presentation_profile=presentation_profile,
+    )
+    topology_hash = hashlib.sha256(_canonical_json(program).encode("utf-8")).hexdigest()
+    return GeometryBuildResult(
+        glb_bytes=compiled.glb_bytes,
+        shape_program=program,
+        assembly_graph=assembly_graph,
+        bounds_mm=compiled.readback.bounds_mm,
+        triangle_count=compiled.readback.triangle_count,
+        topology_hash=topology_hash,
+        direction_id=direction_id,
+        compile_readback=compiled.readback,
+        variant_id=variant_id,
+        presentation_profile=presentation_profile,
+    )
+
+
+def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
+    """Compile once, then bind all trusted facts to the resulting GLB readback."""
+    program = assert_shape_program_runtime_compatible(program)
+    profile_inputs = {
+        item["input_id"]: item
+        for item in program.get("profile_inputs", [])
+        if isinstance(item, dict)
+    }
+    resolved: Dict[str, List[BoxPrimitive]] = {}
+    for operation in program.get("operations", []):
+        if not isinstance(operation, dict):
+            raise _runtime_operation_error("", "", "operation must be an object")
+        operation_id = str(operation.get("operation_id", ""))
+        op = operation.get("op")
+        args = operation.get("args", {})
+        if not isinstance(args, dict):
+            raise _runtime_operation_error(operation_id, op, "args must be an object")
+        position = args.get("position", [0, 0, 0])
+        if not isinstance(position, list) or len(position) != 3:
+            raise _runtime_operation_error(operation_id, op, "position must be a three-number vector")
+        role = str(args.get("part_role", "part"))
+        material_id = str(args.get("material_id", "")) or None
+        material = _material_index(material_id or "")
+        if op == "box":
+            size = args.get("size")
+            if not isinstance(size, list) or len(size) != 3 or any(float(value) <= 0 for value in size):
+                raise _runtime_operation_error(operation_id, op, "box requires a positive three-number size")
+            resolved[operation_id] = [BoxPrimitive(role, tuple(float(value) for value in position), tuple(float(value) for value in size), material, material_id=material_id)]
+        elif op == "cylinder":
+            radius = float(args.get("radius", 0))
+            height = float(args.get("height", 0))
+            if radius <= 0 or height <= 0:
+                raise _runtime_operation_error(operation_id, op, "cylinder requires positive radius and height")
+            axis = args.get("axis", [0, 1, 0])
+            resolved[operation_id] = [_cylinder(role, tuple(float(value) for value in position), radius, height, material, tuple(float(value) for value in axis), material_id=material_id)]
+        elif op == "capsule":
+            radius = float(args.get("radius", 0))
+            height = float(args.get("height", 0))
+            if radius <= 0 or height <= 0:
+                raise _runtime_operation_error(operation_id, op, "capsule requires positive radius and height")
+            resolved[operation_id] = [BoxPrimitive(role, tuple(float(value) for value in position), (radius * 2, height, radius * 2), material, "capsule", radius, height, tuple(float(value) for value in args.get("axis", [0, 1, 0])), material_id=material_id)]
+        elif op == "wedge":
+            size = args.get("size")
+            if not isinstance(size, list) or len(size) != 3 or any(float(value) <= 0 for value in size):
+                raise _runtime_operation_error(operation_id, op, "wedge requires a positive three-number size")
+            resolved[operation_id] = [BoxPrimitive(role, tuple(float(value) for value in position), tuple(float(value) for value in size), material, "wedge", material_id=material_id)]
+        elif op == "profile":
+            resolved[operation_id] = []
+        elif op in {"extrude", "revolve"}:
+            inputs = operation.get("inputs", [])
+            profile_operation = next((item for item in program.get("operations", []) if isinstance(item, dict) and item.get("operation_id") == (inputs[0] if inputs else None)), None)
+            profile_args = profile_operation.get("args", {}) if isinstance(profile_operation, dict) else {}
+            profile_input_id = profile_args.get("profile_input_id")
+            holes: List[List[List[float]]] = []
+            profile_closed = True
+            if profile_input_id is not None:
+                from .profile_contracts import resample_profile_sketch
+
+                profile_input = profile_inputs.get(profile_input_id)
+                if not isinstance(profile_input, dict):
+                    raise _runtime_operation_error(operation_id, op, "profile input provenance is missing")
+                normalized, points, holes = resample_profile_sketch(profile_input["canonical_payload"])
+                profile_closed = bool(normalized["closed"])
+                scale = profile_args["profile_scale"]
+                points = [[float(point[0]) * float(scale[0]), float(point[1]) * float(scale[1])] for point in points]
+                holes = [
+                    [[float(point[0]) * float(scale[0]), float(point[1]) * float(scale[1])] for point in contour]
+                    for contour in holes
+                ]
+            else:
+                points = profile_args.get("points")
+            if not isinstance(points, list) or len(points) < 2:
+                raise _runtime_operation_error(operation_id, op, "profile input has no usable points")
+            if op == "extrude":
+                height = float(args.get("height", 0))
+                if height <= 0:
+                    raise _runtime_operation_error(operation_id, op, "extrude requires positive height")
+                resolved[operation_id] = [BoxPrimitive(
+                    role,
+                    tuple(float(value) for value in position),
+                    (0.0, height, 0.0),
+                    material,
+                    "extrude_profile" if profile_input_id is not None else "extrude",
+                    height_mm=height,
+                    profile_points=tuple((float(point[0]), float(point[1])) for point in points),
+                    profile_holes=tuple(tuple((float(point[0]), float(point[1])) for point in contour) for contour in holes),
+                    profile_closed=profile_closed,
+                    profile_input_id=profile_input_id,
+                    cap_start=bool(args.get("cap_start", True)),
+                    cap_end=bool(args.get("cap_end", True)),
+                    material_id=material_id,
+                )]
+            else:
+                angle = float(args.get("angle", math.pi * 2))
+                if angle <= 0 or angle > math.pi * 2 or any(float(point[0]) < 0 for point in points):
+                    raise _runtime_operation_error(operation_id, op, "revolve requires a valid non-negative-radius profile and angle")
+                resolved[operation_id] = [BoxPrimitive(
+                    role,
+                    tuple(float(value) for value in position),
+                    (0.0, 0.0, 0.0),
+                    material,
+                    "revolve_profile" if profile_input_id is not None else "revolve",
+                    profile_points=tuple((float(point[0]), float(point[1])) for point in points),
+                    profile_closed=profile_closed,
+                    profile_input_id=profile_input_id,
+                    revolve_angle=angle,
+                    cap_start=bool(args.get("cap_start", False)),
+                    cap_end=bool(args.get("cap_end", False)),
+                    radial_segments=int(args.get("radial_segments", 24 if profile_input_id is not None else 16)),
+                    material_id=material_id,
+                )]
+        elif op == "loft":
+            from .profile_contracts import resample_profile_section_set
+
+            input_id = args.get("section_set_input_id")
+            profile_input = profile_inputs.get(input_id)
+            if not isinstance(profile_input, dict) or profile_input.get("input_kind") != "profile_section_set":
+                raise _runtime_operation_error(operation_id, op, "loft section-set provenance is missing")
+            normalized, sections = resample_profile_section_set(profile_input["canonical_payload"])
+            scale = args.get("cross_section_scale")
+            axis_length = float(args.get("axis_length", 0))
+            if not isinstance(scale, list) or len(scale) != 2 or axis_length <= 0:
+                raise _runtime_operation_error(operation_id, op, "loft requires positive cross-section scale and axis length")
+            axis = normalized["main_axis"]
+            rings: List[Tuple[Tuple[float, float, float], ...]] = []
+            profiles: List[Tuple[Tuple[float, float], ...]] = []
+            for section in sections:
+                if section["holes"]:
+                    raise _runtime_operation_error(operation_id, op, "loft holes are not supported")
+                angle = math.radians(float(section["twist_degrees"]))
+                cosine, sine = math.cos(angle), math.sin(angle)
+                section_scale = float(section["scale"])
+                plane: List[Tuple[float, float]] = []
+                ring: List[Tuple[float, float, float]] = []
+                along = float(section["position"]) * axis_length / 2
+                for point in section["points"]:
+                    raw_u = float(point[0]) * float(scale[0]) * section_scale
+                    raw_v = float(point[1]) * float(scale[1]) * section_scale
+                    u = raw_u * cosine - raw_v * sine
+                    v = raw_u * sine + raw_v * cosine
+                    plane.append((u, v))
+                    ring.append(_loft_axis_point(axis, along, u, v))
+                profiles.append(tuple(plane))
+                rings.append(tuple(ring))
+            cap_start = sections[0]["cap_policy"] == "start"
+            cap_end = sections[-1]["cap_policy"] == "end"
+            resolved[operation_id] = [BoxPrimitive(
+                role,
+                tuple(float(value) for value in position),
+                (0.0, 0.0, 0.0),
+                material,
+                "loft_profile",
+                profile_input_id=str(input_id),
+                cap_start=cap_start,
+                cap_end=cap_end,
+                loft_rings_mm=tuple(rings),
+                loft_profiles=tuple(profiles),
+                loft_axis=axis,
+                material_id=material_id,
+            )]
+        elif op == "sweep":
+            from .profile_contracts import resample_profile_sketch
+
+            input_id = args.get("profile_input_id")
+            profile_input = profile_inputs.get(input_id)
+            if not isinstance(profile_input, dict) or profile_input.get("input_kind") != "profile_sketch":
+                raise _runtime_operation_error(operation_id, op, "sweep profile provenance is missing")
+            normalized, points, holes = resample_profile_sketch(profile_input["canonical_payload"])
+            scale = args.get("profile_scale")
+            path = args.get("path_points")
+            if holes or not normalized["closed"] or not isinstance(scale, list) or not isinstance(path, list):
+                raise _runtime_operation_error(operation_id, op, "sweep requires one closed hole-free profile and bounded path")
+            scaled = tuple((float(point[0]) * float(scale[0]), float(point[1]) * float(scale[1])) for point in points)
+            resolved[operation_id] = [BoxPrimitive(
+                role,
+                tuple(float(value) for value in position),
+                (0.0, 0.0, 0.0),
+                material,
+                "sweep_profile",
+                profile_points=scaled,
+                profile_input_id=str(input_id),
+                cap_start=bool(args.get("cap_start", True)),
+                cap_end=bool(args.get("cap_end", True)),
+                sweep_path_mm=tuple(tuple(float(value) for value in point) for point in path),
+                path_closed=bool(args.get("path_closed", False)),
+                path_twist_degrees=float(args.get("path_twist_degrees", 0)),
+                material_id=material_id,
+            )]
+        elif op == "bevel_approx":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if len(source) != 1 or source[0].primitive_kind not in {"box", "bevel_box"}:
+                raise ValueError("bevel_approx only supports one box source")
+            radius = float(args.get("radius", 0))
+            segments = int(args.get("segments", 1))
+            if radius <= 0 or segments not in {1, 2, 3}:
+                raise ValueError("bevel_approx requires radius > 0 and 1-3 segments")
+            if radius >= min(source[0].size_mm[0], source[0].size_mm[2]) / 2:
+                raise ValueError("bevel_approx radius must be smaller than the source X/Z half-size")
+            source_primitive = source[0]
+            resolved[operation_id] = [replace(
+                source_primitive,
+                part_role=str(args.get("part_role") or source_primitive.part_role),
+                material_index=material if args.get("material_id") else source_primitive.material_index,
+                material_id=material_id if args.get("material_id") else source_primitive.material_id,
+                primitive_kind="bevel_box",
+                bevel_radius_mm=radius,
+                bevel_segments=segments,
+            )]
+        elif op == "surface_panel":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if len(source) != 1 or source[0].primitive_kind not in {"box", "bevel_box"}:
+                raise ValueError("surface_panel only supports one box or bevel_approx source")
+            base = source[0]
+            panel_size = args.get("size")
+            if panel_size is None:
+                panel_size = [base.size_mm[0] * 0.6, max(1.0, min(base.size_mm[1] * 0.08, 20.0)), base.size_mm[2] * 0.6]
+            if not isinstance(panel_size, list) or len(panel_size) != 3 or any(float(value) <= 0 for value in panel_size):
+                raise ValueError("surface_panel requires a positive size")
+            panel_size_tuple = tuple(float(value) for value in panel_size)
+            if panel_size_tuple[0] > base.size_mm[0] or panel_size_tuple[2] > base.size_mm[2]:
+                raise ValueError("surface_panel must fit within the source X/Z face")
+            axis = args.get("axis", [0, 1, 0])
+            sign = 1.0 if axis == [0, 1, 0] else -1.0
+            offset = position
+            panel_center = (
+                base.center_mm[0] + float(offset[0]),
+                base.center_mm[1] + sign * (base.size_mm[1] / 2 + panel_size_tuple[1] / 2),
+                base.center_mm[2] + float(offset[2]),
+            )
+            if abs(float(offset[0])) + panel_size_tuple[0] / 2 > base.size_mm[0] / 2 or abs(float(offset[2])) + panel_size_tuple[2] / 2 > base.size_mm[2] / 2:
+                raise ValueError("surface_panel offset places the panel outside the source X/Z face")
+            panel = BoxPrimitive(
+                str(args.get("part_role") or "surface_panel"),
+                panel_center,
+                panel_size_tuple,
+                material,
+                "surface_panel",
+                material_id=material_id or base.material_id,
+            )
+            resolved[operation_id] = [*source, panel]
+        elif op in {"mirror", "array", "radial_array"}:
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if not source:
+                raise _runtime_operation_error(operation_id, op, "transform source has no exportable geometry")
+            axis = _dominant_axis(args.get("axis", [0, 1, 0]))
+            if op == "mirror":
+                resolved[operation_id] = [_mirror_primitive(item, axis) for item in source]
+            elif op == "array":
+                count = int(args.get("count", 0))
+                spacing = float(args.get("spacing", 0))
+                resolved[operation_id] = [replace(item, center_mm=_translate_center(item.center_mm, axis, spacing * index)) for index in range(count) for item in source]
+            else:
+                count = int(args.get("count", 0))
+                radius = float(args.get("radius", 0))
+                angle = float(args.get("angle", math.pi * 2))
+                resolved[operation_id] = [_radial_primitive(item, axis, radius, angle * index / count) for index in range(count) for item in source]
+        elif op in {"union", "subtract"}:
+            inputs = operation.get("inputs", [])
+            first = resolved.get(inputs[0], []) if len(inputs) > 0 else []
+            second = resolved.get(inputs[1], []) if len(inputs) > 1 else []
+            if not first or not second:
+                raise ValueError(f"{op} requires two exportable geometry inputs")
+            if op == "union":
+                if any(not _supported_boolean_primitive(item) for item in [*first, *second]):
+                    raise ValueError("union only supports box, cylinder, capsule and wedge primitives")
+                if any(not _aabb_disjoint(left, right) for index, left in enumerate(first) for right in [*first[index + 1 :], *second] if left is not right):
+                    raise ValueError("union requires disjoint or touching primitive bounds")
+                if any(not _aabb_disjoint(left, right) for left in second for right in second if left is not right):
+                    raise ValueError("union requires disjoint or touching primitive bounds")
+                resolved[operation_id] = [*first, *second]
+            else:
+                if len(first) != 1 or len(second) != 1 or first[0].primitive_kind != "box" or second[0].primitive_kind != "box":
+                    raise ValueError("subtract only supports one axis-aligned box minus one box")
+                resolved[operation_id] = _subtract_box_pair(first[0], second[0])
+        else:
+            raise _runtime_operation_error(operation_id, op, "operation has no Worker implementation")
+    boxes = [item for output in program.get("outputs", []) if isinstance(output, dict) for item in resolved.get(str(output.get("operation_id")), [])]
+    if not boxes:
+        raise ValueError("ShapeProgram has no exportable geometry outputs")
+    expected_triangles = sum(_primitive_triangle_count(item) for item in boxes)
+    triangle_budget = int(program.get("triangle_budget", 0))
+    if expected_triangles > triangle_budget:
+        raise _runtime_operation_error(
+            "runtime_triangle_budget",
+            "compile",
+            f"compiled triangle count {expected_triangles} exceeds budget {triangle_budget}",
+        )
+    glb, compiler_bounds = _build_glb(boxes)
+    try:
+        facts = read_shape_program_glb_facts(glb)
+    except (ValueError, TypeError, KeyError, IndexError, struct.error, json.JSONDecodeError) as exc:
+        raise GeometryCompileReadbackError(f"GLB readback failed: {exc}") from exc
+    if facts.triangle_count != expected_triangles:
+        raise GeometryCompileReadbackError("GLB readback triangle count does not match compiled geometry")
+    if any(abs(float(left) - float(right)) > 0.01 for left, right in zip(compiler_bounds, facts.bounds_mm)):
+        raise GeometryCompileReadbackError("GLB readback bounds do not match compiled geometry")
+    if facts.triangle_count > triangle_budget:
+        raise _runtime_operation_error(
+            "runtime_triangle_budget",
+            "compile",
+            f"GLB readback triangle count {facts.triangle_count} exceeds budget {triangle_budget}",
+        )
+    operations = [item for item in program.get("operations", []) if isinstance(item, dict)]
+    outputs = [item for item in program.get("outputs", []) if isinstance(item, dict)]
+    readback = GeometryCompileReadback(
+        runtime_manifest_version=MANIFEST_SCHEMA_VERSION,
+        program_id=str(program["program_id"]),
+        shape_program_sha256=hashlib.sha256(_canonical_json(program).encode("utf-8")).hexdigest(),
+        glb_sha256=hashlib.sha256(glb).hexdigest(),
+        glb_byte_size=len(glb),
+        triangle_count=facts.triangle_count,
+        bounds_mm=facts.bounds_mm,
+        mesh_count=facts.mesh_count,
+        primitive_count=facts.primitive_count,
+        material_count=facts.material_count,
+        uv0_primitive_count=facts.uv0_primitive_count,
+        normal_primitive_count=facts.normal_primitive_count,
+        surface_provenance=facts.surface_provenance,
+        operation_ids=[str(item["operation_id"]) for item in operations],
+        operation_names=[str(item["op"]) for item in operations],
+        output_roles=[str(item["part_role"]) for item in outputs],
+        material_ids=sorted({item.material_id for item in boxes if item.material_id}),
+        readback_status="passed",
+    )
+    return GeometryCompileResult(glb_bytes=glb, readback=readback)
+
+
+def build_glb_from_shape_program(program: Dict[str, Any]) -> Tuple[bytes, List[float], int]:
+    """Compatibility tuple backed by the single compile/readback result."""
+
+    compiled = compile_shape_program(program)
+    return compiled.glb_bytes, compiled.readback.bounds_mm, compiled.readback.triangle_count
+
+
+def read_shape_program_glb(payload: bytes) -> Tuple[int, List[float]]:
+    """Read back the exact static GLB contract produced by this worker."""
+    facts = read_shape_program_glb_facts(payload)
+    return facts.triangle_count, facts.bounds_mm
+
+
+def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts:
+    """Read all geometry facts used by quality and export from one GLB parse."""
+    if len(payload) < 20 or len(payload) > 64 * 1024 * 1024:
+        raise ValueError("GLB is outside the supported readback size")
+    magic, version, declared_length = struct.unpack_from("<4sII", payload, 0)
+    if magic != b"glTF" or version != 2 or declared_length != len(payload):
+        raise ValueError("GLB header is invalid")
+    offset = 12
+    document: Dict[str, Any] | None = None
+    binary = b""
+    while offset + 8 <= len(payload):
+        length, chunk_type = struct.unpack_from("<II", payload, offset)
+        offset += 8
+        end = offset + length
+        if end > len(payload):
+            raise ValueError("GLB chunk exceeds file length")
+        if chunk_type == 0x4E4F534A and document is None:
+            document = json.loads(payload[offset:end].rstrip(b" \x00").decode("utf-8"))
+        elif chunk_type == 0x004E4942 and not binary:
+            binary = payload[offset:end]
+        offset = end
+    if offset != len(payload) or document is None or not binary:
+        raise ValueError("GLB chunks are incomplete")
+    if document.get("asset", {}).get("version") != "2.0":
+        raise ValueError("GLB asset version is not 2.0")
+    accessors = document.get("accessors", [])
+    views = document.get("bufferViews", [])
+    triangles = 0
+    primitive_count = 0
+    uv0_primitive_count = 0
+    normal_primitive_count = 0
+    surface_provenance: List[Dict[str, Any]] = []
+    minimum = [float("inf")] * 3
+    maximum = [float("-inf")] * 3
+    meshes = document.get("meshes", [])
+    if not meshes:
+        raise ValueError("GLB contains no mesh")
+    materials = document.get("materials", [])
+    if not isinstance(materials, list):
+        raise ValueError("GLB materials are invalid")
+    for mesh in meshes:
+        for primitive in mesh.get("primitives", []):
+            attributes = primitive.get("attributes", {})
+            position_index = attributes.get("POSITION")
+            normal_index = attributes.get("NORMAL")
+            uv_index = attributes.get("TEXCOORD_0")
+            index_index = primitive.get("indices")
+            if position_index is None or normal_index is None or uv_index is None or index_index is None:
+                raise ValueError("GLB primitive is missing POSITION, NORMAL, TEXCOORD_0 or indices")
+            position_accessor = accessors[int(position_index)]
+            normal_accessor = accessors[int(normal_index)]
+            uv_accessor = accessors[int(uv_index)]
+            index_accessor = accessors[int(index_index)]
+            if position_accessor.get("type") != "VEC3" or normal_accessor.get("type") != "VEC3" or uv_accessor.get("type") != "VEC2" or index_accessor.get("type") != "SCALAR":
+                raise ValueError("GLB accessor types are invalid")
+            if normal_accessor.get("count") != position_accessor.get("count") or uv_accessor.get("count") != position_accessor.get("count"):
+                raise ValueError("GLB POSITION/NORMAL/TEXCOORD_0 counts do not align")
+            count = int(index_accessor.get("count", 0))
+            if count % 3:
+                raise ValueError("GLB index count is not divisible by three")
+            triangles += count // 3
+            primitive_count += 1
+            normal_primitive_count += 1
+            uv0_primitive_count += 1
+            extras = primitive.get("extras", {})
+            roles = extras.get("forgecad_surface_roles", []) if isinstance(extras, dict) else []
+            ranges = extras.get("forgecad_surface_ranges", []) if isinstance(extras, dict) else []
+            if not isinstance(roles, list) or any(not isinstance(role, str) or not role for role in roles):
+                raise ValueError("GLB surface provenance is invalid")
+            if not isinstance(ranges, list) or any(
+                not isinstance(item, dict)
+                or item.get("surface_role") not in roles
+                or not isinstance(item.get("first_triangle"), int)
+                or not isinstance(item.get("triangle_count"), int)
+                or item["first_triangle"] < 0
+                or item["triangle_count"] < 0
+                for item in ranges
+            ):
+                raise ValueError("GLB surface triangle ranges are invalid")
+            positive_ranges = [item for item in ranges if item["triangle_count"] > 0]
+            if sum(item["triangle_count"] for item in positive_ranges) != count // 3:
+                raise ValueError("GLB surface triangle ranges do not cover primitive indices")
+            cursor = 0
+            for item in positive_ranges:
+                if item["first_triangle"] != cursor:
+                    raise ValueError("GLB surface triangle ranges are not contiguous")
+                cursor += item["triangle_count"]
+            topology = _readback_primitive_topology(
+                accessors,
+                views,
+                binary,
+                int(position_index),
+                int(index_index),
+            )
+            uv_values = _readback_float_accessor(accessors, views, binary, int(uv_index), 2)
+            normal_values = _readback_float_accessor(accessors, views, binary, int(normal_index), 3)
+            if any(not math.isfinite(value) for item in [*uv_values, *normal_values] for value in item):
+                raise ValueError("GLB UV0 or normal contains non-finite values")
+            profile_input_id = extras.get("forgecad_profile_input_id")
+            if profile_input_id is not None:
+                if topology["degenerate_triangle_count"]:
+                    raise ValueError("profile GLB contains degenerate triangles")
+                if any(value < -1e-6 or value > 1 + 1e-6 for uv in uv_values for value in uv):
+                    raise ValueError("profile GLB UV0 is outside the normalized baseline")
+                if any(math.sqrt(sum(value * value for value in normal)) < 0.5 for normal in normal_values):
+                    raise ValueError("profile GLB contains a degenerate normal")
+            surface_provenance.append({
+                "part_role": str(extras.get("forgecad_part_role", "part")),
+                "profile_input_id": profile_input_id,
+                "surface_roles": roles,
+                "surface_ranges": ranges,
+                "uv0_min": [min(value[index] for value in uv_values) for index in range(2)],
+                "uv0_max": [max(value[index] for value in uv_values) for index in range(2)],
+                **topology,
+            })
+            material_index = primitive.get("material")
+            if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
+                raise ValueError("GLB primitive material is invalid")
+            lower = position_accessor.get("min")
+            upper = position_accessor.get("max")
+            if not isinstance(lower, list) or not isinstance(upper, list) or len(lower) != 3 or len(upper) != 3:
+                raise ValueError("GLB position bounds are missing")
+            for axis in range(3):
+                minimum[axis] = min(minimum[axis], float(lower[axis]) * 1000)
+                maximum[axis] = max(maximum[axis], float(upper[axis]) * 1000)
+            for accessor_index in (position_index, normal_index, uv_index, index_index):
+                accessor = accessors[int(accessor_index)]
+                view = views[int(accessor["bufferView"])]
+                end = int(view.get("byteOffset", 0)) + int(view.get("byteLength", 0))
+                if end > len(binary):
+                    raise ValueError("GLB accessor exceeds binary buffer")
+    return ShapeProgramGlbReadbackFacts(
+        triangle_count=triangles,
+        bounds_mm=[round(maximum[index] - minimum[index], 4) for index in range(3)],
+        mesh_count=len(meshes),
+        primitive_count=primitive_count,
+        material_count=len(materials),
+        uv0_primitive_count=uv0_primitive_count,
+        normal_primitive_count=normal_primitive_count,
+        surface_provenance=surface_provenance,
+    )
+
+
+def _readback_primitive_topology(
+    accessors: List[Any],
+    views: List[Any],
+    binary: bytes,
+    position_accessor_index: int,
+    index_accessor_index: int,
+) -> Dict[str, Any]:
+    position_accessor = accessors[position_accessor_index]
+    position_view = views[int(position_accessor["bufferView"])]
+    position_count = int(position_accessor["count"])
+    position_stride = int(position_view.get("byteStride", 12))
+    position_base = int(position_view.get("byteOffset", 0)) + int(position_accessor.get("byteOffset", 0))
+    vertices: List[Tuple[float, float, float]] = []
+    for index in range(position_count):
+        vertex = struct.unpack_from("<3f", binary, position_base + index * position_stride)
+        vertices.append(tuple(round(float(value), 8) for value in vertex))
+
+    index_accessor = accessors[index_accessor_index]
+    index_view = views[int(index_accessor["bufferView"])]
+    index_count = int(index_accessor["count"])
+    component_type = int(index_accessor["componentType"])
+    format_code, byte_size = {5123: ("H", 2), 5125: ("I", 4)}.get(component_type, (None, None))
+    if format_code is None:
+        raise ValueError("GLB topology readback requires uint16 or uint32 indices")
+    index_stride = int(index_view.get("byteStride", byte_size))
+    index_base = int(index_view.get("byteOffset", 0)) + int(index_accessor.get("byteOffset", 0))
+    indices = [struct.unpack_from(f"<{format_code}", binary, index_base + index * index_stride)[0] for index in range(index_count)]
+    edge_counts: Dict[Tuple[Tuple[float, float, float], Tuple[float, float, float]], int] = {}
+    degenerate = 0
+    for offset in range(0, len(indices), 3):
+        triangle = [vertices[indices[offset + index]] for index in range(3)]
+        if len(set(triangle)) != 3:
+            degenerate += 1
+            continue
+        for left, right in ((triangle[0], triangle[1]), (triangle[1], triangle[2]), (triangle[2], triangle[0])):
+            edge = tuple(sorted((left, right)))
+            edge_counts[edge] = edge_counts.get(edge, 0) + 1
+    boundary = sum(count == 1 for count in edge_counts.values())
+    non_manifold = sum(count > 2 for count in edge_counts.values())
+    return {
+        "closed": degenerate == 0 and boundary == 0 and non_manifold == 0,
+        "boundary_edge_count": boundary,
+        "non_manifold_edge_count": non_manifold,
+        "degenerate_triangle_count": degenerate,
+    }
+
+
+def _readback_float_accessor(
+    accessors: List[Any],
+    views: List[Any],
+    binary: bytes,
+    accessor_index: int,
+    component_count: int,
+) -> List[Tuple[float, ...]]:
+    accessor = accessors[accessor_index]
+    if int(accessor.get("componentType", 0)) != 5126:
+        raise ValueError("GLB float accessor has an unsupported component type")
+    view = views[int(accessor["bufferView"])]
+    count = int(accessor["count"])
+    element_size = component_count * 4
+    stride = int(view.get("byteStride", element_size))
+    base = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    return [
+        tuple(float(value) for value in struct.unpack_from(f"<{component_count}f", binary, base + index * stride))
+        for index in range(count)
+    ]
+
+
+def inspect_imported_glb(payload: bytes) -> ImportedGlbInspection:
+    """Validate a self-contained GLB before it enters the local library.
+
+    The imported file is never executed.  The checks intentionally exclude
+    external buffers/images and compressed mesh extensions because P0 keeps a
+    predictable, local-only GLB path.  Bounds are reported in millimetres
+    using glTF's metre convention.
+    """
+    if len(payload) < 20 or len(payload) > MAX_IMPORTED_GLB_BYTES:
+        raise ValueError("导入 GLB 超出 20 B–32 MB 的轻量限制。")
+    document, binary = _parse_glb_chunks(payload)
+    if document.get("asset", {}).get("version") != "2.0":
+        raise ValueError("只支持 glTF 2.0 GLB。")
+    if any(extension in {"KHR_draco_mesh_compression", "EXT_meshopt_compression"} for extension in document.get("extensionsUsed", [])):
+        raise ValueError("当前不支持压缩网格 GLB；请先导出为普通 glTF 2.0 GLB。")
+    buffers = document.get("buffers")
+    if not isinstance(buffers, list) or len(buffers) != 1 or not isinstance(buffers[0], dict):
+        raise ValueError("导入 GLB 必须只包含一个内嵌二进制缓冲区。")
+    if buffers[0].get("uri"):
+        raise ValueError("导入 GLB 不能引用外部缓冲区。")
+    if int(buffers[0].get("byteLength", -1)) > len(binary):
+        raise ValueError("导入 GLB 的缓冲区长度无效。")
+    images = document.get("images", [])
+    if not isinstance(images, list) or any(isinstance(image, dict) and image.get("uri") for image in images):
+        raise ValueError("导入 GLB 不能引用外部图片。")
+
+    accessors = document.get("accessors")
+    views = document.get("bufferViews")
+    meshes = document.get("meshes")
+    if not isinstance(accessors, list) or not isinstance(views, list) or not isinstance(meshes, list) or not meshes:
+        raise ValueError("导入 GLB 缺少网格、访问器或缓冲视图。")
+    triangle_count = 0
+    primitive_count = 0
+    minimum = [float("inf")] * 3
+    maximum = [float("-inf")] * 3
+    for mesh in meshes:
+        if not isinstance(mesh, dict) or not isinstance(mesh.get("primitives"), list):
+            raise ValueError("导入 GLB 的网格格式无效。")
+        for primitive in mesh["primitives"]:
+            if not isinstance(primitive, dict) or primitive.get("mode", 4) != 4:
+                raise ValueError("当前只支持三角形 GLB 网格。")
+            position_index = primitive.get("attributes", {}).get("POSITION") if isinstance(primitive.get("attributes"), dict) else None
+            if not isinstance(position_index, int):
+                raise ValueError("导入 GLB 网格缺少 POSITION。")
+            position = _import_accessor(accessors, views, binary, position_index, label="POSITION")
+            if position.get("componentType") != 5126 or position.get("type") != "VEC3" or int(position.get("count", 0)) <= 0:
+                raise ValueError("导入 GLB 的 POSITION 访问器无效。")
+            lower = position.get("min")
+            upper = position.get("max")
+            if not _finite_vec3(lower) or not _finite_vec3(upper):
+                raise ValueError("导入 GLB 的 POSITION 必须包含有限 min/max。")
+            for axis in range(3):
+                minimum[axis] = min(minimum[axis], float(lower[axis]))
+                maximum[axis] = max(maximum[axis], float(upper[axis]))
+            index_index = primitive.get("indices")
+            if index_index is None:
+                index_count = int(position["count"])
+            elif isinstance(index_index, int):
+                indices = _import_accessor(accessors, views, binary, index_index, label="indices")
+                if indices.get("type") != "SCALAR" or indices.get("componentType") not in {5121, 5123, 5125}:
+                    raise ValueError("导入 GLB 的索引访问器无效。")
+                index_count = int(indices.get("count", 0))
+            else:
+                raise ValueError("导入 GLB 的索引引用无效。")
+            if index_count <= 0 or index_count % 3:
+                raise ValueError("导入 GLB 的三角形索引数量无效。")
+            triangle_count += index_count // 3
+            primitive_count += 1
+    if triangle_count > MAX_IMPORTED_GLB_TRIANGLES:
+        raise ValueError(f"导入 GLB 超过 {MAX_IMPORTED_GLB_TRIANGLES:,} 三角形轻量预算。")
+    if primitive_count == 0:
+        raise ValueError("导入 GLB 没有可显示的三角形网格。")
+    return ImportedGlbInspection(
+        sha256=hashlib.sha256(payload).hexdigest(),
+        byte_size=len(payload),
+        triangle_count=triangle_count,
+        bounds_mm=[round((maximum[index] - minimum[index]) * 1000, 4) for index in range(3)],
+        mesh_count=len(meshes),
+        primitive_count=primitive_count,
+        material_count=len(document.get("materials", [])) if isinstance(document.get("materials", []), list) else 0,
+        node_count=len(document.get("nodes", [])) if isinstance(document.get("nodes", []), list) else 0,
+    )
+
+
+def _parse_glb_chunks(payload: bytes) -> Tuple[Dict[str, Any], bytes]:
+    magic, version, declared_length = struct.unpack_from("<4sII", payload, 0)
+    if magic != b"glTF" or version != 2 or declared_length != len(payload):
+        raise ValueError("GLB 头部无效。")
+    offset = 12
+    document: Dict[str, Any] | None = None
+    binary = b""
+    while offset + 8 <= len(payload):
+        length, chunk_type = struct.unpack_from("<II", payload, offset)
+        offset += 8
+        end = offset + length
+        if end > len(payload):
+            raise ValueError("GLB 分块超出文件长度。")
+        if chunk_type == 0x4E4F534A:
+            if document is not None:
+                raise ValueError("GLB 包含多个 JSON 分块。")
+            decoded = json.loads(payload[offset:end].rstrip(b" \x00").decode("utf-8"))
+            if not isinstance(decoded, dict):
+                raise ValueError("GLB JSON 根对象无效。")
+            document = decoded
+        elif chunk_type == 0x004E4942:
+            if binary:
+                raise ValueError("GLB 包含多个二进制分块。")
+            binary = payload[offset:end]
+        offset = end
+    if offset != len(payload) or document is None or not binary:
+        raise ValueError("GLB 缺少 JSON 或二进制分块。")
+    return document, binary
+
+
+def _import_accessor(accessors: List[Any], views: List[Any], binary: bytes, accessor_index: int, *, label: str) -> Dict[str, Any]:
+    if accessor_index < 0 or accessor_index >= len(accessors) or not isinstance(accessors[accessor_index], dict):
+        raise ValueError(f"导入 GLB 的 {label} 访问器引用无效。")
+    accessor = accessors[accessor_index]
+    if accessor.get("sparse"):
+        raise ValueError("当前不支持 sparse GLB 访问器。")
+    view_index = accessor.get("bufferView")
+    if not isinstance(view_index, int) or view_index < 0 or view_index >= len(views) or not isinstance(views[view_index], dict):
+        raise ValueError(f"导入 GLB 的 {label} 缺少缓冲视图。")
+    view = views[view_index]
+    if view.get("buffer", 0) != 0:
+        raise ValueError(f"导入 GLB 的 {label} 引用了外部缓冲区。")
+    component_sizes = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
+    component_count = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
+    component_type = accessor.get("componentType")
+    value_type = accessor.get("type")
+    count = accessor.get("count")
+    if component_type not in component_sizes or value_type not in component_count or not isinstance(count, int) or count <= 0:
+        raise ValueError(f"导入 GLB 的 {label} 访问器格式无效。")
+    element_size = component_sizes[component_type] * component_count[value_type]
+    stride = view.get("byteStride", element_size)
+    if not isinstance(stride, int) or stride < element_size:
+        raise ValueError(f"导入 GLB 的 {label} 步长无效。")
+    accessor_offset = accessor.get("byteOffset", 0)
+    view_offset = view.get("byteOffset", 0)
+    view_length = view.get("byteLength")
+    if not isinstance(accessor_offset, int) or accessor_offset < 0 or not isinstance(view_offset, int) or view_offset < 0 or not isinstance(view_length, int) or view_length < 0:
+        raise ValueError(f"导入 GLB 的 {label} 缓冲范围无效。")
+    required = accessor_offset + (count - 1) * stride + element_size
+    if required > view_length or view_offset + required > len(binary):
+        raise ValueError(f"导入 GLB 的 {label} 访问器超出缓冲区。")
+    return accessor
+
+
+def _finite_vec3(value: Any) -> bool:
+    return isinstance(value, list) and len(value) == 3 and all(isinstance(item, (int, float)) and math.isfinite(float(item)) for item in value)
+
+
+def _material_index(material_id: str) -> int:
+    if material_id in {"mat_aluminum", "mat_automotive_paint"}:
+        return 1
+    if material_id == "mat_signal_red":
+        return 2
+    if material_id == "mat_composite":
+        return 3
+    if material_id == "mat_rubber":
+        return 4
+    if material_id == "mat_dark_glass":
+        return 5
+    if material_id == "mat_emissive_blue":
+        return 6
+    return 0
+
+
+_BOUND_SCALE_PATHS: Tuple[Tuple[str, str], ...] = (
+    ("transform.scale.x", "长度比例"),
+    ("transform.scale.y", "高度比例"),
+    ("transform.scale.z", "宽度比例"),
+)
+
+
+def _editable_parameter_bindings_for_part(
+    *,
+    part_id: str,
+    primitive: BoxPrimitive,
+    role_count: int,
+) -> List[Dict[str, Any]]:
+    """Return declarations only for one concrete generated ShapeProgram output.
+
+    The current ChangeSet adapter resolves ShapeProgram operations by stable
+    role. Repeated roles (such as paired wheels or nacelles) would update more
+    than one primitive, so they deliberately remain undeclared until a future
+    operation-level editing contract exists. Cylinders and capsules likewise
+    remain undeclared: their current adapter has radius/height semantics, not
+    three independent size axes. Boxes and wedges map directly to `args.size`.
+    """
+    if primitive.part_role.startswith("visual_") or role_count != 1 or primitive.primitive_kind not in {"box", "wedge"}:
+        return []
+    parameter_stem = part_id.removeprefix("part_")
+    return [
+        {
+            "schema_version": "EditableParameterBinding@1",
+            "parameter_id": f"editparam_{parameter_stem}_{path.rsplit('.', 1)[1]}",
+            "path": path,
+            "display_name": display_name,
+            "unit": "ratio",
+            "default": 1.0,
+            "min": 0.6,
+            "max": 1.4,
+            "step": 0.1,
+        }
+        for path, display_name in _BOUND_SCALE_PATHS
+    ]
+
+
+def segment_blockout(
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    variant_id: str | None = None,
+    presentation_profile: str = "quick_sketch",
+) -> List[Dict[str, Any]]:
+    """Return deterministic part candidates for a generated blockout.
+
+    Segmentation is deliberately a candidate operation: roles come from the
+    domain pack's deterministic silhouette template, while every part remains
+    editable and uncommitted until a later ChangeSet confirmation.
+    """
+    direction = next((item for item in plan.directions if item.direction_id == direction_id), None)
+    if direction is None:
+        raise ValueError(f"direction not found: {direction_id}")
+    if variant_id is not None and variant_id not in BLOCKOUT_VARIANT_IDS.get(plan.domain_pack_id, ()):
+        raise ValueError(f"unknown blockout variant {variant_id!r} for {plan.domain_pack_id}")
+    if presentation_profile not in {"quick_sketch", "showcase"}:
+        raise ValueError("presentation_profile must be quick_sketch or showcase")
+    boxes = _presentation_primitives(
+        _boxes_for_domain(plan.domain_pack_id, direction.silhouette, variant_id),
+        plan=plan,
+        direction_id=direction_id,
+        presentation_profile=presentation_profile,
+    )
+    candidates: List[Dict[str, Any]] = []
+    role_counts = {role: sum(item.part_role == role for item in boxes) for role in {item.part_role for item in boxes}}
+    for index, box in enumerate(boxes):
+        part_id = f"part_{index + 1}_{box.part_role}"
+        parent_index = index - 1 if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 else 0
+        parent_part_id = None if index == 0 else f"part_{parent_index + 1}_{boxes[parent_index].part_role}"
+        parameter_bindings = _editable_parameter_bindings_for_part(
+            part_id=part_id,
+            primitive=box,
+            role_count=role_counts[box.part_role],
+        )
+        candidates.append(
+            {
+                "part_id": part_id,
+                "role": box.part_role,
+                "parent_part_id": parent_part_id,
+                "position_mm": [round(value, 4) for value in box.center_mm],
+                "size_mm": [round(value, 4) for value in box.size_mm],
+                "material_zone_ids": [f"zone_{box.part_role}"],
+                "editable_parameters": [
+                    *(item["path"] for item in parameter_bindings),
+                    *(["joint.rotation"] if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 else []),
+                ],
+                "editable_parameter_bindings": parameter_bindings,
+                "locked": False,
+                "provenance": "agent_generated",
+            }
+        )
+    return candidates
+
+
+def _boxes_for_domain(pack_id: str, silhouette: str, variant_id: str | None = None) -> List[BoxPrimitive]:
+    if variant_id is not None:
+        return _variant_boxes_for_domain(pack_id, variant_id)
+    scale = {"compact": 0.88, "balanced": 1.0, "extended": 1.18, "industrial": 1.08, "organic": 1.0}.get(silhouette, 1.0)
+    if pack_id == "pack_vehicle_concept":
+        return [
+            _box("body_shell", (0, 620, 0), (2200 * scale, 520 * scale, 900 * scale), 0),
+            _box("cabin", (180, 1020, 0), (1100 * scale, 520 * scale, 760 * scale), 1),
+            _cylinder("wheel_or_track", (-760, 340, -520), 180, 220, 2, (0, 0, 1)),
+            _cylinder("wheel_or_track", (760, 340, -520), 180, 220, 2, (0, 0, 1)),
+            _cylinder("wheel_or_track", (-760, 340, 520), 180, 220, 2, (0, 0, 1)),
+            _cylinder("wheel_or_track", (760, 340, 520), 180, 220, 2, (0, 0, 1)),
+            _box("lighting", (-1090, 700, 0), (80, 180, 420), 2),
+        ]
+    if pack_id == "pack_aircraft_concept":
+        return [
+            _box("fuselage", (0, 600, 0), (2800 * scale, 500 * scale, 520 * scale), 0),
+            _box("cockpit_canopy", (-720, 850, 0), (650, 360, 460), 1),
+            _box("main_wing", (160, 600, 0), (1250 * scale, 120, 2400 * scale), 1),
+            _box("tail_surface", (1080, 820, 0), (520, 300, 1000), 2),
+            _cylinder("nacelle", (-120, 360, -690), 160, 800, 2, (1, 0, 0)),
+            _cylinder("nacelle", (-120, 360, 690), 160, 800, 2, (1, 0, 0)),
+        ]
+    if pack_id == "pack_robotic_arm_concept":
+        return [
+            _box("base", (0, 250, 0), (700 * scale, 500, 700 * scale), 0),
+            _cylinder("shoulder_joint", (0, 760, 0), 260, 380, 2),
+            _box("upper_link", (0, 1350, 0), (360, 1050 * scale, 360), 1),
+            _cylinder("elbow_joint", (0, 1950, 0), 225, 380, 2),
+            _box("forearm_link", (0, 2480, 0), (300, 900 * scale, 300), 1),
+            _cylinder("wrist_joint", (0, 3000, 0), 180, 300, 2),
+            _box("end_effector", (0, 3300, 0), (500, 380, 500), 0),
+        ]
+    return [
+        _box("primary_body", (0, 620, 0), (1900 * scale, 520, 720 * scale), 0),
+        _box("secondary_body", (-850, 720, 0), (600, 420, 620), 1),
+        _box("mobility", (0, 240, 0), (650, 380, 520), 2),
+        _box("trim", (300, 900, 380), (700, 90, 60), 2),
+        _box("transparent", (350, 930, 0), (450, 180, 360), 1),
+    ]
+
+
+def _presentation_primitives(
+    boxes: List[BoxPrimitive],
+    *,
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    presentation_profile: str,
+) -> List[BoxPrimitive]:
+    """Append deterministic, non-functional exterior layers for showcase mode.
+
+    The same bounded primitive list feeds ShapeProgram, GLB, AssemblyGraph and
+    segmentation.  It therefore cannot create a more detailed saved asset
+    than the preview the user accepted.  These are visual shells and accents,
+    never derived mechanisms, manufacturing features or material claims.
+    """
+    if presentation_profile == "quick_sketch":
+        return list(boxes)
+    intent = visual_intent_for_direction(
+        plan.spec.get("visual_intent_mapping") if isinstance(plan.spec, dict) else None,
+        domain_pack_id=plan.domain_pack_id,
+        direction_id=direction_id,
+    )
+    count = {"simple": 2, "medium": 3, "dense": 4}.get(intent.detail_density if intent else "medium", 3)
+    anchors = [item for item in boxes if item.primitive_kind in {"box", "wedge"}] or list(boxes)
+    details: List[BoxPrimitive] = []
+    for index, anchor in enumerate(anchors[:count], 1):
+        width, height, depth = anchor.size_mm
+        thickness = max(12.0, min(32.0, min(width, height, depth) * 0.08))
+        details.append(
+            _box(
+                f"visual_panel_{index}",
+                (anchor.center_mm[0], anchor.center_mm[1] + height / 2 + thickness / 2, anchor.center_mm[2]),
+                (max(80.0, width * 0.62), thickness, max(70.0, depth * 0.72)),
+                3,
+                material_id="mat_composite",
+            )
+        )
+        details.append(
+            _box(
+                f"visual_groove_{index}",
+                (anchor.center_mm[0] - width * 0.22, anchor.center_mm[1], anchor.center_mm[2] + depth / 2 + thickness / 2),
+                (max(60.0, width * 0.22), max(48.0, height * 0.34), thickness),
+                0,
+                material_id="mat_graphite",
+            )
+        )
+        if index <= 2:
+            details.append(
+                _wedge(
+                    f"visual_guard_{index}",
+                    (anchor.center_mm[0] + width * 0.29, anchor.center_mm[1] - height * 0.03, anchor.center_mm[2] + depth / 2 + thickness),
+                    (max(70.0, width * 0.2), max(60.0, height * 0.44), thickness * 1.8),
+                    1,
+                    material_id="mat_aluminum",
+                )
+            )
+
+    # A fixed small cluster makes third-level detail readable without exposing
+    # a free feature editor or inventing a real cooling/electrical system.
+    primary = anchors[0]
+    width, height, depth = primary.size_mm
+    thickness = max(10.0, min(24.0, min(width, height, depth) * 0.06))
+    details.append(
+        _box(
+            "visual_light_strip_1",
+            (primary.center_mm[0] - width * 0.22, primary.center_mm[1] + height * 0.16, primary.center_mm[2] + depth / 2 + thickness / 2),
+            (max(70.0, width * 0.24), max(12.0, height * 0.06), thickness),
+            6,
+            material_id="mat_emissive_blue",
+        )
+    )
+    # This is a shallow, contrasting visual route only.  It is deliberately
+    # not a cable, wiring path or electrical feature and carries no behavior.
+    details.append(
+        _box(
+            "visual_cable_slot_1",
+            (primary.center_mm[0] + width * 0.08, primary.center_mm[1] - height * 0.18, primary.center_mm[2] + depth / 2 + thickness / 2),
+            (max(80.0, width * 0.38), max(12.0, height * 0.055), thickness),
+            0,
+            material_id="mat_graphite",
+        )
+    )
+    vent_radius = max(9.0, min(24.0, min(width, height) * 0.045))
+    for index, y_offset in enumerate((-vent_radius * 1.45, 0.0, vent_radius * 1.45), 1):
+        details.append(
+            _cylinder(
+                f"visual_vent_{index}",
+                (primary.center_mm[0] + width * 0.26, primary.center_mm[1] + y_offset, primary.center_mm[2] + depth / 2 + thickness / 2),
+                vent_radius,
+                thickness,
+                0,
+                (0.0, 0.0, 1.0),
+                material_id="mat_graphite",
+            )
+        )
+    fastener_radius = max(8.0, min(18.0, min(width, depth) * 0.03))
+    for index, x_offset in enumerate((-width * 0.24, width * 0.24), 1):
+        details.append(
+            _cylinder(
+                f"visual_fastener_{index}",
+                (primary.center_mm[0] + x_offset, primary.center_mm[1] + height / 2 + thickness / 2, primary.center_mm[2]),
+                fastener_radius,
+                thickness,
+                1,
+                (0.0, 1.0, 0.0),
+                material_id="mat_aluminum",
+            )
+        )
+    return [*boxes, *details]
+
+
+def _box(
+    role: str,
+    center: Tuple[float, float, float],
+    size: Tuple[float, float, float],
+    material: int,
+    *,
+    material_id: str | None = None,
+) -> BoxPrimitive:
+    return BoxPrimitive(role, center, size, material, material_id=material_id)
+
+
+def _wedge(
+    role: str,
+    center: Tuple[float, float, float],
+    size: Tuple[float, float, float],
+    material: int,
+    *,
+    material_id: str | None = None,
+) -> BoxPrimitive:
+    return BoxPrimitive(role, center, size, material, "wedge", material_id=material_id)
+
+
+def _capsule(
+    role: str,
+    center: Tuple[float, float, float],
+    radius: float,
+    height: float,
+    material: int,
+    axis: Tuple[float, float, float] = (0.0, 1.0, 0.0),
+) -> BoxPrimitive:
+    return BoxPrimitive(role, center, (radius * 2, height, radius * 2), material, "capsule", radius, height, axis)
+
+
+def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitive]:
+    """Return an explicit, low-poly structure for the G807 diversity catalog.
+
+    These are visual blockouts only.  The catalog intentionally varies part roles,
+    primitive kinds, counts and placement so a repeated scale change cannot pass as
+    a new design.  It contains no functional, manufacturing or performance data.
+    """
+    catalog: Dict[str, Dict[str, List[BoxPrimitive]]] = {
+        "pack_future_weapon_prop": {
+            "compact_prop_a": [_box("prop_core", (0, 560, 0), (1500, 420, 620), 0), _box("prop_grip", (-180, 180, 0), (340, 600, 300), 1), _wedge("prop_shoulder", (650, 760, 0), (620, 240, 460), 2), _box("prop_sight", (180, 850, 0), (260, 140, 180), 1)],
+            "compact_prop_b": [_capsule("prop_capsule_body", (0, 570, 0), 300, 1500, 0, (1, 0, 0)), _box("prop_side_housing", (100, 520, -390), (680, 260, 180), 1), _box("prop_grip", (-250, 170, 0), (300, 560, 280), 1), _wedge("prop_optic", (250, 840, 0), (360, 180, 220), 2), _box("prop_panel", (520, 590, 390), (380, 80, 220), 2)],
+            "compact_prop_c": [_wedge("prop_front_shell", (-500, 600, 0), (720, 420, 560), 0), _box("prop_rear_shell", (480, 600, 0), (900, 500, 600), 1), _cylinder("prop_muzzle_ring", (-900, 600, 0), 180, 240, 2, (1, 0, 0)), _box("prop_grip", (-120, 170, 0), (320, 560, 300), 1), _box("prop_back_panel", (700, 820, 0), (260, 180, 280), 2)],
+            "long_profile_prop_a": [_box("prop_long_body", (0, 590, 0), (2300, 360, 420), 0), _cylinder("prop_front_ring", (-1180, 590, 0), 150, 260, 2, (1, 0, 0)), _box("prop_stock", (980, 510, 0), (560, 340, 360), 1), _wedge("prop_upper_rail", (240, 820, 0), (1100, 120, 180), 2), _box("prop_grip", (-180, 180, 0), (280, 520, 260), 1)],
+            "long_profile_prop_b": [_box("prop_long_body", (0, 620, 0), (2500, 420, 500), 0), _box("prop_lower_housing", (-180, 360, 0), (760, 260, 380), 1), _cylinder("prop_front_emitter", (-1230, 620, 0), 130, 300, 2, (1, 0, 0)), _cylinder("prop_rear_emitter", (1120, 620, 0), 110, 260, 2, (1, 0, 0)), _box("prop_grip", (0, 180, 0), (300, 560, 280), 1), _wedge("prop_top_fin", (400, 900, 0), (480, 220, 180), 2)],
+            "long_profile_prop_c": [_box("prop_body_spine", (0, 600, 0), (2200, 360, 480), 0), _cylinder("prop_front_ring", (-1060, 600, -170), 120, 320, 2, (1, 0, 0)), _cylinder("prop_front_ring_upper", (-1060, 600, 170), 120, 320, 2, (1, 0, 0)), _box("prop_side_housing", (260, 480, 0), (820, 240, 600), 1), _box("prop_stock", (980, 520, 0), (500, 320, 360), 1), _wedge("prop_sight", (420, 860, 0), (300, 160, 220), 2)],
+            "heavy_support_prop_a": [_box("prop_heavy_body", (0, 640, 0), (2100, 620, 820), 0), _wedge("prop_front_shroud", (-880, 680, 0), (520, 620, 760), 1), _box("prop_support_cradle", (0, 260, 0), (720, 340, 620), 2), _cylinder("prop_support_left", (-420, 120, -380), 90, 480, 1), _cylinder("prop_support_right", (-420, 120, 380), 90, 480, 1), _box("prop_heat_panel", (420, 880, 0), (620, 90, 420), 2)],
+            "heavy_support_prop_b": [_box("prop_heavy_body", (0, 660, 0), (2300, 560, 760), 0), _capsule("prop_core_capsule", (-300, 660, 0), 210, 900, 1, (1, 0, 0)), _box("prop_support_pedestal", (0, 220, 0), (620, 420, 620), 2), _cylinder("prop_leg_left", (500, 100, -360), 85, 520, 1), _cylinder("prop_leg_right", (500, 100, 360), 85, 520, 1), _cylinder("prop_leg_center", (680, 110, 0), 85, 560, 1), _wedge("prop_sensor", (520, 920, 0), (360, 260, 280), 2)],
+            "heavy_support_prop_c": [_box("prop_heavy_body", (0, 620, 0), (1900, 700, 900), 0), _cylinder("prop_ring_module", (-780, 620, 0), 260, 260, 2, (1, 0, 0)), _box("prop_rear_housing", (780, 650, 0), (620, 560, 720), 1), _box("prop_mag_left", (-80, 180, -340), (260, 620, 240), 1), _box("prop_mag_right", (-80, 180, 340), (260, 620, 240), 1), _wedge("prop_control_panel", (300, 1030, 0), (500, 180, 360), 2)],
+            "energy_visual_prop_a": [_box("prop_energy_body", (0, 620, 0), (1700, 480, 620), 0), _cylinder("prop_emitter", (-950, 620, 0), 220, 300, 2, (1, 0, 0)), _wedge("prop_fin_upper", (260, 920, 0), (520, 240, 180), 1), _wedge("prop_fin_lower", (260, 320, 0), (520, 240, 180), 1), _box("prop_glass_core", (300, 640, 0), (360, 260, 400), 2)],
+            "energy_visual_prop_b": [_capsule("prop_energy_handle", (0, 260, 0), 180, 900, 1), _wedge("prop_energy_head", (0, 920, 0), (840, 520, 640), 0), _cylinder("prop_emitter_left", (-300, 1040, 0), 110, 360, 2), _cylinder("prop_emitter_right", (300, 1040, 0), 110, 360, 2), _box("prop_shield", (0, 620, 390), (780, 520, 90), 2)],
+            "energy_visual_prop_c": [_box("prop_drone_body", (0, 760, 0), (1500, 420, 720), 0), _wedge("prop_fin_front", (-700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_back", (700, 820, 0), (500, 260, 460), 1), _wedge("prop_fin_left", (0, 820, -520), (520, 260, 340), 1), _wedge("prop_fin_right", (0, 820, 520), (520, 260, 340), 1), _cylinder("prop_sensor", (0, 1040, 0), 150, 240, 2), _box("prop_pod_left", (-80, 420, -420), (280, 300, 240), 2), _box("prop_pod_right", (-80, 420, 420), (280, 300, 240), 2)],
+        },
+        "pack_vehicle_concept": {
+            "urban_scout_a": [_wedge("vehicle_nose", (-850, 620, 0), (700, 420, 760), 0), _box("vehicle_cabin", (160, 900, 0), (1100, 560, 820), 1), _cylinder("vehicle_wheel_fl", (-520, 320, -520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_fr", (-520, 320, 520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rl", (720, 320, -520), 180, 220, 2, (0, 0, 1)), _cylinder("vehicle_wheel_rr", (720, 320, 520), 180, 220, 2, (0, 0, 1))],
+            "urban_scout_b": [_box("vehicle_body", (0, 620, 0), (2100, 480, 880), 0), _capsule("vehicle_cabin_capsule", (180, 960, 0), 300, 1000, 1, (1, 0, 0)), _cylinder("vehicle_hover_front", (-720, 320, -400), 150, 260, 2, (0, 0, 1)), _cylinder("vehicle_hover_rear", (720, 320, 400), 150, 260, 2, (0, 0, 1)), _box("vehicle_lightbar", (-1040, 760, 0), (100, 160, 560), 2)],
+            "urban_scout_c": [_box("vehicle_body", (0, 580, 0), (2200, 520, 760), 0), _wedge("vehicle_cabin", (120, 920, 0), (980, 500, 700), 1), _box("vehicle_track_left", (0, 300, -500), (1800, 260, 220), 2), _box("vehicle_track_right", (0, 300, 500), (1800, 260, 220), 2), _box("vehicle_sensor", (-700, 920, 0), (260, 220, 320), 2)],
+            "exploration_vehicle_a": [_box("rover_chassis", (0, 520, 0), (2400, 360, 1000), 0), _box("rover_lab", (260, 920, 0), (900, 600, 860), 1), *[_cylinder(f"rover_wheel_{index}", (center, 300, side), 160, 200, 2, (0, 0, 1)) for index, center in enumerate((-850, -300, 300, 850), 1) for side in (-520, 520)], _wedge("rover_sensor_mast", (-600, 1120, 0), (260, 520, 260), 2)],
+            "exploration_vehicle_b": [_box("rover_front", (-850, 560, 0), (700, 460, 900), 0), _box("rover_rear", (850, 560, 0), (900, 500, 980), 1), _capsule("rover_central_module", (0, 900, 0), 260, 1100, 1, (1, 0, 0)), _cylinder("rover_axle_front", (-700, 300, 0), 120, 1100, 2, (0, 0, 1)), _cylinder("rover_axle_rear", (700, 300, 0), 120, 1100, 2, (0, 0, 1)), _box("rover_roof_panel", (0, 1250, 0), (720, 90, 520), 2)],
+            "exploration_vehicle_c": [_box("crawler_chassis", (0, 520, 0), (2500, 460, 1100), 0), _wedge("crawler_cabin", (-250, 960, 0), (1000, 640, 900), 1), _box("crawler_track_left", (0, 300, -620), (2200, 300, 260), 2), _box("crawler_track_right", (0, 300, 620), (2200, 300, 260), 2), _box("crawler_rear_crate", (850, 920, 0), (520, 560, 800), 1), _cylinder("crawler_mast", (350, 1420, 0), 100, 520, 2)],
+            "low_racer_a": [_wedge("racer_front", (-760, 500, 0), (800, 340, 700), 0), _box("racer_cockpit", (160, 780, 0), (760, 360, 640), 1), _box("racer_rear", (820, 520, 0), (700, 420, 720), 0), _cylinder("racer_wheel_left", (-420, 260, -520), 150, 180, 2, (0, 0, 1)), _cylinder("racer_wheel_right", (-420, 260, 520), 150, 180, 2, (0, 0, 1)), _cylinder("racer_wheel_left_rear", (700, 260, -520), 150, 180, 2, (0, 0, 1)), _cylinder("racer_wheel_right_rear", (700, 260, 520), 150, 180, 2, (0, 0, 1))],
+            "low_racer_b": [_box("racer_delta_body", (0, 520, 0), (2600, 360, 1000), 0), _wedge("racer_delta_nose", (-1000, 580, 0), (700, 300, 850), 1), _box("racer_canopy", (120, 840, 0), (620, 300, 520), 2), _cylinder("racer_pod_left", (550, 300, -400), 140, 420, 2, (1, 0, 0)), _cylinder("racer_pod_right", (550, 300, 400), 140, 420, 2, (1, 0, 0))],
+            "low_racer_c": [_capsule("racer_capsule_body", (0, 620, 0), 340, 2200, 0, (1, 0, 0)), _box("racer_cockpit", (-120, 920, 0), (620, 240, 520), 1), _wedge("racer_wing_left", (320, 520, -680), (900, 160, 520), 2), _wedge("racer_wing_right", (320, 520, 680), (900, 160, 520), 2), _box("racer_tail", (900, 700, 0), (420, 300, 360), 1)],
+            "heavy_transport_a": [_box("carrier_chassis", (0, 600, 0), (3000, 680, 1400), 0), _box("carrier_cab", (-900, 1120, 0), (760, 720, 1100), 1), _box("carrier_cargo", (720, 1050, 0), (1500, 900, 1200), 1), _cylinder("carrier_wheel_front_l", (-900, 300, -700), 220, 240, 2, (0, 0, 1)), _cylinder("carrier_wheel_front_r", (-900, 300, 700), 220, 240, 2, (0, 0, 1)), _cylinder("carrier_wheel_back_l", (850, 300, -700), 220, 240, 2, (0, 0, 1)), _cylinder("carrier_wheel_back_r", (850, 300, 700), 220, 240, 2, (0, 0, 1))],
+            "heavy_transport_b": [_box("hauler_base", (0, 520, 0), (3000, 520, 1300), 0), _wedge("hauler_front", (-1000, 980, 0), (900, 760, 1100), 1), _box("hauler_cargo_left", (720, 980, -400), (1500, 760, 480), 1), _box("hauler_cargo_right", (720, 980, 400), (1500, 760, 480), 1), _cylinder("hauler_crane", (420, 1450, 0), 140, 900, 2), _box("hauler_light", (-1400, 840, 0), (120, 220, 760), 2)],
+            "heavy_transport_c": [_capsule("rescue_bus_body", (0, 700, 0), 500, 2900, 0, (1, 0, 0)), _box("rescue_front", (-1050, 1100, 0), (620, 720, 1120), 1), _box("rescue_roof_module", (400, 1380, 0), (1000, 240, 980), 2), _cylinder("rescue_axle_front", (-800, 300, 0), 150, 1400, 2, (0, 0, 1)), _cylinder("rescue_axle_rear", (800, 300, 0), 150, 1400, 2, (0, 0, 1)), _box("rescue_side_panel", (0, 920, 680), (1800, 380, 100), 1)],
+        },
+    }
+    # Aircraft and robotic-arm catalogs are kept in a second table below to keep
+    # the domain-specific structures readable and reviewable in code review.
+    catalog.update(_aircraft_variant_catalog())
+    catalog.update(_robotic_arm_variant_catalog())
+    try:
+        return list(catalog[pack_id][variant_id])
+    except KeyError as exc:
+        raise ValueError(f"unknown blockout variant {variant_id!r} for {pack_id}") from exc
+
+
+def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
+    return {
+        "pack_aircraft_concept": {
+            "vertical_takeoff_a": [_box("airframe_core", (0, 620, 0), (1900, 420, 700), 0), _box("airframe_canopy", (-500, 920, 0), (600, 360, 520), 1), _cylinder("lift_rotor_left", (-300, 820, -700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_right", (-300, 820, 700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_left", (700, 820, -700), 180, 180, 2, (0, 1, 0)), _cylinder("lift_rotor_rear_right", (700, 820, 700), 180, 180, 2, (0, 1, 0))],
+            "vertical_takeoff_b": [_box("tilt_body", (0, 600, 0), (2200, 480, 760), 0), _wedge("tilt_nose", (-850, 700, 0), (720, 420, 720), 1), _cylinder("tilt_pod_left", (100, 450, -720), 180, 420, 2, (1, 0, 0)), _cylinder("tilt_pod_right", (100, 450, 720), 180, 420, 2, (1, 0, 0)), _box("tilt_tail", (850, 820, 0), (520, 520, 420), 1)],
+            "vertical_takeoff_c": [_capsule("lift_fan_body", (0, 650, 0), 360, 2100, 0, (1, 0, 0)), _box("lift_fan_canopy", (-450, 940, 0), (620, 320, 520), 1), _cylinder("lift_fan_front", (-500, 500, 0), 250, 180, 2, (1, 0, 0)), _cylinder("lift_fan_rear", (600, 500, 0), 250, 180, 2, (1, 0, 0)), _wedge("lift_fan_tail", (820, 900, 0), (420, 360, 520), 2)],
+            "fast_single_seat_a": [_wedge("jet_nose", (-1000, 600, 0), (900, 420, 520), 0), _box("jet_spine", (300, 620, 0), (1900, 360, 500), 0), _box("jet_canopy", (-360, 920, 0), (540, 300, 430), 1), _wedge("jet_delta_left", (180, 560, -820), (1400, 140, 620), 1), _wedge("jet_delta_right", (180, 560, 820), (1400, 140, 620), 1), _cylinder("jet_engine", (1050, 520, 0), 150, 500, 2, (1, 0, 0))],
+            "fast_single_seat_b": [_capsule("needle_fuselage", (0, 620, 0), 260, 3000, 0, (1, 0, 0)), _box("needle_canopy", (-550, 930, 0), (520, 300, 420), 1), _wedge("needle_fin_top", (720, 920, 0), (420, 600, 220), 2), _wedge("needle_fin_left", (500, 620, -620), (900, 120, 420), 1), _wedge("needle_fin_right", (500, 620, 620), (900, 120, 420), 1)],
+            "fast_single_seat_c": [_box("interceptor_body", (0, 600, 0), (2700, 420, 640), 0), _wedge("interceptor_nose", (-1100, 650, 0), (800, 360, 620), 1), _box("interceptor_canopy", (-450, 880, 0), (520, 280, 420), 2), _cylinder("interceptor_engine_left", (900, 500, -300), 140, 500, 2, (1, 0, 0)), _cylinder("interceptor_engine_right", (900, 500, 300), 140, 500, 2, (1, 0, 0)), _box("interceptor_tail", (1040, 840, 0), (500, 500, 420), 1)],
+            "wide_body_transport_a": [_box("cargo_fuselage", (0, 700, 0), (3000, 800, 1500), 0), _box("cargo_cockpit", (-1150, 1250, 0), (680, 520, 1100), 1), _wedge("cargo_wing_left", (100, 650, -1200), (1800, 180, 1000), 1), _wedge("cargo_wing_right", (100, 650, 1200), (1800, 180, 1000), 1), _cylinder("cargo_engine_left", (-100, 420, -1000), 240, 600, 2, (1, 0, 0)), _cylinder("cargo_engine_right", (-100, 420, 1000), 240, 600, 2, (1, 0, 0))],
+            "wide_body_transport_b": [_capsule("passenger_fuselage", (0, 720, 0), 620, 3300, 0, (1, 0, 0)), _box("passenger_cockpit", (-1250, 1250, 0), (500, 560, 1000), 1), _box("passenger_wing", (240, 620, 0), (1400, 180, 2600), 1), _cylinder("passenger_engine_left", (250, 460, -900), 220, 520, 2, (1, 0, 0)), _cylinder("passenger_engine_right", (250, 460, 900), 220, 520, 2, (1, 0, 0)), _box("passenger_tail", (1200, 1120, 0), (560, 620, 700), 2)],
+            "wide_body_transport_c": [_box("heavy_lifter_body", (0, 680, 0), (3200, 720, 1700), 0), _wedge("heavy_lifter_nose", (-1350, 860, 0), (800, 640, 1500), 1), _box("heavy_lifter_wing", (200, 620, 0), (1600, 180, 3000), 1), _cylinder("heavy_lifter_engine_1", (-250, 400, -1150), 230, 620, 2, (1, 0, 0)), _cylinder("heavy_lifter_engine_2", (450, 400, -1150), 230, 620, 2, (1, 0, 0)), _cylinder("heavy_lifter_engine_3", (-250, 400, 1150), 230, 620, 2, (1, 0, 0)), _cylinder("heavy_lifter_engine_4", (450, 400, 1150), 230, 620, 2, (1, 0, 0))],
+            "uncrewed_scout_a": [_wedge("scout_flying_wing", (0, 620, 0), (2400, 260, 2600), 0), _box("scout_sensor_bay", (-300, 820, 0), (620, 260, 720), 2), _cylinder("scout_pod_left", (600, 430, -700), 150, 460, 2, (1, 0, 0)), _cylinder("scout_pod_right", (600, 430, 700), 150, 460, 2, (1, 0, 0))],
+            "uncrewed_scout_b": [_box("scout_body", (0, 620, 0), (2200, 480, 820), 0), _wedge("scout_nose", (-920, 720, 0), (720, 420, 760), 1), _box("scout_wing_left", (200, 620, -900), (1500, 130, 700), 1), _box("scout_wing_right", (200, 620, 900), (1500, 130, 700), 1), _cylinder("scout_tail_sensor", (780, 980, 0), 130, 360, 2)],
+            "uncrewed_scout_c": [_capsule("scout_capsule", (0, 650, 0), 340, 2400, 0, (1, 0, 0)), _box("scout_upper_bay", (-240, 960, 0), (720, 260, 520), 1), _wedge("scout_fin_top", (620, 900, 0), (400, 560, 220), 2), _wedge("scout_fin_bottom", (620, 390, 0), (400, 280, 220), 2), _cylinder("scout_camera", (-860, 650, 0), 130, 240, 2, (1, 0, 0))],
+        }
+    }
+
+
+def _robotic_arm_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
+    def chain(prefix: str, heights: Tuple[int, ...], tool: str, material: int = 1) -> List[BoxPrimitive]:
+        boxes: List[BoxPrimitive] = [_box(f"{prefix}_base", (0, 220, 0), (620, 440, 620), 0)]
+        y = 620
+        for index, height in enumerate(heights, 1):
+            boxes.append(_cylinder(f"{prefix}_joint_{index}", (0, y, 0), 150 + index * 20, 260, 2))
+            y += 240
+            boxes.append(_box(f"{prefix}_link_{index}", (0, y, 0), (260 + index * 30, height, 260 + index * 30), material))
+            y += height
+        boxes.append(_wedge(tool, (0, y + 180, 0), (460, 360, 460), 2))
+        return boxes
+
+    return {
+        "pack_robotic_arm_concept": {
+            "precision_light_a": chain("precision", (560, 420), "precision_gripper"),
+            "precision_light_b": [_box("desktop_base", (0, 180, 0), (620, 360, 620), 0), _cylinder("desktop_turntable", (0, 500, 0), 180, 280, 2), _capsule("desktop_link", (0, 1050, 0), 120, 820, 1), _cylinder("desktop_wrist", (0, 1550, 0), 130, 260, 2), _box("desktop_tool", (0, 1880, 0), (360, 320, 260), 1)],
+            "precision_light_c": [_box("rail_base", (0, 160, 0), (1000, 320, 460), 0), _box("rail_carriage", (-320, 500, 0), (360, 260, 420), 1), _cylinder("rail_pivot", (-320, 800, 0), 140, 300, 2), _box("rail_link", (-320, 1250, 0), (260, 760, 260), 1), _cylinder("rail_wrist", (-320, 1720, 0), 120, 240, 2), _wedge("rail_tool", (-320, 2000, 0), (420, 320, 360), 2)],
+            "heavy_handler_a": chain("handler", (900, 760, 620), "handler_claw", 0),
+            "heavy_handler_b": [_box("handler_pedestal", (0, 300, 0), (900, 600, 900), 0), _cylinder("handler_shoulder", (0, 760, 0), 280, 420, 2), _box("handler_upper", (0, 1450, 0), (520, 1100, 520), 0), _cylinder("handler_elbow", (0, 2100, 0), 240, 420, 2), _box("handler_forearm", (0, 2700, 0), (460, 920, 460), 1), _box("handler_tool_changer", (0, 3330, 0), (620, 420, 620), 2)],
+            "heavy_handler_c": [_box("welding_base", (0, 260, 0), (820, 520, 820), 0), _wedge("welding_shield", (0, 760, 0), (720, 500, 740), 1), _cylinder("welding_joint", (0, 1220, 0), 220, 380, 2), _capsule("welding_arm", (0, 1900, 0), 220, 1100, 0), _cylinder("welding_wrist", (0, 2600, 0), 160, 300, 2), _box("welding_tool", (0, 3000, 0), (420, 520, 420), 2)],
+            "long_reach_maintenance_a": [_box("maintenance_base", (0, 220, 0), (700, 440, 700), 0), _cylinder("maintenance_pivot", (0, 700, 0), 220, 360, 2), _box("maintenance_boom_a", (0, 1450, 0), (300, 1300, 300), 1), _box("maintenance_boom_b", (0, 2450, 0), (240, 900, 240), 1), _cylinder("maintenance_wrist", (0, 3050, 0), 150, 280, 2), _wedge("maintenance_camera", (0, 3420, 0), (400, 320, 360), 2)],
+            "long_reach_maintenance_b": [_box("telescopic_base", (0, 260, 0), (760, 520, 760), 0), _cylinder("telescopic_joint", (0, 800, 0), 210, 360, 2), _capsule("telescopic_outer", (0, 1500, 0), 190, 1200, 1), _capsule("telescopic_inner", (0, 2500, 0), 140, 900, 1), _cylinder("telescopic_wrist", (0, 3180, 0), 130, 260, 2), _box("telescopic_probe", (0, 3500, 0), (320, 460, 320), 2)],
+            "long_reach_maintenance_c": [_box("inspection_base", (0, 260, 0), (720, 520, 720), 0), _cylinder("inspection_turntable", (0, 760, 0), 240, 340, 2), _wedge("inspection_boom", (0, 1500, 0), (420, 1400, 360), 1), _cylinder("inspection_elbow", (0, 2350, 0), 180, 300, 2), _box("inspection_link", (0, 2880, 0), (280, 760, 280), 1), _wedge("inspection_sensor", (0, 3400, 0), (440, 360, 440), 2)],
+            "dual_tool_service_a": [_box("service_mobile_base", (0, 220, 0), (900, 440, 900), 0), _cylinder("service_turret", (0, 700, 0), 240, 360, 2), _box("service_left_arm", (-420, 1450, 0), (300, 1200, 300), 1), _box("service_right_arm", (420, 1450, 0), (300, 1200, 300), 1), _wedge("service_left_tool", (-420, 2250, 0), (420, 360, 420), 2), _wedge("service_right_tool", (420, 2250, 0), (420, 360, 420), 2)],
+            "dual_tool_service_b": [_box("carousel_base", (0, 240, 0), (820, 480, 820), 0), _cylinder("carousel_disk", (0, 720, 0), 320, 260, 2), _box("carousel_left_link", (-420, 1350, 0), (280, 1000, 280), 1), _capsule("carousel_right_link", (420, 1350, 0), 150, 1000, 1), _box("carousel_left_tool", (-420, 2060, 0), (360, 420, 360), 2), _box("carousel_right_tool", (420, 2060, 0), (360, 420, 360), 2)],
+            "dual_tool_service_c": [_box("service_pedestal", (0, 300, 0), (840, 600, 840), 0), _wedge("service_center_guard", (0, 800, 0), (760, 360, 760), 1), _cylinder("service_left_joint", (-360, 1350, 0), 170, 320, 2), _cylinder("service_right_joint", (360, 1350, 0), 170, 320, 2), _box("service_left_link", (-360, 1860, 0), (260, 780, 260), 1), _box("service_right_link", (360, 1860, 0), (260, 780, 260), 1), _wedge("service_center_tool", (0, 2480, 0), (500, 380, 500), 2)],
+        }
+    }
+
+
+def _cylinder(
+    role: str,
+    center: Tuple[float, float, float],
+    radius: float,
+    height: float,
+    material: int,
+    axis: Tuple[float, float, float] = (0.0, 1.0, 0.0),
+    *,
+    material_id: str | None = None,
+) -> BoxPrimitive:
+    return BoxPrimitive(role, center, (radius * 2, height, radius * 2), material, "cylinder", radius, height, axis, material_id=material_id)
+
+
+def _primitive_triangle_count(primitive: BoxPrimitive) -> int:
+    if primitive.primitive_kind in {"box", "surface_panel"}:
+        return 12
+    if primitive.primitive_kind == "wedge":
+        return 8
+    if primitive.primitive_kind == "capsule":
+        return 16 * 10 * 2
+    if primitive.primitive_kind == "extrude":
+        return 4 * len(primitive.profile_points) - 4
+    if primitive.primitive_kind == "extrude_profile":
+        edge_count = (len(primitive.profile_points) if primitive.profile_closed else len(primitive.profile_points) - 1) + sum(len(hole) for hole in primitive.profile_holes)
+        cap_triangles = len(_triangulate_profile_cap(list(primitive.profile_points), [list(hole) for hole in primitive.profile_holes]))
+        return edge_count * 2 + cap_triangles * int(primitive.cap_start) + cap_triangles * int(primitive.cap_end)
+    if primitive.primitive_kind == "revolve":
+        segments = 16 if abs(primitive.revolve_angle - math.pi * 2) < 1e-6 else 15
+        return 2 * segments * (len(primitive.profile_points) - 1)
+    if primitive.primitive_kind == "revolve_profile":
+        strips = primitive.radial_segments
+        side = strips * _revolve_side_triangles_per_strip(primitive.profile_points, primitive.profile_closed)
+        seam = max(0, len(_revolve_seam_polygon(primitive.profile_points, primitive.profile_closed)) - 2)
+        return side + seam * int(primitive.cap_start) + seam * int(primitive.cap_end)
+    if primitive.primitive_kind == "loft_profile":
+        ring_count = len(primitive.loft_rings_mm)
+        point_count = len(primitive.loft_rings_mm[0]) if ring_count else 0
+        cap_count = max(0, point_count - 2)
+        return max(0, ring_count - 1) * point_count * 2 + cap_count * int(primitive.cap_start) + cap_count * int(primitive.cap_end)
+    if primitive.primitive_kind == "sweep_profile":
+        edge_count = len(primitive.sweep_path_mm) if primitive.path_closed else max(0, len(primitive.sweep_path_mm) - 1)
+        cap_count = max(0, len(primitive.profile_points) - 2)
+        return edge_count * len(primitive.profile_points) * 2 + cap_count * int(primitive.cap_start and not primitive.path_closed) + cap_count * int(primitive.cap_end and not primitive.path_closed)
+    if primitive.primitive_kind == "bevel_box":
+        ring_points = 4 * (primitive.bevel_segments + 1)
+        return 4 * ring_points - 4
+    return 64
+
+
+def _surface_roles_for_primitive(primitive: BoxPrimitive) -> List[str]:
+    if primitive.primitive_kind == "extrude_profile":
+        return [
+            "side",
+            *(["hole_wall"] if primitive.profile_holes else []),
+            *(["start_cap"] if primitive.cap_start and primitive.profile_closed else []),
+            *(["end_cap"] if primitive.cap_end and primitive.profile_closed else []),
+        ]
+    if primitive.primitive_kind == "revolve_profile":
+        full = math.isclose(primitive.revolve_angle, math.pi * 2, abs_tol=1e-9)
+        return [
+            "side",
+            "seam",
+            *(["start_cap"] if primitive.cap_start and not full else []),
+            *(["end_cap"] if primitive.cap_end and not full else []),
+        ]
+    if primitive.primitive_kind == "loft_profile":
+        return [
+            "loft_side",
+            "seam",
+            *(["start_cap"] if primitive.cap_start else []),
+            *(["end_cap"] if primitive.cap_end else []),
+        ]
+    if primitive.primitive_kind == "sweep_profile":
+        return [
+            "sweep_side",
+            "seam",
+            *(["start_cap"] if primitive.cap_start and not primitive.path_closed else []),
+            *(["end_cap"] if primitive.cap_end and not primitive.path_closed else []),
+        ]
+    return ["surface"]
+
+
+def _surface_ranges_for_primitive(primitive: BoxPrimitive) -> List[Dict[str, Any]]:
+    if primitive.primitive_kind == "extrude_profile":
+        ranges: List[Dict[str, Any]] = []
+        cursor = 0
+        outer_edges = len(primitive.profile_points) if primitive.profile_closed else len(primitive.profile_points) - 1
+        side_count = outer_edges * 2
+        ranges.append({"surface_role": "side", "first_triangle": cursor, "triangle_count": side_count})
+        cursor += side_count
+        if primitive.profile_holes:
+            hole_count = sum(len(hole) * 2 for hole in primitive.profile_holes)
+            ranges.append({"surface_role": "hole_wall", "first_triangle": cursor, "triangle_count": hole_count})
+            cursor += hole_count
+        cap_count = len(_triangulate_profile_cap(list(primitive.profile_points), [list(hole) for hole in primitive.profile_holes])) if primitive.profile_closed else 0
+        if primitive.cap_start and cap_count:
+            ranges.append({"surface_role": "start_cap", "first_triangle": cursor, "triangle_count": cap_count})
+            cursor += cap_count
+        if primitive.cap_end and cap_count:
+            ranges.append({"surface_role": "end_cap", "first_triangle": cursor, "triangle_count": cap_count})
+        return ranges
+    if primitive.primitive_kind == "revolve_profile":
+        side_count = primitive.radial_segments * _revolve_side_triangles_per_strip(primitive.profile_points, primitive.profile_closed)
+        ranges = [{"surface_role": "side", "first_triangle": 0, "triangle_count": side_count}]
+        # The UV seam exists even for a full revolve but does not add faces.
+        ranges.append({"surface_role": "seam", "first_triangle": side_count, "triangle_count": 0})
+        cursor = side_count
+        full = math.isclose(primitive.revolve_angle, math.pi * 2, abs_tol=1e-9)
+        cap_count = max(0, len(_revolve_seam_polygon(primitive.profile_points, primitive.profile_closed)) - 2)
+        if not full and primitive.cap_start and cap_count:
+            ranges.append({"surface_role": "start_cap", "first_triangle": cursor, "triangle_count": cap_count})
+            cursor += cap_count
+        if not full and primitive.cap_end and cap_count:
+            ranges.append({"surface_role": "end_cap", "first_triangle": cursor, "triangle_count": cap_count})
+        return ranges
+    if primitive.primitive_kind == "loft_profile":
+        ring_count = len(primitive.loft_rings_mm)
+        point_count = len(primitive.loft_rings_mm[0]) if ring_count else 0
+        side_count = max(0, ring_count - 1) * point_count * 2
+        ranges = [
+            {"surface_role": "loft_side", "first_triangle": 0, "triangle_count": side_count},
+            {"surface_role": "seam", "first_triangle": side_count, "triangle_count": 0},
+        ]
+        cursor = side_count
+        cap_count = max(0, point_count - 2)
+        if primitive.cap_start and cap_count:
+            ranges.append({"surface_role": "start_cap", "first_triangle": cursor, "triangle_count": cap_count})
+            cursor += cap_count
+        if primitive.cap_end and cap_count:
+            ranges.append({"surface_role": "end_cap", "first_triangle": cursor, "triangle_count": cap_count})
+        return ranges
+    if primitive.primitive_kind == "sweep_profile":
+        edge_count = len(primitive.sweep_path_mm) if primitive.path_closed else max(0, len(primitive.sweep_path_mm) - 1)
+        side_count = edge_count * len(primitive.profile_points) * 2
+        ranges = [
+            {"surface_role": "sweep_side", "first_triangle": 0, "triangle_count": side_count},
+            {"surface_role": "seam", "first_triangle": side_count, "triangle_count": 0},
+        ]
+        cursor = side_count
+        cap_count = max(0, len(primitive.profile_points) - 2)
+        if primitive.cap_start and not primitive.path_closed and cap_count:
+            ranges.append({"surface_role": "start_cap", "first_triangle": cursor, "triangle_count": cap_count})
+            cursor += cap_count
+        if primitive.cap_end and not primitive.path_closed and cap_count:
+            ranges.append({"surface_role": "end_cap", "first_triangle": cursor, "triangle_count": cap_count})
+        return ranges
+    return [{"surface_role": "surface", "first_triangle": 0, "triangle_count": _primitive_triangle_count(primitive)}]
+
+
+def _revolve_side_triangles_per_strip(points: Tuple[Tuple[float, float], ...], closed: bool) -> int:
+    edge_count = len(points) if closed else len(points) - 1
+    triangles = 0
+    for index in range(edge_count):
+        left = points[index][0]
+        right = points[(index + 1) % len(points)][0]
+        if left <= 1e-9 and right <= 1e-9:
+            continue
+        triangles += 1 if left <= 1e-9 or right <= 1e-9 else 2
+    return triangles
+
+
+def _dominant_axis(axis: Any) -> int:
+    if not isinstance(axis, list) or len(axis) != 3 or not any(abs(float(value)) > 1e-9 for value in axis):
+        raise ValueError("transform axis must be a non-zero 3-vector")
+    return max(range(3), key=lambda index: abs(float(axis[index])))
+
+
+def _loft_axis_point(axis: str, along: float, u: float, v: float) -> Tuple[float, float, float]:
+    if axis == "x":
+        return along, u, v
+    if axis == "y":
+        return u, along, v
+    if axis == "z":
+        return u, v, along
+    raise ValueError("loft main axis is invalid")
+
+
+def _translate_center(center: Tuple[float, float, float], axis: int, distance: float) -> Tuple[float, float, float]:
+    translated = list(center)
+    translated[axis] += distance
+    return tuple(translated)
+
+
+def _mirror_primitive(primitive: BoxPrimitive, axis: int) -> BoxPrimitive:
+    center = list(primitive.center_mm)
+    center[axis] = -center[axis]
+    return replace(primitive, center_mm=tuple(center))
+
+
+def _radial_primitive(primitive: BoxPrimitive, axis: int, radius: float, angle: float) -> BoxPrimitive:
+    center = primitive.center_mm
+    cosine = math.cos(angle)
+    sine = math.sin(angle)
+    if axis == 0:
+        radial_a, radial_b = center[1] + radius, center[2]
+        rotated = (center[0], radial_a * cosine - radial_b * sine, radial_a * sine + radial_b * cosine)
+    elif axis == 2:
+        radial_a, radial_b = center[0] + radius, center[1]
+        rotated = (radial_a * cosine - radial_b * sine, radial_a * sine + radial_b * cosine, center[2])
+    else:
+        radial_a, radial_b = center[0] + radius, center[2]
+        rotated = (radial_a * cosine - radial_b * sine, center[1], radial_a * sine + radial_b * cosine)
+    return replace(primitive, center_mm=rotated)
+
+
+def _supported_boolean_primitive(primitive: BoxPrimitive) -> bool:
+    return primitive.primitive_kind in {"box", "cylinder", "capsule", "wedge"}
+
+
+def _aabb(primitive: BoxPrimitive) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
+    half = tuple(value / 2 for value in primitive.size_mm)
+    lower = tuple(primitive.center_mm[index] - half[index] for index in range(3))
+    upper = tuple(primitive.center_mm[index] + half[index] for index in range(3))
+    return lower, upper
+
+
+def _aabb_disjoint(left: BoxPrimitive, right: BoxPrimitive) -> bool:
+    left_lower, left_upper = _aabb(left)
+    right_lower, right_upper = _aabb(right)
+    return any(left_upper[index] <= right_lower[index] or right_upper[index] <= left_lower[index] for index in range(3))
+
+
+def _subtract_box_pair(base: BoxPrimitive, cutter: BoxPrimitive) -> List[BoxPrimitive]:
+    base_lower, base_upper = _aabb(base)
+    cutter_lower, cutter_upper = _aabb(cutter)
+    epsilon = 1e-6
+    if any(cutter_lower[index] < base_lower[index] - epsilon or cutter_upper[index] > base_upper[index] + epsilon for index in range(3)):
+        raise ValueError("subtract cutter must be contained by the base box")
+    if abs(cutter_lower[1] - base_lower[1]) > epsilon or abs(cutter_upper[1] - base_upper[1]) > epsilon or abs(cutter_lower[2] - base_lower[2]) > epsilon or abs(cutter_upper[2] - base_upper[2]) > epsilon:
+        raise ValueError("subtract only supports a cutter spanning the base Y/Z extent")
+    pieces: List[BoxPrimitive] = []
+    left_width = cutter_lower[0] - base_lower[0]
+    right_width = base_upper[0] - cutter_upper[0]
+    if left_width > epsilon:
+        pieces.append(replace(base, center_mm=((base_lower[0] + cutter_lower[0]) / 2, base.center_mm[1], base.center_mm[2]), size_mm=(left_width, base.size_mm[1], base.size_mm[2])))
+    if right_width > epsilon:
+        pieces.append(replace(base, center_mm=((cutter_upper[0] + base_upper[0]) / 2, base.center_mm[1], base.center_mm[2]), size_mm=(right_width, base.size_mm[1], base.size_mm[2])))
+    if not pieces:
+        raise ValueError("subtract would remove the entire base box")
+    return pieces
+
+
+def _program_for_boxes(
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    boxes: List[BoxPrimitive],
+    variant_id: str | None = None,
+    presentation_profile: str = "quick_sketch",
+) -> Dict[str, Any]:
+    operations = []
+    outputs = []
+    for index, box in enumerate(boxes):
+        op_id = f"op_{index + 1}_{box.part_role}"
+        args = {
+            "position": list(box.center_mm),
+            "part_role": box.part_role,
+            "zone_id": f"zone_{box.part_role}",
+        }
+        if box.material_id is not None:
+            args["material_id"] = box.material_id
+        inputs: List[str] = []
+        if box.primitive_kind == "cylinder":
+            op_name = "cylinder"
+            args.update({"radius": box.radius_mm, "height": box.height_mm, "axis": list(box.axis)})
+        elif box.primitive_kind == "capsule":
+            op_name = "capsule"
+            args.update({"radius": box.radius_mm, "height": box.height_mm, "axis": list(box.axis)})
+        elif box.primitive_kind == "wedge":
+            op_name = "wedge"
+            args["size"] = list(box.size_mm)
+        elif box.primitive_kind == "revolve":
+            op_name = "revolve"
+            args.update({"angle": box.revolve_angle, "points": [list(point) for point in box.profile_points]})
+            profile_op_id = f"{op_id}_profile"
+            operations.append({"operation_id": profile_op_id, "op": "profile", "inputs": [], "args": {"points": [list(point) for point in box.profile_points]}})
+            inputs = [profile_op_id]
+        else:
+            op_name = "box"
+            args["size"] = list(box.size_mm)
+        operations.append({"operation_id": op_id, "op": op_name, "inputs": inputs, "args": args})
+        outputs.append(
+            {
+                "output_id": f"output_{index + 1}_{box.part_role}",
+                "operation_id": op_id,
+                "kind": "mesh",
+                "part_role": box.part_role,
+            }
+        )
+    return {
+        "schema_version": "ShapeProgram@1",
+        "program_id": f"shape_{plan.domain_pack_id.removeprefix('pack_')}_{direction_id}{('_' + variant_id) if variant_id else ''}{'_showcase' if presentation_profile == 'showcase' else ''}",
+        "units": "millimeter",
+        "seed": 7,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": operations,
+        "outputs": outputs,
+        "non_functional_only": True,
+    }
+
+
+def _assembly_graph(
+    plan: MechanicalConceptPlan,
+    direction_id: str,
+    boxes: List[BoxPrimitive],
+    variant_id: str | None = None,
+    presentation_profile: str = "quick_sketch",
+) -> Dict[str, Any]:
+    parts = []
+    connections = []
+    for index, box in enumerate(boxes):
+        part_id = f"part_{index + 1}_{box.part_role}"
+        is_visual_detail = box.part_role.startswith("visual_")
+        parent_index = index - 1 if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 and not is_visual_detail else 0
+        parent_part_id = None if index == 0 else f"part_{parent_index + 1}_{boxes[parent_index].part_role}"
+        mount_connector_id = f"connector_{part_id}_mount"
+        connectors = [
+            {
+                "connector_id": mount_connector_id,
+                "kind": "surface_mount" if index == 0 or is_visual_detail else "axial_mount",
+                "position": [0, 0, 0],
+                "normal": [0, 1, 0],
+            }
+        ]
+        joints = []
+        if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 and not is_visual_detail:
+            joints.append(
+                {
+                    "joint_id": f"joint_{boxes[parent_index].part_role}_{box.part_role}",
+                    "kind": "revolute",
+                    "target_part_id": part_id,
+                    "axis": [0, 0, 1],
+                    "min_value": -1.5708,
+                    "max_value": 1.5708,
+                }
+            )
+        parts.append(
+            {
+                "part_id": part_id,
+                "role": box.part_role,
+                "parent_part_id": parent_part_id,
+                "geometry_source": "shape_program",
+                "transform": {"position": list(box.center_mm), "rotation": [0, 0, 0], "scale": [1, 1, 1]},
+                "connectors": connectors,
+                "joints": joints,
+                "material_zones": [f"zone_{box.part_role}"],
+                "editable_parameters": [] if is_visual_detail else ["transform.position", "transform.scale", *( ["joint.rotation"] if joints else [] )],
+                "locked": False,
+                "provenance": "agent_generated",
+            }
+        )
+        if index > 0:
+            parent_part_id = parts[parent_index]["part_id"]
+            parent_center = boxes[parent_index].center_mm
+            child_center = box.center_mm
+            parent_connector_id = f"connector_{parent_part_id}_to_{part_id}"
+            parts[parent_index]["connectors"].append(
+                {
+                    "connector_id": parent_connector_id,
+                    "kind": "axial_mount",
+                    "position": [round(child_center[axis] - parent_center[axis], 4) for axis in range(3)],
+                    "normal": [0, 1, 0],
+                }
+            )
+            connections.append(
+                {
+                    "connection_id": f"conn_{parent_part_id}_{part_id}",
+                    "from_part_id": parent_part_id,
+                    "from_connector_id": parent_connector_id,
+                    "to_part_id": part_id,
+                    "to_connector_id": mount_connector_id,
+                    "status": "connected",
+                }
+            )
+    return {
+        "schema_version": "AssemblyGraph@1",
+        "graph_id": f"mg_{plan.plan_id.removeprefix('plan_')}_{direction_id}{('_' + variant_id) if variant_id else ''}{'_showcase' if presentation_profile == 'showcase' else ''}",
+        "concept_id": str(plan.spec.get("concept_id", "asset_agent_plan")),
+        "root_part_id": parts[0]["part_id"],
+        "parts": parts,
+        "connections": connections,
+    }
+
+
+def _build_glb(boxes: List[BoxPrimitive]) -> Tuple[bytes, List[float]]:
+    binary = bytearray()
+    views: List[Dict[str, Any]] = []
+    accessors: List[Dict[str, Any]] = []
+    primitives: List[Dict[str, Any]] = []
+    minimum = [float("inf")] * 3
+    maximum = [float("-inf")] * 3
+    for box in boxes:
+        positions, normals, uvs, indices, box_min, box_max = _primitive_geometry(box)
+        for axis in range(3):
+            minimum[axis] = min(minimum[axis], box_min[axis])
+            maximum[axis] = max(maximum[axis], box_max[axis])
+        p = _add_accessor(binary, views, accessors, positions, 5126, len(positions) // 12, "VEC3", box_min, box_max)
+        n = _add_accessor(binary, views, accessors, normals, 5126, len(normals) // 12, "VEC3")
+        uv = _add_accessor(binary, views, accessors, uvs, 5126, len(uvs) // 8, "VEC2")
+        ix = _add_accessor(binary, views, accessors, indices, 5123, len(indices) // 2, "SCALAR", target=34963)
+        primitives.append({
+            "attributes": {"POSITION": p, "NORMAL": n, "TEXCOORD_0": uv},
+            "indices": ix,
+            "material": box.material_index,
+            "mode": 4,
+            "extras": {
+                "forgecad_part_role": box.part_role,
+                "forgecad_profile_input_id": box.profile_input_id,
+                "forgecad_surface_roles": _surface_roles_for_primitive(box),
+                "forgecad_surface_ranges": _surface_ranges_for_primitive(box),
+            },
+        })
+    document = {
+        "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram blockout/1"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"name": "FORGECAD_BLOCKOUT", "mesh": 0}],
+        "meshes": [{"name": "FORGECAD_SHAPE_PROGRAM_MESH", "primitives": primitives}],
+        "materials": [
+            {"name": "MAT_primary", "pbrMetallicRoughness": {"baseColorFactor": [0.10, 0.13, 0.17, 1], "metallicFactor": 0.78, "roughnessFactor": 0.3}},
+            {"name": "MAT_secondary", "pbrMetallicRoughness": {"baseColorFactor": [0.22, 0.27, 0.32, 1], "metallicFactor": 0.64, "roughnessFactor": 0.38}},
+            {"name": "MAT_accent", "pbrMetallicRoughness": {"baseColorFactor": [0.72, 0.08, 0.05, 1], "metallicFactor": 0.48, "roughnessFactor": 0.32}},
+            {"name": "MAT_composite", "pbrMetallicRoughness": {"baseColorFactor": [0.12, 0.18, 0.23, 1], "metallicFactor": 0.18, "roughnessFactor": 0.52}},
+            {"name": "MAT_rubber", "pbrMetallicRoughness": {"baseColorFactor": [0.025, 0.035, 0.045, 1], "metallicFactor": 0.02, "roughnessFactor": 0.82}},
+            {"name": "MAT_dark_glass", "pbrMetallicRoughness": {"baseColorFactor": [0.04, 0.10, 0.16, 0.72], "metallicFactor": 0.08, "roughnessFactor": 0.12}, "alphaMode": "BLEND"},
+            {"name": "MAT_emissive_blue", "pbrMetallicRoughness": {"baseColorFactor": [0.05, 0.28, 0.82, 1], "metallicFactor": 0.16, "roughnessFactor": 0.24}, "emissiveFactor": [0.03, 0.42, 1.0]},
+        ],
+        "buffers": [{"byteLength": len(binary)}],
+        "bufferViews": views,
+        "accessors": accessors,
+    }
+    json_chunk = json.dumps(document, separators=(",", ":")).encode("utf-8")
+    json_chunk += b" " * ((4 - len(json_chunk) % 4) % 4)
+    binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+    total_length = 12 + 8 + len(json_chunk) + 8 + len(binary)
+    payload = (
+        struct.pack("<4sII", b"glTF", 2, total_length)
+        + struct.pack("<II", len(json_chunk), 0x4E4F534A)
+        + json_chunk
+        + struct.pack("<II", len(binary), 0x004E4942)
+        + bytes(binary)
+    )
+    return payload, [round((maximum[i] - minimum[i]) * 1000, 4) for i in range(3)]
+
+
+def _box_geometry(box: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    cx, cy, cz = (value / 1000 for value in box.center_mm)
+    hx, hy, hz = (value / 2000 for value in box.size_mm)
+    faces = (
+        ((1, 0, 0), ((hx, -hy, -hz), (hx, -hy, hz), (hx, hy, hz), (hx, hy, -hz))),
+        ((-1, 0, 0), ((-hx, -hy, hz), (-hx, -hy, -hz), (-hx, hy, -hz), (-hx, hy, hz))),
+        ((0, 1, 0), ((-hx, hy, -hz), (hx, hy, -hz), (hx, hy, hz), (-hx, hy, hz))),
+        ((0, -1, 0), ((-hx, -hy, hz), (hx, -hy, hz), (hx, -hy, -hz), (-hx, -hy, -hz))),
+        ((0, 0, 1), ((hx, -hy, hz), (-hx, -hy, hz), (-hx, hy, hz), (hx, hy, hz))),
+        ((0, 0, -1), ((-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz))),
+    )
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    for face_index, (normal, vertices) in enumerate(faces):
+        base = face_index * 4
+        for x, y, z in vertices:
+            positions.extend((cx + x, cy + y, cz + z))
+            normals.extend(normal)
+        uvs.extend((0, 0, 1, 0, 1, 1, 0, 1))
+        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        [cx - hx, cy - hy, cz - hz],
+        [cx + hx, cy + hy, cz + hz],
+    )
+
+
+def _primitive_geometry(primitive: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    if primitive.primitive_kind == "cylinder":
+        return _cylinder_geometry(primitive)
+    if primitive.primitive_kind == "capsule":
+        return _capsule_geometry(primitive)
+    if primitive.primitive_kind == "wedge":
+        return _wedge_geometry(primitive)
+    if primitive.primitive_kind in {"extrude", "extrude_profile"}:
+        return _extrude_geometry(primitive)
+    if primitive.primitive_kind in {"revolve", "revolve_profile"}:
+        return _revolve_geometry(primitive)
+    if primitive.primitive_kind == "loft_profile":
+        return _loft_geometry(primitive)
+    if primitive.primitive_kind == "sweep_profile":
+        return _sweep_geometry(primitive)
+    if primitive.primitive_kind == "bevel_box":
+        return _bevel_box_geometry(primitive)
+    return _box_geometry(primitive)
+
+
+def _sweep_geometry(sweep: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    path = list(sweep.sweep_path_mm)
+    profile = list(sweep.profile_points)
+    if len(path) < (3 if sweep.path_closed else 2) or len(profile) < 8:
+        raise ValueError("sweep path or profile is below its minimum budget")
+
+    def normalize(vector: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        length = math.sqrt(sum(value * value for value in vector))
+        if length <= 1e-9:
+            raise ValueError("sweep frame contains a zero-length vector")
+        return tuple(value / length for value in vector)
+
+    def cross(left: Tuple[float, float, float], right: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        return (
+            left[1] * right[2] - left[2] * right[1],
+            left[2] * right[0] - left[0] * right[2],
+            left[0] * right[1] - left[1] * right[0],
+        )
+
+    segments = [normalize(tuple(path[(index + 1) % len(path)][axis] - path[index][axis] for axis in range(3))) for index in range(len(path) if sweep.path_closed else len(path) - 1)]
+    tangents: List[Tuple[float, float, float]] = []
+    for index in range(len(path)):
+        if not sweep.path_closed and index == 0:
+            tangent = segments[0]
+        elif not sweep.path_closed and index == len(path) - 1:
+            tangent = segments[-1]
+        else:
+            previous = segments[index - 1]
+            following = segments[index % len(segments)]
+            tangent = normalize(tuple(previous[axis] + following[axis] for axis in range(3)))
+        tangents.append(tangent)
+    reference = min(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), key=lambda axis: abs(sum(axis[i] * tangents[0][i] for i in range(3))))
+    normal = normalize(cross(tangents[0], reference))
+    frames: List[Tuple[Tuple[float, float, float], Tuple[float, float, float]]] = []
+    for index, tangent in enumerate(tangents):
+        if index:
+            previous = tangents[index - 1]
+            rotation_axis_raw = cross(previous, tangent)
+            sine = math.sqrt(sum(value * value for value in rotation_axis_raw))
+            cosine = max(-1.0, min(1.0, sum(previous[axis] * tangent[axis] for axis in range(3))))
+            if sine > 1e-9:
+                rotation_axis = tuple(value / sine for value in rotation_axis_raw)
+                axis_cross_normal = cross(rotation_axis, normal)
+                axis_dot_normal = sum(rotation_axis[axis] * normal[axis] for axis in range(3))
+                normal = normalize(tuple(
+                    normal[axis] * cosine
+                    + axis_cross_normal[axis] * sine
+                    + rotation_axis[axis] * axis_dot_normal * (1 - cosine)
+                    for axis in range(3)
+                ))
+        binormal = normalize(cross(tangent, normal))
+        fraction = index / max(1, len(path) - 1)
+        twist = math.radians(sweep.path_twist_degrees) * fraction
+        cosine, sine = math.cos(twist), math.sin(twist)
+        twisted_normal = tuple(normal[axis] * cosine + binormal[axis] * sine for axis in range(3))
+        twisted_binormal = tuple(-normal[axis] * sine + binormal[axis] * cosine for axis in range(3))
+        frames.append((twisted_normal, twisted_binormal))
+    rings: List[Tuple[Tuple[float, float, float], ...]] = []
+    for center, (normal, binormal) in zip(path, frames):
+        rings.append(tuple(tuple(center[axis] + normal[axis] * u + binormal[axis] * v for axis in range(3)) for u, v in profile))
+    profiles = [tuple(profile) for _ in rings]
+    if sweep.path_closed:
+        rings.append(rings[0])
+        profiles.append(profiles[0])
+    loft = replace(
+        sweep,
+        primitive_kind="loft_profile",
+        loft_rings_mm=tuple(rings),
+        loft_profiles=tuple(profiles),
+        loft_axis="x",
+        loft_cap_start_normal=tuple(-value for value in tangents[0]),
+        loft_cap_end_normal=tangents[-1],
+        cap_start=sweep.cap_start and not sweep.path_closed,
+        cap_end=sweep.cap_end and not sweep.path_closed,
+    )
+    return _loft_geometry(loft)
+
+
+def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    """Build a deterministic linear loft from validated, uniformly sampled rings."""
+
+    rings = [list(ring) for ring in loft.loft_rings_mm]
+    profiles = [list(profile) for profile in loft.loft_profiles]
+    maximum_rings = 33 if loft.sweep_path_mm else 12
+    if not 2 <= len(rings) <= maximum_rings or len(profiles) != len(rings):
+        raise ValueError("loft/sweep requires aligned section rings within its point budget")
+    point_count = len(rings[0])
+    if point_count < 8 or any(len(ring) != point_count for ring in rings):
+        raise ValueError("loft rings must share one uniform sample count")
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    center = tuple(value / 1000 for value in loft.center_mm)
+
+    def vector(left: Tuple[float, float, float], right: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        return right[0] - left[0], right[1] - left[1], right[2] - left[2]
+
+    def cross(left: Tuple[float, float, float], right: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        return (
+            left[1] * right[2] - left[2] * right[1],
+            left[2] * right[0] - left[0] * right[2],
+            left[0] * right[1] - left[1] * right[0],
+        )
+
+    def normalized(value: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        length = math.sqrt(sum(item * item for item in value))
+        if length <= 1e-12:
+            raise ValueError("loft contains a zero-area face")
+        return tuple(item / length for item in value)
+
+    def append(point: Tuple[float, float, float], normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
+        positions.extend(tuple(center[index] + point[index] / 1000 for index in range(3)))
+        normals.extend(normal)
+        uvs.extend(uv)
+        return len(positions) // 3 - 1
+
+    for span in range(len(rings) - 1):
+        v0, v1 = span / (len(rings) - 1), (span + 1) / (len(rings) - 1)
+        centerline = tuple(
+            (sum(point[axis] for point in rings[span]) / point_count + sum(point[axis] for point in rings[span + 1]) / point_count) / 2
+            for axis in range(3)
+        )
+        for index in range(point_count):
+            following = (index + 1) % point_count
+            quad = [rings[span][index], rings[span + 1][index], rings[span + 1][following], rings[span][following]]
+            face_normal = normalized(cross(vector(quad[0], quad[1]), vector(quad[0], quad[2])))
+            midpoint = tuple(sum(point[axis] for point in quad) / 4 for axis in range(3))
+            outward = tuple(midpoint[axis] - centerline[axis] for axis in range(3))
+            if sum(face_normal[axis] * outward[axis] for axis in range(3)) < 0:
+                quad = [quad[0], quad[3], quad[2], quad[1]]
+                face_normal = tuple(-value for value in face_normal)
+            u0, u1 = index / point_count, (index + 1) / point_count
+            base = len(positions) // 3
+            for point, uv in zip(quad, ((u0, v0), (u0, v1), (u1, v1), (u1, v0))):
+                append(point, face_normal, uv)
+            indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+
+    axis_normal = {
+        "x": (1.0, 0.0, 0.0),
+        "y": (0.0, 1.0, 0.0),
+        "z": (0.0, 0.0, 1.0),
+    }[loft.loft_axis]
+
+    def add_cap(section_index: int, outward: Tuple[float, float, float]) -> None:
+        plane = profiles[section_index]
+        ring = rings[section_index]
+        point_lookup = {point: ring[index] for index, point in enumerate(plane)}
+        min_u, max_u = min(point[0] for point in plane), max(point[0] for point in plane)
+        min_v, max_v = min(point[1] for point in plane), max(point[1] for point in plane)
+        span_u, span_v = max(max_u - min_u, 1e-9), max(max_v - min_v, 1e-9)
+        for triangle in _triangulate_profile_cap(plane, []):
+            points = [point_lookup[point] for point in triangle]
+            normal = normalized(cross(vector(points[0], points[1]), vector(points[0], points[2])))
+            if sum(normal[index] * outward[index] for index in range(3)) < 0:
+                points.reverse()
+            base = len(positions) // 3
+            for point_2d, point_3d in zip(triangle if points[0] == point_lookup[triangle[0]] else reversed(triangle), points):
+                append(point_3d, outward, ((point_2d[0] - min_u) / span_u, (point_2d[1] - min_v) / span_v))
+            indices.extend((base, base + 1, base + 2))
+
+    if loft.cap_start:
+        add_cap(0, loft.loft_cap_start_normal or tuple(-value for value in axis_normal))
+    if loft.cap_end:
+        add_cap(-1, loft.loft_cap_end_normal or axis_normal)
+    if len(positions) // 3 > 65535:
+        raise ValueError("loft vertex budget exceeds uint16 GLB indices")
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        minimum,
+        maximum,
+    )
+
+
+def _bevel_box_geometry(bevel: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    """Build a low-poly rounded-rectangle prism as a bevel approximation.
+
+    The operation intentionally rounds only the X/Z perimeter and keeps the
+    two Y faces planar.  This is a visual concept primitive, not a general
+    edge-aware mesh bevel or a manufacturing fillet.
+    """
+    cx, cy, cz = (value / 1000 for value in bevel.center_mm)
+    hx, hy, hz = (value / 2000 for value in bevel.size_mm)
+    radius = min(bevel.bevel_radius_mm / 1000, hx, hz)
+    segments = max(1, min(3, int(bevel.bevel_segments)))
+    points: List[Tuple[float, float]] = []
+    corner_centers = ((hx - radius, hz - radius), (-hx + radius, hz - radius), (-hx + radius, -hz + radius), (hx - radius, -hz + radius))
+    corner_starts = (0.0, math.pi / 2, math.pi, math.pi * 1.5)
+    for (corner_x, corner_z), start in zip(corner_centers, corner_starts):
+        for step in range(segments + 1):
+            angle = start + (math.pi / 2) * step / segments
+            points.append((corner_x + radius * math.cos(angle), corner_z + radius * math.sin(angle)))
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+
+    def append_vertex(x: float, y: float, z: float, normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
+        index = len(positions) // 3
+        positions.extend((cx + x, cy + y, cz + z))
+        normals.extend(normal)
+        uvs.extend(uv)
+        return index
+
+    ring_count = len(points)
+    for index in range(ring_count):
+        next_index = (index + 1) % ring_count
+        x0, z0 = points[index]
+        x1, z1 = points[next_index]
+        radial = (x0 + x1, 0.0, z0 + z1)
+        radial_length = math.sqrt(radial[0] * radial[0] + radial[2] * radial[2]) or 1.0
+        normal = (radial[0] / radial_length, 0.0, radial[2] / radial_length)
+        base = len(positions) // 3
+        append_vertex(x0, -hy, z0, normal, (index / ring_count, 0.0))
+        append_vertex(x1, -hy, z1, normal, ((index + 1) / ring_count, 0.0))
+        append_vertex(x1, hy, z1, normal, ((index + 1) / ring_count, 1.0))
+        append_vertex(x0, hy, z0, normal, (index / ring_count, 1.0))
+        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+
+    for cap_y, cap_normal, reverse in ((-hy, (0.0, -1.0, 0.0), True), (hy, (0.0, 1.0, 0.0), False)):
+        center = append_vertex(0.0, cap_y, 0.0, cap_normal, (0.5, 0.5))
+        for index in range(1, ring_count - 1):
+            append_vertex(*((points[0][0], cap_y, points[0][1])), cap_normal, (0.0, 0.0))
+            second = append_vertex(*(points[index][0], cap_y, points[index][1]), cap_normal, (1.0, 0.0))
+            third = append_vertex(*((points[index + 1][0], cap_y, points[index + 1][1])), cap_normal, (1.0, 1.0))
+            if reverse:
+                indices.extend((center, third, second))
+            else:
+                indices.extend((center, second, third))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        minimum,
+        maximum,
+    )
+
+
+def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    segments = 16
+    cx, cy, cz = (value / 1000 for value in capsule.center_mm)
+    radius = min(capsule.radius_mm / 1000, capsule.height_mm / 2000)
+    half_straight = max(0.0, capsule.height_mm / 2000 - radius)
+    axis = capsule.axis
+    dominant = max(range(3), key=lambda index: abs(axis[index]))
+    sign = -1.0 if axis[dominant] < 0 else 1.0
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+
+    def map_local(local_x: float, local_y: float, local_z: float) -> Tuple[float, float, float]:
+        if dominant == 0:
+            return (local_y * sign, local_x, local_z)
+        if dominant == 2:
+            return (local_x, local_z, local_y * sign)
+        return (local_x, local_y * sign, local_z)
+
+    profile: List[Tuple[float, float, Tuple[float, float]]] = []
+    for index in range(6):
+        theta = (math.pi / 2) * index / 5
+        profile.append((half_straight + radius * math.cos(theta), radius * math.sin(theta), (math.sin(theta), math.cos(theta))))
+    for index in range(1, 6):
+        theta = (math.pi / 2) + (math.pi / 2) * index / 5
+        profile.append((-half_straight + radius * math.cos(theta), radius * math.sin(theta), (math.sin(theta), math.cos(theta))))
+
+    for ring_index, (local_y, ring_radius, normal_yz) in enumerate(profile):
+        for segment in range(segments):
+            angle = 2 * math.pi * segment / segments
+            local_x = ring_radius * math.cos(angle)
+            local_z = ring_radius * math.sin(angle)
+            mapped = map_local(local_x, local_y, local_z)
+            positions.extend((cx + mapped[0], cy + mapped[1], cz + mapped[2]))
+            normal = map_local(normal_yz[0] * math.cos(angle), normal_yz[1], normal_yz[0] * math.sin(angle))
+            normals.extend(normal)
+            uvs.extend((segment / segments, ring_index / (len(profile) - 1)))
+    for ring in range(len(profile) - 1):
+        for segment in range(segments):
+            next_segment = (segment + 1) % segments
+            base = ring * segments + segment
+            upper = (ring + 1) * segments + segment
+            indices.extend((base, ring * segments + next_segment, upper, ring * segments + next_segment, (ring + 1) * segments + next_segment, upper))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
+
+
+def _wedge_geometry(wedge: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    cx, cy, cz = (value / 1000 for value in wedge.center_mm)
+    hx, hy, hz = (value / 2000 for value in wedge.size_mm)
+    vertices = ((-hx, -hy, -hz), (hx, -hy, -hz), (hx, -hy, hz), (-hx, -hy, hz), (-hx, hy, -hz), (-hx, hy, hz))
+    faces = ((0, 1, 2, 3), (0, 4, 5, 3), (1, 2, 5, 4), (0, 1, 4), (3, 5, 2))
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    for face in faces:
+        a, b, c = (vertices[index] for index in face[:3])
+        ab = tuple(b[index] - a[index] for index in range(3))
+        ac = tuple(c[index] - a[index] for index in range(3))
+        normal = (ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0])
+        length = math.sqrt(sum(value * value for value in normal)) or 1.0
+        normal = tuple(value / length for value in normal)
+        base = len(positions) // 3
+        for uv_index, vertex_index in enumerate(face):
+            vertex = vertices[vertex_index]
+            positions.extend((cx + vertex[0], cy + vertex[1], cz + vertex[2]))
+            normals.extend(normal)
+            uvs.extend(((uv_index == 1 or uv_index == 2), (uv_index >= 2)))
+        if len(face) == 3:
+            indices.extend((base, base + 1, base + 2))
+        else:
+            indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
+
+
+def _polygon_area_2d(points: List[Tuple[float, float]]) -> float:
+    return 0.5 * sum(
+        points[index][0] * points[(index + 1) % len(points)][1]
+        - points[(index + 1) % len(points)][0] * points[index][1]
+        for index in range(len(points))
+    )
+
+
+def _point_in_triangle_2d(point: Tuple[float, float], a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]) -> bool:
+    def cross(p: Tuple[float, float], q: Tuple[float, float], r: Tuple[float, float]) -> float:
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    values = (cross(a, b, point), cross(b, c, point), cross(c, a, point))
+    return all(value >= -1e-8 for value in values)
+
+
+def _segments_cross_2d(a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float], d: Tuple[float, float]) -> bool:
+    def cross(p: Tuple[float, float], q: Tuple[float, float], r: Tuple[float, float]) -> float:
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    ab_c, ab_d = cross(a, b, c), cross(a, b, d)
+    cd_a, cd_b = cross(c, d, a), cross(c, d, b)
+    return ((ab_c > 1e-8 and ab_d < -1e-8) or (ab_c < -1e-8 and ab_d > 1e-8)) and (
+        (cd_a > 1e-8 and cd_b < -1e-8) or (cd_a < -1e-8 and cd_b > 1e-8)
+    )
+
+
+def _point_in_polygon_2d(point: Tuple[float, float], polygon: List[Tuple[float, float]]) -> bool:
+    inside = False
+    previous = polygon[-1]
+    for current in polygon:
+        if (current[1] > point[1]) != (previous[1] > point[1]):
+            crossing = (previous[0] - current[0]) * (point[1] - current[1]) / (previous[1] - current[1]) + current[0]
+            if point[0] < crossing:
+                inside = not inside
+        previous = current
+    return inside
+
+
+def _bridge_profile_holes(
+    outer: List[Tuple[float, float]],
+    holes: List[List[Tuple[float, float]]],
+) -> List[Tuple[float, float]]:
+    merged = list(outer)
+    remaining = [list(hole) for hole in holes]
+    for hole_index, hole in enumerate(remaining):
+        hi = max(range(len(hole)), key=lambda index: (hole[index][0], -hole[index][1]))
+        anchor = hole[hi]
+        boundaries = [merged, hole, *remaining[hole_index + 1 :]]
+
+        def visible(outer_index: int) -> bool:
+            target = merged[outer_index]
+            midpoint = ((anchor[0] + target[0]) / 2, (anchor[1] + target[1]) / 2)
+            if not _point_in_polygon_2d(midpoint, outer):
+                return False
+            if any(_point_in_polygon_2d(midpoint, candidate) for candidate in remaining):
+                return False
+            for boundary in boundaries:
+                for index, start in enumerate(boundary):
+                    end = boundary[(index + 1) % len(boundary)]
+                    if start in {anchor, target} or end in {anchor, target}:
+                        continue
+                    if _segments_cross_2d(anchor, target, start, end):
+                        return False
+            return True
+
+        candidates = sorted(range(len(merged)), key=lambda index: math.dist(anchor, merged[index]))
+        try:
+            oi = next(index for index in candidates if visible(index))
+        except StopIteration as exc:
+            raise ValueError("profile hole cannot be connected to outer contour") from exc
+        hole_path = hole[hi:] + hole[: hi + 1]
+        merged = merged[: oi + 1] + hole_path + [merged[oi]] + merged[oi + 1 :]
+    return merged
+
+
+def _ear_clip_polygon(points: List[Tuple[float, float]]) -> List[Tuple[int, int, int]]:
+    if len(points) < 3:
+        return []
+    if _polygon_area_2d(points) < 0:
+        points.reverse()
+    remaining = list(range(len(points)))
+    triangles: List[Tuple[int, int, int]] = []
+    guard = len(points) * len(points) * 2
+    while len(remaining) > 3 and guard > 0:
+        guard -= 1
+        ear_found = False
+        for cursor, current in enumerate(remaining):
+            previous = remaining[cursor - 1]
+            following = remaining[(cursor + 1) % len(remaining)]
+            a, b, c = points[previous], points[current], points[following]
+            cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+            if cross <= 1e-9:
+                continue
+            blocked = False
+            for other in remaining:
+                if other in {previous, current, following} or points[other] in {a, b, c}:
+                    continue
+                if _point_in_triangle_2d(points[other], a, b, c):
+                    blocked = True
+                    break
+            if blocked:
+                continue
+            triangles.append((previous, current, following))
+            del remaining[cursor]
+            ear_found = True
+            break
+        if not ear_found:
+            # Bridged hole polygons contain duplicate bridge endpoints. Remove
+            # only a truly collinear/duplicate vertex and retry; never invent
+            # triangles for an unresolved topology.
+            removed = False
+            for cursor, current in enumerate(remaining):
+                previous = remaining[cursor - 1]
+                following = remaining[(cursor + 1) % len(remaining)]
+                a, b, c = points[previous], points[current], points[following]
+                cross = abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+                if b == a or b == c or cross <= 1e-9:
+                    del remaining[cursor]
+                    removed = True
+                    break
+            if not removed:
+                raise ValueError("profile cap triangulation failed")
+    if len(remaining) == 3:
+        triangles.append(tuple(remaining))
+    return triangles
+
+
+def _triangulate_profile_cap(
+    outer: List[Tuple[float, float]],
+    holes: List[List[Tuple[float, float]]],
+) -> List[Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]]:
+    outer = list(outer)
+    if _polygon_area_2d(outer) < 0:
+        outer.reverse()
+    normalized_holes: List[List[Tuple[float, float]]] = []
+    for hole in holes:
+        contour = list(hole)
+        if _polygon_area_2d(contour) > 0:
+            contour.reverse()
+        normalized_holes.append(contour)
+    merged = _bridge_profile_holes(outer, normalized_holes) if normalized_holes else outer
+    return [(merged[a], merged[b], merged[c]) for a, b, c in _ear_clip_polygon(merged)]
+
+
+def _extrude_geometry(extrude: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    """Build a deterministic prism/ribbon from a validated 2D X/Z profile."""
+    if extrude.primitive_kind == "extrude_profile":
+        return _extrude_contract_geometry(extrude)
+    points = list(extrude.profile_points)
+    if len(points) < 3 or extrude.height_mm <= 0:
+        raise ValueError("extrude requires a non-degenerate profile and positive height")
+    area = sum(points[index][0] * points[(index + 1) % len(points)][1] - points[(index + 1) % len(points)][0] * points[index][1] for index in range(len(points)))
+    if area < 0:
+        points.reverse()
+    cx, cy, cz = (value / 1000 for value in extrude.center_mm)
+    half_height = extrude.height_mm / 2000
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+
+    def add_face(vertices: List[Tuple[float, float, float]], normal: Tuple[float, float, float]) -> None:
+        base = len(positions) // 3
+        for index, vertex in enumerate(vertices):
+            positions.extend((cx + vertex[0] / 1000, cy + vertex[1] / 1000, cz + vertex[2] / 1000))
+            normals.extend(normal)
+            uvs.extend((index / max(1, len(vertices) - 1), 0 if normal[1] == 0 else 1))
+        for index in range(1, len(vertices) - 1):
+            indices.extend((base, base + index, base + index + 1))
+
+    top = [(x, half_height * 1000, z) for x, z in points]
+    bottom = [(x, -half_height * 1000, z) for x, z in points]
+    add_face(top, (0, 1, 0))
+    add_face(list(reversed(bottom)), (0, -1, 0))
+    for index, (x0, z0) in enumerate(points):
+        x1, z1 = points[(index + 1) % len(points)]
+        dx = x1 - x0
+        dz = z1 - z0
+        length = math.sqrt(dx * dx + dz * dz) or 1.0
+        normal = (dz / length, 0, -dx / length)
+        add_face([(x0, -half_height * 1000, z0), (x1, -half_height * 1000, z1), (x1, half_height * 1000, z1), (x0, half_height * 1000, z0)], normal)
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
+
+
+def _extrude_contract_geometry(extrude: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    outer = list(extrude.profile_points)
+    holes = [list(hole) for hole in extrude.profile_holes]
+    if len(outer) < 2 or extrude.height_mm <= 0:
+        raise ValueError("contract extrude requires a sampled profile and positive height")
+    cx, cy, cz = (value / 1000 for value in extrude.center_mm)
+    half_height = extrude.height_mm / 2000
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    all_points = [*outer, *(point for contour in holes for point in contour)]
+    min_x, max_x = min(point[0] for point in all_points), max(point[0] for point in all_points)
+    min_z, max_z = min(point[1] for point in all_points), max(point[1] for point in all_points)
+    span_x, span_z = max(max_x - min_x, 1e-9), max(max_z - min_z, 1e-9)
+
+    def append(point: Tuple[float, float], y: float, normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
+        positions.extend((cx + point[0] / 1000, cy + y, cz + point[1] / 1000))
+        normals.extend(normal)
+        uvs.extend(uv)
+        return len(positions) // 3 - 1
+
+    def add_walls(contour: List[Tuple[float, float]], closed: bool) -> None:
+        edge_count = len(contour) if closed else len(contour) - 1
+        lengths = [math.dist(contour[index], contour[(index + 1) % len(contour)]) for index in range(edge_count)]
+        perimeter = sum(lengths) or 1.0
+        distance = 0.0
+        for index in range(edge_count):
+            current = contour[index]
+            following = contour[(index + 1) % len(contour)]
+            dx, dz = following[0] - current[0], following[1] - current[1]
+            length = math.sqrt(dx * dx + dz * dz) or 1.0
+            normal = (dz / length, 0.0, -dx / length)
+            u0, u1 = distance / perimeter, (distance + lengths[index]) / perimeter
+            base = len(positions) // 3
+            append(current, -half_height, normal, (u0, 0.0))
+            append(following, -half_height, normal, (u1, 0.0))
+            append(following, half_height, normal, (u1, 1.0))
+            append(current, half_height, normal, (u0, 1.0))
+            indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+            distance += lengths[index]
+
+    add_walls(outer, extrude.profile_closed)
+    for hole in holes:
+        add_walls(hole, True)
+
+    if extrude.profile_closed and (extrude.cap_start or extrude.cap_end):
+        cap_triangles = _triangulate_profile_cap(outer, holes)
+        if extrude.cap_start:
+            for triangle in cap_triangles:
+                uv_values = [((point[0] - min_x) / span_x, (point[1] - min_z) / span_z) for point in triangle]
+                base = len(positions) // 3
+                for point, uv in zip(triangle, uv_values):
+                    append(point, -half_height, (0.0, -1.0, 0.0), uv)
+                indices.extend((base, base + 1, base + 2))
+        if extrude.cap_end:
+            for triangle in cap_triangles:
+                uv_values = [((point[0] - min_x) / span_x, (point[1] - min_z) / span_z) for point in triangle]
+                base = len(positions) // 3
+                for point, uv in zip(reversed(triangle), reversed(uv_values)):
+                    append(point, half_height, (0.0, 1.0, 0.0), uv)
+                indices.extend((base, base + 1, base + 2))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    if len(positions) // 3 > 65535:
+        raise ValueError("contract extrude vertex budget exceeds uint16 GLB indices")
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        minimum,
+        maximum,
+    )
+
+
+def _revolve_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    """Revolve a validated radius/height profile around the local Y axis."""
+    if revolve.primitive_kind == "revolve_profile":
+        return _revolve_contract_geometry(revolve)
+    points = list(revolve.profile_points)
+    if len(points) < 3 or any(radius < 0 for radius, _ in points):
+        raise ValueError("revolve requires a non-negative radius profile")
+    segments = 16
+    cx, cy, cz = (value / 1000 for value in revolve.center_mm)
+    angle = revolve.revolve_angle
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    for segment in range(segments):
+        theta = angle * segment / segments
+        cos_theta = math.cos(theta)
+        sin_theta = math.sin(theta)
+        for radius, height in points:
+            positions.extend((cx + radius * cos_theta / 1000, cy + height / 1000, cz + radius * sin_theta / 1000))
+            normal_length = math.sqrt(radius * radius + 1.0)
+            normals.extend((cos_theta * radius / normal_length, 1.0 / normal_length, sin_theta * radius / normal_length))
+            uvs.extend((segment / segments, height / max(1.0, max(abs(point[1]) for point in points))))
+    profile_count = len(points)
+    for segment in range(segments):
+        next_segment = (segment + 1) % segments if abs(angle - math.pi * 2) < 1e-6 else segment + 1
+        if next_segment >= segments:
+            break
+        for point_index in range(profile_count - 1):
+            base = segment * profile_count + point_index
+            next_base = next_segment * profile_count + point_index
+            indices.extend((base, next_base, next_base + 1, base, next_base + 1, base + 1))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
+
+
+def _revolve_seam_polygon(points: Tuple[Tuple[float, float], ...], closed: bool = False) -> List[Tuple[float, float]]:
+    polygon = list(points)
+    if not closed:
+        if polygon[0][0] > 1e-9:
+            polygon.insert(0, (0.0, polygon[0][1]))
+        if polygon[-1][0] > 1e-9:
+            polygon.append((0.0, polygon[-1][1]))
+    cleaned: List[Tuple[float, float]] = []
+    for point in polygon:
+        if not cleaned or math.dist(point, cleaned[-1]) > 1e-9:
+            cleaned.append(point)
+    if len(cleaned) > 2 and _polygon_area_2d(cleaned) < 0:
+        cleaned.reverse()
+    return cleaned
+
+
+def _revolve_contract_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    points = list(revolve.profile_points)
+    if len(points) < 2 or any(radius < 0 for radius, _height in points):
+        raise ValueError("contract revolve requires a sampled non-negative-radius profile")
+    full = math.isclose(revolve.revolve_angle, math.pi * 2, abs_tol=1e-9)
+    segments = revolve.radial_segments
+    ring_count = segments if full else segments + 1
+    cx, cy, cz = (value / 1000 for value in revolve.center_mm)
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+    heights = [height for _radius, height in points]
+    min_height, max_height = min(heights), max(heights)
+    height_span = max(max_height - min_height, 1e-9)
+
+    def profile_normal(index: int) -> Tuple[float, float]:
+        previous = points[index - 1] if index > 0 else (points[-1] if revolve.profile_closed else points[index])
+        following = points[(index + 1) % len(points)] if index + 1 < len(points) or revolve.profile_closed else points[index]
+        dr, dy = following[0] - previous[0], following[1] - previous[1]
+        length = math.sqrt(dr * dr + dy * dy) or 1.0
+        return dy / length, -dr / length
+
+    for ring in range(ring_count):
+        theta = revolve.revolve_angle * ring / segments
+        cosine, sine = math.cos(theta), math.sin(theta)
+        for point_index, (radius, height) in enumerate(points):
+            positions.extend((cx + radius * cosine / 1000, cy + height / 1000, cz + radius * sine / 1000))
+            radial_normal, vertical_normal = profile_normal(point_index)
+            normals.extend((radial_normal * cosine, vertical_normal, radial_normal * sine))
+            uvs.extend((ring / segments, (height - min_height) / height_span))
+    profile_edges = len(points) if revolve.profile_closed else len(points) - 1
+    for ring in range(segments):
+        following_ring = (ring + 1) % ring_count
+        for point_index in range(profile_edges):
+            following_point = (point_index + 1) % len(points)
+            base = ring * len(points) + point_index
+            right = following_ring * len(points) + point_index
+            current_next = ring * len(points) + following_point
+            right_next = following_ring * len(points) + following_point
+            radius, next_radius = points[point_index][0], points[following_point][0]
+            if radius <= 1e-9 and next_radius <= 1e-9:
+                continue
+            if radius <= 1e-9:
+                indices.extend((base, right_next, current_next))
+            elif next_radius <= 1e-9:
+                indices.extend((base, right, current_next))
+            else:
+                indices.extend((base, right, right_next, base, right_next, current_next))
+
+    if not full and (revolve.cap_start or revolve.cap_end):
+        polygon = _revolve_seam_polygon(revolve.profile_points, revolve.profile_closed)
+        triangles = _triangulate_profile_cap(polygon, [])
+        max_radius = max(point[0] for point in polygon) or 1.0
+
+        def append_seam(point: Tuple[float, float], theta: float, normal: Tuple[float, float, float]) -> int:
+            radius, height = point
+            positions.extend((cx + radius * math.cos(theta) / 1000, cy + height / 1000, cz + radius * math.sin(theta) / 1000))
+            normals.extend(normal)
+            uvs.extend((radius / max_radius, (height - min_height) / height_span))
+            return len(positions) // 3 - 1
+
+        if revolve.cap_start:
+            for triangle in triangles:
+                base = len(positions) // 3
+                for point in reversed(triangle):
+                    append_seam(point, 0.0, (0.0, 0.0, -1.0))
+                indices.extend((base, base + 1, base + 2))
+        if revolve.cap_end:
+            for triangle in triangles:
+                theta = revolve.revolve_angle
+                normal = (-math.sin(theta), 0.0, math.cos(theta))
+                base = len(positions) // 3
+                for point in triangle:
+                    append_seam(point, theta, normal)
+                indices.extend((base, base + 1, base + 2))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    if len(positions) // 3 > 65535:
+        raise ValueError("contract revolve vertex budget exceeds uint16 GLB indices")
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        minimum,
+        maximum,
+    )
+
+
+def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    segments = 16
+    cx, cy, cz = (value / 1000 for value in cylinder.center_mm)
+    radius = cylinder.radius_mm / 1000
+    half_height = cylinder.height_mm / 2000
+    axis = cylinder.axis
+    dominant = max(range(3), key=lambda index: abs(axis[index]))
+    sign = -1.0 if axis[dominant] < 0 else 1.0
+    positions: List[float] = []
+    normals: List[float] = []
+    uvs: List[float] = []
+    indices: List[int] = []
+
+    def map_local(local_x: float, local_y: float, local_z: float) -> Tuple[float, float, float]:
+        if dominant == 0:
+            return (local_y * sign, local_x, local_z)
+        if dominant == 2:
+            return (local_x, local_z, local_y * sign)
+        return (local_x, local_y * sign, local_z)
+
+    def append_vertex(local: Tuple[float, float, float], local_normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
+        mapped = map_local(*local)
+        mapped_normal = map_local(*local_normal)
+        positions.extend((cx + mapped[0], cy + mapped[1], cz + mapped[2]))
+        normals.extend(mapped_normal)
+        uvs.extend(uv)
+        return len(positions) // 3 - 1
+
+    for segment in range(segments):
+        a0 = 2 * math.pi * segment / segments
+        a1 = 2 * math.pi * (segment + 1) / segments
+        x0, z0 = radius * math.cos(a0), radius * math.sin(a0)
+        x1, z1 = radius * math.cos(a1), radius * math.sin(a1)
+        base = len(positions) // 3
+        append_vertex((x0, -half_height, z0), (math.cos(a0), 0, math.sin(a0)), (segment / segments, 0))
+        append_vertex((x1, -half_height, z1), (math.cos(a1), 0, math.sin(a1)), ((segment + 1) / segments, 0))
+        append_vertex((x1, half_height, z1), (math.cos(a1), 0, math.sin(a1)), ((segment + 1) / segments, 1))
+        append_vertex((x0, half_height, z0), (math.cos(a0), 0, math.sin(a0)), (segment / segments, 1))
+        indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
+        bottom_center = append_vertex((0, -half_height, 0), (0, -1, 0), (0.5, 0.5))
+        bottom0 = append_vertex((x0, -half_height, z0), (0, -1, 0), (0, 0))
+        bottom1 = append_vertex((x1, -half_height, z1), (0, -1, 0), (1, 0))
+        indices.extend((bottom_center, bottom1, bottom0))
+        top_center = append_vertex((0, half_height, 0), (0, 1, 0), (0.5, 0.5))
+        top0 = append_vertex((x0, half_height, z0), (0, 1, 0), (0, 0))
+        top1 = append_vertex((x1, half_height, z1), (0, 1, 0), (1, 0))
+        indices.extend((top_center, top0, top1))
+    minimum = [min(positions[index::3]) for index in range(3)]
+    maximum = [max(positions[index::3]) for index in range(3)]
+    return (
+        struct.pack(f"<{len(positions)}f", *positions),
+        struct.pack(f"<{len(normals)}f", *normals),
+        struct.pack(f"<{len(uvs)}f", *uvs),
+        struct.pack(f"<{len(indices)}H", *indices),
+        minimum,
+        maximum,
+    )
+
+
+def _add_accessor(binary: bytearray, views: List[Dict[str, Any]], accessors: List[Dict[str, Any]], payload: bytes, component_type: int, count: int, value_type: str, minimum: List[float] = None, maximum: List[float] = None, *, target: int = 34962) -> int:
+    binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
+    offset = len(binary)
+    binary.extend(payload)
+    view_index = len(views)
+    views.append({"buffer": 0, "byteOffset": offset, "byteLength": len(payload), "target": target})
+    accessor: Dict[str, Any] = {"bufferView": view_index, "componentType": component_type, "count": count, "type": value_type}
+    if minimum is not None:
+        accessor["min"] = minimum
+    if maximum is not None:
+        accessor["max"] = maximum
+    accessors.append(accessor)
+    return len(accessors) - 1
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

@@ -1,7 +1,14 @@
 # 执行证据索引
 
+> 本目录记录当前 Weapon Concept 兼容基线和既有发布门的历史/现状证据。产品已由 ADR-0008 升级为通用机械概念 3D Agent；G2–G6 的通用合同、ShapeProgram、12 个轻量 blockout、分件候选、视觉材质、AgentComponent 注册/替换、Connector 对齐、GLB readback 和资产级 ChangeSet，以及 G6.5 的外部 GLB 安全参考导入，均有独立 smoke/工作台证据。真实碰撞/运动学、外部 GLB 自动重建/深度分件、Provider truth set 和 packaged sidecar 仍未完成。
+
+本目录是历史与审计证据，不是用户手册、当前 API 或目标设计。后续 Codex 默认不应递归加载全部 evidence；先读 [文档地图](../DOCUMENTATION_MAP.md) 和 [能力—Gate 矩阵](CAPABILITY_GATE_MATRIX.md)，只在追溯具体 Gate 时打开对应证据。
+
 - [仓库完整性与 CI 基线](REPOSITORY_INTEGRITY.md)
 - [能力与自动化 Gate 矩阵](CAPABILITY_GATE_MATRIX.md)
+- [Codex 当前交接](../CODEX_HANDOFF.md)
+- [Codex 执行总计划](../CODEX_EXECUTION_PLAN.md)
+- [Codex 原子任务索引](../CODEX_TASK_INDEX.md)
 
 - [R0 基线冻结](R0_BASELINE.md)
 - [R1 通用基础设施](R1_FOUNDATION.md)

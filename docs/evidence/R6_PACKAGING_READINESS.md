@@ -10,7 +10,7 @@
 - 除文件存在外，还要求 sidecar 非空，非 Windows 目标具有 owner execute bit，并按文件名验证 Mach-O、ELF 或 PE/MZ 头；
 - `release:packaging-readiness-smoke` 在临时目录中验证空 sidecar 被拒绝，而起始头与权限正确的 macOS/Linux/Windows 小型 fixture 被接受；
 - README 和 [打包合同](../PACKAGING.md) 明确指向该门，且不把 Vite 开发壳当作发布应用。
-- 2026-07-12 已在 Apple Silicon macOS 使用完整 `Cargo.lock` 构建 `.app`；本机 `local-dev-python` Agent 下验证应用启动、`tauri://localhost` 到 Agent 的 CORS、工作台加载、Unity ZIP 导出与重启恢复。
+- 2026-07-12 已在 Apple Silicon macOS 使用完整 `Cargo.lock` 构建 `.app`；`script/build_and_run.sh --verify` 现在直接启动 Tauri Rust bundle binary，确认 `local_tauri_app_running: true`、`local_agent_healthy: true` 和 `agent_mode: local-dev-python`。浏览器 smoke 另行覆盖工作台、Agent 资产、GLB 下载和重启恢复。
 
 ## 当前结果
 

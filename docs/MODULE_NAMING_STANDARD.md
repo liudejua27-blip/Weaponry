@@ -1,8 +1,10 @@
 # ForgeCAD Module Naming Standard
 
+> 当前 `ForgeCADModuleNaming@1` 已实现范围是 Weapon Concept reference pack。通用机械目标保留稳定 ID 原则，但角色由 Domain Pack 定义，未来汽车、飞机和机械臂不得硬塞进九个武器 category。新通用命名版本应随 `AssemblyGraph@1` 一起冻结；当前已注册 ID 不重命名。
+
 版本：`ForgeCADModuleNaming@1`
 
-适用范围：Weapon Concept Pack 的未来武器概念、游戏资产、影视道具和非功能展示模型。命名表达视觉装配与资产追踪，不表达真实武器机构、工艺或制造能力。
+当前适用范围：Weapon Concept reference pack 的未来武器概念、游戏资产、影视道具和非功能展示模型。命名表达视觉装配与资产追踪，不表达真实武器机构、工艺或制造能力。
 
 ## 1. 不可变 ID
 

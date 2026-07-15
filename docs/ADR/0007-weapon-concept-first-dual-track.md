@@ -1,6 +1,6 @@
 # ADR-0007：Weapon Concept Pack 优先与双轨架构
 
-- 状态：Accepted
+- 状态：Superseded in product scope by ADR-0008
 - 日期：2026-07-10
 - 决策者：项目维护者
 - 部分取代：ADR-0006 第 2–5 项涉及 P0 CAD/DFM 主链的决定

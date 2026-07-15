@@ -36,6 +36,39 @@ from .concept_change_set_audits import (
     ChangeSetAuditExportIdempotencyConflict,
     ConceptChangeSetAuditService,
 )
+from .agent_kernel import (
+    AgentKernelError,
+    AgentKernelIdempotencyConflict,
+    AgentKernelService,
+)
+from .agent_asset_editing import (
+    AgentAssetEditingService,
+    AgentAssetError,
+    AgentAssetIdempotencyConflict,
+)
+from .active_design import (
+    ActiveDesignApiError,
+    ActiveDesignIdempotencyConflict,
+    ActiveDesignService,
+)
+from .domain_packs import DomainPackManifest, domain_pack_by_id, list_domain_packs
+from .domain_inference import DomainInferenceResult, DomainInferenceService, DomainInferenceStatus, infer_domain
+from .concept_scope import ConceptScopeDecision, decide_concept_scope
+from .visual_intent import VisualIntentMapping, build_visual_intent_mapping
+from .shape_program import ShapeProgramValidationError, validate_shape_program
+from .mechanical_planner import (
+    ConceptDirection,
+    DeterministicMechanicalPlanner,
+    MechanicalConceptPlan,
+    MechanicalPlannerError,
+    mechanical_planner_from_env,
+)
+from .geometry_worker import GeometryBuildResult, build_blockout
+from .material_textures import (
+    MaterialTextureError,
+    MaterialTextureIdempotencyConflict,
+    MaterialTextureService,
+)
 
 __all__ = [
     "ConceptProjectError",
@@ -63,4 +96,36 @@ __all__ = [
     "ChangeSetAuditExportError",
     "ChangeSetAuditExportIdempotencyConflict",
     "ConceptChangeSetAuditService",
+    "AgentKernelError",
+    "AgentKernelIdempotencyConflict",
+    "AgentKernelService",
+    "AgentAssetEditingService",
+    "AgentAssetError",
+    "AgentAssetIdempotencyConflict",
+    "ActiveDesignApiError",
+    "ActiveDesignIdempotencyConflict",
+    "ActiveDesignService",
+    "DomainPackManifest",
+    "domain_pack_by_id",
+    "list_domain_packs",
+    "DomainInferenceResult",
+    "DomainInferenceService",
+    "DomainInferenceStatus",
+    "infer_domain",
+    "ConceptScopeDecision",
+    "decide_concept_scope",
+    "VisualIntentMapping",
+    "build_visual_intent_mapping",
+    "ShapeProgramValidationError",
+    "validate_shape_program",
+    "ConceptDirection",
+    "DeterministicMechanicalPlanner",
+    "MechanicalConceptPlan",
+    "MechanicalPlannerError",
+    "mechanical_planner_from_env",
+    "GeometryBuildResult",
+    "build_blockout",
+    "MaterialTextureError",
+    "MaterialTextureIdempotencyConflict",
+    "MaterialTextureService",
 ]

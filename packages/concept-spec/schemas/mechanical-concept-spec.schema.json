@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/mechanical-concept-spec.schema.json",
+  "title": "MechanicalConceptSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "concept_id", "project_id", "domain_pack_id", "brief", "design_language", "visual_intent_mapping", "envelope", "pose", "full_look", "material_intents", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "MechanicalConceptSpec@1" },
+    "concept_id": { "$ref": "common.schema.json#/$defs/id" },
+    "project_id": { "$ref": "common.schema.json#/$defs/id" },
+    "domain_pack_id": { "type": "string", "pattern": "^pack_[a-z0-9_\\-]+$" },
+    "brief": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "design_language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keywords", "silhouette", "detail_density", "color_direction"],
+      "properties": {
+        "keywords": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+        "silhouette": { "type": "string", "enum": ["compact", "balanced", "extended", "organic", "industrial"] },
+        "detail_density": { "type": "string", "enum": ["simple", "medium", "dense"] },
+        "color_direction": { "type": "string", "minLength": 1, "maxLength": 160 }
+      }
+    },
+    "visual_intent_mapping": { "$ref": "visual-intent-mapping.schema.json" },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_mm", "max_mm"],
+      "properties": {
+        "min_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+        "max_mm": { "$ref": "common.schema.json#/$defs/vec3" }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "rotation"],
+      "properties": {
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "rotation": { "$ref": "common.schema.json#/$defs/vec3" }
+      }
+    },
+    "full_look": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completeness", "generation_stage", "primary_part_roles", "preview_views"],
+      "properties": {
+        "completeness": { "type": "string", "enum": ["full_exterior"] },
+        "generation_stage": { "type": "string", "enum": ["blockout", "segmented_concept", "editable_asset"] },
+        "primary_part_roles": { "type": "array", "minItems": 2, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,63}$" } },
+        "preview_views": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["perspective", "front", "side", "top", "exploded"] } }
+      }
+    },
+    "material_intents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["zone_role", "material_preset_id"],
+        "properties": {
+          "zone_role": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,63}$" },
+          "material_preset_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" }
+        }
+      }
+    },
+    "non_functional_only": { "const": true }
+  }
+}

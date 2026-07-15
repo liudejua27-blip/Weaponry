@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/profile-section-set.schema.json",
+  "title": "ProfileSectionSet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "section_set_id", "version", "main_axis", "profiles", "sections", "resample_policy", "symmetry", "provenance"],
+  "properties": {
+    "schema_version": { "const": "ProfileSectionSet@1" },
+    "section_set_id": { "type": "string", "pattern": "^sectionset_[a-z0-9_\\-]+$" },
+    "version": { "const": 1 },
+    "main_axis": { "type": "string", "enum": ["x", "y", "z"] },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": { "$ref": "profile-sketch.schema.json" }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section_id", "position", "profile_sketch_id", "scale", "twist_degrees", "cap_policy"],
+        "properties": {
+          "section_id": { "type": "string", "pattern": "^section_[a-z0-9_\\-]+$" },
+          "position": { "type": "number", "minimum": -1, "maximum": 1 },
+          "profile_sketch_id": { "type": "string", "pattern": "^sketch_[a-z0-9_\\-]+$" },
+          "scale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "twist_degrees": { "type": "number", "minimum": -45, "maximum": 45 },
+          "cap_policy": { "type": "string", "enum": ["none", "start", "end"] }
+        }
+      }
+    },
+    "resample_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "count"],
+      "properties": {
+        "mode": { "const": "uniform_count" },
+        "count": { "type": "integer", "minimum": 8, "maximum": 256 }
+      }
+    },
+    "symmetry": { "type": "string", "enum": ["none", "horizontal", "vertical", "radial"] },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": { "type": "string", "enum": ["agent", "svg_editor", "component_recipe", "reference_rebuild"] },
+        "source_ref": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,119}$" }
+      }
+    }
+  }
+}

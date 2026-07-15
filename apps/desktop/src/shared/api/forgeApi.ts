@@ -56,6 +56,49 @@ import type {
   InspectConceptVersionRequest,
   QualityRunRecord,
   ConceptJobRecord,
+  AgentThreadDetail,
+  AgentThreadListResponse,
+  AgentTurn,
+  AgentApproval,
+  AgentApprovalResolution,
+  CreateAgentThreadRequest,
+  StartAgentTurnRequest,
+  CreateAgentApprovalRequest,
+  ResolveAgentApprovalRequest,
+  DomainPackManifest,
+  BuildAgentBlockoutRequest,
+  BuildAgentBlockoutResponse,
+  RenderAgentBlockoutConceptPreviewRequest,
+  AgentBlockoutConceptPreview,
+  SegmentAgentBlockoutRequest,
+  SegmentAgentBlockoutResponse,
+  AgentMaterialPreset,
+  AgentMaterialTextureListResponse,
+  AgentMaterialTextureObject,
+  RegisterAgentMaterialTextureRequest,
+  CommitAgentBlockoutRequest,
+  AgentAssetVersion,
+  ProposeAgentAssetChangeSetRequest,
+  AgentAssetChangeSet,
+  AgentAssetChangeSetConfirmResponse,
+  AgentAssetQualityReport,
+  AgentAssetExportResponse,
+  AgentAssetRenderSet,
+  ImportAgentGlbRequest,
+  ImportAgentGlbResponse,
+  AgentProviderCheckResponse,
+  AgentComponentRecord,
+  AgentComponentCandidate,
+  AgentStructureSuggestionList,
+  SaveAgentComponentRequest,
+  ActiveDesignSnapshot,
+  ActiveDesignNavigation,
+  SelectActiveDesignRequest,
+  SetActiveDesignPartDisplayRequest,
+  SetActiveDesignRenderPresetRequest,
+  ConvertLegacyActiveDesignRequest,
+  NavigateActiveDesignRequest,
+  LegacyActiveDesignConversionResponse,
 } from '../types'
 
 const DEFAULT_BASE_URL = import.meta.env.VITE_FORGE_API_BASE_URL || 'http://127.0.0.1:8000'
@@ -73,6 +116,95 @@ export class ForgeApiError extends Error {
   }
 }
 
+/** A Snapshot response carries the server revision ETag without owning UI state. */
+export type ActiveDesignApiResponse<T> = {
+  data: T
+  etag: string | null
+}
+
+export type AgentRenderPackageDownload = {
+  blob: Blob
+  filename: string
+  renderSetSha256: string | null
+}
+
+export type ActiveDesignErrorKind =
+  | 'stale'
+  | 'legacy_read_only'
+  | 'not_found'
+  | 'invalid'
+  | 'idempotency_conflict'
+  | 'unknown'
+
+export type ActiveDesignErrorState = {
+  kind: ActiveDesignErrorKind
+  message: string
+  shouldReloadSnapshot: boolean
+  assetChanged: false
+}
+
+/**
+ * Stable, presentation-safe error mapping for the future workbench reducer.
+ * This module does not decide when to render an error or mutate a Snapshot.
+ */
+export function mapActiveDesignError(error: unknown): ActiveDesignErrorState {
+  if (!(error instanceof ForgeApiError)) {
+    return {
+      kind: 'unknown',
+      message: '暂时无法读取当前设计，模型没有被此操作修改。请稍后重试。',
+      shouldReloadSnapshot: false,
+      assetChanged: false,
+    }
+  }
+  switch (error.code) {
+    case 'ACTIVE_DESIGN_STALE':
+      return {
+        kind: 'stale',
+        message: '当前设计已在别处更新。已保留模型，请刷新后再继续。',
+        shouldReloadSnapshot: true,
+        assetChanged: false,
+      }
+    case 'ACTIVE_DESIGN_LEGACY_READ_ONLY':
+      return {
+        kind: 'legacy_read_only',
+        message: '这是旧版只读设计。请先让 Agent 重建设计资产，再进行部件调整。',
+        shouldReloadSnapshot: false,
+        assetChanged: false,
+      }
+    case 'PROJECT_NOT_FOUND':
+    case 'ACTIVE_DESIGN_NOT_FOUND':
+      return {
+        kind: 'not_found',
+        message: '未找到可打开的设计。请先创建或打开一个项目。',
+        shouldReloadSnapshot: false,
+        assetChanged: false,
+      }
+    case 'ACTIVE_DESIGN_INVALID':
+    case 'ACTIVE_DESIGN_HEAD_INVALID':
+    case 'ACTIVE_DESIGN_LEGACY_INVALID':
+      return {
+        kind: 'invalid',
+        message: '当前设计信息不完整，模型没有被修改。请重新打开项目或联系维护人员。',
+        shouldReloadSnapshot: true,
+        assetChanged: false,
+      }
+    case 'IDEMPOTENCY_CONFLICT':
+      return {
+        kind: 'idempotency_conflict',
+        message: '这一步已用不同内容提交过。模型没有被本次操作修改，请刷新后重试。',
+        shouldReloadSnapshot: true,
+        assetChanged: false,
+      }
+    default:
+      return {
+        kind: 'unknown',
+        message: error.message || '暂时无法完成此操作，模型没有被此操作修改。请稍后重试。',
+        shouldReloadSnapshot: error.status === 409,
+        assetChanged: false,
+      }
+  }
+}
+
 export class ForgeApiClient {
   constructor(private baseUrl = DEFAULT_BASE_URL) {}
 
@@ -87,6 +219,415 @@ export class ForgeApiClient {
   async checkHealth(): Promise<HealthResponse> {
     const response = await fetch(`${this.baseUrl}/api/health`)
     return readJson<HealthResponse>(response)
+  }
+
+  async createAgentThread(input: CreateAgentThreadRequest): Promise<AgentThreadDetail> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/threads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentThreadDetail>(response)
+  }
+
+  async listAgentThreads(): Promise<AgentThreadListResponse> {
+    return readJson<AgentThreadListResponse>(await fetch(`${this.baseUrl}/api/v1/agent/threads`))
+  }
+
+  async listAgentDomainPacks(): Promise<DomainPackManifest[]> {
+    return readJson<DomainPackManifest[]>(await fetch(`${this.baseUrl}/api/v1/agent/domain-packs`))
+  }
+
+  async listAgentMaterials(): Promise<AgentMaterialPreset[]> {
+    return readJson<AgentMaterialPreset[]>(await fetch(`${this.baseUrl}/api/v1/agent/materials`))
+  }
+
+  async listAgentMaterialTextures(params: { texture_role?: string; source?: string; q?: string } = {}): Promise<AgentMaterialTextureListResponse> {
+    const query = new URLSearchParams()
+    if (params.texture_role) query.set('texture_role', params.texture_role)
+    if (params.source) query.set('source', params.source)
+    if (params.q) query.set('q', params.q)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return readJson<AgentMaterialTextureListResponse>(await fetch(`${this.baseUrl}/api/v1/agent/material-textures${suffix}`))
+  }
+
+  async registerAgentMaterialTexture(input: RegisterAgentMaterialTextureRequest, idempotencyKey: string): Promise<AgentMaterialTextureObject> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/material-textures`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentMaterialTextureObject>(response)
+  }
+
+  async checkAgentProvider(): Promise<AgentProviderCheckResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/provider:check`, { method: 'POST' })
+    return readJson<AgentProviderCheckResponse>(response)
+  }
+
+  async buildAgentBlockout(input: BuildAgentBlockoutRequest): Promise<BuildAgentBlockoutResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/blockouts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<BuildAgentBlockoutResponse>(response)
+  }
+
+  async renderAgentBlockoutConceptPreview(input: RenderAgentBlockoutConceptPreviewRequest): Promise<AgentBlockoutConceptPreview> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/blockouts:concept-preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentBlockoutConceptPreview>(response)
+  }
+
+  async segmentAgentBlockout(input: SegmentAgentBlockoutRequest): Promise<SegmentAgentBlockoutResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/blockouts:segment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<SegmentAgentBlockoutResponse>(response)
+  }
+
+  async commitAgentBlockout(input: CommitAgentBlockoutRequest): Promise<AgentAssetVersion> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/blockouts:commit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentAssetVersion>(response)
+  }
+
+  async getAgentAssetVersion(assetVersionId: string): Promise<AgentAssetVersion> {
+    return readJson<AgentAssetVersion>(await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}`))
+  }
+
+  async importAgentGlb(input: ImportAgentGlbRequest): Promise<ImportAgentGlbResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/imports:glb`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<ImportAgentGlbResponse>(response)
+  }
+
+  async qualityAgentAssetVersion(
+    assetVersionId: string,
+    input: { idempotencyKey: string; ifMatch: string },
+  ): Promise<AgentAssetQualityReport> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:quality`, {
+      method: 'POST',
+      headers: {
+        'Idempotency-Key': input.idempotencyKey,
+        'If-Match': input.ifMatch,
+      },
+    })
+    return readJson<AgentAssetQualityReport>(response)
+  }
+
+  async getAgentQualityReport(qualityReportId: string): Promise<AgentAssetQualityReport> {
+    return readJson<AgentAssetQualityReport>(
+      await fetch(`${this.baseUrl}/api/v1/agent/quality-reports/${encodeURIComponent(qualityReportId)}`),
+    )
+  }
+
+  async saveAgentComponent(assetVersionId: string, input: SaveAgentComponentRequest): Promise<AgentComponentRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/components`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': input.client_request_id },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentComponentRecord>(response)
+  }
+
+  async exportAgentAssetGlb(assetVersionId: string): Promise<AgentAssetExportResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:export`, { method: 'POST' })
+    return readJson<AgentAssetExportResponse>(response)
+  }
+
+  async renderAgentAssetViews(
+    assetVersionId: string,
+    options: { width?: number; height?: number } = {},
+  ): Promise<AgentAssetRenderSet> {
+    const params = new URLSearchParams()
+    if (options.width !== undefined) params.set('width', String(options.width))
+    if (options.height !== undefined) params.set('height', String(options.height))
+    const query = params.toString()
+    return readJson<AgentAssetRenderSet>(
+      await fetch(
+        `${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:render${query ? `?${query}` : ''}`,
+      ),
+    )
+  }
+
+  async downloadAgentAssetRenderPackage(
+    assetVersionId: string,
+    renderSet: Pick<AgentAssetRenderSet, 'width' | 'height' | 'render_set_sha256'>,
+  ): Promise<AgentRenderPackageDownload> {
+    const params = new URLSearchParams({
+      width: String(renderSet.width),
+      height: String(renderSet.height),
+      render_set_sha256: renderSet.render_set_sha256,
+    })
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:render-package?${params.toString()}`,
+      { cache: 'no-store' },
+    )
+    if (!response.ok) await readJson<never>(response)
+    const disposition = response.headers.get('content-disposition') ?? ''
+    const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+      || `${assetVersionId}-concept-views.zip`
+    return {
+      blob: await response.blob(),
+      filename,
+      renderSetSha256: response.headers.get('x-forgecad-render-set-sha256'),
+    }
+  }
+
+  async listAgentComponents(projectId: string, filters: { domain_pack_id?: string; role?: string; q?: string } = {}): Promise<AgentComponentRecord[]> {
+    const params = new URLSearchParams({ project_id: projectId })
+    Object.entries(filters).forEach(([key, value]) => value && params.set(key, value))
+    return readJson<AgentComponentRecord[]>(await fetch(`${this.baseUrl}/api/v1/agent/components?${params.toString()}`))
+  }
+
+  async listAgentComponentCandidates(assetVersionId: string, partId: string): Promise<AgentComponentCandidate[]> {
+    const params = new URLSearchParams({ part_id: partId })
+    return readJson<AgentComponentCandidate[]>(
+      await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/components:compatible?${params.toString()}`),
+    )
+  }
+
+  async listAgentStructureSuggestions(assetVersionId: string): Promise<AgentStructureSuggestionList> {
+    return readJson<AgentStructureSuggestionList>(
+      await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/structure-suggestions`),
+    )
+  }
+
+  async proposeAgentAssetChangeSet(
+    assetVersionId: string,
+    input: ProposeAgentAssetChangeSetRequest,
+  ): Promise<AgentAssetChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/change-sets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.client_request_id,
+      },
+      body: JSON.stringify(input),
+    })
+    return readJson<AgentAssetChangeSet>(response)
+  }
+
+  async previewAgentAssetChangeSet(changeSetId: string, idempotencyKey: string): Promise<AgentAssetChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/change-sets/${encodeURIComponent(changeSetId)}:preview`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<AgentAssetChangeSet>(response)
+  }
+
+  async confirmAgentAssetChangeSet(changeSetId: string, idempotencyKey: string): Promise<AgentAssetChangeSetConfirmResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/change-sets/${encodeURIComponent(changeSetId)}:confirm`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<AgentAssetChangeSetConfirmResponse>(response)
+  }
+
+  async rejectAgentAssetChangeSet(changeSetId: string, idempotencyKey: string): Promise<AgentAssetChangeSet> {
+    const response = await fetch(`${this.baseUrl}/api/v1/agent/change-sets/${encodeURIComponent(changeSetId)}:reject`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return readJson<AgentAssetChangeSet>(response)
+  }
+
+  async getAgentThread(threadId: string): Promise<AgentThreadDetail> {
+    return readJson<AgentThreadDetail>(
+      await fetch(`${this.baseUrl}/api/v1/agent/threads/${encodeURIComponent(threadId)}`),
+    )
+  }
+
+  async getActiveDesign(projectId: string): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design`)
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async getActiveDesignNavigation(projectId: string): Promise<ActiveDesignNavigation> {
+    return readJson<ActiveDesignNavigation>(
+      await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:navigation`),
+    )
+  }
+
+  async setActiveDesignRenderPreset(
+    projectId: string,
+    input: SetActiveDesignRenderPresetRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:render-preset`,
+      {
+        method: 'POST',
+        headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+        body: JSON.stringify(input),
+      },
+    )
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async setActiveDesignPartDisplay(
+    projectId: string,
+    input: SetActiveDesignPartDisplayRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:part-display`,
+      {
+        method: 'POST',
+        headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+        body: JSON.stringify(input),
+      },
+    )
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async selectActiveDesignPart(
+    projectId: string,
+    input: SelectActiveDesignRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:select`, {
+      method: 'POST',
+      headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+      body: JSON.stringify(input),
+    })
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async convertLegacyActiveDesign(
+    projectId: string,
+    input: ConvertLegacyActiveDesignRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<LegacyActiveDesignConversionResponse>> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:convert-legacy`,
+      {
+        method: 'POST',
+        headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+        body: JSON.stringify(input),
+      },
+    )
+    return readJsonWithEtag<LegacyActiveDesignConversionResponse>(response)
+  }
+
+  async undoActiveDesign(
+    projectId: string,
+    input: NavigateActiveDesignRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:undo`, {
+      method: 'POST',
+      headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+      body: JSON.stringify(input),
+    })
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async redoActiveDesign(
+    projectId: string,
+    input: NavigateActiveDesignRequest,
+    options: { ifMatch?: string } = {},
+  ): Promise<ActiveDesignApiResponse<ActiveDesignSnapshot>> {
+    const response = await fetch(`${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/active-design:redo`, {
+      method: 'POST',
+      headers: activeDesignHeaders(input.client_request_id, options.ifMatch),
+      body: JSON.stringify(input),
+    })
+    return readJsonWithEtag<ActiveDesignSnapshot>(response)
+  }
+
+  async startAgentTurn(threadId: string, input: StartAgentTurnRequest): Promise<AgentTurn> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/agent/threads/${encodeURIComponent(threadId)}/turns`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<AgentTurn>(response)
+  }
+
+  async cancelAgentTurn(turnId: string, idempotencyKey: string): Promise<AgentTurn> {
+    return readJson<AgentTurn>(
+      await fetch(`${this.baseUrl}/api/v1/agent/turns/${encodeURIComponent(turnId)}/cancel`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+      }),
+    )
+  }
+
+  async createAgentApproval(
+    threadId: string,
+    input: CreateAgentApprovalRequest,
+  ): Promise<AgentApproval> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/agent/threads/${encodeURIComponent(threadId)}/approvals`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<AgentApproval>(response)
+  }
+
+  async resolveAgentApproval(
+    approvalId: string,
+    input: ResolveAgentApprovalRequest,
+  ): Promise<AgentApprovalResolution> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/agent/approvals/${encodeURIComponent(approvalId)}/resolve`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': input.client_request_id,
+        },
+        body: JSON.stringify(input),
+      },
+    )
+    return readJson<AgentApprovalResolution>(response)
+  }
+
+  getAgentEventsUrl(threadId: string, after = 0): string {
+    const url = new URL(`${this.baseUrl}/api/v1/agent/threads/${encodeURIComponent(threadId)}/events`)
+    url.searchParams.set('after', String(after))
+    return url.toString()
   }
 
   async listConceptProjects(): Promise<ConceptProjectListResponse> {
@@ -705,6 +1246,19 @@ async function readJson<T>(response: Response): Promise<T> {
     throw new ForgeApiError(body || `Request failed with ${response.status}`, 'UNKNOWN_ERROR', false, {}, response.status)
   }
   return (await response.json()) as T
+}
+
+async function readJsonWithEtag<T>(response: Response): Promise<ActiveDesignApiResponse<T>> {
+  const data = await readJson<T>(response)
+  return { data, etag: response.headers.get('ETag') }
+}
+
+function activeDesignHeaders(clientRequestId: string, ifMatch?: string): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    'Idempotency-Key': clientRequestId,
+    ...(ifMatch ? { 'If-Match': ifMatch } : {}),
+  }
 }
 
 export const forgeApi = new ForgeApiClient()

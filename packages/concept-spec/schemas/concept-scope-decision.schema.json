@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/concept-scope-decision.schema.json",
+  "title": "ConceptScopeDecision",
+  "description": "A non-persisting policy decision made after domain inference and before any Provider planning call.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "policy_version", "status", "reason_code", "domain_pack_id", "candidate_domain_pack_ids", "matched_policy_rule_ids", "user_message"],
+      "properties": {
+        "schema_version": { "const": "ConceptScopeDecision@1" },
+        "policy_version": { "const": "ForgeCADConceptScopePolicy@1" },
+        "status": { "const": "allowed" },
+        "reason_code": { "const": "allowed_non_functional_concept" },
+        "domain_pack_id": { "$ref": "#/$defs/domain_pack_id" },
+        "candidate_domain_pack_ids": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "$ref": "#/$defs/domain_pack_id" } },
+        "matched_policy_rule_ids": { "type": "array", "maxItems": 0 },
+        "user_message": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "policy_version", "status", "reason_code", "domain_pack_id", "candidate_domain_pack_ids", "matched_policy_rule_ids", "user_message"],
+      "properties": {
+        "schema_version": { "const": "ConceptScopeDecision@1" },
+        "policy_version": { "const": "ForgeCADConceptScopePolicy@1" },
+        "status": { "const": "clarification_required" },
+        "reason_code": { "enum": ["domain_ambiguous", "domain_unknown"] },
+        "domain_pack_id": { "type": "null" },
+        "candidate_domain_pack_ids": { "type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/domain_pack_id" } },
+        "matched_policy_rule_ids": { "type": "array", "maxItems": 0 },
+        "user_message": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "policy_version", "status", "reason_code", "domain_pack_id", "candidate_domain_pack_ids", "matched_policy_rule_ids", "user_message"],
+      "properties": {
+        "schema_version": { "const": "ConceptScopeDecision@1" },
+        "policy_version": { "const": "ForgeCADConceptScopePolicy@1" },
+        "status": { "const": "unsupported" },
+        "reason_code": { "enum": ["real_weapon_or_manufacturing", "engineering_safety_or_control"] },
+        "domain_pack_id": { "type": "null" },
+        "candidate_domain_pack_ids": { "type": "array", "maxItems": 0 },
+        "matched_policy_rule_ids": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "type": "string", "pattern": "^scope_[a-z0-9_]+$" } },
+        "user_message": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    }
+  ],
+  "$defs": {
+    "domain_pack_id": {
+      "type": "string",
+      "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"]
+    }
+  }
+}

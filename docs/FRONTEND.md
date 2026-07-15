@@ -1,55 +1,219 @@
-# CAD 工作台
+# ForgeCAD CAD 工作台前端
 
-## 当前入口
+版本：2026-07-15
+状态：当前实现、已知问题与目标约束
 
-桌面应用只有一个入口：**CAD 工作台**。
+## 1. 唯一产品入口
+
+桌面应用只保留 CAD 工作台。旧武神首页、任务中心、独立资产库、Mode、Patch、Forge 和独立设置页不得重新成为产品导航。
+
+当前实现：
+
+```text
+apps/desktop/src/features/cad-workbench/
+├── CadWorkbenchPanel.tsx
+├── AgentConversation.tsx
+├── AgentStepItem.tsx
+├── AgentSelectionCard.tsx
+├── agentBlockoutPreviewPresentation.ts
+├── agentPlanSourcePresentation.ts
+├── ComponentDrawer.tsx
+├── MaterialDrawer.tsx
+├── QualityDrawer.tsx
+├── ExportDrawer.tsx
+├── WorkbenchDrawerStack.tsx
+├── ModuleGraphViewport.tsx
+├── agentAssetWorkspaceState.ts
+├── useAgentAssetWorkspace.ts
+├── legacyCompatibilityDisplay.ts
+├── LegacyCompatibilityNotice.tsx
+├── componentLibraryPreferencesState.ts
+├── useComponentLibraryPreferences.ts
+├── viewportDisplayPreferencesState.ts
+├── useViewportDisplayPreferences.ts
+├── legacyModuleGraphWorkspaceState.ts
+├── useLegacyModuleGraphWorkspace.ts
+├── useConceptWorkbench.ts
+└── cad-workbench.css
+```
+
+## 2. 当前可见流程
+
+1. 输入明确领域和完整对象 Brief；
+2. 查看三个 Agent 方向及其一次性软件概念图；
+3. 选择方向并生成系统匹配的受限视觉 blockout；若未保存预览不满意，只用“换一版外观”在该方向三项预审外观中轮换；
+4. 查看分件候选；
+5. 保存为 Agent 可编辑资产；
+6. 使用固定动作调整部件、材质或组件；
+7. 预览后确认子版本；
+8. 运行 Agent 资产轻量检查；
+9. 导出 Agent GLB。
+
+当前不应在 UI 或文档中承诺转台视频、自由 split/merge、完整版本历史浏览或 Agent 多格式资产导出；C103 仅在当前装配/几何事实足够时显示“预览拆分/预览合并”，仍需 ChangeSet 确认；C104 已提供 Snapshot 持久化的部件锁定、隐藏和单独查看：锁定会禁用并由后端拒绝相关 ChangeSet，隐藏/单独查看只作用于现有主视口且不创建版本；R002–R004 已提供四视图、条件式透明爆炸概念 PNG 的只读预览/单图下载，以及仅在当前预览 fingerprint 一致时可下载的 PNG/manifest 图包。R005 将 Agent 下载抽屉收敛为“下载 3D 模型 (GLB)”、生成/下载单张概念图和下载概念图包三类直接动作；旧 Concept 的用途、OBJ 和源包选项不会在 Agent 路径显示。
+
+当前只提供少量固定比例、材质、组件和部分关节动作；自然语言自由参数仍属于目标能力。
+
+上述三方向和“第 N / 3 版”是**当前 Alpha 事实**，不是新的目标体验。ADR-0010 已决定由 Agent 在内部生成/评审候选并只展示一个最佳结果；在 `FGC-V003` 完成前，用户指南仍须如实保留当前三方向说明，不能提前宣称已经简化。
+
+## 3. 当前结构问题
+
+- `CadWorkbenchPanel.tsx` 仍包含 legacy 兼容分支、Agent blockout 候选状态和业务副作用，尚未缩减为最终页面组合层；
+- Provider 配置/诊断不可观察：`getProviderConfig()` 把 Tauri IPC 异常静默转换为 `null`；连接测试把鉴权、余额、参数、限流、服务端、超时和结构化输出错误压缩成“暂时无法连接/测试未完成”。2026-07-14 本机实例没有 Provider metadata 或 Keychain 项，实际运行离线 Planner，但 UI 缺少持续可见的“未调用 DeepSeek”状态和修复入口；
+- Agent 对话、Kernel 步骤、分件选择卡和四类抽屉已由 F002–F004 提取为独立组件，legacy Concept 只读提示仍通过 props 显示；
+- Agent 选择、质量和 GLB 导出已读 Snapshot；遗留 Concept 兼容出口不属于 Agent 产品能力；
+- F005 已将四类抽屉的渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的展示层保持既有边界；F019 再将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022 将方向、三项族轮换位置、请求中和可恢复预览错误提取到 `useAgentBlockoutDisplay`，F023 只将该状态转换为“正在生成 / 已准备好 / 暂不能整理部件 / 未生成成功”的普通语言提示，F024 则只从已返回的 plan 记录翻译“本机离线规划 / 已连接模型服务生成 / 来源待确认”。R006 的 `useAgentDirectionConceptPreviews` 只暂存当前 project + plan + request 的三张 PNG data URL，选择方向、换一版、开始新 Brief 或切换项目时清空，并拒绝迟到响应；它不保存 GLB、候选、版本、Snapshot、质量或导出。F024 不读取 Key、不联网、不触发评测，也不显示 Provider、模型或错误内部标识。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有。父层仍超过 2,000 行，且仍会装配 legacy Graph Inspector、旧参数/导出路径与 Agent 主流程；`FGC-F025` 已排在 G819/Q003/G820–G826/A003 后，目标是把它们隔离到 legacy 只读边界，而不再让 Agent 资产路径承载旧控制；
+- F006 已消除工作台用户界面中低于 11px 的辅助文字，补齐 32/40px 控件基线、可见焦点、中文 aria 标签、状态播报以及抽屉 Escape/焦点返回；完整屏幕阅读器人工验收仍未完成。
+
+## 4. 下一阶段状态架构
+
+前端必须只消费 [ActiveDesignSnapshot](AUTHORITATIVE_STATE.md)：
+
+```text
+CadWorkbenchMachine
+├── snapshot
+├── agentConversation
+├── providerConnection
+├── internalCandidateProgress
+├── bestCandidateResult
+├── changePreview
+├── drawers
+├── viewportDock（mini | focus）
+└── transientViewportState
+```
+
+Project、AgentAssetVersion、Selection、Quality 和 Export 不再由不同 hook 分别推断“当前”。localStorage 只保存抽屉高度、筛选等无害 UI 偏好。
+
+S004 已完成 `ForgeApiClient` 的 Snapshot GET/select/legacy-rebuild hand-off 调用、ETag 读取和可恢复错误映射；S005 已完成独立 `activeDesignMachine` reducer 与乱序响应 smoke。S006 已把 Agent 资产恢复、分件列表选择、视口高亮、质量检查和 GLB 导出接入 Snapshot；S007 已将 legacy Concept 收紧为只读并要求显式重建授权。S008 已持久化 preview/quality，引入服务端导航 frame，并在顶部提供撤销/重做；R001 已把相机视图和灯光预设通过 CAS 绑定 Snapshot，R002–R004 已将四视图 PNG、条件式爆炸图和 fingerprint 受限的 PNG/manifest 图包接入下载抽屉且只产生只读派生结果；R005 再将 Agent GLB 下载与概念图下载分成不依赖旧用途选择的明确动作。F007–F017 已分别收敛生命周期、会话、blockout 候选显示、已提交资产读取投影、legacy 兼容显示、组件库本机偏好、项目隔离的视口显示偏好、legacy ModuleGraph 工作区会话、legacy 纯展示叠层、Agent 概念图请求/展示和当前 Part 的编辑辅助读取状态；API、下载、转换授权和业务 hydration 仍由父层拥有。每次永久操作创建新版本，不覆盖历史，且 preview/quality/selection/render-preset 竞争均被 CAS smoke 覆盖。D003/F001 已完成领域澄清与工作台行为基线；F002–F006 已提取 AgentConversation、AgentStepItem、AgentSelectionCard、四类抽屉、组合层并完成可访问性收敛；T002 已完成 12 个独立 E2E 场景，T003 已通过单 WebGL、抽屉/重载资源、内存和 bundle 预算；本机 UI 偏好和概念图/编辑辅助读取缓存不以任何形式替代资产或 Snapshot 真值。
+
+## 5. 目标布局
 
 ```text
 Tauri Desktop
-└── CadWorkbenchPanel
-    ├── 左侧：项目、AI 设计助手、参数草案
-    ├── 中央：单一 Three.js 3D 视口与 CAD 操作工具
-    ├── 底部：部件选择与检视
-    └── 右侧：属性、连接器、质量结果与导出
+└── CAD Workbench
+    ├── 顶栏：项目、保存状态、Provider 状态、撤销、检查、导出
+    ├── 左上：唯一 Three.js mini viewport（默认约 280×180）
+    ├── 中央：唯一 Agent 会话、连续步骤和单一最佳结果
+    ├── 3D focus：点击 mini 后把同一 canvas 移到中央，关闭后返回
+    ├── 浮层：当前选中部件的 3–5 个简单动作
+    ├── 底部：固定输入框；有变化时显示预览/保留/取消
+    └── 按需抽屉：组件、材质、检查、导出
 ```
 
-不再提供，也不应重新引入以下独立桌面页面或路由：
+F005 只改变组件边界，不改变运行时真值：`WorkbenchDrawerStack` 是无状态的组合层，`CadWorkbenchPanel` 继续通过 props 提供数据和回调，Snapshot/ETag/ChangeSet/下载副作用仍只能由父层或服务端拥有。F006 已处理可访问性与主流程的可读性；F007 已让 `useWorkbenchLifecycle` 独占生命周期请求和抽屉焦点的短暂状态，F008 已让 `useAgentConversationPresentation` 独占会话展示与 project/request 过期屏障；二者都没有新增版本真值或领域能力。完整状态机拆分仍未完成。
 
-- 旧“武神工作台”首页；
-- 任务中心；
-- 旧资产库；
-- 旧 Mode / Patch / Forge 页面；
-- 独立 Provider、库或应用设置页。
+目标布局不等于当前已经全部实现。
 
-组件检视器是 CAD 装配操作的一部分，不是旧资产库：它只显示已注册的模块、真实几何参数、兼容性、审阅状态与质量摘要，并通过 ChangeSet 预览和确认替换。
+### 5.1 Codex 式信息层级
 
-## 工作台操作模型
+“像 Codex”只采用一个任务、连续状态、可检查动作和固定输入区：
 
-1. 从左侧 AI 助手输入概念 Brief，或使用默认的非功能性概念 Brief。
-2. 生成受控设计方向；三条方向直接显示在左侧助手，点击任一方向只更新主视图预览，不创建新版本。
-3. 在中央视口选择节点，使用移动、旋转、缩放、隐藏、聚焦、测量、剖切、爆炸和连接器显示工具检查组合。
-4. 在底部组件检视器选择或拖拽同类模块；先预览替换，确认后才创建子版本。
-5. 在右侧检查属性、连接器、网格质量和导出选项。
+```text
+左列（固定 304px）              中央（弹性）
+┌────────────────────┐          ┌───────────────────────────────┐
+│ 项目 / 版本         │          │ Agent 会话                    │
+│ ┌────────────────┐ │          │ 正在理解…                     │
+│ │ 3D mini        │ │          │ 正在构建候选…                 │
+│ │ 点击放大       │ │          │ 正在检查并选择最佳结果…       │
+│ └────────────────┘ │          │                               │
+│ 当前结果摘要       │          │ [最佳结果摘要 + 查看 3D]      │
+│ Provider 状态      │          │                               │
+└────────────────────┘          ├───────────────────────────────┤
+                                │ 描述创意或继续修改…      发送 │
+                                └───────────────────────────────┘
+```
 
-所有实际替换、镜像与参数变更都经由 ChangeSet 进入版本历史；界面不直接修改不可追溯的几何状态。
+右侧不常驻属性面板。选中部件后动作卡贴近结果或视口出现；组件、材质、检查和导出才打开抽屉。内部候选、评分表、Skill 名、工具 JSON、Provider model ID 和 ShapeProgram 不进入默认界面。
 
-## UI 约束
+### 5.2 单 renderer 的 mini / focus 切换
 
-- 保持深色 CAD 工作台布局：项目/助手在左，真实 3D 主视图在中，属性与检查在右，组件检视器在下。
-- 主视图始终只保留一个 WebGL canvas；底部详情使用缩略图，不创建第二个 3D 渲染器。
-- 默认底部检视器紧凑显示；用户可展开和拖拽调整高度。
-- 底部只保留部件选择与检视；不提供方案、版本、时间线或任务中心的平行工作区。
-- 审阅、原创声明与质量结论只读取真实元数据；缺少元数据时显示“草稿 / 信息待补充”，不伪造批准或质量通过。
-- 此工作台面向未来概念、游戏资产、影视道具和非功能性展示模型；不提供现实武器工程、制造或性能能力。
+新增纯 UI 状态 `ViewportDockState = mini | focus`。切换时只能移动同一个 canvas host 或改变同一 host 的布局，不能 mount 第二个 `ModuleGraphViewport`。场景、相机、选择、高亮、材质、资源缓存和 `ActiveDesignSnapshot.render_preset` 保持不变；切换不创建版本、质量、导出或 Snapshot revision。
 
-## 运行时边界
+验收至少覆盖：快速连续点击、Escape/关闭、窗口缩放、项目切换、抽屉打开、模型重载、选中/隐藏/隔离、renderer/context 计数始终为 1、geometry/material/texture 无重复分配和焦点返回 mini 按钮。
 
-`RuntimeProvider` 负责启动或连接本机 FastAPI Agent；`CadWorkbenchPanel` 通过 API 读取 Project、Version、ModuleGraph、模块缩略图和导出结果。浏览器/Vite 壳只用于开发，Tauri 本机构建才是桌面验证入口。
+### 5.3 单一最佳结果
 
-当前本机测试命令：
+目标对话不渲染三张方向卡，只渲染一个 `BestCandidateResultCard`：完整外观预览、Agent 选择理由、Brief 已覆盖/未覆盖摘要、当前来源（离线或模型服务）、“查看 3D”“继续修改”“换一个思路”三个动作。最后一个动作创建新 Turn；它不展开被淘汰候选，也不改变已确认版本。
+
+Agent 内部可以产生多个候选 Item，但 UI 只流式显示聚合步骤和计数，例如“正在检查第 2 / 4 个候选”，不显示方向标题供用户选择。若全部失败，结果卡必须显示失败阶段、已保存资产是否安全和下一步，不得挑选无效候选。
+
+### 5.4 Provider 状态与错误
+
+顶栏显示四态：`未配置（离线）`、`正在连接`、`已连接`、`需要处理`。点击状态打开诊断抽屉，显示配置是否存在、Keychain 是否可读、最后检查时间、是否真的发起网络请求、错误类别和普通语言修复；不显示 Key、完整 Base URL、原始响应或隐藏推理。
+
+错误文案至少区分：请求格式、API Key、余额不足、参数/模型、请求过多、服务故障、超时/网络、JSON 空响应、Schema 不符。保存 Provider 后必须等新 Agent 进程报告 `ready` 才显示已连接，不能只因 metadata 写入成功就声称“现在可以生成真实设计方向”。
+
+### 5.5 ProfileSketch 轮廓编辑器
+
+轮廓编辑是目标高级辅助，不是当前 Alpha 能力。它只在选中 Recipe 声明可编辑 `ProfileSketch@1` 时按需打开，不成为常驻 CAD 面板。
+
+```text
+SVG 控制点 / 普通语言比例档位
+→ 规范化 ProfileSketch JSON
+→ 后端闭合、自交、绕序、孔洞、点数与预算验证
+→ ShapeProgram preview
+→ ChangeSet confirm
+```
+
+前端不得把 SVG path 字符串、DOM 节点或六个独立面直接送入 Geometry Worker。正/侧/顶轮廓和横截面必须引用同一组规范数据；切换截面只改变编辑目标，预览仍使用唯一 Three.js renderer。轮廓错误保留已确认资产并显示可修复原因，不输出部分成功网格。
+
+### 5.6 GSAP 动画边界
+
+GSAP 只用于状态已确定后的展示过渡：mini 视口移到中央 focus、Agent Item 进入、抽屉/确认条、相机和爆炸图。Timeline 必须可暂停、反向和取消，优先动画 `x/y/scale/rotation/autoAlpha`；使用 `gsap.matchMedia()` 提供 `prefers-reduced-motion` 分支。
+
+动画不得生成网格、执行布尔、产生 UV、创建版本、写 Snapshot 或决定质量。状态机是动画输入；动画中断后 UI 必须落到明确的 `mini | focus`、open/closed 或 preview/confirmed 状态，不能留下第三种视觉真值。
+
+## 6. 零基础规则
+
+- 首屏不出现 Domain Pack、Mode、Skill、pipeline、Connector、Joint、GLB 或 PBR；
+- 未知领域只问一个澄清问题；
+- 每一步只突出一个主动作；
+- V003 前的当前兼容流程中，“换一版外观”只轮换当前方向的三项预审视觉外观；V003 后不再显示三方向或 `N / 3` 选择器，“换一个思路”创建新的内部候选 Turn。两种路径都不得显示变体 ID、技术编号或自由造型参数，也不得影响已保存设计；
+- 技术错误翻译为“发生了什么、资产是否安全、下一步做什么”；
+- 所有永久修改先预览再确认；
+- 版本、质量和导出始终显示同一活动资产；
+- 组件和材质只在需要时展开；
+- Material Zone 抽屉先显示当前部件/区域，再用搜索和中文分类缩小视觉材质；纹理对象不存在时明确显示参数外观回退；
+- Material Zone 的选择和“预览材质”动作只通过父层回调传递 `part_id`/`material_zone_id`，抽屉不直接写 Agent 资产版本；当前 blockout 若只有一个 zone，只显示真实的一个 zone，不人为制造多 zone；
+- “适合当前设计”只读取当前 Domain Pack 对应的 `allowed_domains`；“全部视觉材质”是明确的用户切换，未知领域只提示尚未确认，不把任何材质自动标为适配；
+- 内部 part role 必须映射为用户可读中文名称。
+- 已实现的 C101 映射仅用于显示：候选卡、已选部件、材质上下文和组件保存名称共享同一只读词典；未知值显示“未命名部件”，不暴露内部 role、不猜测领域或功能。
+- C102 的项目内组件替换先读取后端候选结论：只显示同领域、同 role、启用且来源质量为 `passed`/`warning` 的候选，并用“来源检查通过/有提示；保留当前连接位置”说明原因；未检查、失败、停用或不匹配组件不提供替换动作。正式 Module Asset 的审阅状态不移植到 `AgentComponent`。
+- C103 的结构建议必须来自当前 `AssemblyGraph`、稳定 role、受限 ShapeProgram 输出和已有连接事实；选择卡只显示“预览拆分/预览合并”及简明影响说明。建议为空时显示“暂不能建议”，不猜测切割线、连接、强度或功能；永久修改仍由父层通过 ChangeSet/Snapshot 负责。
+- C104 的显示与保护状态只来自当前 `ActiveDesignSnapshot.part_display`；选择卡不能以本地 state 伪造锁定。锁定后编辑、组件替换和结构建议均不可提交；隐藏或隔离导致部件不可见时必须清空该选择。视口继续复用唯一 renderer/context，不得为单独查看创建新预览器。
+
+交互参考 Codex 的重点是“一个任务、连续步骤、明确状态和可检查的动作”，不是把 coding agent 的终端、Mode 或权限面板搬进 CAD。默认只显示用户目标、Agent 选出的一个结果和下一步；技术详情、组件、材质、检查和导出按需展开。
+
+四领域共用同一个壳、同一套选择/版本/确认逻辑。领域包只能改变建议、角色、组件、材质和评测，不得增加汽车 Mode、飞机 Mode、机械臂 Mode 或武器专属工作台。
+
+目标操作细节见 [3D 机械设计系统目标操作手册](MECHANICAL_DESIGN_OPERATIONS.md)。
+
+## 7. 可访问性与视觉最低线
+
+- 正文不低于 12px，辅助文本不低于 11px；
+- 常用点击目标至少 32px，关键主动作至少 40px；
+- 键盘焦点清晰；
+- Agent 状态、错误和完成使用 `aria-live`；
+- 不仅依靠颜色表达状态；
+- 支持 1180×760 最小窗口且不出现主流程横向滚动；
+- 模型在默认灯光下具有可见轮廓和选中反馈。
+
+## 8. 性能边界
+
+- 工作台生命周期内只有一个 WebGL canvas/context；
+- 不在组件卡中创建第二个 Three.js renderer；
+- 释放被替换的 geometry/material/texture；
+- 组件筛选和 Agent 消息不得重建 renderer；
+- 大型几何工作不在浏览器主线程执行；
+- 前端 bundle 超预算时进行路由/功能懒加载。
+
+## 9. 验证
+
+前端变更至少运行：
 
 ```bash
-script/build_and_run.sh --verify
+npm run desktop:typecheck
+npm run desktop:build
+npm run desktop:r3-concept-workbench-smoke
 ```
 
-它验证 Agent 健康状态和本机 Tauri 应用进程，不读取任何模型 API 密钥，也不发起外部模型请求。
+原生交互还必须运行 `script/build_and_run.sh --verify` 并人工检查 Keychain、文件选择、下载、重启和单 renderer。详细矩阵见 [TEST_STRATEGY.md](TEST_STRATEGY.md)。

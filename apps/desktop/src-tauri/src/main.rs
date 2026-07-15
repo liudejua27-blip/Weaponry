@@ -10,6 +10,10 @@ use std::{
     time::Duration,
 };
 
+#[cfg(unix)]
+use std::os::unix::{fs::OpenOptionsExt, process::CommandExt};
+
+use serde::Deserialize;
 use serde::Serialize;
 use tauri::{Manager, State};
 
@@ -23,10 +27,109 @@ struct AgentProcessState {
     mode: Mutex<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ProviderConfigMetadata {
+    base_url: String,
+    model: String,
+    configured: bool,
+    storage: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SaveProviderConfigRequest {
+    base_url: String,
+    model: String,
+    api_key: String,
+}
+
+const KEYCHAIN_SERVICE: &str = "ForgeCAD Agent Provider";
+const KEYCHAIN_ACCOUNT: &str = "default";
+
+#[tauri::command]
+fn get_provider_config() -> Result<ProviderConfigMetadata, String> {
+    let metadata = read_provider_metadata().unwrap_or_else(|_| ProviderConfigMetadata {
+        base_url: "https://api.deepseek.com".to_string(),
+        model: "deepseek-v4-pro".to_string(),
+        configured: false,
+        storage: provider_storage_name().to_string(),
+    });
+    let configured = !metadata.base_url.is_empty()
+        && !metadata.model.is_empty()
+        && read_provider_secret()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+    Ok(ProviderConfigMetadata {
+        configured,
+        ..metadata
+    })
+}
+
+#[tauri::command]
+fn save_provider_config(
+    request: SaveProviderConfigRequest,
+) -> Result<ProviderConfigMetadata, String> {
+    let (base_url, model, api_key) = validate_provider_config_input(
+        &request.base_url,
+        &request.model,
+        &request.api_key,
+    )?;
+    write_provider_secret(&api_key)?;
+    let metadata = ProviderConfigMetadata {
+        base_url,
+        model,
+        configured: true,
+        storage: provider_storage_name().to_string(),
+    };
+    write_provider_metadata(&metadata)?;
+    Ok(metadata)
+}
+
+fn validate_provider_config_input(
+    base_url: &str,
+    model: &str,
+    api_key: &str,
+) -> Result<(String, String, String), String> {
+    let base_url = base_url.trim().trim_end_matches('/').to_string();
+    let model = model.trim().to_string();
+    let api_key = api_key.trim().to_string();
+    if !(base_url.starts_with("https://") || base_url.starts_with("http://")) {
+        return Err("API Base URL 必须是 http(s) 地址。".to_string());
+    }
+    if model.is_empty() || model.len() > 160 {
+        return Err("Model 不能为空且不能超过 160 个字符。".to_string());
+    }
+    if api_key.is_empty() || api_key.len() > 4096 {
+        return Err("API Key 不能为空。".to_string());
+    }
+    Ok((base_url, model, api_key))
+}
+
+#[tauri::command]
+fn clear_provider_config() -> Result<ProviderConfigMetadata, String> {
+    clear_provider_secret()?;
+    let metadata = ProviderConfigMetadata {
+        base_url: "https://api.deepseek.com".to_string(),
+        model: "deepseek-v4-pro".to_string(),
+        configured: false,
+        storage: provider_storage_name().to_string(),
+    };
+    write_provider_metadata(&metadata)?;
+    Ok(metadata)
+}
+
 impl AgentProcessState {
     fn shutdown_managed(&self) {
         if let Ok(mut child_guard) = self.child.lock() {
             if let Some(child) = child_guard.as_mut() {
+                // PyInstaller onefile uses a parent process which unpacks and
+                // then starts the actual Agent child. The desktop owns a
+                // dedicated process group so normal window close stops both,
+                // rather than leaving a hidden listener on port 8000.
+                #[cfg(unix)]
+                let _ = Command::new("kill")
+                    .arg("-TERM")
+                    .arg(format!("-{}", child.id()))
+                    .status();
                 let _ = child.kill();
                 let _ = child.wait();
             }
@@ -76,15 +179,13 @@ fn agent_service_status(state: State<'_, AgentProcessState>) -> AgentServiceStat
     let mode_name = managed_mode_name(&state);
     let (managed_running, pid) = match state.child.lock() {
         Ok(mut guard) => {
-            let pid = guard
-                .as_mut()
-                .and_then(|child| {
-                    if child.try_wait().ok().flatten().is_none() {
-                        Some(child.id())
-                    } else {
-                        None
-                    }
-                });
+            let pid = guard.as_mut().and_then(|child| {
+                if child.try_wait().ok().flatten().is_none() {
+                    Some(child.id())
+                } else {
+                    None
+                }
+            });
             let managed_running = pid.is_some();
             if !managed_running {
                 *guard = None;
@@ -108,7 +209,12 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
             let pid = child_guard.as_ref().map(|child| child.id());
             if let AgentProbe::Healthy = probe_agent() {
                 let mode_name = managed_mode_name(&state);
-                return Ok(status_from_probe(AgentProbe::Healthy, true, pid, &mode_name));
+                return Ok(status_from_probe(
+                    AgentProbe::Healthy,
+                    true,
+                    pid,
+                    &mode_name,
+                ));
             }
         }
     }
@@ -116,7 +222,12 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
     match probe_agent() {
         AgentProbe::Healthy => {
             let mode_name = runtime_mode_name(runtime_mode());
-            return Ok(status_from_probe(AgentProbe::Healthy, false, None, &mode_name));
+            return Ok(status_from_probe(
+                AgentProbe::Healthy,
+                false,
+                None,
+                &mode_name,
+            ));
         }
         AgentProbe::WrongService(reason) => {
             return Err(format!(
@@ -136,7 +247,6 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
         .mode
         .lock()
         .map_err(|_| "agent mode mutex poisoned".to_string())?;
-    let repo_root = repo_root()?;
     let mode = runtime_mode();
     let mode_name = match mode {
         AgentMode::LocalDev => AGENT_MODE_LOCAL,
@@ -147,18 +257,32 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
 
     *child_guard = None;
     let child = match mode {
-        AgentMode::PackagedSidecar => start_packaged_sidecar(&repo_root)?,
-        AgentMode::LocalDev => start_local_python_sidecar(&repo_root)?,
+        AgentMode::PackagedSidecar => start_packaged_sidecar()?,
+        AgentMode::LocalDev => {
+            let repo_root = repo_root()?;
+            start_local_python_sidecar(&repo_root)?
+        }
     };
     let pid = child.id();
     *child_guard = Some(child);
     drop(child_guard);
 
-    // The first local startup can apply SQLite migrations and register the
-    // bundled module pack, so allow a realistic cold-start window.
-    for _ in 0..100 {
+    // A frozen sidecar may need to unpack its onefile payload before it can
+    // apply SQLite migrations, so the local Alpha cold-start window is longer
+    // than the source-Python development path.
+    for _ in 0..300 {
         match probe_agent() {
-            AgentProbe::Healthy => return Ok(status_from_probe(AgentProbe::Healthy, true, Some(pid), &mode_name)),
+            AgentProbe::Healthy => {
+                append_supervisor_log(&format!(
+                    "ForgeCAD supervisor healthy mode={mode_name} pid={pid}"
+                ));
+                return Ok(status_from_probe(
+                    AgentProbe::Healthy,
+                    true,
+                    Some(pid),
+                    &mode_name,
+                ))
+            }
             AgentProbe::WrongService(reason) => {
                 state.shutdown_managed();
                 return Err(format!(
@@ -170,7 +294,10 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
     }
 
     state.shutdown_managed();
-    Err("Agent service did not become healthy on http://127.0.0.1:8000/api/health within 10s".to_string())
+    Err(
+        "Agent service did not become healthy on http://127.0.0.1:8000/api/health within 30s"
+            .to_string(),
+    )
 }
 
 fn runtime_mode_name(mode: AgentMode) -> String {
@@ -193,11 +320,27 @@ fn main() {
             child: Mutex::new(None),
             mode: Mutex::new(AGENT_MODE_LOCAL.to_string()),
         })
+        .setup(|app| {
+            // A packaged release has no repository or Python dependency. Start
+            // its bundled sidecar before the WebView is ready. A background
+            // `State` access is not reliable across every macOS launch path;
+            // this synchronous, idempotent startup makes cold first launch
+            // deterministic. The WebView call remains a recovery/status check.
+            let state = app.state::<AgentProcessState>();
+            if let Err(error) = start_agent_service(state) {
+                eprintln!("ForgeCAD Agent startup failed: {error}");
+                append_supervisor_log(&format!("ForgeCAD supervisor startup failed: {error}"));
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             agent_health_endpoint,
             agent_service_status,
             start_agent_service,
-            stop_agent_service
+            stop_agent_service,
+            get_provider_config,
+            save_provider_config,
+            clear_provider_config
         ])
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
@@ -272,6 +415,7 @@ fn start_local_python_sidecar(repo_root: &Path) -> Result<Child, String> {
         .stderr(Stdio::from(stderr_log));
 
     apply_local_asset_pack(&mut command);
+    apply_provider_config(&mut command);
 
     command.spawn().map_err(|error| {
         format!(
@@ -281,30 +425,66 @@ fn start_local_python_sidecar(repo_root: &Path) -> Result<Child, String> {
     })
 }
 
-fn start_packaged_sidecar(repo_root: &Path) -> Result<Child, String> {
-    let sidecar = sidecar_binary_path(repo_root)?;
-    let library_root = packaged_library_root(repo_root);
+fn start_packaged_sidecar() -> Result<Child, String> {
+    let sidecar = sidecar_binary_path()?;
+    let library_root = packaged_library_root();
+    let log_path = sidecar_log_path();
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("failed to create sidecar log directory: {error}"))?;
+    }
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(sidecar_log_path())
+        .open(log_path)
         .map_err(|error| format!("failed to open sidecar log file: {error}"))?;
     let stderr_log = log_file
         .try_clone()
         .map_err(|error| format!("failed to clone sidecar log file: {error}"))?;
 
-    Command::new(&sidecar)
+    let mut command = Command::new(&sidecar);
+    #[cfg(unix)]
+    command.process_group(0);
+    command
         .arg("agent")
         .arg("serve")
-        .current_dir(repo_root)
+        .current_dir(sidecar.parent().unwrap_or_else(|| Path::new(".")))
         .env("WUSHEN_LIBRARY_ROOT", library_root)
-        .env("WUSHEN_MIGRATIONS_DIR", repo_root.join("migrations"))
-        .env("WUSHEN_REPO_ROOT", repo_root)
         .env_remove("WUSHEN_AGENT_PYTHON")
+        .env_remove("WUSHEN_REPO_ROOT")
+        .env_remove("WUSHEN_MIGRATIONS_DIR")
         .stdout(Stdio::from(log_file))
-        .stderr(Stdio::from(stderr_log))
-        .spawn()
-        .map_err(|error| format!("failed to start packaged-sidecar with {}: {error}", sidecar.display()))
+        .stderr(Stdio::from(stderr_log));
+    apply_provider_config(&mut command);
+    command.spawn().map_err(|error| {
+        format!(
+            "failed to start packaged-sidecar with {}: {error}",
+            sidecar.display()
+        )
+    })
+}
+
+fn apply_provider_config(command: &mut Command) {
+    // Local Alpha verification must prove the bundled offline path without
+    // reading a Keychain record or sending a Provider request. This opt-out is
+    // intentionally explicit; normal packaged launches still use Keychain.
+    if env::var("FORGECAD_DISABLE_PROVIDER_CONFIG").as_deref() == Ok("1") {
+        return;
+    }
+    let Ok(metadata) = read_provider_metadata() else {
+        return;
+    };
+    let Ok(api_key) = read_provider_secret() else {
+        return;
+    };
+    if !metadata.configured || api_key.trim().is_empty() {
+        return;
+    }
+    command
+        .env("FORGECAD_AGENT_PROVIDER", "openai_compatible")
+        .env("FORGECAD_AGENT_BASE_URL", metadata.base_url)
+        .env("FORGECAD_AGENT_MODEL", metadata.model)
+        .env("FORGECAD_AGENT_API_KEY", api_key);
 }
 
 fn sidecar_log_path() -> PathBuf {
@@ -316,9 +496,32 @@ fn sidecar_log_path() -> PathBuf {
     base.join("WushenForge").join("agent.log")
 }
 
-fn packaged_library_root(repo_root: &Path) -> PathBuf {
+fn append_supervisor_log(message: &str) {
+    let path = sidecar_log_path();
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) else {
+        return;
+    };
+    let _ = writeln!(file, "{message}");
+}
+
+fn packaged_library_root() -> PathBuf {
     if let Ok(value) = env::var("WUSHEN_LIBRARY_ROOT") {
         return PathBuf::from(value);
+    }
+    if cfg!(target_os = "macos") {
+        if let Ok(value) = env::var("HOME") {
+            return PathBuf::from(value)
+                .join("Library")
+                .join("Application Support")
+                .join("ForgeCAD")
+                .join("Library");
+        }
     }
     if let Ok(value) = env::var("LOCALAPPDATA") {
         return PathBuf::from(value).join("wushen-forge");
@@ -329,42 +532,54 @@ fn packaged_library_root(repo_root: &Path) -> PathBuf {
             .join("share")
             .join("wushen-forge");
     }
-    repo_root.join("WushenForgeLibrary")
+    PathBuf::from("WushenForgeLibrary")
 }
 
-fn sidecar_binary_path(repo_root: &Path) -> Result<PathBuf, String> {
-    if let Ok(override_path) = env::var("WUSHEN_AGENT_SIDE_CAR") {
-        let candidate = PathBuf::from(override_path);
-        if candidate.exists() {
-            return Ok(candidate);
+fn sidecar_binary_path() -> Result<PathBuf, String> {
+    if cfg!(debug_assertions) {
+        if let Ok(override_path) = env::var("WUSHEN_AGENT_SIDE_CAR") {
+            let candidate = PathBuf::from(override_path);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+            return Err(format!(
+                "WUSHEN_AGENT_SIDE_CAR does not exist: {}",
+                candidate.display()
+            ));
         }
-        return Err(format!("WUSHEN_AGENT_SIDE_CAR does not exist: {}", candidate.display()));
     }
 
-    let binaries_dir = repo_root.join("apps/desktop/src-tauri/binaries");
-    let candidates = candidate_sidecar_basenames();
-    for name in candidates {
-        let candidate = binaries_dir.join(name);
-        if candidate.exists() {
-            return Ok(candidate);
-        }
+    let executable = env::current_exe()
+        .map_err(|error| format!("could not resolve packaged desktop executable: {error}"))?;
+    let candidate = executable
+        .parent()
+        .ok_or_else(|| "packaged desktop executable has no parent directory".to_string())?
+        .join(packaged_sidecar_name());
+    if candidate.is_file() {
+        return Ok(candidate);
     }
-    Err("packaged sidecar binary not found. Expected binaries/wushen-agent-<target> in apps/desktop/src-tauri/binaries".to_string())
+    Err(format!(
+        "packaged sidecar binary not found beside the desktop executable: {}",
+        candidate.display()
+    ))
 }
 
-fn candidate_sidecar_basenames() -> &'static [&'static str] {
+fn packaged_sidecar_name() -> &'static str {
     if cfg!(target_os = "windows") {
-        &["wushen-agent-x86_64-pc-windows-msvc.exe"]
-    } else if cfg!(target_os = "macos") {
-        &["wushen-agent-aarch64-apple-darwin", "wushen-agent-x86_64-apple-darwin"]
+        "wushen-agent.exe"
     } else {
-        &["wushen-agent-x86_64-unknown-linux-gnu"]
+        "wushen-agent"
     }
 }
 
 fn runtime_mode() -> AgentMode {
+    let default_mode = if cfg!(debug_assertions) {
+        AGENT_MODE_LOCAL
+    } else {
+        AGENT_MODE_PACKAGED
+    };
     match env::var("WUSHEN_AGENT_RUNTIME_MODE")
-        .unwrap_or_else(|_| AGENT_MODE_LOCAL.to_string())
+        .unwrap_or_else(|_| default_mode.to_string())
         .as_str()
     {
         AGENT_MODE_PACKAGED => AgentMode::PackagedSidecar,
@@ -417,13 +632,8 @@ fn probe_agent() -> AgentProbe {
         .unwrap_or_default();
     match serde_json::from_str::<serde_json::Value>(body) {
         Ok(value)
-            if value
-                .get("status")
-                .and_then(serde_json::Value::as_str)
-                == Some("ok")
-                && value
-                    .get("service")
-                    .and_then(serde_json::Value::as_str)
+            if value.get("status").and_then(serde_json::Value::as_str) == Some("ok")
+                && value.get("service").and_then(serde_json::Value::as_str)
                     == Some("wushen-agent") =>
         {
             AgentProbe::Healthy
@@ -514,4 +724,164 @@ fn agent_python(repo_root: &Path) -> PathBuf {
         return venv_python;
     }
     PathBuf::from("python3")
+}
+
+fn provider_storage_name() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "macos-keychain"
+    } else {
+        "secret-file-required"
+    }
+}
+
+fn provider_metadata_path() -> PathBuf {
+    let base = if cfg!(target_os = "macos") {
+        env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|path| path.join("Library").join("Application Support"))
+    } else if cfg!(target_os = "windows") {
+        env::var_os("APPDATA").map(PathBuf::from)
+    } else {
+        env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| env::var_os("HOME").map(|path| PathBuf::from(path).join(".config")))
+    };
+    base.unwrap_or_else(|| PathBuf::from("."))
+        .join("ForgeCAD")
+        .join("provider.json")
+}
+
+fn read_provider_metadata() -> Result<ProviderConfigMetadata, String> {
+    let payload =
+        fs::read_to_string(provider_metadata_path()).map_err(|error| error.to_string())?;
+    serde_json::from_str(&payload).map_err(|error| format!("invalid provider metadata: {error}"))
+}
+
+fn write_provider_metadata(metadata: &ProviderConfigMetadata) -> Result<(), String> {
+    let path = provider_metadata_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let payload = serde_json::to_vec_pretty(metadata).map_err(|error| error.to_string())?;
+    #[cfg(unix)]
+    let options = {
+        let mut value = OpenOptions::new();
+        value.create(true).write(true).truncate(true).mode(0o600);
+        value
+    };
+    #[cfg(not(unix))]
+    let options = {
+        let mut value = OpenOptions::new();
+        value.create(true).write(true).truncate(true);
+        value
+    };
+    let mut file = options.open(path).map_err(|error| error.to_string())?;
+    file.write_all(&payload).map_err(|error| error.to_string())
+}
+
+fn read_provider_secret() -> Result<String, String> {
+    if !cfg!(target_os = "macos") {
+        return Err("system keychain is unavailable on this target".to_string());
+    }
+    let output = Command::new("/usr/bin/security")
+        .args([
+            "find-generic-password",
+            "-a",
+            KEYCHAIN_ACCOUNT,
+            "-s",
+            KEYCHAIN_SERVICE,
+            "-w",
+        ])
+        .output()
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err("provider key is not configured".to_string());
+    }
+    String::from_utf8(output.stdout)
+        .map(|value| value.trim().to_string())
+        .map_err(|error| error.to_string())
+}
+
+fn write_provider_secret(secret: &str) -> Result<(), String> {
+    if !cfg!(target_os = "macos") {
+        return Err("当前桌面仅支持 macOS Keychain 配置；其他平台请使用 secret file。".to_string());
+    }
+    let output = Command::new("/usr/bin/security")
+        .args([
+            "add-generic-password",
+            "-U",
+            "-a",
+            KEYCHAIN_ACCOUNT,
+            "-s",
+            KEYCHAIN_SERVICE,
+            "-w",
+            secret,
+        ])
+        .output()
+        .map_err(|error| error.to_string())?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err("无法写入 macOS Keychain。".to_string())
+    }
+}
+
+fn clear_provider_secret() -> Result<(), String> {
+    if !cfg!(target_os = "macos") {
+        return Ok(());
+    }
+    let output = Command::new("/usr/bin/security")
+        .args([
+            "delete-generic-password",
+            "-a",
+            KEYCHAIN_ACCOUNT,
+            "-s",
+            KEYCHAIN_SERVICE,
+        ])
+        .output()
+        .map_err(|error| error.to_string())?;
+    if output.status.success() || output.status.code() == Some(44) {
+        Ok(())
+    } else {
+        Err("无法清除 macOS Keychain 配置。".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{agent_health_url, validate_provider_config_input};
+
+    #[test]
+    fn provider_input_is_trimmed_before_storage() {
+        let result = validate_provider_config_input(
+            "  https://api.example.test/// ",
+            "  demo-model  ",
+            "  secret  ",
+        )
+        .expect("valid provider input");
+        assert_eq!(result.0, "https://api.example.test");
+        assert_eq!(result.1, "demo-model");
+        assert_eq!(result.2, "secret");
+    }
+
+    #[test]
+    fn provider_input_rejects_invalid_url() {
+        let error = validate_provider_config_input("api.example.test", "model", "key")
+            .expect_err("invalid URL must be rejected");
+        assert!(error.contains("http(s)"));
+    }
+
+    #[test]
+    fn provider_input_rejects_empty_or_oversized_fields() {
+        assert!(validate_provider_config_input("https://example.test", "", "key").is_err());
+        assert!(validate_provider_config_input("https://example.test", &"m".repeat(161), "key").is_err());
+        assert!(validate_provider_config_input("https://example.test", "model", "").is_err());
+        assert!(validate_provider_config_input("https://example.test", "model", &"k".repeat(4097)).is_err());
+    }
+
+    #[test]
+    fn health_url_is_stable_and_does_not_drop_base_path() {
+        assert_eq!(agent_health_url("http://127.0.0.1:8000"), "http://127.0.0.1:8000/api/health");
+        assert_eq!(agent_health_url("http://127.0.0.1:8000/agent"), "http://127.0.0.1:8000/agent/api/health");
+    }
 }

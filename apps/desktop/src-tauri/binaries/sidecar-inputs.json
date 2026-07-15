@@ -1,0 +1,34 @@
+{
+  "schema_version": "ForgeCADPackagedSidecarInput@1",
+  "sidecar_id": "wushen-agent",
+  "target": {
+    "triple": "aarch64-apple-darwin",
+    "os": "macos",
+    "architecture": "aarch64",
+    "binary_path": "binaries/wushen-agent-aarch64-apple-darwin",
+    "file_format": "mach_o",
+    "requires_owner_execute": true
+  },
+  "launch": {
+    "arguments": ["agent", "serve"],
+    "managed_host": "127.0.0.1",
+    "managed_port": 8000,
+    "required_environment_names": ["WUSHEN_LIBRARY_ROOT", "WUSHEN_MIGRATIONS_DIR"],
+    "provider_secret_boundary": "runtime-keychain-or-permission-restricted-secret-file"
+  },
+  "health_check": {
+    "method": "GET",
+    "path": "/api/health",
+    "expected_status": 200,
+    "expected_json": {
+      "service": "wushen-agent",
+      "status": "ok"
+    }
+  },
+  "local_alpha_checks": [
+    "first_initialization",
+    "workbench_startup",
+    "glb_export",
+    "restart_recovery"
+  ]
+}

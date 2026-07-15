@@ -13,6 +13,8 @@ from .concept_repositories import (
 )
 from .migrations import MigrationError, SQLiteMigrationRunner
 from .repositories import AssetRepository, CheckpointRepository, IdempotencyRepository, JobRepository
+from .agent_repositories import ActiveDesignSnapshotRepository, AgentKernelRepository
+from .material_texture_repositories import MaterialTextureRepository
 from .unit_of_work import SQLiteUnitOfWork
 
 __all__ = [
@@ -28,6 +30,9 @@ __all__ = [
     "ExportRepository",
     "IdempotencyRepository",
     "JobRepository",
+    "AgentKernelRepository",
+    "ActiveDesignSnapshotRepository",
+    "MaterialTextureRepository",
     "ModuleRepository",
     "QualityRepository",
     "MigrationError",

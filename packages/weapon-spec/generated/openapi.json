@@ -1,6 +1,2582 @@
 {
   "components": {
     "schemas": {
+      "ActiveDesignExportReference": {
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "agent_asset",
+              "legacy_concept_read_only"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "source_version_id": {
+            "pattern": "^(assetver|ver)_[a-z0-9_\\-]+$",
+            "title": "Source Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "project_id",
+          "source_version_id"
+        ],
+        "title": "ActiveDesignExportReference",
+        "type": "object"
+      },
+      "ActiveDesignNavigation": {
+        "additionalProperties": false,
+        "description": "The only server-authoritative undo/redo availability shown by the workbench.",
+        "properties": {
+          "active_asset_version_id": {
+            "anyOf": [
+              {
+                "pattern": "^assetver_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Asset Version Id"
+          },
+          "can_redo": {
+            "title": "Can Redo",
+            "type": "boolean"
+          },
+          "can_undo": {
+            "title": "Can Undo",
+            "type": "boolean"
+          },
+          "preview_pending": {
+            "default": false,
+            "title": "Preview Pending",
+            "type": "boolean"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "can_undo",
+          "can_redo"
+        ],
+        "title": "ActiveDesignNavigation",
+        "type": "object"
+      },
+      "ActiveDesignPartDisplay": {
+        "additionalProperties": false,
+        "description": "Server-owned, non-geometric part presentation and edit-protection state.",
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "hidden_part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Hidden Part Ids",
+            "type": "array"
+          },
+          "isolated_part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isolated Part Id"
+          },
+          "locked_part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Part Ids",
+            "type": "array"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ActiveDesignPartDisplay@1",
+            "default": "ActiveDesignPartDisplay@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "asset_version_id"
+        ],
+        "title": "ActiveDesignPartDisplay",
+        "type": "object"
+      },
+      "ActiveDesignPreviewReference": {
+        "additionalProperties": false,
+        "properties": {
+          "base_asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Base Asset Version Id",
+            "type": "string"
+          },
+          "change_set_id": {
+            "pattern": "^assetcs_[a-z0-9_\\-]+$",
+            "title": "Change Set Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "change_set_id",
+          "base_asset_version_id"
+        ],
+        "title": "ActiveDesignPreviewReference",
+        "type": "object"
+      },
+      "ActiveDesignQualityReference": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality_report_id": {
+            "pattern": "^quality_[a-z0-9_\\-]+$",
+            "title": "Quality Report Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "quality_report_id",
+          "asset_version_id"
+        ],
+        "title": "ActiveDesignQualityReference",
+        "type": "object"
+      },
+      "ActiveDesignRenderPreset": {
+        "additionalProperties": false,
+        "description": "Deterministic, visual-only camera and light selection for one Agent asset.",
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "camera_view": {
+            "default": "iso",
+            "enum": [
+              "iso",
+              "front",
+              "top",
+              "right"
+            ],
+            "title": "Camera View",
+            "type": "string"
+          },
+          "light_preset": {
+            "default": "cad_neutral",
+            "enum": [
+              "cad_neutral",
+              "soft_studio",
+              "concept_contrast"
+            ],
+            "title": "Light Preset",
+            "type": "string"
+          },
+          "preset_id": {
+            "pattern": "^render_[a-z0-9_\\-]+$",
+            "title": "Preset Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ActiveDesignRenderPreset@1",
+            "default": "ActiveDesignRenderPreset@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preset_id",
+          "project_id",
+          "asset_version_id",
+          "updated_at"
+        ],
+        "title": "ActiveDesignRenderPreset",
+        "type": "object"
+      },
+      "ActiveDesignSnapshot": {
+        "additionalProperties": false,
+        "description": "The future single server-owned workbench state; storage/API follow in S002/S003.",
+        "properties": {
+          "active_design": {
+            "discriminator": {
+              "mapping": {
+                "agent_asset": "#/components/schemas/AgentActiveDesignReference",
+                "legacy_concept_read_only": "#/components/schemas/LegacyActiveDesignReference"
+              },
+              "propertyName": "source"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AgentActiveDesignReference"
+              },
+              {
+                "$ref": "#/components/schemas/LegacyActiveDesignReference"
+              }
+            ],
+            "title": "Active Design"
+          },
+          "export": {
+            "$ref": "#/components/schemas/ActiveDesignExportReference"
+          },
+          "part_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveDesignPartDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveDesignPreviewReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveDesignQualityReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "render_preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveDesignRenderPreset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "ActiveDesignSnapshot@1",
+            "default": "ActiveDesignSnapshot@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "selected_material_zone_id": {
+            "anyOf": [
+              {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Material Zone Id"
+          },
+          "selected_part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Part Id"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "active_design",
+          "export",
+          "revision",
+          "updated_at"
+        ],
+        "title": "ActiveDesignSnapshot",
+        "type": "object"
+      },
+      "AgentActiveDesignReference": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly_graph_id": {
+            "pattern": "^mg_[a-z0-9_\\-]+$",
+            "title": "Assembly Graph Id",
+            "type": "string"
+          },
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source": {
+            "const": "agent_asset",
+            "default": "agent_asset",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "asset_version_id",
+          "assembly_graph_id"
+        ],
+        "title": "AgentActiveDesignReference",
+        "type": "object"
+      },
+      "AgentApproval": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_id",
+          "thread_id",
+          "turn_id",
+          "item_id",
+          "action",
+          "status",
+          "created_at"
+        ],
+        "title": "AgentApproval",
+        "type": "object"
+      },
+      "AgentApprovalResolution": {
+        "additionalProperties": false,
+        "properties": {
+          "approval": {
+            "$ref": "#/components/schemas/AgentApproval"
+          },
+          "turn": {
+            "$ref": "#/components/schemas/AgentTurn"
+          }
+        },
+        "required": [
+          "approval",
+          "turn"
+        ],
+        "title": "AgentApprovalResolution",
+        "type": "object"
+      },
+      "AgentAssetChangeSet": {
+        "additionalProperties": false,
+        "properties": {
+          "base_asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Base Asset Version Id",
+            "type": "string"
+          },
+          "change_set_id": {
+            "pattern": "^assetcs_[a-z0-9_\\-]+$",
+            "title": "Change Set Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPartEditOperation"
+            },
+            "title": "Operations",
+            "type": "array"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentAssetVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "protected_part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Protected Part Ids",
+            "type": "array"
+          },
+          "resulting_asset_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resulting Asset Version Id"
+          },
+          "schema_version": {
+            "const": "AgentAssetChangeSet@1",
+            "default": "AgentAssetChangeSet@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "previewed",
+              "confirmed",
+              "rejected",
+              "stale"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_set_id",
+          "project_id",
+          "base_asset_version_id",
+          "summary",
+          "operations",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentAssetChangeSet",
+        "type": "object"
+      },
+      "AgentAssetChangeSetConfirmResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version": {
+            "$ref": "#/components/schemas/AgentAssetVersion"
+          },
+          "change_set": {
+            "$ref": "#/components/schemas/AgentAssetChangeSet"
+          }
+        },
+        "required": [
+          "change_set",
+          "asset_version"
+        ],
+        "title": "AgentAssetChangeSetConfirmResponse",
+        "type": "object"
+      },
+      "AgentAssetExportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "exported_at": {
+            "title": "Exported At",
+            "type": "string"
+          },
+          "format": {
+            "const": "glb",
+            "default": "glb",
+            "title": "Format",
+            "type": "string"
+          },
+          "glb_base64": {
+            "minLength": 1,
+            "title": "Glb Base64",
+            "type": "string"
+          },
+          "readback_status": {
+            "const": "passed",
+            "default": "passed",
+            "title": "Readback Status",
+            "type": "string"
+          },
+          "readback_triangle_count": {
+            "minimum": 0.0,
+            "title": "Readback Triangle Count",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "AgentAssetExport@1",
+            "default": "AgentAssetExport@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 0.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "glb_base64",
+          "triangle_count",
+          "bounds_mm",
+          "readback_triangle_count",
+          "exported_at"
+        ],
+        "title": "AgentAssetExportResponse",
+        "type": "object"
+      },
+      "AgentAssetQualityFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Part Ids",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_id",
+          "severity",
+          "message"
+        ],
+        "title": "AgentAssetQualityFinding",
+        "type": "object"
+      },
+      "AgentAssetQualityReport": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "bounds_mm": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounds Mm"
+          },
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "compile_readback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeometryCompileReadback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_source": {
+            "default": "legacy_estimate",
+            "enum": [
+              "geometry_compile_readback",
+              "external_glb_inspection",
+              "compile_failure",
+              "legacy_estimate"
+            ],
+            "title": "Evidence Source",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/AgentAssetQualityFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "quality_report_id": {
+            "pattern": "^quality_[a-z0-9_\\-]+$",
+            "title": "Quality Report Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentAssetQualityReport@1",
+            "default": "AgentAssetQualityReport@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 0.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quality_report_id",
+          "asset_version_id",
+          "status",
+          "triangle_count",
+          "checked_at"
+        ],
+        "title": "AgentAssetQualityReport",
+        "type": "object"
+      },
+      "AgentAssetRenderSet": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "exploded_unavailable_reason": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exploded Unavailable Reason"
+          },
+          "exploded_view_available": {
+            "default": false,
+            "title": "Exploded View Available",
+            "type": "boolean"
+          },
+          "height": {
+            "maximum": 2048.0,
+            "minimum": 64.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "render_set_byte_size": {
+            "minimum": 96.0,
+            "title": "Render Set Byte Size",
+            "type": "integer"
+          },
+          "render_set_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Render Set Sha256",
+            "type": "string"
+          },
+          "rendered_at": {
+            "title": "Rendered At",
+            "type": "string"
+          },
+          "renderer_id": {
+            "const": "forgecad-agent-software-raster@1",
+            "default": "forgecad-agent-software-raster@1",
+            "title": "Renderer Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentAssetRenderSet@1",
+            "default": "AgentAssetRenderSet@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "views": {
+            "items": {
+              "$ref": "#/components/schemas/AgentAssetRenderView"
+            },
+            "maxItems": 5,
+            "minItems": 4,
+            "title": "Views",
+            "type": "array"
+          },
+          "width": {
+            "maximum": 2048.0,
+            "minimum": 64.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "width",
+          "height",
+          "views",
+          "render_set_sha256",
+          "render_set_byte_size",
+          "rendered_at"
+        ],
+        "title": "AgentAssetRenderSet",
+        "type": "object"
+      },
+      "AgentAssetRenderView": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "background_mode": {
+            "const": "transparent",
+            "default": "transparent",
+            "title": "Background Mode",
+            "type": "string"
+          },
+          "byte_size": {
+            "minimum": 24.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "camera_view": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top"
+            ],
+            "title": "Camera View",
+            "type": "string"
+          },
+          "height": {
+            "maximum": 2048.0,
+            "minimum": 64.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "mime_type": {
+            "const": "image/png",
+            "default": "image/png",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Part Ids",
+            "type": "array"
+          },
+          "png_base64": {
+            "minLength": 1,
+            "title": "Png Base64",
+            "type": "string"
+          },
+          "presentation_mode": {
+            "default": "standard",
+            "enum": [
+              "standard",
+              "exploded"
+            ],
+            "title": "Presentation Mode",
+            "type": "string"
+          },
+          "readback_status": {
+            "const": "passed",
+            "default": "passed",
+            "title": "Readback Status",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentAssetRenderView@1",
+            "default": "AgentAssetRenderView@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top",
+              "exploded_iso"
+            ],
+            "title": "View Id",
+            "type": "string"
+          },
+          "width": {
+            "maximum": 2048.0,
+            "minimum": 64.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "view_id",
+          "camera_view",
+          "width",
+          "height",
+          "png_base64",
+          "sha256",
+          "byte_size"
+        ],
+        "title": "AgentAssetRenderView",
+        "type": "object"
+      },
+      "AgentAssetVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "pattern": "^artifact_[a-z0-9_\\-]+$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "assembly_graph": {
+            "additionalProperties": true,
+            "title": "Assembly Graph",
+            "type": "object"
+          },
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "material_bindings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Material Bindings",
+            "type": "object"
+          },
+          "parent_asset_version_id": {
+            "anyOf": [
+              {
+                "pattern": "^assetver_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Asset Version Id"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/BlockoutPartCandidate"
+            },
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentAssetVersion@1",
+            "default": "AgentAssetVersion@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shape_program": {
+            "additionalProperties": true,
+            "title": "Shape Program",
+            "type": "object"
+          },
+          "stage": {
+            "enum": [
+              "segmented_concept",
+              "editable_asset"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "committed",
+              "superseded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "version_no": {
+            "minimum": 1.0,
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "project_id",
+          "version_no",
+          "status",
+          "summary",
+          "stage",
+          "plan_id",
+          "direction_id",
+          "domain_pack_id",
+          "artifact_id",
+          "parts",
+          "shape_program",
+          "assembly_graph",
+          "created_at"
+        ],
+        "title": "AgentAssetVersion",
+        "type": "object"
+      },
+      "AgentBlockoutConceptPreview": {
+        "additionalProperties": false,
+        "description": "A disposable low-resolution software concept image, never a render asset.",
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "direction_id": {
+            "pattern": "^direction_[a-z0-9_\\-]+$",
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "enum": [
+              "pack_future_weapon_prop",
+              "pack_vehicle_concept",
+              "pack_aircraft_concept",
+              "pack_robotic_arm_concept"
+            ],
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "height": {
+            "const": 240,
+            "default": 240,
+            "title": "Height",
+            "type": "integer"
+          },
+          "plan_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "png_base64": {
+            "minLength": 1,
+            "title": "Png Base64",
+            "type": "string"
+          },
+          "render_context_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Render Context Sha256",
+            "type": "string"
+          },
+          "renderer_id": {
+            "const": "forgecad-agent-software-raster@1",
+            "default": "forgecad-agent-software-raster@1",
+            "title": "Renderer Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentBlockoutConceptPreview@1",
+            "default": "AgentBlockoutConceptPreview@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "topology_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Topology Hash",
+            "type": "string"
+          },
+          "variant_id": {
+            "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+            "title": "Variant Id",
+            "type": "string"
+          },
+          "variation_index": {
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          },
+          "width": {
+            "const": 320,
+            "default": 320,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_id",
+          "direction_id",
+          "variant_id",
+          "variation_index",
+          "domain_pack_id",
+          "topology_hash",
+          "render_context_sha256",
+          "png_base64",
+          "sha256",
+          "byte_size"
+        ],
+        "title": "AgentBlockoutConceptPreview",
+        "type": "object"
+      },
+      "AgentComponentCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/AgentComponentCompatibility"
+          },
+          "component": {
+            "$ref": "#/components/schemas/AgentComponentRecord"
+          },
+          "schema_version": {
+            "const": "AgentComponentCandidate@1",
+            "default": "AgentComponentCandidate@1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "component",
+          "compatibility"
+        ],
+        "title": "AgentComponentCandidate",
+        "type": "object"
+      },
+      "AgentComponentCompatibility": {
+        "additionalProperties": false,
+        "description": "A bounded replacement decision, never an engineering fitness score.",
+        "properties": {
+          "component_id": {
+            "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+            "title": "Component Id",
+            "type": "string"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "reason_codes": {
+            "items": {
+              "enum": [
+                "same_domain_pack",
+                "domain_pack_mismatch",
+                "same_role",
+                "role_mismatch",
+                "component_active",
+                "component_disabled",
+                "source_quality_passed",
+                "source_quality_warning",
+                "source_quality_failed",
+                "source_quality_unavailable",
+                "target_connectors_preserved"
+              ],
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "AgentComponentCompatibility@1",
+            "default": "AgentComponentCompatibility@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_quality_status": {
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Source Quality Status",
+            "type": "string"
+          },
+          "target_asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Target Asset Version Id",
+            "type": "string"
+          },
+          "target_part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Target Part Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "component_id",
+          "target_asset_version_id",
+          "target_part_id",
+          "eligible",
+          "source_quality_status",
+          "reason_codes"
+        ],
+        "title": "AgentComponentCompatibility",
+        "type": "object"
+      },
+      "AgentComponentRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "component_id": {
+            "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+            "title": "Component Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "material_bindings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Material Bindings",
+            "type": "object"
+          },
+          "part_template": {
+            "$ref": "#/components/schemas/BlockoutPartCandidate"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentComponent@1",
+            "default": "AgentComponent@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shape_operation": {
+            "additionalProperties": true,
+            "title": "Shape Operation",
+            "type": "object"
+          },
+          "source_asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Source Asset Version Id",
+            "type": "string"
+          },
+          "source_part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Source Part Id",
+            "type": "string"
+          },
+          "source_quality_status": {
+            "default": "unavailable",
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Source Quality Status",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "component_id",
+          "project_id",
+          "domain_pack_id",
+          "role",
+          "display_name",
+          "source_asset_version_id",
+          "source_part_id",
+          "part_template",
+          "shape_operation",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentComponentRecord",
+        "type": "object"
+      },
+      "AgentItem": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "item_type": {
+            "enum": [
+              "user_message",
+              "assistant_message",
+              "plan",
+              "tool_call",
+              "tool_result",
+              "preview",
+              "approval_request",
+              "clarification",
+              "artifact"
+            ],
+            "title": "Item Type",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "thread_id",
+          "turn_id",
+          "sequence",
+          "item_type",
+          "status",
+          "created_at"
+        ],
+        "title": "AgentItem",
+        "type": "object"
+      },
+      "AgentMaterialPbr": {
+        "additionalProperties": false,
+        "description": "Appearance-only PBR values; texture ids are content-addressed asset ids.",
+        "properties": {
+          "base_color": {
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Base Color",
+            "type": "string"
+          },
+          "base_color_texture_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Color Texture Asset Id"
+          },
+          "clearcoat": {
+            "default": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Clearcoat",
+            "type": "number"
+          },
+          "clearcoat_roughness": {
+            "default": 0.5,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Clearcoat Roughness",
+            "type": "number"
+          },
+          "emissive_color": {
+            "default": "#000000",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Emissive Color",
+            "type": "string"
+          },
+          "emissive_strength": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Emissive Strength",
+            "type": "number"
+          },
+          "ior": {
+            "default": 1.5,
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Ior",
+            "type": "number"
+          },
+          "metallic": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Metallic",
+            "type": "number"
+          },
+          "normal_strength": {
+            "default": 1,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Normal Strength",
+            "type": "number"
+          },
+          "normal_texture_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Texture Asset Id"
+          },
+          "opacity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Opacity",
+            "type": "number"
+          },
+          "roughness": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Roughness",
+            "type": "number"
+          },
+          "texture_scale": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Texture Scale",
+            "type": "array"
+          },
+          "transmission": {
+            "default": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Transmission",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_color",
+          "metallic",
+          "roughness",
+          "opacity"
+        ],
+        "title": "AgentMaterialPbr",
+        "type": "object"
+      },
+      "AgentMaterialPreset": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Domains",
+            "type": "array"
+          },
+          "category": {
+            "enum": [
+              "metal",
+              "polymer",
+              "rubber",
+              "composite",
+              "glass",
+              "coating",
+              "natural",
+              "emissive"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "enum": [
+                  "not_applicable",
+                  "self_declared_original",
+                  "third_party",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "material_id": {
+            "pattern": "^mat_[a-z0-9_\\-]+$",
+            "title": "Material Id",
+            "type": "string"
+          },
+          "pbr": {
+            "$ref": "#/components/schemas/AgentMaterialPbr"
+          },
+          "provenance": {
+            "enum": [
+              "forgecad_builtin",
+              "user_created",
+              "imported_reference"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "MaterialPreset@1",
+            "default": "MaterialPreset@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "forgecad_builtin",
+                  "user_created",
+                  "imported_reference"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "texture_summary": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMaterialTextureSummary"
+            },
+            "maxItems": 8,
+            "title": "Texture Summary",
+            "type": "array"
+          },
+          "thumbnail_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_tex_[a-f0-9]{24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Asset Id"
+          },
+          "thumbnail_fallback": {
+            "default": "parameter",
+            "enum": [
+              "parameter",
+              "texture",
+              "unavailable"
+            ],
+            "title": "Thumbnail Fallback",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "visual_only": {
+            "const": true,
+            "default": true,
+            "title": "Visual Only",
+            "type": "boolean"
+          },
+          "visual_tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Visual Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "material_id",
+          "display_name",
+          "category",
+          "pbr",
+          "allowed_domains",
+          "provenance"
+        ],
+        "title": "AgentMaterialPreset",
+        "type": "object"
+      },
+      "AgentMaterialTextureListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentMaterialTextureObject"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "AgentMaterialTextureListResponse",
+        "type": "object"
+      },
+      "AgentMaterialTextureObject": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4000000.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "height": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4096.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "license": {
+            "enum": [
+              "not_applicable",
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "License",
+            "type": "string"
+          },
+          "license_ref": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Ref"
+          },
+          "mime_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/webp"
+            ],
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "object_exists": {
+            "title": "Object Exists",
+            "type": "boolean"
+          },
+          "object_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Object Path",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "MaterialTextureObject@1",
+            "default": "MaterialTextureObject@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "forgecad_builtin",
+              "user_created",
+              "imported_reference"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "texture_asset_id": {
+            "pattern": "^asset_tex_[a-f0-9]{24}$",
+            "title": "Texture Asset Id",
+            "type": "string"
+          },
+          "texture_role": {
+            "enum": [
+              "base_color",
+              "normal",
+              "thumbnail"
+            ],
+            "title": "Texture Role",
+            "type": "string"
+          },
+          "thumbnail_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_tex_[a-f0-9]{24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Asset Id"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "visual_only": {
+            "const": true,
+            "default": true,
+            "title": "Visual Only",
+            "type": "boolean"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 4096.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "texture_asset_id",
+          "texture_role",
+          "display_name",
+          "mime_type",
+          "byte_size",
+          "sha256",
+          "object_path",
+          "width",
+          "height",
+          "source",
+          "license",
+          "object_exists",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentMaterialTextureObject",
+        "type": "object"
+      },
+      "AgentMaterialTextureSummary": {
+        "additionalProperties": false,
+        "description": "Safe catalog provenance; never exposes a filesystem path.",
+        "properties": {
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "enum": [
+                  "not_applicable",
+                  "self_declared_original",
+                  "third_party",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "license_ref": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Ref"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "forgecad_builtin",
+                  "user_created",
+                  "imported_reference"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "texture_asset_id": {
+            "pattern": "^asset_tex_[a-f0-9]{24}$",
+            "title": "Texture Asset Id",
+            "type": "string"
+          },
+          "texture_role": {
+            "enum": [
+              "base_color",
+              "normal",
+              "thumbnail"
+            ],
+            "title": "Texture Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "texture_asset_id",
+          "texture_role",
+          "exists"
+        ],
+        "title": "AgentMaterialTextureSummary",
+        "type": "object"
+      },
+      "AgentPartEditOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Id"
+          },
+          "material_id": {
+            "anyOf": [
+              {
+                "pattern": "^mat_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Id"
+          },
+          "material_zone_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Zone Id"
+          },
+          "op": {
+            "enum": [
+              "set_part_transform",
+              "set_part_parameter",
+              "set_joint_pose",
+              "apply_material_preset",
+              "replace_part",
+              "snap_part_to_connector",
+              "split_part",
+              "merge_parts"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "operation_id": {
+            "pattern": "^op_[a-z0-9_\\-]+$",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "replacement_component_id": {
+            "anyOf": [
+              {
+                "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Component Id"
+          },
+          "structure_suggestion_id": {
+            "anyOf": [
+              {
+                "pattern": "^structure_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Suggestion Id"
+          },
+          "target_connector_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Connector Id"
+          },
+          "target_part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Part Id"
+          },
+          "transform": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transform"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "operation_id",
+          "op",
+          "part_id"
+        ],
+        "title": "AgentPartEditOperation",
+        "type": "object"
+      },
+      "AgentProviderCheckResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "network_call_made": {
+            "title": "Network Call Made",
+            "type": "boolean"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "not_configured",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "provider_id",
+          "message",
+          "network_call_made"
+        ],
+        "title": "AgentProviderCheckResponse",
+        "type": "object"
+      },
+      "AgentStructureSuggestion": {
+        "additionalProperties": false,
+        "description": "Read-only, evidence-bound AssemblyGraph restructuring candidate.",
+        "properties": {
+          "affected_part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Affected Part Ids",
+            "type": "array"
+          },
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "split_part",
+              "merge_parts"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentStructureSuggestion@1",
+            "default": "AgentStructureSuggestion@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_facts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Source Facts",
+            "type": "array"
+          },
+          "suggestion_id": {
+            "pattern": "^structure_[a-z0-9_\\-]+$",
+            "title": "Suggestion Id",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Part Id"
+          }
+        },
+        "required": [
+          "suggestion_id",
+          "kind",
+          "asset_version_id",
+          "part_id",
+          "affected_part_ids",
+          "source_facts",
+          "summary"
+        ],
+        "title": "AgentStructureSuggestion",
+        "type": "object"
+      },
+      "AgentStructureSuggestionList": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "title": "Asset Version Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "AgentStructureSuggestionList@1",
+            "default": "AgentStructureSuggestionList@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStructureSuggestion"
+            },
+            "maxItems": 32,
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "unavailable_message": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Message"
+          }
+        },
+        "required": [
+          "asset_version_id"
+        ],
+        "title": "AgentStructureSuggestionList",
+        "type": "object"
+      },
+      "AgentThreadDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "last_turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Turn Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "idle",
+              "active",
+              "error",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTurn"
+            },
+            "title": "Turns",
+            "type": "array"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "title",
+          "status",
+          "summary",
+          "provider_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentThreadDetail",
+        "type": "object"
+      },
+      "AgentThreadListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentThreadSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "AgentThreadListResponse",
+        "type": "object"
+      },
+      "AgentThreadSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "last_turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Turn Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "idle",
+              "active",
+              "error",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id",
+          "title",
+          "status",
+          "summary",
+          "provider_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentThreadSummary",
+        "type": "object"
+      },
+      "AgentTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/AgentApproval"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "request_text": {
+            "title": "Request Text",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "waiting_for_approval",
+              "waiting_for_clarification",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "usage": {
+            "additionalProperties": true,
+            "title": "Usage",
+            "type": "object"
+          }
+        },
+        "required": [
+          "turn_id",
+          "thread_id",
+          "request_text",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentTurn",
+        "type": "object"
+      },
       "AppendConceptVersionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -390,6 +2966,249 @@
           "mime_type"
         ],
         "title": "AssetUploadResponse",
+        "type": "object"
+      },
+      "BlockoutPartCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "editable_parameter_bindings": {
+            "items": {
+              "$ref": "#/components/schemas/EditableParameterBinding"
+            },
+            "maxItems": 6,
+            "title": "Editable Parameter Bindings",
+            "type": "array"
+          },
+          "editable_parameters": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Editable Parameters",
+            "type": "array"
+          },
+          "locked": {
+            "default": false,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "material_zone_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Material Zone Ids",
+            "type": "array"
+          },
+          "parent_part_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Part Id"
+          },
+          "part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "position_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Position Mm",
+            "type": "array"
+          },
+          "provenance": {
+            "default": "agent_generated",
+            "enum": [
+              "agent_generated",
+              "agent_component",
+              "imported_glb"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          },
+          "size_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Size Mm",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part_id",
+          "role",
+          "position_mm",
+          "size_mm",
+          "material_zone_ids"
+        ],
+        "title": "BlockoutPartCandidate",
+        "type": "object"
+      },
+      "BuildAgentBlockoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "direction_id": {
+            "pattern": "^direction_[a-z0-9_\\-]+$",
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/MechanicalConceptPlan"
+          },
+          "presentation_profile": {
+            "default": "quick_sketch",
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ],
+            "title": "Presentation Profile",
+            "type": "string"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variation_index": {
+            "default": 0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "plan",
+          "direction_id"
+        ],
+        "title": "BuildAgentBlockoutRequest",
+        "type": "object"
+      },
+      "BuildAgentBlockoutResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "pattern": "^artifact_[a-z0-9_\\-]+$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "assembly_graph": {
+            "additionalProperties": true,
+            "title": "Assembly Graph",
+            "type": "object"
+          },
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "glb_base64": {
+            "minLength": 1,
+            "title": "Glb Base64",
+            "type": "string"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "presentation_profile": {
+            "default": "quick_sketch",
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ],
+            "title": "Presentation Profile",
+            "type": "string"
+          },
+          "shape_program": {
+            "additionalProperties": true,
+            "title": "Shape Program",
+            "type": "object"
+          },
+          "topology_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Topology Hash",
+            "type": "string"
+          },
+          "triangle_count": {
+            "title": "Triangle Count",
+            "type": "integer"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variation_index": {
+            "default": 0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "plan_id",
+          "direction_id",
+          "domain_pack_id",
+          "triangle_count",
+          "bounds_mm",
+          "topology_hash",
+          "assembly_graph",
+          "shape_program",
+          "glb_base64"
+        ],
+        "title": "BuildAgentBlockoutResponse",
         "type": "object"
       },
       "ChangeSetAuditExportFileEntry": {
@@ -842,6 +3661,48 @@
         "title": "ChangeSetTimelineResponse",
         "type": "object"
       },
+      "CommitAgentBlockoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "pattern": "^artifact_[a-z0-9_\\-]+$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "summary": {
+            "default": "确认分件候选并保存为可编辑资产",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "artifact_id"
+        ],
+        "title": "CommitAgentBlockoutRequest",
+        "type": "object"
+      },
       "ConceptConstraints": {
         "additionalProperties": false,
         "properties": {
@@ -866,6 +3727,64 @@
           "max_triangle_count"
         ],
         "title": "ConceptConstraints",
+        "type": "object"
+      },
+      "ConceptDirection": {
+        "additionalProperties": false,
+        "properties": {
+          "direction_id": {
+            "pattern": "^direction_[a-z0-9_\\-]+$",
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "material_direction": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Material Direction",
+            "type": "string"
+          },
+          "primary_part_roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 2,
+            "title": "Primary Part Roles",
+            "type": "array"
+          },
+          "silhouette": {
+            "enum": [
+              "compact",
+              "balanced",
+              "extended",
+              "organic",
+              "industrial"
+            ],
+            "title": "Silhouette",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction_id",
+          "title",
+          "summary",
+          "silhouette",
+          "primary_part_roles",
+          "material_direction"
+        ],
+        "title": "ConceptDirection",
         "type": "object"
       },
       "ConceptExportManifest": {
@@ -1883,6 +4802,112 @@
           "created_at"
         ],
         "title": "ConceptVersionSummary",
+        "type": "object"
+      },
+      "ConvertLegacyActiveDesignRequest": {
+        "additionalProperties": false,
+        "description": "Explicitly ask to rebuild a read-only legacy Concept as an Agent asset.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "snapshot_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Revision"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "ConvertLegacyActiveDesignRequest",
+        "type": "object"
+      },
+      "CreateAgentApprovalRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "turn_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "turn_id",
+          "action"
+        ],
+        "title": "CreateAgentApprovalRequest",
+        "type": "object"
+      },
+      "CreateAgentThreadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "provider_id": {
+            "default": "deterministic_kernel",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "title": {
+            "default": "新建设计会话",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "CreateAgentThreadRequest",
         "type": "object"
       },
       "CreateChangeSetAuditExportRequest": {
@@ -3305,6 +6330,184 @@
         "title": "DesignVariantRecord",
         "type": "object"
       },
+      "DomainPackManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Connector Types",
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "domain": {
+            "enum": [
+              "future_weapon_prop",
+              "vehicle_concept",
+              "aircraft_concept",
+              "robotic_arm_concept"
+            ],
+            "title": "Domain",
+            "type": "string"
+          },
+          "export_profile_id": {
+            "title": "Export Profile Id",
+            "type": "string"
+          },
+          "joint_types": {
+            "items": {
+              "enum": [
+                "fixed",
+                "hinge",
+                "slider",
+                "ball",
+                "continuous"
+              ],
+              "type": "string"
+            },
+            "title": "Joint Types",
+            "type": "array"
+          },
+          "material_preset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Material Preset Ids",
+            "type": "array"
+          },
+          "non_functional_only": {
+            "const": true,
+            "default": true,
+            "title": "Non Functional Only",
+            "type": "boolean"
+          },
+          "pack_id": {
+            "enum": [
+              "pack_future_weapon_prop",
+              "pack_vehicle_concept",
+              "pack_aircraft_concept",
+              "pack_robotic_arm_concept"
+            ],
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "quality_profile_id": {
+            "title": "Quality Profile Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "DomainPackManifest@1",
+            "default": "DomainPackManifest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "templates": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pack_id",
+          "domain",
+          "display_name",
+          "description",
+          "templates",
+          "material_preset_ids",
+          "quality_profile_id",
+          "export_profile_id"
+        ],
+        "title": "DomainPackManifest",
+        "type": "object"
+      },
+      "EditableParameterBinding": {
+        "additionalProperties": false,
+        "description": "A bounded declaration for a future zero-basis parameter control.\n\nThe declaration is data only. It neither executes ShapeProgram nor broadens\nthe currently accepted ChangeSet operation paths.",
+        "properties": {
+          "default": {
+            "title": "Default",
+            "type": "number"
+          },
+          "display_name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "max": {
+            "title": "Max",
+            "type": "number"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          },
+          "parameter_id": {
+            "pattern": "^editparam_[a-z0-9_\\-]+$",
+            "title": "Parameter Id",
+            "type": "string"
+          },
+          "path": {
+            "enum": [
+              "transform.position.x",
+              "transform.position.y",
+              "transform.position.z",
+              "transform.scale.x",
+              "transform.scale.y",
+              "transform.scale.z"
+            ],
+            "title": "Path",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "EditableParameterBinding@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "step": {
+            "exclusiveMinimum": 0.0,
+            "title": "Step",
+            "type": "number"
+          },
+          "unit": {
+            "enum": [
+              "millimeter",
+              "ratio"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "parameter_id",
+          "path",
+          "display_name",
+          "unit",
+          "default",
+          "min",
+          "max",
+          "step"
+        ],
+        "title": "EditableParameterBinding",
+        "type": "object"
+      },
       "ErrorEnvelope": {
         "properties": {
           "code": {
@@ -3591,6 +6794,291 @@
         "title": "GenerationOptions",
         "type": "object"
       },
+      "GeometryCompileReadback": {
+        "additionalProperties": false,
+        "description": "Immutable facts read from the exact GLB produced by one compilation.",
+        "properties": {
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "glb_byte_size": {
+            "maximum": 67108864.0,
+            "minimum": 20.0,
+            "title": "Glb Byte Size",
+            "type": "integer"
+          },
+          "glb_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Glb Sha256",
+            "type": "string"
+          },
+          "material_count": {
+            "minimum": 0.0,
+            "title": "Material Count",
+            "type": "integer"
+          },
+          "material_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Material Ids",
+            "type": "array"
+          },
+          "mesh_count": {
+            "minimum": 1.0,
+            "title": "Mesh Count",
+            "type": "integer"
+          },
+          "normal_primitive_count": {
+            "minimum": 1.0,
+            "title": "Normal Primitive Count",
+            "type": "integer"
+          },
+          "operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Operation Ids",
+            "type": "array"
+          },
+          "operation_names": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Operation Names",
+            "type": "array"
+          },
+          "output_roles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Output Roles",
+            "type": "array"
+          },
+          "primitive_count": {
+            "minimum": 1.0,
+            "title": "Primitive Count",
+            "type": "integer"
+          },
+          "program_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Program Id",
+            "type": "string"
+          },
+          "readback_status": {
+            "const": "passed",
+            "default": "passed",
+            "title": "Readback Status",
+            "type": "string"
+          },
+          "runtime_manifest_version": {
+            "const": "ShapeProgramRuntimeManifest@1",
+            "default": "ShapeProgramRuntimeManifest@1",
+            "title": "Runtime Manifest Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "GeometryCompileReadback@1",
+            "default": "GeometryCompileReadback@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shape_program_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Shape Program Sha256",
+            "type": "string"
+          },
+          "surface_provenance": {
+            "items": {
+              "$ref": "#/components/schemas/GeometrySurfaceProvenance"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Surface Provenance",
+            "type": "array"
+          },
+          "triangle_count": {
+            "minimum": 1.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          },
+          "uv0_primitive_count": {
+            "minimum": 1.0,
+            "title": "Uv0 Primitive Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "program_id",
+          "shape_program_sha256",
+          "glb_sha256",
+          "glb_byte_size",
+          "triangle_count",
+          "bounds_mm",
+          "mesh_count",
+          "primitive_count",
+          "material_count",
+          "uv0_primitive_count",
+          "normal_primitive_count",
+          "surface_provenance",
+          "operation_ids",
+          "operation_names",
+          "output_roles"
+        ],
+        "title": "GeometryCompileReadback",
+        "type": "object"
+      },
+      "GeometrySurfaceProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "boundary_edge_count": {
+            "minimum": 0.0,
+            "title": "Boundary Edge Count",
+            "type": "integer"
+          },
+          "closed": {
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "degenerate_triangle_count": {
+            "minimum": 0.0,
+            "title": "Degenerate Triangle Count",
+            "type": "integer"
+          },
+          "non_manifold_edge_count": {
+            "minimum": 0.0,
+            "title": "Non Manifold Edge Count",
+            "type": "integer"
+          },
+          "part_role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Part Role",
+            "type": "string"
+          },
+          "profile_input_id": {
+            "anyOf": [
+              {
+                "pattern": "^profileinput_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Input Id"
+          },
+          "surface_ranges": {
+            "items": {
+              "$ref": "#/components/schemas/GeometrySurfaceRange"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Surface Ranges",
+            "type": "array"
+          },
+          "surface_roles": {
+            "items": {
+              "enum": [
+                "surface",
+                "side",
+                "loft_side",
+                "sweep_side",
+                "hole_wall",
+                "start_cap",
+                "end_cap",
+                "seam"
+              ],
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Surface Roles",
+            "type": "array"
+          },
+          "uv0_max": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Uv0 Max",
+            "type": "array"
+          },
+          "uv0_min": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Uv0 Min",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part_role",
+          "surface_roles",
+          "surface_ranges",
+          "uv0_min",
+          "uv0_max",
+          "closed",
+          "boundary_edge_count",
+          "non_manifold_edge_count",
+          "degenerate_triangle_count"
+        ],
+        "title": "GeometrySurfaceProvenance",
+        "type": "object"
+      },
+      "GeometrySurfaceRange": {
+        "additionalProperties": false,
+        "properties": {
+          "first_triangle": {
+            "minimum": 0.0,
+            "title": "First Triangle",
+            "type": "integer"
+          },
+          "surface_role": {
+            "enum": [
+              "surface",
+              "side",
+              "loft_side",
+              "sweep_side",
+              "hole_wall",
+              "start_cap",
+              "end_cap",
+              "seam"
+            ],
+            "title": "Surface Role",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 0.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "surface_role",
+          "first_triangle",
+          "triangle_count"
+        ],
+        "title": "GeometrySurfaceRange",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3625,6 +7113,135 @@
           "mode"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "ImportAgentGlbRequest": {
+        "additionalProperties": false,
+        "description": "A self-contained GLB supplied by the user as a local reference asset.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "pattern": "^pack_[a-z0-9_\\-]+$",
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "file_name": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "glb_base64": {
+            "maxLength": 44739244,
+            "minLength": 16,
+            "title": "Glb Base64",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "summary": {
+            "default": "导入 GLB 参考模型",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "project_id",
+          "domain_pack_id",
+          "file_name",
+          "glb_base64"
+        ],
+        "title": "ImportAgentGlbRequest",
+        "type": "object"
+      },
+      "ImportAgentGlbResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version": {
+            "$ref": "#/components/schemas/AgentAssetVersion"
+          },
+          "inspection": {
+            "$ref": "#/components/schemas/ImportedGlbInspectionResponse"
+          }
+        },
+        "required": [
+          "asset_version",
+          "inspection"
+        ],
+        "title": "ImportAgentGlbResponse",
+        "type": "object"
+      },
+      "ImportedGlbInspectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds_mm": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Bounds Mm",
+            "type": "array"
+          },
+          "byte_size": {
+            "minimum": 20.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "material_count": {
+            "minimum": 0.0,
+            "title": "Material Count",
+            "type": "integer"
+          },
+          "mesh_count": {
+            "minimum": 1.0,
+            "title": "Mesh Count",
+            "type": "integer"
+          },
+          "node_count": {
+            "minimum": 0.0,
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "primitive_count": {
+            "minimum": 1.0,
+            "title": "Primitive Count",
+            "type": "integer"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "triangle_count": {
+            "minimum": 1.0,
+            "title": "Triangle Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "byte_size",
+          "triangle_count",
+          "bounds_mm",
+          "mesh_count",
+          "primitive_count",
+          "material_count",
+          "node_count"
+        ],
+        "title": "ImportedGlbInspectionResponse",
         "type": "object"
       },
       "InitializeConceptWorkbenchRequest": {
@@ -4586,6 +8203,162 @@
         "title": "JobSummary",
         "type": "object"
       },
+      "LegacyActiveDesignConversionResponse": {
+        "additionalProperties": false,
+        "description": "A safe conversion hand-off, not a claim that legacy geometry is editable.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "LegacyActiveDesignConversion@1",
+            "default": "LegacyActiveDesignConversion@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "snapshot_revision": {
+            "minimum": 1.0,
+            "title": "Snapshot Revision",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/LegacyActiveDesignReference"
+          },
+          "status": {
+            "const": "ready_for_agent_rebuild",
+            "default": "ready_for_agent_rebuild",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "source",
+          "snapshot_revision",
+          "message"
+        ],
+        "title": "LegacyActiveDesignConversionResponse",
+        "type": "object"
+      },
+      "LegacyActiveDesignReference": {
+        "additionalProperties": false,
+        "properties": {
+          "legacy_version_id": {
+            "pattern": "^ver_[a-z0-9_\\-]+$",
+            "title": "Legacy Version Id",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "pattern": "^mg_[a-z0-9_\\-]+$",
+            "title": "Module Graph Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source": {
+            "const": "legacy_concept_read_only",
+            "default": "legacy_concept_read_only",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "legacy_version_id",
+          "module_graph_id"
+        ],
+        "title": "LegacyActiveDesignReference",
+        "type": "object"
+      },
+      "MechanicalConceptPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "brief": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Brief",
+            "type": "string"
+          },
+          "directions": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptDirection"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Directions",
+            "type": "array"
+          },
+          "domain_pack_id": {
+            "pattern": "^pack_[a-z0-9_\\-]+$",
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "generation_stage": {
+            "const": "blockout",
+            "default": "blockout",
+            "title": "Generation Stage",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "plan_id": {
+            "pattern": "^plan_[a-z0-9_\\-]+$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "MechanicalConceptPlan@1",
+            "default": "MechanicalConceptPlan@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shape_program_ready": {
+            "default": false,
+            "title": "Shape Program Ready",
+            "type": "boolean"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "title": "Spec",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plan_id",
+          "domain_pack_id",
+          "brief",
+          "spec",
+          "directions",
+          "provider_id"
+        ],
+        "title": "MechanicalConceptPlan",
+        "type": "object"
+      },
       "ModelQualityReport": {
         "additionalProperties": false,
         "properties": {
@@ -5359,6 +9132,35 @@
         "title": "ModuleGraphValidationResponse",
         "type": "object"
       },
+      "NavigateActiveDesignRequest": {
+        "additionalProperties": false,
+        "description": "Request a server-owned undo or redo of the active Agent asset.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "snapshot_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Revision"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "NavigateActiveDesignRequest",
+        "type": "object"
+      },
       "PatchWeaponRequest": {
         "properties": {
           "client_request_id": {
@@ -5520,6 +9322,47 @@
           "job_id"
         ],
         "title": "PlannedChangeSetRecord",
+        "type": "object"
+      },
+      "ProposeAgentAssetChangeSetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPartEditOperation"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Operations",
+            "type": "array"
+          },
+          "protected_part_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Protected Part Ids",
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "summary",
+          "operations"
+        ],
+        "title": "ProposeAgentAssetChangeSetRequest",
         "type": "object"
       },
       "ProposeChangeSetRequest": {
@@ -5938,6 +9781,95 @@
         "title": "QualityRunRecord",
         "type": "object"
       },
+      "RegisterAgentMaterialTextureRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "license": {
+            "enum": [
+              "not_applicable",
+              "self_declared_original",
+              "third_party",
+              "unknown"
+            ],
+            "title": "License",
+            "type": "string"
+          },
+          "license_ref": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Ref"
+          },
+          "mime_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/webp"
+            ],
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "payload_base64": {
+            "maxLength": 5600000,
+            "minLength": 1,
+            "title": "Payload Base64",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "forgecad_builtin",
+              "user_created",
+              "imported_reference"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "texture_role": {
+            "enum": [
+              "base_color",
+              "normal",
+              "thumbnail"
+            ],
+            "title": "Texture Role",
+            "type": "string"
+          },
+          "thumbnail_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^asset_tex_[a-f0-9]{24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Asset Id"
+          }
+        },
+        "required": [
+          "display_name",
+          "texture_role",
+          "mime_type",
+          "payload_base64",
+          "source",
+          "license"
+        ],
+        "title": "RegisterAgentMaterialTextureRequest",
+        "type": "object"
+      },
       "RegisterModuleAssetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5990,6 +9922,92 @@
           "glb_data_base64"
         ],
         "title": "RegisterModuleAssetRequest",
+        "type": "object"
+      },
+      "RenderAgentBlockoutConceptPreviewRequest": {
+        "additionalProperties": false,
+        "description": "Request an ephemeral software image for a bounded, uncommitted direction.\n\nThis deliberately has no project write, asset id, Snapshot id, or export\noption.  The server rebuilds the bounded ShapeProgram locally instead of\ntrusting a client-provided mesh or image.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "direction_id": {
+            "pattern": "^direction_[a-z0-9_\\-]+$",
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/MechanicalConceptPlan"
+          },
+          "presentation_profile": {
+            "default": "quick_sketch",
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ],
+            "title": "Presentation Profile",
+            "type": "string"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variation_index": {
+            "default": 0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "plan",
+          "direction_id"
+        ],
+        "title": "RenderAgentBlockoutConceptPreviewRequest",
+        "type": "object"
+      },
+      "ResolveAgentApprovalRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "decision"
+        ],
+        "title": "ResolveAgentApprovalRequest",
         "type": "object"
       },
       "RuntimeRecoveryItem": {
@@ -6165,6 +10183,239 @@
         "title": "RuntimeWorkOnceResponse",
         "type": "object"
       },
+      "SaveAgentComponentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "title": "Part Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "part_id",
+          "display_name"
+        ],
+        "title": "SaveAgentComponentRequest",
+        "type": "object"
+      },
+      "SegmentAgentBlockoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "anyOf": [
+              {
+                "pattern": "^artifact_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "direction_id": {
+            "pattern": "^direction_[a-z0-9_\\-]+$",
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/MechanicalConceptPlan"
+          },
+          "presentation_profile": {
+            "default": "quick_sketch",
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ],
+            "title": "Presentation Profile",
+            "type": "string"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variation_index": {
+            "default": 0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "plan",
+          "direction_id"
+        ],
+        "title": "SegmentAgentBlockoutRequest",
+        "type": "object"
+      },
+      "SegmentAgentBlockoutResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "pattern": "^artifact_[a-z0-9_\\-]+$",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "assembly_graph": {
+            "additionalProperties": true,
+            "title": "Assembly Graph",
+            "type": "object"
+          },
+          "direction_id": {
+            "title": "Direction Id",
+            "type": "string"
+          },
+          "domain_pack_id": {
+            "title": "Domain Pack Id",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/BlockoutPartCandidate"
+            },
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "presentation_profile": {
+            "default": "quick_sketch",
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ],
+            "title": "Presentation Profile",
+            "type": "string"
+          },
+          "segmentation_status": {
+            "const": "candidate",
+            "default": "candidate",
+            "title": "Segmentation Status",
+            "type": "string"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variation_index": {
+            "default": 0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Variation Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "plan_id",
+          "direction_id",
+          "domain_pack_id",
+          "parts",
+          "assembly_graph"
+        ],
+        "title": "SegmentAgentBlockoutResponse",
+        "type": "object"
+      },
+      "SelectActiveDesignRequest": {
+        "additionalProperties": false,
+        "description": "Select (or clear) one part of the active Agent assembly.",
+        "properties": {
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "selected_material_zone_id": {
+            "anyOf": [
+              {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Material Zone Id"
+          },
+          "selected_part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Part Id"
+          },
+          "snapshot_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Revision"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "SelectActiveDesignRequest",
+        "type": "object"
+      },
       "SelectDesignVariantRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6179,6 +10430,111 @@
           "client_request_id"
         ],
         "title": "SelectDesignVariantRequest",
+        "type": "object"
+      },
+      "SetActiveDesignPartDisplayRequest": {
+        "additionalProperties": false,
+        "description": "Apply one intentionally small zero-basis part control action.",
+        "properties": {
+          "action": {
+            "enum": [
+              "lock",
+              "unlock",
+              "hide",
+              "show",
+              "isolate",
+              "clear_isolation",
+              "show_all"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "part_id": {
+            "anyOf": [
+              {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Id"
+          },
+          "snapshot_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Revision"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "action"
+        ],
+        "title": "SetActiveDesignPartDisplayRequest",
+        "type": "object"
+      },
+      "SetActiveDesignRenderPresetRequest": {
+        "additionalProperties": false,
+        "description": "Update one visual preset without changing the Agent asset version.",
+        "properties": {
+          "camera_view": {
+            "default": "iso",
+            "enum": [
+              "iso",
+              "front",
+              "top",
+              "right"
+            ],
+            "title": "Camera View",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "light_preset": {
+            "default": "cad_neutral",
+            "enum": [
+              "cad_neutral",
+              "soft_studio",
+              "concept_contrast"
+            ],
+            "title": "Light Preset",
+            "type": "string"
+          },
+          "snapshot_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Revision"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "SetActiveDesignRenderPresetRequest",
         "type": "object"
       },
       "SkillCard": {
@@ -6316,6 +10672,46 @@
           "created_at"
         ],
         "title": "SkillGraphPayload",
+        "type": "object"
+      },
+      "StartAgentTurnRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "clarification_domain_pack_id": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pack_future_weapon_prop",
+                  "pack_vehicle_concept",
+                  "pack_aircraft_concept",
+                  "pack_robotic_arm_concept"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Domain Pack Id"
+          },
+          "client_request_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "message"
+        ],
+        "title": "StartAgentTurnRequest",
         "type": "object"
       },
       "TargetOptions": {
@@ -7615,6 +12011,1851 @@
           }
         },
         "summary": "Runtime Work Once"
+      }
+    },
+    "/api/v1/agent/approvals/{approval_id}/resolve": {
+      "post": {
+        "operationId": "resolve_approval_api_v1_agent_approvals__approval_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveAgentApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentApprovalResolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Approval",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}": {
+      "get": {
+        "operationId": "get_asset_version_api_v1_agent_asset_versions__asset_version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Asset Version",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}/change-sets": {
+      "post": {
+        "operationId": "propose_change_set_api_v1_agent_asset_versions__asset_version_id__change_sets_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeAgentAssetChangeSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose Change Set",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}/components": {
+      "post": {
+        "operationId": "save_component_api_v1_agent_asset_versions__asset_version_id__components_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAgentComponentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentComponentRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Component",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}/components:compatible": {
+      "get": {
+        "operationId": "list_component_candidates_api_v1_agent_asset_versions__asset_version_id__components_compatible_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "part_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Part Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentComponentCandidate"
+                  },
+                  "title": "Response List Component Candidates Api V1 Agent Asset Versions  Asset Version Id  Components Compatible Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Component Candidates",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}/structure-suggestions": {
+      "get": {
+        "operationId": "list_structure_suggestions_api_v1_agent_asset_versions__asset_version_id__structure_suggestions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentStructureSuggestionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Structure Suggestions",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}:export": {
+      "post": {
+        "operationId": "export_asset_api_v1_agent_asset_versions__asset_version_id__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Asset",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}:quality": {
+      "post": {
+        "operationId": "quality_asset_version_api_v1_agent_asset_versions__asset_version_id__quality_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetQualityReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quality Asset Version",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}:render": {
+      "get": {
+        "operationId": "render_asset_views_api_v1_agent_asset_versions__asset_version_id__render_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "width",
+            "required": false,
+            "schema": {
+              "default": 640,
+              "maximum": 2048,
+              "minimum": 64,
+              "title": "Width",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "height",
+            "required": false,
+            "schema": {
+              "default": 640,
+              "maximum": 2048,
+              "minimum": 64,
+              "title": "Height",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetRenderSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Render Asset Views",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/asset-versions/{asset_version_id}:render-package": {
+      "get": {
+        "operationId": "download_render_package_api_v1_agent_asset_versions__asset_version_id__render_package_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_version_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "render_set_sha256",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Render Set Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "width",
+            "required": false,
+            "schema": {
+              "default": 640,
+              "maximum": 2048,
+              "minimum": 64,
+              "title": "Width",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "height",
+            "required": false,
+            "schema": {
+              "default": 640,
+              "maximum": 2048,
+              "minimum": 64,
+              "title": "Height",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {}
+            },
+            "description": "A presentation-only ZIP containing current PNG concept views and manifest.json.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-ForgeCAD-Render-Set-SHA256": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Render Package",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/blockouts": {
+      "post": {
+        "operationId": "build_blockout_api_v1_agent_blockouts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildAgentBlockoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildAgentBlockoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Blockout",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/blockouts:commit": {
+      "post": {
+        "operationId": "commit_blockout_api_v1_agent_blockouts_commit_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitAgentBlockoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit Blockout",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/blockouts:concept-preview": {
+      "post": {
+        "operationId": "render_blockout_concept_preview_api_v1_agent_blockouts_concept_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderAgentBlockoutConceptPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentBlockoutConceptPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Render Blockout Concept Preview",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/blockouts:segment": {
+      "post": {
+        "operationId": "segment_blockout_api_v1_agent_blockouts_segment_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentAgentBlockoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentAgentBlockoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Segment Blockout",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/change-sets/{change_set_id}:confirm": {
+      "post": {
+        "operationId": "confirm_change_set_api_v1_agent_change_sets__change_set_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetChangeSetConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Change Set",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/change-sets/{change_set_id}:preview": {
+      "post": {
+        "operationId": "preview_change_set_api_v1_agent_change_sets__change_set_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Change Set",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/change-sets/{change_set_id}:reject": {
+      "post": {
+        "operationId": "reject_change_set_api_v1_agent_change_sets__change_set_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "change_set_id",
+            "required": true,
+            "schema": {
+              "title": "Change Set Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetChangeSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Change Set",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/components": {
+      "get": {
+        "operationId": "list_components_api_v1_agent_components_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "domain_pack_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Domain Pack Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentComponentRecord"
+                  },
+                  "title": "Response List Components Api V1 Agent Components Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Components",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/domain-packs": {
+      "get": {
+        "operationId": "get_domain_packs_api_v1_agent_domain_packs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DomainPackManifest"
+                  },
+                  "title": "Response Get Domain Packs Api V1 Agent Domain Packs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Domain Packs",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/imports:glb": {
+      "post": {
+        "operationId": "import_glb_api_v1_agent_imports_glb_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportAgentGlbRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportAgentGlbResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Glb",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/material-textures": {
+      "get": {
+        "operationId": "list_material_textures_api_v1_agent_material_textures_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "texture_role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Texture Role"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMaterialTextureListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Material Textures",
+        "tags": [
+          "agent-kernel"
+        ]
+      },
+      "post": {
+        "operationId": "register_material_texture_api_v1_agent_material_textures_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAgentMaterialTextureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMaterialTextureObject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Material Texture",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/material-textures/{texture_asset_id}": {
+      "get": {
+        "operationId": "get_material_texture_api_v1_agent_material_textures__texture_asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "texture_asset_id",
+            "required": true,
+            "schema": {
+              "title": "Texture Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMaterialTextureObject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Material Texture",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/materials": {
+      "get": {
+        "operationId": "get_materials_api_v1_agent_materials_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentMaterialPreset"
+                  },
+                  "title": "Response Get Materials Api V1 Agent Materials Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Materials",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/provider:check": {
+      "post": {
+        "operationId": "check_provider_api_v1_agent_provider_check_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProviderCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Check Provider",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/quality-reports/{quality_report_id}": {
+      "get": {
+        "operationId": "get_quality_report_api_v1_agent_quality_reports__quality_report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quality_report_id",
+            "required": true,
+            "schema": {
+              "title": "Quality Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAssetQualityReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quality Report",
+        "tags": [
+          "agent-assets"
+        ]
+      }
+    },
+    "/api/v1/agent/threads": {
+      "get": {
+        "operationId": "list_threads_api_v1_agent_threads_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentThreadListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Threads",
+        "tags": [
+          "agent-kernel"
+        ]
+      },
+      "post": {
+        "operationId": "create_thread_api_v1_agent_threads_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentThreadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentThreadDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Thread",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/threads/{thread_id}": {
+      "get": {
+        "operationId": "get_thread_api_v1_agent_threads__thread_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentThreadDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Thread",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/threads/{thread_id}/approvals": {
+      "post": {
+        "operationId": "create_approval_api_v1_agent_threads__thread_id__approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentApproval"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Approval",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/threads/{thread_id}/events": {
+      "get": {
+        "operationId": "stream_events_api_v1_agent_threads__thread_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "After",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Events",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/threads/{thread_id}/turns": {
+      "post": {
+        "operationId": "start_turn_api_v1_agent_threads__thread_id__turns_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "title": "Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartAgentTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTurn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Turn",
+        "tags": [
+          "agent-kernel"
+        ]
+      }
+    },
+    "/api/v1/agent/turns/{turn_id}/cancel": {
+      "post": {
+        "operationId": "cancel_turn_api_v1_agent_turns__turn_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "title": "Turn Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTurn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Turn",
+        "tags": [
+          "agent-kernel"
+        ]
       }
     },
     "/api/v1/change-set-audit-exports/{audit_export_id}": {
@@ -9193,6 +15434,594 @@
         "summary": "Get Project",
         "tags": [
           "concept-projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design": {
+      "get": {
+        "operationId": "get_active_design_api_v1_projects__project_id__active_design_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Active Design",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:convert-legacy": {
+      "post": {
+        "operationId": "convert_legacy_active_design_api_v1_projects__project_id__active_design_convert_legacy_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertLegacyActiveDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyActiveDesignConversionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Convert Legacy Active Design",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:navigation": {
+      "get": {
+        "operationId": "get_active_design_navigation_api_v1_projects__project_id__active_design_navigation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignNavigation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Active Design Navigation",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:part-display": {
+      "post": {
+        "operationId": "set_active_design_part_display_api_v1_projects__project_id__active_design_part_display_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveDesignPartDisplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Active Design Part Display",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:redo": {
+      "post": {
+        "operationId": "redo_active_design_api_v1_projects__project_id__active_design_redo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigateActiveDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redo Active Design",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:render-preset": {
+      "post": {
+        "operationId": "set_active_design_render_preset_api_v1_projects__project_id__active_design_render_preset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveDesignRenderPresetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Active Design Render Preset",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:select": {
+      "post": {
+        "operationId": "select_active_design_part_api_v1_projects__project_id__active_design_select_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectActiveDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select Active Design Part",
+        "tags": [
+          "active-design"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/active-design:undo": {
+      "post": {
+        "operationId": "undo_active_design_api_v1_projects__project_id__active_design_undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NavigateActiveDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDesignSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Active Design",
+        "tags": [
+          "active-design"
         ]
       }
     },

@@ -1,351 +1,304 @@
-# ForgeCAD 路线图与实施计划
+# ForgeCAD 通用机械概念 3D Agent 实施计划
 
-状态：R0 已完成；R1 当前退出边界已完成；产品主线已校准为 **Weapon Concept Pack first**。
+版本：2026-07-12
+原则：先完成通用 Core 和四领域最小纵向切片，再扩展资产数量或工程能力
 
-本文保持 R0–R6 的可回滚阶段结构。P0 先完成模块化武器概念设计闭环；参数化 CAD/DFM 作为独立后续 Engineering Pack，不再阻塞第一阶段产品验证。
+后续 Codex 的具体领取顺序、任务 ID 和交付模板以 [CODEX_EXECUTION_PLAN.md](CODEX_EXECUTION_PLAN.md) 与 [CODEX_TASK_INDEX.md](CODEX_TASK_INDEX.md) 为准；本文件保留产品里程碑和退出条件。
 
-## 1. 计划基线
+## 1. 产品退出目标
 
-截至 2026-07-11：
+零基础用户只配置大模型 API，即可完成：
 
-- 已有 Tauri、React、FastAPI、SQLite、内容寻址资产、Job/Step/Event/SSE、幂等、恢复和追加式版本；
-- `asset_store.py` 已从约 5210 行降至约 1449 行；connection、migration、object store、Repository/UoW、Job query/command/recovery、asset upload、library/version、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime 和 Unity Export 已提取；10 个 workflow facade 方法最长 20 行；
-- `App.tsx` 已从约 706 行缩为 21 行组合根；AppShell、Hash route、Runtime/JobEvent/Selection Providers、旧工作台控制器/渲染、任务持久化、资产选择器和懒加载工作台已提取；
-- `main.py` 约 97 行；legacy route groups、Concept services 和 app factory 已拆分，入口仍只负责应用组装与 worker 生命周期；
-- `#/cad` 已按九区布局切换到“概念/组装/精修/检查/展示”，并接入真实 Project/Version/ModuleGraph、GLB、Connector 与 Concept 源包导出；
-- 新 Concept 合同、Project/Profile/Version、Module/Connector registry、ModuleGraph、ChangeSet、QualityRun、Brief/Module/Change Planner Provider 边界、确定性规则降级、planner provenance、JobEvent@2/SSE、可追溯源包、combined GLB、OBJ/MTL、透明/爆炸 PNG、front/side/top、8 帧 turntable 与 MP4 已实现；Blender 4.2.22 已对工作台导出的 10 模块 reference、visual-v2 三模块和十模块 visual candidate combined GLB 完成真实 DCC 往返；真实模型 AI 质量指标、最终高质量资产和纹理交换尚未实现；
-- `ModulePackManifest@1`、资产目录/许可证/GLB 结构校验、release 覆盖门和幂等批量导入已实现；Blender 4.2.22 LTS 已真实生成视觉层级增强的十模块 visual candidate `.blend`/GLB/thumbnail，完成只读 re-export、source hash 不变、完整 9 节点质量通过及 combined GLB DCC 往返（25808 顶点/10716 三角）。`FormalModuleReview@1` 仍如实拒绝 starter 许可证、未人工批准与低评分，因此正式资产仍未晋级；
-- ChangeSet 审计批量导出已实现：当前服务端筛选形成确定性 JSONL、可选 CSV、逐文件 SHA-256 Manifest 和内容寻址 ZIP；`project_lifetime` 记录无单包删除 API，桌面可下载且 Agent 重启后回读。该策略不等于法规级 WORM、legal hold 或独立灾备；
-- Library backup/restore CLI 已实现：SQLite Backup API 快照归一化为独立 `journal_mode=DELETE` 文件，只复制快照中 legacy/Concept asset 表真实引用的内容寻址对象，保存 schema/table/hash/size/capacity Manifest；恢复演练 CLI 可连续测量 backup/verify/restore/Agent 回读、吞吐和相对基线容量增长，并拒绝把已知 reference/smoke generator 申报为正式资产证据；`formal_blender_10_12` 还强制 `formal_release_10_12` 晋级报告与恢复 GLB hash 集合一致。10 模块参考库和十模块 Blender candidate 均已跑通多轮演练；candidate 报告明确为 `unclassified`，正式 Blender/代表性用户资产库仍待执行；
-- 服务端 `weapon-concept-geometry/1.3` 已从版本绑定的 Spec、ModuleGraph 与内容寻址 GLB 计算 Mesh/Assembly Findings：除精确穿插、triangle provenance、Connector 对齐和保守表面间隙外，已覆盖重复面、内嵌封闭组件、组件间密度离群、项目总三角预算、P0 LOD0 合同和根中面对称占位偏差；桌面 Finding 会聚焦并高亮关联节点/局部 triangle。正式 Blender truth set、Tauri 大网格阈值与多 LOD 运行时尚未完成；
-- build123d、OpenCascade、FeatureGraph、STEP/3MF 和 DFM 尚未实现，且不再属于 P0 主链。
+```text
+描述未来武器道具、汽车、飞机或机械臂创意
+→ 获得完整外观方向与 3D blockout
+→ 自动分件
+→ 逐部件修改、替换、调比例和换材质
+→ 检查、渲染和导出可编辑资产
+```
 
-旧代码是迁移输入；当前工作台是参考实现，不代表新领域完成。
-
-### 当前证据
-
-| 项目 | 状态 | 证据 |
-| --- | --- | --- |
-| R0 tag / branch | 完成 | `legacy-wushen-v0.1`、`codex/refactor-cad-dfm-agent` |
-| R0 ADR / baseline | 完成 | `docs/ADR`、`docs/evidence/R0_BASELINE.md` |
-| R1 infrastructure | 主要通用切片完成 | `forgecad_agent/infrastructure` |
-| R1 application services | 后端 workflow 边界完成 | Job query/command/recovery、Asset、Library、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime、Unity Export services；facade 仅保留组合/adapter/helper |
-| R1 API factory | 完成当前切片 | legacy routes + base app factory |
-| R1 frontend composition | 当前退出边界完成 | 21 行 `App.tsx` 组合根；router、AppShell、Providers、controller、render、persistence、selectors；CAD/Preview3D 动态导入保留 |
-| R1 workbench reference | 五阶段语义已完成 | `#/cad`、`design-qa.md`；真实 ModuleGraph/Connector 进入 R2–R3 |
-| R2 concept contracts | 第一切片完成 | `packages/concept-spec`、`forgecad_agent.domain.concepts`、`r2:contracts-gate` |
-| R2 project/version data + API | 第一切片完成 | migration `0009`、Concept repositories/service/routes、`r2:gate` |
-| R2 module registry + graph | 第一切片完成 | immutable GLB registration、Connector compatibility、Graph persistence、restart smoke |
-| R2 ChangeSet + child Version | 第一切片完成 | proposed/previewed/confirmed、protected node、stale base、parent immutability smoke |
-| R2 QualityRun/Findings | 第一切片完成 | version-scoped report ingestion、finding persistence、idempotency、round-trip |
-| R4 Brief/Module Planner | Provider 边界纵向切片完成 | deterministic rules、OpenAI-compatible strict JSON Schema、auto/strict failure semantics、migration 0014 provenance、registry recommendations、A/B/C structural variants、desktop selection preview、restart |
-| R4 Change Planner | 可确认纵向切片完成 | `docs/evidence/R4_CHANGE_PLANNER.md`；migration 0015 actor/provider provenance、受限操作、registry/lock/path/no-op validation、JobEvent、ghost preview、reject/confirm、child Version、timeline 与 restart；真实 Provider 指标待测 |
-| R4 Planner evaluation | 评测基础设施完成 | `docs/evidence/R4_PLANNER_EVALUATION.md`、`evaluations/r4/planner_truth_set.json`、20 Brief/20 Variant/20 Change/20 lock、hash、逐例结果、阈值、latency/token、deterministic baseline 全通过；当前未配置 live Provider，`real_provider_evidence_eligible=false` |
-| R2 Concept JobEvent@2 | 质量检查 worker 化；其余主链仍为同步兼容路径 | Brief、Variant、Change Planner、Graph validate 与 Export 仍写入 completed JobEvent；`quality-runs:inspect:enqueue` 已持久入队、租约领取、排队取消、失败/取消重试、重启 requeue、SSE 回读，桌面通过 Job 轮询加载最终报告 |
-| R2 Concept Export | 源包闭环完成 | `ConceptExportManifest@1`、ZIP、source GLB/spec/graph/quality、hash、artifact link、JobEvent、restart smoke |
-| R3 workbench data binding | 四个纵向切片完成 | 米制 GLB→毫米视口、加载/选择/隐藏/聚焦/overlay、drag candidate、ChangeSet replace+snap、Undo/Redo、explode、restart |
-| R3 Module Pack tooling | 完成 | `ForgeCADModuleNaming@1`、九类/8–12 release 门、UV/material/triangle/bounds/hash/license 校验、dry-run/import、idempotency/restart smoke |
-| R3 reference assets | 完成可运行基线与 visual candidate | 10 GLB、九类、17 Connector、三材质/UV0/normal/thumbnail/license、9-node Graph、desktop E2E；十模块 Blender 4.2.22 visual candidate 已在隔离 Library 完成导入、完整 Graph、质量通过、导出、重启回读与 combined DCC 往返；最终 art 待人工制作 |
-| R3 formal asset promotion | 合同/门禁与正式化工作区完成、真实 starter 未批准 | `assets:formal-workspace` 安全复制 10–12 模块 candidate、source hash、权属/reviewer 待办并拒绝自动晋级；`FormalModuleReview@1`、first_three/release_10_12、source/module Manifest/GLB/thumbnail/Pack+Module license hash、独立 reviewer、人工 checklist/评分、Blender generator、三角下限、最终许可证、基线 ID/Connector；真实 starter 验证返回许可证/人工审批/评分/core 三角下限阻断，无正式资产声明 |
-
-### P0 工作台闭环修复（2026-07-11）
-
-- 新建 Project 后由 `:initialize-workbench` 自动安装 Pack、保存 PNG thumbnail、创建 9 节点 Graph 并以 V2 绑定；不再要求用户或 UI smoke 手动注入 ModuleGraph。
-- 组件库使用真实 Module thumbnail；缺失历史 thumbnail 才回退为类别图标。
-- 参数输入通过 ChangeSet ghost preview 与确认创建版本；不支持的前部程序化拉伸已只读化。
-- 移动/测量/截面在实现真实 TransformControls、几何拾取和 clipping plane 前明确禁用。
-- Three.js renderer/scene/camera 已持久化并缓存模块 GLB；20 轮版本切换 renderer 重建为 0。完整证据见 `docs/evidence/R3_FIRST_RUN_AND_VIEWPORT_OPTIMIZATION.md`。
-| R3 Connector snap/mirror | 合成/API 与 Blender candidate 技术基线完成 | 100/100 含镜像数学样本、root/child 子树重定位、remap、mirror Version/Export、cycle conflict、lock、idempotency/restart；十模块 candidate 另完成 2/2 eligible front 替换、8/8 editable X 镜像、精确对齐、combined GLB/重启回读及锁定 root 拒绝。单节点镜像中 grip/top/side/armor 质量通过，front/rear/lower/storage 返回相交/包含 warning；连续八镜像压力分支共 8 warning。candidate 为 `unclassified`，正式资产指标待测 |
-| R3 viewport lifecycle | 浏览器压力基线完成 | 20 轮 V3↔V4、1 canvas/1 active context、GC heap 与 renderer resource 上限；正式资产/Tauri 待测 |
-| R3 operation timeline | 审计查询切片完成 | `updated_at + id` cursor、搜索、status/operation filter、rejected/stale diagnostic、桌面加载更多与 restart smoke |
-| R3 ChangeSet audit archive | 批量导出切片完成 | migration `0016`、当前筛选 JSONL/CSV、hash Manifest、内容寻址 ZIP、`project_lifetime`、Job/artifact link、桌面下载与 restart smoke；WORM/legal hold/独立灾备未实现 |
-| R3 Library backup/restore | 演练工具与参考基线完成 | `ForgeCADLibraryBackupManifest@1` + `ForgeCADLibraryRecoveryDrillReport@1`、SQLite Backup API、独立 DB、引用对象去重、多轮耗时/吞吐/容量增长、tamper/overwrite/secret/transient negatives、恢复后 Project/Version/全部 Module GLB/Planner Job/审计 ZIP 回读；formal 声明强制 promotion report hash link；正式 Blender 与代表性用户库待测 |
-| R5 combined GLB | 第一切片完成 | static GLB merge、mm→m、Euler→quaternion、mirror scale、stable wrapper nodes、Manifest/hash、ZIP/direct download/restart、desktop E2E |
-| R5 combined OBJ/MTL | 第一切片完成 | scene flatten、TRS/nonuniform scale/mirror、normal/winding、UV/material、meter units、Manifest/hash、ZIP/direct download/restart、desktop E2E |
-| R5 deterministic PNG render | 第一切片完成 | 640×640 RGBA、auto-fit isometric、z-buffer、material color/light、preview/exploded、Manifest/hash、ZIP/direct download/restart、desktop E2E/visual QA |
-| R5 multiview/turntable | 第一切片完成 | front/side/top、8 distinct frames、render-set ZIP、single Export reuse、API negatives/restart、desktop E2E/visual QA |
-| R5 presentation delivery | 技术预览切片完成 | deterministic edge AA、soft contact shadow、FFmpeg MP4、Manifest/API/desktop download/restart；Blender 4.2.22 已完成 visual-v2 三模块、10 模块 reference 和十模块 visual candidate combined GLB 的真实往返；candidate OBJ/PNG/MP4 完整交付实测 16.4 s，最终批准资产全装配仍待执行 |
-| R5 Mesh/Assembly quality | C07 规则覆盖切片完成 | immutable Spec/Graph/GLB、indices/degenerate/normal/UV/topology/bounds、duplicate/enclosed geometry、density outlier/triangle budget、P0 LOD0、root-plane symmetry、Connector alignment/gap、triangle BVH/SAT/containment/provenance、双节点/局部高亮、JobEvent/restart、desktop E2E |
-| R6 packaging readiness | macOS 本机 Tauri 联调已通过；独立发布仍被 sidecar 阻断 | 已生成完整 `Cargo.lock`，并实际验证构建、启动、工作台、Unity ZIP 导出与重启恢复；sidecar、bundle、CSP、capability、图标和文档入口仍受门禁校验。当前占位 sidecar 被正确阻断，尚未完成签名、公证或无源码干净机验证 |
+默认不安装本地神经模型、ComfyUI、Blender 插件、CUDA 或模型权重。
 
 ## 2. 执行硬规则
 
-1. 先冻结旧 baseline，再迁移领域。
-2. 禁止继续扩张 `asset_store.py` 和 `App.tsx`。
-3. 平台层保持通用，武器能力进入 `Weapon Concept Pack`。
-4. P0 权威模型是 `WeaponConceptSpec + ModuleGraph + GLB modules`，不是 B-Rep。
-5. 不把旧 WeaponDesignSpec、CreativeWeaponGraph 或 SkillGraph 机械改名。
-6. 首版 AI 优先解析 Brief、选择模块、调整参数；不默认整模重生成。
-7. 所有自然语言修改先形成结构化 `DesignChangeSet` 和幽灵预览。
-8. Module、Connector、Version、Asset 必须使用稳定 ID；父版本和原始资产不可覆盖。
-9. UI、报告和导出不得把概念 Mesh 声称为生产级 CAD 或制造就绪。
-10. CAD/DFM Engineering Pack 使用独立合同、迁移、运行时和质量门，不能与 P0 长期双写。
+- Core 不出现领域专属类名；武器、汽车、飞机和机械臂语义进入 Domain Pack。
+- 新建设计先生成完整外观，不能只交付孤立部件。
+- 不让大模型输出并执行任意 Python、JavaScript 或 shell。
+- 不直接覆盖父版本、原始资产或锁定部件。
+- 不增加第二个 Three.js renderer。
+- 不把 Weapon reference fixture 冒充四领域完成证据。
+- 不把视觉材质、概念 Mesh 或 Joint preview 说成工程结论。
+- 所有 secret/file-overreach 风险必须有自动门：密钥不入源码/日志/工件，文件访问不越过允许根目录。
 
-## 3. 里程碑总览
+## 3. 当前基线
 
-| 阶段 | 目标 | 关键产物 | 退出门 |
-| --- | --- | --- | --- |
-| R0 | 冻结与决策 | tag、branch、ADR、baseline evidence | 旧版本可恢复 |
-| R1 | 通用基础设施与产品校准 | Repository/UoW、app factory、frontend shell、双轨文档 | 旧 smoke 不回归，P0 边界一致 |
-| R2 | Concept 合同与数据 | DomainProfile、WeaponConceptSpec、ModuleGraph、Connector、Version、ChangeSet | 合同/数据库门通过 |
-| R3 | 模块系统与工作台 | 8–12 modules、选择/隐藏/替换/吸附/爆炸/保存 | 模块 E2E 与 GPU 生命周期通过 |
-| R4 | AI Brief 与自然语言修改 | 三方案、模块推荐、ChangeSet、幽灵预览 | AI/锁定模块指标通过 |
-| R5 | 检查、渲染与导出 | ModelQualityReport、GLB/OBJ/PNG/Manifest、爆炸图 | 检查与导出门通过 |
-| R6 | Beta、资产扩展与发布 | 24–30 modules、用户测试、打包、旧域清理 | C01–C10 全部通过 |
+已完成并复用：桌面壳、本地 API、SQLite、对象存储、Project/Version、ModuleGraph、ChangeSet、单视口、组件替换、质量、导出、Job/Event/SSE 和 OpenAI-compatible Planner 边界。
 
-CAD/DFM Engineering Pack 在 R6 首轮 Beta 证明产品价值后进入独立路线；其 DesignSpec、FeatureGraph、build123d、STEP/3MF 和 DFM 架构边界继续保留在 `DESIGN.md`，但不占用 P0 退出门。
+当前可运行证据同时覆盖四领域 Agent slice 与历史 Weapon Concept reference pack：通用合同、四领域最小 registry、ShapeProgram validator、通用概念规划 Provider port、轻量 Geometry Worker、分件候选、AgentAssetVersion、AgentComponent 注册/替换、Connector 声明式对齐、未声明 sibling 的 AABB 重叠预警和受限 GLB 导出/readback 均已实现。`ActiveDesignSnapshot` 的 Agent 路径已覆盖恢复、选择、preview、质量、不可变回退/前进与 GLB 导出，legacy 只读重建已需显式授权；完整并发矩阵、精确网格碰撞/运动学、外部 GLB 自动重建/深度分件、真实 Provider truth set 和 packaged sidecar 仍未完成。
 
-## 4. 阶段细化
+当前启动入口仍是 `wushen_agent.main`。删除 legacy 必须发生在新入口具备同等启动、恢复、质量和导出证据之后。
 
-### R0：冻结旧版本与决策
+## 4. 里程碑总览
 
-已完成：
+| 阶段 | 交付 | 退出条件 |
+| --- | --- | --- |
+| G0 产品合同 | ADR、领域包、材质、工作台和操作文档 | 文档与安全门通过 |
+| G1 Agent Kernel | Thread/Turn/Item/Approval、SSE、取消恢复 | 本地确定性 Kernel smoke；真实 Provider 仍待 G4 |
+| G2 General Contracts | DomainPack、MechanicalConceptSpec、AssemblyGraph、MaterialPreset | Python/TS/JSON Schema 一致 |
+| G3 Shape Runtime | ShapeProgram、validator、轻量 Geometry Worker | 四领域 48 个后端 blockout、GLB 与 topology/readback smoke；前端变体目录和复杂自由曲面仍待扩展 |
+| G4 Full-look Loop | Brief → 完整外观 → blockout → 多视图 | Planner 与 blockout API 已连通；R001 已完成 Snapshot 主视口相机/灯光预设，R002/R003 已完成四视图与条件式透明爆炸软件 PNG，R004 已完成与当前预览指纹一致的 PNG/manifest 图包；真实 API truth set 和更高质量渲染仍待 |
+| G5 Segmentation | 分件候选、层级、Material Zone、Connector/Joint 候选 | 四领域 12 个候选图通过；真实碰撞/运动学仍待 |
+| G6 Asset Editing | 部件修改、替换、材质、版本、组件注册、对齐、概念重叠预警和 GLB 导出 | 资产级纵向切片与 readback 门通过；不是精确碰撞 |
+| G6.5 External GLB Reference | 安全导入、内容寻址、同视口显示、原样导出 | 自包含 glTF 2.0、预算和访问器门通过；自动重建/深度分件仍待 |
+| G7 Zero-beginner UX | 单输入框、步骤卡、确认条、用途导出 | 新用户可用性通过 |
+| G8 Release & Cleanup | 性能、打包、新入口、legacy 退出 | C01–C12 通过 |
 
-- 创建 `legacy-wushen-v0.1` 和重构分支；
-- 保存旧门禁；
-- 建立产品、内核、安全、许可证、数据迁移 ADR；
-- 证明旧 baseline 可恢复。
+## 5. G0：产品合同与文档
 
-新增范围修订必须使用 superseding ADR，不改写历史决策。
+### 交付
 
-### R1：通用基础设施与产品校准
+- ADR-0008：通用机械概念 Agent 与四领域包；
+- `DOMAIN_PACKS.md`：四包角色、模板、Connector、Joint 和验收；
+- `MATERIAL_SYSTEM.md`：视觉 PBR 材质与工程边界；
+- README、DESIGN、工作台、前端、Quickstart 和操作手册同步；
+- 历史 Weapon 文档标记为当前兼容 fixture，不重写历史证据。
 
-后端：
+### 退出条件
 
-- 提取 connection、migration、content-addressed store；
-- 提取 Job、Asset、Idempotency、Checkpoint repositories 和 UoW；
-- 提取 legacy Job、Library、Asset Upload、Creative Recast、Create Weapon、Patch、Generate-3D、Worker Runtime 和 Unity Export services；
-- `asset_store.py` 不再包含完整 workflow；共享资产/质量/事件 helper 作为注入端口保留，后续可继续下沉但不阻塞当前 R1 后端退出条件；
-- 保持 route handler 不写 SQL、不组文件、不直接调用 Provider。
+- 仓库文档无断链；
+- 不再把 Weapon Concept 描述为唯一产品范围；
+- 当前实现与目标能力明确分开；
+- 安全、密钥和发布文档门通过。
 
-前端：
+## 6. G1：Agent Kernel
 
-- AppShell、router、Runtime/JobEvent/Selection Providers；
-- 将旧工作台业务控制器从 `App.tsx` 提出；
-- 将 `#/cad` 更名和改造成 Weapon Concept Workbench；
-- 五阶段：概念 / 组装 / 精修 / 检查 / 展示；
-- URL、server state、viewport state、未提交表单状态归属明确。
-
-退出条件：
-
-- `asset_store.py` 不再承担完整业务工作流；
-- `App.tsx` 只做应用组合；
-- README、计划、设计、操作文档使用一致的 Concept-first 边界；
-- `npm run r1:gate` 通过。
-
-### R2：Concept 合同、数据库与 API
-
-新增合同：
-
-- `DesignDomainProfile@1`；
-- `WeaponConceptSpec@1`；
-- `ModuleGraph@1`；
-- `ModuleAssetManifest@1`；
-- `DesignChangeSet@1`；
-- `ModelQualityReport@1`；
-- 通用 `JobEvent@2`。
-- `ConceptExportManifest@1`。
-
-新增表：
+合同：
 
 ```text
-projects / project_versions / domain_profiles
-module_assets / module_connectors / module_graphs
-design_briefs / design_variants / design_change_sets
-quality_runs / quality_findings / export_packages_v2
+AgentThread@1
+AgentTurn@1
+AgentItem@1
+ApprovalRequest@1
+ProviderUsage@1
 ```
 
-新增 API：
-
-```http
-POST   /api/v1/projects
-GET    /api/v1/projects
-GET    /api/v1/projects/{project_id}
-POST   /api/v1/projects/{project_id}/versions
-GET    /api/v1/module-assets
-PUT    /api/v1/module-assets/{module_id}/catalog-metadata
-POST   /api/v1/module-graphs/{graph_id}/validate
-POST   /api/v1/projects/{project_id}/variants
-POST   /api/v1/versions/{version_id}/change-sets
-POST   /api/v1/change-sets/{change_id}/confirm
-POST   /api/v1/versions/{version_id}/quality-runs
-POST   /api/v1/versions/{version_id}/exports
-```
-
-退出条件：
-
-- fresh/repeat migration 通过；
-- 可创建 `weapon_concept` Project 和追加 Version；
-- Module/Connector 稳定 ID 与引用完整；
-- Python、TypeScript、OpenAPI 生成物无漂移；
-- 新表不引用旧 CreativeWeaponGraph/SkillGraph 主键。
-
-### R3：模块系统与桌面工作台
-
-首个固定项目：`寒地巡逻 S1`。
-
-首批 8–12 个静态 GLB 模块覆盖：
+第一批工具只读：
 
 ```text
-core_shell / front_shell / rear_shell / grip_shell
-top_accessory / side_accessory / lower_structure
-storage_visual / armor_panel
+inspect_project
+inspect_selection
+inspect_assembly
+list_domain_packs
+list_material_presets
 ```
 
-实现：
+当前已完成：迁移、Thread/Turn/Item/Approval 持久化、幂等 replay、取消、Approval resolve、SSE cursor replay、HTTP 路由和桌面 API client；macOS Tauri Provider 配置入口由 Rust supervisor 负责 Keychain 与子进程注入；显式 Provider check 会区分离线状态与真实调用。当前仍未完成：流式模型 delta、项目上下文工具、ShapeProgram 工具和跨重启运行中的 Turn 恢复；G4 通用 Planner port 已支持 deterministic 与 OpenAI-compatible JSON Schema 调用，但真实 API truth set 仍需用户显式运行评测。
 
-- 统一坐标、朝向、原点、比例、材质槽、UV、LOD 和缩略图；合同、CLI 与模板已落地，正式资产制作按 `MODULE_ASSET_GUIDE.md` 执行；
-- 正式资产只有在 `FormalModuleReview@1` 锁定 source/export hash、独立审阅、全部人工项和评分通过后才可晋级；技术 Pack 通过或 synthetic smoke 不能替代人工最终资产；
-- Connector overlay、拖放/替换、自动吸附、镜像、Transform、锁定；
-- 模块树与视口同步选择、高亮、隐藏和聚焦；
-- 爆炸视图、资源释放、Project 保存和恢复；
-- 版本追加、Undo/Redo 和操作时间线。
+退出条件：状态机、幂等、取消、cursor replay、Provider 超时和重启恢复有自动测试；API Key 不进入 SQLite、Event 或日志。
 
-退出条件：
+## 7. G2：通用机械合同
 
-- 能加载由 8–12 个模块构成的模型；
-- 模块吸附和替换成功率 ≥95%；
-- 更换主体后子模块可按 Connector 重新定位；
-- 锁定模块不被普通操作改变；
-- 连续加载/卸载无明显 GPU 泄漏；
-- 重启后完整恢复 Project、Version 和 ModuleGraph。
+### DomainPackManifest@1
 
-### R4：AI Brief、方案与自然语言修改
+实现领域角色、模板、Connector、Joint、材质集合、质量和导出 Profile registry。
 
-工具：
+### MechanicalConceptSpec@1
+
+实现领域、完整外观 envelope、比例、姿态、设计语言、材质意图和 generation stage。
+
+### AssemblyGraph@1
+
+实现分层 PartNode、geometry source、pivot、Connector、Joint、Material Zone、editable parameter、lock 和 provenance。
+
+### MaterialPreset@1
+
+实现金属、聚合物、橡胶、复合材料、透明、涂层和自然材料的最小 PBR preset registry。
+
+### 兼容迁移
+
+实现 WeaponConceptSpec/ModuleGraph → 新合同 adapter。旧 ID、hash、Version 和原对象必须保留；不得原地重写数据库历史。
+
+退出条件：JSON Schema、Python、TypeScript 和 OpenAPI 无漂移；unknown field、环、孤儿、非法 Joint 和不存在材质全部拒绝。
+
+当前进度：四个 JSON Schema、四个最小领域 registry manifest、生成的 TypeScript/Python registry 和 `npm run agent:g2-contracts-smoke` 已落地；语义检查已覆盖严格字段、非功能边界和装配图环/孤儿/连接器引用。旧 ModuleGraph adapter 与正式美术资产晋级仍属于兼容/发布阶段，不是通用 Agent 运行时的必要前置。
+
+## 8. G3：ShapeProgram 与几何 Worker
+
+当前已落地 ShapeProgram@1 schema、只校验不执行的 validator，以及一个不依赖 Torch/模型权重的轻量 Geometry Worker。Worker 解释受限 `box`/`cylinder` 操作，输出完整概念 blockout、GLB、AssemblyGraph、bounds 和 topology hash：
+
+`npm run agent:g3-shape-program-smoke` 已覆盖严格字段、有限值、参数范围、有序引用和非执行边界。
 
 ```text
-parse_design_brief
-recommend_template
-recommend_modules
-create_variant
-set_style_parameters
-set_global_proportions
-plan_change_set
+profile / extrude / revolve / sweep / loft / shell
+primitive / boolean / mirror / array / radial_array
+bevel_approx / fillet_approx / surface_panel
+pivot / connector / material_zone
 ```
 
-工作流：
+技术候选：`manifold3d` 执行实体和布尔，`trimesh` 分析并读写 GLB，Three.js 继续只负责显示。
+
+fixture 最低要求：
+
+- 12 个 future weapon prop；
+- 12 个 vehicle；
+- 12 个 aircraft；
+- 12 个 robotic arm；
+- 每类至少 3 个完整 blockout，不是孤立零件。
+
+退出条件：相同 seed/program 得到相同 topology hash；导出 GLB 可由受限 readback 校验；非法/超预算输入执行前拒绝；worker 崩溃不带崩桌面或 FastAPI；依赖树没有 torch/tensorflow/CUDA/模型权重。当前已完成四领域 48 个确定性 blockout、ShapeProgram→GLB→readback smoke，以及 G801–G807 的受控操作/多样性门禁（含 bevel_approx/surface_panel）；复杂 profile/loft、前端变体目录仍未完成。外部 GLB 现可安全作为参考导入，但还不能自动转换为 ShapeProgram。
+
+扩展几何操作前必须执行候选 benchmark：现有 Python worker、JSCAD 语义、Manifold Python/WASM、Trimesh 和 glTF 验证/优化只作为候选。采用前记录体积、内存、冷启动、确定性、平台打包和许可证；最终默认安装包只能保留一个权威几何执行组合。详见 [GitHub 参考架构](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)。
+
+## 9. G4：完整外观 Agent 闭环
+
+当前已落地 `MechanicalConceptPlan@1` 的内存模型与 Planner port：默认使用 deterministic fallback；设置 `FORGECAD_AGENT_PROVIDER=openai_compatible` 后通过本机 secret file 调用 OpenAI-compatible Chat Completions。离线 fake-provider smoke 已覆盖 JSON Schema 请求、三方向响应和未配置拒绝。真实外网仍未纳入 smoke；方向确认后现在可调用轻量 Geometry Worker 生成预览，但还不会写入正式版本。
+
+新增工具：
 
 ```text
-Brief → Schema validation → A/B/C variants
-→ 用户选择 → 指令 → ChangeSet → ghost preview
-→ conflict/lock check → confirm → child version
+infer_domain_pack
+plan_complete_concept
+author_shape_program
+validate_shape_program
+build_blockout
+render_concept_views
 ```
 
-AI 只能引用 registry 中存在的 Module/Connector ID。组件库无法满足需求时，局部生成进入单独 Job，原始资产不覆盖。
+流程：
 
-当前已完成 Brief Interpreter、Module Planner 与 Change Planner 边界：`deterministic_rules` 会解析紧凑/延展、明确长度/高度/握持角/细节百分比、颜色和对称等意图；`openai_compatible` 使用 strict JSON Schema，只能引用请求中提供的 node/module id。`auto` 模式外部 Provider 失败时显式降级并保存 attempted provider、错误、输入/输出 hash；`configured_provider` 失败直接返回错误。A/B/C 每个方案包含目标节点、结构 scale、注册模块建议和 rationale，并在服务端再次执行 lock/root/registry/Graph 校验。自然语言修改只允许 `replace_module`、`set_mirror`、`set_style`、`set_parameter`，先写入带 actor/provider/instruction/rationale/Job 的 proposed ChangeSet，再走既有 registry/lock/Connector/Graph preview；桌面显示半透明 ghost，用户明确确认才创建子版本，也可放弃并留下 rejected diagnostic。方案选择本身仍只切换 Planner 预览，不直接创建 Version。固定 80 阶段 truth set 与评测器已完成，deterministic baseline 四项为 100%，但真实模型质量评测尚未运行。
+```text
+Brief
+→ 推断领域
+→ 3 个完整方向卡
+→ 用户选择
+→ 完整 blockout
+→ front / side / top / perspective renders
+→ 用户确认方向
+```
 
-退出条件：
+真实 Provider 评测每领域至少 20 Brief。指标：领域推断、完整性、结构化输出、首次预览时间、token、费用和失败原因。
 
-- Brief 解析成功率 ≥90%；
-- 同一 Brief 返回三种明显不同方案；
-- AI 修改成功率 ≥85%；
-- 锁定模块保持率 ≥95%；
-- 所有 AI 修改可解释、可撤销并创建子版本。
+退出条件：Brief 结构化成功率 ≥90%；完整外观率 100%；每领域至少 5 个真实 API 候选通过人工方向审阅；确认前正式 Version 副作用为 0。
 
-### R5：模型检查、渲染与导出
+## 10. G5：自动分件与装配候选
 
-检查：
+当前已实现 `POST /api/v1/agent/blockouts:segment`。它根据 Domain Pack 的部件角色，为每个 blockout 输出稳定的 `part_id`、父子层级、位置/尺寸、Material Zone 候选和可编辑参数；结果仍标记为 `candidate`，不会覆盖正式 Version。
 
-- 模块穿插、悬空模块、Connector 错位、非法缩放；
-- 法线、非流形、对称差异、隐藏几何、网格密度、UV、LOD；
-- Finding 点击后相机聚焦并高亮对应模块/区域。
+```bash
+npm run agent:g6-segmentation-smoke
+```
 
-已完成 C07 规则覆盖切片：索引、三角形数量、退化面、法线、UV0、开放/非流形边、清单 bounds、重复三角形、被另一封闭组件完全包裹的内部几何、单位表面积密度 8 倍中位数离群、Spec 总三角预算，以及当前 P0 只允许 canonical LOD0 的合同。装配层检查根节点局部 Z 中面的模块 AABB 占位配对、Connector `0.1 mm / 0.1°` 对齐和超过 `2 mm` 的保守表面间隙；未直连组件继续使用世界 AABB/BVH、triangle SAT、closed-mesh containment 和局部 provenance。Finding 点击会框选并高亮全部关联节点，叠加局部相交三角形。上述对称、密度和间隙都是概念资产代理指标，不是制造公差、结构或 DFM 结论。
+桌面 Agent 面板会显示候选部件摘要，并提供“保存为可编辑模型”。确认后写入独立 `AgentAssetVersion`；当前 AssemblyGraph 已生成关系级 mount Connector 和机械臂 revolute Joint，Agent ChangeSet 支持关节姿态后代重定位及声明式 `snap_part_to_connector` 对齐。真实碰撞约束、动力学、split/merge 仍待后续。
 
-展示与导出：
+新增工具：
 
-- 三分之四、正视、侧视、透明背景；
-- 爆炸图、简单工作室灯光和转台动画；
-- GLB、OBJ、PNG、Module Manifest 与 Project Report。
+```text
+propose_segmentation
+preview_segmentation
+split_part
+merge_parts
+assign_connector
+assign_joint
+set_pivot
+validate_assembly
+```
 
-退出条件：
+分件必须以领域角色为依据：车辆分车身/座舱/移动件/灯组；飞机分机身/翼面/舱罩/发动机舱；机械臂保持基座到末端工具的运动链；未来武器道具保持主体与视觉模块。
 
-- 严重网格问题提示率 100%；
-- GLB 导出成功率 ≥98%；
-- 导出 Manifest 的 asset/version/hash 可追溯；
-- 原始资产不被修复或导出覆盖。
+退出条件：每领域 10 个分件样例无环、无孤儿、可逐部件选择；父节点变更后子树按 Connector/Joint 重定位；连接器存在、类型和法线校验；用户可预览并撤销 split/merge。
 
-### R6：Beta、资产扩展与发布
+## 11. G6：可编辑资产、部件与材质
 
-实现：
+新增工具：
 
-- 模块库扩展到 24–30 个高质量资产；
-- 新手六步流程与专业参数渐进展开；
-- 10–20 名目标用户完成固定任务；
-- 统计完成时间、失败步骤、AI 修改失败和导出意愿；
-- 清理旧 Weapon/Skill/Unity 生产入口，保留 importer 和 baseline tag；
-- Tauri sidecar 打包、许可证、SBOM、干净机器安装/卸载。
+```text
+modify_selected_part
+replace_part
+set_part_parameter
+set_part_transform
+set_joint_pose
+apply_material_preset
+save_reusable_component
+run_asset_quality
+export_project
+```
 
-退出条件：
+当前已实现：独立 Agent asset version、稳定部件层级、ghost ChangeSet、部件位置/比例/关节姿态修改、视觉材质绑定、`AgentComponent@1` 注册/同角色替换、声明式 Connector 对齐、v2/v3 确认、只读 `AgentAssetQualityReport@1` 和受限 ShapeProgram→GLB 导出/readback。G6.5 已提供外部 GLB 的安全参考导入：只接受自包含 glTF 2.0、验证访问器/预算/哈希后存入内容寻址库，并可在同一视口显示与原样导出；它不会冒充可编辑 ShapeProgram。真实 Connector 碰撞/运动学、pivot 语义和外部 GLB 的自动重建/深度分件仍待完成。
 
-- 新用户首个有效设计时间 <5 分钟；
-- 首次 Project 完成率 ≥70%；
-- Undo/Redo、版本回退、崩溃恢复正确率 100%；
-- C01–C10 全部通过；
-- 安装包可脱离源码运行。
+退出条件：局部修改成功率 ≥85%；锁定部件保持率 100%；兼容替换成功率 ≥95%；材质只影响目标 Zone；GLB 层级、材质和 pivot 回读成功率 ≥98%。当前 smoke 已覆盖候选→v1→预览→v2，以及基础参数拒绝；完整退出条件仍未满足。
 
-## 5. 推荐 PR 顺序
+## 12. G7：零基础用户界面
 
-1. **Concept-first ADR 与文档**：双轨产品、P0 输出和范围。
-2. **R1 边界（已完成）**：Provider workflow、App controller、通用 services 与结构回归门。
-3. **Concept contracts**：DomainProfile、Spec、ModuleGraph、ChangeSet、QualityReport。
-4. **Concept database/API**：Project/Version/Module/Connector 与 `/api/v1`。
-5. **Module fixtures**：第一套 8–12 个 GLB、Manifest、缩略图和许可证。
-6. **Workbench IA**：五阶段、左 ContextPanel、右 Inspector、底部 Drawer。
-7. **Module interaction**：选择、隐藏、替换、吸附、锁定、爆炸。
-8. **Version/ChangeSet**：Undo/Redo、ghost preview、child version。
-9. **Quality/Export**：检查定位、GLB/OBJ/PNG/Manifest。
-10. **AI/Beta**：Brief、三方案、修改指标、打包和旧域清理。
+首屏：项目/保存/撤销/检查/导出，唯一 Agent 会话，唯一 3D 主视图，选中部件简单卡和候选确认条。
 
-每个 PR 必须有独立退出证据，禁止把 2–10 合成一个大重构。
+不要求用户选择 Domain Pack、Mode、Skill、pipeline、Connector、Joint、GLB 或 PBR。组件和材质仅在用户提出替换/换材质时打开按需抽屉。
 
-## 6. C01–C10 新质量门
+固定可用性任务：
+
+1. 用一句话生成完整模型；
+2. 选择并缩短一个部件；
+3. 更换一个部件；
+4. 只给一个材质区换材质；
+5. 调整一个关节姿态；
+6. 撤销修改；
+7. 导出 GLB 和概念图。
+
+每个领域至少 5 名第一次使用者，≥70% 无口头指导完成；首次有效导出中位数 <5 分钟。
+
+当前状态：部分实现但未退出。主工作台已提供 Agent 输入、三方向、blockout、分件候选、受限部件动作、材质、检查、不可变撤销/重做和 GLB 导出；Agent 路径的版本/选择/preview/质量/GLB 导出已接入 Snapshot，核心浏览器 smoke 已通过。仍缺未知领域澄清、完整并发、前端拆分、字号/点击目标验收和原生安装 E2E。当前用户能力以 [USER_GUIDE.md](USER_GUIDE.md) 为准。
+
+## 13. G8：发布与 legacy 退出
+
+### 性能目标
+
+- blockout preview 默认 ≤100k triangles；
+- editable asset 默认 ≤250k triangles；
+- 一个 WebGL canvas/context；
+- Provider 离线不影响已有项目打开、调整和导出；
+- Thread、Version、候选和导出通过重启恢复。
+
+### 删除顺序
+
+1. 新 ForgeCAD Agent 入口承载桌面启动；
+2. 当前 smoke 和打包检查迁移到新入口；
+3. 四领域 E2E 与 Weapon 兼容 adapter 通过；
+4. release gate 不再要求旧端点/文档；
+5. 建立 baseline tag 和数据迁移说明；
+6. 删除旧 image/three_d/Patch/Unity/Weapon runtime 与脚本；
+7. 清理旧环境变量、依赖和兼容 UI。
+
+## 14. C01–C12 质量门
 
 | Gate | 内容 | 阻断条件 |
 | --- | --- | --- |
-| C01 Contracts | Schema、Python/TS、OpenAPI、unknown field | 漂移、非法引用或不兼容 |
-| C02 Database | fresh/repeat migration、FK、Version DAG | 失败、孤儿、环或父版本覆盖 |
-| C03 Module Assets | 坐标、原点、比例、材质、UV、LOD、hash | 任一发布模块不合规范 |
-| C04 Connectors | 类型、吸附、镜像、重定位、lock | 成功率 <95% 或锁定被破坏 |
-| C05 Viewport | 选择、高亮、隐藏、爆炸、资源释放 | 错选、状态不同步或 GPU 泄漏 |
-| C06 ChangeSet | before/after、ghost preview、Undo/Redo、Version | 变更不可解释或父版本被改写 |
-| C07 Quality | 穿插、悬空、错位、法线、非流形、UV/LOD | 严重问题漏报 |
-| C08 Jobs | 幂等、取消、超时、恢复、SSE replay | 重复副作用、丢事件或不可恢复 |
-| C09 Export | GLB/OBJ/PNG/Manifest、hash、回读 | GLB 成功率 <98% 或工件不可追溯 |
-| C10 Desktop E2E | Brief 到导出、重启恢复、打包 | 主链路或干净机器运行失败 |
+| C01 Agent Contracts | Thread/Turn/Item/Approval | 漂移或历史丢失 |
+| C02 General Domain | Pack/Spec/Assembly/Material Schema | 领域语义泄漏到 Core |
+| C03 Policy | Tool/approval/path/secret | 越权或密钥泄漏 |
+| C04 Geometry | Shape fixture/determinism/GLB | 不稳定、空网格、超预算 |
+| C05 Full Look | 四领域完整 blockout | 只生成局部或缺主要角色 |
+| C06 Segmentation | hierarchy/pivot/connector/joint | 环、孤儿、不可选择 |
+| C07 Viewport | 单 canvas/选择/预览/释放 | renderer 重建或状态不同步 |
+| C08 Change | preview/confirm/reject/undo | 确认前写正式 Version |
+| C09 Material | preset/license/zone/GLB | 伪造来源或错改区域 |
+| C10 Quality | mesh/assembly/domain findings | 严重问题漏报 |
+| C11 Provider | timeout/cancel/usage/failure | 静默 fallback 或不可取消 |
+| C12 Desktop | install/init/4 packs/export/restart | 主链失败或依赖模型环境 |
 
-现有 `m6:gate` 和 `release:gate` 只证明 legacy baseline；不得作为新产品发布证据。
+## 15. 下一批具体任务
 
-CAD/DFM Engineering Pack 将另设 E01–E10：DesignSpec、FeatureGraph、B-Rep、STEP/3MF round-trip、DFM truth set 和 CAD sandbox，不与以上 P0 gate 混用。
+执行顺序以生产正确性优先：
 
-## 7. Definition of Done
+1. 完成 [ActiveDesignSnapshot](AUTHORITATIVE_STATE.md) 的完整并发与兼容 UI 退出条件；
+2. 修复领域推断，未知或含糊输入进入单问题澄清，澄清前不创建方向或版本；
+3. 扩充版本、选择、ChangeSet、质量、撤销/回退和导出源的一致性 E2E；
+4. 拆分工作台 E2E，并把 G1–G7 加入 CI；
+5. 将 2,611 行 `CadWorkbenchPanel` 拆分为状态机、Agent、视口、选择卡和抽屉模块；
+6. 扩展轻量 ShapeProgram/Geometry Worker；优先 profile/extrude/revolve/mirror/array/受限 boolean，不增加本地神经 3D 模型；
+7. 增加 Python/Rust 单元测试、依赖审计、性能和可访问性门；
+8. 完成真实 Provider 四领域 truth set；
+9. 构建非空 packaged sidecar并执行全新机器安装/升级/恢复；
+10. 按 [兼容迁移计划](COMPATIBILITY_MIGRATION.md) 退出 legacy 启动链和默认 release gate。
 
-功能只有同时满足以下条件才完成：
+文档重构已先行完成：主 API/操作手册已与 legacy 隔离，用户指南只描述当前能力，测试、发布、恢复和迁移合同已独立维护。
 
-- 合同、迁移、API、UI、错误码和领域 Profile 一致；
-- 单元、集成、回读或 E2E 证据与风险匹配；
-- Job 可取消、超时、重试或明确声明不适用；
-- 失败有结构化 Finding/diagnostic；
-- 工件可追溯输入、版本、资产 hash、Provider 和规则版本；
-- 安全门覆盖 `secret/file-overreach`：密钥不得落入源码、日志或工件，对外 API 不暴露绝对路径，导入/导出不得越过 Library/Object Store 根目录；
-- 原始资产、父版本和锁定模块不可被静默覆盖；
-- 操作手册包含真实命令、备份和恢复路径；
-- 依赖、模型资产和素材许可证已记录；
-- 文档不把尚未实现的功能写成已完成。
-
-## 8. 最近十个可执行动作
-
-1. 由已完成视觉层级与 formal floor 的 core + 两个 front starter 进入人工 Blender 最终资产：保持 ID/Connector/Manifest 不变，由人工进一步处理轮廓、面板节奏、UV 与材质表现；换成最终许可证后，由非作者 reviewer 完成五项评分与批准，不能用 starter 或 synthetic smoke 代替。
-2. 用正式资产测量 Connector 替换/镜像矩阵 ≥95%；显式镜像、自动吸附、root/child 子树重定位、拖拽候选、加载、选择、隐藏、聚焦、overlay、兼容替换、版本 Undo/Redo 与爆炸视图已完成合成/API/桌面基线。十模块 Blender candidate 已额外验证其仅有的 2/2 eligible front 替换与 8/8 editable 镜像、精确对齐、导出和重启回读；单节点镜像中 grip/top/side/armor 通过质量检查，front/rear/lower/storage 触发未连接组件相交/包含 warning，连续八镜像分支共 8 warning。因此不得把“操作通过”写作“组合可交付”。它是 `unclassified` 技术样本，不能计入正式 ≥95%。
-3. 在正式 10–12 模块和代表性用户资产库上运行已完成的 `library:recovery-drill`，各至少 3 轮，保存备份/验证/恢复/Agent 回读耗时、吞吐、容量增长和未引用候选，再确定保留周期与 reference-aware GC；10 模块 reference fixture 已完成多轮稳定快照、全部 GLB hash 回读、基线增量和正式证据误报阻断，但不替代这两组真实报告。WORM/legal hold 不在当前承诺内。
-4. 用正式 10–12 模块测量 PNG/MP4 时间与内存；starter core、工作台 visual-v2 三模块组合与 reference combined GLB 的真实 Blender round-trip 已通过，下一步是对正式 Blender 资产全装配重跑并评估纹理交换与 glTF Transform/Meshopt。
-5. 将已完成的对称占位、隐藏几何、密度/预算和 P0 LOD0 规则迁移到正式 10–12 个 Blender 资产，测量误报/漏报、耗时和内存；多 LOD 只有在运行时切换与导出合同完成后再扩展。
-6. 使用已完成的固定 truth set 和 live CLI，在明确授权的真实配置 Provider 上执行 80 次调用，采集 latency/token，并验证 Brief ≥90%、三方案差异度 100%、AI 修改成功率 ≥85% 和锁定保持率 ≥95%；先运行零网络、零费用的 `npm run agent:r4-evaluation-preflight`，只有本地配置就绪才由操作者承担 live 调用成本。当前 deterministic baseline 全通过但不具备真实 Provider 证据资格，当前环境严格返回 `EVAL_PROVIDER_NOT_CONFIGURED`。
-7. 将 Brief、Variant、Change Planner、Export 等其余 Concept jobs 拆为可恢复 worker steps，补 partial success、超时/ETA 与 readiness；质量检查已完成首个持久 worker 切片，不可据此宣称所有 Concept Job 已 worker 化。
-8. AI 指标达标后扩展到 24–30 模块并执行首轮 Beta。
-9. 用真实冻结 Agent 二进制替换当前占位 sidecar，并在含 Cargo/Rust 与平台签名权限的发布机上完成 compile、签名、安装/卸载和干净机验证。
-10. 执行 C01–C10 发布审计并清理 legacy 生产入口。
-
-第 6 步的真实 Provider 指标闭环通过后再执行第 7 步；AI 指标达标后才扩展第 8 步，第 9–10 步必须使用真实发布环境证据。CAD/DFM Engineering Pack 不提前占用 P0 主链。
+每个后续任务必须满足 [Codex 完成定义](CODEX_DEFINITION_OF_DONE.md)，并在结束时更新 [当前交接](CODEX_HANDOFF.md)。

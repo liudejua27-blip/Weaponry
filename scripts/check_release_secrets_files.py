@@ -34,6 +34,8 @@ SCAN_ROOTS = [
 SKIP_PARTS = {
     "__pycache__",
     ".pytest_cache",
+    ".ruff_cache",
+    "target",
     "dist",
     "generated",
     "node_modules",
@@ -206,7 +208,7 @@ def unity_package_asset_id(store: SQLiteAssetStore, job_id: str) -> str:
 
 def check_docs(findings: list[dict[str, Any]]) -> dict[str, Any]:
     requirements = {
-        "docs/M3_DESKTOP_SUPERVISOR.md": ["Runtime safety rules", "production CSP", "permissions"],
+        "docs/DEVELOPMENT.md": ["CSP", "capability", "Provider Key"],
         "docs/DATABASE.md": ["no export package contains absolute local paths", "object_path"],
         "docs/IMPLEMENTATION_PLAN.md": ["secret/file-overreach"],
     }

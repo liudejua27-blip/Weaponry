@@ -1,3 +1,8 @@
+PRAGMA foreign_keys = ON;
+PRAGMA busy_timeout = 5000;
+
+BEGIN IMMEDIATE;
+
 CREATE TABLE IF NOT EXISTS module_asset_catalog_metadata (
   module_id TEXT PRIMARY KEY REFERENCES module_assets(module_id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
@@ -37,3 +42,10 @@ SELECT
   '已声明为本人原创，等待独立审阅。',
   updated_at
 FROM module_assets;
+
+-- Record this migration exactly once. Earlier revisions omitted the ledger
+-- entry, causing harmless but unnecessary replay on every startup.
+INSERT OR IGNORE INTO schema_migrations(version, name)
+VALUES ('0017', 'module_asset_catalog_metadata');
+
+COMMIT;

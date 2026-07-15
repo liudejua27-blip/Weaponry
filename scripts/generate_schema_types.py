@@ -13,6 +13,8 @@ from typing import Any, Dict, List
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME_MANIFEST = ROOT / "packages" / "concept-spec" / "fixtures" / "shape-program-runtime-manifest.json"
+SHAPE_PROGRAM_SCHEMA = ROOT / "packages" / "concept-spec" / "schemas" / "shape-program.schema.json"
 CONTRACT_TARGETS = (
     (
         ROOT / "packages" / "weapon-spec" / "schemas",
@@ -31,6 +33,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="fail when generated files are stale")
     args = parser.parse_args()
+
+    runtime_schema = render_shape_program_schema_from_manifest()
+    if args.check:
+        if not SHAPE_PROGRAM_SCHEMA.exists() or SHAPE_PROGRAM_SCHEMA.read_text(encoding="utf-8") != runtime_schema:
+            print("stale ShapeProgram runtime operation enum: packages/concept-spec/schemas/shape-program.schema.json", file=sys.stderr)
+            return 1
+    else:
+        SHAPE_PROGRAM_SCHEMA.write_text(runtime_schema, encoding="utf-8")
 
     outputs: Dict[Path, str] = {}
     for schema_dir, typescript_out, python_out in CONTRACT_TARGETS:
@@ -52,6 +62,26 @@ def main() -> int:
         path.write_text(content, encoding="utf-8")
         print(f"wrote {path.relative_to(ROOT)}")
     return 0
+
+
+def render_shape_program_schema_from_manifest() -> str:
+    """Materialize the Schema enum from the versioned runtime manifest.
+
+    The manifest is intentionally the only hand-edited operation list.  JSON
+    Schema remains portable by containing the generated enum, while this
+    generator makes drift a contracts gate failure.
+    """
+
+    manifest = json.loads(RUNTIME_MANIFEST.read_text(encoding="utf-8"))
+    operations = manifest.get("operations")
+    if manifest.get("schema_version") != "ShapeProgramRuntimeManifest@1" or not isinstance(operations, list):
+        raise RuntimeError("invalid ShapeProgram runtime manifest")
+    names = [item.get("op") for item in operations if isinstance(item, dict)]
+    if not names or any(not isinstance(name, str) for name in names) or len(names) != len(set(names)):
+        raise RuntimeError("runtime manifest must have unique operation names")
+    schema = json.loads(SHAPE_PROGRAM_SCHEMA.read_text(encoding="utf-8"))
+    schema["properties"]["operations"]["items"]["properties"]["op"]["enum"] = names
+    return json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
 
 
 def load_schemas(schema_dir: Path) -> Dict[str, Dict[str, Any]]:
@@ -95,6 +125,8 @@ def ts_type(schema: Dict[str, Any], *, required: bool) -> str:
         return " | ".join(literal(value) for value in schema["enum"])
     if "anyOf" in schema:
         return " | ".join(ts_type(item, required=True) for item in schema["anyOf"])
+    if "oneOf" in schema:
+        return " | ".join(ts_type(item, required=True) for item in schema["oneOf"])
 
     schema_type = schema.get("type")
     if isinstance(schema_type, list):

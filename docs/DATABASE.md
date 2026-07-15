@@ -1,278 +1,132 @@
-# Database and Asset Store Contract
+# ForgeCAD 当前数据与持久化
 
-Wushen Forge uses SQLite for metadata and an immutable local object store for large files.
+版本：2026-07-13
+状态：当前 Agent 表、legacy 共存和已知恢复边界
 
-## Principles
+ForgeCAD 使用 SQLite 保存元数据和版本关系，使用内容寻址对象目录保存大文件。当前 Agent 数据与旧 Weapon/Concept 数据共存在同一个 Library；不得把两套版本号合并解释。
 
-- SQLite stores facts, state, indexes, and provenance.
-- Large files are stored under `objects/sha256`.
-- User-facing weapon folders are logical views and export staging areas.
-- Every asset file has a hash, byte size, role, MIME type, and creator job.
-- Successful versions are append-only.
-- Deletion is soft deletion until garbage collection proves there are no references.
-
-## Library Layout
+## 1. Library 结构
 
 ```text
 WushenForgeLibrary/
-  library.db
-  library.db-wal
-  library.db-shm
-  library.lock
-  config/
-    providers.local.json
-  objects/
-    sha256/
-      ab/
-        cd/
-          <sha256>.png
-          <sha256>.json
-          <sha256>.glb
-  weapons/
-    <weapon_id>/
-      manifest.json
-      specs/
-      graphs/
-      versions/
-      models/
-      exports/
-  backups/
-    snapshots/
-    manifests/
-  trash/
+├── library.db
+├── objects/
+└── backups/        恢复 provenance；正式备份必须位于 Library 外部
 ```
 
-## Required Pragmas
+Provider API Key、Keychain、secret file、缓存、WAL/SHM 和临时输出不属于项目数据。
 
-```sql
-PRAGMA foreign_keys=ON;
-PRAGMA journal_mode=WAL;
-PRAGMA busy_timeout=5000;
-```
+## 2. Agent Kernel 表
 
-## Version DAG (v1 Compatible + v2 Target)
+迁移 `0019_agent_kernel.sql`：
 
-阶段性追溯关系目标：
+| 表 | 作用 |
+| --- | --- |
+| `agent_threads` | 项目内 Agent 会话和最后 Turn |
+| `agent_turns` | 一次用户请求、状态、错误和 usage |
+| `agent_items` | 追加的消息、计划、工具、预览、批准和工件 |
+| `agent_approvals` | 永久副作用批准状态 |
 
-- `structure_interpretations`（v1 输入解释闭环，兼容字段存储）
-- `creative_weapon_graphs`（v2 主图，承载结构解释主键）
-- `skill_graphs`（v2 技能图，绑定 `origin_graph_id`）
-- `weapon_versions`（v1 版本承载）
+约束：Turn 和 Item 随 Thread 级联删除；Item sequence 在 Thread 内唯一；API Key 和原始 Authorization 不得进入 payload。
 
-```text
-structure_interpretation
-  └── creative_weapon_graph
-      └── skill_graph
-          └── weapon_version
-```
+迁移 `0032_agent_provider_conversations.sql` 为 `agent_turns` 增加脱敏的 context/fingerprint 合同字段，并新增 `agent_thread_memory_summaries`。后者只保存已覆盖的 sequence、最多 4,000 字符的确定性摘要、领域/快照指纹和合同版本；它可以删除或重建，绝不是 Project、AgentAssetVersion、Selection、Quality、Export 或 Snapshot 真值。Provider HTTP 不在其 SQLite 事务中执行。
 
-v1 下 `creative_weapon_graph_id`/`skill_graph_id` 可为空，但当已生成后必须保持同源 trace；  
-v2 目标下 `weapon_versions` 应至少保留一组 `creative_graph_id` 与 `skill_graph_id`，并可回溯到 `structure_interpretation_id`。
+迁移 `0033_agent_provider_budget.sql` 增加按 UTC 日期和 Provider 汇总的本机预算账本，只保存预算、已结算/预留微元与未计量次数；不保存 API Key、完整 prompt、模型输出、思维链或远端账单。DeepSeek usage 缺失会保留可审计的未计量状态并停止同日后续联网调用。
 
-## Tables
+## 3. Agent 资产表
 
-The first migration creates:
+迁移 `0020_agent_asset_editing.sql`：
 
-- `library_meta`
-- `schema_migrations`
-- `idempotency_records`
-- `weapons`
-- `weapon_versions`
-- `weapon_specs`
-- `structure_interpretations`
-- `creative_weapon_graphs`
-- `skill_graphs`
-- `generation_jobs`
-- `job_steps`
-- `agent_events`
-- `provider_configs`
-- `asset_files`
-- `models_3d`
-- `export_packages`
+| 表 | 作用 |
+| --- | --- |
+| `agent_blockout_candidates` | 确认前 blockout、ShapeProgram、AssemblyGraph 和预览 GLB |
+| `agent_asset_versions` | 不可变 Agent 资产快照和父版本 |
+| `agent_asset_heads` | 每个 Project 当前 Agent 资产头 |
+| `agent_asset_change_sets` | proposed/previewed/confirmed/rejected/stale 修改 |
 
-M2 runtime writes the following minimum row set for a create-weapon mock job:
+`agent_asset_versions` 在 Project 内使用独立 `version_no`。该编号不等于旧 `project_versions.version_no`。
 
-- 1 `weapons`
-- 1 `generation_jobs`
-- 6 `job_steps`
-- 1 `weapon_versions`
-- 1 `weapon_specs`
-- 1 `structure_interpretations`
-- 1 `creative_weapon_graphs`
-- 1 `skill_graphs`
-- 6 `asset_files`
-- 6 `agent_events`
-- 1 `models_3d`
+迁移 `0021_agent_component_registry.sql` 增加 `agent_components`，保存从已确认 Agent 资产部件生成的项目内不可变组件快照。
 
-`structure_interpretations` 与 `creative_weapon_graphs` 关系规则（v0.1）:
+迁移 `0022_agent_external_glb_import.sql` 增加 `agent_imported_glbs`，保存只读 GLB 的对象路径、SHA-256、大小、三角形和边界摘要。
 
-- `structure_interpretations.weapon_id` -> `weapons.id` 必须有索引且保留原始源对象引用。
-- `creative_weapon_graphs` 推荐保留 `origin_interpretation_id` 与 `graph_parent_id`。
-- `skill_graphs` 与 `creative_weapon_graphs` 通过 `origin_graph_id` 绑定。
-- 资产版本可在 `weapon_versions` 中保留 `creative_graph_id`、`skill_graph_id`、`structure_interpretation_id`（文本型可空字段）作为追溯源。
+迁移 `0023_active_design_snapshots.sql` 增加 `active_design_snapshots`，每个 Project 最多一行：
 
-约束补充（目标态）：
+| 字段组 | 作用 |
+| --- | --- |
+| `source` + active Agent / legacy 引用 | `agent_asset` 与 `legacy_concept_read_only` 互斥，不能同时拥有两个活动版本 |
+| selection / preview / quality | 只允许绑定当前 Agent asset；legacy source 强制为空 |
+| export source/version | 强制与当前 source/version 同链，不按格式切换另一套版本 |
+| `revision` | compare-and-swap 防止旧客户端或并发事务覆盖较新的活动设计 |
 
-- `structure_interpretations` 需要记录 `source_object`、`raw_description`、`candidate_count`、`candidate_ranked` 与 `request_id`，并保留候选快照 hash，防止重演后漂移。
-- `structure_interpretations.status` 目标值为 `ready | resampled_ready | failed`；`ready/resampled_ready` 必须满足 `candidate_count in (2, 3)`，`failed` 必须记录 `failure_code` 与 `failure_reason`。
-- `structure_interpretations` 应保存 `resample_attempted`、`preserved_candidate_id` 与 `candidate_snapshot_hash`，用于复现“低于 2 个候选 -> 重采样 -> 成功/失败”的闭环。
-- `creative_weapon_graphs` 必须记录 `selected_candidate_id` 与 `selected_candidate_rank`，并只允许引用同一个 `origin_interpretation_id` 下的候选快照。
-- `creative_weapon_graphs.origin_interpretation_id` 和 `skill_graphs.origin_graph_id` 应具备外键约束或逻辑一致性校验；同一 `interpretation_id` 可衍生多个 `creative_graph` 分支时，`graph_parent_id`/`base_on` 记录版本关系。
-- `weapon_versions` 应通过 `structure_interpretation_id` 与 `creative_graph_id` 形成“解释→结构→版本”闭环，供 patch / regenerate 3d 时复用。
-- 典型索引（至少）：
-  - `idx_structure_interpretations_weapon_id (weapon_id)`
-  - `idx_creative_graphs_weapon_rank (weapon_id, graph_parent_id)`
-  - `idx_creative_graphs_origin_interpretation (origin_interpretation_id)`
-  - `idx_skill_graphs_origin_graph (origin_graph_id)`
-  - `idx_weapon_versions_graph_trace (creative_graph_id, skill_graph_id)`
+迁移 `0024_legacy_agent_conversion_intents.sql` 增加每项目一行的 `legacy_agent_conversion_intents`。它记录用户明确发起转换时的 legacy source 与 Snapshot revision；下一次 Agent 资产确认在同一事务中提升 Snapshot 并删除 intent。该表不复制或修改旧 Concept 数据。
 
-扩展约定（目标态）：
+迁移 `0025_agent_asset_quality_reports.sql` 增加不可变 `agent_asset_quality_reports`。质量检查只对 Snapshot 当前 Agent asset 运行；公开 API 必须以当前 Snapshot revision 和 Idempotency-Key 写入，报告写入后，Snapshot 在同一事务中指向 `quality_report_id`。相同请求键重放原报告，旧 revision 不写新报告。新 Agent 资产版本会清除旧质量引用，避免把父版本结论误展示给子版本。
 
-- `structure_interpretations`：保存输入对象解析出的结构节点、受保护区域、可动关节等。
-- `creative_weapon_graphs`：保存 `combat_affordances`、`structure`、`recast_profile` 与版本关系。
-- `skill_graphs`：保存 6 张技能卡、触发条件与冷却/代价信息，绑定对应 `creative_weapon_graph_id`。
+迁移 `0026_agent_asset_navigation_frames.sql` 增加 `agent_asset_navigation_frames`。它只保存一个新导航版本可继续撤销或重做的目标；撤销/重做本身始终复制目标内容到新 `AgentAssetVersion`，不修改历史版本和内容对象。
 
-M5 tightens the `rough_raw_glb` contract: the object must be a valid GLB 2.0 binary, not a text placeholder. Asset library validation checks GLB magic, version, length, JSON chunk, and non-empty BIN chunk.
+迁移 `0027_agent_clarification_items.sql` 扩展 `agent_turns.status` 的 `waiting_for_clarification` 和 `agent_items.item_type` 的 `clarification`。迁移通过临时表重建 CHECK 约束并保留既有 Turn、Item、Approval 和序列；澄清分支只写会话记录，不写 Plan、Blockout、Version 或 Asset。
 
-M4 runtime adds a provider-backed patch job path. A successful patch job writes:
+迁移 `0028_active_design_render_presets.sql` 为 `active_design_snapshots` 增加可选 `render_preset_json`。Agent Snapshot 初始化和 Agent 资产版本切换写入 `ActiveDesignRenderPreset@1` 的 `iso/cad_neutral` 默认值；legacy Snapshot 保持 NULL。该列只保存主视口相机/灯光状态，不保存渲染文件、纹理或工程结论。
 
-- 1 `generation_jobs` row with `job_type='patch_image'`
-- 4 `job_steps`
-- 1 append-only `weapon_versions` row with `version_type='patch'`
-- 4 generated `asset_files`: `patch_prompt`, `concept_patch`, `comfyui_workflow`, `quality_report`
-- 4 `agent_events`
+迁移 `0030_active_design_selected_material_zone.sql` 为 `active_design_snapshots` 增加可选 `selected_material_zone_id`。它只能指向当前 `selected_part_id` 的真实视觉材质区；legacy 和外部 GLB 保持 NULL。Material Zone 选择通过 `active-design:select` 的 revision/ETag/CAS 写入，版本切换、重启和 undo/redo 在部件仍存在时保留该选择，否则安全回退到首个真实 zone 或 NULL。
 
-The pre-existing `patch_mask` and `patch_manifest` assets are inputs to the patch job and are not overwritten. `concept_patch` is a fictional Unity game-art result, not a manufacturing drawing. In `mock_comfyui` mode the patch image is deterministic SVG; in `comfyui` mode the source image and mask are uploaded to ComfyUI and the downloaded output is stored as the patch asset.
+## 4. 当前状态真值缺口
 
-`generation_jobs` stores `idempotency_scope`, `idempotency_key`, and canonical `request_hash`. The same scope/key with the same hash returns the existing job; the same scope/key with a different hash is an `IDEMPOTENCY_CONFLICT`.
+数据库现在有 `agent_asset_heads` 和服务端 `active_design_snapshots`，后者实现 [ActiveDesignSnapshot](AUTHORITATIVE_STATE.md) 的持久化部分。确认 blockout、导入 GLB 和确认 Agent ChangeSet 在同一事务中更新 head/Snapshot；Snapshot revision 通过 CAS 拒绝旧写入，part 与 material zone selection 会校验属于当前 AssemblyGraph/Part。
 
-`idempotency_records` stores non-job mutating API idempotency records. M4 uses it for `POST /api/weapons/{weapon_id}/versions/{version_id}/assets` so asset upload replay returns the same `asset_id` instead of creating duplicate rows.
+S003/S007 已提供 Snapshot GET、Agent part selection、legacy Agent-rebuild 授权和受控提升，并用 `revision` / `ETag` 与 Idempotency-Key 拒绝旧写。S008 已提供 undo/redo navigation frame、同事务 head/Snapshot 切换及浏览器回归。Q002 冻结 GET bootstrap 为只从有效 Agent head 或 legacy current version创建一行的兼容行为，空项目不创建行；GET 与 navigation 都以 `Cache-Control: no-store` 明确读缓存边界。Agent 工作台路径已接入；legacy 兼容 UI 已只读。核心 CAS 竞争已有验证，广泛多客户端压力矩阵仍待补齐：
 
-`agent_events` stores a per-job `seq` and must be replayed by `seq`, not by timestamp alone. `JobEvent.seq` is part of the public API contract so desktop recovery does not infer order from timestamps or event id suffixes.
+- 不允许用同一个 `vN` 表示两套版本；
+- 导出前必须显式核对 AgentAssetVersion；
+- localStorage 不能作为生产级版本真值；
+- 旧 Concept 只能按 [兼容迁移计划](COMPATIBILITY_MIGRATION.md) 进入只读/转换路径。
 
-P0 job actions add `job_actions` as an audit table for user-triggered recovery controls:
+## 5. 事务与不变量
 
-- `cancel` can be accepted for active/waiting jobs, updates `generation_jobs.status='cancelled'`, marks the current step cancelled, and appends a `cancelled` event.
-- `retry` and `retry_from_step` can be accepted for failed/partial/waiting-user jobs, update `generation_jobs.status='retrying'`, increment `retry_count`, add a queued step attempt, and append a `retrying` event.
-- repeated cancel of an already cancelled job records a `noop` action without duplicating execution events.
-- invalid terminal actions return API errors and do not append `agent_events`.
+- 永久修改在事务内创建子版本并更新 head；
+- Agent head 和 Snapshot 在同一事务内更新；Snapshot `revision` 旧写入必须失败；
+- selection 必须属于 Snapshot 当前 AssemblyGraph；Agent ChangeSet preview、quality/export 必须同活动 Agent asset version；确认子版本会清除 selection/preview/quality；
+- 父版本 `ON DELETE RESTRICT`；
+- ChangeSet 记录 base/result version；
+- stale base 不得确认；
+- JSON 列写入前通过 Pydantic/Schema 和 SQLite `json_valid`；
+- Project、Version、Component 和 Import 不能跨项目隐式引用；
+- 对象路径必须留在允许 Library 根目录内。
+- 发布不变量：`no export package contains absolute local paths`；导出只能包含逻辑路径、相对路径或内容哈希。
 
-These rows record action requests and state transitions. They do not by themselves stop provider tasks or execute checkpoint resume; that requires the future worker/runtime layer.
+当前服务 smoke 已覆盖最小候选→版本→ChangeSet→子版本链；S002 已覆盖 Snapshot CAS、旧库升级、空库初始化、selection/preview/quality/export 引用和 head/Snapshot 同事务；S003 已覆盖 API bootstrap、Idempotency-Key、revision/ETag、跨项目 Part 拒绝和 legacy 原数据 hash 不变；S007 已覆盖未授权拒绝、显式 intent、原子提升、intent 清理和 legacy hash 不变；S008 已覆盖 HTTP undo、redo、不可变新版本、Snapshot CAS、幂等 replay、历史 frame 和关键竞争场景。多客户端压力 E2E 仍待补齐。
 
-P0 job history search adds read-side indexes only:
+## 6. 备份现状
 
-- `idx_jobs_updated_cursor` supports default task-center ordering by `generation_jobs.updated_at DESC, job_id DESC`.
-- `idx_jobs_status_updated_cursor` and `idx_jobs_type_updated_cursor` support status/type filtered history.
-- `idx_jobs_error_updated_cursor` supports failure-code filtering without scanning successful jobs.
-- `idx_job_actions_created_cursor` and `idx_job_actions_job_created_cursor` support keyset pagination for the action audit list.
+`scripts/library_backup.py` 使用 SQLite Backup API 创建一致快照，并复制 `asset_files` 与 `concept_assets` 引用的内容寻址对象。
 
-No new mutable state is introduced for task-center history. The read model joins `generation_jobs`, `weapons`, `agent_events`, `job_actions`, `weapon_versions`, and `models_3d`. `GET /api/jobs` must return summaries, not full event payloads, so large local libraries stay responsive.
+备份对象枚举已包含 `agent_imported_glbs.object_path`，会复制外部导入 GLB 对象并在 manifest 中记录来源表、SHA-256、大小和引用计数。恢复仍应保留独立原文件作为额外保全副本；未引用对象候选不会进入备份。未运行当前 `library:backup` 流程的旧备份不能保证复制外部导入 GLB 对象，升级后必须重新生成并验证备份。
 
-P0 runtime recovery metadata adds `provider_tasks` and `job_checkpoints`:
+命令和事故流程见 [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)。
 
-- `provider_tasks` records the external task boundary for provider-backed steps: provider kind, provider id, provider task id, attempt, status, cancel request time, last seen time, and metadata.
-- `job_checkpoints` records step-level recovery state: step, attempt, status, resume policy, optional provider task record, and JSON state needed by a future worker.
-- `generation_jobs` now has runner/lease/checkpoint/cancel-intent fields so a local worker can claim jobs and recover them after restart.
-- `job_steps` now stores provider task id, checkpoint JSON, resumability, and cancel state per attempt.
-- `GET /api/jobs/{job_id}/runtime` is the public read side for these rows.
-- `POST /api/runtime/recover` and startup recovery currently pause interrupted active jobs into `waiting_user` and append a recovery event. They do not yet continue execution automatically.
-- cancel action marks the active provider task `cancel_requested` when one is known. For rough3d jobs the worker/provider boundary also calls provider cancel and may update the provider task to `cancelled` when the provider confirms it; other provider kinds should keep the durable intent until they implement their own cancel boundary.
-- Opt-in async generate-3d mode uses these same fields without a new migration. In that mode the request handler inserts `generation_jobs.status='queued'`, queued `job_steps`, ready `job_checkpoints`, and an initial queued event. The local worker then sets `runner_id` and `lease_expires_at`, records provider task/checkpoint state, submits/polls/fetches the 3D provider task, and commits the `rough_3d` version and model assets only after provider success.
-- The default synchronous M5 path is still kept for compatibility. Async mode is selected by `WUSHEN_GENERATE3D_WORKER=1`, `WUSHEN_GENERATE3D_ASYNC=1`, `WUSHEN_GENERATE_3D_ASYNC=1`, or `WUSHEN_GENERATE3D_RUNTIME=worker`; `WUSHEN_GENERATE3D_WORKER=1` additionally starts the background loop and startup recovery leaves queued/retrying jobs available for the worker.
-- Opt-in async export-unity mode reuses the same `generation_jobs`, `job_steps`, `job_checkpoints`, and runner lease fields. In that mode the request handler inserts a queued `export_unity` job only; the worker creates the `export` version, `unity_export_package` asset, and `export_packages` row after claiming the job. Async export is selected by `WUSHEN_EXPORT_UNITY_ASYNC=1`, `WUSHEN_EXPORT_UNITY_WORKER=1`, or `WUSHEN_RUNTIME_WORKER=1`; the latter two also start the background loop.
+## 7. 迁移规则
 
-## Consistency Checks
+1. migration 只追加，不重写历史 JSON；
+2. 每个版本只执行一次并写入 `schema_migrations`；`0017` 已补齐缺失的账本记录，旧库会安全重放一次后稳定；
+3. 新表先在旧库副本和空库验证；
+4. 迁移前创建并验证备份；
+5. 旧 `WeaponConceptSpec/ModuleGraph` 通过显式 adapter 转换；
+6. 转换记录 source schema、source ID/hash 和 adapter version；
+7. 删除 legacy 代码前保留只读迁移工具。
 
-The first validation script is [scripts/check_asset_library.py](../scripts/check_asset_library.py). It must check:
+### Snapshot 回滚
 
-- every `asset_files.object_path` exists
-- every file hash matches `sha256`
-- every successful concept/patch/model/export job produced at least one asset file
-- `weapons.current_version_id` points to an existing version for the same weapon
-- no export package contains absolute local paths
-- no event payload or provider config contains plaintext API keys
+`0023` 只新增表和索引，不修改 Concept、Agent asset、head 或对象内容。迁移脚本处于 SQLite 事务中，失败时自动 rollback；若需要回退应用版本，旧应用会忽略新表，Snapshot 行保持不动。生产环境不得通过删除 `active_design_snapshots` 回滚；应先验证备份，再使用兼容应用只读打开旧数据。
 
-M2 also checks that successful jobs have at least one asset row and event `artifact_asset_id` references resolve to live assets.
+旧 Weapon/Concept 表的历史用途见 [legacy 数据兼容说明](legacy/DATABASE_WEAPON_COMPATIBILITY.md)。
 
-Usage:
+## 8. 发布前数据门
 
-```text
-python3 scripts/check_asset_library.py \
-  --library-root WushenForgeLibrary \
-  --db WushenForgeLibrary/library.db \
-  --json-report reports/asset_check.json
-```
-
-Exit codes:
-
-```text
-0 = no blocker
-1 = warnings only
-2 = blocker found
-3 = database or schema could not be opened
-```
-
-## Backup Manifest
-
-当前实现使用 `scripts/library_backup.py` 和 `ForgeCADLibraryBackupManifest@1`。备份由 SQLite Backup API 快照、快照实际引用的 legacy/Concept 对象和 Manifest 构成；不复制 WAL/SHM、Provider secret/config、trash/cache 或未引用对象候选。
-
-```json
-{
-  "schema_version": "ForgeCADLibraryBackupManifest@1",
-  "backup_id": "backup_20260710T150708Z_3c7601b6cd07",
-  "created_at": "2026-07-10T15:07:08+00:00",
-  "database": {
-    "path": "library.db",
-    "sha256": "<64 hex>",
-    "byte_size": 659456,
-    "journal_mode": "delete",
-    "schema_versions": ["0001", "...", "0016"],
-    "table_counts": {
-      "projects": 1,
-      "module_assets": 2,
-      "module_connectors": 2,
-      "module_graphs": 1,
-      "concept_assets": 4,
-      "asset_files": 1
-    }
-  },
-  "objects": [
-    {
-      "path": "objects/sha256/aa/bb/<sha256>.zip",
-      "sha256": "<64 hex>",
-      "byte_size": 2758,
-      "reference_count": 1,
-      "source_tables": ["concept_assets"]
-    }
-  ],
-  "capacity": {
-    "reference_rows": 5,
-    "unique_object_count": 4,
-    "logical_object_bytes": 3248,
-    "unique_object_bytes": 3088,
-    "deduplicated_bytes": 160,
-    "unreferenced_candidate_count": 1
-  }
-}
-```
-
-验证器要求数据库引用集合、Manifest object 集合和实际文件集合一致，并重新计算 SHA-256/size、capacity、`integrity_check` 与 `foreign_key_check`。恢复目标必须不存在；成功恢复会把 Manifest 保存到新库的 `backups/manifests/`。
-
-## Recovery Drill Report
-
-`scripts/library_recovery_drill.py` 在同一静止源库上连续调用正式 `backup → verify → restore`，再以恢复目录启动真实 Agent，回读所有 Project/Version、Module registry，并下载每个注册 GLB 校验响应头与 payload SHA-256。输出 `ForgeCADLibraryRecoveryDrillReport@1`，记录每轮 source snapshot 指纹、容量、wall-clock duration、吞吐、完成后的目录大小和 Agent 回读计数；多轮 source fingerprint 或 capacity 不一致时以 `SOURCE_CHANGED_DURING_DRILL` 失败。
-
-报告的 `evidence.declared_class` 由操作者声明。选择 `formal_blender_10_12` 时，工具要求 10–12 个注册 Module、拒绝仓库确定性 reference/smoke GLB generator，并强制提供 `formal_release_10_12` 的 `ForgeCADFormalModulePromotionReport@1`；晋级报告的 Module/GLB hash 集合必须与恢复后 Agent 的实际下载完全相等。恢复报告保存晋级报告 SHA-256，但不把人工 attestation 冒充密码学签名。`--baseline-report` 保存旧报告 SHA-256 并逐字段计算容量增量。默认成功后删除临时 backup/restore，只保留报告；只有显式 `--retain-artifacts` 才保留演练副本。
-
-## Migration Rules
-
-- Migrations are sequential SQL files under `migrations/`.
-- Each migration runs in a transaction.
-- Large migrations create `backups/snapshots/pre_migration_<timestamp>/`.
-- JSON blobs must include schema versions.
-- The application refuses to open a newer DB schema with an older binary.
-
-可选目标态扩展：
-
-- `creative_weapon_graphs` 与 `skill_graphs` 使用版本链（`graph_parent_id`）记录递进解释与重构版本。
-- `weapon_versions` 建议在发布时可选关联 `structure_interpretation_id`，用于审计“为何该物体会变形或附加玩法能力”。
+- SQLite integrity 和 foreign key 检查；
+- Schema/生成类型无漂移；
+- Agent head、父版本和 ChangeSet 关系一致；
+- 所有对象引用存在且 hash 匹配；
+- 备份覆盖所有当前 Agent 对象表；
+- 从备份恢复到新目录后可读取、检查和导出活动 Agent 资产；
+- 密钥和本机私有配置不进入备份。

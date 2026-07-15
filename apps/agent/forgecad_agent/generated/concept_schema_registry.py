@@ -6,30 +6,1943 @@ from typing import Any, Dict
 
 SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
 {
-  "common.schema.json": "b23eef139a99d6bf9d69e926bcfcc90280e730e5986527803b5f3c0fd4df6d23",
+  "active-design-snapshot.schema.json": "1312454eb9955db786ed03a4c0c2924942b7f8d74702350112e6571abca5627d",
+  "agent-asset-change-set.schema.json": "dd614614f75c318f323fc5614e7f39fe93e621639727054731c67ad69a4ce218",
+  "agent-asset-export.schema.json": "07f5d9affd772280821dbdab40aea7e4fc912bb978b07e14109c36d4b678b608",
+  "agent-asset-quality-report.schema.json": "5e8a6dec311aa66863676e6f88e37e8ebbb90b6d316ee3cc0c120a6cc17c4115",
+  "agent-asset-render-package.schema.json": "6db31fb793ba9c8b3135eeaa897c1ec66eee0493ab1fe795daed9989310fdcd9",
+  "agent-asset-render-set.schema.json": "abf490f7520e9f8fb312b751fa2b3972d04b2f47068c9a2df3965a11b7cc4304",
+  "agent-asset-version.schema.json": "e3104726287d904b10a9aa239d7f9b248e91d80d9b7a7716cc0909739f02f801",
+  "agent-component-compatibility.schema.json": "ad79bd9dfbb9b7bfd8a98d225d9f7aa1a1e5dec19462679766adfb65b7786e40",
+  "agent-component.schema.json": "af210593ce284882f1f21fd4fc9aecee06734581be4c21423132ffc9a8b5e909",
+  "agent-structure-suggestion.schema.json": "33fe0fc96901378c48916e415ad2606401ed6d20cca171c73e25b35cba6bff91",
+  "assembly-graph.schema.json": "cb0639f2f324ed637460e03fd60dc1c5aac0102ffed9c5ae4f9ec9961f29600e",
+  "blockout-concept-preview.schema.json": "c25ce1ba16ac21a51baabae4d2bb81e39a5b845c336068cb20ce342380ae33e8",
+  "common.schema.json": "7edf00bfe2cd3cc6afff5228b84f7c1986465310c81dd9ff1e9f379efd255d36",
   "concept-export-manifest.schema.json": "cdc78963c4f8fc04a7a6a18387899611bd8f91bb2d94f77c6c58d67030112b44",
+  "concept-scope-decision.schema.json": "3d5f57bd206adc34b1812e50a52170775879872dd9feae8925f2f2d351eabe5d",
   "design-change-set.schema.json": "167a0417615eafcfb16a01a5aa04e3156827b7521ec6b8b32011a959343936fb",
   "design-domain-profile.schema.json": "401bd0f10dae5f58e540e9e66f449f038e95bce29fd454e6bbe025957b9f039e",
+  "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
+  "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
+  "geometry-compile-readback.schema.json": "5fa8ee93164d698cfc0049b9de6b63d326b71405e905d1518cc9e7f4273dbee4",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
+  "material-preset.schema.json": "d4a9f62dfb924b12a1321ee88cb77f144f6d53b076ed0aa15be54f910290e4bf",
+  "material-texture-object.schema.json": "98119df4b682ddfe7d914a14e71cc3c9dbaea2d1f665be32207b3db574bdcc45",
+  "mechanical-concept-spec.schema.json": "f16ec5a742e26f01cb7f70e69a10203b1e94f55abaf2aa76504724ec56125b6f",
   "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
+  "profile-section-set.schema.json": "5baf4fdb7f1788f6237e57f0222a655043057041b639ba85b46388836c0d750f",
+  "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
+  "shape-program.schema.json": "112b6e5c33333ce5c9cd5a31a4e908c47b31313de2a6c3fae986ea5876a8c72e",
+  "visual-intent-mapping.schema.json": "e610720b36ad0a22e4815f067d4ae416d12e2f64fee0780e4c43fa5716fcc57c",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
 ''')
 
 SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
 {
+  "active-design-snapshot.schema.json": {
+    "$defs": {
+      "agent_active_design": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly_graph_id": {
+            "pattern": "^mg_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "source": {
+            "const": "agent_asset"
+          }
+        },
+        "required": [
+          "source",
+          "project_id",
+          "asset_version_id",
+          "assembly_graph_id"
+        ],
+        "type": "object"
+      },
+      "export_reference": {
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "agent_asset",
+              "legacy_concept_read_only"
+            ],
+            "type": "string"
+          },
+          "source_version_id": {
+            "pattern": "^(assetver|ver)_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "project_id",
+          "source_version_id"
+        ],
+        "type": "object"
+      },
+      "legacy_active_design": {
+        "additionalProperties": false,
+        "properties": {
+          "legacy_version_id": {
+            "pattern": "^ver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "module_graph_id": {
+            "pattern": "^mg_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "source": {
+            "const": "legacy_concept_read_only"
+          }
+        },
+        "required": [
+          "source",
+          "project_id",
+          "legacy_version_id",
+          "module_graph_id"
+        ],
+        "type": "object"
+      },
+      "part_display": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "hidden_part_ids": {
+            "items": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "isolated_part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locked_part_ids": {
+            "items": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ActiveDesignPartDisplay@1"
+          }
+        },
+        "required": [
+          "schema_version",
+          "project_id",
+          "asset_version_id",
+          "locked_part_ids",
+          "hidden_part_ids",
+          "isolated_part_id"
+        ],
+        "type": "object"
+      },
+      "preview_reference": {
+        "additionalProperties": false,
+        "properties": {
+          "base_asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "change_set_id": {
+            "pattern": "^assetcs_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "change_set_id",
+          "base_asset_version_id"
+        ],
+        "type": "object"
+      },
+      "quality_reference": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "quality_report_id": {
+            "pattern": "^quality_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "quality_report_id",
+          "asset_version_id"
+        ],
+        "type": "object"
+      },
+      "render_preset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "camera_view": {
+            "enum": [
+              "iso",
+              "front",
+              "top",
+              "right"
+            ],
+            "type": "string"
+          },
+          "light_preset": {
+            "enum": [
+              "cad_neutral",
+              "soft_studio",
+              "concept_contrast"
+            ],
+            "type": "string"
+          },
+          "preset_id": {
+            "pattern": "^render_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^prj_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ActiveDesignRenderPreset@1"
+          },
+          "updated_at": {
+            "$ref": "common.schema.json#/$defs/iso_datetime"
+          }
+        },
+        "required": [
+          "schema_version",
+          "preset_id",
+          "project_id",
+          "asset_version_id",
+          "camera_view",
+          "light_preset",
+          "updated_at"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/active-design-snapshot.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "active_design": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/agent_active_design"
+          },
+          {
+            "$ref": "#/$defs/legacy_active_design"
+          }
+        ]
+      },
+      "export": {
+        "$ref": "#/$defs/export_reference"
+      },
+      "part_display": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/part_display"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "preview": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/preview_reference"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "project_id": {
+        "pattern": "^prj_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "quality": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/quality_reference"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "render_preset": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/render_preset"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "revision": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "ActiveDesignSnapshot@1"
+      },
+      "selected_material_zone_id": {
+        "pattern": "^zone_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "selected_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      }
+    },
+    "required": [
+      "schema_version",
+      "project_id",
+      "active_design",
+      "selected_part_id",
+      "preview",
+      "quality",
+      "export",
+      "revision",
+      "updated_at"
+    ],
+    "title": "ActiveDesignSnapshot",
+    "type": "object"
+  },
+  "agent-asset-change-set.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-change-set.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "base_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "change_set_id": {
+        "pattern": "^assetcs_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "connector_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "material_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "material_zone_id": {
+              "pattern": "^zone_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "op": {
+              "enum": [
+                "set_part_transform",
+                "set_part_parameter",
+                "set_joint_pose",
+                "apply_material_preset",
+                "replace_part",
+                "snap_part_to_connector",
+                "split_part",
+                "merge_parts"
+              ],
+              "type": "string"
+            },
+            "operation_id": {
+              "pattern": "^op_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "replacement_component_id": {
+              "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "structure_suggestion_id": {
+              "pattern": "^structure_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_connector_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "transform": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "value": {}
+          },
+          "required": [
+            "operation_id",
+            "op",
+            "part_id"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "preview": {
+        "anyOf": [
+          {
+            "$ref": "agent-asset-version.schema.json"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "project_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "protected_part_ids": {
+        "items": {
+          "pattern": "^part_[a-z0-9_\\-]+$",
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "resulting_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "schema_version": {
+        "const": "AgentAssetChangeSet@1"
+      },
+      "status": {
+        "enum": [
+          "proposed",
+          "previewed",
+          "confirmed",
+          "rejected",
+          "stale"
+        ],
+        "type": "string"
+      },
+      "summary": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      }
+    },
+    "required": [
+      "schema_version",
+      "change_set_id",
+      "project_id",
+      "base_asset_version_id",
+      "summary",
+      "operations",
+      "protected_part_ids",
+      "status",
+      "preview",
+      "resulting_asset_version_id",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "AgentAssetChangeSet",
+    "type": "object"
+  },
+  "agent-asset-export.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-export.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "bounds_mm": {
+        "$ref": "common.schema.json#/$defs/vec3"
+      },
+      "exported_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "format": {
+        "const": "glb"
+      },
+      "glb_base64": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "readback_status": {
+        "const": "passed"
+      },
+      "readback_triangle_count": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "AgentAssetExport@1"
+      },
+      "triangle_count": {
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "asset_version_id",
+      "format",
+      "glb_base64",
+      "triangle_count",
+      "bounds_mm",
+      "readback_status",
+      "readback_triangle_count",
+      "exported_at"
+    ],
+    "title": "AgentAssetExport",
+    "type": "object"
+  },
+  "agent-asset-quality-report.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-quality-report.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "evidence_source": {
+              "const": "geometry_compile_readback"
+            }
+          },
+          "required": [
+            "evidence_source"
+          ]
+        },
+        "then": {
+          "properties": {
+            "bounds_mm": {
+              "$ref": "common.schema.json#/$defs/vec3"
+            },
+            "compile_readback": {
+              "$ref": "geometry-compile-readback.schema.json"
+            }
+          },
+          "required": [
+            "bounds_mm",
+            "compile_readback"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "evidence_source": {
+              "const": "external_glb_inspection"
+            }
+          },
+          "required": [
+            "evidence_source"
+          ]
+        },
+        "then": {
+          "properties": {
+            "bounds_mm": {
+              "$ref": "common.schema.json#/$defs/vec3"
+            },
+            "compile_readback": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "bounds_mm"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "evidence_source": {
+              "const": "compile_failure"
+            }
+          },
+          "required": [
+            "evidence_source"
+          ]
+        },
+        "then": {
+          "properties": {
+            "bounds_mm": {
+              "type": "null"
+            },
+            "compile_readback": {
+              "type": "null"
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "triangle_count": {
+              "const": 0
+            }
+          }
+        }
+      }
+    ],
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "bounds_mm": {
+        "oneOf": [
+          {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "checked_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "compile_readback": {
+        "oneOf": [
+          {
+            "$ref": "geometry-compile-readback.schema.json"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "evidence_source": {
+        "default": "legacy_estimate",
+        "enum": [
+          "geometry_compile_readback",
+          "external_glb_inspection",
+          "compile_failure",
+          "legacy_estimate"
+        ],
+        "type": "string"
+      },
+      "findings": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "check_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "message": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "part_ids": {
+              "items": {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "severity": {
+              "enum": [
+                "info",
+                "warning",
+                "error"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "check_id",
+            "severity",
+            "message",
+            "part_ids"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "quality_report_id": {
+        "pattern": "^quality_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AgentAssetQualityReport@1"
+      },
+      "status": {
+        "enum": [
+          "passed",
+          "warning",
+          "failed",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "triangle_count": {
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "quality_report_id",
+      "asset_version_id",
+      "status",
+      "triangle_count",
+      "findings",
+      "checked_at"
+    ],
+    "title": "AgentAssetQualityReport",
+    "type": "object"
+  },
+  "agent-asset-render-package.schema.json": {
+    "$defs": {
+      "view": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "background_mode": {
+            "const": "transparent"
+          },
+          "byte_size": {
+            "minimum": 24,
+            "type": "integer"
+          },
+          "camera_view": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top"
+            ]
+          },
+          "file_name": {
+            "pattern": "^[a-z0-9_\\-]+\\.png$",
+            "type": "string"
+          },
+          "height": {
+            "maximum": 2048,
+            "minimum": 64,
+            "type": "integer"
+          },
+          "mime_type": {
+            "const": "image/png"
+          },
+          "part_ids": {
+            "items": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "presentation_mode": {
+            "enum": [
+              "standard",
+              "exploded"
+            ]
+          },
+          "readback_status": {
+            "const": "passed"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top",
+              "exploded_iso"
+            ]
+          },
+          "width": {
+            "maximum": 2048,
+            "minimum": 64,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_name",
+          "asset_version_id",
+          "view_id",
+          "camera_view",
+          "presentation_mode",
+          "background_mode",
+          "part_ids",
+          "mime_type",
+          "width",
+          "height",
+          "sha256",
+          "byte_size",
+          "readback_status"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-render-package.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "exploded_unavailable_reason": {
+        "maxLength": 300,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "exploded_view_available": {
+        "type": "boolean"
+      },
+      "height": {
+        "maximum": 2048,
+        "minimum": 64,
+        "type": "integer"
+      },
+      "non_engineering_notice": {
+        "const": "concept_views_only_not_engineering_or_manufacturing_data"
+      },
+      "package_kind": {
+        "const": "concept_view_png_bundle"
+      },
+      "render_set_byte_size": {
+        "minimum": 96,
+        "type": "integer"
+      },
+      "render_set_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "renderer_id": {
+        "const": "forgecad-agent-software-raster@1"
+      },
+      "schema_version": {
+        "const": "AgentAssetRenderPackage@1"
+      },
+      "views": {
+        "items": {
+          "$ref": "#/$defs/view"
+        },
+        "maxItems": 5,
+        "minItems": 4,
+        "type": "array"
+      },
+      "width": {
+        "maximum": 2048,
+        "minimum": 64,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "package_kind",
+      "asset_version_id",
+      "renderer_id",
+      "render_set_sha256",
+      "render_set_byte_size",
+      "width",
+      "height",
+      "views",
+      "exploded_view_available",
+      "non_engineering_notice"
+    ],
+    "title": "AgentAssetRenderPackage",
+    "type": "object"
+  },
+  "agent-asset-render-set.schema.json": {
+    "$defs": {
+      "view": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "pattern": "^assetver_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "background_mode": {
+            "const": "transparent"
+          },
+          "byte_size": {
+            "minimum": 24,
+            "type": "integer"
+          },
+          "camera_view": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top"
+            ]
+          },
+          "height": {
+            "maximum": 2048,
+            "minimum": 64,
+            "type": "integer"
+          },
+          "mime_type": {
+            "const": "image/png"
+          },
+          "part_ids": {
+            "items": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "png_base64": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "presentation_mode": {
+            "enum": [
+              "standard",
+              "exploded"
+            ]
+          },
+          "readback_status": {
+            "const": "passed"
+          },
+          "schema_version": {
+            "const": "AgentAssetRenderView@1"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "side",
+              "top",
+              "exploded_iso"
+            ]
+          },
+          "width": {
+            "maximum": 2048,
+            "minimum": 64,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "asset_version_id",
+          "view_id",
+          "camera_view",
+          "presentation_mode",
+          "background_mode",
+          "part_ids",
+          "mime_type",
+          "width",
+          "height",
+          "png_base64",
+          "sha256",
+          "byte_size",
+          "readback_status"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-render-set.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "exploded_unavailable_reason": {
+        "maxLength": 300,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "exploded_view_available": {
+        "type": "boolean"
+      },
+      "height": {
+        "maximum": 2048,
+        "minimum": 64,
+        "type": "integer"
+      },
+      "render_set_byte_size": {
+        "minimum": 96,
+        "type": "integer"
+      },
+      "render_set_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "rendered_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "renderer_id": {
+        "const": "forgecad-agent-software-raster@1"
+      },
+      "schema_version": {
+        "const": "AgentAssetRenderSet@1"
+      },
+      "views": {
+        "items": {
+          "$ref": "#/$defs/view"
+        },
+        "maxItems": 5,
+        "minItems": 4,
+        "type": "array"
+      },
+      "width": {
+        "maximum": 2048,
+        "minimum": 64,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "asset_version_id",
+      "renderer_id",
+      "width",
+      "height",
+      "views",
+      "exploded_view_available",
+      "render_set_sha256",
+      "render_set_byte_size",
+      "rendered_at"
+    ],
+    "title": "AgentAssetRenderSet",
+    "type": "object"
+  },
+  "agent-asset-version.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-asset-version.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "artifact_id": {
+        "pattern": "^artifact_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "assembly_graph": {
+        "type": "object"
+      },
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "direction_id": {
+        "pattern": "^direction_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "pattern": "^pack_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "material_bindings": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "parent_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "parts": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "editable_parameter_bindings": {
+              "items": {
+                "$ref": "common.schema.json#/$defs/editable_parameter_binding"
+              },
+              "maxItems": 6,
+              "type": "array"
+            },
+            "editable_parameters": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "material_zone_ids": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "parent_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "position_mm": {
+              "$ref": "common.schema.json#/$defs/vec3"
+            },
+            "provenance": {
+              "enum": [
+                "agent_generated",
+                "agent_component"
+              ],
+              "type": "string"
+            },
+            "role": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "size_mm": {
+              "$ref": "common.schema.json#/$defs/vec3"
+            }
+          },
+          "required": [
+            "part_id",
+            "role",
+            "parent_part_id",
+            "position_mm",
+            "size_mm",
+            "material_zone_ids",
+            "editable_parameters",
+            "locked",
+            "provenance"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "plan_id": {
+        "pattern": "^plan_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "project_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AgentAssetVersion@1"
+      },
+      "shape_program": {
+        "type": "object"
+      },
+      "stage": {
+        "enum": [
+          "segmented_concept",
+          "editable_asset"
+        ],
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "committed",
+          "superseded"
+        ],
+        "type": "string"
+      },
+      "summary": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "version_no": {
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "asset_version_id",
+      "project_id",
+      "parent_asset_version_id",
+      "version_no",
+      "status",
+      "summary",
+      "stage",
+      "plan_id",
+      "direction_id",
+      "domain_pack_id",
+      "artifact_id",
+      "parts",
+      "shape_program",
+      "assembly_graph",
+      "material_bindings",
+      "created_at"
+    ],
+    "title": "AgentAssetVersion",
+    "type": "object"
+  },
+  "agent-component-compatibility.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-component-compatibility.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "component_id": {
+        "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "eligible": {
+        "type": "boolean"
+      },
+      "reason_codes": {
+        "items": {
+          "enum": [
+            "same_domain_pack",
+            "domain_pack_mismatch",
+            "same_role",
+            "role_mismatch",
+            "component_active",
+            "component_disabled",
+            "source_quality_passed",
+            "source_quality_warning",
+            "source_quality_failed",
+            "source_quality_unavailable",
+            "target_connectors_preserved"
+          ],
+          "type": "string"
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "AgentComponentCompatibility@1"
+      },
+      "source_quality_status": {
+        "enum": [
+          "passed",
+          "warning",
+          "failed",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "target_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "target_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "component_id",
+      "target_asset_version_id",
+      "target_part_id",
+      "eligible",
+      "source_quality_status",
+      "reason_codes"
+    ],
+    "title": "AgentComponentCompatibility",
+    "type": "object"
+  },
+  "agent-component.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-component.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "component_id": {
+        "pattern": "^agentcomp_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "description": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "material_bindings": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "part_template": {
+        "type": "object"
+      },
+      "project_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "role": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AgentComponent@1"
+      },
+      "shape_operation": {
+        "type": "object"
+      },
+      "source_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "source_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "source_quality_status": {
+        "enum": [
+          "passed",
+          "warning",
+          "failed",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "active",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      }
+    },
+    "required": [
+      "schema_version",
+      "component_id",
+      "project_id",
+      "domain_pack_id",
+      "role",
+      "display_name",
+      "description",
+      "source_asset_version_id",
+      "source_part_id",
+      "part_template",
+      "shape_operation",
+      "material_bindings",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "AgentComponent",
+    "type": "object"
+  },
+  "agent-structure-suggestion.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-structure-suggestion.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AgentStructureSuggestionList@1"
+      },
+      "suggestions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "affected_part_ids": {
+              "items": {
+                "pattern": "^part_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 1,
+              "type": "array"
+            },
+            "asset_version_id": {
+              "pattern": "^assetver_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "split_part",
+                "merge_parts"
+              ],
+              "type": "string"
+            },
+            "part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "AgentStructureSuggestion@1"
+            },
+            "source_facts": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 6,
+              "minItems": 1,
+              "type": "array"
+            },
+            "suggestion_id": {
+              "pattern": "^structure_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "summary": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "target_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "schema_version",
+            "suggestion_id",
+            "kind",
+            "asset_version_id",
+            "part_id",
+            "target_part_id",
+            "affected_part_ids",
+            "source_facts",
+            "summary"
+          ],
+          "type": "object"
+        },
+        "maxItems": 32,
+        "type": "array"
+      },
+      "unavailable_message": {
+        "maxLength": 240,
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "asset_version_id",
+      "suggestions",
+      "unavailable_message"
+    ],
+    "title": "AgentStructureSuggestionList",
+    "type": "object"
+  },
+  "assembly-graph.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/assembly-graph.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "definitions": {
+      "connector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "pattern": "^connector_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "kind": {
+            "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+            "type": "string"
+          },
+          "normal": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "position": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "required": [
+          "connector_id",
+          "kind",
+          "position",
+          "normal"
+        ],
+        "type": "object"
+      },
+      "joint": {
+        "additionalProperties": false,
+        "properties": {
+          "axis": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "joint_id": {
+            "pattern": "^joint_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "fixed",
+              "hinge",
+              "slider",
+              "ball",
+              "continuous"
+            ],
+            "type": "string"
+          },
+          "max_value": {
+            "type": "number"
+          },
+          "min_value": {
+            "type": "number"
+          },
+          "target_part_id": {
+            "pattern": "^part_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "joint_id",
+          "kind",
+          "target_part_id",
+          "axis",
+          "min_value",
+          "max_value"
+        ],
+        "type": "object"
+      }
+    },
+    "properties": {
+      "concept_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "connections": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "connection_id": {
+              "pattern": "^conn_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "from_connector_id": {
+              "pattern": "^connector_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "from_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "connected",
+                "invalid"
+              ],
+              "type": "string"
+            },
+            "to_connector_id": {
+              "pattern": "^connector_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "to_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "connection_id",
+            "from_part_id",
+            "from_connector_id",
+            "to_part_id",
+            "to_connector_id",
+            "status"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "graph_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "parts": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "connectors": {
+              "items": {
+                "$ref": "#/definitions/connector"
+              },
+              "type": "array"
+            },
+            "editable_parameters": {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "geometry_source": {
+              "enum": [
+                "shape_program",
+                "module_asset",
+                "imported_reference"
+              ],
+              "type": "string"
+            },
+            "joints": {
+              "items": {
+                "$ref": "#/definitions/joint"
+              },
+              "type": "array"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "material_zones": {
+              "items": {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "parent_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "provenance": {
+              "enum": [
+                "agent_generated",
+                "user_created",
+                "imported"
+              ],
+              "type": "string"
+            },
+            "role": {
+              "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+              "type": "string"
+            },
+            "transform": {
+              "$ref": "common.schema.json#/$defs/transform"
+            }
+          },
+          "required": [
+            "part_id",
+            "role",
+            "parent_part_id",
+            "geometry_source",
+            "transform",
+            "connectors",
+            "joints",
+            "material_zones",
+            "editable_parameters",
+            "locked",
+            "provenance"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "root_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AssemblyGraph@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "graph_id",
+      "concept_id",
+      "root_part_id",
+      "parts",
+      "connections"
+    ],
+    "title": "AssemblyGraph",
+    "type": "object"
+  },
+  "blockout-concept-preview.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/blockout-concept-preview.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Ephemeral software concept-image evidence for one uncommitted, bounded blockout. This contract never identifies an asset version, Snapshot, quality report, or export.",
+    "properties": {
+      "byte_size": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "direction_id": {
+        "pattern": "^direction_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "height": {
+        "const": 240,
+        "type": "integer"
+      },
+      "plan_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "png_base64": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "render_context_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "renderer_id": {
+        "const": "forgecad-agent-software-raster@1"
+      },
+      "schema_version": {
+        "const": "AgentBlockoutConceptPreview@1"
+      },
+      "sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "topology_hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "variant_id": {
+        "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+        "type": "string"
+      },
+      "variation_index": {
+        "maximum": 2,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "width": {
+        "const": 320,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "plan_id",
+      "direction_id",
+      "variant_id",
+      "variation_index",
+      "domain_pack_id",
+      "topology_hash",
+      "render_context_sha256",
+      "renderer_id",
+      "width",
+      "height",
+      "png_base64",
+      "sha256",
+      "byte_size"
+    ],
+    "title": "AgentBlockoutConceptPreview",
+    "type": "object"
+  },
   "common.schema.json": {
     "$defs": {
+      "editable_parameter_binding": {
+        "additionalProperties": false,
+        "description": "A non-executable, user-readable declaration of one existing Agent part numeric path. It does not itself change geometry or create a version.",
+        "properties": {
+          "default": {
+            "type": "number"
+          },
+          "display_name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "max": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "parameter_id": {
+            "pattern": "^editparam_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "path": {
+            "enum": [
+              "transform.position.x",
+              "transform.position.y",
+              "transform.position.z",
+              "transform.scale.x",
+              "transform.scale.y",
+              "transform.scale.z"
+            ],
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "EditableParameterBinding@1"
+          },
+          "step": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "unit": {
+            "enum": [
+              "millimeter",
+              "ratio"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "parameter_id",
+          "path",
+          "display_name",
+          "unit",
+          "default",
+          "min",
+          "max",
+          "step"
+        ],
+        "type": "object"
+      },
       "hex_color": {
         "pattern": "^#[0-9A-Fa-f]{6}$",
         "type": "string"
       },
       "id": {
-        "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$",
+        "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|assetver|assetcs|export)_[A-Za-z0-9_\\-]+$",
         "type": "string"
       },
       "intended_use": {
@@ -255,6 +2168,178 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ConceptExportManifest",
     "type": "object"
   },
+  "concept-scope-decision.schema.json": {
+    "$defs": {
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/concept-scope-decision.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A non-persisting policy decision made after domain inference and before any Provider planning call.",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "items": {
+              "$ref": "#/$defs/domain_pack_id"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "domain_pack_id": {
+            "$ref": "#/$defs/domain_pack_id"
+          },
+          "matched_policy_rule_ids": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "policy_version": {
+            "const": "ForgeCADConceptScopePolicy@1"
+          },
+          "reason_code": {
+            "const": "allowed_non_functional_concept"
+          },
+          "schema_version": {
+            "const": "ConceptScopeDecision@1"
+          },
+          "status": {
+            "const": "allowed"
+          },
+          "user_message": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "policy_version",
+          "status",
+          "reason_code",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_policy_rule_ids",
+          "user_message"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "items": {
+              "$ref": "#/$defs/domain_pack_id"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "domain_pack_id": {
+            "type": "null"
+          },
+          "matched_policy_rule_ids": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "policy_version": {
+            "const": "ForgeCADConceptScopePolicy@1"
+          },
+          "reason_code": {
+            "enum": [
+              "domain_ambiguous",
+              "domain_unknown"
+            ]
+          },
+          "schema_version": {
+            "const": "ConceptScopeDecision@1"
+          },
+          "status": {
+            "const": "clarification_required"
+          },
+          "user_message": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "policy_version",
+          "status",
+          "reason_code",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_policy_rule_ids",
+          "user_message"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "domain_pack_id": {
+            "type": "null"
+          },
+          "matched_policy_rule_ids": {
+            "items": {
+              "pattern": "^scope_[a-z0-9_]+$",
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "policy_version": {
+            "const": "ForgeCADConceptScopePolicy@1"
+          },
+          "reason_code": {
+            "enum": [
+              "real_weapon_or_manufacturing",
+              "engineering_safety_or_control"
+            ]
+          },
+          "schema_version": {
+            "const": "ConceptScopeDecision@1"
+          },
+          "status": {
+            "const": "unsupported"
+          },
+          "user_message": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "policy_version",
+          "status",
+          "reason_code",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_policy_rule_ids",
+          "user_message"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "ConceptScopeDecision"
+  },
   "design-change-set.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/design-change-set.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -459,6 +2544,308 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "non_functional_only"
     ],
     "title": "DesignDomainProfile",
+    "type": "object"
+  },
+  "domain-inference-result.schema.json": {
+    "$defs": {
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "matched_terms": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/domain-inference-result.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A non-persisting classification result used before a mechanical concept plan or asset can be created.",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "domain_pack_id": {
+                  "const": "pack_future_weapon_prop"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "candidate_domain_pack_ids": {
+                  "contains": {
+                    "const": "pack_future_weapon_prop"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "domain_pack_id": {
+                  "const": "pack_vehicle_concept"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "candidate_domain_pack_ids": {
+                  "contains": {
+                    "const": "pack_vehicle_concept"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "domain_pack_id": {
+                  "const": "pack_aircraft_concept"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "candidate_domain_pack_ids": {
+                  "contains": {
+                    "const": "pack_aircraft_concept"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "domain_pack_id": {
+                  "const": "pack_robotic_arm_concept"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "candidate_domain_pack_ids": {
+                  "contains": {
+                    "const": "pack_robotic_arm_concept"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "items": {
+              "$ref": "#/$defs/domain_pack_id"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "domain_pack_id": {
+            "$ref": "#/$defs/domain_pack_id"
+          },
+          "matched_terms": {
+            "$ref": "#/$defs/matched_terms"
+          },
+          "schema_version": {
+            "const": "DomainInferenceResult@1"
+          },
+          "status": {
+            "const": "recognized"
+          }
+        },
+        "required": [
+          "schema_version",
+          "status",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_terms"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "items": {
+              "$ref": "#/$defs/domain_pack_id"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "domain_pack_id": {
+            "type": "null"
+          },
+          "matched_terms": {
+            "$ref": "#/$defs/matched_terms"
+          },
+          "schema_version": {
+            "const": "DomainInferenceResult@1"
+          },
+          "status": {
+            "const": "ambiguous"
+          }
+        },
+        "required": [
+          "schema_version",
+          "status",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_terms"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_domain_pack_ids": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "domain_pack_id": {
+            "type": "null"
+          },
+          "matched_terms": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DomainInferenceResult@1"
+          },
+          "status": {
+            "const": "unsupported"
+          }
+        },
+        "required": [
+          "schema_version",
+          "status",
+          "domain_pack_id",
+          "candidate_domain_pack_ids",
+          "matched_terms"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "DomainInferenceResult"
+  },
+  "domain-pack-manifest.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/domain-pack-manifest.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "connector_types": {
+        "items": {
+          "pattern": "^[a-z][a-z0-9_\\-]{2,63}$",
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "description": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain": {
+        "enum": [
+          "future_weapon_prop",
+          "vehicle_concept",
+          "aircraft_concept",
+          "robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "export_profile_id": {
+        "pattern": "^export_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "joint_types": {
+        "items": {
+          "enum": [
+            "fixed",
+            "hinge",
+            "slider",
+            "ball",
+            "continuous"
+          ],
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "material_preset_ids": {
+        "items": {
+          "pattern": "^mat_[a-z0-9_\\-]+$",
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "pack_id": {
+        "pattern": "^pack_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "quality_profile_id": {
+        "pattern": "^quality_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "DomainPackManifest@1"
+      },
+      "templates": {
+        "items": {
+          "pattern": "^[a-z][a-z0-9_\\-]{2,63}$",
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "pack_id",
+      "domain",
+      "display_name",
+      "description",
+      "non_functional_only",
+      "templates",
+      "connector_types",
+      "joint_types",
+      "material_preset_ids",
+      "quality_profile_id",
+      "export_profile_id"
+    ],
+    "title": "DomainPackManifest",
     "type": "object"
   },
   "formal-module-review.schema.json": {
@@ -755,6 +3142,250 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "FormalModuleReview",
     "type": "object"
   },
+  "geometry-compile-readback.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/geometry-compile-readback.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "bounds_mm": {
+        "$ref": "common.schema.json#/$defs/vec3"
+      },
+      "glb_byte_size": {
+        "maximum": 67108864,
+        "minimum": 20,
+        "type": "integer"
+      },
+      "glb_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "material_count": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "material_ids": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 64,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "mesh_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "normal_primitive_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "operation_ids": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "operation_names": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "output_roles": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "primitive_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "program_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "readback_status": {
+        "const": "passed"
+      },
+      "runtime_manifest_version": {
+        "const": "ShapeProgramRuntimeManifest@1"
+      },
+      "schema_version": {
+        "const": "GeometryCompileReadback@1"
+      },
+      "shape_program_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "surface_provenance": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "boundary_edge_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "closed": {
+              "type": "boolean"
+            },
+            "degenerate_triangle_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "non_manifold_edge_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "part_role": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "profile_input_id": {
+              "anyOf": [
+                {
+                  "pattern": "^profileinput_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "surface_ranges": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "first_triangle": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "surface_role": {
+                    "enum": [
+                      "surface",
+                      "side",
+                      "loft_side",
+                      "sweep_side",
+                      "hole_wall",
+                      "start_cap",
+                      "end_cap",
+                      "seam"
+                    ],
+                    "type": "string"
+                  },
+                  "triangle_count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "surface_role",
+                  "first_triangle",
+                  "triangle_count"
+                ],
+                "type": "object"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array"
+            },
+            "surface_roles": {
+              "items": {
+                "enum": [
+                  "surface",
+                  "side",
+                  "loft_side",
+                  "sweep_side",
+                  "hole_wall",
+                  "start_cap",
+                  "end_cap",
+                  "seam"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "uv0_max": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "uv0_min": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "part_role",
+            "profile_input_id",
+            "surface_roles",
+            "surface_ranges",
+            "uv0_min",
+            "uv0_max",
+            "closed",
+            "boundary_edge_count",
+            "non_manifold_edge_count",
+            "degenerate_triangle_count"
+          ],
+          "type": "object"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "triangle_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "uv0_primitive_count": {
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "runtime_manifest_version",
+      "program_id",
+      "shape_program_sha256",
+      "glb_sha256",
+      "glb_byte_size",
+      "triangle_count",
+      "bounds_mm",
+      "mesh_count",
+      "primitive_count",
+      "material_count",
+      "uv0_primitive_count",
+      "normal_primitive_count",
+      "surface_provenance",
+      "operation_ids",
+      "operation_names",
+      "output_roles",
+      "material_ids",
+      "readback_status"
+    ],
+    "title": "GeometryCompileReadback",
+    "type": "object"
+  },
   "job-event-v2.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/job-event-v2.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -854,6 +3485,600 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "created_at"
     ],
     "title": "JobEventV2",
+    "type": "object"
+  },
+  "material-preset.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/material-preset.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "allowed_domains": {
+        "items": {
+          "enum": [
+            "future_weapon_prop",
+            "vehicle_concept",
+            "aircraft_concept",
+            "robotic_arm_concept"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "category": {
+        "enum": [
+          "metal",
+          "polymer",
+          "rubber",
+          "composite",
+          "glass",
+          "coating",
+          "natural",
+          "emissive"
+        ],
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "license": {
+        "enum": [
+          "not_applicable",
+          "self_declared_original",
+          "third_party",
+          "unknown",
+          null
+        ],
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "material_id": {
+        "pattern": "^mat_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "pbr": {
+        "additionalProperties": false,
+        "properties": {
+          "base_color": {
+            "$ref": "common.schema.json#/$defs/hex_color"
+          },
+          "base_color_texture_asset_id": {
+            "pattern": "^asset_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clearcoat": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "clearcoat_roughness": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "emissive_color": {
+            "$ref": "common.schema.json#/$defs/hex_color"
+          },
+          "emissive_strength": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "ior": {
+            "maximum": 3,
+            "minimum": 1,
+            "type": "number"
+          },
+          "metallic": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "normal_strength": {
+            "maximum": 2,
+            "minimum": 0,
+            "type": "number"
+          },
+          "normal_texture_asset_id": {
+            "pattern": "^asset_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opacity": {
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "type": "number"
+          },
+          "roughness": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "texture_scale": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "transmission": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_color",
+          "metallic",
+          "roughness",
+          "opacity"
+        ],
+        "type": "object"
+      },
+      "provenance": {
+        "enum": [
+          "forgecad_builtin",
+          "user_created",
+          "imported_reference"
+        ],
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "MaterialPreset@1"
+      },
+      "source": {
+        "enum": [
+          "forgecad_builtin",
+          "user_created",
+          "imported_reference",
+          null
+        ],
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "texture_summary": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "exists": {
+              "type": "boolean"
+            },
+            "license": {
+              "enum": [
+                "not_applicable",
+                "self_declared_original",
+                "third_party",
+                "unknown",
+                null
+              ],
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "license_ref": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source": {
+              "enum": [
+                "forgecad_builtin",
+                "user_created",
+                "imported_reference",
+                null
+              ],
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "texture_asset_id": {
+              "pattern": "^asset_tex_[a-f0-9]{24}$",
+              "type": "string"
+            },
+            "texture_role": {
+              "enum": [
+                "base_color",
+                "normal",
+                "thumbnail"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "texture_asset_id",
+            "texture_role",
+            "exists"
+          ],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "type": "array"
+      },
+      "thumbnail_asset_id": {
+        "pattern": "^asset_tex_[a-f0-9]{24}$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "thumbnail_fallback": {
+        "enum": [
+          "parameter",
+          "texture",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "version": {
+        "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "visual_only": {
+        "const": true
+      },
+      "visual_tags": {
+        "items": {
+          "maxLength": 32,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 12,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "material_id",
+      "display_name",
+      "category",
+      "pbr",
+      "visual_only",
+      "allowed_domains",
+      "provenance"
+    ],
+    "title": "MaterialPreset",
+    "type": "object"
+  },
+  "material-texture-object.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/material-texture-object.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "byte_size": {
+        "maximum": 4000000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "display_name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "height": {
+        "maximum": 4096,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "license": {
+        "enum": [
+          "not_applicable",
+          "self_declared_original",
+          "third_party",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "license_ref": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "mime_type": {
+        "enum": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ],
+        "type": "string"
+      },
+      "object_exists": {
+        "type": "boolean"
+      },
+      "object_path": {
+        "$ref": "common.schema.json#/$defs/relative_path"
+      },
+      "schema_version": {
+        "const": "MaterialTextureObject@1"
+      },
+      "sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "source": {
+        "enum": [
+          "forgecad_builtin",
+          "user_created",
+          "imported_reference"
+        ],
+        "type": "string"
+      },
+      "texture_asset_id": {
+        "pattern": "^asset_tex_[a-f0-9]{24}$",
+        "type": "string"
+      },
+      "texture_role": {
+        "enum": [
+          "base_color",
+          "normal",
+          "thumbnail"
+        ],
+        "type": "string"
+      },
+      "thumbnail_asset_id": {
+        "pattern": "^asset_tex_[a-f0-9]{24}$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "visual_only": {
+        "const": true
+      },
+      "width": {
+        "maximum": 4096,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "texture_asset_id",
+      "texture_role",
+      "display_name",
+      "mime_type",
+      "byte_size",
+      "sha256",
+      "object_path",
+      "width",
+      "height",
+      "source",
+      "license",
+      "visual_only",
+      "object_exists",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "MaterialTextureObject",
+    "type": "object"
+  },
+  "mechanical-concept-spec.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/mechanical-concept-spec.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "brief": {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "concept_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "design_language": {
+        "additionalProperties": false,
+        "properties": {
+          "color_direction": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "detail_density": {
+            "enum": [
+              "simple",
+              "medium",
+              "dense"
+            ],
+            "type": "string"
+          },
+          "keywords": {
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "silhouette": {
+            "enum": [
+              "compact",
+              "balanced",
+              "extended",
+              "organic",
+              "industrial"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "keywords",
+          "silhouette",
+          "detail_density",
+          "color_direction"
+        ],
+        "type": "object"
+      },
+      "domain_pack_id": {
+        "pattern": "^pack_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "envelope": {
+        "additionalProperties": false,
+        "properties": {
+          "max_mm": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "min_mm": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "required": [
+          "min_mm",
+          "max_mm"
+        ],
+        "type": "object"
+      },
+      "full_look": {
+        "additionalProperties": false,
+        "properties": {
+          "completeness": {
+            "enum": [
+              "full_exterior"
+            ],
+            "type": "string"
+          },
+          "generation_stage": {
+            "enum": [
+              "blockout",
+              "segmented_concept",
+              "editable_asset"
+            ],
+            "type": "string"
+          },
+          "preview_views": {
+            "items": {
+              "enum": [
+                "perspective",
+                "front",
+                "side",
+                "top",
+                "exploded"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "primary_part_roles": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "completeness",
+          "generation_stage",
+          "primary_part_roles",
+          "preview_views"
+        ],
+        "type": "object"
+      },
+      "material_intents": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "material_preset_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "zone_role": {
+              "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "zone_role",
+            "material_preset_id"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "pose": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "rotation": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "required": [
+          "position",
+          "rotation"
+        ],
+        "type": "object"
+      },
+      "project_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "schema_version": {
+        "const": "MechanicalConceptSpec@1"
+      },
+      "visual_intent_mapping": {
+        "$ref": "visual-intent-mapping.schema.json"
+      }
+    },
+    "required": [
+      "schema_version",
+      "concept_id",
+      "project_id",
+      "domain_pack_id",
+      "brief",
+      "design_language",
+      "visual_intent_mapping",
+      "envelope",
+      "pose",
+      "full_look",
+      "material_intents",
+      "non_functional_only"
+    ],
+    "title": "MechanicalConceptSpec",
     "type": "object"
   },
   "model-quality-report.schema.json": {
@@ -1359,6 +4584,1031 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "modules"
     ],
     "title": "ModulePackManifest",
+    "type": "object"
+  },
+  "profile-section-set.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/profile-section-set.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "main_axis": {
+        "enum": [
+          "x",
+          "y",
+          "z"
+        ],
+        "type": "string"
+      },
+      "profiles": {
+        "items": {
+          "$ref": "profile-sketch.schema.json"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array"
+      },
+      "provenance": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "enum": [
+              "agent",
+              "svg_editor",
+              "component_recipe",
+              "reference_rebuild"
+            ],
+            "type": "string"
+          },
+          "source_ref": {
+            "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "resample_policy": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "maximum": 256,
+            "minimum": 8,
+            "type": "integer"
+          },
+          "mode": {
+            "const": "uniform_count"
+          }
+        },
+        "required": [
+          "mode",
+          "count"
+        ],
+        "type": "object"
+      },
+      "schema_version": {
+        "const": "ProfileSectionSet@1"
+      },
+      "section_set_id": {
+        "pattern": "^sectionset_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "sections": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "cap_policy": {
+              "enum": [
+                "none",
+                "start",
+                "end"
+              ],
+              "type": "string"
+            },
+            "position": {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            "profile_sketch_id": {
+              "pattern": "^sketch_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "scale": {
+              "maximum": 4,
+              "minimum": 0.25,
+              "type": "number"
+            },
+            "section_id": {
+              "pattern": "^section_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "twist_degrees": {
+              "maximum": 45,
+              "minimum": -45,
+              "type": "number"
+            }
+          },
+          "required": [
+            "section_id",
+            "position",
+            "profile_sketch_id",
+            "scale",
+            "twist_degrees",
+            "cap_policy"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "minItems": 2,
+        "type": "array"
+      },
+      "symmetry": {
+        "enum": [
+          "none",
+          "horizontal",
+          "vertical",
+          "radial"
+        ],
+        "type": "string"
+      },
+      "version": {
+        "const": 1
+      }
+    },
+    "required": [
+      "schema_version",
+      "section_set_id",
+      "version",
+      "main_axis",
+      "profiles",
+      "sections",
+      "resample_policy",
+      "symmetry",
+      "provenance"
+    ],
+    "title": "ProfileSectionSet",
+    "type": "object"
+  },
+  "profile-sketch.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/profile-sketch.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "closed": {
+        "type": "boolean"
+      },
+      "continuity_hint": {
+        "enum": [
+          "linear",
+          "tangent",
+          "smooth"
+        ],
+        "type": "string"
+      },
+      "holes": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "hole_id": {
+              "pattern": "^hole_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "segments": {
+              "items": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "line"
+                      },
+                      "to": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "to"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "control": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "kind": {
+                        "const": "quadratic"
+                      },
+                      "to": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "control",
+                      "to"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "control_1": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "control_2": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      },
+                      "kind": {
+                        "const": "cubic"
+                      },
+                      "to": {
+                        "items": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "control_1",
+                      "control_2",
+                      "to"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "maxItems": 64,
+              "minItems": 3,
+              "type": "array"
+            },
+            "start": {
+              "items": {
+                "maximum": 1,
+                "minimum": -1,
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "winding": {
+              "enum": [
+                "clockwise",
+                "counter_clockwise"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "hole_id",
+            "winding",
+            "start",
+            "segments"
+          ],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "type": "array"
+      },
+      "normalized_bounds": {
+        "additionalProperties": false,
+        "properties": {
+          "max": {
+            "items": {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "min": {
+            "items": {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "type": "object"
+      },
+      "plane": {
+        "enum": [
+          "front",
+          "side",
+          "top",
+          "cross_section"
+        ],
+        "type": "string"
+      },
+      "provenance": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "enum": [
+              "agent",
+              "svg_editor",
+              "component_recipe",
+              "reference_rebuild"
+            ],
+            "type": "string"
+          },
+          "source_ref": {
+            "pattern": "^[a-z][a-z0-9_\\-]{1,119}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "resample_count": {
+        "maximum": 256,
+        "minimum": 8,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "ProfileSketch@1"
+      },
+      "segments": {
+        "items": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "line"
+                },
+                "to": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "to"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "control": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "kind": {
+                  "const": "quadratic"
+                },
+                "to": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "control",
+                "to"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "control_1": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "control_2": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "kind": {
+                  "const": "cubic"
+                },
+                "to": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": -1,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "control_1",
+                "control_2",
+                "to"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "sketch_id": {
+        "pattern": "^sketch_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "start": {
+        "items": {
+          "maximum": 1,
+          "minimum": -1,
+          "type": "number"
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array"
+      },
+      "symmetry": {
+        "enum": [
+          "none",
+          "horizontal",
+          "vertical",
+          "radial"
+        ],
+        "type": "string"
+      },
+      "version": {
+        "const": 1
+      },
+      "winding": {
+        "enum": [
+          "open",
+          "clockwise",
+          "counter_clockwise"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "sketch_id",
+      "version",
+      "plane",
+      "closed",
+      "winding",
+      "start",
+      "segments",
+      "holes",
+      "normalized_bounds",
+      "symmetry",
+      "continuity_hint",
+      "resample_count",
+      "provenance"
+    ],
+    "title": "ProfileSketch",
+    "type": "object"
+  },
+  "shape-program.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/shape-program.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "non_functional_only": {
+        "const": true
+      },
+      "operations": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "additionalProperties": false,
+              "properties": {
+                "angle": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 6.283185307179586,
+                  "type": "number"
+                },
+                "axis": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "axis_length": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "number"
+                },
+                "cap_end": {
+                  "type": "boolean"
+                },
+                "cap_start": {
+                  "type": "boolean"
+                },
+                "connector_kind": {
+                  "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+                  "type": "string"
+                },
+                "continuity": {
+                  "enum": [
+                    "linear"
+                  ],
+                  "type": "string"
+                },
+                "count": {
+                  "maximum": 64,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "cross_section_scale": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "height": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "joint_kind": {
+                  "enum": [
+                    "fixed",
+                    "hinge",
+                    "slider",
+                    "ball",
+                    "continuous"
+                  ],
+                  "type": "string"
+                },
+                "material_id": {
+                  "pattern": "^mat_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                "parameter_id": {
+                  "pattern": "^param_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                "part_role": {
+                  "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+                  "type": "string"
+                },
+                "path_closed": {
+                  "type": "boolean"
+                },
+                "path_points": {
+                  "items": {
+                    "items": {
+                      "maximum": 100000,
+                      "minimum": -100000,
+                      "type": "number"
+                    },
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "type": "array"
+                  },
+                  "maxItems": 32,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "path_twist_degrees": {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                "points": {
+                  "items": {
+                    "items": {
+                      "type": "number"
+                    },
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "type": "array"
+                  },
+                  "maxItems": 32,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "position": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "profile_input_id": {
+                  "pattern": "^profileinput_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                "profile_scale": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "radial_segments": {
+                  "maximum": 64,
+                  "minimum": 8,
+                  "type": "integer"
+                },
+                "radius": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "rotation": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "section_set_input_id": {
+                  "pattern": "^profileinput_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                "segments": {
+                  "maximum": 3,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "size": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "spacing": {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "zone_id": {
+                  "pattern": "^zone_[a-z0-9_\\-]+$",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "inputs": {
+              "items": {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
+            "op": {
+              "enum": [
+                "box",
+                "cylinder",
+                "capsule",
+                "wedge",
+                "profile",
+                "extrude",
+                "revolve",
+                "loft",
+                "sweep",
+                "mirror",
+                "array",
+                "radial_array",
+                "union",
+                "subtract",
+                "bevel_approx",
+                "surface_panel"
+              ],
+              "type": "string"
+            },
+            "operation_id": {
+              "pattern": "^op_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "operation_id",
+            "op",
+            "inputs",
+            "args"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "outputs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "mesh",
+                "assembly_graph"
+              ],
+              "type": "string"
+            },
+            "operation_id": {
+              "pattern": "^op_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "output_id": {
+              "pattern": "^output_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "part_role": {
+              "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "output_id",
+            "operation_id",
+            "kind",
+            "part_role"
+          ],
+          "type": "object"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "parameters": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number"
+            },
+            "parameter_id": {
+              "pattern": "^param_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter_id",
+            "default",
+            "min",
+            "max"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "profile_inputs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "canonical_payload": {
+              "anyOf": [
+                {
+                  "$ref": "profile-sketch.schema.json"
+                },
+                {
+                  "$ref": "profile-section-set.schema.json"
+                }
+              ]
+            },
+            "contract_version": {
+              "enum": [
+                "ProfileSketch@1",
+                "ProfileSectionSet@1"
+              ],
+              "type": "string"
+            },
+            "input_id": {
+              "pattern": "^profileinput_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "input_kind": {
+              "enum": [
+                "profile_sketch",
+                "profile_section_set"
+              ],
+              "type": "string"
+            },
+            "input_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "input_id",
+            "input_kind",
+            "contract_version",
+            "input_sha256",
+            "canonical_payload"
+          ],
+          "type": "object"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
+      "program_id": {
+        "pattern": "^shape_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ShapeProgram@1"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "triangle_budget": {
+        "maximum": 100000,
+        "minimum": 100,
+        "type": "integer"
+      },
+      "units": {
+        "const": "millimeter"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "units",
+      "seed",
+      "triangle_budget",
+      "parameters",
+      "operations",
+      "outputs",
+      "non_functional_only"
+    ],
+    "title": "ShapeProgram",
+    "type": "object"
+  },
+  "visual-intent-mapping.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/visual-intent-mapping.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "directions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "color_theme": {
+              "enum": [
+                "dark_neutral",
+                "signal_accent",
+                "light_technical",
+                "warm_contrast"
+              ],
+              "type": "string"
+            },
+            "detail_density": {
+              "enum": [
+                "simple",
+                "medium",
+                "dense"
+              ],
+              "type": "string"
+            },
+            "direction_id": {
+              "pattern": "^direction_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "pose_category": {
+              "enum": [
+                "neutral",
+                "grounded",
+                "elevated",
+                "extended"
+              ],
+              "type": "string"
+            },
+            "silhouette": {
+              "enum": [
+                "compact",
+                "balanced",
+                "extended",
+                "organic",
+                "industrial"
+              ],
+              "type": "string"
+            },
+            "variant_family_index": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "direction_id",
+            "silhouette",
+            "detail_density",
+            "color_theme",
+            "pose_category",
+            "variant_family_index"
+          ],
+          "type": "object"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualIntentMapping@1"
+      },
+      "source": {
+        "const": "brief_lexicon_v1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "domain_pack_id",
+      "source",
+      "directions"
+    ],
+    "title": "VisualIntentMapping",
     "type": "object"
   },
   "weapon-concept-spec.schema.json": {

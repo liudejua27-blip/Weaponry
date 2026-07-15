@@ -1,0 +1,133 @@
+{
+  "authoritative_state": {
+    "before_database": {
+      "row_counts": {
+        "active_design_snapshots": 1,
+        "agent_asset_change_sets": 1,
+        "agent_asset_heads": 1,
+        "agent_asset_quality_reports": 0,
+        "agent_asset_versions": 1,
+        "agent_imported_glbs": 0,
+        "idempotency_records": 0
+      },
+      "sha256": "3f9599b66e2c1ef202a128dd990cb2d500a87cb131f59719423411200e535fb6"
+    },
+    "before_object_store": {
+      "object_count": 1,
+      "sha256": "7f33482558214beda171a083387299ea8a6ef049f7588e08e3c526c3fb80de74"
+    },
+    "database_tables": [
+      "agent_asset_versions",
+      "agent_asset_heads",
+      "agent_asset_change_sets",
+      "active_design_snapshots",
+      "agent_asset_quality_reports",
+      "agent_imported_glbs",
+      "idempotency_records"
+    ],
+    "real_content_addressed_store_used": true,
+    "real_sqlite_migrations_applied": true
+  },
+  "candidates": [
+    {
+      "all_interrupt_windows_zero_promotion": true,
+      "candidate": "python",
+      "cases": [
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_CANCELLED",
+          "object_store_unchanged": true,
+          "partial_glb_emitted": false,
+          "process_exit_code": -15,
+          "process_reaped": true,
+          "window": "kernel_running"
+        },
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_TIMEOUT",
+          "object_store_unchanged": true,
+          "partial_glb_emitted": false,
+          "process_exit_code": -9,
+          "process_reaped": true,
+          "window": "kernel_running"
+        },
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_CANCELLED",
+          "object_store_unchanged": true,
+          "process_exit_code": -15,
+          "process_reaped": true,
+          "staging_cleanup_verified": true,
+          "valid_staged_glb_existed": true,
+          "window": "candidate_ready_before_promotion"
+        }
+      ]
+    },
+    {
+      "all_interrupt_windows_zero_promotion": true,
+      "candidate": "wasm",
+      "cases": [
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_CANCELLED",
+          "object_store_unchanged": true,
+          "partial_glb_emitted": false,
+          "process_exit_code": -15,
+          "process_reaped": true,
+          "window": "kernel_running"
+        },
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_TIMEOUT",
+          "object_store_unchanged": true,
+          "partial_glb_emitted": false,
+          "process_exit_code": -9,
+          "process_reaped": true,
+          "window": "kernel_running"
+        },
+        {
+          "authoritative_paths_passed_to_child": false,
+          "database_unchanged": true,
+          "error_code": "CSG_CANCELLED",
+          "object_store_unchanged": true,
+          "process_exit_code": -15,
+          "process_reaped": true,
+          "staging_cleanup_verified": true,
+          "valid_staged_glb_existed": true,
+          "window": "candidate_ready_before_promotion"
+        }
+      ]
+    }
+  ],
+  "decision": {
+    "remaining_blockers": [
+      "Windows x64 packaged sidecar has not executed the fixed provenance and lifecycle fixtures",
+      "packaged size/SBOM budget has not selected a single candidate",
+      "a superseding ADR has not selected one production implementation"
+    ],
+    "satisfied": [
+      "candidate subprocess has no authoritative SQLite or object-store path",
+      "cancel, timeout, and ready-before-promotion interruption windows leave Version/head/Snapshot/preview/quality/import/idempotency facts unchanged",
+      "staging GLB is outside the content-addressed store and is removed on interruption",
+      "Version/head/Snapshot writes roll back together on injected failure and commit together on success"
+    ],
+    "selected": null,
+    "status": "production_lifecycle_evidence_passed_candidate_not_selected"
+  },
+  "machine": {
+    "node": "v26.3.1",
+    "platform": "darwin",
+    "python": "3.11.15"
+  },
+  "promotion_transaction": {
+    "injected_failure_rollback_verified": true,
+    "uow_type": "SQLiteUnitOfWork",
+    "version_head_snapshot_atomic_success_verified": true
+  },
+  "schema_version": "ForgeCADCSGPromotionBoundaryEvidence@1"
+}

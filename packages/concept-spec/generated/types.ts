@@ -13,6 +13,18 @@ export type RelativePath = string
 
 export type Vec3 = Array<number>
 
+export type EditableParameterBinding = {
+  "schema_version": "EditableParameterBinding@1"
+  "parameter_id": string
+  "path": "transform.position.x" | "transform.position.y" | "transform.position.z" | "transform.scale.x" | "transform.scale.y" | "transform.scale.z"
+  "display_name": string
+  "unit": "millimeter" | "ratio"
+  "default": number
+  "min": number
+  "max": number
+  "step": number
+}
+
 export type Transform = {
   "position": Vec3
   "rotation": Vec3
@@ -22,6 +34,231 @@ export type Transform = {
 export type ModuleCategory = "core_shell" | "front_shell" | "rear_shell" | "grip_shell" | "top_accessory" | "side_accessory" | "lower_structure" | "storage_visual" | "armor_panel"
 
 export type IntendedUse = "visual_asset" | "game_asset" | "film_prop" | "non_functional_display"
+
+export type ActiveDesignSnapshot = {
+  "schema_version": "ActiveDesignSnapshot@1"
+  "project_id": string
+  "active_design": AgentActiveDesign | LegacyActiveDesign
+  "selected_part_id": string | null
+  "selected_material_zone_id"?: string | null
+  "preview": PreviewReference | null
+  "quality": QualityReference | null
+  "export": ExportReference
+  "render_preset"?: RenderPreset | null
+  "part_display"?: PartDisplay | null
+  "revision": number
+  "updated_at": IsoDatetime
+}
+
+export type AgentAssetChangeSet = {
+  "schema_version": "AgentAssetChangeSet@1"
+  "change_set_id": string
+  "project_id": string
+  "base_asset_version_id": string
+  "summary": string
+  "operations": Array<{
+  "operation_id": string
+  "op": "set_part_transform" | "set_part_parameter" | "set_joint_pose" | "apply_material_preset" | "replace_part" | "snap_part_to_connector" | "split_part" | "merge_parts"
+  "part_id": string
+  "path"?: string | null
+  "value"?: unknown
+  "transform"?: Record<string, unknown> | null
+  "material_id"?: string | null
+  "material_zone_id"?: string | null
+  "replacement_component_id"?: string | null
+  "target_part_id"?: string | null
+  "target_connector_id"?: string | null
+  "connector_id"?: string | null
+  "structure_suggestion_id"?: string | null
+}>
+  "protected_part_ids": Array<string>
+  "status": "proposed" | "previewed" | "confirmed" | "rejected" | "stale"
+  "preview": AgentAssetVersion | null
+  "resulting_asset_version_id": string | null
+  "created_at": IsoDatetime
+  "updated_at": IsoDatetime
+}
+
+export type AgentAssetExport = {
+  "schema_version": "AgentAssetExport@1"
+  "asset_version_id": string
+  "format": "glb"
+  "glb_base64": string
+  "triangle_count": number
+  "bounds_mm": Vec3
+  "readback_status": "passed"
+  "readback_triangle_count": number
+  "exported_at": IsoDatetime
+}
+
+export type AgentAssetQualityReport = {
+  "schema_version": "AgentAssetQualityReport@1"
+  "quality_report_id": string
+  "asset_version_id": string
+  "status": "passed" | "warning" | "failed" | "unavailable"
+  "triangle_count": number
+  "bounds_mm"?: Vec3 | null
+  "evidence_source"?: "geometry_compile_readback" | "external_glb_inspection" | "compile_failure" | "legacy_estimate"
+  "compile_readback"?: GeometryCompileReadback | null
+  "findings": Array<{
+  "check_id": string
+  "severity": "info" | "warning" | "error"
+  "message": string
+  "part_ids": Array<string>
+}>
+  "checked_at": IsoDatetime
+}
+
+export type AgentAssetRenderPackage = {
+  "schema_version": "AgentAssetRenderPackage@1"
+  "package_kind": "concept_view_png_bundle"
+  "asset_version_id": string
+  "renderer_id": "forgecad-agent-software-raster@1"
+  "render_set_sha256": string
+  "render_set_byte_size": number
+  "width": number
+  "height": number
+  "views": Array<View>
+  "exploded_view_available": boolean
+  "exploded_unavailable_reason"?: string | null
+  "non_engineering_notice": "concept_views_only_not_engineering_or_manufacturing_data"
+}
+
+export type AgentAssetRenderSet = {
+  "schema_version": "AgentAssetRenderSet@1"
+  "asset_version_id": string
+  "renderer_id": "forgecad-agent-software-raster@1"
+  "width": number
+  "height": number
+  "views": Array<View>
+  "exploded_view_available": boolean
+  "exploded_unavailable_reason"?: string | null
+  "render_set_sha256": string
+  "render_set_byte_size": number
+  "rendered_at": IsoDatetime
+}
+
+export type AgentAssetVersion = {
+  "schema_version": "AgentAssetVersion@1"
+  "asset_version_id": string
+  "project_id": string
+  "parent_asset_version_id": string | null
+  "version_no": number
+  "status": "committed" | "superseded"
+  "summary": string
+  "stage": "segmented_concept" | "editable_asset"
+  "plan_id": string
+  "direction_id": string
+  "domain_pack_id": string
+  "artifact_id": string
+  "parts": Array<{
+  "part_id": string
+  "role": string
+  "parent_part_id": string | null
+  "position_mm": Vec3
+  "size_mm": Vec3
+  "material_zone_ids": Array<string>
+  "editable_parameters": Array<string>
+  "editable_parameter_bindings"?: Array<EditableParameterBinding>
+  "locked": boolean
+  "provenance": "agent_generated" | "agent_component"
+}>
+  "shape_program": Record<string, unknown>
+  "assembly_graph": Record<string, unknown>
+  "material_bindings": Record<string, unknown>
+  "created_at": IsoDatetime
+}
+
+export type AgentComponentCompatibility = {
+  "schema_version": "AgentComponentCompatibility@1"
+  "component_id": string
+  "target_asset_version_id": string
+  "target_part_id": string
+  "eligible": boolean
+  "source_quality_status": "passed" | "warning" | "failed" | "unavailable"
+  "reason_codes": Array<"same_domain_pack" | "domain_pack_mismatch" | "same_role" | "role_mismatch" | "component_active" | "component_disabled" | "source_quality_passed" | "source_quality_warning" | "source_quality_failed" | "source_quality_unavailable" | "target_connectors_preserved">
+}
+
+export type AgentComponent = {
+  "schema_version": "AgentComponent@1"
+  "component_id": string
+  "project_id": string
+  "domain_pack_id": string
+  "role": string
+  "display_name": string
+  "description": string
+  "source_asset_version_id": string
+  "source_part_id": string
+  "part_template": Record<string, unknown>
+  "shape_operation": Record<string, unknown>
+  "material_bindings": Record<string, unknown>
+  "status": "active" | "disabled"
+  "source_quality_status"?: "passed" | "warning" | "failed" | "unavailable"
+  "created_at": IsoDatetime
+  "updated_at": IsoDatetime
+}
+
+export type AgentStructureSuggestionList = {
+  "schema_version": "AgentStructureSuggestionList@1"
+  "asset_version_id": string
+  "suggestions": Array<{
+  "schema_version": "AgentStructureSuggestion@1"
+  "suggestion_id": string
+  "kind": "split_part" | "merge_parts"
+  "asset_version_id": string
+  "part_id": string
+  "target_part_id": string | null
+  "affected_part_ids": Array<string>
+  "source_facts": Array<string>
+  "summary": string
+}>
+  "unavailable_message": string | null
+}
+
+export type AssemblyGraph = {
+  "schema_version": "AssemblyGraph@1"
+  "graph_id": Id
+  "concept_id": Id
+  "root_part_id": string
+  "parts": Array<{
+  "part_id": string
+  "role": string
+  "parent_part_id": string | null
+  "geometry_source": "shape_program" | "module_asset" | "imported_reference"
+  "transform": Transform
+  "connectors": Array<unknown>
+  "joints": Array<unknown>
+  "material_zones": Array<string>
+  "editable_parameters": Array<string>
+  "locked": boolean
+  "provenance": "agent_generated" | "user_created" | "imported"
+}>
+  "connections": Array<{
+  "connection_id": string
+  "from_part_id": string
+  "from_connector_id": string
+  "to_part_id": string
+  "to_connector_id": string
+  "status": "connected" | "invalid"
+}>
+}
+
+export type AgentBlockoutConceptPreview = {
+  "schema_version": "AgentBlockoutConceptPreview@1"
+  "plan_id": string
+  "direction_id": string
+  "variant_id": string
+  "variation_index": number
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "topology_hash": string
+  "render_context_sha256": string
+  "renderer_id": "forgecad-agent-software-raster@1"
+  "width": 320
+  "height": 240
+  "png_base64": string
+  "sha256": string
+  "byte_size": number
+}
 
 export type ConceptExportManifest = {
   "schema_version": "ConceptExportManifest@1"
@@ -49,6 +286,35 @@ export type ConceptExportManifest = {
   "mime_type": string
 }>
   "created_at": IsoDatetime
+}
+
+export type ConceptScopeDecision = {
+  "schema_version": "ConceptScopeDecision@1"
+  "policy_version": "ForgeCADConceptScopePolicy@1"
+  "status": "allowed"
+  "reason_code": "allowed_non_functional_concept"
+  "domain_pack_id": DomainPackId
+  "candidate_domain_pack_ids": Array<DomainPackId>
+  "matched_policy_rule_ids": Array<unknown>
+  "user_message": string
+} | {
+  "schema_version": "ConceptScopeDecision@1"
+  "policy_version": "ForgeCADConceptScopePolicy@1"
+  "status": "clarification_required"
+  "reason_code": "domain_ambiguous" | "domain_unknown"
+  "domain_pack_id": null
+  "candidate_domain_pack_ids": Array<DomainPackId>
+  "matched_policy_rule_ids": Array<unknown>
+  "user_message": string
+} | {
+  "schema_version": "ConceptScopeDecision@1"
+  "policy_version": "ForgeCADConceptScopePolicy@1"
+  "status": "unsupported"
+  "reason_code": "real_weapon_or_manufacturing" | "engineering_safety_or_control"
+  "domain_pack_id": null
+  "candidate_domain_pack_ids": Array<unknown>
+  "matched_policy_rule_ids": Array<string>
+  "user_message": string
 }
 
 export type DesignChangeSet = {
@@ -88,6 +354,41 @@ export type DesignDomainProfile = {
   "optional_connectors": Array<string>
   "export_profiles": Array<IntendedUse>
   "non_functional_only": true
+}
+
+export type DomainInferenceResult = {
+  "schema_version": "DomainInferenceResult@1"
+  "status": "recognized"
+  "domain_pack_id": DomainPackId
+  "candidate_domain_pack_ids": Array<DomainPackId>
+  "matched_terms": MatchedTerms
+} | {
+  "schema_version": "DomainInferenceResult@1"
+  "status": "ambiguous"
+  "domain_pack_id": null
+  "candidate_domain_pack_ids": Array<DomainPackId>
+  "matched_terms": MatchedTerms
+} | {
+  "schema_version": "DomainInferenceResult@1"
+  "status": "unsupported"
+  "domain_pack_id": null
+  "candidate_domain_pack_ids": Array<unknown>
+  "matched_terms": Array<unknown>
+}
+
+export type DomainPackManifest = {
+  "schema_version": "DomainPackManifest@1"
+  "pack_id": string
+  "domain": "future_weapon_prop" | "vehicle_concept" | "aircraft_concept" | "robotic_arm_concept"
+  "display_name": string
+  "description": string
+  "non_functional_only": true
+  "templates": Array<string>
+  "connector_types": Array<string>
+  "joint_types": Array<"fixed" | "hinge" | "slider" | "ball" | "continuous">
+  "material_preset_ids": Array<string>
+  "quality_profile_id": string
+  "export_profile_id": string
 }
 
 export type FormalModuleReview = {
@@ -147,6 +448,43 @@ export type FormalModuleReview = {
 }>
 }
 
+export type GeometryCompileReadback = {
+  "schema_version": "GeometryCompileReadback@1"
+  "runtime_manifest_version": "ShapeProgramRuntimeManifest@1"
+  "program_id": string
+  "shape_program_sha256": Sha256
+  "glb_sha256": Sha256
+  "glb_byte_size": number
+  "triangle_count": number
+  "bounds_mm": Vec3
+  "mesh_count": number
+  "primitive_count": number
+  "material_count": number
+  "uv0_primitive_count": number
+  "normal_primitive_count": number
+  "surface_provenance": Array<{
+  "part_role": string
+  "profile_input_id": string | null
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam">
+  "surface_ranges": Array<{
+  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam"
+  "first_triangle": number
+  "triangle_count": number
+}>
+  "uv0_min": Array<number>
+  "uv0_max": Array<number>
+  "closed": boolean
+  "boundary_edge_count": number
+  "non_manifold_edge_count": number
+  "degenerate_triangle_count": number
+}>
+  "operation_ids": Array<string>
+  "operation_names": Array<string>
+  "output_roles": Array<string>
+  "material_ids": Array<string>
+  "readback_status": "passed"
+}
+
 export type JobEventV2 = {
   "schema_version": "JobEvent@2"
   "event_id": Id
@@ -162,6 +500,101 @@ export type JobEventV2 = {
   "artifact_asset_id"?: Id | null
   "metadata": Record<string, unknown>
   "created_at": IsoDatetime
+}
+
+export type MaterialPreset = {
+  "schema_version": "MaterialPreset@1"
+  "material_id": string
+  "display_name": string
+  "category": "metal" | "polymer" | "rubber" | "composite" | "glass" | "coating" | "natural" | "emissive"
+  "pbr": {
+  "base_color": HexColor
+  "metallic": number
+  "roughness": number
+  "opacity": number
+  "base_color_texture_asset_id"?: string | null
+  "normal_texture_asset_id"?: string | null
+  "normal_strength"?: number
+  "emissive_color"?: HexColor
+  "emissive_strength"?: number
+  "transmission"?: number
+  "ior"?: number
+  "clearcoat"?: number
+  "clearcoat_roughness"?: number
+  "texture_scale"?: Array<number>
+}
+  "visual_only": true
+  "allowed_domains": Array<"future_weapon_prop" | "vehicle_concept" | "aircraft_concept" | "robotic_arm_concept">
+  "provenance": "forgecad_builtin" | "user_created" | "imported_reference"
+  "visual_tags"?: Array<string>
+  "source"?: "forgecad_builtin" | "user_created" | "imported_reference" | null
+  "license"?: "not_applicable" | "self_declared_original" | "third_party" | "unknown" | null
+  "version"?: string | null
+  "thumbnail_asset_id"?: string | null
+  "thumbnail_fallback"?: "parameter" | "texture" | "unavailable"
+  "texture_summary"?: Array<{
+  "texture_asset_id": string
+  "texture_role": "base_color" | "normal" | "thumbnail"
+  "exists": boolean
+  "source"?: "forgecad_builtin" | "user_created" | "imported_reference" | null
+  "license"?: "not_applicable" | "self_declared_original" | "third_party" | "unknown" | null
+  "license_ref"?: string | null
+}>
+}
+
+export type MaterialTextureObject = {
+  "schema_version": "MaterialTextureObject@1"
+  "texture_asset_id": string
+  "texture_role": "base_color" | "normal" | "thumbnail"
+  "display_name": string
+  "mime_type": "image/png" | "image/jpeg" | "image/webp"
+  "byte_size": number
+  "sha256": Sha256
+  "object_path": RelativePath
+  "width": number
+  "height": number
+  "source": "forgecad_builtin" | "user_created" | "imported_reference"
+  "license": "not_applicable" | "self_declared_original" | "third_party" | "unknown"
+  "license_ref"?: string | null
+  "thumbnail_asset_id"?: string | null
+  "visual_only": true
+  "object_exists": boolean
+  "created_at": IsoDatetime
+  "updated_at": IsoDatetime
+}
+
+export type MechanicalConceptSpec = {
+  "schema_version": "MechanicalConceptSpec@1"
+  "concept_id": Id
+  "project_id": Id
+  "domain_pack_id": string
+  "brief": string
+  "design_language": {
+  "keywords": Array<string>
+  "silhouette": "compact" | "balanced" | "extended" | "organic" | "industrial"
+  "detail_density": "simple" | "medium" | "dense"
+  "color_direction": string
+}
+  "visual_intent_mapping": VisualIntentMapping
+  "envelope": {
+  "min_mm": Vec3
+  "max_mm": Vec3
+}
+  "pose": {
+  "position": Vec3
+  "rotation": Vec3
+}
+  "full_look": {
+  "completeness": "full_exterior"
+  "generation_stage": "blockout" | "segmented_concept" | "editable_asset"
+  "primary_part_roles": Array<string>
+  "preview_views": Array<"perspective" | "front" | "side" | "top" | "exploded">
+}
+  "material_intents": Array<{
+  "zone_role": string
+  "material_preset_id": string
+}>
+  "non_functional_only": true
 }
 
 export type ModelQualityReport = {
@@ -258,6 +691,161 @@ export type ModulePackManifest = {
   "thumbnail_path": RelativePath
   "license_path": RelativePath
   "lod": "LOD0" | "LOD1" | "LOD2"
+}>
+}
+
+export type ProfileSectionSet = {
+  "schema_version": "ProfileSectionSet@1"
+  "section_set_id": string
+  "version": 1
+  "main_axis": "x" | "y" | "z"
+  "profiles": Array<ProfileSketch>
+  "sections": Array<{
+  "section_id": string
+  "position": number
+  "profile_sketch_id": string
+  "scale": number
+  "twist_degrees": number
+  "cap_policy": "none" | "start" | "end"
+}>
+  "resample_policy": {
+  "mode": "uniform_count"
+  "count": number
+}
+  "symmetry": "none" | "horizontal" | "vertical" | "radial"
+  "provenance": {
+  "source": "agent" | "svg_editor" | "component_recipe" | "reference_rebuild"
+  "source_ref"?: string
+}
+}
+
+export type ProfileSketch = {
+  "schema_version": "ProfileSketch@1"
+  "sketch_id": string
+  "version": 1
+  "plane": "front" | "side" | "top" | "cross_section"
+  "closed": boolean
+  "winding": "open" | "clockwise" | "counter_clockwise"
+  "start": Array<number>
+  "segments": Array<{
+  "kind": "line"
+  "to": Array<number>
+} | {
+  "kind": "quadratic"
+  "control": Array<number>
+  "to": Array<number>
+} | {
+  "kind": "cubic"
+  "control_1": Array<number>
+  "control_2": Array<number>
+  "to": Array<number>
+}>
+  "holes": Array<{
+  "hole_id": string
+  "winding": "clockwise" | "counter_clockwise"
+  "start": Array<number>
+  "segments": Array<{
+  "kind": "line"
+  "to": Array<number>
+} | {
+  "kind": "quadratic"
+  "control": Array<number>
+  "to": Array<number>
+} | {
+  "kind": "cubic"
+  "control_1": Array<number>
+  "control_2": Array<number>
+  "to": Array<number>
+}>
+}>
+  "normalized_bounds": {
+  "min": Array<number>
+  "max": Array<number>
+}
+  "symmetry": "none" | "horizontal" | "vertical" | "radial"
+  "continuity_hint": "linear" | "tangent" | "smooth"
+  "resample_count": number
+  "provenance": {
+  "source": "agent" | "svg_editor" | "component_recipe" | "reference_rebuild"
+  "source_ref"?: string
+}
+}
+
+export type ShapeProgram = {
+  "schema_version": "ShapeProgram@1"
+  "program_id": string
+  "units": "millimeter"
+  "seed": number
+  "triangle_budget": number
+  "parameters": Array<{
+  "parameter_id": string
+  "default": number
+  "min": number
+  "max": number
+}>
+  "profile_inputs"?: Array<{
+  "input_id": string
+  "input_kind": "profile_sketch" | "profile_section_set"
+  "contract_version": "ProfileSketch@1" | "ProfileSectionSet@1"
+  "input_sha256": Sha256
+  "canonical_payload": ProfileSketch | ProfileSectionSet
+}>
+  "operations": Array<{
+  "operation_id": string
+  "op": "box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel"
+  "inputs": Array<string>
+  "args": {
+  "size"?: Array<number>
+  "radius"?: number
+  "height"?: number
+  "angle"?: number
+  "spacing"?: number
+  "position"?: Array<number>
+  "rotation"?: Array<number>
+  "axis"?: Array<number>
+  "count"?: number
+  "segments"?: number
+  "points"?: Array<Array<number>>
+  "profile_input_id"?: string
+  "profile_scale"?: Array<number>
+  "cap_start"?: boolean
+  "cap_end"?: boolean
+  "radial_segments"?: number
+  "section_set_input_id"?: string
+  "cross_section_scale"?: Array<number>
+  "axis_length"?: number
+  "continuity"?: "linear"
+  "path_points"?: Array<Array<number>>
+  "path_closed"?: boolean
+  "path_twist_degrees"?: number
+  "parameter_id"?: string
+  "part_role"?: string
+  "zone_id"?: string
+  "connector_kind"?: string
+  "joint_kind"?: "fixed" | "hinge" | "slider" | "ball" | "continuous"
+  "material_id"?: string
+}
+}>
+  "outputs": Array<{
+  "output_id": string
+  "operation_id": string
+  "kind": "mesh" | "assembly_graph"
+  "part_role": string
+}>
+  "non_functional_only": true
+}
+
+export type VisualIntentMapping = {
+  "schema_version": "VisualIntentMapping@1"
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "source": "brief_lexicon_v1"
+  "directions": Array<{
+  "direction_id": string
+  "silhouette": "compact" | "balanced" | "extended" | "organic" | "industrial"
+  "detail_density": "simple" | "medium" | "dense"
+  "color_theme": "dark_neutral" | "signal_accent" | "light_technical" | "warm_contrast"
+  "pose_category": "neutral" | "grounded" | "elevated" | "extended"
+  "variant_family_index": number
 }>
 }
 

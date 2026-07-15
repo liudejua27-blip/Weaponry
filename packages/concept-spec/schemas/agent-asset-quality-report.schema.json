@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-asset-quality-report.schema.json",
+  "title": "AgentAssetQualityReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "quality_report_id", "asset_version_id", "status", "triangle_count", "findings", "checked_at"],
+  "properties": {
+    "schema_version": { "const": "AgentAssetQualityReport@1" },
+    "quality_report_id": { "type": "string", "pattern": "^quality_[a-z0-9_\\-]+$" },
+    "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "status": { "type": "string", "enum": ["passed", "warning", "failed", "unavailable"] },
+    "triangle_count": { "type": "integer", "minimum": 0 },
+    "bounds_mm": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/vec3" },
+        { "type": "null" }
+      ]
+    },
+    "evidence_source": {
+      "type": "string",
+      "enum": ["geometry_compile_readback", "external_glb_inspection", "compile_failure", "legacy_estimate"],
+      "default": "legacy_estimate"
+    },
+    "compile_readback": {
+      "oneOf": [
+        { "$ref": "geometry-compile-readback.schema.json" },
+        { "type": "null" }
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check_id", "severity", "message", "part_ids"],
+        "properties": {
+          "check_id": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+          "message": { "type": "string", "minLength": 1 },
+          "part_ids": { "type": "array", "items": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" } }
+        }
+      }
+    },
+    "checked_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["evidence_source"],
+        "properties": { "evidence_source": { "const": "geometry_compile_readback" } }
+      },
+      "then": {
+        "required": ["bounds_mm", "compile_readback"],
+        "properties": {
+          "bounds_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+          "compile_readback": { "$ref": "geometry-compile-readback.schema.json" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidence_source"],
+        "properties": { "evidence_source": { "const": "external_glb_inspection" } }
+      },
+      "then": {
+        "required": ["bounds_mm"],
+        "properties": {
+          "bounds_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+          "compile_readback": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidence_source"],
+        "properties": { "evidence_source": { "const": "compile_failure" } }
+      },
+      "then": {
+        "properties": {
+          "status": { "const": "unavailable" },
+          "triangle_count": { "const": 0 },
+          "bounds_mm": { "type": "null" },
+          "compile_readback": { "type": "null" }
+        }
+      }
+    }
+  ]
+}

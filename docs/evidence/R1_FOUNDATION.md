@@ -44,7 +44,7 @@
 - `App.tsx` 从约 706 行降至 21 行，只组合 controller、legacy workbench 和独立 lazy CAD route；
 - 新增懒加载 `#/cad` 工作台：九区布局、参数化武器 Three.js 视口、组件分类/选择、视图工具、DFM 与导出状态；
 - 使用 Phosphor 统一图标并补充 license ledger；
-- 完成 1536 × 1024 参考图对照与交互 QA，证据见仓库根目录 `design-qa.md`。
+- 当时完成过 1536 × 1024 旧 Weapon/TripoSR 参考图对照；原 `design-qa.md` 已因路线淘汰从当前文档树删除，历史内容仅通过 Git 追溯，不能作为通用机械工作台 QA。
 
 ## 验证结果
 

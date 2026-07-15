@@ -1,14 +1,39 @@
 # ForgeCAD Quickstart
 
-ForgeCAD 第一阶段是“通用 AI 模块化 3D 平台 + Weapon Concept Pack”，支持未来武器概念、游戏资产、影视道具和非功能展示模型。CAD/DFM Engineering Pack 是后续独立路线。
+版本：2026-07-13
+目标：在开发机上启动当前本机 Alpha 并验证最小 Agent 闭环
 
-## 运行当前参考工作台
+ForgeCAD 是轻量通用机械概念 3D Agent。当前首批领域是未来武器概念道具、汽车、飞机和机械臂；几何主要由受限 `box`/`cylinder` ShapeProgram 生成，不需要安装本地神经 3D 模型、CUDA、ComfyUI 或 Blender。
+
+## 1. 安装开发依赖
 
 ```bash
 npm install
 python3 -m venv .venv
 .venv/bin/pip install -e "apps/agent[dev]"
+```
 
+## 2. 启动本机 Tauri 测试版
+
+```bash
+script/build_and_run.sh --verify
+```
+
+预期结果：
+
+```text
+local_tauri_app_running: true
+local_agent_healthy: true
+agent_mode: local-dev-python
+```
+
+`local-dev-python` 表示应用仍依赖开发机 Python。当前 sidecar 是空占位文件，因此这不是可分发安装包。
+
+## 3. 浏览器开发预览
+
+终端一：
+
+```bash
 PYTHONPATH=apps/agent \
 WUSHEN_LIBRARY_ROOT="$PWD/WushenForgeLibrary" \
 WUSHEN_MIGRATIONS_DIR="$PWD/migrations" \
@@ -16,83 +41,63 @@ WUSHEN_MIGRATIONS_DIR="$PWD/migrations" \
   --factory --host 127.0.0.1 --port 8000
 ```
 
-另开终端：
+终端二：
 
 ```bash
 VITE_FORGE_API_BASE_URL=http://127.0.0.1:8000 npm run desktop:dev
 ```
 
-打开 `http://127.0.0.1:1420/#/cad`。
+打开 `http://127.0.0.1:1420/#/cad`。浏览器路径不验证 Keychain、Tauri invoke、Rust supervisor 或安装包。
 
-macOS 本机原生测试（推荐）会直接构建并运行 `CAD 工作台.app`。首次执行会用本机 Blender 生成并缓存高细节、本人原创声明且待独立审阅的 10 模块 Pack；它不使用任何模型 API Key：
-
-```bash
-script/build_and_run.sh --verify
-```
-
-## 跑当前门禁
+## 4. 最小验证
 
 ```bash
+npm run agent:check
+npm run contracts:types:check
 npm run desktop:typecheck
-npm run desktop:build
-npm run desktop:p0-context-continuity-smoke
-npm run r1:create-weapon-gate
-npm run r1:generate3d-gate
-npm run r1:worker-gate
-npm run r1:unity-export-gate
-npm run r1:patch-gate
-npm run r1:frontend-composition-gate
-npm run r1:gate
-npm run r2:contracts-gate
-npm run r2:gate
-npm run assets:module-pack-gate
-npm run assets:blender-authoring-preflight-gate
-npm run agent:r3-connector-snap-smoke
-npm run r3:workbench-gate
-npm run r3:change-set-audit-gate
-npm run r3:library-backup-gate
-npm run r4:planner-gate
-npm run agent:r4-evaluation-baseline
-npm run r5:combined-glb-gate
-npm run r5:obj-gate
-npm run r5:render-gate
-npm run r5:multiview-gate
-npm run r5:presentation-gate
-npm run r5:quality-gate
-npm run r5:c07-intersection-gate
-npm run r5:c07-localization-gate
-npm run r5:c07-policy-gate
-npm run release:safety-scope
-npm run release:secrets-files
-npm run release:prompt-quality
-npm run release:docs-walkthrough
-npm run release:packaging-readiness
-npm run release:license-sbom
-npm run release:gate
+npm run desktop:tauri-check
+
+npm run agent:g1-kernel-smoke
+npm run agent:g2-contracts-smoke
+npm run agent:g3-shape-program-smoke
+npm run agent:g4-mechanical-planner-smoke
+npm run agent:g5-geometry-worker-smoke
+npm run agent:g6-segmentation-smoke
+npm run agent:g6-material-catalog-smoke
+npm run agent:g6-asset-editing-smoke
+npm run agent:g6-component-registry-smoke
+npm run agent:g7-external-glb-import-smoke
+npm run agent:s8-active-design-navigation-smoke
 ```
 
-当前页面已读取真实 Concept Project、Version、ModuleGraph、ChangeSet 时间线与 GLB；`r3:workbench-gate` 验证 10 模块参考 Pack、替换/吸附/镜像、Undo/Redo、爆炸视图和视口生命周期；`r3:change-set-audit-gate` 还验证当前筛选的 JSONL/CSV + hash Manifest ZIP、`project_lifetime`、桌面下载与重启回读；`r3:library-backup-gate` 验证 SQLite Backup API、引用对象/容量 Manifest、tamper/overwrite/secret negatives、隔离恢复，以及 10 模块参考库的多轮耗时/容量报告和全部 Module hash 回读；`r4:planner-gate` 验证 Brief/Module/Change Planner、半透明 ghost 与显式 confirm 链。它们不代表真实模型 AI 指标、法规级 WORM/legal hold、加密异地备份或正式资产规模性能已达标。R5 各门继续验证 GLB/OBJ/PNG/MP4、展示交付和 `weapon-concept-geometry/1.3`。
+`npm run desktop:r3-concept-workbench-smoke` 已验证当前 Agent 核心流程，包括 preview/confirm、质量、撤销/重做、重启恢复和 GLB 导出。它不代表完整并发、原生安装或发布验证已完成。
 
-正式备份/验证/恢复/演练命令只在 [OPERATIONS.md](OPERATIONS.md) 维护；Quickstart 不复制完整流程。
+## 5. 当前用户闭环
 
-`agent:r4-evaluation-baseline` 验证固定 20/20/20/20 truth set 和评测器，但仍不是 AI 证据。配置真实 OpenAI-compatible Provider 后，先运行不发网络请求的 `npm run agent:r4-evaluation-preflight`；只有操作者随后明确运行 `npm run agent:r4-evaluation-live`，完整 80 次调用、token usage 和全部阈值通过，报告才可能标记为真实 Provider 证据。具体成本、预检边界和失败码见 [OPERATIONS.md](OPERATIONS.md)。
-
-MP4 依赖 `ffmpeg`。如果不在 PATH，可设置 `FORGECAD_FFMPEG_EXECUTABLE`。DCC 环境先运行 `npm run assets:dcc-roundtrip-preflight`；只有带 `--input-glb` 的检查返回 `dcc_roundtrip_validated` 才能声称 Blender/Assimp 往返已通过。当前证据已覆盖 starter core、工作台组合后的 visual-v2 三模块、10 模块 reference 与 10 模块 visual candidate combined GLB；它们不代表正式美术资产验收。
-
-开始制作首包前先读 [MODULE_ASSET_GUIDE.md](MODULE_ASSET_GUIDE.md) 和 [MODULE_NAMING_STANDARD.md](MODULE_NAMING_STANDARD.md)。资产 CLI 默认只做 dry-run；只有显式传入 `--import` 才会注册到本地 Agent。
-
-Blender re-export 通过不等于正式资产；`FormalModuleReview@1` 草稿、独立人工审批和晋级报告命令只在 [OPERATIONS.md](OPERATIONS.md) 维护。
-
-三模块设计链稳定后，可生成十模块 Blender visual candidate：`npm run assets:blender-full-candidate-build`。它用于完整组合、质量和 DCC 交接，仍带待审 starter 许可证；完整命令与晋级边界见 [BLENDER_AUTHORING_STARTER.md](BLENDER_AUTHORING_STARTER.md)。
-
-仓库自带 10 模块参考包。启动 Agent 后可直接导入：
-
-```bash
-PYTHONPATH=apps/agent .venv/bin/python scripts/concept_module_pack.py \
-  "$PWD/assets/module-packs/weapon-concept-v1-reference" \
-  --release --api-base-url http://127.0.0.1:8000 --import
+```text
+明确写出汽车/飞机/机械臂/未来武器概念道具
+→ 选择三个方向之一
+→ 生成简单完整 blockout
+→ 查看分件候选
+→ 保存 AgentAssetVersion
+→ 对单个部件进行受限比例/材质/组件修改
+→ 确认创建子版本
+→ 必要时撤销或重做已确认修改
+→ 运行轻量检查
+→ 在“下载当前设计”中直接下载 Agent GLB，或生成/下载概念 PNG 与概念图包
 ```
 
-该包用于立即开始工作台设计和 Blender 交接，不代表最终人工资产质量。
+当前不包含转台视频、自由拆分/合并、任意版本历史浏览或 Agent OBJ/MP4/源包导出。部件锁定、隐藏和单独查看属于当前 Agent Snapshot 的受限工作台状态，不是工程装配约束。Agent 下载抽屉只显示“下载 3D 模型 (GLB)”、“生成概念图”和生成后的单图/概念图包动作；当前视图可下载为只含 PNG 与 manifest 的概念图包。它们都是只读预览，不会创建版本，也不含模型源文件或工程资料。
 
-具体第一周设计步骤、运行方式和故障处理见 [OPERATIONS.md](OPERATIONS.md)。
+## 6. 下一步阅读
+
+- 零基础测试：[USER_GUIDE.md](USER_GUIDE.md)
+- 开发调试：[DEVELOPMENT.md](DEVELOPMENT.md)
+- 当前 API：[API.md](API.md)
+- 数据真值：[AUTHORITATIVE_STATE.md](AUTHORITATIVE_STATE.md)
+- 测试策略：[TEST_STRATEGY.md](TEST_STRATEGY.md)
+- 发布阻断：[PRODUCTION_RELEASE_CHECKLIST.md](PRODUCTION_RELEASE_CHECKLIST.md)
+- 全部文档入口：[OPERATIONS.md](OPERATIONS.md)
+- 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)
+- 后续 Codex 交接：[CODEX_HANDOFF.md](CODEX_HANDOFF.md)
+- 原子任务索引：[CODEX_TASK_INDEX.md](CODEX_TASK_INDEX.md)

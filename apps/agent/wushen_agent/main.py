@@ -7,6 +7,9 @@ from fastapi import FastAPI
 from forgecad_agent.api import (
     LocalApiSettings,
     build_audit_export_router,
+    build_agent_router,
+    build_agent_asset_router,
+    build_active_design_router,
     build_brief_router,
     build_change_set_router,
     build_concept_project_router,
@@ -26,6 +29,10 @@ from forgecad_agent.application import (
     ConceptQualityService,
     ConceptJobService,
     ConceptExportService,
+    AgentKernelService,
+    AgentAssetEditingService,
+    ActiveDesignService,
+    MaterialTextureService,
     concept_planner_from_env,
 )
 
@@ -54,6 +61,7 @@ def create_app() -> FastAPI:
     concept_briefs = ConceptBriefService(store.connection_factory, concept_planner)
     concept_jobs = ConceptJobService(store.connection_factory)
     concept_exports = ConceptExportService(store.connection_factory, store.object_store)
+    material_textures = MaterialTextureService(store.connection_factory, store.object_store)
     change_set_audits = ConceptChangeSetAuditService(
         store.connection_factory, store.object_store
     )
@@ -70,6 +78,9 @@ def create_app() -> FastAPI:
     app.include_router(build_concept_job_router(concept_jobs, concept_quality))
     app.include_router(build_export_router(concept_exports))
     app.include_router(build_audit_export_router(change_set_audits))
+    app.include_router(build_agent_router(AgentKernelService(store.connection_factory), material_textures))
+    app.include_router(build_agent_asset_router(AgentAssetEditingService(store.connection_factory, store.object_store)))
+    app.include_router(build_active_design_router(ActiveDesignService(store.connection_factory)))
 
     @app.on_event("startup")
     async def recover_interrupted_jobs_on_startup() -> None:

@@ -181,8 +181,8 @@ def _assert_docs_have_boundary() -> None:
     requirements = {
         "README.md": ["虚构游戏美术资产", "非制造说明", "不输出可用于现实制造武器的精确图纸"],
         "docs/DESIGN.md": ["虚构游戏美术资产", "项目不生成现实可制造武器", "制造尺寸", "材料配方", "加工流程"],
-        "docs/API.md": ["fictional Unity game-art boundary", "manufacturing drawings"],
-        "docs/UNITY_IMPORT_SMOKE.md": ["fictional game-art assets", "manufacturing dimensions"],
+        "docs/API.md": ["虚构游戏美术资产", "制造图", "制造尺寸"],
+        "docs/PRODUCT_DEFINITION.md": ["虚构游戏资产", "现实武器制造图纸", "制造尺寸"],
     }
     for rel_path, phrases in requirements.items():
         text = (ROOT / rel_path).read_text(encoding="utf-8")

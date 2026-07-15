@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-asset-change-set.schema.json",
+  "title": "AgentAssetChangeSet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "change_set_id", "project_id", "base_asset_version_id", "summary", "operations", "protected_part_ids", "status", "preview", "resulting_asset_version_id", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": { "const": "AgentAssetChangeSet@1" },
+    "change_set_id": { "type": "string", "pattern": "^assetcs_[a-z0-9_\\-]+$" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "base_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "op", "part_id"],
+        "properties": {
+          "operation_id": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" },
+          "op": { "type": "string", "enum": ["set_part_transform", "set_part_parameter", "set_joint_pose", "apply_material_preset", "replace_part", "snap_part_to_connector", "split_part", "merge_parts"] },
+          "part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+          "path": { "type": ["string", "null"] },
+          "value": {},
+          "transform": { "type": ["object", "null"] },
+          "material_id": { "type": ["string", "null"], "pattern": "^mat_[a-z0-9_\\-]+$" },
+          "material_zone_id": { "type": ["string", "null"], "pattern": "^zone_[a-z0-9_\\-]+$" },
+          "replacement_component_id": { "type": ["string", "null"], "pattern": "^agentcomp_[a-z0-9_\\-]+$" },
+          "target_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
+          "target_connector_id": { "type": ["string", "null"] },
+          "connector_id": { "type": ["string", "null"] },
+          "structure_suggestion_id": { "type": ["string", "null"], "pattern": "^structure_[a-z0-9_\\-]+$" }
+        }
+      }
+    },
+    "protected_part_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" } },
+    "status": { "type": "string", "enum": ["proposed", "previewed", "confirmed", "rejected", "stale"] },
+    "preview": { "anyOf": [{ "$ref": "agent-asset-version.schema.json" }, { "type": "null" }] },
+    "resulting_asset_version_id": { "type": ["string", "null"], "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" },
+    "updated_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

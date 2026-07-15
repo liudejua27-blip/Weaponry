@@ -1,0 +1,138 @@
+{
+  "candidates": [
+    {
+      "adapter": "forgecad_restricted_current",
+      "cancellation_verified": false,
+      "cold_ms": 160.8075,
+      "coplanar_completed": false,
+      "deterministic_identical_fixture": true,
+      "limitations": [
+        "overlapping union rejected",
+        "subtract restricted to one axis-aligned box spanning Y/Z"
+      ],
+      "material_surface_provenance_verified": false,
+      "near_degenerate_completed": false,
+      "packaged_increment_bytes": 0,
+      "peak_rss_kib": null,
+      "version": "ShapeProgramRuntimeManifest@1",
+      "warm_median_ms": 155.9844
+    },
+    {
+      "adapter": "manifold_python",
+      "cancellation_verified": false,
+      "cold_ms": 22.0893,
+      "coplanar_completed": true,
+      "deterministic_identical_fixture": true,
+      "fixture_results": {
+        "aircraft_canopy_subtract": {
+          "deterministic": true,
+          "sha256": "fa7d3479c2818c692a54674cd22b5940c404bc14122ddac372d754fdc1de085c",
+          "triangle_count": 32
+        },
+        "appliance_vent_subtract": {
+          "deterministic": true,
+          "sha256": "42b7d5dc8b6e4f97e168577df8cb7c467dc8b3329361bd91a961354f4a6b5e79",
+          "triangle_count": 32
+        },
+        "robot_arm_housing_union": {
+          "deterministic": true,
+          "sha256": "b7959786bfc0dc22d370e8613fa9aeb4de3e24db068504969b487343dd9bd4fd",
+          "triangle_count": 44
+        },
+        "vehicle_window_subtract": {
+          "deterministic": true,
+          "sha256": "7f102fe41b3a59a3fa3df293e703babf7e46ac6beabee357ac630fba248607dc",
+          "triangle_count": 32
+        }
+      },
+      "license": "Apache-2.0",
+      "macos_arm64_executed": true,
+      "material_surface_provenance_verified": false,
+      "near_degenerate_completed": true,
+      "notice_file_present": false,
+      "packaged_increment_bytes": 36939771,
+      "peak_rss_kib": 33040,
+      "removal_plan": "delete isolated target directory; no production dependency or lockfile entry",
+      "source_commit": "11235e6b8ebea2dbed8aec4285685aafd3d95667",
+      "triangle_count": 32,
+      "version": "manifold3d==3.5.2",
+      "warm_median_ms": 0.0736,
+      "windows_packaging_artifact_available": true,
+      "windows_runtime_executed": false
+    },
+    {
+      "adapter": "manifold_wasm",
+      "cancellation_verified": false,
+      "cold_ms": 9.4218,
+      "coplanar_completed": true,
+      "deterministic_identical_fixture": true,
+      "fixture_results": {
+        "aircraft_canopy_subtract": {
+          "deterministic": true,
+          "sha256": "fa7d3479c2818c692a54674cd22b5940c404bc14122ddac372d754fdc1de085c",
+          "triangle_count": 32
+        },
+        "appliance_vent_subtract": {
+          "deterministic": true,
+          "sha256": "42b7d5dc8b6e4f97e168577df8cb7c467dc8b3329361bd91a961354f4a6b5e79",
+          "triangle_count": 32
+        },
+        "robot_arm_housing_union": {
+          "deterministic": true,
+          "sha256": "b7959786bfc0dc22d370e8613fa9aeb4de3e24db068504969b487343dd9bd4fd",
+          "triangle_count": 44
+        },
+        "vehicle_window_subtract": {
+          "deterministic": true,
+          "sha256": "7f102fe41b3a59a3fa3df293e703babf7e46ac6beabee357ac630fba248607dc",
+          "triangle_count": 32
+        }
+      },
+      "license": "Apache-2.0",
+      "macos_arm64_executed": true,
+      "material_surface_provenance_verified": false,
+      "near_degenerate_completed": true,
+      "notice_file_present": false,
+      "packaged_increment_bytes": 2761999,
+      "peak_rss_kib": 62944,
+      "removal_plan": "delete unpacked npm tarball; no production dependency or lockfile entry",
+      "source_commit": "cc8a7f66d7d5a560da94346258c5b546af27811e",
+      "triangle_count": 32,
+      "version": "manifold-3d@3.5.1",
+      "warm_median_ms": 0.1708,
+      "windows_packaging_artifact_available": true,
+      "windows_runtime_executed": false
+    }
+  ],
+  "commands": {
+    "benchmark": "python scripts/benchmark_g824_csg.py --python-site <tmp>/python --wasm-module <tmp>/package/manifold.js --output evaluations/csg-g824/report.json",
+    "prepare_python": "python -m pip install --no-deps --target <tmp>/python manifold3d==3.5.2 && python -m pip install --target <tmp>/python 'numpy>=1.26,<3'",
+    "prepare_wasm": "npm pack manifold-3d@3.5.1 --pack-destination <tmp> && tar -xzf <tmp>/manifold-3d-3.5.1.tgz"
+  },
+  "decision": {
+    "reasons": [
+      "material/surface provenance was not verified",
+      "cancellation was not verified",
+      "Windows runtime was not executed",
+      "current handler is not robust CSG"
+    ],
+    "selected": null,
+    "status": "no_candidate_meets_all_gates"
+  },
+  "fixtures": [
+    "vehicle_window_subtract",
+    "aircraft_canopy_subtract",
+    "appliance_vent_subtract",
+    "robot_arm_housing_union",
+    "coplanar",
+    "near_degenerate"
+  ],
+  "input_fingerprint": "957257a6b5a85978fa9894ef347dd07dbe721df7e3a532428936fc99f4b5a2d3",
+  "machine": {
+    "machine": "arm64",
+    "node": "v26.3.1",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "schema_version": "ForgeCADCSGBenchmark@1"
+}

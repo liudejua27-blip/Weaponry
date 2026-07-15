@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/active-design-snapshot.schema.json",
+  "title": "ActiveDesignSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "active_design",
+    "selected_part_id",
+    "preview",
+    "quality",
+    "export",
+    "revision",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "ActiveDesignSnapshot@1" },
+    "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+    "active_design": {
+      "oneOf": [
+        { "$ref": "#/$defs/agent_active_design" },
+        { "$ref": "#/$defs/legacy_active_design" }
+      ]
+    },
+    "selected_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
+    "selected_material_zone_id": { "type": ["string", "null"], "pattern": "^zone_[a-z0-9_\\-]+$" },
+    "preview": {
+      "anyOf": [
+        { "$ref": "#/$defs/preview_reference" },
+        { "type": "null" }
+      ]
+    },
+    "quality": {
+      "anyOf": [
+        { "$ref": "#/$defs/quality_reference" },
+        { "type": "null" }
+      ]
+    },
+    "export": { "$ref": "#/$defs/export_reference" },
+    "render_preset": {
+      "anyOf": [
+        { "$ref": "#/$defs/render_preset" },
+        { "type": "null" }
+      ]
+    },
+    "part_display": {
+      "anyOf": [
+        { "$ref": "#/$defs/part_display" },
+        { "type": "null" }
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 1 },
+    "updated_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  },
+  "$defs": {
+    "agent_active_design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "project_id", "asset_version_id", "assembly_graph_id"],
+      "properties": {
+        "source": { "const": "agent_asset" },
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+        "assembly_graph_id": { "type": "string", "pattern": "^mg_[a-z0-9_\\-]+$" }
+      }
+    },
+    "legacy_active_design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "project_id", "legacy_version_id", "module_graph_id"],
+      "properties": {
+        "source": { "const": "legacy_concept_read_only" },
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "legacy_version_id": { "type": "string", "pattern": "^ver_[a-z0-9_\\-]+$" },
+        "module_graph_id": { "type": "string", "pattern": "^mg_[a-z0-9_\\-]+$" }
+      }
+    },
+    "preview_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "change_set_id", "base_asset_version_id"],
+      "properties": {
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "change_set_id": { "type": "string", "pattern": "^assetcs_[a-z0-9_\\-]+$" },
+        "base_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" }
+      }
+    },
+    "quality_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "quality_report_id", "asset_version_id"],
+      "properties": {
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "quality_report_id": { "type": "string", "pattern": "^quality_[a-z0-9_\\-]+$" },
+        "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" }
+      }
+    },
+    "export_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "project_id", "source_version_id"],
+      "properties": {
+        "source": { "type": "string", "enum": ["agent_asset", "legacy_concept_read_only"] },
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "source_version_id": { "type": "string", "pattern": "^(assetver|ver)_[a-z0-9_\\-]+$" }
+      }
+    },
+    "render_preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "preset_id", "project_id", "asset_version_id", "camera_view", "light_preset", "updated_at"],
+      "properties": {
+        "schema_version": { "const": "ActiveDesignRenderPreset@1" },
+        "preset_id": { "type": "string", "pattern": "^render_[a-z0-9_\\-]+$" },
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+        "camera_view": { "type": "string", "enum": ["iso", "front", "top", "right"] },
+        "light_preset": { "type": "string", "enum": ["cad_neutral", "soft_studio", "concept_contrast"] },
+        "updated_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+      }
+    },
+    "part_display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "project_id", "asset_version_id", "locked_part_ids", "hidden_part_ids", "isolated_part_id"],
+      "properties": {
+        "schema_version": { "const": "ActiveDesignPartDisplay@1" },
+        "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" },
+        "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+        "locked_part_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" }
+        },
+        "hidden_part_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" }
+        },
+        "isolated_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" }
+      }
+    }
+  }
+}

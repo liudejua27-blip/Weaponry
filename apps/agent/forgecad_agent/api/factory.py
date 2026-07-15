@@ -28,6 +28,7 @@ class LocalApiSettings:
     cors_origins: tuple[str, ...] = field(default_factory=lambda: DEFAULT_CORS_ORIGINS)
     allowed_headers: tuple[str, ...] = (
         "Content-Type",
+        "If-Match",
         "Idempotency-Key",
         "Last-Event-ID",
         "X-Wushen-Client-Version",
@@ -61,5 +62,10 @@ def create_local_api(settings: LocalApiSettings) -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=list(settings.allowed_headers),
+        # Snapshot writes use optimistic concurrency.  The browser must be
+        # allowed to send If-Match and read the returned ETag; otherwise a
+        # local Vite/Tauri origin silently loses the Snapshot revision even
+        # though the server itself emitted it.
+        expose_headers=["ETag", "Content-Disposition", "X-ForgeCAD-Render-Set-SHA256"],
     )
     return app

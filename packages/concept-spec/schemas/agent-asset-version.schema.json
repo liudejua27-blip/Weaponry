@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-asset-version.schema.json",
+  "title": "AgentAssetVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "asset_version_id", "project_id", "parent_asset_version_id", "version_no", "status", "summary", "stage", "plan_id", "direction_id", "domain_pack_id", "artifact_id", "parts", "shape_program", "assembly_graph", "material_bindings", "created_at"],
+  "properties": {
+    "schema_version": { "const": "AgentAssetVersion@1" },
+    "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "parent_asset_version_id": { "type": ["string", "null"], "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "version_no": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["committed", "superseded"] },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "stage": { "type": "string", "enum": ["segmented_concept", "editable_asset"] },
+    "plan_id": { "type": "string", "pattern": "^plan_[a-z0-9_\\-]+$" },
+    "direction_id": { "type": "string", "pattern": "^direction_[a-z0-9_\\-]+$" },
+    "domain_pack_id": { "type": "string", "pattern": "^pack_[a-z0-9_\\-]+$" },
+    "artifact_id": { "type": "string", "pattern": "^artifact_[a-z0-9_\\-]+$" },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_id", "role", "parent_part_id", "position_mm", "size_mm", "material_zone_ids", "editable_parameters", "locked", "provenance"],
+        "properties": {
+          "part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+          "role": { "type": "string", "minLength": 1 },
+          "parent_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
+          "position_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+          "size_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+          "material_zone_ids": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "editable_parameters": { "type": "array", "items": { "type": "string" } },
+          "editable_parameter_bindings": {
+            "type": "array",
+            "maxItems": 6,
+            "items": { "$ref": "common.schema.json#/$defs/editable_parameter_binding" }
+          },
+          "locked": { "type": "boolean" },
+          "provenance": { "type": "string", "enum": ["agent_generated", "agent_component"] }
+        }
+      }
+    },
+    "shape_program": { "type": "object" },
+    "assembly_graph": { "type": "object" },
+    "material_bindings": { "type": "object", "additionalProperties": { "type": "string" } },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

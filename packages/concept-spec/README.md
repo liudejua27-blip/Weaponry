@@ -16,6 +16,15 @@ Contracts:
 - `ModelQualityReport@1`
 - `JobEvent@2`
 - `ConceptExportManifest@1`
+- `DomainPackManifest@1`
+- `DomainInferenceResult@1`
+- `MechanicalConceptSpec@1`
+- `AssemblyGraph@1`
+- `MaterialPreset@1`
+- `ShapeProgram@1`
+- `AgentComponent@1`
+- `AgentAssetExport@1`
+- `AgentAssetRenderPackage@1`
 
 Regenerate after schema changes:
 

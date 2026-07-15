@@ -8,6 +8,8 @@ import stat
 from pathlib import Path
 from typing import Any, Optional
 
+from packaged_sidecar_preflight import DEFAULT_CONTRACT, preflight
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TAURI_DIR = ROOT / "apps" / "desktop" / "src-tauri"
@@ -21,13 +23,8 @@ REQUIRED_DOC_PHRASES = {
         "local-dev-python",
         "Cargo.lock",
         "release:packaging-readiness",
-        "fictional Unity game-art",
+        "fictional mechanical concept",
         "non-manufacturing",
-    ],
-    "docs/M3_DESKTOP_SUPERVISOR.md": [
-        "local-dev-python",
-        "packaged-sidecar",
-        "bundle.externalBin",
     ],
     "README.md": [
         "npm run release:packaging-readiness",
@@ -142,6 +139,15 @@ def main() -> int:
             }
         )
 
+    input_preflight = preflight(DEFAULT_CONTRACT, ROOT)
+    _require(
+        blockers,
+        input_preflight.get("status") != "blocked_invalid_contract",
+        "SIDECAR_INPUT_CONTRACT_INVALID",
+        "The versioned packaged-sidecar input contract must be valid before a release candidate can be evaluated.",
+        {"invalid_inputs": input_preflight.get("invalid_inputs", [])},
+    )
+
     docs_summary = _check_docs(blockers)
 
     summaries["tauri"] = {
@@ -159,6 +165,7 @@ def main() -> int:
         "capabilities": len(list(capabilities_dir.glob("*.json"))) if capabilities_dir.exists() else 0,
     }
     summaries["docs"] = docs_summary
+    summaries["sidecar_input_preflight"] = input_preflight
 
     report = {"ok": not blockers, "summaries": summaries, "blockers": blockers, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False, indent=2))

@@ -9,6 +9,35 @@ permissions:
   contents: read
 
 jobs:
+  g824d-windows-packaged-candidate:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Create isolated Python environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install -e "apps/agent[dev]" pyinstaller==6.16.0
+          .venv\Scripts\python.exe -m pip install --target output/g824d-python-site manifold3d==3.5.2 numpy==2.4.6
+      - name: Build and execute Windows x64 packaged CSG candidate evidence
+        shell: pwsh
+        run: |
+          .venv\Scripts\python.exe scripts/benchmark_g824d_windows_packaged_candidate.py --python-site output/g824d-python-site --output evaluations/csg-g824d/windows-report.json
+          .venv\Scripts\python.exe scripts/check_g824d_windows_packaged_candidate.py evaluations/csg-g824d/windows-report.json
+      - name: Upload G824D evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g824d-windows-packaged-candidate
+          path: evaluations/csg-g824d/windows-report.json
+          if-no-files-found: warn
+
   backend-and-contracts:
     runs-on: ubuntu-latest
     steps:
@@ -26,10 +55,116 @@ jobs:
       - run: npm ci
       - run: npm run agent:check
       - run: .venv/bin/ruff check apps/agent
+      - run: npm run agent:unit
+      - name: ForgeCAD Agent G1-G7 and domain smoke
+        run: |
+          npm run contracts:types:check
+          npm run agent:g1-kernel-smoke
+          npm run agent:g2-contracts-smoke
+          npm run agent:g3-shape-program-smoke
+          npm run agent:g4-mechanical-planner-smoke
+          npm run agent:g5-geometry-worker-smoke
+          npm run agent:g801-shape-primitive-smoke
+          npm run agent:g802-profile-extrude-smoke
+          npm run agent:g803-revolve-smoke
+          npm run agent:g819-runtime-operation-manifest-smoke
+          npm run agent:q003-compile-readback-quality-smoke
+          npm run agent:g820-profile-sketch-contract-smoke
+          npm run agent:g821-profile-solid-fidelity-smoke
+          npm run agent:g822-loft-smoke
+          npm run agent:g823-sweep-smoke
+          npm run agent:g824-csg-benchmark-smoke
+          npm run agent:g824a-csg-adoption-evidence-smoke
+          npm run agent:g824b-csg-promotion-boundary-smoke
+          npm run agent:g824c-packaged-candidate-smoke
+          npm run agent:g804-transform-arrays-smoke
+          npm run agent:g805-boolean-smoke
+          npm run agent:g806-bevel-surface-panel-smoke
+          npm run agent:g807-blockout-diversity-smoke
+          npm run agent:g817-showcase-quality-smoke
+          npm run agent:g818-visual-detail-grammar-smoke
+          npm run agent:g812-direction-variants-smoke
+          npm run agent:g813-variant-regeneration-smoke
+          npm run agent:e001-provider-evaluation-dry-run
+          npm run agent:e001-provider-evaluation-contract-smoke
+          npm run agent:e002-provider-evaluation-runner-smoke
+          npm run agent:g814-concept-scope-smoke
+          npm run agent:g815-visual-intent-projection-smoke
+          npm run agent:g808-editable-parameter-bindings-smoke
+          npm run agent:g809-parameter-binding-changesets-smoke
+          npm run agent:g810-generated-parameter-bindings-smoke
+          npm run agent:g6-segmentation-smoke
+          npm run agent:g6-material-catalog-smoke
+          npm run agent:m101-material-contract-smoke
+          npm run agent:m102-material-catalog-smoke
+          npm run agent:m103-material-texture-smoke
+          npm run agent:g6-asset-editing-smoke
+          npm run agent:g6-component-registry-smoke
+          npm run agent:c102-component-compatibility-smoke
+          npm run agent:c103-structure-suggestions-smoke
+          npm run agent:c104-part-display-smoke
+          npm run agent:q002-active-design-contract-smoke
+          npm run agent:g7-external-glb-import-smoke
+          npm run agent:r001-render-preset-smoke
+          npm run agent:r002-render-views-smoke
+          npm run agent:r003-exploded-views-smoke
+          npm run agent:r004-render-package-smoke
+          npm run agent:r006-blockout-concept-preview-smoke
+          npm run release:packaged-sidecar-preflight-smoke
+          npm run agent:d1-domain-inference-contract-smoke
+          npm run agent:d2-domain-inference-service-smoke
+          npm run agent:d3-domain-clarification-smoke
+          npm run agent:m107-active-zone-smoke
       - run: npm run agent:r2-concept-contracts-smoke
       - run: npm run agent:r2-module-registry-smoke
       - run: npm run agent:r3-asset-catalog-smoke
       - run: npm run agent:r3-first-run-workbench-smoke
+
+  dependency-audits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --upgrade pip pip-audit
+      - run: .venv/bin/pip install -e 'apps/agent[dev]'
+      - run: npm ci
+      - name: Run dependency audits and write machine-readable reports
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          mkdir -p output/audits
+          npm audit --audit-level=high --json > output/audits/npm-audit.json
+          npm_status=$?
+          .venv/bin/pip-audit -r apps/agent/requirements-release.lock --format=json > output/audits/python-audit.json
+          python_status=$?
+          cargo install cargo-audit --locked
+          install_status=$?
+          if [ "$install_status" -eq 0 ]; then
+            cargo audit --file apps/desktop/src-tauri/Cargo.lock --json > output/audits/rust-audit.json
+            rust_status=$?
+          else
+            rust_status=$install_status
+            printf '{"status":"cargo-audit-install-failed","exit_code":%s}\n' "$install_status" > output/audits/rust-audit.json
+          fi
+          printf 'npm=%s\npython=%s\nrust=%s\n' "$npm_status" "$python_status" "$rust_status" | tee output/audits/status.txt
+          if [ "$npm_status" -ne 0 ] || [ "$python_status" -ne 0 ] || [ "$rust_status" -ne 0 ]; then
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit-reports
+          path: output/audits
+          if-no-files-found: error
 
   desktop:
     runs-on: ubuntu-latest
@@ -42,6 +177,62 @@ jobs:
       - run: npm ci
       - run: npm run desktop:typecheck
       - run: npm run desktop:build
+      - run: npm run desktop:f006-accessibility-smoke
+      - run: npm run desktop:f007-workbench-lifecycle-smoke
+      - run: npm run desktop:f008-agent-conversation-state-smoke
+      - run: npm run desktop:f009-agent-blockout-display-state-smoke
+      - run: npm run desktop:f023-agent-blockout-preview-presentation-smoke
+      - run: npm run desktop:r006-direction-concept-preview-state-smoke
+      - run: npm run desktop:f024-agent-plan-source-presentation-smoke
+      - run: npm run desktop:f010-agent-asset-workspace-state-smoke
+      - run: npm run desktop:f011-legacy-compatibility-display-smoke
+      - run: npm run desktop:f012-component-library-preferences-smoke
+      - run: npm run desktop:f013-viewport-display-preferences-smoke
+      - run: npm run desktop:f014-legacy-module-graph-workspace-smoke
+      - run: npm run desktop:f015-legacy-module-graph-overlay-smoke
+      - run: npm run desktop:f016-agent-render-presentation-smoke
+      - run: npm run desktop:f017-agent-edit-assist-presentation-smoke
+      - run: npm run desktop:f018-agent-material-catalog-presentation-smoke
+      - run: npm run desktop:f019-agent-material-filter-presentation-smoke
+      - run: npm run desktop:f020-agent-material-preselection-presentation-smoke
+      - run: npm run desktop:f021-component-catalog-presentation-smoke
+      - run: npm run desktop:m104-material-zone-smoke
+      - run: npm run desktop:m105-material-zone-binding-smoke
+      - run: npm run desktop:m106-material-domain-filter-smoke
+      - run: npm run desktop:c101-part-role-labels-smoke
+      - run: npm run agent:c102-component-compatibility-smoke
+      - run: npm run agent:c103-structure-suggestions-smoke
+      - run: npm run agent:c104-part-display-smoke
+
+  packaged-macos-alpha:
+    # P009: validates the actual arm64 .app and frozen sidecar. It is a
+    # no-secret, no-Provider local Alpha gate; it is not a signing/release job.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --upgrade pip
+      - run: .venv/bin/pip install -e 'apps/agent[dev]' -r apps/agent/requirements-sidecar-build.lock
+      - run: npm ci
+      - run: npm run desktop:packaged-sidecar-build
+      - run: npm --workspace apps/desktop run tauri -- build --bundles app
+      - run: npm run desktop:packaged-tauri-alpha-smoke
+        env:
+          FORGECAD_NATIVE_SMOKE_ARTIFACT_DIR: output/packaged-macos-alpha
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-macos-alpha-evidence
+          path: output/packaged-macos-alpha
+          if-no-files-found: warn
 
   workbench-e2e:
     runs-on: ubuntu-latest
@@ -61,7 +252,19 @@ jobs:
       - run: npm ci
       - run: google-chrome --version
       - run: sudo apt-get update && sudo apt-get install --yes ffmpeg
+      - run: npm run desktop:d3-domain-clarification-smoke
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+      - run: npm run desktop:f001-workbench-characterization
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
       - run: npm run desktop:r3-concept-workbench-smoke
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+      - run: npm run desktop:t002-workbench-e2e-scenarios
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+      - run: npm run desktop:t003-performance-smoke
         env:
           FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
       - uses: actions/upload-artifact@v4

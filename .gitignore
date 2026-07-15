@@ -25,3 +25,5 @@ apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
 .wushen-agent.log
 .wushen-desktop.log
+.wushen-tauri.log
+output/packaged-macos-alpha/

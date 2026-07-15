@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/domain-pack-manifest.schema.json",
+  "title": "DomainPackManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_id", "domain", "display_name", "description", "non_functional_only", "templates", "connector_types", "joint_types", "material_preset_ids", "quality_profile_id", "export_profile_id"],
+  "properties": {
+    "schema_version": { "const": "DomainPackManifest@1" },
+    "pack_id": { "type": "string", "pattern": "^pack_[a-z0-9_\\-]+$" },
+    "domain": { "type": "string", "enum": ["future_weapon_prop", "vehicle_concept", "aircraft_concept", "robotic_arm_concept"] },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "non_functional_only": { "const": true },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{2,63}$" }
+    },
+    "connector_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{2,63}$" }
+    },
+    "joint_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["fixed", "hinge", "slider", "ball", "continuous"] }
+    },
+    "material_preset_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" }
+    },
+    "quality_profile_id": { "type": "string", "pattern": "^quality_[a-z0-9_\\-]+$" },
+    "export_profile_id": { "type": "string", "pattern": "^export_[a-z0-9_\\-]+$" }
+  }
+}

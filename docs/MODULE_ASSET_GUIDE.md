@@ -1,10 +1,12 @@
-# Weapon Concept Module Pack 资产制作规范
+# ForgeCAD 模块资产制作规范（当前 Weapon reference 实现）
+
+> 目标产品已经升级为通用机械概念 3D Agent，首批领域包为未来武器道具、汽车、飞机和机械臂。通用角色、分件、Joint 与材质要求见 [DOMAIN_PACKS.md](DOMAIN_PACKS.md) 和 [MATERIAL_SYSTEM.md](MATERIAL_SYSTEM.md)。本文其余命令和九类 category 描述当前已实现的 `weapon-concept-v1-reference` 兼容基线，不能作为其他领域包的资产规范。
 
 状态：`ModulePackManifest@1`、校验 CLI 和批量注册已实现；正式 8–12 个高质量 GLB 尚需按本文制作。
 
 仓库已提供 `assets/module-packs/weapon-concept-v1-reference`：10 个确定性程序化参考 GLB，用于工作台、Connector、性能和导出闭环。它包含 UV0、normal、三材质、缩略图与许可证，但不是人工 Blender 最终美术。
 
-本文只描述未来武器概念、游戏资产、影视道具和非功能展示模型的视觉资产管线。模块可以有精细比例、硬表面细节和明确接口，但不包含真实工作机构、弹道、承压或制造就绪结论。
+当前参考模块可以有精细比例、硬表面细节和明确接口，但不包含真实工作机构、弹道、承压或制造就绪结论。新增汽车、飞机和机械臂资产不得复用武器九类 category；它们必须使用 Domain Pack role 和目标 AssemblyGraph 合同。
 
 ## 1. 从哪里开始
 
@@ -229,7 +231,7 @@ FORGECAD_BLENDER_EXECUTABLE=/Applications/Blender.app/Contents/MacOS/Blender \
 
 2026-07-11 已用 Blender 4.2.22 LTS 真实生成并只读重导出三模块及十模块 visual candidate；source hash 不变，Connector 与 reference baseline 语义一致。完整 candidate 的 9 节点组合、质量、GLB/OBJ/PNG/MP4 交付和 DCC 往返均已作为待审技术证据通过；该结果是编辑起点，不是正式美术批准。
 
-详细输出、人工编辑和晋级边界见 [Blender Authoring Starter](BLENDER_AUTHORING_STARTER.md)。
+详细输出、人工编辑、原创声明、独立审阅和晋级边界统一见 [资产作者手册](ASSET_AUTHORING.md)。Blender 是专业资产作者的可选工具，不是零基础用户生成或编辑 3D 的前置条件。
 
 人工编辑 `.blend` 后不得重新运行 starter build。使用只读 re-export：
 

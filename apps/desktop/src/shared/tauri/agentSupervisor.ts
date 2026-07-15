@@ -21,6 +21,13 @@ export type AgentSupervisorStatus = {
   error?: string | null
 }
 
+export type ProviderConfigMetadata = {
+  base_url: string
+  model: string
+  configured: boolean
+  storage: string
+}
+
 type TauriAgentServiceStatus = {
   base_url: string
   health_url: string
@@ -45,7 +52,11 @@ const UNSUPPORTED_STATUS: AgentSupervisorStatus = {
 }
 
 export function isTauriRuntime(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+  if (typeof window === 'undefined') return false
+  // Tauri's optional `withGlobalTauri` flag can leave `isTauri()` false even
+  // though the native WebView IPC bridge is present. The `tauri:` protocol is
+  // the stable packaged-runtime signal; browser Vite previews remain http(s).
+  return isTauri() || window.location.protocol === 'tauri:'
 }
 
 export async function getAgentSupervisorStatus(): Promise<AgentSupervisorStatus> {
@@ -69,6 +80,25 @@ export async function restartAgentSupervisor(): Promise<AgentSupervisorStatus> {
   return startAgentSupervisor()
 }
 
+export async function getProviderConfig(): Promise<ProviderConfigMetadata | null> {
+  if (!isTauriRuntime()) return null
+  try {
+    return await invokeSupervisorCommand<ProviderConfigMetadata>('get_provider_config')
+  } catch {
+    return null
+  }
+}
+
+export async function saveProviderConfig(input: { base_url: string; model: string; api_key: string }): Promise<ProviderConfigMetadata> {
+  if (!isTauriRuntime()) throw new Error('浏览器预览不支持安全保存 API Key，请使用 secret file 启动 Agent。')
+  return invokeSupervisorCommand<ProviderConfigMetadata>('save_provider_config', input)
+}
+
+export async function clearProviderConfig(): Promise<ProviderConfigMetadata> {
+  if (!isTauriRuntime()) throw new Error('浏览器预览不支持清除桌面 Provider 配置。')
+  return invokeSupervisorCommand<ProviderConfigMetadata>('clear_provider_config')
+}
+
 async function invokeSupervisor(command: string, pendingState: SupervisorState): Promise<AgentSupervisorStatus> {
   try {
     const { invoke } = await import('@tauri-apps/api/core')
@@ -85,6 +115,11 @@ async function invokeSupervisor(command: string, pendingState: SupervisorState):
   }
 }
 
+async function invokeSupervisorCommand<T>(command: string, payload?: unknown): Promise<T> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(command, payload === undefined ? undefined : { request: payload })
+}
+
 function normalizeStatus(status: TauriAgentServiceStatus): AgentSupervisorStatus {
   return {
     available: true,
@@ -99,3 +134,4 @@ function normalizeStatus(status: TauriAgentServiceStatus): AgentSupervisorStatus
     error: status.last_error,
   }
 }
+import { isTauri } from '@tauri-apps/api/core'

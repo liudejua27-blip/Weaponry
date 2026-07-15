@@ -116,13 +116,11 @@ export function useConceptWorkbench() {
         ? restoredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
       const [
-        moduleResponse,
         variantResponse,
         timelineResponse,
         auditExportResponse,
         version,
       ] = await Promise.all([
-        forgeApi.listModuleAssets(project.profile.pack_id),
         forgeApi.listDesignVariants(projectId),
         forgeApi.listChangeSets(projectId, { limit: 20 }),
         forgeApi.listChangeSetAuditExports(projectId, 1),
@@ -140,7 +138,9 @@ export function useConceptWorkbench() {
         project,
         version,
         graphRecord,
-        modules: moduleResponse.items ?? [],
+        // Component catalog reads are scoped independently by the workbench
+        // presentation layer; legacy project hydration must not own that cache.
+        modules: [],
         variants: variantResponse.items ?? [],
         brief: null,
         pendingChange: null,

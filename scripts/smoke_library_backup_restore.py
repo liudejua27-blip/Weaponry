@@ -44,6 +44,71 @@ def main() -> int:
         finally:
             _stop_agent(process)
 
+        imported_payload = b"agent-imported-glb-backup"
+        imported_sha256 = hashlib.sha256(imported_payload).hexdigest()
+        imported_relative_path = (
+            Path("objects")
+            / "sha256"
+            / imported_sha256[:2]
+            / imported_sha256[2:4]
+            / f"{imported_sha256}.bin"
+        )
+        imported_object = source_library / imported_relative_path
+        imported_object.parent.mkdir(parents=True, exist_ok=True)
+        imported_object.write_bytes(imported_payload)
+        with sqlite3.connect(source_library / "library.db") as connection:
+            connection.execute(
+                """
+                INSERT INTO agent_asset_versions(
+                  asset_version_id, project_id, parent_asset_version_id, version_no,
+                  status, summary, stage, plan_id, direction_id, domain_pack_id,
+                  artifact_id, parts_json, shape_program_json, assembly_graph_json,
+                  material_bindings_json, created_at
+                ) VALUES ('assetver_backup_imported', ?, NULL, 1, 'committed',
+                          'Backup imported GLB fixture', 'editable_asset',
+                          'plan_backup_imported', 'direction_backup_imported',
+                          'pack_vehicle_concept', 'artifact_backup_imported',
+                          '[]', '{"schema_version":"ShapeProgram@1","operations":[]}',
+                          '{"schema_version":"AssemblyGraph@1","graph_id":"mg_backup_imported","parts":[],"connections":[]}',
+                          '{}', '2026-07-10T15:00:00+00:00')
+                """,
+                (seeded["project_id"],),
+            )
+            connection.execute(
+                """
+                INSERT INTO agent_imported_glbs(
+                  import_id, project_id, asset_version_id, domain_pack_id, file_name,
+                  object_path, sha256, byte_size, triangle_count, bounds_mm_json,
+                  mesh_count, primitive_count, material_count, node_count, created_at
+                ) VALUES ('import_backup_fixture', ?, 'assetver_backup_imported',
+                          'pack_vehicle_concept', 'reference.glb', ?, ?, ?, 1,
+                          '[0,0,0,1,1,1]', 1, 1, 0, 1, '2026-07-10T15:00:00+00:00')
+                """,
+                (seeded["project_id"], imported_relative_path.as_posix(), imported_sha256, len(imported_payload)),
+            )
+            connection.execute(
+                """
+                INSERT INTO agent_asset_heads(project_id, asset_version_id, updated_at)
+                VALUES (?, 'assetver_backup_imported', '2026-07-10T15:00:00+00:00')
+                """,
+                (seeded["project_id"],),
+            )
+            connection.execute(
+                """
+                INSERT INTO active_design_snapshots(
+                  project_id, source, active_asset_version_id, active_assembly_graph_id,
+                  legacy_version_id, legacy_module_graph_id, selected_part_id,
+                  preview_change_set_id, preview_base_asset_version_id,
+                  quality_report_id, quality_asset_version_id,
+                  export_source, export_source_version_id, revision, updated_at
+                ) VALUES (?, 'agent_asset', 'assetver_backup_imported', 'mg_backup_imported',
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                          'agent_asset', 'assetver_backup_imported', 1, '2026-07-10T15:00:00+00:00')
+                """,
+                (seeded["project_id"],),
+            )
+            connection.commit()
+
         legacy_payload = b"legacy-backup-asset"
         legacy_sha256 = hashlib.sha256(legacy_payload).hexdigest()
         legacy_relative_path = (
@@ -146,8 +211,8 @@ def main() -> int:
             str(backup_root),
         )
         capacity = backup["capacity"]
-        _assert(capacity["unique_object_count"] == 4, "backup object count mismatch")
-        _assert(capacity["reference_rows"] == 5, "backup reference count mismatch")
+        _assert(capacity["unique_object_count"] == 5, "backup object count mismatch")
+        _assert(capacity["reference_rows"] == 6, "backup reference count mismatch")
         _assert(
             capacity["deduplicated_bytes"] == duplicate_reference_bytes,
             "backup content-addressed deduplication baseline mismatch",
@@ -158,7 +223,7 @@ def main() -> int:
             "backup orphan capacity baseline mismatch",
         )
         _assert(
-            capacity["source_object_store_file_count"] == 5,
+            capacity["source_object_store_file_count"] == 6,
             "backup source object store baseline mismatch",
         )
         _assert(
@@ -190,8 +255,8 @@ def main() -> int:
         )
         _assert(
             {table for item in manifest["objects"] for table in item["source_tables"]}
-            == {"asset_files", "concept_assets"},
-            "backup did not cover both legacy and Concept object tables",
+            == {"agent_imported_glbs", "asset_files", "concept_assets"},
+            "backup did not cover Agent imported GLB and legacy object tables",
         )
         audit_entry = next(
             item
@@ -284,9 +349,20 @@ def main() -> int:
         _assert(
             restored["restored_verification"]["integrity_check"] == "ok"
             and restored["restored_verification"]["journal_mode"] == "delete"
-            and restored["restored_verification"]["object_count"] == 4,
+            and restored["restored_verification"]["object_count"] == 5,
             "restored library verification mismatch",
         )
+        with sqlite3.connect(restored_library / "library.db") as connection:
+            connection.row_factory = sqlite3.Row
+            snapshot_row = connection.execute(
+                "SELECT * FROM active_design_snapshots WHERE project_id = ?",
+                (seeded["project_id"],),
+            ).fetchone()
+        try:
+            from forgecad_agent.infrastructure.db.agent_repositories import _snapshot_from_row
+            _snapshot_from_row(snapshot_row)
+        except Exception as exc:
+            raise AssertionError(f"restored Snapshot row cannot be parsed: {exc}") from exc
         provenance = (
             restored_library / "backups" / "manifests" / f"{manifest['backup_id']}.json"
         )
@@ -300,6 +376,10 @@ def main() -> int:
         _assert(
             (restored_library / legacy_relative_path).read_bytes() == legacy_payload,
             "restored legacy asset payload mismatch",
+        )
+        _assert(
+            (restored_library / imported_relative_path).read_bytes() == imported_payload,
+            "restored imported GLB payload mismatch",
         )
 
         restored_port = _free_port()
@@ -328,6 +408,17 @@ def main() -> int:
             _assert(
                 project["current_version_id"] == seeded["version_id"],
                 "restored Project current version mismatch",
+            )
+            active_design = _json_request(
+                restored_url,
+                f"/api/v1/projects/{seeded['project_id']}/active-design",
+                method="GET",
+            )
+            _assert(
+                active_design["active_design"]["source"] == "agent_asset"
+                and active_design["active_design"]["asset_version_id"] == "assetver_backup_imported"
+                and active_design["export"]["source_version_id"] == "assetver_backup_imported",
+                "restored ActiveDesignSnapshot did not preserve the Agent head/export chain",
             )
             _assert(
                 len(audits["items"]) == 1 and audits["items"][0]["record_count"] == 1,
@@ -378,6 +469,7 @@ def main() -> int:
                     "overwrite_guard_verified": True,
                     "secret_and_transient_exclusions_verified": True,
                     "restored_agent_verified": True,
+                    "restored_active_design_snapshot_verified": True,
                 },
                 ensure_ascii=False,
                 indent=2,

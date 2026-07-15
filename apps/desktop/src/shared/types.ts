@@ -67,6 +67,161 @@ export type QualityRunRecord = Api.QualityRunRecord
 export type ConceptJobRecord = Api.ConceptJobRecord
 export type QualityFinding = Api.QualityFinding
 
+export type AgentThreadStatus = 'idle' | 'active' | 'error' | 'archived'
+export type AgentTurnStatus =
+  | 'queued'
+  | 'running'
+  | 'waiting_for_approval'
+  | 'waiting_for_clarification'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+export type AgentItemType =
+  | 'user_message'
+  | 'assistant_message'
+  | 'plan'
+  | 'tool_call'
+  | 'tool_result'
+  | 'preview'
+  | 'approval_request'
+  | 'clarification'
+  | 'artifact'
+export type AgentItem = {
+  item_id: string
+  thread_id: string
+  turn_id: string
+  sequence: number
+  item_type: AgentItemType
+  status: 'pending' | 'completed' | 'failed' | 'cancelled'
+  payload: Record<string, unknown>
+  created_at: string
+}
+export type AgentApproval = {
+  approval_id: string
+  thread_id: string
+  turn_id: string
+  item_id: string
+  action: string
+  status: 'pending' | 'approved' | 'rejected'
+  payload: Record<string, unknown>
+  created_at: string
+  resolved_at?: string | null
+}
+export type AgentTurn = {
+  turn_id: string
+  thread_id: string
+  request_text: string
+  status: AgentTurnStatus
+  error_code?: string | null
+  error_message?: string | null
+  usage: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  items: AgentItem[]
+  approvals: AgentApproval[]
+}
+export type AgentThreadSummary = {
+  thread_id: string
+  project_id?: string | null
+  title: string
+  status: AgentThreadStatus
+  summary: string
+  provider_id: string
+  created_at: string
+  updated_at: string
+  last_turn_id?: string | null
+}
+export type AgentThreadDetail = AgentThreadSummary & { turns: AgentTurn[] }
+export type AgentThreadListResponse = { items: AgentThreadSummary[]; next_cursor?: string | null }
+export type CreateAgentThreadRequest = {
+  client_request_id: string
+  project_id?: string | null
+  title?: string
+  provider_id?: string
+}
+export type StartAgentTurnRequest = { client_request_id: string; message: string }
+export type CreateAgentApprovalRequest = {
+  client_request_id: string
+  turn_id: string
+  action: string
+  payload?: Record<string, unknown>
+}
+export type ResolveAgentApprovalRequest = {
+  client_request_id: string
+  decision: 'approved' | 'rejected'
+  note?: string
+}
+export type AgentApprovalResolution = { approval: AgentApproval; turn: AgentTurn }
+export type AgentEvent = { sequence: number; thread_id: string; turn_id: string; item: AgentItem }
+export type DomainPackManifest = Api.DomainPackManifest
+export type MechanicalConceptPlan = Api.MechanicalConceptPlan
+export type BuildAgentBlockoutRequest = {
+  client_request_id: string
+  plan: MechanicalConceptPlan
+  direction_id: string
+  variant_id?: string | null
+  variation_index?: number
+  presentation_profile?: 'quick_sketch' | 'showcase'
+}
+export type BuildAgentBlockoutResponse = Api.BuildAgentBlockoutResponse
+export type RenderAgentBlockoutConceptPreviewRequest = {
+  client_request_id: string
+  plan: MechanicalConceptPlan
+  direction_id: string
+  variant_id?: string | null
+  variation_index?: number
+}
+export type AgentBlockoutConceptPreview = Api.AgentBlockoutConceptPreview
+export type SegmentAgentBlockoutRequest = {
+  client_request_id: string
+  plan: MechanicalConceptPlan
+  direction_id: string
+  variant_id?: string | null
+  variation_index?: number
+  presentation_profile?: 'quick_sketch' | 'showcase'
+  artifact_id?: string | null
+}
+export type SegmentAgentBlockoutResponse = Api.SegmentAgentBlockoutResponse
+export type AgentMaterialPreset = Api.AgentMaterialPreset
+export type AgentMaterialTextureObject = Api.AgentMaterialTextureObject
+export type AgentMaterialTextureListResponse = Api.AgentMaterialTextureListResponse
+export type RegisterAgentMaterialTextureRequest = Api.RegisterAgentMaterialTextureRequest
+export type CommitAgentBlockoutRequest = Api.CommitAgentBlockoutRequest
+export type AgentAssetVersion = Api.AgentAssetVersion
+export type EditableParameterBinding = Api.EditableParameterBinding
+export type AgentPartEditOperation = Api.AgentPartEditOperation
+export type ProposeAgentAssetChangeSetRequest = Api.ProposeAgentAssetChangeSetRequest
+export type AgentAssetChangeSet = Api.AgentAssetChangeSet
+export type AgentAssetChangeSetConfirmResponse = Api.AgentAssetChangeSetConfirmResponse
+export type AgentAssetQualityReport = Api.AgentAssetQualityReport
+export type AgentAssetExportResponse = Api.AgentAssetExportResponse
+export type AgentAssetRenderView = Api.AgentAssetRenderView
+export type AgentAssetRenderSet = Api.AgentAssetRenderSet
+export type ImportAgentGlbRequest = Api.ImportAgentGlbRequest
+export type ImportAgentGlbResponse = Api.ImportAgentGlbResponse
+export type AgentProviderCheckResponse = Api.AgentProviderCheckResponse
+export type AgentComponentRecord = Api.AgentComponentRecord
+export type AgentComponentCompatibility = Api.AgentComponentCompatibility
+export type AgentComponentCandidate = Api.AgentComponentCandidate
+export type AgentStructureSuggestion = Api.AgentStructureSuggestion
+export type AgentStructureSuggestionList = Api.AgentStructureSuggestionList
+export type ActiveDesignSnapshot = Api.ActiveDesignSnapshot
+export type ActiveDesignNavigation = Api.ActiveDesignNavigation
+export type NavigateActiveDesignRequest = Api.NavigateActiveDesignRequest
+export type SelectActiveDesignRequest = Api.SelectActiveDesignRequest
+export type ActiveDesignRenderPreset = Api.ActiveDesignRenderPreset
+export type SetActiveDesignRenderPresetRequest = Api.SetActiveDesignRenderPresetRequest
+export type ActiveDesignPartDisplay = Api.ActiveDesignPartDisplay
+export type SetActiveDesignPartDisplayRequest = Api.SetActiveDesignPartDisplayRequest
+export type ConvertLegacyActiveDesignRequest = Api.ConvertLegacyActiveDesignRequest
+export type LegacyActiveDesignConversionResponse = Api.LegacyActiveDesignConversionResponse
+export type SaveAgentComponentRequest = {
+  client_request_id: string
+  part_id: string
+  display_name: string
+  description?: string
+}
+
 export type ApiErrorEnvelope = {
   error: {
     code: string

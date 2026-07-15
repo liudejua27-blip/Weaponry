@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/material-preset.schema.json",
+  "title": "MaterialPreset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "material_id", "display_name", "category", "pbr", "visual_only", "allowed_domains", "provenance"],
+  "properties": {
+    "schema_version": { "const": "MaterialPreset@1" },
+    "material_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "category": { "type": "string", "enum": ["metal", "polymer", "rubber", "composite", "glass", "coating", "natural", "emissive"] },
+    "pbr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_color", "metallic", "roughness", "opacity"],
+      "properties": {
+        "base_color": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "metallic": { "type": "number", "minimum": 0, "maximum": 1 },
+        "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "opacity": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "base_color_texture_asset_id": { "type": ["string", "null"], "pattern": "^asset_[a-z0-9_\\-]+$" },
+        "normal_texture_asset_id": { "type": ["string", "null"], "pattern": "^asset_[a-z0-9_\\-]+$" },
+        "normal_strength": { "type": "number", "minimum": 0, "maximum": 2 },
+        "emissive_color": { "$ref": "common.schema.json#/$defs/hex_color" },
+        "emissive_strength": { "type": "number", "minimum": 0, "maximum": 100 },
+        "transmission": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ior": { "type": "number", "minimum": 1, "maximum": 3 },
+        "clearcoat": { "type": "number", "minimum": 0, "maximum": 1 },
+        "clearcoat_roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "texture_scale": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "visual_only": { "const": true },
+    "allowed_domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["future_weapon_prop", "vehicle_concept", "aircraft_concept", "robotic_arm_concept"] }
+    },
+    "provenance": { "type": "string", "enum": ["forgecad_builtin", "user_created", "imported_reference"] },
+    "visual_tags": {
+      "type": "array",
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 32 }
+    },
+    "source": { "type": ["string", "null"], "enum": ["forgecad_builtin", "user_created", "imported_reference", null] },
+    "license": { "type": ["string", "null"], "enum": ["not_applicable", "self_declared_original", "third_party", "unknown", null] },
+    "version": { "type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]+){0,2}$" },
+    "thumbnail_asset_id": { "type": ["string", "null"], "pattern": "^asset_tex_[a-f0-9]{24}$" },
+    "thumbnail_fallback": { "type": "string", "enum": ["parameter", "texture", "unavailable"] },
+    "texture_summary": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["texture_asset_id", "texture_role", "exists"],
+        "properties": {
+          "texture_asset_id": { "type": "string", "pattern": "^asset_tex_[a-f0-9]{24}$" },
+          "texture_role": { "type": "string", "enum": ["base_color", "normal", "thumbnail"] },
+          "exists": { "type": "boolean" },
+          "source": { "type": ["string", "null"], "enum": ["forgecad_builtin", "user_created", "imported_reference", null] },
+          "license": { "type": ["string", "null"], "enum": ["not_applicable", "self_declared_original", "third_party", "unknown", null] },
+          "license_ref": { "type": ["string", "null"], "minLength": 1, "maxLength": 240 }
+        }
+      }
+    }
+  }
+}

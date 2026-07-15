@@ -1,0 +1,21 @@
+{
+  "schema_version": "ShapeProgramRuntimeManifest@1",
+  "operations": [
+    {"op": "box", "executor": "primitive_box", "output_kind": "mesh", "legacy_quality_estimate": "box"},
+    {"op": "cylinder", "executor": "primitive_cylinder", "output_kind": "mesh", "legacy_quality_estimate": "cylinder"},
+    {"op": "capsule", "executor": "primitive_capsule", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "wedge", "executor": "primitive_wedge", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "profile", "executor": "profile_sketch", "output_kind": "profile", "legacy_quality_estimate": "none"},
+    {"op": "extrude", "executor": "profile_extrude", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "revolve", "executor": "profile_revolve", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "loft", "executor": "profile_loft", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "sweep", "executor": "profile_sweep", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "mirror", "executor": "mirror_transform", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "array", "executor": "linear_array", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "radial_array", "executor": "radial_array", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "union", "executor": "restricted_union", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "subtract", "executor": "restricted_subtract", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "bevel_approx", "executor": "bevel_approximation", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "surface_panel", "executor": "surface_panel_attachment", "output_kind": "mesh", "legacy_quality_estimate": "none"}
+  ]
+}

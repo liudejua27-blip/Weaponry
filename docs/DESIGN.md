@@ -1,604 +1,683 @@
-# ForgeCAD 系统设计
+# ForgeCAD 通用机械概念 3D Agent 系统设计
 
-版本：产品重构 v2（2026-07-11）
-状态：R0–R3 当前纵向切片已落地；十模块 Blender visual candidate 已通过隔离组合、质量与 DCC 往返，但尚未完成人工资产晋级；R4 已完成 Brief/Module/Change Planner、A/B/C、ghost preview 与显式确认链，真实 Provider 指标仍待评测。
+版本：v6（2026-07-15）
+状态：目标架构；当前实现与迁移边界见第 3 节
 
 ## 1. 产品定义
 
-ForgeCAD 是本地优先的 AI 模块化 3D 设计工作台。产品不按“武器”类别拒绝需求，但第一阶段只把以下场景作为正式范围：
-
-- 未来武器概念；
-- 游戏 3D 资产；
-- 影视道具；
-- 非功能性展示与收藏模型。
-
-第一阶段产品形态由两层组成：
+ForgeCAD 是面向零基础用户的本地优先通用机械概念 3D Agent。用户连接一个大模型 API，通过唯一工作台完成：
 
 ```text
-ForgeCAD 通用 3D 设计平台
-└─ Weapon Concept Pack（首个内容包）
-
-后续扩展
-└─ CAD / DFM Engineering Pack（独立工程能力包）
+创意交流 → Agent 内部候选评审 → 单一最佳完整外观 → 3D blockout → 自动分件
+→ 部件级细化 → 材质 → 检查 → 渲染与导出
 ```
 
-因此，“武器优先”描述的是首个垂直场景和内容包，不表示 P0 要完成可工作的武器工程设计或制造验证。
+首批领域包为未来武器概念道具、汽车、飞机和机械臂。四者使用同一个 Agent、工作台、几何语言、装配合同、版本和导出系统。
 
-## 2. 首版边界
+首批四包是验证同一 Core 的 Alpha 基线，不是永久领域上限。后续生活机械、工具设备、工程机械、农业机械和服务设备通过版本化 Domain Pack 与产品 Skill 加入；没有完整语义、资产和 Gate 的类别必须先澄清或停止，不能由一个万能模板猜测。
 
-### 2.1 P0 必须支持
+### 安全与交付边界
 
-- 用自然语言和参考图描述设计意图；
-- 生成结构化 `WeaponConceptSpec`；
-- 从受控组件库选择模块，生成 `ModuleGraph`；
-- 使用语义连接器完成替换、对齐和组合；
-- 在可交互 3D 视口中进行选择、移动、旋转、测量和爆炸查看；
-- 生成候选方案和结构化 `DesignChangeSet`；
-- 先显示 ghost preview，用户确认后创建新版本；
-- 检查网格、连接、相交、浮空、比例、对称、法线和非流形问题；
-- 导出 GLB、OBJ、PNG、爆炸图、转台图、Module Manifest 和检查报告。
+武器题材结果属于虚构游戏美术资产。项目不生成现实可制造武器，不提供制造尺寸、材料配方、加工流程、功能机构或性能结论。
 
-### 2.2 P0 不承诺
+汽车、飞机和机械臂同样是概念数字资产；P0 不输出道路安全、碰撞、空气动力学、飞行安全、载荷、扭矩、控制安全或认证结论。
 
-当前交付按未来概念、影视道具和虚构游戏美术资产处理。项目不生成现实可制造武器的精确图纸，也不输出制造尺寸、材料配方或加工流程；这项非制造边界不妨碍对武器外观、比例、模块、材质和展示细节进行精密设计。
+## 2. 产品原则
 
-- 可发射、可承压或具有真实工作机构的武器设计；
-- 枪机、闭锁、供弹、击发、膛压、热载荷或弹道工程；
-- B-Rep、STEP、3MF、结构仿真、专业公差或制造认证；
-- 通过外观模型推断实物安全、合法性或制造可行性；
-- 让 LLM 直接生成并执行任意建模代码。
+### 2.1 完整外观优先
 
-### 2.3 后续 Engineering Pack
+新建设计先生成整体轮廓、比例和姿态，再分件。首个结果不能只是车轮、机翼、关节或武器附件等局部部件。
 
-CAD / DFM Engineering Pack 使用独立的权威链路：
+### 2.2 Agent 优先，CAD 渐进展开
+
+首屏只有对话、步骤、单一主视图、选中对象动作和确认条。技术合同、坐标、Connector、Joint、网格和文件格式默认隐藏。
+
+### 2.3 代码即模型，但不是任意代码
+
+大模型编写受控 `ShapeProgram@1`，不执行任意 Python、JavaScript 或 shell。GUI 和 Agent 修改同一权威表示。
+
+### 2.4 一个核心，领域包承载语义
+
+Core 只认识 Project、Assembly、Part、Shape、Material、Joint、Version 和 Tool。武器、车身、机翼、机械臂关节等语义全部进入 `DomainPackManifest@1`。
+
+### 2.5 预览先于永久修改
+
+Agent 只创建候选。用户确认后才创建不可变子版本；父版本、原始资产和锁定部件不可覆盖。
+
+### 2.6 本地真值、轻量运行
+
+SQLite 与内容寻址对象是本地真值。默认安装不含神经 3D 模型、权重和 GPU 推理环境。P0 只维护一个 Agent Orchestrator 和一个 WebGL renderer。
+
+### 2.7 Agent 负责比较，用户负责目标和确认
+
+Planner 可以在内部提出多个候选，但零基础主界面只显示一个经过编译、GLB readback、概念渲染和规则评审后选出的最佳结果。用户可以继续描述修改或明确要求换一个思路，不需要先在三张方向卡中替 Agent 做筛选。内部候选、评分和淘汰记录不是资产版本；只有用户确认后才进入不可变版本链。
+
+### 2.8 视觉真实度是完整资产管线
+
+DeepSeek 负责理解、计划、评审和工具编排，不直接产生可信网格或真实纹理。接近真实产品的外观必须来自语义比例、可编辑组件、曲面/边缘细节、稳定材质分区、UV/切线、PBR 纹理、环境光、色彩管理、真实 readback 和视觉基准的共同作用。任何单独更换模型、扩大 prompt 或增加方向数量都不能代替这条管线。
+
+### 2.9 采用 3D 机械设计系统，而不是 HTML 六面或单一 box 雕刻
+
+ForgeCAD 借鉴 UI 组件库的 Token、Recipe、Props、版本和预览思想，但不把 DOM 直接变成模型：
 
 ```text
-DesignSpec
-→ FeatureGraph
-→ build123d / OpenCascade
-→ validated B-Rep
-→ STEP / 3MF / STL / GLB
-→ DFM / slicer estimate
+MechanicalStyleToken + EditableComponentRecipe + bounded parameters
+→ ProfileSketch / ProfileSectionSet
+→ ShapeProgram feature nodes
+→ GeometryCompileReadback
+→ GLB
 ```
 
-该链路不与 P0 的 `ModuleGraph` 混称。概念项目只有在用户主动进入工程化流程、补齐尺寸与制造条件后，才能创建新的 Engineering Project。
+HTML/React 负责工作台，SVG 负责受限轮廓控制点，GSAP 负责界面与相机过渡；它们都不是几何、版本、质量或导出真值。主壳体根据结构选择 Extrude、Loft、Revolve 或 Sweep，CSG 只用于局部开孔、裁剪和组合。组件 Recipe 组合经过验证的轮廓、特征、连接、材质区和可编辑参数，使汽车、飞机、家电、机械臂与其他机械产品不再从同一组 primitive 临时拼装。
 
-## 3. 产品原则
+## 3. 当前状态与迁移边界
 
-### 3.1 通用平台优先，内容包承载垂直语义
+### 3.1 当前可复用
 
-项目、版本、任务、资产、预览、选择、导出和审计属于平台层；模块分类、提示模板、连接器规则、检查规则和演示数据属于 Weapon Concept Pack。未来增加机器人、载具或工业设备时，不复制一套应用骨架。
+- Tauri + React + TypeScript 桌面壳；
+- FastAPI 本地服务；
+- SQLite、WAL、迁移和内容寻址对象；
+- Project、Version、`WeaponConceptSpec@1`、`ModuleGraph@1`、ChangeSet；
+- 单一 Three.js 视口、选择、变换、替换、镜像和爆炸；
+- 武器 reference pack 的质量、渲染和导出证据；
+- OpenAI-compatible 结构化 Planner 边界；
+- Job、Step、Event、SSE、取消、恢复和幂等基础。
 
-### 3.2 P0 的几何真值是模块图和 GLB
+### 3.2 已实现（有当前证据）
+
+- Thread/Turn/Item/Approval Agent Kernel 的 G1 slice、G4 通用 Mechanical Concept Planner port 已实现；真实 API truth set、持久化运行恢复仍未完成；R002/R003 四视图与条件式透明爆炸概念 PNG、以及 R004 当前 fingerprint 约束的 PNG/manifest 图包已实现为只读派生结果；
+- `DomainPackManifest@1`；
+- `DomainInferenceResult@1`、四领域关键词/同义词 fixture、三态推断服务和 D003 单问题澄清 UI 已完成；`ConceptScopeDecision@1` 随后在 Planner/Provider 前执行有限、可解释的产品范围预检：含糊类别仅写 D003 clarification，明确的现实制造/工程安全/控制请求只写 scope-stop Turn/Item，均不创建 Plan、blockout、资产或 Snapshot；这不是完整内容安全系统；
+- `MechanicalConceptSpec@1`；G815 已将其中的 `VisualIntentMapping@1` 用于有限的轮廓、细节、色彩和展示姿态分类，再选择既有视觉族。R006 随后把同一未保存方向的受限 GLB 交给既有软件栅格器，生成一次性的 `AgentBlockoutConceptPreview@1` iso PNG；它不创建候选、版本、Snapshot、质量或导出，也不增加 WebGL context。两者都只影响预审概念外观，不生成尺寸、自由 ShapeProgram、工程材料或性能结论；映射缺失/损坏时回退到既有方向轮廓选择；
+- `AssemblyGraph@1` 与概念级 Joint；
+- `ShapeProgram@1` 及只执行受限 `box`/`cylinder`/`capsule`/`wedge`/`profile`/`extrude`/`revolve`/`mirror`/`array`/`radial_array`/`union`/`subtract`/`bevel_approx`/`surface_panel` 的轻量几何 worker；G5 已能输出按领域角色组织的分件候选，G6 已提供视觉材质目录、AgentAssetVersion、AgentComponent 注册/替换、声明式 Connector 对齐和受限 GLB 导出；G7 已提供安全外部 GLB 参考导入与同视口显示；G807 已提供四领域各 12 个确定性结构变体，G816 让既有形体完整进入同一展示视口，G818 让展示档同源追加受限视觉细节和有限 PBR 索引。复杂曲面、自由 fillet、碰撞/运动学、前端变体目录与外部 GLB 自动重建/深度分件仍未完成；
+- macOS Tauri 工作台已提供轻量 Provider 配置入口；Rust supervisor 负责 Keychain 读取与子进程注入，Provider Key 不进入项目和 Agent 数据；真实 Provider 评测仍保持显式、可计费的单独门禁；
+- `MaterialPreset@1` 与 Material Zone；
+- 汽车、飞机、机械臂领域包；
+- Agent 的完整外观 blockout → 分件候选 → editable asset → 受限编辑 → GLB 导出最小闭环。
+
+### 3.3 部分实现 / 目标能力
+
+- 真实 Provider truth set、持久化运行恢复和完整纹理资产仍未完成；R002–R004 的软件概念渲染与 PNG/manifest 图包已完成，但不等于工程渲染、装配或制造说明；
+- 复杂 ShapeProgram 操作、精确碰撞/运动学、外部 GLB 自动重建/深度分件仍未完成；
+- 自由拆分/合并、任意版本历史浏览和多格式 Agent 导出仍未完成；C103 已实现由现有 AssemblyGraph、role、受限 ShapeProgram primitive output 和连接事实驱动的拆分/合并候选，但不推断切割线、工程连接或功能；C104 已将部件锁定、隐藏和单独查看写入 Agent Snapshot：锁定阻止相关 ChangeSet，显示状态只控制同一个视口而不创建几何版本，不是工程装配约束；
+- 完整外观到高多样性 editable asset 的闭环仍是目标，不得写入用户指南为已支持。
+- 运行时操作白名单、实际 GLB 编译/回读质量、ProfileSketch、增强 Extrude/Revolve 与受限 Loft/Sweep 已由 G819/Q003/G820–G823 实现；G824/G824A/G824B/G824C 只证明候选 CSG 的本机 benchmark、provenance/readback、隔离取消、真实临时权威状态提升和 macOS packaged 预算/许可证边界，并建议 Python；G824D 已建立真实 Windows x64 frozen sidecar 证据 runner，但尚无远端 artifact。候选仍未经过 superseding ADR 正式选择或接入生产内核。稳健生产布尔、完整表面 provenance/UV/tangent、DeepSeek Provider 可观察性、Agent-first/legacy 隔离、四领域语义比例配方、内部候选评审与单一最佳结果、Codex 式工作台和高真实度 PBR 管线仍是目标设计；实施顺序见 `CODEX_EXECUTION_PLAN.md`。原 `FGC-V002` 已被不显示三方向选择的 `FGC-V003` 取代，不得在当前 Alpha 中宣传为已支持。
+
+`ActiveDesignSnapshot` 的合同、存储、CAS、API、desktop reducer、Agent 恢复/选择/视口/质量/GLB 导出，以及 legacy 只读重建授权和不可变回退/前进已完成。D003 已提供未知/含糊领域的一问式澄清 UI，F001 已通过本机 Chrome 行为基线。当前仍不能把整个工作台称为生产级运行时：legacy 兼容 UI、原生安装恢复、广泛多客户端压力验证、真实 Provider 评测和打包发布仍待后续。
+
+### 3.3 Legacy
+
+当前 `wushen_agent.main`、旧图像/神经 3D、Patch、Unity 和 Weapon API 仍被启动脚本或回归门引用。它们不是目标产品权威源，但必须按“新入口 → 测试迁移 → 发布门迁移 → 删除 legacy”的顺序退出。
+
+历史 `WeaponConceptSpec@1` 和 `ModuleGraph@1` 不直接改名。新合同完成后通过 `WeaponConceptCompatibilityAdapter` 显式转换，并保存原始 schema、ID 和 hash。
+
+## 4. 系统结构
 
 ```text
-WeaponConceptSpec
-→ Module selection
-→ ModuleGraph
-→ validated module transforms/connectors
-→ combined GLB
+Tauri Desktop
+├── AgentPanel
+│   ├── Conversation
+│   ├── Step Items
+│   ├── Result Summary
+│   └── Approval Cards
+├── ThreeViewport（唯一 WebGL canvas；左上 mini / 中央 focus 二态）
+├── SelectionCard
+├── ConfirmationBar
+├── ComponentDrawer
+├── MaterialDrawer
+└── Inspect / Export Drawer
+          │ HTTP + SSE
+          ▼
+FastAPI Local Agent
+├── Thread / Turn / Item services
+├── Context Builder
+├── Provider Gateway
+│   ├── DeepSeek Adapter / preflight / stream / cancel
+│   └── error taxonomy / usage / redacted trace
+├── Agent Orchestrator
+│   ├── Planner
+│   ├── Candidate Builder
+│   ├── Candidate Evaluator
+│   └── Best-result Selector
+├── Product Skill Registry
+├── Tool Registry + Runtime Policy
+├── Domain Pack Registry
+├── Approval / Cancel / Resume
+├── Project / Version / ChangeSet services
+└── Geometry Worker Port
+          │
+          ├── ShapeProgram validator
+          ├── 当前 primitive/profile/有限组合 mesh worker
+          ├── 目标 ProfileSketch/Extrude/Revolve/Loft/Sweep
+          ├── 候选 Manifold solid operations（benchmark 后二选一）
+          ├── 目标 surface provenance / UV0 / tangent / Material Zone
+          ├── 候选 Trimesh inspect/export
+          └── 候选 glTF normalize/validate
+          │
+          ▼
+SQLite + Content-addressed Objects
+├── Project / Version / AssemblyGraph
+├── Thread / Turn / Item
+├── ShapeProgram / GLB / thumbnail
+├── MaterialPreset / texture
+└── ChangeSet / QualityReport / Export
 ```
 
-GLB 源模块、连接器元数据、变换矩阵和内容哈希共同构成可重建依据。渲染图不是几何真值；生成式概念图不能静默覆盖模块图。
+## 5. Agent 运行模型
 
-### 3.3 AI 只提出变更
+### 5.1 Thread、Turn 与 Item
 
-AI 可以解析 Brief、选择模块、调整比例、提出风格和组合方案，但修改必须落入结构化 `DesignChangeSet`。锁定模块和锁定连接器不能被静默修改；确认前只显示预览。
+- Thread：一个项目内的设计会话；
+- Turn：用户的一次请求；
+- Item：消息、计划、工具、结果、预览、批准和工件。
 
-### 3.4 本地优先、可恢复、可追溯
-
-SQLite 和内容寻址对象存储是本地权威数据。每个版本、任务和导出必须记录输入哈希、资产哈希、算法/Provider 版本、状态、错误和父版本。
-
-## 4. 当前桌面系统结构
+Turn 状态：
 
 ```text
-┌────────────────────────────────────────────────────────────┐
-│ Tauri Desktop                                              │
-│ CadWorkbenchPanel（唯一桌面工作台）                        │
-│ 项目/历史/AI | 3D CAD 主视图 | 属性/质量/导出 | 底部检视器 │
-└──────────────────────────┬─────────────────────────────────┘
-                           │ HTTP + SSE
-┌──────────────────────────▼─────────────────────────────────┐
-│ FastAPI Local Agent                                        │
-│ Routes → Use Cases → Workflow / Jobs                       │
-├───────────────────────┬────────────────────────────────────┤
-│ Repository / UoW      │ Ports                              │
-│ SQLite / Object Store │ LLM / GLB / Renderer / Exporter    │
-└───────────────────────┴────────────────────────────────────┘
+queued → running → waiting_for_approval → completed
+                  ↘ failed / cancelled
 ```
 
-桌面端没有任务中心、旧资产库、Mode、Patch、Forge、设置或旧项目工作台路由。底部组件检视器、方案、版本和 ChangeSet 时间线均服务于当前 CAD 装配，不是独立产品页面。
+Item 追加写入，通过 SSE 流式发送，重连使用 cursor replay。前端不从自然语言猜测 Tool 状态。
 
-P0 不强制启动独立 CAD Runtime。复杂网格检查或渲染可以先作为隔离 worker 运行；Engineering Pack 再增加 OpenCascade sidecar。
+面向用户的 Item 只显示“正在理解、正在检索参考、正在生成候选、正在检查、正在选择最佳结果、需要确认、已完成或失败”。模型原始隐藏推理不进入数据库、日志或 UI；系统只保存短的 `ReasoningSummary@1`、调用过的产品工具、输入/输出摘要、耗时、用量和固定错误类别。
 
-## 5. 代码边界
+### 5.2 ActiveDesignSnapshot
 
-当前桌面目录：
+Project、活动 AgentAssetVersion、Selection、Preview ChangeSet、Quality 和 Export 必须由同一个服务端 Snapshot 绑定。前端不得分别从旧 Concept hook、Agent asset state 和 localStorage 推断“当前版本”。
+
+Snapshot 的字段、所有权、并发和 legacy 只读规则见 [唯一权威状态设计](AUTHORITATIVE_STATE.md)。合同、Agent-first 接入、任务级 CAS、不可变回退/前进和核心重启路径已实现；生产级广泛并发、legacy UI 完全退出、原生安装恢复和发布仍是后续阻断。
+
+### 5.3 工具权限
+
+自动允许：读取当前项目/选择、检索兼容组件和材质、创建临时候选、运行快速检查。
+
+必须确认：提交 ShapeProgram、确认 ChangeSet、自动分件覆盖候选、批量替换、导出外部目录和删除项目。
+
+默认禁止：任意 shell、任意代码、工作区外读写、隐式联网和覆盖父版本。
+
+### 5.4 上下文
+
+Provider 只收到任务所需摘要：领域包、当前阶段、完整外观约束、选择路径、可用参数、允许 ID、材料预设和工具 Schema。不得发送整个 Library、绝对路径、密钥或无关历史。
+
+Agent 多轮对话使用 `ForgeCADProviderConversation@1`。DeepSeek 是无状态接口，服务端必须保留先前已发送的用户/助手消息并在新请求末尾追加当前 Snapshot 摘要与新请求；固定安全合同、领域包和 JSON Schema 位于消息前缀，动态 Brief、项目 ID、选择、Snapshot revision、时间戳和 UUID 不得破坏该前缀。当前只保留最近四组消息；超过 12 组可由确定性 `ThreadMemorySummary@1` 压缩旧消息。摘要是可删除的会话辅助记录，不是 `ActiveDesignSnapshot`、资产版本或质量真值。
+
+DeepSeek Provider 只接受受 Schema 验证的概念计划或受限产品 Tool Call。当前 Alpha 仍不使用 Tool Calls；目标 `AgentActionLoop@1` 只能调用 ForgeCAD Tool Registry，并限制最大轮数、总 token、时间和费用。DeepSeek 思考模式返回 Tool Call 时，后续同一轮子请求必须按官方合同回传对应 `reasoning_content`；该字段只在短生命周期 Provider 执行上下文中存在，不进入用户可见思考、资产、Snapshot 或长期日志。复杂概念规划使用思考模式；本地范围停止、领域澄清和确定性操作不消耗 Provider token。调用前后记录脱敏用量、缓存命中和预算结算，Provider HTTP 永远在 SQLite 事务之外执行。
+
+### 5.5 DeepSeek Provider Gateway
+
+当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-14 官方文档；当前“没有响应”的直接原因不是模型名，而是运行实例没有 Provider metadata/Keychain 配置，因而选择了离线 Planner。目标 Gateway 必须把这一事实直接呈现，不允许把离线结果包装成真实 Provider 结果。
+
+`ProviderConnectionState@1`：
 
 ```text
-apps/agent/forgecad_agent/
-  api/                       # app factory、dependencies、thin routes、DTO
-  application/               # commands、queries、use cases
-  domain/
-    concepts/                # spec、module graph、change set、versions
-    modules/                 # module、connector、pack、compatibility
-    quality/                 # checks、reports、rulesets
-    jobs/                    # job、step、attempt、events
-  ports/                     # LLM、GLB、renderer、exporter、repositories
-  infrastructure/            # SQLite、object store、provider adapters
-  runtime/                   # worker、workflow、checkpoint、recovery
-
-apps/desktop/src/
-  app/
-  features/cad-workbench/
-  shared/api/
-  shared/tauri/
-
-packages/concept-spec/
-packages/module-graph/
-packages/model-quality/
-packages/test-fixtures/
-
-packs/weapon-concept/
-  pack.json
-  modules/
-  thumbnails/
-  prompts/
-  rules/
+unconfigured → checking → ready
+                    ↘ failed(auth | balance | invalid_request | rate_limited
+                              | server_unavailable | timeout | invalid_output)
 ```
 
-迁移期间 `wushen_agent` 和 `SQLiteAssetStore` 作为 legacy facade 存在；所有新 Concept 业务必须进入 `forgecad_agent`，不能继续扩大旧聚合类。旧 Create、Patch、Generate-3D、Worker Runtime 与 Unity Export 已分别迁入 application services；facade 只做依赖组装、代理、旧错误映射，以及共享资产/质量/事件 adapter。AST 门要求 10 个 workflow facade 方法均不超过 30 行，并禁止高层 Provider/ZIP 编排回流。这些仍是冻结兼容链，不是 Concept 新架构。
+实现要求：
+
+- 保存后先验证 metadata 和 Keychain 可读，再重启并等待新 Agent 报告 provider/model capability；
+- `provider:check` 必须产生可取消的 Turn/Item 进度，不阻塞 UI，也不能只返回一个泛化失败字符串；
+- 固定映射 DeepSeek 400、401、402、422、429、500、503 和网络/超时；不向 UI 泄露 Key、原始响应或内部 Base URL；
+- JSON 模式 prompt 明确包含 JSON 要求和输出示例；空 `content`、缺少 choice、无效 JSON、Schema 不符分别记录为结构化错误，不能回退为离线成功；
+- 普通 Turn 使用 streaming 反馈和明确取消；Provider 失败后保留已有设计不变，由用户显式重试；
+- 稳定系统合同、工具 Schema、Domain Pack 和 Skill 前缀保持 canonical，以利用 DeepSeek 上下文缓存；动态 Snapshot、Brief 和请求 ID 放在后部。
+
+### 5.6 内部候选与单一最佳结果
+
+目标 Orchestrator 在一个 Turn 内执行：
+
+```text
+Planner 生成 3–5 个受限候选（内部）
+→ 按 Domain Pack / Style Token / Recipe 选择建模语法
+→ 每个候选通过 G819 manifest 编译
+→ Q003 GLB readback + R006 概念渲染
+→ CandidateEvaluation@1
+→ BestCandidateDecision@1
+→ 只向用户展示第一名
+```
+
+硬门先于评分：范围、Schema、运行时、预算、GLB readback、完整外观和安全任一失败即淘汰。通过硬门的候选再按 Brief 覆盖 25%、完整轮廓/比例 20%、领域角色完整 15%、视觉材质/纹理覆盖 15%、可编辑性 10%、概念渲染一致性 10%、复杂度/性能 5% 排序。权重属于版本化 evaluation profile；分数是候选比较证据，不是工程质量或审美真理。若没有候选通过，Turn 明确失败并给出可操作原因，不能选择“最不坏”的无效模型。
+
+### 5.7 产品 Skill
+
+ForgeCAD Skill 是声明式产品能力包，不是开发插件。每个 Skill 至少包含：
+
+```text
+skills/<skill_id>/<version>/
+├── SKILL.md
+├── skill-manifest.json
+├── tool-policy.json
+├── input.schema.json
+├── output.schema.json
+├── references/
+├── examples/
+└── evals/
+```
+
+`tool-policy.json` 是严格交集：Skill 声明工具、全局 Tool Registry、G819 runtime manifest 和当前用户授权四者同时允许才可调用。不能照搬某些开发 Agent 中“allowed tools 只是免确认但不限制其他工具”的语义。用户可通过引导式编辑器创建“家用电器外观”“复古工业语言”“紧凑桌面设备”等专属 Skill，但发布前必须通过 Schema、无任意代码/URL/路径、示例、失败样例和零副作用 dry-run；失败 Skill 保持禁用。
 
 ## 6. 核心领域合同
 
-### 6.1 WeaponConceptSpec@1
+### 6.1 DomainPackManifest@1
 
-它表达“希望看到什么”，不包含真实武器工作机理。
+定义领域的意图样例、部件角色、Connector、Joint、Shape 模板、材质集合、质量 Profile 和导出 Profile。领域包不包含可执行代码。
 
-```json
-{
-  "schema_version": "WeaponConceptSpec@1",
-  "project_id": "prj_arctic_patrol_s1",
-  "profile_id": "profile_weapon_concept_v1",
-  "name": "寒地巡逻 S1",
-  "archetype": "future_modular_sidearm",
-  "intended_uses": ["game_asset", "film_prop", "non_functional_display"],
-  "style": {
-    "keywords": ["寒地", "工业", "紧凑", "硬表面"],
-    "palette": ["graphite", "gunmetal", "signal_red"],
-    "detail_density": 0.68
-  },
-  "proportions": {
-    "overall_length_mm": 230,
-    "body_height_mm": 54,
-    "grip_angle_deg": 15
-  },
-  "required_slots": ["core", "front", "rear", "grip"],
-  "optional_slots": ["top", "left", "right", "bottom", "side_panels"],
-  "constraints": {
-    "symmetry": "mostly_symmetric",
-    "max_triangle_count": 180000
-  },
-  "assumptions": ["非功能性概念模型，不用于真实制造或使用"]
-}
-```
+详见 [首批领域包设计](DOMAIN_PACKS.md)。
 
-### 6.2 ModuleAsset@1
+### 6.1.1 DomainInferenceResult@1 与 ConceptScopeDecision@1
 
-```json
-{
-  "schema_version": "ModuleAssetManifest@1",
-  "module_id": "module_core_shell_01",
-  "pack_id": "pack_weapon_concept_v1",
-  "category": "core_shell",
-  "asset_id": "asset_core_shell_01",
-  "sha256": "<64-char lowercase sha256>",
-  "bounds_mm": [148, 56, 42],
-  "triangle_count": 28400,
-  "material_slots": ["primary", "secondary", "accent"],
-  "connectors": [
-    {
-      "connector_id": "connector_core_front",
-      "slot": "core.front",
-      "connector_type": "shell_mount",
-      "transform": { "position": [-74, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
-      "scale_range": [0.9, 1.1],
-      "exclusive": true
-    }
-  ]
-}
-```
+在任何 Planner 或 Geometry Worker 写入前，领域推断必须返回判别结果：`recognized` 绑定唯一 Pack，`ambiguous` 给出两个到四个候选，`unsupported` 不给候选。D001 冻结 Schema/Pydantic/fixture，D002 停止旧的默认武器回退，D003 将普通含糊类别记录为单个 clarification Turn/Item。
 
-首包使用九类视觉模块：
+G814 在其后增加 `ConceptScopeDecision@1`：`allowed` 才能进入 Planner，`clarification_required` 复用 D003 的单问题，而 `unsupported` 只保留一个已完成的 scope-stop Turn/Item。该停止发生在 Provider/Planner 前，只允许 Thread/Turn/Item/幂等记录写入，不产生 Plan、Blockout、Version、Asset、Snapshot、Quality 或 Export。规则集刻意有限且版本化，不能被称作关键词即完整安全系统；工具权限、ShapeProgram 限制和确认边界仍独立存在。
 
-1. 核心外壳；
-2. 前部外壳；
-3. 后部外壳；
-4. 握持外壳；
-5. 顶部附件；
-6. 侧部附件；
-7. 下部结构；
-8. 能源/储存视觉模块；
-9. 装甲或装饰面板。
+### 6.2 MechanicalConceptSpec@1
 
-首批只制作 8–12 个高质量、拓扑可靠的手工 GLB；闭环稳定后扩展到 24–30 个。
-
-### 6.2.1 ModulePackManifest@1
-
-`ModuleAssetManifest@1` 描述单个不可变模块，`ModulePackManifest@1` 描述可分发资产包。包合同固定 `millimeter` 业务单位、GLB 的 `Y-up / -Z-forward / right-handed` 导出约定、许可证和文件索引；P0 导入仅接受 `LOD0`。
-
-```json
-{
-  "schema_version": "ModulePackManifest@1",
-  "pack_id": "pack_weapon_concept_v1",
-  "profile_id": "profile_weapon_concept_v1",
-  "name": "Weapon Concept Pack v1",
-  "version": "0.1.0",
-  "description": "Future concept, game, film-prop and non-functional display modules.",
-  "intended_uses": ["visual_asset", "game_asset", "film_prop"],
-  "non_functional_only": true,
-  "units": "millimeter",
-  "up_axis": "Y",
-  "forward_axis": "-Z",
-  "handedness": "right",
-  "license": {
-    "spdx_expression": "LicenseRef-Proprietary",
-    "license_path": "LICENSES/PACK.txt"
-  },
-  "modules": [
-    {
-      "module_id": "module_core_shell_01",
-      "manifest_path": "modules/module_core_shell_01/module.json",
-      "glb_path": "modules/module_core_shell_01/model.glb",
-      "thumbnail_path": "modules/module_core_shell_01/thumbnail.png",
-      "license_path": "modules/module_core_shell_01/LICENSE.txt",
-      "lod": "LOD0"
-    }
-  ]
-}
-```
-
-### 6.2.2 FormalModuleReview@1
-
-技术 Pack 合同不能证明人工最终美术。正式晋级必须额外提供 `FormalModuleReview@1`：review 锁定 `pack.json`、Pack license、每份 `.blend`、module Manifest、GLB、thumbnail 和 Module license 的 SHA-256；作者与 reviewer 必须不同，`approval_status=approved`，全部 pack/module checklist 为 true，五项视觉评分均不得低于 4。`first_three` 只接受稳定的 core + front01 + front02；`release_10_12` 要求 10–12 模块并保留 reference Pack 的 10 个稳定 ID。
-
-晋级器先重跑完整 Module Pack 校验，再要求 GLB generator 来自 Blender、最终许可证不再包含 starter/reference/not-final 标记、三语义材质齐全，并应用 category anti-placeholder triangle floor：core 1000、主要壳体/结构 500、附件/面板 250。该下限只排除明显占位资产，不是艺术质量证明；真正批准来自独立人工 checklist/评分。基线中已存在的 Module 必须保持 asset ID、Connector ID/type/slot/transform/scale/exclusive 完全一致。输出 `ForgeCADFormalModulePromotionReport@1` 不记录绝对路径，也明确人工 attestation 不是密码学签名。
-
-机器校验、Blender 命名和显式导入流程见 `docs/MODULE_ASSET_GUIDE.md`。`ModulePackManifest` 不改变 Module registry API，也不把视觉 Connector 提升为真实机械接口。
-
-### 6.3 ModuleGraph@1
-
-```json
-{
-  "schema_version": "ModuleGraph@1",
-  "graph_id": "mg_arctic_patrol_v1",
-  "project_id": "prj_arctic_patrol_s1",
-  "root_node_id": "node_core",
-  "nodes": [
-    { "node_id": "node_core", "module_id": "module_core_shell_01", "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }, "locked": true, "visible": true },
-    { "node_id": "node_front", "module_id": "module_front_shell_02", "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }, "locked": false, "visible": true }
-  ],
-  "edges": [
-    {
-      "edge_id": "edge_core_front",
-      "from_node_id": "node_core",
-      "from_connector_id": "connector_core_front",
-      "to_node_id": "node_front",
-      "to_connector_id": "connector_front_01_core",
-      "status": "connected"
-    }
-  ]
-}
-```
-
-图不变量：
-
-- 每个非根节点必须能沿 edge 到达根节点；
-- edge 两端连接器类型必须兼容；
-- 变换必须是有限值，缩放必须落在模块约束内；
-- 同一个非共享连接器只能占用一次；
-- 删除节点必须同时处理子节点或明确重连；
-- 保存前运行结构验证，失败图不能成为已确认版本。
-
-### 6.4 DesignChangeSet@1
-
-```json
-{
-  "schema_version": "DesignChangeSet@1",
-  "change_set_id": "change_top_profile_01",
-  "project_id": "prj_arctic_patrol_s1",
-  "base_version_id": "ver_arctic_patrol_v1",
-  "summary": "延长顶部轮廓并降低附件高度",
-  "operations": [
-    { "operation_id": "op_replace_top", "op": "replace_module", "node_id": "node_top", "module_id": "module_top_accessory_03" },
-    { "operation_id": "op_scale_top", "op": "set_transform", "node_id": "node_top", "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1.12, 0.9, 1.0] } },
-    { "operation_id": "op_accent", "op": "set_style", "path": "style.palette", "value": ["graphite", "gunmetal", "signal_red"] }
-  ],
-  "protected_node_ids": ["node_core"],
-  "status": "proposed"
-}
-```
-
-允许的操作首版固定为：`add_module`、`remove_module`、`replace_module`、`connect`、`disconnect`、`set_transform`、`set_style`、`set_parameter`。不接受任意脚本。
-
-### 6.5 ModelQualityReport@1
-
-检查项分为三类：
-
-- Graph：连接器不兼容、浮空节点、无根路径、重复占用、非法缩放；
-- Mesh：法线、非流形边、退化三角形、隐藏几何、密度、UV、LOD；
-- Assembly：模块相交、异常间隙、穿插、对称偏差、包围盒越界。
-
-每项必须包含 `check_id`、severity、status、node ids、实测值、阈值、可读建议和 ruleset version。`passed`、`warning`、`failed`、`not_run` 不得混用。
-
-当前服务端规则集 `weapon-concept-geometry/1.3` 读取 Version 绑定的不可变 WeaponConceptSpec、ModuleGraph 与内容寻址 GLB，不接受客户端替它声明“已通过”。它解码内嵌 glTF accessor，检查索引范围、三角形计数、退化面、法线长度、UV0、焊接后的开放/非流形边、清单 bounds、重复面、内嵌封闭组件、密度离群、总三角预算和 P0 LOD0 名称；装配层复用 Connector 世界 frame 计算 `0.1 mm / 0.1°` 对齐误差，并检查 Spec 对称目标。`1.0` 是历史 AABB 筛查；`1.1` 增加精确穿插；`1.2` 增加 provenance 与间隙；包含新策略规则的报告必须记录为 `1.3`。
-
-未直接相连的节点会把模块局部三角形按 Graph TRS 与 mirror 转到毫米世界空间，以每叶最多 8 个三角形的确定性 BVH 做 broad phase；候选对用三角形法向量、边叉积与共面分离轴做 SAT narrow phase，接触按相交处理，最多记录 128 个表面对。两个网格均无开放/非流形边且没有表面交叉时，再以三条稳定射线的多数奇偶规则检查完整包含。Finding 除 node ids、表面对数、containment、实际窄相位次数和截断状态外，还记录最多 16 组每节点的 triangle index 与毫米世界坐标。直接 Connector 相连的模块可能在接口处有设计允许的接触或嵌合，不进入穿插规则；在 Connector 对齐之外，`1.2` 以两个世界 AABB 的分离距离作为保守表面间隙，超过 `2 mm` 生成 warning。这个距离不是精确网格最近点，不能解释为装配公差或制造结论。
-
-隐藏几何首版只对两个可证明的情况下结论：焊接后顶点集合完全相同的重复 triangle，以及一个断开的封闭组件被另一个断开的封闭组件严格包裹且没有表面相交。密度定义为 `triangle / 1000 mm²` 实际表面积；至少三个模块时，超过装配中位数 8 倍生成 warning，所有情况下都执行 Spec `max_triangle_count` 总预算。P0 LOD 规则验证 `MESH_/GEO_<module_id>_LOD0[_NN]`，LOD1/LOD2 仍被拒绝，不代表多 LOD 切换已经实现。
-
-对称首版是模块占位代理：以 root 的局部 Z 中面为基准，中心跨中面的 AABB 自配对，离开中面的 AABB 只与同 category、尺寸和镜像中心均在容差内的模块配对；`symmetric` 最多允许 5% 未配对模块，`mostly_symmetric` 允许 35%，`asymmetric` 跳过。它不能发现 AABB 内部的细节不对称。桌面 Finding 点击会选择首个有效关联节点、框选全部关联节点，并以红色 emissive 与不受深度遮挡的线框叠加高亮双方和局部相交三角形。强度/制造分析不在该规则集内。
-
-## 7. 连接器系统
-
-Weapon Concept Pack 的标准槽位：
+目标字段：
 
 ```text
-core.front
-core.rear
-core.top
-core.bottom
-core.left
-core.right
-core.grip
-core.side_panel_left
-core.side_panel_right
+schema_version
+project_id / domain_pack_id
+brief / intended_use
+design_language
+overall_envelope
+proportion_targets
+symmetry
+detail_level
+material_intent
+pose_or_stance
+generation_stage
+safety_scope
 ```
 
-连接器定义局部坐标系、兼容类型、允许缩放、占用规则和可选间隙。装配时以连接器矩阵求解子模块世界变换；不依赖名称猜测或人工拖到“差不多”的位置。
-
-## 8. 工作流与版本
-
-### 8.1 主闭环
+`generation_stage`：
 
 ```text
-新建 Weapon Concept 项目
-→ 输入 Brief / 参考图
-→ AI 生成 WeaponConceptSpec
-→ 用户确认风格、比例和必需模块
-→ AI 选择 2–3 组 ModuleGraph 方案
-→ 用户进入工作台组装/精修
-→ AI 提出 DesignChangeSet
-→ ghost preview + 影响摘要
-→ 用户确认并创建子版本
-→ Model Quality 检查
-→ 展示与导出
+blockout | segmented_concept | editable_asset
 ```
 
-### 8.2 版本原则
+Spec 描述意图和约束，不直接保存三角形或任意代码。
 
-- 已确认版本不可原地覆盖；
-- ChangeSet 基于明确 `base_version_id`；
-- stale base 必须重新预览或显式 rebase；
-- 预览资产带 TTL，不作为正式版本；
-- 每个版本保存 spec、graph、asset references、quality summary 和父版本。
+### 6.2.1 CandidateEvaluation@1 与 BestCandidateDecision@1
 
-## 9. API 草案
+`CandidateEvaluation@1` 绑定 `turn_id + candidate_id + ShapeProgram hash + GLB hash + compile_readback_id + render_fingerprint + evaluation_profile_version`，记录硬门结果、各评分维度、淘汰原因和可读摘要。`BestCandidateDecision@1` 只引用通过硬门的候选，保存排序、胜出理由和已知缺口；它不保存隐藏推理，也不成为 AgentAssetVersion。
 
-```http
-POST   /api/v1/projects
-GET    /api/v1/projects
-GET    /api/v1/projects/{project_id}
-POST   /api/v1/projects/{project_id}/versions
-GET    /api/v1/versions/{version_id}
-POST   /api/v1/projects/{project_id}/brief:interpret
-POST   /api/v1/projects/{project_id}/variants
-POST   /api/v1/projects/{project_id}/variants/{variant_id}:select
+同一 Turn 的候选只能使用同一 evaluation profile 比较。Brief、Domain Pack、Skill、runtime manifest、编译结果或概念图 fingerprint 任一变化都使旧评分失效。用户确认获胜候选后才创建 Agent 资产；用户要求“换一个思路”会创建新 Turn 和新候选集。
 
-POST   /api/v1/module-assets
-GET    /api/v1/module-assets
-GET    /api/v1/module-assets/{module_id}/file
-POST   /api/v1/module-graphs/{graph_id}/validate
-GET    /api/v1/module-graphs/{graph_id}
+### 6.2.2 ProviderExecutionTrace@1 与 AgentSkillManifest@1
 
-POST   /api/v1/versions/{version_id}/change-sets
-POST   /api/v1/versions/{version_id}/change-sets:plan
-GET    /api/v1/projects/{project_id}/change-sets
-POST   /api/v1/projects/{project_id}/change-set-audit-exports
-GET    /api/v1/projects/{project_id}/change-set-audit-exports
-GET    /api/v1/change-set-audit-exports/{audit_export_id}
-GET    /api/v1/change-set-audit-exports/{audit_export_id}/file
-POST   /api/v1/change-sets/{change_set_id}:preview
-POST   /api/v1/change-sets/{change_set_id}:reject
-POST   /api/v1/change-sets/{change_set_id}:confirm
+`ProviderExecutionTrace@1` 只保存脱敏运行事实：连接状态、attempt、Item 生命周期、延迟、usage、缓存命中、固定错误类别和取消原因；不保存 Key、完整 prompt、完整 response、原始 reasoning 或内部 URL。
 
-POST   /api/v1/versions/{version_id}/quality-runs
-POST   /api/v1/versions/{version_id}/quality-runs:inspect
-GET    /api/v1/quality-runs/{quality_run_id}
-POST   /api/v1/versions/{version_id}/exports
-GET    /api/v1/exports/{export_id}
-GET    /api/v1/exports/{export_id}/file
-GET    /api/v1/exports/{export_id}/combined.glb
-GET    /api/v1/exports/{export_id}/combined.obj
-GET    /api/v1/exports/{export_id}/combined.mtl
-GET    /api/v1/exports/{export_id}/preview.png
-GET    /api/v1/exports/{export_id}/exploded.png
-GET    /api/v1/exports/{export_id}/views/{front|side|top}.png
-GET    /api/v1/exports/{export_id}/turntable/{0..7}.png
-GET    /api/v1/exports/{export_id}/turntable.mp4
-GET    /api/v1/exports/{export_id}/renders.zip
-GET    /api/v1/jobs/{job_id}
-GET    /api/v1/jobs/{job_id}/events
-```
+`AgentSkillManifest@1` 保存稳定 ID、版本、用途、触发条件、允许领域、输入/输出 Schema、严格工具列表、引用资源 hash、示例/eval 版本、作者/来源/许可证、启用状态和失败原因。Skill 不能修改全局 Tool Registry、运行时白名单或 Snapshot 规则。
 
-ChangeSet 审计查询使用：
+### 6.2.3 MechanicalStyleToken@1
 
-```http
-GET /api/v1/projects/{project_id}/change-sets
-    ?limit=20
-    &cursor=<opaque>
-    &q=<id|summary|node|diagnostic>
-    &status=<proposed|previewed|confirmed|rejected|stale>
-    &operation=<ChangeOperationType>
-```
-
-权威排序是 `updated_at DESC, change_set_id DESC`。cursor 同时绑定 query/status/operation 的 hash，不能跨过滤条件复用。migration `0015` 为每条记录增加 `user|planner` actor；Planner 行同时保存原始 instruction、rationale、`ConceptPlannerProvenance` 和 `concept_change_plan` Job ID。preview 的合同、锁定节点、Connector remap/snap 或 Graph validation 失败会把已持久化 ChangeSet 更新为 `rejected`，并保存 code/message/stage/operation_ids/node_ids/recorded_at；用户放弃 ghost preview 保存 `CHANGE_SET_DISCARDED`，confirm 前 current Version 漂移保存为 `stale` 与 confirm-stage diagnostic。HTTP 错误不是唯一审计来源。
-
-批量审计导出以同一筛选语义读取一个 SQLite 事务快照，固定按 `updated_at DESC, change_set_id DESC` 写入 `Records/change-sets.jsonl`，并可生成带 UTF-8 BOM 的审阅用 CSV；CSV 对公式前缀做中和，JSONL 仍保留 canonical 原值。`ChangeSetAuditExportManifest@1` 保存筛选、排序、记录数、保留类别及 README/JSONL/CSV 的 SHA-256、字节数和 MIME；Manifest 与数据共同封装为确定性 ZIP，再进入内容寻址对象存储。migration `0016` 的 `change_set_audit_exports` 关联 Project 和 `project_report` asset；JobEvent 使用现有 `export_package` 类型，artifact link 的 Version 为 `NULL`，表示 Project 级工件。`max_records` 上限为 10,000，超过请求上限返回 `AUDIT_EXPORT_LIMIT_EXCEEDED`，不静默截断。
-
-当前唯一保留类别是 `project_lifetime`：应用不提供单个归档或对象删除接口，Project 仍存在时记录与内容寻址对象必须保留；删除整个 Project 时数据库外键元数据随之删除，对象垃圾回收仍必须遵循资产引用规则。它是产品内不可变快照，不是法规级 WORM、legal hold、防篡改外部账本或独立灾备。备份时必须同时复制 SQLite 与 `objects/sha256`。
-
-Library backup 使用 `ForgeCADLibraryBackupManifest@1`，不是复制正在变化的 `library.db-wal/-shm`：CLI 先通过 SQLite Backup API 取得完整快照，再归一化为独立 `journal_mode=DELETE` 数据库，从该快照读取 `asset_files` 与 `concept_assets` 的全部引用并按 object path 去重复制。Manifest 保存 migration 列表、关键表行数、数据库/对象 SHA-256 与 size、引用行数、唯一对象数、逻辑/物理/去重字节、源对象存储容量和未引用候选容量。验证必须重新运行 `integrity_check`、`foreign_key_check`，并证明数据库引用集合、Manifest 集合和实际文件集合完全相等；未来 migration 若增加未知 `object_path` 表，旧备份器必须失败而不是静默漏备。
-
-备份输出只包含权威数据库、快照实际引用的对象和 Manifest；Provider secret/config、WAL/SHM、trash/cache 与未引用候选不进入备份。未引用候选只计数，不自动删除。恢复目标必须不存在，CLI 在临时目录完成 hash/FK/integrity/引用集合校验后才原子改名，并把来源 Manifest 保存到 `backups/manifests/`。备份目录本身未加密，不能替代系统级磁盘加密、异地复制、WORM 或 legal hold；恢复后 Provider 凭据必须从环境或 secret file 重新配置。
-
-恢复演练层不得实现第二套复制逻辑。`ForgeCADLibraryRecoveryDrillReport@1` 复用上述 backup/verify/restore 函数，对静止源库执行 1–10 轮，并用恢复库启动真实 Agent，回读 Project/Version/Module、下载全部注册 Module GLB 并验证 hash。每轮记录数据库与对象集合指纹、容量、耗时、吞吐和完成目录大小；跨轮指纹变化必须失败。报告默认不保留副本、不记录源绝对路径，只在显式 `--retain-artifacts` 时保留相对 artifact path。正式资产证据除 10–12 个 Module 与非 fixture generator 外，还必须提供 `formal_release_10_12` 晋级报告并证明其 GLB hash 集合与恢复 Agent 完全相等；恢复报告记录晋级报告 SHA-256，但人工 attestation 仍不是密码学签名。
-
-桌面 `#/cad` 的“检查”面板调用 `quality-runs:inspect:enqueue`，将不可变 GLB 几何检查持久入队并轮询 Job 的最终报告；worker 暂不可用时桌面可显式请求一次本地领取，不把 queued 伪装为完成。质量 Job 有租约、启动 requeue、排队取消与失败/取消重试；带 node ids 的 Finding 可点击选择节点并重新框选相机，这不是仅在 API 中存在的占位能力。Brief、Variant、Change Planner 与 Export 目前仍是同步兼容流程写入 completed JobEvent，不能据此宣称所有耗时工作已 worker 化。
-
-当前实现已完成 Project/Version、Module registry、ModuleGraph、ChangeSet、QualityRun 和 Concept Export；Brief、Variant、Change Planner、Graph validate、QualityRun 与 Export 均写入 Concept JobEvent@2。桌面 `#/cad` 已加载版本 Spec、Graph 与不可变 GLB，支持 raycast 选择、隐藏、聚焦、Connector overlay、显式 X 镜像和爆炸视图。组件可拖到视口目标节点形成替换候选；自然语言修改也可生成受限 DesignChangeSet，但两者都必须先 preview，AI 链路以半透明青色 ghost 显示，显式确认后才创建子版本，放弃只更新审计状态。Undo/Redo 是不可变 parent/child 版本导航。替换 preview 会先按 `slot + connector_type` remap，再以 root 为基准重定位被替换节点和后代；镜像也通过 `set_mirror` 形成子版本并进入 Export Manifest。额外循环约束无法同时满足，或自动重定位会移动 locked 后代时，preview 拒绝。正式资产成功率仍属于后续 R3。
-
-Project ChangeSet 时间线从 `design_change_sets` 权威记录读取完整 actor、Provider provenance、instruction、operation、base/result Version、状态、诊断与时间戳；桌面时间线直接调用服务端 cursor/search/filter 并加载更多，不把 Version summary 或客户端数组过滤冒充操作审计。桌面“导出审计 ZIP”把当前控件筛选直接提交给服务端，下载返回工件并显示最近归档；项目重载会从归档列表恢复该状态。
-
-### 9.1 坐标与 Connector 吸附
+Style Token 表达相对的机械视觉语言，而不是制造尺寸：
 
 ```text
-GLB mesh POSITION = meters (glTF 2.0)
-viewport / ModuleGraph / Connector position = millimeters
-rotation = radians, Euler XYZ
-scale = dimensionless
+style_id / version / display_name
+proportion_profile
+edge_radius_ratio
+surface_tension
+panel_gap_ratio
+trim_scale
+detail_density
+symmetry
+material_palette_id
+lighting_profile_id
+allowed_domains[]
+provenance
 ```
 
-桌面加载器在 GLB asset scene 上应用固定 `×1000`，Graph node Transform 仍保持毫米。服务端吸附使用 Connector 局部毫米坐标计算世界 frame：非 root 替换固定其父节点，root 替换固定 root；后代沿确定性 BFS tree 递归重定位。`mirror_axis` 是独立的 `none/x/y/z` Graph 状态，视口将其转换为渲染 scale 符号，Connector 位置使用同一镜像轴参与吸附；Transform 本身继续只允许正 scale。树外约束边必须在 `0.1 mm / 0.1°` 容差内同时成立，否则 ChangeSet preview 失败。该算法不修改父版本，只写入 preview Graph 和确认后的子版本。
+示例包括 `compact_rounded`、`industrial_heavy`、`clean_consumer`、`aerodynamic` 和 `retro_mechanical`。所有数值是有界比率或离散档位；Token 只能投影到 Recipe 已声明且运行时已实现的参数绑定，不能产生 mm、壁厚、载荷、推力、气动或制造建议。四领域语义比例由 D005 管理，Style Token 不创建第二套参数真值。
 
-视口卸载必须释放 cloned material、geometry、GLTF texture、SkinnedMesh skeleton、OrbitControls、renderer 和 WebGL context。浏览器压力门连续切换 V3/V4，读取 renderer memory、DOM canvas/context 计数和 GC 后 JS heap；它证明合成 fixture 的释放行为，不替代正式资产或 Tauri 窗口中的 GPU profiling。
+### 6.2.4 ProfileSketch@1 与 ProfileSectionSet@1
 
-幂等创建请求接受 `Idempotency-Key`；质量检查已返回 durable Job，不让路由持有检查事务。其他 Concept 耗时操作尚在拆分为可恢复 worker steps，当前同步兼容路径必须在产品和操作文档中如实标明。
-
-## 10. 数据与资产
-
-P0 主要表：
+`ProfileSketch@1` 是受限二维轮廓合同：
 
 ```text
-projects
-concept_specs
-concept_versions
-module_packs
-module_assets
-module_connectors
-module_graphs
-module_graph_nodes
-module_graph_edges
-change_sets
-change_set_audit_exports
-quality_reports
-jobs
-job_steps
-job_attempts
-job_events
-assets
-artifact_links
-schema_migrations
+sketch_id / version / plane
+closed / winding
+normalized_bounds
+segments[]（line / quadratic / cubic 的受限集合）
+holes[]
+symmetry / continuity_hint
+resample_count
+source / provenance
 ```
 
-对象存储保存源 GLB、组合 GLB、缩略图、参考图、渲染图、爆炸图、导出包和报告。数据库只保存元数据、相对对象键和 SHA-256，不保存依赖工作站的绝对路径。
-
-## 11. 前端信息架构
-
-工作台沿用参考图的高密度九区布局，但产品语义调整为五阶段：
+`ProfileSectionSet@1` 按主轴引用一组排序截面：
 
 ```text
-概念 → 组装 → 精修 → 检查 → 展示
+section_set_id / version / main_axis
+sections[]（position + profile_sketch_id + bounded scale/twist）
+cap_start / cap_end
+resample_policy
+symmetry
 ```
 
-- 左栏：项目、版本、AI 助手和当前 Brief；
-- 顶部：文件操作、五阶段导航和视口工具；
-- 中央：Three.js 3D 视口；
-- 底部抽屉：组件、方案、版本、时间线；
-- 右侧检查器：参数、外观、连接、检查；
-- 状态栏：阶段、选择、连接状态、单位、任务和提示。
+前端 SVG path 只是编辑表示；提交时必须转换为规范 JSON，由后端重新验证闭合、自交、绕序、孔洞、连续性、点数和预算。六个互不相关的面不能分别进入几何 Worker。Loft/Sweep 只能消费 G819 已启用的合同和有序引用。
 
-核心交互必须真实可用：模块筛选/选择、阶段切换、参数修改、连接状态、AI 提交、预览/确认、版本切换、检查和导出格式选择。
+### 6.3 AssemblyGraph@1
 
-桌面应用只保留一个 CAD 入口：
+AssemblyGraph 是目标装配真值：
 
 ```text
-App.tsx
-└─ CadWorkbenchPanel
-   ├─ useConceptWorkbench（项目、版本、ModuleGraph、ChangeSet 与导出）
-   ├─ ModuleGraphViewport（唯一的 Three.js/WebGL canvas）
-   └─ CAD session preference（视图、工具、底部组件抽屉）
+Assembly
+└── PartNode[]
+    ├── role / parent_id / child_ids
+    ├── geometry_source
+    │   ├── registered_asset
+    │   └── shape_program
+    ├── transform / pivot / mirror / lock
+    ├── connectors[] / joint
+    ├── material_zones[]
+    ├── editable_parameters[]
+    └── provenance / immutable_glb_hash
 ```
 
-旧 Forge、Patch、任务中心、资产库、设置页面和它们的 hash 路由均已删除。任务历史不再是独立界面：当前项目的 ChangeSet 时间线在底部抽屉，质量结论在右侧“检查”，真实模块与筛选在底部“组件”。这避免用户在多个旧工作台之间丢失当前 CAD 上下文。
+Graph 必须有一个或多个 root，但不能有环、悬空引用或重复 ID。局部修改只影响目标节点和由 Joint/Connector 明确依赖的子树。
 
-## 12. AI 设计协议
+### 6.4 ShapeProgram@1
 
-AI 输出必须过 Schema 校验。推荐分三步：
+ShapeProgram 是部件或候选组合的程序化几何真值。
 
-1. Brief Interpreter：产生 spec、缺失项和 2–3 个方向；
-2. Module Planner：根据 pack inventory 产生候选 ModuleGraph；
-3. Change Planner：根据当前 graph 和用户指令产生 DesignChangeSet。
+运行时接受集合不在本文重复维护。已实现的 `ShapeProgramRuntimeManifest@1` 位于 `packages/concept-spec/fixtures/shape-program-runtime-manifest.json`，是 Schema、Pydantic、Worker、编译/readback、质量入口和导出共同消费的唯一清单；Schema enum 由 `contracts:types:generate` 生成，运行时会拒绝 schema/manifest 漂移。文档、prompt、Skill 或前端不能单独扩大它。当前仅声明并执行 box、cylinder、wedge、capsule、profile/extrude、revolve、mirror/array/radial_array、受限 union/subtract、bevel_approx 和 surface_panel；未知、缺执行器或运行时非法参数返回 `UNSUPPORTED_RUNTIME_OPERATION`，不得跳过节点后继续成功。质量入口通过 `GeometryCompileReadback@1` 消费同一次编译后的 GLB triangle、bounds、operation、output role、material 和 hash 事实；导出使用同一编译/readback 结果。readback 损坏时质量显式为 unavailable 且导出拒绝，旧估算报告不能被当作当前证据。这仍只是概念 Mesh/GLB 事实，不是工程、结构、材料或安全结论。
 
-Provider 不得看到本地绝对路径或密钥；provenance 保存 provider/model、清洗后输入/输出 hash、registry ids、warning、单次 `latency_ms` 和 Provider 返回的 input/output/total token，不保存密钥、绝对路径或原始参考图。Provider 不返回 usage 时 token 字段保持 `null`，不得以估算值冒充实测。
+硬性限制：unknown field 拒绝；数值有限且有范围；引用有序无环；禁止 URL、路径和可执行文本；operation、array、布尔深度、bounds 和 triangle budget 有上限；canonical JSON、validator 与 runtime version 进入 hash。
 
-当前 Brief/Module/Change Planner 共用 `ConceptPlannerProvider` 边界。默认 `deterministic_rules` 不是 AI：它只把有限视觉词汇映射到有界 Spec 参数，生成三个可重复结构方案，并将明确数值/有限相对词、展示配色、选中候选替换或镜像映射为受限操作。配置 `openai_compatible` 后，Brief 只返回 style/proportions/symmetry patch，Module Planner 只返回 rank/name/summary、已存在 target node、`0.85–1.15` scale、注册 module ids 和 rationale；Change Planner 只能返回 `replace_module/set_mirror/set_style/set_parameter`，路径白名单固定，所有 nullable 字段在 strict JSON Schema 中仍为 required。服务端固定 project/profile/id、安全假设与 Graph 不变量，不直接执行模型文本。
+ShapeProgram 的目标演进是在同一合同内保存有序、不可变的 feature nodes：每个节点包含稳定 ID、operation、输入节点、规范参数、role/zone provenance、预算和输入 hash。派生顶点/索引是编译结果，不是可编辑历史；修改节点生成新 ShapeProgram/ChangeSet，不破坏性改写旧网格。不得同时建立另一套 FeatureGraph 作为竞争真值。
 
-每条 Brief/Variant/Planner ChangeSet 保存 `ConceptPlannerProvenance`：实际 generator/provider/model、auto fallback 前尝试的 provider/model、fallback 标记、清洗后输入/输出 SHA-256、当时 registry module ids 和 warning。migration `0014` 为旧 Brief/Variant 模板行写入明确的 legacy provenance；migration `0015` 为 ChangeSet 增加 actor/instruction/rationale/provenance/Job。`auto` 可以显式降级；`configured_provider` 失败必须向调用方暴露，不能用规则结果伪装 AI 成功。Variant 选择只切换桌面预览并更新 selected/rejected，不创建 Version；Change Planner 则产生 proposed 记录并复用既有 `preview → confirm`，只有 confirm 才创建子版本。
+### 6.4.1 EditableComponentRecipe@1
 
-### 12.1 R4 Planner 评测契约
+Recipe 是可编辑 3D 组件库的复用单元：
 
-`evaluations/r4/planner_truth_set.json` 是固定、可哈希的视觉设计集：20 条 Brief 同时覆盖相对词和明确数值，20 次 A/B/C 检查结构签名，20 条合法 Change 指令覆盖参数/风格/同类注册替换/镜像，20 个 lock probe 覆盖正常保护和对抗性指令。报告必须包含 truth-set SHA-256、逐例结果、四项比率、p50/p95/max latency 和 token 汇总。
+```text
+recipe_id / version / component_role
+profiles[] / section_sets[]
+geometry_features[]
+parameter_bindings[]
+connector / pivot
+material_zones[]
+child_slots[]
+allowed_domains[]
+quality_profile
+source / provenance / review_state
+```
 
-deterministic baseline 可以作为回归门，但无论比率多高都不能成为真实 AI 证据。只有 `configured_provider`、完整 80 次调用、所有阈值通过、每次均有 Provider token usage 时，报告才允许设置 `real_provider_evidence_eligible=true`。live CLI 必须显式 `--confirm-live-provider`，避免开发门禁意外消耗付费 token；未配置时返回 `EVAL_PROVIDER_NOT_CONFIGURED`，不允许自动降级。
+Recipe 只引用已存在的 ShapeProgram operation、G808/D005 参数绑定、稳定 Material Zone 和已审阅资源。实例化只创建候选；替换、调参和换材质仍走 preview → ChangeSet → confirm。父子 Recipe 必须无环，锁定、跨领域、连接不兼容、质量失败、来源不明或超预算均拒绝。Recipe 不表示工程装配、公差、紧固、载荷或功能机构。
 
-## 13. 导出与交付包
+### 6.5 Connector 与 Joint
 
-当前已实现 `ConceptExportManifest@1` 源包、`Model/combined.glb`、`Model/combined.obj/.mtl` 与 `Renders/preview.png/exploded.png`：ZIP 中包含不可变模块 GLB、WeaponConceptSpec、ModuleGraph、可选最新质量报告、README、组合/交换/渲染工件和逐文件 SHA-256；数据库保存 package asset、artifact link 与 completed JobEvent。
+Connector：`surface_mount`、`axial_mount`、`socket_mount`、`panel_mount`、`wheel_mount`、`wing_mount`、`tool_mount` 等。
 
-R5 的正式 P0 导出目标：
+Joint：`fixed`、`revolute`、`hinge`、`slider`、`ball_preview`。Joint 保存轴、原点、概念限位和默认姿态；只用于装配、姿态与简单动画，不用于工程动力学。
 
-- `model.glb`：组合模型和材质；
-- `model.obj`：通用网格交换；
-- `preview.png`：透明或场景预览；
-- `exploded.png`：爆炸结构图；
-- `turntable/`：转台帧或视频；
-- `module-manifest.json`：模块、连接器、变换和哈希；
-- `quality-report.json/html`：检查结果和已知限制。
+### 6.6 MaterialPreset@1
 
-Manifest 中明确 `intended_use` 和“非功能性概念模型”声明。P0 不显示“制造就绪”。
+MaterialPreset 保存 metallic-roughness PBR 参数、纹理、透明、发光、涂层、标签、来源、许可证和版本。Material Zone 使用稳定 ID；换材质不改变部件和几何 ID。
 
-combined GLB 第一切片合并静态 GLB 的 bufferView/accessor/mesh/material/node，去重完全相同材质，将 Graph `position(mm)` 转成 glTF `translation(m)`，Euler XYZ 转 quaternion，并将 `mirror_axis` 写入 wrapper node 有符号 scale。wrapper 使用稳定 `NODE_{node_id}__{module_id}` 名称和 provenance extras。skin、animation、纹理和 required/compression extension 当前结构化拒绝；后续由 glTF Transform/Meshopt 与纹理管线扩展，不能静默丢数据。
+详见 [视觉材质系统](MATERIAL_SYSTEM.md)。
 
-combined OBJ 第一切片以同一份 combined GLB 为输入，递归扁平化 scene graph，将节点 matrix/TRS、非均匀缩放和镜像烘焙进顶点；法线使用逆转置矩阵并归一化，负行列式变换翻转三角面序。OBJ 固定声明米制，保留 `NODE_{node_id}__{module_id}` 路径、`v/vt/vn/f` 和稳定 material 名；PBR factor 确定性投影为配套 MTL。OBJ/MTL 进入同一不可变 ZIP 和 Manifest，并提供独立下载。该转换不支持 sparse accessor、非 TRIANGLES primitive、morph、skin、animation 或贴图搬运；MTL 是有损交换格式，不替代源 GLB。
+### 6.7 DesignChangeSet@2
 
-PNG 管线以同一份 combined GLB 为输入，经确定性 OBJ flatten 后在 Agent 内软件光栅化。固定输出 640×640 RGBA8、透明背景、正交投影、自动取景、z-buffer、基础材质颜色和方向光。exploded render 只复制 GLB JSON，在临时 wrapper translation 上按装配中心径向增加确定性距离；中心重合时用 node ID hash 生成稳定方向，不修改 ModuleGraph、Version 或源 GLB。固定 `front(+Z) / side(+X) / top(+Y)` 三个正交视图和绕 Y 轴均匀采样的 8 帧 turntable 与 preview/exploded 共 13 张图。
+允许操作：
 
-展示交付切片在透明轮廓外缘增加固定 coverage 像素，并在非 top 相机下绘制确定性半透明软接触阴影；算法和模式进入 Export metadata/JobEvent，避免把技术预览写成照片级渲染。请求显式设置 `include_turntable_video=true` 时，Agent 通过配置的 FFmpeg 以固定 8 fps、单线程 H.264 参数和移除时间元数据的方式生成 `Renders/turntable.mp4`；视频和 13 张 PNG 一同进入 `render-set.zip`、主 ZIP 与 Manifest。旧请求默认不依赖 FFmpeg；视频请求在编码器缺失时返回结构化 `VIDEO_ENCODER_UNAVAILABLE`。桌面在 Version 未变化且所需工件存在时复用最近 Export，避免各格式形成不同交付真相。
+```text
+replace_part / add_part / remove_part
+set_parameter / replace_shape_program
+set_transform / set_pivot / set_mirror
+set_connector / set_joint_pose
+set_material_binding
+split_part / merge_parts
+```
 
-`scripts/check_dcc_roundtrip.py` 是只读交付门：发现 Blender/Assimp 后将显式输入的 combined GLB 导入再导出，校验源 SHA-256 未变化、输出 GLB 2.0 可读且 flatten 后 vertex/triangle count 一致。没有 DCC 时只返回 `blocked_dcc_not_configured`；这不构成 round-trip 证据。2026-07-11 已用 Blender 4.2.22 对工作台 E2E 导出的 10 模块 reference、实际 visual-v2 三模块以及十模块 visual candidate combined GLB 返回 `dcc_roundtrip_validated`；这是导出链证据，不是正式人工 Blender 资产验收。当前渲染器仍不含贴图、PBR 环境光或照片级材质。
+`split_part` 和 `merge_parts` 只修改候选 AssemblyGraph；确认前必须展示新旧分件和受影响范围。
 
-## 14. 验证策略
+状态：`proposed → previewed → confirmed`，或 `rejected / stale / failed`。
 
-固定纵向样本为“寒地巡逻 S1”未来模块化短武器概念，至少覆盖：
+### 6.8 ModelQualityReport@1
 
-- 8–12 个模块资产注册；
-- 9 个标准槽位中的核心、前部、后部、握持、顶部和侧板；
-- 两组候选方案；
-- 替换模块、调整比例、锁定核心、预览并提交；
-- 人工注入连接器不匹配、浮空、穿插和非法缩放；
-- GLB/OBJ/PNG/Manifest/报告导出；
-- 重启后恢复项目、版本和 Job 历史。
+通用 P0 检查：
 
-质量门定义见 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)，运行与故障处置见 [OPERATIONS.md](OPERATIONS.md)。
+- 空网格、非有限值、退化面、非法索引；
+- bounds、三角预算、法线、开放/非流形边；
+- 父子关系、悬空节点、Connector 和 Joint 引用；
+- 严重穿插、重复隐藏几何和异常尺度；
+- pivot、材质槽、GLB 回读和 provenance；
+- 领域包附加的概念一致性规则。
 
-## 15. 已冻结决策
+检查不是 DFM、结构、空气动力学或安全认证。
 
-1. P0 是通用平台加 Weapon Concept Pack；
-2. 不按武器类别拒绝，但首版只承诺概念/游戏/影视/展示模型；
-3. P0 权威模型是 `WeaponConceptSpec + ModuleGraph + GLB`；
-4. AI 修改必须通过 `DesignChangeSet` 和用户确认；
-5. 首批模块少而精，先做 8–12 个；
-6. CAD/DFM 是独立后续 Engineering Pack；
-7. Tauri 是产品路径，浏览器只是开发壳；
-8. SQLite、对象存储、任务恢复和审计继续作为平台基础。
+## 7. 首批四领域包
+
+### 7.1 Future Weapon Prop
+
+完整外观角色包括主体、前后外壳、握持外壳、视觉附件、能源/存储造型和面板。只做非功能性概念道具。
+
+### 7.2 Vehicle Concept
+
+完整外观角色包括车身、座舱、底盘视觉、车轮/履带、灯组、空气动力外观件和内饰剪影。关键参数包括轴距、轮距、离地高度、车身尺度、轮径和座舱位置。
+
+### 7.3 Aircraft Concept
+
+完整外观角色包括机身、座舱罩、主翼、尾翼、发动机舱、起落装置视觉和面板。关键参数包括翼展、机身尺度、后掠视觉角、翼厚和布局。
+
+### 7.4 Robotic Arm Concept
+
+完整运动链包括基座、肩关节、连杆、肘关节、前臂、腕关节、末端工具和护罩。关键参数包括自由度、各段长度、关节外壳、工具和姿态。
+
+每个包的详细角色、模板和验收见 [DOMAIN_PACKS.md](DOMAIN_PACKS.md)。
+
+## 8. 完整外观与自动分件
+
+本节描述目标闭环。当前前端已展示 Planner 的三个方向，并支持单一主视口的相机/灯光预设；后端已完成四领域 48 个 blockout 变体、确定性分件候选、受限 AgentAssetVersion 编辑和 R002–R004 四视图、条件式爆炸概念 PNG 与当前 PNG/manifest 图包。前端变体目录、自由合并/拆分和深度几何分件尚未实现。
+
+### 8.1 Blockout
+
+Agent 先生成完整体量：主轮廓、比例、对称、姿态和主要空隙。当前 `quick_sketch` 保留轻量体量；`showcase` 只通过版本化的本机规则追加有上限的外观面板、分缝视觉线、护板、孔洞/紧固件、灯带和线缆槽视觉线，并使用固定的石墨、复合外观、金属外观与灯带发光 PBR 映射。相同 profile、ShapeProgram、GLB、AssemblyGraph、分件候选与确认链始终同源；视觉部件没有参数绑定或机械臂 Joint。它不从 Brief 推导功能、尺寸、材料或工程结构，视觉线/孔洞/灯带也不等于真实槽、开孔、电气或散热设计。R002/R003 已从同一 Agent 资产生成三分之四、正面、侧面、顶部和条件式透明爆炸概念 PNG；后者仅在真实 Part/几何组一一对应时出现。R004 仅在当前预览 fingerprint 匹配时，将这些 PNG 与 machine-readable manifest 打包下载。它们通过导出抽屉展示，是绑定资产版本的只读派生结果，不是工程渲染、装配或制造图。
+
+### 8.2 Segmented Concept
+
+Agent 按 Domain Pack 角色提出分件。目标系统验证层级、最小部件尺寸、连接关系和可选择性，并允许用户预览边界、合并或拆分候选；当前已支持由现有 AssemblyGraph、稳定 role、受限 primitive output 和连接事实共同证明的候选 split/merge 预览，但只支持受限 ChangeSet，不能任意指定切割线或自由合并网格。深度自动分件和整组之外的自由编辑仍是目标能力。
+
+### 8.3 Editable Asset
+
+确认后补齐稳定名称、pivot、Connector、Joint、Material Zone、缩略图、质量报告和 GLB。可编辑资产不等于最终美术，也不等于工程 CAD。
+
+## 9. 几何运行时
+
+- 当前运行时：仓库自有的受限 ShapeProgram mesh worker，已执行 `box`/`cylinder`/`capsule`/`wedge` 及文档列明的有限组合操作；主视口以同一 Three.js renderer 显示四类基础外形和 display-only 柔化边缘/工作室环境，不成为几何真值；
+- Manifold：候选实体/稳健布尔实现，未集成；四领域本机 benchmark、provenance/readback、隔离取消、真实临时权威状态提升和 macOS packaged 预算/许可证证据已通过 G824/G824A/G824B/G824C，并建议 Python，仍须完成 Windows packaged runtime、superseding ADR 和发布审查；
+- Trimesh：候选网格分析、Scene 和 GLB 实现，未集成，必须固定版本并验证依赖；
+- glTF Transform / Khronos glTF-Validator：候选导出优化和标准合规门，未集成；
+- Three.js：交互预览，不是几何真值；
+- Blender：可选专业 DCC 往返，不是用户前置依赖。
+
+两阶段构建：preview 使用较低细节，final 在确认/导出时重建、检查和固化。几何运行在可取消 worker/process；失败返回 operation ID、错误码和建议。
+
+候选采用边界见 [GitHub 参考架构](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)。ShapeProgram 是稳定合同，底层候选只能有一个进入默认安装包，不能同时制造多套几何真值。
+
+### 9.1 视觉真实度构建链
+
+目标不是简单增加三角形，而是按顺序建立可追溯的外观层：
+
+```text
+Brief / reference evidence
+→ DomainSemanticProportionRecipe + MechanicalStyleToken
+→ EditableComponentRecipe
+→ ProfileSketch / ordered section sets
+→ Extrude / Revolve / Loft / Sweep 主形体
+→ bounded CSG / array / edge finish
+→ GeometryCompileReadback
+→ UV0 + tangent + stable Material Zones
+→ PBR texture set / supported glTF material extensions
+→ HDRI studio lighting + tone mapping + color management
+→ multi-view concept render
+→ visual benchmark + GLB validate/inspect
+→ candidate evaluation
+```
+
+几何最低要求：主次体块清楚、边缘有受控圆角/倒角近似、连接处不悬浮、重复细节有节奏、左右/径向重复稳定、面板/接缝服从曲面与部件边界、零尺寸和明显穿插在候选阶段拒绝。细节仍是外观表达，不解释为通风、散热、电气、紧固或真实功能。
+
+材质最低要求：每个正式视觉材质可引用 base color、metallic-roughness、normal、occlusion 和 emissive 纹理；汽车漆、涂层塑料等可在 Three.js 与导出端共同支持时使用 clearcoat，透明件可在明确兼容边界内使用 transmission/IOR。每张纹理有内容 hash、用途、色彩空间、分辨率、来源、许可证和回退。KTX2/BasisU、meshopt/Draco 等优化只能在 GLB readback 和目标平台兼容 Gate 通过后启用。
+
+展示最低要求：固定可复现的 HDRI/工作室环境、物理正确灯光、线性色彩工作流、统一 tone mapping、接触阴影和受控环境遮蔽；不得用强轮廓线、过曝高光或随机背景掩盖几何问题。mini 与中央 focus 使用同一个场景、renderer、相机状态和材质资源。
+
+资产层级分为 `preview`、`editable`、`export` 三档，但都从同一 ShapeProgram/AssemblyGraph 重建，不保存三套互相漂移的网格。preview 优先反馈速度；editable 保留选择与材质区；export 才执行完整 validate/inspect、纹理压缩和未引用资源清理。
+
+DeepSeek 不是 3D 生成或纹理服务。若以后引入外部图像/3D 重建 Provider，只能作为可选、可替换、用户授权的插件输入，输出仍先进入只读参考和许可证检查，再由 ForgeCAD 重建为新的受限资产；不能直接替换 AgentAssetVersion 真值。
+
+### 9.2 建模语法路由
+
+Agent 不得对所有对象应用同一 primitive 模板。建模路由只从 Domain Pack、part role、Style Token、Recipe 和当前 runtime manifest 计算：
+
+| 结构 | 主语法 | CSG/细节作用 |
+| --- | --- | --- |
+| 机柜、打印机、工业设备外壳 | Profile + Extrude | 门、开口、控制区和局部倒角 |
+| 汽车、飞机、咖啡机、吸尘器外壳 | 多截面 Loft | 窗洞、轮拱、进气口和局部罩体 |
+| 轮胎、旋钮、轴套、关节罩 | Revolve | 孔、槽和阵列细节 |
+| 扶手、管路、框架、线缆外观 | Sweep | 接头、端帽和局部裁剪 |
+| 机械臂、设备、工程机械 | Component Recipe + Connector | 可替换装配和受限姿态 |
+| 接缝、标识和浅表面细节 | decal / normal / roughness | 原则上不增加网格 |
+
+路由结果必须可解释为“为什么选择这种主形体语法”，但不向零基础用户暴露 operation ID。请求的语法未进入 G819 manifest 时，候选失败并选择另一条已实现 Recipe；不能把不支持的节点静默删除后返回低质量模型。
+
+### 9.3 轮廓、截面、Loft 与 Sweep
+
+不分别制作前后左右上下六个独立表面。目标流程以正视、侧视、顶视轮廓和沿主轴的共享横截面形成封闭体：
+
+```text
+ProfileSketch
+→ validate / normalize / resample
+→ ordered ProfileSectionSet
+→ extrude | revolve | loft | sweep
+→ cap / normals / surface provenance
+→ compile/readback
+```
+
+Loft 的每个截面必须有确定顺序、统一重采样数量、受限缩放/扭转、封盖和曲率边界；Sweep 必须限定 profile、路径、frame 计算、弯曲/扭转上限和自交拒绝。每个新 operation 单独交付 Schema、Pydantic、runtime、确定性 topology hash、预算、GLB readback、损坏/退化输入和重启回归，不能一次批量开放。
+
+### 9.4 CSG 与特征历史
+
+目标特征链保存操作节点，而不是破坏性修改顶点：
+
+```text
+base_shell = loft(sections)
+wheel_arch = subtract(base_shell, arch_cutters)
+windows = subtract(wheel_arch, window_cutters)
+trimmed = union(windows, reviewed_trim_components)
+finished = edge_finish(trimmed, bounded_edge_set)
+```
+
+当前受限 box boolean 保留为已验证子集。Manifold Python/WASM 仍只是候选：G824 已比较现有 Worker、Python 与 WASM 的安装体积、冷启动、峰值内存、确定性、失败诊断和本机四领域结果，G824A 已补齐 macOS arm64 的 source/material/zone/face/backside provenance、确定性 GLB readback、近退化拒绝与隔离进程 cancel/timeout，G824B 已用真实临时 SQLite、对象库和 UnitOfWork 证明事务外 staging、三个中断窗口零权威提升以及 Version/head/Snapshot 原子回滚/提交，G824C 已实际冻结并启动含 Python 候选的当前 macOS sidecar，固定包体、相对冷启动、完整进程树 RSS 和许可证预算，并因 WASM 不适配当前执行宿主而建议 Python。G824D 已实现 Windows x64 frozen sidecar 内同源证据 runner，但没有真实远端 artifact；superseding ADR 也未完成，因此 ADR-0012 继续不正式选择实现。G825 只能在 Windows 报告通过并由新 ADR 选择一种生产路径后集成。任何 boolean 失败都必须返回稳定节点 ID 和错误码，不输出部分模型。
+
+### 9.5 表面完成与 GLB 事实
+
+几何完成顺序固定为：
+
+```text
+受控 edge finish
+→ split/weighted normals
+→ UV0
+→ tangent
+→ stable face/Material Zone provenance
+→ PBR binding
+→ GLB validate/readback
+```
+
+法线、UV、tangent 和 zone 必须来自真实编译结果；不能由 UI、材质名称或平行估算猜测。优化和压缩必须保留 node/part/zone/material 映射。G826 只建立几何侧表面事实，M108 才把完整纹理集、clearcoat/透明兼容、HDRI 和色彩管理接到这些事实上。
+
+### 9.6 UI、GSAP 与可丢弃 SDF 边界
+
+SVG 编辑器只编辑 `ProfileSketch@1`；HTML 只显示表单和属性；GSAP 只负责 mini/focus、抽屉、步骤、相机、爆炸图和确认状态的可取消动画。实现优先使用 Timeline、transform/autoAlpha 和 `gsap.matchMedia()` 的 reduced-motion 分支。动画完成与否不得改变 ShapeProgram、Snapshot、质量或版本。
+
+SDF/体素只可作为早期、未保存的形体探索候选，并必须在进入 editable asset 前重建为受限 ShapeProgram。它不能提供稳定 Part、Recipe、UV、Material Zone 或最终 GLB provenance，因此不能成为资产真值。
+
+## 10. 工作台信息架构
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 项目名   保存状态                  撤销   检查   导出       │
+├──────────────┬──────────────────────────────────────────────┤
+│ 3D mini      │ Agent 会话 / 连续步骤 / 单一最佳结果        │
+│ 280×180      │                                              │
+│ 点击→中央    │ 理解 → 检索 → 构建 → 检查 → 已选择最佳      │
+│              │                                              │
+│ 项目/版本    │ 结果摘要 / 选中部件简单动作 / 确认条         │
+│              │                                              │
+├──────────────┴──────────────────────────────────────────────┤
+│ 输入你的创意或继续修改…                          发送       │
+└─────────────────────────────────────────────────────────────┘
+
+点击左上 3D mini 后，同一个 canvas 移入中央 focus 层：
+
+┌──────────────┬──────────────────────────────────────────────┐
+│ 会话摘要     │ 单一 3D 中央焦点视图                    关闭 │
+│              │                                              │
+│              │       选中部件动作按需浮出                   │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+mini 与中央焦点不是两张视图；状态机只切换 `viewport_dock = mini | focus` 并移动同一个 canvas 容器。组件库、材质库、属性、检查和导出按需打开。用户不选择 Mode、Agent、内部候选、Skill 或 Domain Pack；专属 Skill 由 Agent 根据触发条件使用，技术详情只在明确的管理表面出现。
+
+## 11. 主工作流
+
+以下是目标工作流，不是当前 Alpha 的完整能力清单：
+
+```text
+输入 Brief
+→ 推断领域包
+→ 回述关键理解
+→ 内部生成多个受限完整外观候选
+→ 逐个编译/readback/概念渲染/评审
+→ 只展示一个最佳 blockout + 多视图概念图
+→ 自动分件候选
+→ 用户确认 AssemblyGraph
+→ 部件级对话修改和材质
+→ editable_asset 检查
+→ 用途导出
+```
+
+Provider 离线时，已有项目仍可打开、手动编辑、检查和导出；只禁用新的 Agent Turn。
+
+当前已验证的最小闭环以 [零基础用户指南](USER_GUIDE.md) 为准。目标验收和当前差距分别见 [测试策略](TEST_STRATEGY.md) 与 [生产发布清单](PRODUCTION_RELEASE_CHECKLIST.md)。
+
+目标界面、轮廓、Recipe、材质区、Provider 诊断和失败恢复的完整操作顺序见 [3D 机械设计系统目标操作手册](MECHANICAL_DESIGN_OPERATIONS.md)。
+
+## 12. 数据、安全与材料边界
+
+- API Key 存系统密钥存储；数据库只存引用；
+- 日志、Item、导出和 crash report 不含密钥；
+- ShapeProgram 永不 `eval`/`exec`；
+- 导入/导出路径经过允许根和 canonical path 检查；
+- 临时候选与正式对象分区；
+- 原创、审阅、质量和许可证来自真实记录；
+- 视觉 MaterialPreset 不自动转换为工程材料 Profile。
+
+## 13. 性能目标
+
+以下是目标，必须在真实 Tauri 环境测量：
+
+| 项目 | P0 目标 |
+| --- | --- |
+| 本地神经模型与权重 | 0 |
+| WebGL context | 1 |
+| 首个步骤反馈 | <1 秒，不含 Provider 网络 |
+| blockout preview | 默认 ≤100k triangles |
+| editable asset | 默认 ≤250k triangles，可按 Profile 调整 |
+| Turn 可取消 | 100% |
+| Thread/Version 重启恢复 | 100% |
+| GLB 导出成功率 | ≥98% |
+| 新用户首次有效导出 | 中位数 <5 分钟 |
+| 候选运行时/readback 硬门 | 100% 候选先验证，失败候选不得入选 |
+| 正式 Material Zone 外观覆盖 | 100% 有有效 PBR 绑定或明确参数回退 |
+| 四领域视觉基准 | 独立人工评测中完整外观/比例/材质/细节各维度中位数 ≥4/5 |
+| 默认可见候选数 | 1；内部候选不成为用户选择器 |
+
+## 14. 后续 Engineering Pack
+
+Engineering Pack 可独立引入 build123d/OpenCascade、B-Rep、STEP/3MF、真实材料 Profile 和领域工程检查。它使用另一套质量门，不把 Mesh ShapeProgram 或视觉材质冒充工程真值。

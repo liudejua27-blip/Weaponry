@@ -1,0 +1,6 @@
+# Build-machine-only dependencies for FGC-P002 macOS arm64 sidecar freezing.
+# These do not become a runtime API dependency or a packaged Provider configuration.
+altgraph==0.17.5
+macholib==1.16.4
+pyinstaller-hooks-contrib==2026.6
+pyinstaller==6.16.0

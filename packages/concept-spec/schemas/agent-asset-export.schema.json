@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-asset-export.schema.json",
+  "title": "AgentAssetExport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "asset_version_id", "format", "glb_base64", "triangle_count", "bounds_mm", "readback_status", "readback_triangle_count", "exported_at"],
+  "properties": {
+    "schema_version": { "const": "AgentAssetExport@1" },
+    "asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "format": { "const": "glb" },
+    "glb_base64": { "type": "string", "minLength": 1 },
+    "triangle_count": { "type": "integer", "minimum": 0 },
+    "bounds_mm": { "$ref": "common.schema.json#/$defs/vec3" },
+    "readback_status": { "const": "passed" },
+    "readback_triangle_count": { "type": "integer", "minimum": 0 },
+    "exported_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

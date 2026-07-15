@@ -16,9 +16,9 @@ npm run release:gate
 | Surface | Source | Gate status |
 | --- | --- | --- |
 | Desktop npm dependencies | `package-lock.json` | Automated license expression check. |
-| Desktop Rust/Tauri dependencies | `apps/desktop/src-tauri/Cargo.lock` | Blocked until `Cargo.lock` is committed and audited. |
+| Desktop Rust/Tauri dependencies | `apps/desktop/src-tauri/Cargo.lock` | Lockfile is committed; final Rust transitive license/NOTICE SBOM remains a release task. |
 | Agent Python dependencies | `apps/agent/requirements-release.lock` | Automated pin and license expression check. |
-| Unity import package | Generated export ZIP manifest | Covered by `release:safety-scope` and `unity:import:gate`; Unity package license review remains separate. |
+| Unity import package | Legacy smoke only | Not part of the target ForgeCAD release; review separately only if Unity export is reintroduced. |
 
 Allowed license atoms for current integrated code dependencies:
 
@@ -47,19 +47,27 @@ These projects are referenced by the product design or supported as external ada
 
 | Item | Role | Status | Release note |
 | --- | --- | --- | --- |
-| ComfyUI | External image workflow server | Pending | Not bundled. Workflows and node dependencies need review before shipping templates as production defaults. |
-| Stable Fast 3D | Candidate local 3D runtime backend | Pending | Manual SF3D smoke exists, but code/model terms, commercial threshold, model access, and redistribution rules must be recorded before choosing it as default. |
-| TripoSR | Candidate local 3D runtime fallback | Pending | Manual TripoSR smoke exists, but exact repo/model licenses and output terms must be recorded before production use. |
-| Hunyuan3D | Candidate higher-quality 3D runtime | Pending | Not integrated. Requires separate code, model-weight, VRAM, texture pipeline, and commercial-use review. |
-| TRELLIS | Candidate 3D generation runtime | Pending | Not integrated. Requires separate code, model-weight, and commercial-use review. |
-| Unity glTFast | Unity import verifier dependency | Pending | Used by the Unity import smoke through Package Manager; release needs package license and redistribution note. |
-| Tauri | Desktop shell | Blocked | Direct dependency exists, but Rust transitive dependency SBOM is blocked until `Cargo.lock` is committed. |
+| ComfyUI | Legacy external image workflow server | Not a product dependency | Not bundled; retained only for legacy regression until the old runtime is removed. |
+| Stable Fast 3D | Legacy local 3D experiment | Rejected for P0 | Not bundled and not part of the zero-beginner product route. |
+| TripoSR | Legacy local 3D experiment | Rejected for P0 | Not bundled and not part of the zero-beginner product route. |
+| Hunyuan3D | Research reference only | Rejected for P0 | Not integrated; model weight, VRAM and install cost conflict with the lightweight product. |
+| TRELLIS | Research reference only | Rejected for P0 | Not integrated; model weight and GPU runtime conflict with the lightweight product. |
+| Manifold Python 3.5.2 | Candidate lightweight geometry runtime | Recommended pending Windows runtime; not integrated | Apache-2.0. G824C records wheel distribution license files and SHA-256 and proves an isolated macOS arm64 packaged sidecar budget; production lock/SBOM remains unchanged until Windows evidence and a superseding ADR. |
+| Manifold WASM 3.5.1 | Evaluated geometry runtime candidate | Not recommended for current host; not integrated | Apache-2.0. Smaller payload does not justify a second JS/WASM host or moving authoritative geometry into the WebView. |
+| Trimesh | Candidate mesh analysis/export runtime | Candidate review | MIT upstream; exact pinned dependency graph and release lock must be reviewed before integration. |
+| Unity glTFast | Legacy Unity import verifier | Not a product dependency | Used only by the legacy smoke through Package Manager and not bundled; review separately if Unity export becomes a supported product feature again. |
+| Tauri | Desktop shell | Automated | `Cargo.lock` is committed; Rust transitive license reporting still belongs in the final SBOM. |
 | FastAPI | Agent API framework | Automated | Covered by `apps/agent/requirements-release.lock`; transitive Python runtime dependencies are pinned with license metadata. |
 | Phosphor Icons for React | CAD 工作台图标 | Automated | `@phosphor-icons/react@2.1.10`，MIT；由 `package-lock.json` 固定并进入 npm license gate。 |
 
+## Reference-only GitHub projects
+
+OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider、JSCAD、glTF Transform 和 glTF-Validator 当前只作为设计/架构参考，不是 ForgeCAD 的安装依赖或派生代码，因此不因“被引用”进入产品 SBOM。若后续实际复制、链接、安装或打包其中任何代码，必须先在本台账增加固定版本、许可证、NOTICE、二进制来源和传递依赖，再修改 lockfile。
+
+参考用途和采用门见 [AGENT_GITHUB_REFERENCE_ARCHITECTURE.md](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)。
+
 ## Current Production Blockers
 
-- Commit and audit `apps/desktop/src-tauri/Cargo.lock`.
-- Decide the first production 3D backend and record its code/model license terms.
-- Record Unity glTFast package license and distribution requirements.
+- Run the fixed Manifold Python provenance/lifecycle fixtures in a Windows x64 packaged sidecar, then adopt it through a superseding ADR and exact production lock before it enters the release build.
+- Review Trimesh packaging and add exact pinned dependencies before it enters the release build.
 - Add an attribution bundle for licenses that require notices.

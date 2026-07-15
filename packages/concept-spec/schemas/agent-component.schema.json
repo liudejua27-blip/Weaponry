@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-component.schema.json",
+  "title": "AgentComponent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "component_id", "project_id", "domain_pack_id", "role", "display_name", "description", "source_asset_version_id", "source_part_id", "part_template", "shape_operation", "material_bindings", "status", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": { "const": "AgentComponent@1" },
+    "component_id": { "type": "string", "pattern": "^agentcomp_[a-z0-9_\\-]+$" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "domain_pack_id": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "description": { "type": "string", "maxLength": 500 },
+    "source_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "source_part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+    "part_template": { "type": "object" },
+    "shape_operation": { "type": "object" },
+    "material_bindings": { "type": "object", "additionalProperties": { "type": "string" } },
+    "status": { "type": "string", "enum": ["active", "disabled"] },
+    "source_quality_status": { "type": "string", "enum": ["passed", "warning", "failed", "unavailable"] },
+    "created_at": { "$ref": "common.schema.json#/$defs/iso_datetime" },
+    "updated_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

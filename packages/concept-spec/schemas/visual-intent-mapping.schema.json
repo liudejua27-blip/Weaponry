@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/visual-intent-mapping.schema.json",
+  "title": "VisualIntentMapping",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "domain_pack_id", "source", "directions"],
+  "properties": {
+    "schema_version": { "const": "VisualIntentMapping@1" },
+    "domain_pack_id": {
+      "type": "string",
+      "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"]
+    },
+    "source": { "const": "brief_lexicon_v1" },
+    "directions": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["direction_id", "silhouette", "detail_density", "color_theme", "pose_category", "variant_family_index"],
+        "properties": {
+          "direction_id": { "type": "string", "pattern": "^direction_[a-z0-9_\\-]+$" },
+          "silhouette": { "type": "string", "enum": ["compact", "balanced", "extended", "organic", "industrial"] },
+          "detail_density": { "type": "string", "enum": ["simple", "medium", "dense"] },
+          "color_theme": { "type": "string", "enum": ["dark_neutral", "signal_accent", "light_technical", "warm_contrast"] },
+          "pose_category": { "type": "string", "enum": ["neutral", "grounded", "elevated", "extended"] },
+          "variant_family_index": { "type": "integer", "minimum": 0, "maximum": 3 }
+        }
+      }
+    }
+  }
+}

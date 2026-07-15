@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } from '../../shared/types'
+import { buildShapeProgramPreview } from './shapeProgramPreview.js'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
+type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
 type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
 type Graph = NonNullable<ModuleGraphRecord>['graph']
 export type ViewportMeasurementPoint = {
@@ -22,6 +25,7 @@ type ModuleGraphViewportProps = {
   graphRecord: ModuleGraphRecord | null
   modules: ModuleAssetRecord[]
   cameraView: CameraView
+  lightPreset: LightPreset
   showGrid: boolean
   wireframe: boolean
   xRay: boolean
@@ -32,6 +36,13 @@ type ModuleGraphViewportProps = {
   focusNodeId: string | null
   qualityHighlightNodeIds: string[]
   qualityGeometryRefs: NonNullable<QualityFinding['geometry_refs']>
+  blockoutGlbBase64: string | null
+  blockoutShapeProgram: Record<string, unknown> | null
+  blockoutMaterialOverride: string | null
+  selectedAgentPartId: string | null
+  hiddenAgentPartIds: string[]
+  isolatedAgentPartId: string | null
+  lockedAgentPartIds: string[]
   showConnectors: boolean
   explodeFactor: number
   ghostPreview: boolean
@@ -58,9 +69,16 @@ type ViewportRuntime = {
   grid: THREE.GridHelper
   displayFloor: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>
   moduleRoot: THREE.Group
+  blockoutRoot: THREE.Group
   qualityRoot: THREE.Group
   connectorGeometry: THREE.SphereGeometry
   connectorMaterials: { exclusive: THREE.MeshBasicMaterial; shared: THREE.MeshBasicMaterial }
+  keyLight: THREE.DirectionalLight
+  rimLight: THREE.DirectionalLight
+  warmRimLight: THREE.DirectionalLight
+  pmremGenerator: THREE.PMREMGenerator
+  studioEnvironment: THREE.WebGLRenderTarget
+  studioEnvironmentScene: RoomEnvironment
   nodeObjects: Map<string, THREE.Group>
   moduleCache: Map<string, Promise<THREE.Group>>
   graph: Graph | null
@@ -77,6 +95,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.graphRecord ? 'loading' : 'empty',
   )
   const [loadMessage, setLoadMessage] = useState('当前版本尚未绑定 ModuleGraph')
+  const [blockoutLoadState, setBlockoutLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
+  const [blockoutLoadMessage, setBlockoutLoadMessage] = useState('')
+  const [blockoutPreviewPrimitiveKinds, setBlockoutPreviewPrimitiveKinds] = useState<string[]>([])
 
   // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
   // overlay and wireframe updates below never destroy the WebGL context.
@@ -100,6 +121,10 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     host.appendChild(renderer.domElement)
+    const pmremGenerator = new THREE.PMREMGenerator(renderer)
+    const studioEnvironmentScene = new RoomEnvironment()
+    const studioEnvironment = pmremGenerator.fromScene(studioEnvironmentScene, 0.04, 32, 128)
+    scene.environment = studioEnvironment.texture
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = false
@@ -146,6 +171,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const moduleRoot = new THREE.Group()
     moduleRoot.name = 'ModuleGraphRoot'
     scene.add(moduleRoot)
+    const blockoutRoot = new THREE.Group()
+    blockoutRoot.name = 'AgentBlockoutPreviewRoot'
+    scene.add(blockoutRoot)
     const qualityRoot = new THREE.Group()
     qualityRoot.name = 'QualityGeometryOverlay'
     scene.add(qualityRoot)
@@ -177,9 +205,16 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       grid,
       displayFloor,
       moduleRoot,
+      blockoutRoot,
       qualityRoot,
       connectorGeometry,
       connectorMaterials,
+      keyLight,
+      rimLight,
+      warmRimLight,
+      pmremGenerator,
+      studioEnvironment,
+      studioEnvironmentScene,
       nodeObjects: new Map(),
       moduleCache: new Map(),
       graph: null,
@@ -271,8 +306,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       renderer.domElement.removeEventListener('dragover', allowModuleDrop)
       renderer.domElement.removeEventListener('drop', dropModule)
       clearNodeObjects(runtime)
+      clearObjectChildren(blockoutRoot)
       runtime.moduleCache.forEach((source) => { void source.then(disposeObject) })
       clearObjectChildren(qualityRoot)
+      scene.environment = null
+      disposeObject(studioEnvironmentScene)
+      studioEnvironment.dispose()
+      pmremGenerator.dispose()
       connectorGeometry.dispose()
       connectorMaterials.exclusive.dispose()
       connectorMaterials.shared.dispose()
@@ -335,6 +375,115 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
+    clearObjectChildren(runtime.blockoutRoot)
+    runtime.moduleRoot.visible = true
+    if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
+      setBlockoutLoadState('empty')
+      setBlockoutLoadMessage('')
+      setBlockoutPreviewPrimitiveKinds([])
+      runtime.scheduleRender()
+      return
+    }
+    setBlockoutLoadState('loading')
+    let cancelled = false
+    const attachPreview = (source: THREE.Object3D, message: string) => {
+      if (cancelled) {
+        disposeObject(source)
+        return
+      }
+      runtime.blockoutRoot.add(source)
+      runtime.blockoutRoot.visible = true
+      setBlockoutPreviewPrimitiveKinds(Array.isArray(source.userData.forgecadPreviewPrimitiveKinds)
+        ? source.userData.forgecadPreviewPrimitiveKinds.filter((item: unknown): item is string => typeof item === 'string')
+        : [])
+      source.updateMatrixWorld(true)
+      runtime.blockoutRoot.updateMatrixWorld(true)
+      let bounds = new THREE.Box3().setFromObject(source)
+      if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
+      const currentBounds = new THREE.Box3().setFromObject(runtime.moduleRoot)
+      const currentSize = currentBounds.isEmpty() ? new THREE.Vector3(900, 900, 900) : currentBounds.getSize(new THREE.Vector3())
+      const sourceSize = bounds.getSize(new THREE.Vector3())
+      const fitScale = Math.min(1, (currentSize.length() / Math.max(sourceSize.length(), 1)) * 0.35)
+      source.scale.setScalar(fitScale)
+      runtime.moduleRoot.visible = false
+      source.updateMatrixWorld(true)
+      runtime.blockoutRoot.updateMatrixWorld(true)
+      bounds = new THREE.Box3().setFromObject(source)
+      // Normalize the preview into the existing CAD camera space. This keeps
+      // the single viewport stable and avoids a camera jump while still
+      // showing the complete generated silhouette.
+      source.position.sub(bounds.getCenter(new THREE.Vector3()))
+      source.updateMatrixWorld(true)
+      setBlockoutLoadState('ready')
+      setBlockoutLoadMessage(message)
+      runtime.scheduleRender()
+    }
+    if (props.blockoutShapeProgram) {
+      setBlockoutLoadMessage('正在解释 Agent ShapeProgram…')
+      try {
+        attachPreview(
+          buildShapeProgramPreview(
+            props.blockoutShapeProgram,
+            {
+              materialOverride: props.blockoutMaterialOverride,
+              selectedAgentPartId: props.selectedAgentPartId,
+              hiddenAgentPartIds: props.hiddenAgentPartIds,
+              isolatedAgentPartId: props.isolatedAgentPartId,
+              lockedAgentPartIds: props.lockedAgentPartIds,
+            },
+          ),
+          'Agent ShapeProgram 已加载',
+        )
+      } catch (error) {
+        setBlockoutLoadState('failed')
+        setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
+        runtime.scheduleRender()
+      }
+    } else if (props.blockoutGlbBase64) {
+      setBlockoutLoadMessage('正在加载导入 GLB…')
+      void import('three/examples/jsm/loaders/GLTFLoader.js')
+        .then(({ GLTFLoader }) => new Promise<THREE.Object3D>((resolve, reject) => {
+          const loader = new GLTFLoader()
+          loader.parse(base64ToArrayBuffer(props.blockoutGlbBase64 as string), '', (gltf) => {
+            const source = gltf.scene ?? gltf.scenes[0]
+            if (!source) {
+              reject(new Error('导入 GLB 没有 scene'))
+              return
+            }
+            source.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
+            source.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                child.castShadow = true
+                child.receiveShadow = true
+                child.userData.agentBlockout = true
+              }
+            })
+            resolve(source)
+          }, reject)
+        }))
+        .then((source) => attachPreview(source, '导入 GLB 参考模型已加载'))
+        .catch((error) => {
+          if (cancelled) return
+          setBlockoutLoadState('failed')
+          setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
+          runtime.scheduleRender()
+        })
+    }
+    return () => { cancelled = true }
+  }, [
+    props.blockoutGlbBase64,
+    props.blockoutShapeProgram,
+    props.blockoutMaterialOverride,
+    props.selectedAgentPartId,
+    props.hiddenAgentPartIds,
+    props.isolatedAgentPartId,
+    props.lockedAgentPartIds,
+    props.cameraView,
+  ])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
     applyVisualState(runtime, propsRef.current)
     syncTransformControls(runtime, propsRef.current)
     runtime.scheduleRender()
@@ -348,6 +497,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.showGrid,
     props.wireframe,
     props.xRay,
+    props.lightPreset,
     props.sectionEnabled,
     props.sectionOffset,
     props.transformTool,
@@ -379,6 +529,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
         data-preview-mode={props.ghostPreview ? 'ghost' : 'committed'}
+        data-camera-view={props.cameraView}
+        data-light-preset={props.lightPreset}
         data-xray={props.xRay ? 'enabled' : 'disabled'}
         data-section={props.sectionEnabled ? 'enabled' : 'disabled'}
         data-section-offset={String(props.sectionOffset)}
@@ -388,11 +540,23 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           (count, reference) => count + (reference.world_triangles_mm?.length ?? 0),
           0,
         )}
+        data-blockout-preview={props.blockoutGlbBase64 ? 'ready' : 'empty'}
+        data-blockout-load-state={blockoutLoadState}
+        data-blockout-preview-primitives={blockoutPreviewPrimitiveKinds.join(',')}
+        data-agent-hidden-part-ids={props.hiddenAgentPartIds.join(',')}
+        data-agent-isolated-part-id={props.isolatedAgentPartId ?? ''}
+        data-agent-locked-part-ids={props.lockedAgentPartIds.join(',')}
       />
       {loadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
           <strong>{loadState === 'loading' ? '加载 ModuleGraph' : loadState === 'failed' ? 'GLB 无法显示' : '等待模块组合'}</strong>
           <span>{loadMessage}</span>
+        </div>
+      )}
+      {props.blockoutGlbBase64 && blockoutLoadState !== 'ready' && (
+        <div className={`viewport-data-state blockout-${blockoutLoadState}`} role="status">
+          <strong>{blockoutLoadState === 'loading' ? '加载 Agent blockout' : 'Agent blockout 无法显示'}</strong>
+          <span>{blockoutLoadMessage}</span>
         </div>
       )}
     </div>
@@ -493,6 +657,7 @@ function loadModuleSource(
 }
 
 function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
+  applyLightPreset(runtime, props.lightPreset)
   runtime.grid.visible = props.showGrid
   runtime.sectionPlane.constant = props.sectionOffset
   runtime.sectionHelper.visible = props.sectionEnabled
@@ -541,6 +706,42 @@ function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportPr
       })
     })
   })
+}
+
+function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
+  if (preset === 'soft_studio') {
+    runtime.keyLight.color.set('#e8f2ff')
+    runtime.keyLight.intensity = 4.2
+    runtime.keyLight.position.set(100, 150, 120)
+    runtime.rimLight.color.set('#6ea9d9')
+    runtime.rimLight.intensity = 1.8
+    runtime.rimLight.position.set(-110, 70, -80)
+    runtime.warmRimLight.color.set('#ffad86')
+    runtime.warmRimLight.intensity = 0.4
+    runtime.warmRimLight.position.set(70, -10, -150)
+    return
+  }
+  if (preset === 'concept_contrast') {
+    runtime.keyLight.color.set('#ffffff')
+    runtime.keyLight.intensity = 7
+    runtime.keyLight.position.set(150, 210, 100)
+    runtime.rimLight.color.set('#3d8dff')
+    runtime.rimLight.intensity = 4
+    runtime.rimLight.position.set(-170, 100, -130)
+    runtime.warmRimLight.color.set('#ff724e')
+    runtime.warmRimLight.intensity = 2.5
+    runtime.warmRimLight.position.set(100, -30, -210)
+    return
+  }
+  runtime.keyLight.color.set('#e8f2ff')
+  runtime.keyLight.intensity = 5.6
+  runtime.keyLight.position.set(120, 180, 140)
+  runtime.rimLight.color.set('#4e9cff')
+  runtime.rimLight.intensity = 3.2
+  runtime.rimLight.position.set(-140, 80, -100)
+  runtime.warmRimLight.color.set('#ff8a62')
+  runtime.warmRimLight.intensity = 1.4
+  runtime.warmRimLight.position.set(80, -20, -180)
 }
 
 function syncTransformControls(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
@@ -598,6 +799,13 @@ function frameVisibleObjects(runtime: ViewportRuntime, props: ModuleGraphViewpor
   runtime.displayFloor.position.set(center.x, bounds.min.y - Math.max(size.y * 0.13, 4), center.z)
   runtime.displayFloor.scale.setScalar(Math.max(size.length() / 190, 0.65))
   frameCamera(runtime.camera, runtime.controls, props.cameraView, center, Math.max(size.length(), 1))
+}
+
+function base64ToArrayBuffer(value: string): ArrayBuffer {
+  const binary = window.atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes.buffer
 }
 
 function buildQualityOverlay(references: NonNullable<QualityFinding['geometry_refs']>): THREE.Group {

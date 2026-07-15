@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/blockout-concept-preview.schema.json",
+  "title": "AgentBlockoutConceptPreview",
+  "description": "Ephemeral software concept-image evidence for one uncommitted, bounded blockout. This contract never identifies an asset version, Snapshot, quality report, or export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_id", "direction_id", "variant_id", "variation_index", "domain_pack_id", "topology_hash", "render_context_sha256", "renderer_id", "width", "height", "png_base64", "sha256", "byte_size"],
+  "properties": {
+    "schema_version": { "const": "AgentBlockoutConceptPreview@1" },
+    "plan_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "direction_id": { "type": "string", "pattern": "^direction_[a-z0-9_\\-]+$" },
+    "variant_id": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,119}$" },
+    "variation_index": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "domain_pack_id": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "topology_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "render_context_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "renderer_id": { "const": "forgecad-agent-software-raster@1" },
+    "width": { "type": "integer", "const": 320 },
+    "height": { "type": "integer", "const": 240 },
+    "png_base64": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "byte_size": { "type": "integer", "minimum": 1 }
+  }
+}

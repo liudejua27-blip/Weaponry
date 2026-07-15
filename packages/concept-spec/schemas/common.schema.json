@@ -5,7 +5,7 @@
   "$defs": {
     "id": {
       "type": "string",
-      "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|export)_[A-Za-z0-9_\\-]+$"
+      "pattern": "^(prj|profile|pack|module|connector|mg|node|edge|change|quality|finding|job|evt|ver|asset|assetver|assetcs|export)_[A-Za-z0-9_\\-]+$"
     },
     "iso_datetime": {
       "type": "string",
@@ -36,6 +36,33 @@
       "minItems": 3,
       "maxItems": 3,
       "items": { "type": "number" }
+    },
+    "editable_parameter_binding": {
+      "type": "object",
+      "description": "A non-executable, user-readable declaration of one existing Agent part numeric path. It does not itself change geometry or create a version.",
+      "additionalProperties": false,
+      "required": ["schema_version", "parameter_id", "path", "display_name", "unit", "default", "min", "max", "step"],
+      "properties": {
+        "schema_version": { "const": "EditableParameterBinding@1" },
+        "parameter_id": { "type": "string", "pattern": "^editparam_[a-z0-9_\\-]+$" },
+        "path": {
+          "type": "string",
+          "enum": [
+            "transform.position.x",
+            "transform.position.y",
+            "transform.position.z",
+            "transform.scale.x",
+            "transform.scale.y",
+            "transform.scale.z"
+          ]
+        },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "unit": { "type": "string", "enum": ["millimeter", "ratio"] },
+        "default": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number", "exclusiveMinimum": 0 }
+      }
     },
     "transform": {
       "type": "object",
