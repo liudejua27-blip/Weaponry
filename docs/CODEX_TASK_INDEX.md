@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826 与 A003 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG并固化不可变 Feature History，G826 从同一 GLB 回读 edge finish/normal/UV0/tangent 与稳定 face→part/zone，A003 建立 Provider preflight/stream/cancel/usage/稳定错误/no-fallback。F025 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G826、A003 与 F025 已完成；F025 将 Agent 主流程和 legacy 控制隔离。D005 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1353,8 +1353,8 @@ Remaining blockers:
 | FGC-G825 | done | G824D | 唯一 Manifold Python CSG、不可变 feature node/input/result hash、surface/material provenance 与失败零部分 GLB 已通过 |
 | FGC-G826 | done | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
 | FGC-A003 | done | G826 | Provider metadata/Keychain/supervisor/capability preflight、SSE 生命周期、取消、用量与稳定错误分类已通过 |
-| FGC-F025 | ready | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
-| FGC-D005 | blocked | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
+| FGC-F025 | done | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 已隔离；父层继续拆薄 |
+| FGC-D005 | ready | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
 | FGC-A004 | blocked | D005、A003、G819、G826 | 受限 Agent Action Loop、建模 Recipe 工具生命周期与 DeepSeek thinking/tool-call 续传 |
 | FGC-V002 | superseded | — | 由 ADR-0010/FGC-V003 取代；不再实现三方向用户选择 |
 | FGC-M108 | blocked | A004、G826、Q003、D005 | 稳定多材质区、完整 PBR 纹理与展示环境，消费真实 UV/tangent/zone facts |
@@ -1573,7 +1573,7 @@ Remaining blockers:
 
 ### FGC-F025 任务卡
 
-状态：ready（A003 与 Q003 已完成；这是下一唯一可领取任务）。
+状态：done（2026-07-15；A003/Q003 依赖与 F025 Gate 已通过）。
 
 目标：将 legacy 参数、旧导出和 Graph Inspector 从 AgentAssetVersion/ActiveDesignSnapshot 主流程隔离，同时继续将 `CadWorkbenchPanel` 拆为可验证的 Agent 主编排与显式 legacy 只读兼容边界。
 
@@ -1583,11 +1583,13 @@ Remaining blockers:
 
 验收：新增 F025 前端/E2E Gate，至少覆盖 Agent-active 时 Graph Inspector、旧参数和旧导出均不可见且无网络/API 调用；显式 legacy 只读入口仍可查看兼容信息但不能污染 Agent Snapshot/quality/export。覆盖切换项目、重启、迟到响应、undo/redo 与无 Agent 资产状态。`desktop:typecheck`、`desktop:build`、F001/F006、T002/T003、r3 与相关 Agent 合同 Gate 必须通过，且有父层职责/行数下降或模块责任清单的可审计证据。
 
-退出：Agent 主流程不再承载任何 legacy 控制真值；兼容表面仍显式可见、只读、可测试。A003 已完成，F025 可以领取。
+证据：`useConceptWorkbench` 首次只读取 Project shell，只有用户点击“查看旧版只读信息”后才读取旧版本、ChangeSet、审计与 ModuleGraph；关闭、切换项目和迟到响应均由 request guard 清理。`WorkbenchInspectorRail` 将 Graph Inspector、旧参数、旧质量摘要和旧格式说明限制在显式只读表面；Agent 导出/质量抽屉不再接收 legacy props，Agent Turn/修改意图不再调用 legacy Planner。F025 Gate 按文本边界记录 `CadWorkbenchPanel.tsx` 从 3,032 行降至 1,872 行，且仍只装配一个 `ModuleGraphViewport`。新增 `desktop:f025-legacy-isolation-smoke`，F001/F006/T002（14/14）/T003/r3、typecheck/build 与相关合同 Gate 通过。
+
+退出：已满足。Agent 主流程不承载 legacy 控制真值；兼容表面仍显式可见、只读、可测试。下一唯一可领取任务为 `FGC-D005`。
 
 ### FGC-D005 任务卡
 
-状态：blocked（等待 F025、G811、G826）。
+状态：ready（F025、G811、G826 已完成；这是下一唯一可领取任务）。
 
 目标：为未来武器概念道具、汽车、飞机和机械臂四个 Domain Pack 提供版本化的非工程语义比例配方，并把其中可编辑项绑定到当前真实可执行的、范围/步长/单位/显示名均被冻结的受限参数路径。
 

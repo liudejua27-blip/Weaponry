@@ -18,7 +18,8 @@ const CATEGORY_ORDER: Array<AgentMaterialPreset['category'] | 'all'> = [
 export type MaterialDrawerProps = {
   materialPresets: AgentMaterialPreset[]
   selectedMaterialId: string
-  detailDensity: number
+  detailDensity?: number
+  showDetailDensity?: boolean
   selectedPartLabel?: string
   selectedZoneLabel?: string
   materialZoneIds?: string[]
@@ -31,7 +32,7 @@ export type MaterialDrawerProps = {
   catalogMessage?: string | null
   disabled?: boolean
   onMaterialChange: (materialId: string) => void
-  onDetailDensityChange: (value: number) => void
+  onDetailDensityChange?: (value: number) => void
   onPreviewNote?: (preset: AgentMaterialPreset) => void
   onPreviewMaterial?: (preset: AgentMaterialPreset, zoneId: string) => void
   onZoneChange?: (zoneId: string) => void
@@ -50,6 +51,7 @@ export function MaterialDrawer({
   materialPresets,
   selectedMaterialId,
   detailDensity,
+  showDetailDensity = false,
   disabled = false,
   onMaterialChange,
   onDetailDensityChange,
@@ -197,11 +199,13 @@ export function MaterialDrawer({
           {filteredPresets.map((preset) => <option key={preset.material_id} value={preset.material_id}>{preset.display_name}</option>)}
         </select>
       </label>
-      <label className="property-number">
-        <span>细节密度</span>
-        <input aria-label="细节密度百分比" type="number" min="0" max="100" value={detailDensity} disabled={disabled} onChange={(event) => onDetailDensityChange(Number(event.target.value))} />
-        <small>%</small>
-      </label>
+      {showDetailDensity && typeof detailDensity === 'number' && onDetailDensityChange && (
+        <label className="property-number">
+          <span>细节密度</span>
+          <input aria-label="细节密度百分比" type="number" min="0" max="100" value={detailDensity} disabled={disabled} onChange={(event) => onDetailDensityChange(Number(event.target.value))} />
+          <small>%</small>
+        </label>
+      )}
       {selectedPreset && (
         <div className="material-selection-summary" aria-live="polite">
           <div className="material-swatch" style={{ backgroundColor: selectedPreset.pbr.base_color }} aria-hidden="true" />
@@ -211,7 +215,7 @@ export function MaterialDrawer({
           </div>
         </div>
       )}
-      <div className="appearance-material-list" aria-label="视觉材质目录">
+      <div className="appearance-material-list" aria-label="材质预设列表">
         {filteredPresets.map((preset) => (
           <div
             key={preset.material_id}

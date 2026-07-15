@@ -48,7 +48,6 @@ assert(panel.includes('drawerFocusRef'), 'workbench must keep a DOM-only drawer 
 assert(panel.includes("event.key === 'Escape'"), 'workbench must close drawers with Escape')
 assert(panel.includes('focusInitialControl'), 'workbench must focus the first control when a drawer opens')
 assert(lifecycle.includes('restoreDrawerFocus') && lifecycle.includes('drawerTriggerRef'), 'workbench lifecycle must return focus to the drawer trigger')
-assert(panel.includes('onResizeKeyDown'), 'component drawer resize must have a keyboard path')
 assert(panel.includes('aria-live="polite"'), 'workbench status must use aria-live')
 
 const joinedComponents = components.join('\n')
@@ -56,5 +55,6 @@ assert(joinedComponents.includes('role="dialog"'), 'drawer components must expos
 assert(joinedComponents.includes('data-dialog-initial-focus="true"'), 'drawer close controls must be initial focus targets')
 assert(joinedComponents.includes('aria-pressed'), 'choice controls must expose pressed state')
 assert(joinedComponents.includes('aria-label'), 'component actions must expose Chinese accessible labels')
+assert(joinedComponents.includes('onResizeKeyDown'), 'isolated compatibility component drawer resize must keep a keyboard path')
 
 console.log('F006 workbench accessibility smoke passed')

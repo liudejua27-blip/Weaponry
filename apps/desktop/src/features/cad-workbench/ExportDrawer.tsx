@@ -2,29 +2,11 @@ import { FileArrowDown } from '@phosphor-icons/react'
 import type { RefObject } from 'react'
 import type { AgentAssetRenderSet, AgentAssetRenderView, AgentAssetVersion } from '../../shared/types'
 
-export type ExportPurpose = 'presentation' | 'production' | 'handoff' | 'archive'
-export type ExportFormat = 'SOURCE ZIP' | 'GLB' | 'OBJ' | 'PNG' | 'MP4'
-export type ExportPurposeOption = {
-  id: ExportPurpose
-  title: string
-  description: string
-  format: ExportFormat
-}
-
 export type ExportDrawerProps = {
-  exportPurpose: ExportPurpose
-  exportPurposeOptions: ExportPurposeOption[]
-  agentAssetActive: boolean
   activeAgentAssetVersion: AgentAssetVersion | null
   activeDesignIdle: boolean
-  activeVersionLabel: string
-  originLabel: string
-  hasLegacyVersion: boolean
-  loading: boolean
   drawerRef?: RefObject<HTMLElement | null>
   onClose: () => void
-  onPurposeChange: (purpose: ExportPurpose, format: ExportFormat) => void
-  onExport: () => void
   onDownloadAgentGlb: () => void
   renderSet: AgentAssetRenderSet | null
   renderLoading: boolean
@@ -43,19 +25,10 @@ const RENDER_VIEW_LABELS: Record<AgentAssetRenderView['view_id'], string> = {
 }
 
 export function ExportDrawer({
-  exportPurpose,
-  exportPurposeOptions,
-  agentAssetActive,
   activeAgentAssetVersion,
   activeDesignIdle,
-  activeVersionLabel,
-  originLabel,
-  hasLegacyVersion,
-  loading,
   drawerRef,
   onClose,
-  onPurposeChange,
-  onExport,
   onDownloadAgentGlb,
   renderSet,
   renderLoading,
@@ -64,16 +37,14 @@ export function ExportDrawer({
   onDownloadRenderView,
   onDownloadRenderPackage,
 }: ExportDrawerProps) {
-  const selected = exportPurposeOptions.find((item) => item.id === exportPurpose) ?? exportPurposeOptions[0]
-  const canExportLegacy = hasLegacyVersion && !loading
   return (
     <div className="workbench-overlay" role="presentation" onMouseDown={onClose}>
       <section ref={drawerRef} className="workbench-drawer export-drawer" role="dialog" aria-modal="true" aria-labelledby="forgecad-export-drawer-title" data-forgecad-drawer="export" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-heading"><div><span id="forgecad-export-drawer-title">下载当前设计</span><strong>{agentAssetActive ? '选择你现在需要的内容' : '你准备如何使用它？'}</strong></div><button type="button" data-dialog-initial-focus="true" onClick={onClose} aria-label="关闭导出">×</button></div>
-        {agentAssetActive ? (
+        <div className="drawer-heading"><div><span id="forgecad-export-drawer-title">下载当前设计</span><strong>选择你现在需要的内容</strong><small>只使用当前 Agent Snapshot</small></div><button type="button" data-dialog-initial-focus="true" onClick={onClose} aria-label="关闭导出">×</button></div>
+        {activeAgentAssetVersion ? (
           <>
             <div className="agent-export-summary" aria-label="Agent 可用下载">
-              <strong>当前 Agent 设计 v{activeAgentAssetVersion?.version_no ?? '同步中'}</strong>
+              <strong>当前 Agent 设计 v{activeAgentAssetVersion.version_no}</strong>
               <span>这是用于展示和继续编辑的概念级模型，不提供制造、性能或工程结论。</span>
             </div>
             <button type="button" className="drawer-primary-action" onClick={onDownloadAgentGlb} disabled={!activeAgentAssetVersion || !activeDesignIdle}>
@@ -81,21 +52,12 @@ export function ExportDrawer({
             </button>
           </>
         ) : (
-          <>
-            <div className="export-purpose-list">
-              {exportPurposeOptions.map((purpose) => (
-                <button type="button" key={purpose.id} className={exportPurpose === purpose.id ? 'active' : ''} aria-pressed={exportPurpose === purpose.id} onClick={() => onPurposeChange(purpose.id, purpose.format)}>
-                  <strong>{purpose.title}</strong><span>{purpose.description}</span>
-                </button>
-              ))}
-            </div>
-            <div className="export-ready-summary">
-              <span>将导出：<strong>{selected?.id === 'presentation' ? '展示图像' : selected?.id === 'production' ? 'GLB 展示模型' : selected?.id === 'handoff' ? 'OBJ 模型' : '概念源包'}</strong></span>
-              <small>{hasLegacyVersion ? `当前版本 ${activeVersionLabel} · ${originLabel}` : '请先创建或打开一个设计'}</small>
-            </div>
-          </>
+          <div className="export-ready-summary" data-testid="agent-export-unavailable">
+            <span><strong>当前没有可导出的 Agent 资产</strong></span>
+            <small>旧版格式不会进入 Agent 下载流程；请先创建或打开可编辑资产。</small>
+          </div>
         )}
-        {agentAssetActive && (
+        {activeAgentAssetVersion && (
           <div className="agent-concept-views" aria-label="概念视图">
             <div className="agent-concept-views-heading">
               <div><strong>概念视图</strong><small>用于确认外观方向；透明背景与爆炸图均不会创建或修改模型版本。</small></div>
@@ -123,11 +85,6 @@ export function ExportDrawer({
               </button>
             )}
           </div>
-        )}
-        {!agentAssetActive && (
-          <button type="button" className="drawer-primary-action" onClick={onExport} disabled={!canExportLegacy}>
-            <FileArrowDown size={16} /> 导出当前版本
-          </button>
         )}
         <button type="button" className="drawer-secondary-action" onClick={onClose}>取消</button>
       </section>

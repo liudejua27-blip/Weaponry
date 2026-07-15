@@ -23,6 +23,7 @@ export type AgentConversationProps = {
   onCreateStarterProject: () => void
   onInitializeCurrentProject: () => void
   onRequestLegacyAgentRebuild: () => void | Promise<void>
+  onOpenLegacyDetails: () => void | Promise<void>
   providerConfig: ProviderConfigMetadata | null
   providerSetupOpen: boolean
   providerBaseUrl: string
@@ -70,6 +71,7 @@ export function AgentConversation({
   onCreateStarterProject,
   onInitializeCurrentProject,
   onRequestLegacyAgentRebuild,
+  onOpenLegacyDetails,
   providerConfig,
   providerSetupOpen,
   providerBaseUrl,
@@ -122,7 +124,11 @@ export function AgentConversation({
         </button>
       )}
       <p className="agent-welcome">用一句话描述汽车、飞机、机械臂或未来概念道具；我会先记录理解，再生成可预览、可继续修改的方向。</p>
-      <LegacyCompatibilityNotice display={legacyCompatibility} onRequestLegacyAgentRebuild={onRequestLegacyAgentRebuild} />
+      <LegacyCompatibilityNotice
+        display={legacyCompatibility}
+        onRequestLegacyAgentRebuild={onRequestLegacyAgentRebuild}
+        onOpenLegacyDetails={onOpenLegacyDetails}
+      />
       <div className="provider-setup-entry" aria-label="模型服务状态">
         <span className={providerPresentation.ready ? 'connected' : ''}>
           {providerPresentation.label}

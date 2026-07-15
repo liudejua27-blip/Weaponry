@@ -9,6 +9,7 @@ const baseProps: AgentConversationProps = {
   onCreateStarterProject: () => undefined,
   onInitializeCurrentProject: () => undefined,
   onRequestLegacyAgentRebuild: () => undefined,
+  onOpenLegacyDetails: () => undefined,
   providerConfig: null,
   providerSetupOpen: false,
   providerBaseUrl: 'https://api.example.test',

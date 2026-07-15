@@ -22,6 +22,7 @@ apps/desktop/src/features/cad-workbench/
 ├── QualityDrawer.tsx
 ├── ExportDrawer.tsx
 ├── WorkbenchDrawerStack.tsx
+├── WorkbenchInspectorRail.tsx
 ├── ModuleGraphViewport.tsx
 ├── agentAssetWorkspaceState.ts
 ├── useAgentAssetWorkspace.ts
@@ -57,11 +58,11 @@ apps/desktop/src/features/cad-workbench/
 
 ## 3. 当前结构问题
 
-- `CadWorkbenchPanel.tsx` 仍包含 legacy 兼容分支、Agent blockout 候选状态和业务副作用，尚未缩减为最终页面组合层；
+- F025 已将 `CadWorkbenchPanel.tsx` 从 3,032 行降至 Gate 记录的 1,872 行，并把 Agent inspector 与显式 legacy 只读边界提取为 `WorkbenchInspectorRail`；父层仍包含 Agent blockout 候选状态和 Snapshot/API 副作用，尚未缩减为最终页面组合层；
 - A003 已让 Provider 配置读取失败保持可见，并将 metadata、Keychain、supervisor restart 和 Agent capability 组合成启用门；只有四项就绪才允许“测试连接（会联网）”。连接测试与普通 Turn 均显示真实 `network_call_made`/稳定错误，提供取消入口，Provider 失败会中止当前 Agent 路径而不会继续调用 legacy Planner。真实四领域质量评测仍未执行；
-- Agent 对话、Kernel 步骤、分件选择卡和四类抽屉已由 F002–F004 提取为独立组件，legacy Concept 只读提示仍通过 props 显示；
+- Agent 对话、Kernel 步骤、分件选择卡和抽屉已由 F002–F005 提取为独立组件；F025 后 Agent 抽屉栈只组合质量与导出，legacy Graph/参数/旧格式只在用户显式打开的只读表面加载；
 - Agent 选择、质量和 GLB 导出已读 Snapshot；遗留 Concept 兼容出口不属于 Agent 产品能力；
-- F005 已将四类抽屉的渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的展示层保持既有边界；F019 再将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022 将方向、三项族轮换位置、请求中和可恢复预览错误提取到 `useAgentBlockoutDisplay`，F023 只将该状态转换为“正在生成 / 已准备好 / 暂不能整理部件 / 未生成成功”的普通语言提示，F024 则只从已返回的 plan 记录翻译“本机离线规划 / 已连接模型服务生成 / 来源待确认”。R006 的 `useAgentDirectionConceptPreviews` 只暂存当前 project + plan + request 的三张 PNG data URL，选择方向、换一版、开始新 Brief 或切换项目时清空，并拒绝迟到响应；它不保存 GLB、候选、版本、Snapshot、质量或导出。F024 不读取 Key、不联网、不触发评测，也不显示 Provider、模型或错误内部标识。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有。父层仍超过 2,000 行，且仍会装配 legacy Graph Inspector、旧参数/导出路径与 Agent 主流程；`FGC-F025` 已排在 G819/Q003/G820–G826/A003 后，目标是把它们隔离到 legacy 只读边界，而不再让 Agent 资产路径承载旧控制；
+- F005 已将抽屉渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的展示层保持既有边界；F019 再将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022 将方向、三项族轮换位置、请求中和可恢复预览错误提取到 `useAgentBlockoutDisplay`，F023 只将该状态转换为普通语言提示，F024 只翻译已返回的 plan 来源。R006 的方向概念预览仍是短暂显示缓冲。F025 进一步删除 Agent Turn/修改意图对 legacy Planner 的回退，Agent 导出/质量抽屉不再接收旧版本、旧质量或旧格式 props；`useConceptWorkbench` 只有在显式入口打开后才读取旧版本、ChangeSet、审计和 ModuleGraph，并以 request guard 拒绝迟到响应。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有；
 - F006 已消除工作台用户界面中低于 11px 的辅助文字，补齐 32/40px 控件基线、可见焦点、中文 aria 标签、状态播报以及抽屉 Escape/焦点返回；完整屏幕阅读器人工验收仍未完成。
 
 ## 4. 下一阶段状态架构

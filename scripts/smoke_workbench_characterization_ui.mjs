@@ -55,9 +55,24 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
     const browserErrors = []
     let legacyBriefPosts = 0
+    const legacyDetailReads = []
+    const legacyMutationRequests = []
+    let legacyDetailReadCountAfterExplicitClose = 0
     page.on('pageerror', (error) => browserErrors.push(error.message))
     page.on('request', (request) => {
-      if (request.method() === 'POST' && request.url().includes('/brief:interpret')) legacyBriefPosts += 1
+      const url = request.url()
+      if (request.method() === 'POST' && url.includes('/brief:interpret')) legacyBriefPosts += 1
+      if (request.method() === 'GET' && (
+        url.includes('/api/v1/module-graphs/')
+        || /\/api\/v1\/versions\/[^/]+$/.test(url)
+        || /\/api\/v1\/projects\/[^/]+\/(variants|change-sets|change-set-audit-exports)/.test(url)
+      )) legacyDetailReads.push(url)
+      if (request.method() !== 'GET' && (
+        url.includes('/brief:interpret')
+        || url.includes('/change-sets')
+        || url.includes('/quality-runs:inspect')
+        || /\/api\/v1\/versions\/[^/]+\/exports$/.test(url)
+      )) legacyMutationRequests.push(`${request.method()} ${url}`)
     })
     if (process.env.FGC_F001_DEBUG === '1') {
       page.on('response', async (response) => {
@@ -92,6 +107,47 @@ async function main() {
     if (initialActiveDesign.body?.active_design?.source === 'legacy_concept_read_only') {
       const legacyNotice = page.getByLabel('旧版设计转换')
       await legacyNotice.waitFor({ timeout: 20_000 })
+      if (legacyDetailReads.length !== 0) {
+        throw new Error(`legacy details were read before explicit entry: ${legacyDetailReads.join(' | ')}`)
+      }
+      if (await page.getByLabel('旧版只读 Graph Inspector').count() !== 0) {
+        throw new Error('legacy Graph Inspector was visible before explicit entry')
+      }
+      let delayedLegacyVersionRead = false
+      const delayLegacyVersion = async (route) => {
+        if (!delayedLegacyVersionRead && route.request().method() === 'GET') {
+          delayedLegacyVersionRead = true
+          await sleep(500)
+        }
+        await route.continue()
+      }
+      await page.route('**/api/v1/versions/*', delayLegacyVersion)
+      await legacyNotice.getByRole('button', { name: '查看旧版只读信息', exact: true }).click()
+      const interruptedInspector = page.getByLabel('旧版只读 Graph Inspector')
+      await interruptedInspector.waitFor({ timeout: 20_000 })
+      await interruptedInspector.getByRole('button', { name: '关闭', exact: true }).click()
+      await sleep(700)
+      await page.unroute('**/api/v1/versions/*', delayLegacyVersion)
+      if (!delayedLegacyVersionRead || await page.getByLabel('旧版只读 Graph Inspector').count() !== 0) {
+        throw new Error('late legacy detail response reopened the closed compatibility surface')
+      }
+      const legacyGraphResponse = page.waitForResponse((response) => response.url().includes('/api/v1/module-graphs/') && response.request().method() === 'GET')
+      await legacyNotice.getByRole('button', { name: '查看旧版只读信息', exact: true }).click()
+      const readonlyInspector = page.getByLabel('旧版只读 Graph Inspector')
+      await readonlyInspector.waitFor({ timeout: 20_000 })
+      await legacyGraphResponse
+      if (legacyDetailReads.length === 0 || !legacyDetailReads.some((url) => url.includes('/api/v1/module-graphs/'))) {
+        throw new Error(`explicit legacy entry did not load the compatibility graph: ${legacyDetailReads.join(' | ')}`)
+      }
+      if ((await readonlyInspector.locator('input:not([readonly])').count()) !== 0) {
+        throw new Error('legacy read-only inspector exposed an editable input')
+      }
+      await assertText(readonlyInspector, ['Graph Inspector · 只读', '旧参数 · 只读', 'SOURCE ZIP · OBJ · PNG · MP4'])
+      await readonlyInspector.getByRole('button', { name: '关闭', exact: true }).click()
+      if (await page.getByLabel('旧版只读 Graph Inspector').count() !== 0) {
+        throw new Error('legacy Graph Inspector did not close explicitly')
+      }
+      legacyDetailReadCountAfterExplicitClose = legacyDetailReads.length
       const rebuildButton = legacyNotice.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true })
       if (await rebuildButton.count() !== 1) throw new Error('legacy project did not expose explicit Agent rebuild action')
       await rebuildButton.click()
@@ -155,14 +211,29 @@ async function main() {
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
       throw new Error('workbench created a second WebGL canvas after commit')
     }
+    await page.getByTestId('agent-asset-inspector').waitFor({ state: 'attached', timeout: 20_000 })
+    if (await page.getByTestId('legacy-readonly-boundary').count() !== 0) {
+      throw new Error('Agent-active workbench still rendered the legacy compatibility boundary')
+    }
+    await page.getByRole('button', { name: '导出', exact: true }).click()
+    const exportDrawer = page.getByRole('dialog', { name: /下载当前设计/ })
+    await exportDrawer.waitFor({ timeout: 20_000 })
+    const exportText = await exportDrawer.innerText()
+    for (const forbidden of ['SOURCE ZIP', 'OBJ', 'MP4', '导出当前版本']) {
+      if (exportText.includes(forbidden)) throw new Error(`Agent export leaked legacy choice: ${forbidden}`)
+    }
+    await exportDrawer.getByRole('button', { name: '取消', exact: true }).click()
 
     await page.reload({ waitUntil: 'networkidle' })
     await page.getByLabel('分件候选').getByText('可编辑资产 v1', { exact: true }).waitFor({ timeout: 20_000 })
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
       throw new Error('workbench created a second WebGL canvas after reload')
     }
-    if (legacyBriefPosts !== 0 || browserErrors.length > 0) {
-      throw new Error(`browser characterization errors: legacyBriefPosts=${legacyBriefPosts}, errors=${browserErrors.join(' | ')}`)
+    if (legacyDetailReads.length !== legacyDetailReadCountAfterExplicitClose) {
+      throw new Error(`Agent-active reload issued legacy detail reads: ${legacyDetailReads.slice(legacyDetailReadCountAfterExplicitClose).join(' | ')}`)
+    }
+    if (legacyBriefPosts !== 0 || legacyMutationRequests.length > 0 || browserErrors.length > 0) {
+      throw new Error(`browser characterization errors: legacyBriefPosts=${legacyBriefPosts}, legacyMutationRequests=${legacyMutationRequests.join(' | ')}, errors=${browserErrors.join(' | ')}`)
     }
     console.log(JSON.stringify({
       ok: true,
@@ -172,7 +243,11 @@ async function main() {
         'ambiguous_clarification_write_barrier',
       'preview_does_not_write_version',
       'agent_commit_snapshot_export_alignment',
-      'reload_restores_agent_head',
+        'reload_restores_agent_head',
+        'legacy_details_require_explicit_entry',
+        'legacy_surface_is_read_only',
+        'agent_export_has_no_legacy_choices',
+        'agent_flow_makes_no_legacy_mutation_calls',
         ...(legacyConversionRequested ? ['legacy_rebuild_requires_explicit_handoff'] : []),
     ],
     }, null, 2))

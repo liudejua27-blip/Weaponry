@@ -95,17 +95,24 @@ export function useConceptWorkbench() {
   const [state, setState] = useState<ConceptWorkbenchState>(INITIAL_STATE)
   const autoBootstrapAttempted = useRef(false)
   const startupRetryTimer = useRef<number | null>(null)
+  const legacyDetailsEnabledRef = useRef(false)
+  const loadProjectRequestRef = useRef(0)
+  const [legacyDetailsEnabled, setLegacyDetailsEnabled] = useState(false)
 
   const loadProject = useCallback(async (
     projectId: string,
     preferredVersionId?: string,
     knownProjects?: ConceptProjectSummary[],
+    loadLegacyDetails = legacyDetailsEnabledRef.current,
   ) => {
+    const requestId = ++loadProjectRequestRef.current
     setState((current) => ({
       ...current,
       loading: true,
       error: null,
-      statusMessage: '正在加载 Project、Version 与 ModuleGraph…',
+      statusMessage: loadLegacyDetails
+        ? '正在打开旧版只读兼容信息…'
+        : '正在加载设计项目…',
     }))
     try {
       const project = await forgeApi.getConceptProject(projectId)
@@ -115,23 +122,22 @@ export function useConceptWorkbench() {
         && versions.some((item) => item.version_id === restoredVersionId)
         ? restoredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
-      const [
-        variantResponse,
-        timelineResponse,
-        auditExportResponse,
-        version,
-      ] = await Promise.all([
-        forgeApi.listDesignVariants(projectId),
-        forgeApi.listChangeSets(projectId, { limit: 20 }),
-        forgeApi.listChangeSetAuditExports(projectId, 1),
-        versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
-      ])
+      const [variantResponse, timelineResponse, auditExportResponse, version] = loadLegacyDetails
+        ? await Promise.all([
+            forgeApi.listDesignVariants(projectId),
+            forgeApi.listChangeSets(projectId, { limit: 20 }),
+            forgeApi.listChangeSetAuditExports(projectId, 1),
+            versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
+          ])
+        : [{ items: [] }, { items: [], next_cursor: null }, { items: [] }, null]
+      if (requestId !== loadProjectRequestRef.current) return
       const graphRecord = version?.module_graph_id
         ? await forgeApi.getModuleGraph(version.module_graph_id)
         : null
+      if (requestId !== loadProjectRequestRef.current) return
       localStorage.setItem(ACTIVE_PROJECT_KEY, projectId)
-      if (versionId) localStorage.setItem(activeVersionKey(projectId), versionId)
-      else localStorage.removeItem(activeVersionKey(projectId))
+      if (loadLegacyDetails && versionId) localStorage.setItem(activeVersionKey(projectId), versionId)
+      else if (!versionId) localStorage.removeItem(activeVersionKey(projectId))
       setState((current) => ({
         ...current,
         projects: knownProjects ?? current.projects,
@@ -155,11 +161,14 @@ export function useConceptWorkbench() {
         qualityRun: null,
         loading: false,
         error: null,
-        statusMessage: graphRecord
-          ? `已加载 ${graphRecord.graph.nodes.length} 个 ModuleGraph 节点。`
-          : '当前版本尚未绑定 ModuleGraph；可先注册模块并创建组合。',
+        statusMessage: loadLegacyDetails
+          ? graphRecord
+            ? `已打开旧版只读信息 · ${graphRecord.graph.nodes.length} 个 ModuleGraph 节点。`
+            : '旧版当前版本没有可读取的 ModuleGraph。'
+          : '设计项目已加载；旧版 Graph、参数和导出信息尚未读取。',
       }))
     } catch (caught) {
+      if (requestId !== loadProjectRequestRef.current) return
       setState((current) => ({
         ...current,
         loading: false,
@@ -295,8 +304,45 @@ export function useConceptWorkbench() {
   }, [])
 
   const selectProject = useCallback((projectId: string) => {
-    loadProject(projectId).catch(() => undefined)
+    legacyDetailsEnabledRef.current = false
+    setLegacyDetailsEnabled(false)
+    loadProject(projectId, undefined, undefined, false).catch(() => undefined)
   }, [loadProject])
+
+  const openLegacyDetails = useCallback(async () => {
+    const projectId = state.project?.project_id
+    if (!projectId || legacyDetailsEnabledRef.current) return
+    legacyDetailsEnabledRef.current = true
+    setLegacyDetailsEnabled(true)
+    await loadProject(projectId, undefined, state.projects, true)
+  }, [loadProject, state.project?.project_id, state.projects])
+
+  const closeLegacyDetails = useCallback(() => {
+    loadProjectRequestRef.current += 1
+    legacyDetailsEnabledRef.current = false
+    setLegacyDetailsEnabled(false)
+    setState((current) => ({
+      ...current,
+      version: null,
+      graphRecord: null,
+      variants: [],
+      brief: null,
+      pendingChange: null,
+      pendingReplacement: null,
+      pendingManualChange: null,
+      pendingPreview: null,
+      lastExport: null,
+      lastAuditExport: null,
+      timeline: [],
+      timelineNextCursor: null,
+      timelineLoading: false,
+      timelineFilters: EMPTY_TIMELINE_FILTERS,
+      qualityRun: null,
+      loading: false,
+      error: null,
+      statusMessage: '旧版只读兼容信息已关闭。',
+    }))
+  }, [])
 
   const selectVersion = useCallback(async (versionId: string) => {
     setState((current) => ({
@@ -1218,6 +1264,9 @@ export function useConceptWorkbench() {
 
   return {
     ...state,
+    legacyDetailsEnabled,
+    openLegacyDetails,
+    closeLegacyDetails,
     refresh,
     selectProject,
     selectVersion,

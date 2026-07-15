@@ -28,7 +28,7 @@ export function runLegacyCompatibilityNoticeSmoke(): void {
   }, 'idle')
   assert(legacy.source === 'legacy_read_only' && legacy.isLegacyReadOnly && legacy.rebuildActionEnabled, 'legacy Snapshot must expose only read-only rebuild guidance')
   assert(!('revision' in legacy) && !('asset_version_id' in legacy), 'display model must not own Snapshot or asset-version truth')
-  const legacyText = collectText(LegacyCompatibilityNotice({ display: legacy, onRequestLegacyAgentRebuild: () => undefined }))
+  const legacyText = collectText(LegacyCompatibilityNotice({ display: legacy, onRequestLegacyAgentRebuild: () => undefined, onOpenLegacyDetails: () => undefined }))
   assert(legacyText.includes('旧版只读设计') && legacyText.includes('原设计会保留不变'), 'legacy guidance must explain the safe conversion boundary')
 
   const agent = getLegacyCompatibilityDisplay({

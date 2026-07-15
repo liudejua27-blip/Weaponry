@@ -36,6 +36,7 @@
     "desktop:f023-agent-blockout-preview-presentation-smoke": "node scripts/smoke_agent_blockout_preview_presentation.mjs",
     "desktop:r006-direction-concept-preview-state-smoke": "node scripts/smoke_agent_direction_concept_preview_state.mjs",
     "desktop:f024-agent-plan-source-presentation-smoke": "node scripts/smoke_agent_plan_source_presentation.mjs",
+    "desktop:f025-legacy-isolation-smoke": "node scripts/smoke_f025_legacy_isolation.mjs && npm run desktop:f001-workbench-characterization && npm run desktop:t002-workbench-e2e-scenarios && npm run desktop:f006-accessibility-smoke",
     "desktop:a003-provider-connection-smoke": "node scripts/smoke_a003_provider_connection_ui.mjs",
     "desktop:f010-agent-asset-workspace-state-smoke": "node scripts/smoke_agent_asset_workspace_state.mjs",
     "desktop:f011-legacy-compatibility-display-smoke": "node scripts/smoke_legacy_compatibility_display.mjs",

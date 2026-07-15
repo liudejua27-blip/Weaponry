@@ -263,8 +263,9 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (await page.locator('.cad-right-rail').isVisible()) {
       throw new Error('legacy permanent property panel remains visible')
     }
-    await page.getByTestId('contextual-edit-card').waitFor({ timeout: 20_000 })
-    await assertText(page.getByTestId('contextual-edit-card'), ['已选中部件', '替换', '让 Agent 调整', '精确调整'])
+    if (await page.getByTestId('contextual-edit-card').count() !== 0) {
+      throw new Error('legacy contextual mutation card leaked into the Agent-first workbench')
+    }
 
     const importFixture = join(ROOT, 'assets', 'module-packs', 'weapon-concept-v1-reference', 'modules', 'module_core_shell_01', 'model.glb')
     await page.getByLabel('导入 GLB 参考模型').setInputFiles(importFixture)
@@ -563,34 +564,18 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await page.getByRole('button', { name: '关闭导出' }).click()
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((element) => element.textContent?.trim() === '导出' && element === document.activeElement))
 
-    // Agent assets and legacy ModuleGraph assets must not share a replacement
-    // ChangeSet. The legacy component drawer remains available for browsing,
-    // but its write action remains intentionally disabled while an Agent asset
-    // is active. Agent component replacement is handled separately by C102.
-    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).click()
-    await page.locator('.contextual-library').waitFor()
-    await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
-    await page.keyboard.press('Escape')
-    await page.locator('[data-forgecad-drawer="component"]').waitFor({ state: 'detached', timeout: 20_000 })
-    if (!(await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).evaluate((element) => element === document.activeElement))) {
-      throw new Error('Escape did not return focus to the component drawer trigger')
+    // F025 removes the legacy component drawer and contextual Graph mutations
+    // from the Agent-active shell. Agent replacement remains available only
+    // through the Snapshot-bound C102 actions in the segmentation card.
+    if (await page.getByTestId('contextual-edit-card').count() !== 0) {
+      throw new Error('Agent-active shell rendered the legacy contextual edit card')
     }
-    await page.getByTestId('contextual-edit-card').getByRole('button', { name: '替换', exact: true }).click()
-    await page.locator('.contextual-library').waitFor()
-    await assertText(page.locator('.contextual-library'), ['替换', '只显示当前部件可用的替换建议', 'Front Shell 01', 'Front Shell 02'])
-    if (await page.locator('.contextual-library .component-card').count() !== 2) {
-      throw new Error('contextual replacement drawer must limit the first view to compatible components')
+    if (await page.locator('[data-forgecad-drawer="component"]').count() !== 0) {
+      throw new Error('Agent-active shell mounted the legacy component drawer')
     }
-    await page.getByRole('button', { name: /Front Shell 02/ }).click()
-    const legacyReplacementButton = page.locator('.contextual-library').getByRole('button', { name: '预览替换', exact: true })
-    if (!(await legacyReplacementButton.isDisabled())) {
-      throw new Error(`legacy replacement must be disabled while an Agent asset is active: disabled=${await legacyReplacementButton.getAttribute('disabled')}, status=${await page.locator('.cad-status-bar').innerText()}`)
-    }
-    await page.getByRole('button', { name: '关闭组件选择' }).click()
-    await page.locator('.contextual-library').waitFor({ state: 'detached', timeout: 20_000 })
 
     await page.getByRole('button', { name: '检查', exact: true }).click()
-    await assertText(page.locator('.quality-drawer'), ['模型检查', '展示组件已加载', '检查当前 Agent 资产'])
+    await assertText(page.locator('.quality-drawer'), ['模型检查', '当前版本', '检查当前 Agent 资产'])
     await page.getByRole('button', { name: '关闭模型检查' }).click()
     await page.screenshot({ path: AGENT_FIRST_SCREENSHOT, fullPage: true })
     if ((await stat(AGENT_FIRST_SCREENSHOT)).size < 20_000) {

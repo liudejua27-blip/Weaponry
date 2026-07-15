@@ -1,22 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import {
   ArrowsClockwise,
-  ArrowsLeftRight,
   ArrowsOutCardinal,
-  CaretDown,
-  CaretUp,
-  ChartLineUp,
   Check,
   ClockCounterClockwise,
   Crosshair,
   Cube,
   CursorClick,
   Export,
-  Eye,
-  FileArrowDown,
   FloppyDisk,
   FolderOpen,
-  Funnel,
   GridFour,
   House,
   MagnifyingGlass,
@@ -24,38 +17,25 @@ import {
   Ruler,
   SelectionAll,
   Star,
-  ShareNetwork,
-  SlidersHorizontal,
   Sparkle,
-  WarningCircle,
 } from '@phosphor-icons/react'
 import { ForgeApiError, forgeApi, mapActiveDesignError } from '../../shared/api/forgeApi'
-import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, AgentTurn, DesignChangeSet, ModuleAssetRecord, QualityFinding, Transform } from '../../shared/types'
+import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, AgentTurn } from '../../shared/types'
 import { useRuntime } from '../../app/providers/RuntimeProvider'
 import {
   getProviderConfig as getTauriProviderConfig,
   saveProviderConfig as saveTauriProviderConfig,
   type ProviderConfigMetadata,
 } from '../../shared/tauri/agentSupervisor'
-import { ModuleGraphViewport, type ViewportMeasurementPoint } from './ModuleGraphViewport'
+import { ModuleGraphViewport } from './ModuleGraphViewport'
 import { AgentConversation } from './AgentConversation'
 import { AgentSelectionCard } from './AgentSelectionCard'
 import { selectAgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation'
 import { selectAgentPlanSourcePresentation } from './agentPlanSourcePresentation'
-import {
-  ComponentDrawer,
-  COMPONENT_CATEGORIES,
-  MODULE_CATEGORY_LABELS,
-  ORIGIN_CLAIM_LABELS,
-  QUALITY_STATUS_LABELS,
-  REVIEW_STATUS_LABELS,
-  type ModuleCategory,
-  type QualityStatus,
-} from './ComponentDrawer'
-import { ExportDrawer, type ExportFormat, type ExportPurpose, type ExportPurposeOption } from './ExportDrawer'
+import { MODULE_CATEGORY_LABELS } from './ComponentDrawer'
 import { MaterialDrawer } from './MaterialDrawer'
-import { QualityDrawer } from './QualityDrawer'
 import { WorkbenchDrawerStack } from './WorkbenchDrawerStack'
+import { WorkbenchInspectorRail } from './WorkbenchInspectorRail'
 import { displayPartRole } from './partRoleLabels.js'
 import {
   activeDesignCanSelectParts,
@@ -71,8 +51,6 @@ import { useAgentBlockoutDisplay } from './useAgentBlockoutDisplay'
 import { useAgentDirectionConceptPreviews } from './useAgentDirectionConceptPreviews'
 import { useAgentAssetWorkspace } from './useAgentAssetWorkspace'
 import { getLegacyCompatibilityDisplay } from './legacyCompatibilityDisplay'
-import { useComponentLibraryPreferences } from './useComponentLibraryPreferences'
-import { filterComponentLibraryRecords } from './componentLibraryPreferencesState'
 import { useViewportDisplayPreferences } from './useViewportDisplayPreferences'
 import { useLegacyModuleGraphWorkspace } from './useLegacyModuleGraphWorkspace'
 import { useLegacyModuleGraphOverlay } from './useLegacyModuleGraphOverlay'
@@ -86,20 +64,11 @@ import { useConceptWorkbench } from './useConceptWorkbench'
 import { isProviderExecutionError, providerCheckPresentation } from './providerConnectionPresentation'
 import './cad-workbench.css'
 
-type InspectorTab = 'parameters' | 'appearance' | 'connections' | 'inspection'
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
 type AgentTurnRecordResult = { recorded: boolean; clarification: boolean; cancelled: boolean; failed: boolean }
 
-type WeaponParameters = {
-  overallLength: number
-  bodyHeight: number
-  frontShellLength: number
-  gripAngle: number
-  shellThickness: number
-  detailDensity: number
-}
 
 const DEFAULT_AGENT_MATERIAL_PRESETS: AgentMaterialPreset[] = [
   { schema_version: 'MaterialPreset@1', material_id: 'mat_graphite', display_name: '石墨深灰', category: 'metal', pbr: { base_color: '#26313b', metallic: 0.78, roughness: 0.34, opacity: 1 }, visual_only: true, allowed_domains: ['future_weapon_prop', 'vehicle_concept', 'aircraft_concept', 'robotic_arm_concept'], provenance: 'forgecad_builtin' },
@@ -112,14 +81,6 @@ const DOMAIN_TYPE_BY_PACK: Record<string, string> = {
   pack_vehicle_concept: 'vehicle_concept',
   pack_aircraft_concept: 'aircraft_concept',
   pack_robotic_arm_concept: 'robotic_arm_concept',
-}
-
-type MeasurementAnnotation = {
-  annotationId: string
-  kind: 'distance' | 'normal_angle'
-  points: [ViewportMeasurementPoint, ViewportMeasurementPoint]
-  distanceMm: number
-  angleDeg: number
 }
 
 const DEFAULT_CONCEPT_BRIEF = '一台结构清晰、比例协调、适合继续编辑的未来机械概念展示模型'
@@ -137,17 +98,6 @@ const DEFAULT_AGENT_CLARIFICATION_OPTIONS: AgentClarificationOption[] = [
   { domain_pack_id: 'pack_robotic_arm_concept', label: '机械臂与机器人机构', prompt: CONCEPT_FAMILY_SUGGESTIONS[2][1] },
   { domain_pack_id: 'pack_future_weapon_prop', label: '未来武器概念道具', prompt: CONCEPT_FAMILY_SUGGESTIONS[3][1] },
 ]
-
-const EXPORT_PURPOSES: ExportPurposeOption[] = [
-  { id: 'presentation', title: '展示设计', description: '用于方案评审或展示画面', format: 'PNG' },
-  { id: 'production', title: '游戏 / 影视项目', description: '保留展示模型与材质', format: 'GLB' },
-  { id: 'handoff', title: '交给三维设计师', description: '继续在三维软件中处理', format: 'OBJ' },
-  { id: 'archive', title: '保存完整设计资料', description: '包含当前版本与概念资料', format: 'SOURCE ZIP' },
-]
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}
 
 const TOOL_ITEMS: Array<{
   id: Tool
@@ -176,7 +126,6 @@ export function CadWorkbenchPanel() {
     receiveActiveDesignSnapshot,
     failActiveDesignRequest,
     drawerFocusRef,
-    componentDrawerOpen,
     exportOpen,
     qualityOpen,
     hasOpenDrawer,
@@ -239,50 +188,23 @@ export function CadWorkbenchPanel() {
     clearAgentAssetWorkspace,
   } = useAgentAssetWorkspace()
   const {
-    componentLibraryPreferences,
-    openComponentLibraryPreferences,
-    setComponentCategory,
-    setComponentQuery,
-    setReviewStatusFilter,
-    toggleLibraryFavorite,
-    recordRecentLibraryModule,
-    setDrawerExpanded,
-    setDrawerHeight,
-    setComponentDrawerMode,
-    toggleComponentDrawerMode,
-  } = useComponentLibraryPreferences()
-  const {
     viewportDisplayPreferences,
     openViewportDisplayPreferences,
     setViewportTool,
-    setViewportShowConnectors,
     setViewportExplodeFactor,
-    setViewportSectionOffset,
   } = useViewportDisplayPreferences()
   const {
     legacyModuleGraphWorkspace,
     legacyModuleGraphWorkspacePreferenceKey,
     openLegacyModuleGraphWorkspace,
-    setLegacyInspectorTab,
-    setLegacyTransformSpace,
-    setLegacySnapEnabled,
     selectLegacyModuleGraphNode,
-    setLegacySelectedModule,
-    clearLegacyModuleGraphSelection,
-    setLegacyMeasurementMode,
     reconcileLegacyModuleGraphSelection,
   } = useLegacyModuleGraphWorkspace()
   const {
     legacyModuleGraphOverlay,
     legacyModuleGraphOverlayContextKey,
-    thumbnailFailures,
     openLegacyModuleGraphOverlay,
     reconcileLegacyModuleGraphOverlayNodes,
-    toggleLegacyHiddenNode,
-    setLegacyFocusNode,
-    setLegacyQualityOverlay,
-    clearLegacyQualityOverlay,
-    recordLegacyThumbnailFailure,
   } = useLegacyModuleGraphOverlay()
   const {
     agentRenderPresentation,
@@ -331,11 +253,7 @@ export function CadWorkbenchPanel() {
   const agentPlanSourcePresentation = selectAgentPlanSourcePresentation(agentPlan)
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [lightPreset, setLightPreset] = useState<LightPreset>('cad_neutral')
-  const [measurementPoints, setMeasurementPoints] = useState<ViewportMeasurementPoint[]>([])
-  const [measurementAnnotations, setMeasurementAnnotations] = useState<MeasurementAnnotation[]>([])
-  const [showPrecisionAdjustments, setShowPrecisionAdjustments] = useState(false)
   const [presentationProfile, setPresentationProfile] = useState<'quick_sketch' | 'showcase'>('showcase')
-  const [exportPurpose, setExportPurpose] = useState<ExportPurpose>('presentation')
   const [agentAssetChangeSet, setAgentAssetChangeSet] = useState<AgentAssetChangeSet | null>(null)
   const [agentCandidateSelectedPartId, setAgentCandidateSelectedPartId] = useState<string | null>(null)
   const agentAssetVersion = agentAssetWorkspace.assetVersion
@@ -347,17 +265,11 @@ export function CadWorkbenchPanel() {
     showGrid,
     wireframe,
     xRay,
-    showConnectors,
     explodeFactor,
     sectionOffset,
   } = viewportDisplayPreferences
   const {
-    inspectorTab,
-    transformSpace,
-    snapEnabled,
     selectedNodeId: selectedComponent,
-    selectedModuleId: selectedLibraryModuleId,
-    measurementMode,
   } = legacyModuleGraphWorkspace
   const activeDesignAssetVersionId = activeDesignSnapshot?.active_design.source === 'agent_asset'
     ? activeDesignSnapshot.active_design.asset_version_id
@@ -385,15 +297,6 @@ export function CadWorkbenchPanel() {
     ? activeDesignPartIsLocked(activeDesignSnapshot, selectedAgentPart.part_id)
     : false
   const [appearanceMaterialZoneId, setAppearanceMaterialZoneId] = useState('')
-  const [exportFormat, setExportFormat] = useState('SOURCE ZIP')
-  const [parameters, setParameters] = useState<WeaponParameters>({
-    overallLength: 230,
-    bodyHeight: 54,
-    frontShellLength: 120,
-    gripAngle: 15,
-    shellThickness: 2.5,
-    detailDensity: 68,
-  })
 
   useEffect(() => {
     if (activeDesignSnapshot?.selected_material_zone_id) {
@@ -414,7 +317,6 @@ export function CadWorkbenchPanel() {
   const materialCategory = agentMaterialFilterPresentation.category
   const materialCompatibilityOnly = agentMaterialFilterPresentation.compatibilityOnly
   const appearanceMaterialId = agentMaterialPreselectionPresentation.materialId
-  const [transformDraft, setTransformDraft] = useState<Transform>(() => identityTransform())
   const [providerConfig, setProviderConfig] = useState<ProviderConfigMetadata | null>(null)
   const [providerSetupOpen, setProviderSetupOpen] = useState(false)
   const [providerBaseUrl, setProviderBaseUrl] = useState('https://api.deepseek.com')
@@ -425,16 +327,6 @@ export function CadWorkbenchPanel() {
   const [activeProviderCheckId, setActiveProviderCheckId] = useState<string | null>(null)
   const [importingGlb, setImportingGlb] = useState(false)
   const importGlbInputRef = useRef<HTMLInputElement | null>(null)
-  const {
-    componentCategory,
-    componentQuery,
-    reviewStatusFilter,
-    favoriteModuleIds,
-    recentModuleIds,
-    drawerExpanded,
-    drawerHeight,
-    componentDrawerMode,
-  } = componentLibraryPreferences
   const isExternalGlbReference = agentAssetVersion?.shape_program?.schema_version === 'ExternalGLBReference@1'
 
   useEffect(() => {
@@ -588,18 +480,18 @@ export function CadWorkbenchPanel() {
 
   useEffect(() => {
     const context = {
-      projectId: concept.project?.project_id ?? null,
-      packId: concept.project?.profile.pack_id ?? null,
-      source: activeDesignSnapshot?.active_design.source === 'agent_asset' ? 'agent_asset' as const : concept.project ? 'legacy' as const : 'none' as const,
+      projectId: concept.legacyDetailsEnabled ? concept.project?.project_id ?? null : null,
+      packId: concept.legacyDetailsEnabled ? concept.project?.profile.pack_id ?? null : null,
+      source: concept.legacyDetailsEnabled ? 'legacy' as const : 'none' as const,
     }
     openComponentCatalog(context)
-    if (!context.packId) return
+    if (!context.packId || context.source !== 'legacy') return
     const requestId = startComponentCatalogRead(context)
     if (requestId === null) return
     void api.listModuleAssets(context.packId).then((response) => {
       receiveComponentCatalog(context, requestId, response.items ?? [])
     }).catch(() => { failComponentCatalog(context, requestId) })
-  }, [activeDesignSnapshot?.active_design.source, api, concept.project, failComponentCatalog, openComponentCatalog, receiveComponentCatalog, startComponentCatalogRead])
+  }, [api, concept.legacyDetailsEnabled, concept.project, failComponentCatalog, openComponentCatalog, receiveComponentCatalog, startComponentCatalogRead])
 
   useEffect(() => {
     const context = {
@@ -691,18 +583,6 @@ export function CadWorkbenchPanel() {
   }, [])
 
   useEffect(() => {
-    const spec = concept.version?.spec
-    if (!spec) return
-    setParameters((current) => ({
-      ...current,
-      overallLength: spec.proportions.overall_length_mm,
-      bodyHeight: spec.proportions.body_height_mm,
-      gripAngle: spec.proportions.grip_angle_deg,
-      detailDensity: Math.round(spec.style.detail_density * 100),
-    }))
-  }, [concept.version])
-
-  useEffect(() => {
     // The compatibility graph may briefly clear during reload. Its local
     // selection is reconciled only against the returned legacy graph; it never
     // becomes the Agent Snapshot selection.
@@ -727,179 +607,21 @@ export function CadWorkbenchPanel() {
   const selectedModule = catalogModules.find(
     (module) => module.manifest.module_id === selectedNode?.module_id,
   ) ?? null
-  const selectedLibraryModule = catalogModules.find(
-    (module) => module.manifest.module_id === selectedLibraryModuleId,
-  ) ?? null
   const selectedModuleLabel = selectedModule
     ? MODULE_CATEGORY_LABELS[selectedModule.manifest.category]
     : '当前部件'
-  const selectedNodeConnections = (concept.graphRecord?.graph.edges ?? []).filter((edge) => (
-    edge.from_node_id === selectedNode?.node_id || edge.to_node_id === selectedNode?.node_id
-  ))
-  const measurementDistance = measurementPoints.length === 2
-    ? distanceBetween(measurementPoints[0].position, measurementPoints[1].position)
-    : null
-  const measurementAngle = measurementPoints.length === 2
-    ? angleBetweenNormals(measurementPoints[0].normal, measurementPoints[1].normal)
-    : null
-  const measurementStorageKey = concept.project && concept.version
-    ? `forgecad.measurements.v1.${concept.project.project_id}.${concept.version.version_id}`
-    : null
-
-  useEffect(() => {
-    if (!measurementStorageKey) {
-      setMeasurementAnnotations([])
-      return
-    }
-    try {
-      const stored = window.localStorage.getItem(measurementStorageKey)
-      const parsed = stored ? JSON.parse(stored) : []
-      setMeasurementAnnotations(Array.isArray(parsed) ? parsed : [])
-    } catch {
-      setMeasurementAnnotations([])
-    }
-  }, [measurementStorageKey])
-  const canSnapSelectedNode = Boolean(
-    selectedNode
-      && selectedNode.node_id !== concept.graphRecord?.graph.root_node_id
-      && !selectedNode.locked
-      && selectedNodeConnections.length > 0,
-  )
-
-  useEffect(() => {
-    if (!selectedNode) {
-      setTransformDraft(identityTransform())
-      return
-    }
-    setTransformDraft(copyTransform(selectedNode.transform))
-  }, [selectedNode?.node_id, selectedNode?.transform])
-
-  const qualityByModuleId = useMemo(() => {
-    const result = new Map<string, QualityStatus>()
-    const nodes = concept.graphRecord?.graph.nodes ?? []
-    const report = concept.qualityRun?.report
-    if (!report || report.status === 'not_run') return result
-    for (const node of nodes) result.set(node.module_id, 'passed')
-    for (const finding of report.findings ?? []) {
-      const status: QualityStatus = finding.severity === 'error' ? 'failed' : 'warning'
-      for (const nodeId of finding.node_ids ?? []) {
-        const node = nodes.find((candidate) => candidate.node_id === nodeId)
-        if (!node) continue
-        const current = result.get(node.module_id)
-        if (status === 'failed' || current !== 'failed') result.set(node.module_id, status)
-      }
-    }
-    return result
-  }, [concept.graphRecord, concept.qualityRun])
-
-  const qualityStatusFor = useCallback(
-    (moduleId: string): QualityStatus => qualityByModuleId.get(moduleId) ?? 'unavailable',
-    [qualityByModuleId],
-  )
-
-  const visibleComponents = useMemo(() => {
-    const installedModuleIds = new Set(
-      (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
-    )
-    return filterComponentLibraryRecords({
-      modules: catalogModules,
-      installedModuleIds,
-      selectedModuleCategory: selectedModule?.manifest.category ?? null,
-      selectedNodeUnlocked: Boolean(selectedNode && !selectedNode.locked),
-      preferences: componentLibraryPreferences,
-    })
-  }, [
-    componentLibraryPreferences,
-    concept.graphRecord,
-    catalogModules,
-    selectedModule,
-    selectedNode,
-  ])
-
-  const componentFilterCounts = useMemo(() => {
-    const installedModuleIds = new Set(
-      (concept.graphRecord?.graph.nodes ?? []).map((node) => node.module_id),
-    )
-    const compatibleCount = selectedNode && !selectedNode.locked && selectedModule
-      ? catalogModules.filter((component) => component.manifest.category === selectedModule.manifest.category).length
-      : 0
-    return {
-      all: catalogModules.length,
-      installed: installedModuleIds.size,
-      compatible: compatibleCount,
-      favorites: catalogModules.filter((component) => favoriteModuleIds.includes(component.manifest.module_id)).length,
-      recent: catalogModules.filter((component) => recentModuleIds.includes(component.manifest.module_id)).length,
-    }
-  }, [catalogModules, concept.graphRecord, favoriteModuleIds, recentModuleIds, selectedModule, selectedNode])
-
-  const displayedComponents = useMemo(
-    () => componentDrawerMode === 'recommended' ? visibleComponents.slice(0, 3) : visibleComponents,
-    [componentDrawerMode, visibleComponents],
-  )
-
   const getModuleFileUrl = useCallback(
     (moduleId: string) => forgeApi.getModuleAssetFileUrl(moduleId),
     [],
   )
-  const canReplaceSelected = Boolean(
-    selectedNode
-    && selectedLibraryModule
-    && !selectedNode.locked
-    && selectedNode.module_id !== selectedLibraryModule.manifest.module_id
-    && selectedModule?.manifest.category === selectedLibraryModule.manifest.category
-    && selectedLibraryModule.catalog_metadata.review_status !== 'restricted'
-    && qualityStatusFor(selectedLibraryModule.manifest.module_id) !== 'failed'
-  )
   const activeVersionSummary = (concept.project?.versions ?? []).find(
     (item) => item.version_id === concept.version?.version_id,
   )
-  const undoVersionId = activeVersionSummary?.parent_version_id ?? null
-  const redoVersionId = (concept.project?.versions ?? [])
-    .filter((item) => item.parent_version_id === concept.version?.version_id)
-    .sort((left, right) => right.version_no - left.version_no)[0]?.version_id ?? null
 
   const selectGraphNode = useCallback((nodeId: string) => {
     const node = concept.graphRecord?.graph.nodes.find((item) => item.node_id === nodeId)
     selectLegacyModuleGraphNode(nodeId, node?.module_id ?? '')
   }, [concept.graphRecord, selectLegacyModuleGraphNode])
-
-  const selectLibraryModule = useCallback((module: ModuleAssetRecord) => {
-    const moduleId = module.manifest.module_id
-    setLegacySelectedModule(moduleId)
-    recordRecentLibraryModule(moduleId)
-    const graphNode = concept.graphRecord?.graph.nodes.find((node) => node.module_id === moduleId)
-    if (graphNode && !componentDrawerOpen) selectLegacyModuleGraphNode(graphNode.node_id, graphNode.module_id)
-  }, [componentDrawerOpen, concept.graphRecord, recordRecentLibraryModule, selectLegacyModuleGraphNode, setLegacySelectedModule])
-
-  const beginDrawerResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drawerExpanded) return
-    const startY = event.clientY
-    const startHeight = drawerHeight
-    const onMove = (moveEvent: PointerEvent) => {
-      setDrawerHeight(Math.max(280, Math.min(520, startHeight + startY - moveEvent.clientY)))
-    }
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }, [drawerExpanded, drawerHeight])
-
-  const resizeDrawerByKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!drawerExpanded && event.key !== 'Enter' && event.key !== ' ') return
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Home' || event.key === 'End' || event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-    }
-    if (event.key === 'Enter' || event.key === ' ') {
-      setDrawerExpanded(true)
-      return
-    }
-    if (event.key === 'ArrowUp') setDrawerHeight(drawerHeight + 24)
-    if (event.key === 'ArrowDown') setDrawerHeight(drawerHeight - 24)
-    if (event.key === 'Home') setDrawerHeight(280)
-    if (event.key === 'End') setDrawerHeight(520)
-  }, [drawerExpanded, drawerHeight, setDrawerExpanded, setDrawerHeight])
 
   const closeAllDrawers = useCallback(() => {
     closeAgentRenderPresentation()
@@ -907,57 +629,6 @@ export function CadWorkbenchPanel() {
   }, [closeAgentRenderPresentation, closeDrawers])
   const openExportDrawer = useCallback(() => openDrawer('export'), [openDrawer])
   const openQualityDrawer = useCallback(() => openDrawer('quality'), [openDrawer])
-
-  const focusQualityFinding = useCallback((finding: QualityFinding) => {
-    const validNodeIds = (finding.node_ids ?? []).filter((candidate) => (
-      concept.graphRecord?.graph.nodes.some((node) => node.node_id === candidate)
-    ))
-    const nodeId = validNodeIds[0]
-    if (!nodeId) return
-    selectGraphNode(nodeId)
-    setLegacyFocusNode(nodeId)
-    setLegacyQualityOverlay(
-      validNodeIds,
-      (finding.geometry_refs ?? []).filter((reference) => validNodeIds.includes(reference.node_id)),
-    )
-  }, [concept.graphRecord, selectGraphNode, setLegacyFocusNode, setLegacyQualityOverlay])
-
-  useEffect(() => {
-    clearLegacyQualityOverlay()
-  }, [clearLegacyQualityOverlay, concept.qualityRun?.quality_run_id, concept.version?.version_id])
-
-  const handleCreateExport = useCallback(async () => {
-    if (activeDesignSnapshot?.active_design.source === 'agent_asset') {
-      setAssistantNote('当前 Agent 设计请使用“下载 3D 模型 (GLB)”，不会回退到旧 Concept 版本。')
-      return
-    }
-    const currentExport = concept.lastExport?.version_id === concept.version?.version_id
-      ? concept.lastExport
-      : null
-    const reusable = currentExport && (
-      exportFormat === 'SOURCE ZIP'
-      || exportFormat === 'GLB'
-      || (exportFormat === 'OBJ' && currentExport.combined_obj_sha256)
-      || (exportFormat === 'PNG' && currentExport.preview_png_sha256)
-      || (exportFormat === 'MP4' && currentExport.turntable_video_sha256)
-    )
-    const result = reusable ? currentExport : await concept.createExport()
-    if (!result) return
-    const url = exportFormat === 'GLB'
-      ? forgeApi.getConceptCombinedGlbUrl(result.export_id)
-      : exportFormat === 'OBJ'
-      ? forgeApi.getConceptCombinedObjUrl(result.export_id)
-      : exportFormat === 'PNG'
-      ? forgeApi.getConceptPreviewPngUrl(result.export_id)
-      : exportFormat === 'MP4'
-      ? forgeApi.getConceptTurntableVideoUrl(result.export_id)
-      : forgeApi.getConceptExportFileUrl(result.export_id)
-    try {
-      await downloadBrowserFile(url, exportDownloadFilename(result.export_id, exportFormat))
-    } catch (caught) {
-      setAssistantNote(`导出已生成，但浏览器下载失败：${errorText(caught)}`)
-    }
-  }, [activeDesignSnapshot, concept, exportFormat])
 
   const handleDownloadAgentGlb = useCallback(async () => {
     if (!activeAgentAssetVersion) {
@@ -1023,149 +694,6 @@ export function CadWorkbenchPanel() {
     }
   }, [activeAgentAssetVersion, agentRenderPresentation.renderSet, api, concept.project?.project_id, finishAgentRenderPackageRequest, startAgentRenderPackageRequest])
 
-  const downloadExistingExport = useCallback((url: string, filename: string) => {
-    downloadBrowserFile(url, filename).catch((caught) => {
-      setAssistantNote(`浏览器下载失败：${errorText(caught)}`)
-    })
-  }, [])
-
-  const handleReplaceSelected = useCallback(() => {
-    if (activeDesignSnapshot?.active_design.source === 'agent_asset') {
-      setAssistantNote('当前是 Agent 资产；请在“分件候选”中选择部件，旧版组件替换入口不会修改 Agent 版本。')
-      return
-    }
-    if (legacyDesignReadOnly) {
-      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
-      return
-    }
-    if (!selectedNode || !selectedLibraryModule) return
-    concept.previewModuleReplacement(selectedNode.node_id, selectedLibraryModule.manifest.module_id)
-      .catch(() => undefined)
-  }, [activeDesignSnapshot, concept, legacyDesignReadOnly, selectedLibraryModule, selectedNode])
-
-  const openComponentReplacement = useCallback(() => {
-    if (!selectedNode || selectedNode.locked) return
-    setComponentCategory('compatible')
-    setComponentQuery('')
-    setReviewStatusFilter('')
-    setComponentDrawerMode('recommended')
-    setDrawerExpanded(false)
-    openDrawer('component')
-  }, [openDrawer, selectedNode, setComponentCategory, setComponentDrawerMode, setComponentQuery, setDrawerExpanded, setReviewStatusFilter])
-
-  const handleToggleMirrorX = useCallback(() => {
-    if (legacyDesignReadOnly) {
-      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
-      return
-    }
-    if (!selectedNode) return
-    const nextAxis = selectedNode.mirror_axis === 'x' ? 'none' : 'x'
-    concept.setMirror(selectedNode.node_id, nextAxis).catch(() => undefined)
-  }, [concept, legacyDesignReadOnly, selectedNode])
-
-  const updateTransformDraft = useCallback((
-    field: keyof Transform,
-    axis: 0 | 1 | 2,
-    value: number,
-  ) => {
-    if (!Number.isFinite(value)) return
-    setTransformDraft((current) => {
-      const next = copyTransform(current)
-      next[field][axis] = value
-      return next
-    })
-  }, [])
-
-  const previewTransformDraft = useCallback(() => {
-    if (legacyDesignReadOnly) {
-      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
-      return
-    }
-    if (!selectedNode) return
-    concept.previewNodeTransform(selectedNode.node_id, transformDraft).catch(() => undefined)
-  }, [concept, legacyDesignReadOnly, selectedNode, transformDraft])
-
-  const previewQuickTransform = useCallback((action: 'smaller' | 'larger' | 'forward' | 'backward' | 'rotateLeft' | 'rotateRight') => {
-    if (legacyDesignReadOnly) {
-      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
-      return
-    }
-    if (!selectedNode || selectedNode.locked || concept.loading || concept.pendingPreview) return
-    const next = copyTransform(selectedNode.transform)
-    if (action === 'smaller' || action === 'larger') {
-      const delta = action === 'smaller' ? -0.04 : 0.04
-      next.scale = next.scale.map((value) => clampNumber(value + delta, 0.9, 1.1)) as Transform['scale']
-    }
-    if (action === 'forward' || action === 'backward') {
-      next.position[0] += action === 'forward' ? -4 : 4
-    }
-    if (action === 'rotateLeft' || action === 'rotateRight') {
-      next.rotation[2] += action === 'rotateLeft' ? 0.1 : -0.1
-    }
-    setTransformDraft(next)
-    concept.previewNodeTransform(selectedNode.node_id, next).catch(() => undefined)
-  }, [concept, legacyDesignReadOnly, selectedNode])
-
-  const handleTransformCommit = useCallback((nodeId: string, transform: Transform) => {
-    if (legacyDesignReadOnly) {
-      setAssistantNote('旧版设计为只读状态。请先让 Agent 重建为可编辑资产。')
-      return
-    }
-    setTransformDraft(copyTransform(transform))
-    concept.previewNodeTransform(nodeId, transform).catch(() => undefined)
-  }, [concept.previewNodeTransform, legacyDesignReadOnly])
-
-  const handleMeasurePoint = useCallback((point: ViewportMeasurementPoint) => {
-    selectGraphNode(point.nodeId)
-    setMeasurementPoints((current) => current.length >= 2 ? [point] : [...current, point])
-  }, [selectGraphNode])
-
-  const saveMeasurementAnnotations = useCallback((next: MeasurementAnnotation[]) => {
-    setMeasurementAnnotations(next)
-    if (measurementStorageKey) {
-      window.localStorage.setItem(measurementStorageKey, JSON.stringify(next))
-    }
-  }, [measurementStorageKey])
-
-  const pinMeasurement = useCallback(() => {
-    if (measurementPoints.length !== 2 || measurementDistance == null || measurementAngle == null) return
-    const annotation: MeasurementAnnotation = {
-      annotationId: `measure_${Date.now().toString(36)}`,
-      kind: measurementMode,
-      points: [measurementPoints[0], measurementPoints[1]],
-      distanceMm: measurementDistance,
-      angleDeg: measurementAngle,
-    }
-    saveMeasurementAnnotations([...measurementAnnotations, annotation])
-    setMeasurementPoints([])
-  }, [measurementAngle, measurementAnnotations, measurementDistance, measurementMode, measurementPoints, saveMeasurementAnnotations])
-
-  const removeMeasurementAnnotation = useCallback((annotationId: string) => {
-    saveMeasurementAnnotations(measurementAnnotations.filter((item) => item.annotationId !== annotationId))
-  }, [measurementAnnotations, saveMeasurementAnnotations])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const element = event.target as HTMLElement | null
-      if (element?.matches('input, textarea, select, [contenteditable="true"]')) return
-      if (event.key === 'g' || event.key === 'G') {
-        event.preventDefault()
-        setViewportTool('move')
-      } else if (event.key === 'r' || event.key === 'R') {
-        event.preventDefault()
-        setViewportTool('rotate')
-      } else if (event.key === 's' || event.key === 'S') {
-        event.preventDefault()
-        setViewportTool('scale')
-      } else if (event.key === 'Escape' && concept.pendingManualChange) {
-        event.preventDefault()
-        concept.discardManualChange().catch(() => undefined)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [concept.discardManualChange, concept.pendingManualChange])
-
   useEffect(() => {
     if (!hasOpenDrawer) return
 
@@ -1215,74 +743,43 @@ export function CadWorkbenchPanel() {
     }
   }, [closeAllDrawers, hasOpenDrawer])
 
-  const toggleSelectedNodeVisibility = useCallback(() => {
-    if (!selectedNode) return
-    toggleLegacyHiddenNode(selectedNode.node_id)
-  }, [selectedNode, toggleLegacyHiddenNode])
-
-  const handleModuleDrop = useCallback((nodeId: string, moduleId: string) => {
-    selectGraphNode(nodeId)
-    setLegacySelectedModule(moduleId)
-    setAssistantNote(`已将 ${moduleId} 设为 ${nodeId} 的替换候选；点击“替换并创建新版本”后才会提交 ChangeSet。`)
-  }, [selectGraphNode, setLegacySelectedModule])
-
-  const updateParameter = (key: keyof WeaponParameters, value: number) => {
-    setParameters((current) => ({ ...current, [key]: value }))
-  }
-
-  const previewParameterDraft = async () => {
-    const instruction = [
-      `整体长度调整为 ${parameters.overallLength} mm`,
-      `握持角度调整为 ${parameters.gripAngle} 度`,
-      `细节密度调整为 ${parameters.detailDensity}%`,
-    ].join('，')
-    setAssistantMode('change')
-    setAssistantNote(`正在将参数草稿转换为 ChangeSet：${instruction}`)
-    const result = await concept.planChange(instruction, {
-      selectedNodeId: selectedNode?.node_id,
-      selectedModuleId: selectedLibraryModule?.manifest.module_id,
-    })
-    if (!result) return
-    const previewSpec = result.preview.preview_spec
-    setParameters((current) => ({
-      ...current,
-      overallLength: previewSpec.proportions.overall_length_mm,
-      bodyHeight: previewSpec.proportions.body_height_mm,
-      gripAngle: previewSpec.proportions.grip_angle_deg,
-      detailDensity: Math.round(previewSpec.style.detail_density * 100),
-    }))
-    setAssistantNote('参数已生成 ghost preview；确认后会创建不可变新版本。')
-  }
-
   useEffect(() => {
     openConversationProject(concept.project?.project_id ?? null)
     openBlockoutProject(concept.project?.project_id ?? null)
     openDirectionConceptPreviewProject(concept.project?.project_id ?? null)
     openAgentAssetWorkspaceProject(concept.project?.project_id ?? null)
-    openComponentLibraryPreferences(concept.project?.project_id ?? null, concept.project?.profile.pack_id ?? null)
     openViewportDisplayPreferences(concept.project?.project_id ?? null)
     setAgentAssetChangeSet(null)
     setAgentCandidateSelectedPartId(null)
-  }, [concept.project?.profile.pack_id, concept.project?.project_id, openAgentAssetWorkspaceProject, openBlockoutProject, openComponentLibraryPreferences, openConversationProject, openDirectionConceptPreviewProject, openViewportDisplayPreferences])
+  }, [concept.project?.project_id, openAgentAssetWorkspaceProject, openBlockoutProject, openConversationProject, openDirectionConceptPreviewProject, openViewportDisplayPreferences])
 
   useEffect(() => {
     openLegacyModuleGraphWorkspace(
-      legacyCompatibility.isLegacyReadOnly ? concept.project?.project_id ?? null : null,
+      legacyCompatibility.isLegacyReadOnly && concept.legacyDetailsEnabled
+        ? concept.project?.project_id ?? null
+        : null,
     )
-  }, [concept.project?.project_id, legacyCompatibility.isLegacyReadOnly, openLegacyModuleGraphWorkspace])
+  }, [concept.legacyDetailsEnabled, concept.project?.project_id, legacyCompatibility.isLegacyReadOnly, openLegacyModuleGraphWorkspace])
 
   useEffect(() => {
     openLegacyModuleGraphOverlay(
-      legacyCompatibility.isLegacyReadOnly ? concept.project?.project_id ?? null : null,
-      legacyCompatibility.isLegacyReadOnly ? concept.graphRecord?.graph.graph_id ?? null : null,
-      legacyCompatibility.isLegacyReadOnly ? DEFAULT_HIDDEN_NODE_IDS : [],
+      legacyCompatibility.isLegacyReadOnly && concept.legacyDetailsEnabled ? concept.project?.project_id ?? null : null,
+      legacyCompatibility.isLegacyReadOnly && concept.legacyDetailsEnabled ? concept.graphRecord?.graph.graph_id ?? null : null,
+      legacyCompatibility.isLegacyReadOnly && concept.legacyDetailsEnabled ? DEFAULT_HIDDEN_NODE_IDS : [],
     )
   }, [
     concept.graphRecord?.graph.graph_id,
+    concept.legacyDetailsEnabled,
     concept.project?.project_id,
     legacyCompatibility.isLegacyReadOnly,
     openLegacyModuleGraphOverlay,
   ])
+
+  useEffect(() => {
+    if (activeDesignSnapshot?.active_design.source === 'agent_asset' && concept.legacyDetailsEnabled) {
+      concept.closeLegacyDetails()
+    }
+  }, [activeDesignSnapshot?.active_design.source, concept.closeLegacyDetails, concept.legacyDetailsEnabled])
 
   const requestAgentDirectionConceptPreviews = useCallback((plan: NonNullable<typeof agentPlan>, projectId: string | null) => {
     const requestId = startDirectionConceptPreviews(projectId, plan)
@@ -1802,22 +1299,9 @@ export function CadWorkbenchPanel() {
       setChatInput('')
       return
     }
-    const result = await concept.planBrief(instruction)
-    if (!result) return
-    const provenance = result.brief.planner_provenance
-    const interpreted = result.brief.interpreted_spec
-    setParameters((current) => ({
-      ...current,
-      overallLength: interpreted.proportions.overall_length_mm,
-      bodyHeight: interpreted.proportions.body_height_mm,
-      gripAngle: interpreted.proportions.grip_angle_deg,
-      detailDensity: Math.round(interpreted.style.detail_density * 100),
-    }))
-    setAssistantNote(
-      `已解析 ${result.variants.length} 个受限设计方向 · ${provenance.generator}`
-      + `${provenance.fallback_used ? ' · Provider 失败后已显式降级' : ''}`
-      + `${kernelResult.recorded ? ' · Agent Kernel 已记录步骤' : ''}。`,
-    )
+    setAssistantNote(kernelResult.recorded
+      ? 'Agent 已生成受限设计计划；请选择计划中的预览方向继续构建。'
+      : '当前 Agent 计划未记录成功；不会调用旧版 Planner 作为替代。')
     setChatInput('')
   }
 
@@ -1839,23 +1323,9 @@ export function CadWorkbenchPanel() {
       setChatInput('')
       return
     }
-    const result = await concept.planChange(instruction, {
-      selectedNodeId: selectedNode?.node_id,
-      selectedModuleId: selectedLibraryModule?.manifest.module_id,
-    })
-    if (!result) return
-    const previewSpec = result.preview.preview_spec
-    setParameters((current) => ({
-      ...current,
-      overallLength: previewSpec.proportions.overall_length_mm,
-      bodyHeight: previewSpec.proportions.body_height_mm,
-      gripAngle: previewSpec.proportions.grip_angle_deg,
-      detailDensity: Math.round(previewSpec.style.detail_density * 100),
-    }))
-    setAssistantNote(
-      `已生成 ${result.planned.change_set.operations.length} 个受限操作；当前仅为幽灵预览。`
-      + `${kernelResult.recorded ? ' Agent Kernel 已记录步骤。' : ''}`,
-    )
+    setAssistantNote(kernelResult.recorded
+      ? '已记录修改意图。自然语言修改必须等待受限 Agent Action Loop，不会回退调用旧版参数或 ChangeSet Planner；当前可继续使用分件卡中的受限操作。'
+      : '修改意图未记录成功；当前资产没有变化。')
     setChatInput('')
   }
 
@@ -1966,9 +1436,6 @@ export function CadWorkbenchPanel() {
       setImportingGlb(false)
     }
   }, [agentPlan?.domain_pack_id, api, clearAgentAssetWorkspaceQuality, concept.project?.project_id, hydrateBlockoutDisplay, refreshActiveDesign])
-
-    ?? agentBlockoutSegmentation?.parts.find((part) => part.part_id === displayedAgentSelectedPartId)
-
   return (
     <div className="cad-workbench" data-testid="cad-workbench">
       <header className="cad-command-bar">
@@ -1978,17 +1445,15 @@ export function CadWorkbenchPanel() {
         </div>
         <div className="cad-workspace-title" aria-label="当前项目">
           <strong>{concept.project?.name ?? '新概念设计'}</strong>
-          <span>{concept.loading ? '正在处理…' : '已自动保存'}</span>
+          <span>{concept.project ? '已自动保存' : concept.loading ? '正在处理…' : '未保存'}</span>
         </div>
         <div className="cad-global-actions" aria-label="工作区操作">
           <button
             type="button"
             className="text-action"
-            onClick={() => activeAgentAssetVersion ? void navigateAgentAsset('undo') : undoVersionId && concept.selectVersion(undoVersionId)}
-            disabled={activeAgentAssetVersion
-              ? !agentNavigation?.can_undo || Boolean(agentAssetChangeSet)
-              : !undoVersionId || concept.loading || legacyDesignReadOnly}
-            title={activeAgentAssetVersion ? '返回上一版 Agent 内容，并保留完整版本历史' : '返回上一个 legacy 已确认版本'}
+            onClick={() => void navigateAgentAsset('undo')}
+            disabled={!activeAgentAssetVersion || !agentNavigation?.can_undo || Boolean(agentAssetChangeSet)}
+            title="返回上一版 Agent 内容，并保留完整版本历史"
           ><ClockCounterClockwise size={16} /> 撤销</button>
           <button
             type="button"
@@ -2029,11 +1494,12 @@ export function CadWorkbenchPanel() {
             <AgentConversation
               loading={concept.loading}
               projectExists={Boolean(concept.project)}
-              projectNeedsInitialization={Boolean(concept.project && !concept.version?.module_graph_id)}
+              projectNeedsInitialization={Boolean(concept.project && !concept.project.current_version_id)}
               legacyCompatibility={legacyCompatibility}
               onCreateStarterProject={() => void concept.createStarterProject()}
               onInitializeCurrentProject={() => void concept.initializeCurrentProject()}
               onRequestLegacyAgentRebuild={() => void requestLegacyAgentRebuild()}
+              onOpenLegacyDetails={() => void concept.openLegacyDetails()}
               providerConfig={providerConfig}
               providerSetupOpen={providerSetupOpen}
               providerBaseUrl={providerBaseUrl}
@@ -2050,7 +1516,7 @@ export function CadWorkbenchPanel() {
               activeProviderTurnId={activeProviderTurnId ?? activeProviderCheckId}
               onCancelProviderTurn={() => void cancelActiveProviderTurn()}
               assistantMode={assistantMode}
-              selectedNode={selectedNode?.node_id ?? null}
+              selectedNode={displayedAgentSelectedPartId}
               selectedModuleLabel={selectedModuleLabel}
               chatInput={chatInput}
               assistantNote={assistantNote}
@@ -2145,42 +1611,11 @@ export function CadWorkbenchPanel() {
                 </div>
               </div>
             )}
-            {concept.variants.length > 0 && (
-              <div className="assistant-directions" aria-label="AI 设计方向">
-                <div className="assistant-directions-heading">
-                  <span>选择一个方向</span>
-                  <small>不会覆盖当前设计</small>
-                </div>
-                {concept.variants.slice(0, 3).map((variant) => (
-                  <button
-                    key={variant.variant_id}
-                    type="button"
-                    className={variant.status === 'selected' ? 'selected' : ''}
-                    disabled={concept.loading}
-                    onClick={() => {
-                      concept.selectVariant(variant.variant_id).then((selected) => {
-                        if (selected) {
-                          setAssistantNote(`已在主视图预览「${selected.name}」；确认修改后才会写入新版本。`)
-                        }
-                      })
-                    }}
-                    title={variant.summary}
-                  >
-                    <strong>{variant.rank}. {variant.name}</strong>
-                    <span>{variant.summary}</span>
-                    <small>{variant.status === 'selected' ? '当前预览' : '点击预览'}</small>
-                  </button>
-                ))}
-              </div>
-            )}
             <small className="planner-boundary">所有生成和调整都只影响虚构、非功能展示组件；预览确认前不会写入版本。</small>
           </section>
         </aside>
 
-        <main
-          className="cad-center-stage"
-          style={{ gridTemplateRows: componentDrawerOpen ? `minmax(0, 1fr) ${componentDrawerMode === 'all' ? 360 : 250}px` : 'minmax(0, 1fr)' }}
-        >
+        <main className="cad-center-stage">
           <div className="viewport-shell">
             <div className="viewport-toolbar" aria-label="CAD 视口工具">
               {TOOL_ITEMS.filter((tool) => tool.id === 'select' || tool.id === 'orbit').map((tool) => (
@@ -2196,20 +1631,20 @@ export function CadWorkbenchPanel() {
               ))}
             </div>
             <ModuleGraphViewport
-              graphRecord={concept.graphRecord}
-              modules={catalogModules}
+              graphRecord={concept.legacyDetailsEnabled ? concept.graphRecord : null}
+              modules={concept.legacyDetailsEnabled ? catalogModules : []}
               cameraView={cameraView}
               lightPreset={lightPreset}
               showGrid={showGrid}
               wireframe={wireframe}
               xRay={xRay}
-              sectionEnabled={activeTool === 'section'}
+              sectionEnabled={false}
               sectionOffset={sectionOffset}
-              selectedNodeId={selectedComponent}
-              hiddenNodeIds={legacyModuleGraphOverlay.hiddenNodeIds}
-              focusNodeId={legacyModuleGraphOverlay.focusNodeId}
-              qualityHighlightNodeIds={legacyModuleGraphOverlay.qualityHighlightNodeIds}
-              qualityGeometryRefs={legacyModuleGraphOverlay.qualityGeometryRefs}
+              selectedNodeId={concept.legacyDetailsEnabled ? selectedComponent : ''}
+              hiddenNodeIds={concept.legacyDetailsEnabled ? legacyModuleGraphOverlay.hiddenNodeIds : []}
+              focusNodeId={concept.legacyDetailsEnabled ? legacyModuleGraphOverlay.focusNodeId : null}
+              qualityHighlightNodeIds={[]}
+              qualityGeometryRefs={[]}
               blockoutGlbBase64={agentBlockoutGlbBase64}
               blockoutShapeProgram={agentBlockoutShapeProgram}
               blockoutMaterialOverride={agentBlockoutShapeProgram ? appearanceMaterialId : null}
@@ -2217,52 +1652,23 @@ export function CadWorkbenchPanel() {
               hiddenAgentPartIds={activePartDisplay?.hidden_part_ids ?? []}
               isolatedAgentPartId={activePartDisplay?.isolated_part_id ?? null}
               lockedAgentPartIds={activePartDisplay?.locked_part_ids ?? []}
-              showConnectors={showConnectors}
+              showConnectors={false}
               explodeFactor={explodeFactor}
-              ghostPreview={Boolean(concept.pendingPreview)}
-              transformTool={activeTool === 'move' ? 'translate' : activeTool === 'rotate' ? 'rotate' : activeTool === 'scale' ? 'scale' : 'none'}
-              transformSpace={transformSpace}
-              snapEnabled={snapEnabled}
-              measureEnabled={activeTool === 'measure'}
+              ghostPreview={Boolean(agentAssetChangeSet)}
+              transformTool="none"
+              transformSpace="world"
+              snapEnabled={false}
+              measureEnabled={false}
               getModuleFileUrl={getModuleFileUrl}
-              onSelectNode={selectGraphNode}
-              onDropModule={handleModuleDrop}
-              onTransformCommit={handleTransformCommit}
-              onMeasurePoint={handleMeasurePoint}
+              onSelectNode={(nodeId) => { if (concept.legacyDetailsEnabled) selectGraphNode(nodeId) }}
+              onDropModule={() => undefined}
+              onTransformCommit={() => undefined}
+              onMeasurePoint={() => undefined}
             />
-            {concept.pendingPreview && (
+            {agentAssetChangeSet && (
               <div className="ghost-preview-badge" data-testid="ghost-preview-badge">
                 幽灵预览 · 尚未写入版本
               </div>
-            )}
-            {activeTool === 'measure' && (
-              <div className="measurement-overlay" data-testid="measurement-overlay">
-                <div className="measurement-mode-toggle">
-                  <button className={measurementMode === 'distance' ? 'active' : ''} onClick={() => { setLegacyMeasurementMode('distance'); setMeasurementPoints([]) }}>距离</button>
-                  <button className={measurementMode === 'normal_angle' ? 'active' : ''} onClick={() => { setLegacyMeasurementMode('normal_angle'); setMeasurementPoints([]) }}>法线夹角</button>
-                </div>
-                {measurementDistance == null ? (
-                  <span>{measurementPoints.length === 0 ? '点击模型设置起点' : '点击模型设置终点'}</span>
-                ) : (
-                  <><strong>{measurementMode === 'distance' ? `点到点：${measurementDistance.toFixed(2)} mm` : `表面法线夹角：${measurementAngle?.toFixed(2)}°`}</strong><button onClick={pinMeasurement}>固定标注</button></>
-                )}
-                {measurementPoints.length > 0 && (
-                  <button onClick={() => setMeasurementPoints([])}>清除</button>
-                )}
-                {measurementAnnotations.length > 0 && (
-                  <div className="measurement-annotations" data-testid="measurement-annotations">
-                    {measurementAnnotations.map((annotation, index) => (
-                      <span key={annotation.annotationId}>标注 {index + 1} · {annotation.kind === 'distance' ? `${annotation.distanceMm.toFixed(2)} mm` : `${annotation.angleDeg.toFixed(2)}° 法线夹角`} <button onClick={() => removeMeasurementAnnotation(annotation.annotationId)}>×</button></span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {activeTool === 'section' && (
-              <label className="section-overlay" data-testid="section-overlay">
-                <span>X 向裁切平面 · {sectionOffset.toFixed(0)} mm</span>
-                <input aria-label="截面偏移" type="range" min="-120" max="120" step="1" value={sectionOffset} onChange={(event) => setViewportSectionOffset(Number(event.target.value))} />
-              </label>
             )}
             <div className="view-cube"><Cube size={28} weight="duotone" /></div>
             <div className="viewport-viewbar">
@@ -2286,118 +1692,19 @@ export function CadWorkbenchPanel() {
               />
             </div>
             <div className="viewport-readout">
-              <span>{concept.pendingPreview ? '正在预览修改，尚未保存' : selectedNode ? '已选中部件，可直接调整' : '点击模型部件即可开始调整'}</span>
+              <span>{agentAssetChangeSet ? '正在预览 Agent 修改，尚未保存' : activeAgentAssetVersion ? '当前视口绑定 Agent Snapshot' : concept.legacyDetailsEnabled ? '旧版 Graph 只读查看' : '等待 Agent 预览'}</span>
               <span>单位：mm</span>
             </div>
-            {selectedNode && (
-              <section className="contextual-edit-card" data-testid="contextual-edit-card">
-                <div className="contextual-edit-heading">
-                  <div>
-                    <span>已选中部件</span>
-                    <strong>{selectedModuleLabel}</strong>
-                  </div>
-                  <button type="button" onClick={clearLegacyModuleGraphSelection} aria-label="关闭部件编辑">×</button>
-                </div>
-                <div className="contextual-edit-actions">
-                  <button type="button" onClick={openComponentReplacement} disabled={selectedNode.locked || concept.loading}>替换</button>
-                  <button type="button" onClick={() => { setAssistantMode('change'); setAssistantNote(`告诉我如何调整这个${selectedModuleLabel}。`) }} disabled={selectedNode.locked}>让 Agent 调整</button>
-                  <button type="button" onClick={toggleSelectedNodeVisibility}>{legacyModuleGraphOverlay.hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}</button>
-                </div>
-                <div className="contextual-adjustments">
-                  <span>快速调整</span>
-                  <div><small>大小</small><button onClick={() => previewQuickTransform('smaller')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>缩小</button><button onClick={() => previewQuickTransform('larger')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>放大</button></div>
-                  <div><small>位置</small><button onClick={() => previewQuickTransform('forward')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>向前</button><button onClick={() => previewQuickTransform('backward')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>向后</button></div>
-                  <div><small>方向</small><button onClick={() => previewQuickTransform('rotateLeft')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>左转</button><button onClick={() => previewQuickTransform('rotateRight')} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>右转</button></div>
-                </div>
-                <button className="precision-toggle" type="button" onClick={() => setShowPrecisionAdjustments((current) => !current)}>
-                  {showPrecisionAdjustments ? '收起精确调整' : '精确调整'} <CaretDown size={13} />
-                </button>
-                {showPrecisionAdjustments && (
-                  <div className="precision-adjustments">
-                    <div className="axis-group"><span>位置</span><div>
-                      <AxisField axis="X" value={transformDraft.position[0]} onChange={(value) => updateTransformDraft('position', 0, value)} />
-                      <AxisField axis="Y" value={transformDraft.position[1]} onChange={(value) => updateTransformDraft('position', 1, value)} />
-                      <AxisField axis="Z" value={transformDraft.position[2]} onChange={(value) => updateTransformDraft('position', 2, value)} />
-                    </div></div>
-                    <div className="axis-group"><span>旋转</span><div>
-                      <AxisField axis="X" value={transformDraft.rotation[0]} onChange={(value) => updateTransformDraft('rotation', 0, value)} />
-                      <AxisField axis="Y" value={transformDraft.rotation[1]} onChange={(value) => updateTransformDraft('rotation', 1, value)} />
-                      <AxisField axis="Z" value={transformDraft.rotation[2]} onChange={(value) => updateTransformDraft('rotation', 2, value)} />
-                    </div></div>
-                    <div className="axis-group"><span>比例</span><div>
-                      <AxisField axis="X" value={transformDraft.scale[0]} onChange={(value) => updateTransformDraft('scale', 0, value)} />
-                      <AxisField axis="Y" value={transformDraft.scale[1]} onChange={(value) => updateTransformDraft('scale', 1, value)} />
-                      <AxisField axis="Z" value={transformDraft.scale[2]} onChange={(value) => updateTransformDraft('scale', 2, value)} />
-                    </div></div>
-                    <button className="precision-preview" onClick={previewTransformDraft} disabled={selectedNode.locked || concept.loading || Boolean(concept.pendingPreview)}>预览精确调整</button>
-                  </div>
-                )}
-              </section>
-            )}
           </div>
-{componentDrawerOpen || exportOpen || qualityOpen ? (
+          {exportOpen || qualityOpen ? (
             <WorkbenchDrawerStack
-              componentDrawerOpen={componentDrawerOpen}
               exportOpen={exportOpen}
               qualityOpen={qualityOpen}
-              component={{
-                mode: componentDrawerMode,
-                selectedModuleLabel: selectedModuleLabel,
-                componentCategory: componentCategory,
-                reviewStatusFilter: reviewStatusFilter,
-                categories: COMPONENT_CATEGORIES,
-                filterCounts: componentFilterCounts,
-                query: componentQuery,
-                displayedComponents: displayedComponents,
-                totalModuleCount: catalogModules.length,
-                selectedLibraryModule: selectedLibraryModule,
-                selectedLibraryModuleId: selectedLibraryModuleId,
-                selectedNode: selectedNode ? { node_id: selectedNode.node_id, module_id: selectedNode.module_id, locked: selectedNode.locked } : null,
-                selectedModuleCategory: selectedModule?.manifest.category ?? null,
-                graphNodes: concept.graphRecord?.graph.nodes ?? [],
-                favoriteModuleIds: favoriteModuleIds,
-                thumbnailFailures: thumbnailFailures,
-                drawerRef: drawerFocusRef,
-                canReplaceSelected: canReplaceSelected,
-                expanded: drawerExpanded,
-                loading: concept.loading || componentCatalogPresentation.loading,
-                legacyDesignReadOnly: legacyDesignReadOnly,
-                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
-                qualityStatusFor: qualityStatusFor,
-                onResizeStart: beginDrawerResize,
-                onResizeKeyDown: resizeDrawerByKeyboard,
-                onCategoryChange: setComponentCategory,
-                onReviewStatusChange: setReviewStatusFilter,
-                onQueryChange: setComponentQuery,
-                onModeToggle: toggleComponentDrawerMode,
-                onClose: closeAllDrawers,
-                onSelectModule: selectLibraryModule,
-                onToggleFavorite: toggleLibraryFavorite,
-                onThumbnailError: recordLegacyThumbnailFailure,
-                onLocateModule: (module) => {
-                  const node = concept.graphRecord?.graph.nodes.find((item) => item.module_id === module.manifest.module_id)
-                  if (node) selectGraphNode(node.node_id)
-                  else setAssistantNote('候选资产已选中；主视图只显示已确认版本，替换会先创建 ChangeSet 预览。')
-                },
-                onPreviewReplace: handleReplaceSelected,
-                onDiscardReplacement: () => concept.discardModuleReplacement(),
-                onConfirmReplacement: () => concept.confirmModuleReplacement(),
-                thumbnailUrl: (moduleId) => forgeApi.getModuleAssetThumbnailUrl(moduleId),
-              }}
               exportDrawer={{
-                exportPurpose: exportPurpose,
-                exportPurposeOptions: EXPORT_PURPOSES,
-                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
                 activeAgentAssetVersion: activeAgentAssetVersion,
                 activeDesignIdle: activeDesignState.operation === 'idle',
-                activeVersionLabel: activeVersionSummary ? `v${activeVersionSummary.version_no}` : '—',
-                originLabel: ORIGIN_CLAIM_LABELS[selectedModule?.catalog_metadata.origin_claim ?? 'unknown'],
-                hasLegacyVersion: Boolean(concept.version?.module_graph_id),
-                loading: concept.loading,
                 drawerRef: drawerFocusRef,
                 onClose: closeAllDrawers,
-                onPurposeChange: (purpose, format: ExportFormat) => { setExportPurpose(purpose); setExportFormat(format) },
-                onExport: handleCreateExport,
                 onDownloadAgentGlb: handleDownloadAgentGlb,
                 renderSet: agentRenderPresentation.renderSet,
                 renderLoading: agentRenderPresentation.renderLoading,
@@ -2407,345 +1714,73 @@ export function CadWorkbenchPanel() {
                 onDownloadRenderPackage: handleDownloadAgentRenderPackage,
               }}
               quality={{
-                agentAssetActive: activeDesignSnapshot?.active_design.source === 'agent_asset',
                 activeAgentAssetVersion: activeAgentAssetVersion,
                 agentQualityReport: agentQualityReport,
                 agentAssetChangeSet: agentAssetChangeSet,
-                graphReady: Boolean(concept.graphRecord),
-                legacyVersionReady: Boolean(concept.version?.module_graph_id),
-                legacyQualityStatus: concept.qualityRun?.report.status,
-                legacyFindings: concept.qualityRun?.report.findings ?? [],
-                loading: concept.loading,
                 drawerRef: drawerFocusRef,
                 onClose: closeAllDrawers,
-                onFocusLegacyFinding: (finding) => { focusQualityFinding(finding); closeAllDrawers() },
                 onInspectAgentAsset: () => void inspectAgentAsset(),
-                onRunLegacyInspection: () => concept.runQualityInspection(),
               }}
             />
           ) : null}
         </main>
 
-        <aside className="cad-right-rail">
-          <section className="cad-panel properties-panel">
-            <div className="cad-panel-title"><span><SlidersHorizontal size={16} /> 属性面板</span></div>
-            <nav className="inspector-tabs" aria-label="属性分类">
-              {([
-                ['parameters', '参数'],
-                ['appearance', '外观'],
-                ['connections', '连接'],
-                ['inspection', '检查'],
-              ] as Array<[InspectorTab, string]>).map(([id, label]) => (
-                <button key={id} className={inspectorTab === id ? 'active' : ''} onClick={() => setLegacyInspectorTab(id)}>
-                  {label}
-                </button>
-              ))}
-            </nav>
-            {inspectorTab === 'parameters' && <>
-              <label className="wide-field"><span>Graph 节点</span><input value={selectedNode?.node_id ?? '未选择'} readOnly /></label>
-              <label className="wide-field"><span>模块资产</span><input value={selectedModule?.manifest.module_id ?? '—'} readOnly /></label>
-              <div className="node-actions">
-                <button onClick={toggleSelectedNodeVisibility} disabled={!selectedNode}>
-                  <Eye size={13} /> {selectedNode && legacyModuleGraphOverlay.hiddenNodeIds.includes(selectedNode.node_id) ? '显示' : '隐藏'}
-                </button>
-                <button onClick={() => selectedNode && setLegacyFocusNode(selectedNode.node_id)} disabled={!selectedNode}>
-                  <Crosshair size={13} /> 聚焦
-                </button>
-                <button className={showConnectors ? 'active' : ''} onClick={() => setViewportShowConnectors(!showConnectors)}>
-                  <ShareNetwork size={13} /> Connector
-                </button>
-                <button
-                  className={selectedNode?.mirror_axis === 'x' ? 'active' : ''}
-                  onClick={handleToggleMirrorX}
-                  disabled={!selectedNode || selectedNode.locked || concept.loading || legacyDesignReadOnly}
-                  title={selectedNode?.locked ? '锁定节点不能镜像' : '通过 ChangeSet 创建 X 轴镜像子版本'}
-                >
-                  <ArrowsLeftRight size={13} /> {selectedNode?.mirror_axis === 'x' ? '取消镜像' : 'X 镜像'}
-                </button>
-              </div>
-              <div className="axis-group"><span>位置</span><div>
-                <AxisField axis="X" value={transformDraft.position[0]} onChange={(value) => updateTransformDraft('position', 0, value)} />
-                <AxisField axis="Y" value={transformDraft.position[1]} onChange={(value) => updateTransformDraft('position', 1, value)} />
-                <AxisField axis="Z" value={transformDraft.position[2]} onChange={(value) => updateTransformDraft('position', 2, value)} />
-              </div></div>
-              <div className="axis-group"><span>旋转（rad）</span><div>
-                <AxisField axis="X" value={transformDraft.rotation[0]} onChange={(value) => updateTransformDraft('rotation', 0, value)} />
-                <AxisField axis="Y" value={transformDraft.rotation[1]} onChange={(value) => updateTransformDraft('rotation', 1, value)} />
-                <AxisField axis="Z" value={transformDraft.rotation[2]} onChange={(value) => updateTransformDraft('rotation', 2, value)} />
-              </div></div>
-              <div className="axis-group"><span>缩放</span><div>
-                <AxisField axis="X" value={transformDraft.scale[0]} onChange={(value) => updateTransformDraft('scale', 0, value)} />
-                <AxisField axis="Y" value={transformDraft.scale[1]} onChange={(value) => updateTransformDraft('scale', 1, value)} />
-                <AxisField axis="Z" value={transformDraft.scale[2]} onChange={(value) => updateTransformDraft('scale', 2, value)} />
-              </div></div>
-              <div className="transform-command-controls" data-testid="transform-command-controls">
-                <button
-                  className={transformSpace === 'world' ? 'active' : ''}
-                  onClick={() => setLegacyTransformSpace(transformSpace === 'world' ? 'local' : 'world')}
-                  disabled={!selectedNode || selectedNode.locked || concept.loading || legacyDesignReadOnly}
-                >{transformSpace === 'world' ? '世界坐标' : '本地坐标'}</button>
-                <button
-                  className={snapEnabled ? 'active' : ''}
-                  onClick={() => setLegacySnapEnabled(!snapEnabled)}
-                  disabled={!selectedNode || selectedNode.locked || concept.loading}
-                >{snapEnabled ? '吸附：1 mm / 15°' : '吸附：关'}</button>
-              </div>
-              <button
-                className="transform-preview-action"
-                onClick={previewTransformDraft}
-                disabled={!selectedNode || selectedNode.locked || selectedNode.node_id === concept.graphRecord?.graph.root_node_id || concept.loading || Boolean(concept.pendingPreview) || legacyDesignReadOnly}
-                title="移动、旋转和缩放先写入 ChangeSet 幽灵预览；确认后才创建子版本"
-              >预览变换</button>
-              <label className="wide-field"><span>镜像轴</span><input value={selectedNode?.mirror_axis ?? 'none'} readOnly /></label>
-              <div className="property-divider" />
-              <div className="property-heading">概念比例 <CaretDown size={13} /></div>
-              <PropertyNumber label="整体长度" value={parameters.overallLength} unit="mm" onChange={(value) => updateParameter('overallLength', value)} />
-              <PropertyNumber label="主体高度" value={parameters.bodyHeight} unit="mm" onChange={(value) => updateParameter('bodyHeight', value)} />
-              <PropertyNumber label="前部长度" value={parameters.frontShellLength} unit="mm" onChange={(value) => updateParameter('frontShellLength', value)} />
-              <PropertyNumber label="握持角度" value={parameters.gripAngle} unit="°" onChange={(value) => updateParameter('gripAngle', value)} />
-              <PropertyNumber label="外壳厚度" value={parameters.shellThickness} unit="mm" onChange={(value) => updateParameter('shellThickness', value)} />
-            </>}
-            {inspectorTab === 'appearance' && (
-              <MaterialDrawer
-                materialPresets={materialPresets}
-                selectedMaterialId={appearanceMaterialId}
-                detailDensity={parameters.detailDensity}
-                selectedPartLabel={selectedAgentPart ? `已选部件 · ${displayPartRole(selectedAgentPart.role)}` : '当前预览部件'}
-                selectedZoneLabel={appearanceMaterialZoneId ? `材质区 ${appearanceMaterialZoneId}` : '主材质区'}
-                materialZoneIds={selectedAgentPart?.material_zone_ids ?? []}
-                selectedZoneId={activeDesignSelectedMaterialZoneId(activeDesignSnapshot) ?? appearanceMaterialZoneId}
-                activeDomain={activeMaterialDomain}
-                compatibilityOnly={materialCompatibilityOnly}
-                query={materialQuery}
-                category={materialCategory}
-                catalogLoading={agentMaterialCatalogPresentation.loading}
-                catalogMessage={agentMaterialCatalogPresentation.catalogMessage}
-                disabled={legacyDesignReadOnly || isExternalGlbReference || Boolean(agentAssetChangeSet)}
-                onMaterialChange={selectMaterialPreselection}
-                onDetailDensityChange={(value) => updateParameter('detailDensity', value)}
-                onZoneChange={(zoneId) => { void selectMaterialZone(zoneId) }}
-                onCompatibilityChange={setMaterialFilterCompatibilityOnly}
-                onQueryChange={setMaterialFilterQuery}
-                onCategoryChange={setMaterialFilterCategory}
-                onPreviewMaterial={(preset, zoneId) => {
-                  if (agentAssetVersion && selectedAgentPart) {
-                    void previewAgentAssetEdit({
-                      operation_id: `op_material_${Date.now().toString(36)}`,
-                      op: 'apply_material_preset',
-                      part_id: selectedAgentPart.part_id,
-                      material_id: preset.material_id,
-                      material_zone_id: zoneId,
-                    }, `将${zoneId}换成${preset.display_name}`)
-                  } else {
-                    setAssistantNote(`已预览「${preset.display_name}」；保存为可编辑模型并选中部件后，才能确认材质区修改。`)
-                  }
-                }}
-                onPreviewNote={(preset) => setAssistantNote(`已将 blockout 预览材质切换为「${preset.display_name}」；确认型材质 ChangeSet 仍未写入版本。`)}
-              />
-            )}
-            {inspectorTab === 'connections' && <div className="connection-list">
-              <div className="connection-summary">
-                <span>{selectedNodeConnections.length} 条真实连接</span>
-                <button
-                  onClick={() => selectedNode && concept.previewConnectorSnap(selectedNode.node_id)}
-                  disabled={!canSnapSelectedNode || concept.loading || Boolean(concept.pendingPreview) || legacyDesignReadOnly}
-                  title={!canSnapSelectedNode ? '选择一个未锁定、已连接的非根节点以修复吸附。' : '以父 Connector 为基准生成可确认的吸附 ChangeSet。'}
-                >修复并预览吸附</button>
-              </div>
-              {(selectedModule?.manifest.connectors ?? []).map((connector) => {
-                const connected = (concept.graphRecord?.graph.edges ?? []).some((edge) => (
-                  edge.from_connector_id === connector.connector_id
-                  || edge.to_connector_id === connector.connector_id
-                ))
-                return (
-                  <div key={connector.connector_id}>
-                    <DfmRow
-                      label={connector.slot}
-                      value={connected ? '已连接' : '可用'}
-                      ok={connected}
-                    />
-                    <small className="connector-contract">
-                      {connector.connector_type} · {connector.exclusive ? '独占' : '可共享'} · 缩放 {connector.scale_range[0]}–{connector.scale_range[1]}
-                    </small>
-                  </div>
-                )
-              })}
-              {!selectedModule && <span className="muted-inspector">选择一个 Graph 节点查看真实 Connector。</span>}
-            </div>}
-            {inspectorTab === 'inspection' && <>
-              <DfmRow label="Graph 状态" value={concept.graphRecord?.validation_status ?? '未运行'} ok={concept.graphRecord?.validation_status === 'valid'} />
-              <DfmRow label="模块节点" value={String(concept.graphRecord?.graph.nodes.length ?? 0)} ok={Boolean(concept.graphRecord)} />
-              <DfmRow label="连接边" value={String(concept.graphRecord?.graph.edges?.length ?? 0)} ok={Boolean(concept.graphRecord)} />
-              <DfmRow
-                label="Mesh/Assembly"
-                value={qualityStatusLabel(concept.qualityRun?.report.status)}
-                ok={concept.qualityRun?.report.status === 'passed'}
-              />
-              {(concept.qualityRun?.report.findings ?? []).slice(0, 4).map((finding) => (
-                <button
-                  type="button"
-                  className={`quality-finding ${finding.severity}`}
-                  key={finding.finding_id}
-                  disabled={!finding.node_ids?.length}
-                  onClick={() => focusQualityFinding(finding)}
-                  title={finding.node_ids?.length ? `选择并聚焦 ${finding.node_ids.join(', ')}` : undefined}
-                >
-                  <strong>{finding.check_id}</strong>
-                  <span>{finding.message}</span>
-                  {finding.measured_value != null && <small>测量值：{String(finding.measured_value)}</small>}
-                  {Boolean(finding.geometry_refs?.length) && (
-                    <small>
-                      局部三角形：{finding.geometry_refs!.reduce(
-                        (count, reference) => count + (reference.triangle_indices?.length ?? 0),
-                        0,
-                      )} · 点击高亮双方
-                    </small>
-                  )}
-                </button>
-              ))}
-              <div className="dfm-suggestion"><WarningCircle size={15} /> 几何检查不代表结构强度、制造可行性或使用安全验证。</div>
-              <button
-                className="secondary-action"
-                disabled={concept.loading || !concept.version?.module_graph_id || legacyDesignReadOnly}
-                onClick={() => concept.runQualityInspection()}
-                title="检查索引、退化面、法线、UV0、拓扑、Connector 对齐与未连接组件精确穿插"
-              >
-                {concept.loading ? '检查中…' : '运行实际几何检查'}
-              </button>
-            </>}
-            {concept.pendingManualChange && concept.pendingPreview && (
-              <div className="change-preview-card manual-transform-preview" data-testid="manual-transform-preview">
-                <div><strong>{concept.pendingManualChange.summary.startsWith('Snap ') ? 'Connector 吸附预览 · 待确认' : '变换幽灵预览 · 待确认'}</strong><span>{concept.pendingManualChange.summary}</span></div>
-                <ul>{concept.pendingManualChange.operations.map((operation) => <li key={operation.operation_id}>{formatChangeOperation(operation)}</li>)}</ul>
-                <div className="change-preview-actions">
-                  <button onClick={() => concept.discardManualChange()} disabled={concept.loading || legacyDesignReadOnly}>放弃预览</button>
-                  <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading || legacyDesignReadOnly}>确认并创建新版本</button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="cad-panel export-panel">
-            <div className="cad-panel-title"><span><Export size={16} /> 展示与导出</span></div>
-            <div className="export-formats">
-              {[
-                { id: 'SOURCE ZIP', enabled: true },
-                { id: 'GLB', enabled: true },
-                { id: 'OBJ', enabled: true },
-                { id: 'PNG', enabled: true },
-                { id: 'MP4', enabled: true },
-              ].map((format) => (
-                <button
-                  key={format.id}
-                  className={exportFormat === format.id ? 'active' : ''}
-                  onClick={() => format.enabled && setExportFormat(format.id)}
-                  disabled={!format.enabled}
-                  title={format.enabled ? '当前可用' : 'R5 实现'}
-                >
-                  {format.id}
-                </button>
-              ))}
-            </div>
-            <div className="export-summary">
-              <span><FileArrowDown size={15} /> 当前格式</span>
-              <strong>{exportFormat}</strong>
-            </div>
-            {concept.lastExport && (
-              <div className="last-export">{concept.lastExport.export_id} · {concept.lastExport.package_sha256.slice(0, 10)}…</div>
-            )}
-            <button
-              className="primary-action"
-              onClick={handleCreateExport}
-              disabled={!concept.version?.module_graph_id || concept.loading}
-            >
-              <FileArrowDown size={16} /> {
-                exportFormat === 'GLB'
-                  ? '创建并下载 combined GLB'
-                  : exportFormat === 'OBJ'
-                  ? '创建并下载 combined OBJ'
-                  : exportFormat === 'PNG'
-                  ? '创建并下载透明 preview.png'
-                  : exportFormat === 'MP4'
-                  ? '创建并下载转台 MP4'
-                  : '创建并下载概念源包'
-              }
-            </button>
-            {exportFormat === 'OBJ' && concept.lastExport && (
-              <button
-                className="secondary-action"
-                onClick={() => downloadExistingExport(
-                  forgeApi.getConceptCombinedMtlUrl(concept.lastExport!.export_id),
-                  'combined.mtl',
-                )}
-              >
-                下载配套 combined.mtl
-              </button>
-            )}
-            {exportFormat === 'PNG' && concept.lastExport && (
-              <>
-                <button
-                  className="secondary-action"
-                onClick={() => downloadExistingExport(
-                  forgeApi.getConceptExplodedPngUrl(concept.lastExport!.export_id),
-                  `${concept.lastExport!.export_id}-exploded.png`,
-                )}
-                >
-                  下载 exploded.png
-                </button>
-                <button
-                  className="secondary-action"
-                onClick={() => downloadExistingExport(
-                  forgeApi.getConceptRenderSetUrl(concept.lastExport!.export_id),
-                  `${concept.lastExport!.export_id}-renders.zip`,
-                )}
-                >
-                  下载正交视图与转台 ZIP
-                </button>
-                {concept.lastExport.turntable_video_sha256 && (
-                  <button
-                    className="secondary-action"
-                    onClick={() => downloadExistingExport(
-                      forgeApi.getConceptTurntableVideoUrl(concept.lastExport!.export_id),
-                      `${concept.lastExport!.export_id}-turntable.mp4`,
-                    )}
-                  >
-                    下载转台 MP4
-                  </button>
-                )}
-              </>
-            )}
-          </section>
-        </aside>
+        <WorkbenchInspectorRail
+          mode={activeDesignSnapshot?.active_design.source === 'agent_asset'
+            ? 'agent'
+            : legacyDesignReadOnly
+              ? 'legacy'
+              : 'empty'}
+          agentAssetVersion={activeAgentAssetVersion}
+          agentQualityReport={agentQualityReport}
+          selectedAgentPartId={displayedAgentSelectedPartId}
+          materialEditor={(
+            <MaterialDrawer
+              materialPresets={materialPresets}
+              selectedMaterialId={appearanceMaterialId}
+              selectedPartLabel={selectedAgentPart ? `已选部件 · ${displayPartRole(selectedAgentPart.role)}` : '当前预览部件'}
+              selectedZoneLabel={appearanceMaterialZoneId ? `材质区 ${appearanceMaterialZoneId}` : '主材质区'}
+              materialZoneIds={selectedAgentPart?.material_zone_ids ?? []}
+              selectedZoneId={activeDesignSelectedMaterialZoneId(activeDesignSnapshot) ?? appearanceMaterialZoneId}
+              activeDomain={activeMaterialDomain}
+              compatibilityOnly={materialCompatibilityOnly}
+              query={materialQuery}
+              category={materialCategory}
+              catalogLoading={agentMaterialCatalogPresentation.loading}
+              catalogMessage={agentMaterialCatalogPresentation.catalogMessage}
+              disabled={isExternalGlbReference || Boolean(agentAssetChangeSet)}
+              onMaterialChange={selectMaterialPreselection}
+              onZoneChange={(zoneId) => { void selectMaterialZone(zoneId) }}
+              onCompatibilityChange={setMaterialFilterCompatibilityOnly}
+              onQueryChange={setMaterialFilterQuery}
+              onCategoryChange={setMaterialFilterCategory}
+              onPreviewMaterial={(preset, zoneId) => {
+                if (agentAssetVersion && selectedAgentPart) {
+                  void previewAgentAssetEdit({
+                    operation_id: `op_material_${Date.now().toString(36)}`,
+                    op: 'apply_material_preset',
+                    part_id: selectedAgentPart.part_id,
+                    material_id: preset.material_id,
+                    material_zone_id: zoneId,
+                  }, `将${zoneId}换成${preset.display_name}`)
+                }
+              }}
+              onPreviewNote={(preset) => setAssistantNote(`已将预览材质切换为「${preset.display_name}」；确认前不会写入版本。`)}
+            />
+          )}
+          legacyDetailsOpen={concept.legacyDetailsEnabled}
+          legacyVersion={concept.version}
+          legacyGraph={concept.graphRecord}
+          legacyQualityRun={concept.qualityRun}
+          selectedLegacyNode={selectedNode}
+          onCloseLegacyDetails={concept.closeLegacyDetails}
+          onSelectLegacyNode={selectGraphNode}
+        />
       </div>
-
-      {concept.pendingPreview && (
-        <section className="agent-change-review" data-testid="agent-change-review">
-          <div className="agent-change-review-copy">
-            <span>本次修改</span>
-            <strong>{concept.pendingChange?.change_set.summary ?? concept.pendingManualChange?.summary ?? '组件替换预览已准备好'}</strong>
-            {concept.pendingChange && (
-              <small>{concept.pendingChange.change_set.operations.slice(0, 2).map(formatChangeOperation).join('；')}</small>
-            )}
-            {concept.pendingManualChange && (
-              <small>{concept.pendingManualChange.operations.slice(0, 2).map(formatChangeOperation).join('；')}</small>
-            )}
-            {concept.pendingReplacement && <small>当前设计尚未被覆盖；确认后会保存为新版本。</small>}
-          </div>
-          <div className="agent-change-review-actions">
-            {concept.pendingChange && <button onClick={() => concept.discardPlannedChange()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
-            {concept.pendingManualChange && <button onClick={() => concept.discardManualChange()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
-            {concept.pendingReplacement && <button onClick={() => concept.discardModuleReplacement()} disabled={concept.loading || legacyDesignReadOnly}>撤销本次修改</button>}
-            {concept.pendingChange && <button className="confirm" onClick={() => concept.confirmPlannedChange()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
-            {concept.pendingManualChange && <button className="confirm" onClick={() => concept.confirmManualChange()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
-            {concept.pendingReplacement && <button className="confirm" onClick={() => concept.confirmModuleReplacement()} disabled={concept.loading || legacyDesignReadOnly}>保留此修改</button>}
-          </div>
-        </section>
-      )}
-
 
       <footer className="cad-status-bar" role="status" aria-live="polite" aria-label="工作台状态">
         <span>{concept.loading ? 'Agent 正在处理' : '设计就绪'}</span>
-        <span>{selectedNode ? `正在调整：${selectedModuleLabel}` : '点击模型的任意部件即可调整'}</span>
+        <span>{activeAgentAssetVersion ? 'Agent 资产可编辑' : concept.legacyDetailsEnabled ? '旧版信息只读' : '等待 Agent 资产'}</span>
         <span>版本：{activeDesignSnapshot?.active_design.source === 'agent_asset'
           ? `Agent v${activeAgentAssetVersion?.version_no ?? '同步中'}`
           : activeDesignSnapshot
@@ -2761,22 +1796,6 @@ export function CadWorkbenchPanel() {
       </footer>
     </div>
   )
-}
-
-function IconAction({
-  icon: Icon,
-  label,
-  onClick,
-  disabled = false,
-  title,
-}: {
-  icon: typeof Plus
-  label: string
-  onClick?: () => void
-  disabled?: boolean
-  title?: string
-}) {
-  return <button onClick={onClick} disabled={disabled} title={title}><Icon size={15} /><span>{label}</span></button>
 }
 
 function IconButton({
@@ -2807,181 +1826,9 @@ function IconButton({
   )
 }
 
-function ParameterInput({
-  label,
-  value,
-  unit,
-  onChange,
-  disabled = false,
-  title,
-}: {
-  label: string
-  value: number
-  unit: string
-  onChange: (value: number) => void
-  disabled?: boolean
-  title?: string
-}) {
-  return (
-    <label className="parameter-row" title={title}>
-      <span>{label}</span>
-      <input
-        type="number"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-      <small>{unit}</small>
-    </label>
-  )
-}
-
-function PropertyNumber({
-  label,
-  value,
-  unit,
-  onChange,
-}: {
-  label: string
-  value: number
-  unit: string
-  onChange: (value: number) => void
-}) {
-  return (
-    <label className="property-number">
-      <span>{label}</span>
-      <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
-      <small>{unit}</small>
-    </label>
-  )
-}
-
-function AxisField({
-  axis,
-  value,
-  onChange,
-}: {
-  axis: string
-  value: number
-  onChange: (value: number) => void
-}) {
-  return (
-    <label className={`axis-field axis-${axis.toLowerCase()}`}>
-      <span>{axis}</span>
-      <input
-        type="number"
-        step="0.01"
-        value={Number.isFinite(value) ? value : ''}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
-  )
-}
-
-function DfmRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
-  return (
-    <div className="dfm-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {ok ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}
-    </div>
-  )
-}
-
 function qualityStatusLabel(status?: 'passed' | 'warning' | 'failed' | 'not_run') {
   if (!status || status === 'not_run') return '未运行'
   return ({ passed: '通过', warning: '需复核', failed: '失败' } as const)[status]
-}
-
-function formatChangeOperation(operation: DesignChangeSet['operations'][number]): string {
-  if (operation.op === 'replace_module') {
-    return `替换 ${operation.node_id} → ${operation.module_id}`
-  }
-  if (operation.op === 'set_mirror') {
-    return `镜像 ${operation.node_id} → ${operation.mirror_axis}`
-  }
-  if (operation.op === 'set_transform') {
-    const position = operation.transform?.position?.map((value) => Number(value).toFixed(2)).join(', ')
-    return `变换 ${operation.node_id}${position ? ` · 位置 ${position} mm` : ''}`
-  }
-  if (operation.op === 'set_parameter' || operation.op === 'set_style') {
-    const value = Array.isArray(operation.value)
-      ? operation.value.join(', ')
-      : String(operation.value)
-    return `${operation.path} → ${value}`
-  }
-  return operation.op
-}
-
-function formatVersionTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
-
-function formatAxis(value: number | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
-}
-
-function identityTransform(): Transform {
-  return {
-    position: [0, 0, 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-  }
-}
-
-function copyTransform(transform: Transform): Transform {
-  return {
-    position: [...transform.position],
-    rotation: [...transform.rotation],
-    scale: [...transform.scale],
-  }
-}
-
-function distanceBetween(
-  first: [number, number, number],
-  second: [number, number, number],
-) {
-  return Math.hypot(
-    first[0] - second[0],
-    first[1] - second[1],
-    first[2] - second[2],
-  )
-}
-
-function angleBetweenNormals(
-  first: [number, number, number],
-  second: [number, number, number],
-) {
-  const firstLength = Math.hypot(...first)
-  const secondLength = Math.hypot(...second)
-  if (firstLength === 0 || secondLength === 0) return 0
-  const dot = (first[0] * second[0] + first[1] * second[1] + first[2] * second[2]) / (firstLength * secondLength)
-  return Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI
-}
-
-async function downloadBrowserFile(url: string, fallbackName?: string): Promise<void> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`下载请求失败：HTTP ${response.status}`)
-  const blob = await response.blob()
-  const urlFallbackName = url.split('/').pop() || 'forgecad-export'
-  const disposition = response.headers.get('content-disposition') ?? ''
-  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i)
-  const anchor = document.createElement('a')
-  const objectUrl = URL.createObjectURL(blob)
-  anchor.href = objectUrl
-  anchor.download = filenameMatch?.[1] || fallbackName || urlFallbackName
-  anchor.style.display = 'none'
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
 }
 
 function downloadBase64File(encoded: string, filename: string, mime: string): void {
@@ -3017,14 +1864,6 @@ function inferImportDomainPack(fileName: string): 'pack_future_weapon_prop' | 'p
   if (/(plane|aircraft|drone|jet|飞机|飞行|无人机)/.test(value)) return 'pack_aircraft_concept'
   if (/(arm|robot|joint|机械臂|机器人|关节)/.test(value)) return 'pack_robotic_arm_concept'
   return 'pack_future_weapon_prop'
-}
-
-function exportDownloadFilename(exportId: string, format: string): string {
-  if (format === 'GLB') return `${exportId}.glb`
-  if (format === 'OBJ') return `${exportId}.obj`
-  if (format === 'PNG') return `${exportId}-preview.png`
-  if (format === 'MP4') return `${exportId}-turntable.mp4`
-  return `${exportId}.zip`
 }
 
 function errorText(caught: unknown): string {

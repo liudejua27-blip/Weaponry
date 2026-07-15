@@ -10,6 +10,61 @@
   border: 0;
 }
 
+.agent-inspector-summary,
+.legacy-readonly-entry,
+.legacy-readonly-surface {
+  display: grid;
+  gap: 10px;
+  color: var(--cad-muted);
+}
+
+.agent-inspector-summary strong,
+.legacy-readonly-entry strong,
+.legacy-readonly-surface strong {
+  color: var(--cad-text);
+}
+
+.legacy-readonly-entry > button,
+.legacy-readonly-heading > button {
+  min-height: 32px;
+}
+
+.legacy-readonly-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.legacy-readonly-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.legacy-readonly-node-list {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.legacy-readonly-node-list > button {
+  display: grid;
+  gap: 2px;
+  min-height: 40px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.legacy-readonly-node-list > button.active {
+  border-color: var(--cad-accent);
+}
+
+.legacy-readonly-section-title {
+  display: block;
+  margin-top: 2px;
+}
+
 .cad-workbench {
   --cad-bg: #0c121b;
   --cad-surface: #151e29;
@@ -1705,6 +1760,19 @@
 }
 
 .cad-right-rail { display: none; }
+.cad-right-rail[data-testid="legacy-readonly-boundary"] {
+  position: fixed;
+  top: 54px;
+  right: 8px;
+  bottom: 35px;
+  z-index: 12;
+  display: flex;
+  width: 320px;
+  border: 1px solid var(--cad-border);
+  border-radius: 8px;
+  background: var(--cad-surface);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+}
 .cad-left-rail { min-width: 0; }
 .agent-first-panel {
   flex: 1;

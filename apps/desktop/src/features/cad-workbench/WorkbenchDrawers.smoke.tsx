@@ -121,21 +121,9 @@ const componentProps: ComponentDrawerProps = {
 }
 
 const exportProps: ExportDrawerProps = {
-  exportPurpose: 'presentation',
-  exportPurposeOptions: [
-    { id: 'presentation', title: '展示设计', description: '用于展示', format: 'PNG' },
-    { id: 'production', title: '游戏 / 影视项目', description: '展示模型', format: 'GLB' },
-  ],
-  agentAssetActive: false,
   activeAgentAssetVersion: null,
   activeDesignIdle: true,
-  activeVersionLabel: 'v1',
-  originLabel: '本人原创声明',
-  hasLegacyVersion: true,
-  loading: false,
   onClose: () => undefined,
-  onPurposeChange: () => undefined,
-  onExport: () => undefined,
   onDownloadAgentGlb: () => undefined,
   renderSet: null,
   renderLoading: false,
@@ -146,19 +134,18 @@ const exportProps: ExportDrawerProps = {
 }
 
 const qualityProps: QualityDrawerProps = {
-  agentAssetActive: false,
-  activeAgentAssetVersion: null,
-  agentQualityReport: null,
+  activeAgentAssetVersion: { asset_version_id: 'assetver_quality_smoke' } as NonNullable<QualityDrawerProps['activeAgentAssetVersion']>,
+  agentQualityReport: {
+    quality_report_id: 'quality_smoke',
+    asset_version_id: 'assetver_quality_smoke',
+    status: 'passed',
+    triangle_count: 12,
+    findings: [],
+    checked_at: '2026-07-15T00:00:00Z',
+  },
   agentAssetChangeSet: null,
-  graphReady: true,
-  legacyVersionReady: true,
-  legacyQualityStatus: 'passed',
-  legacyFindings: [],
-  loading: false,
   onClose: () => undefined,
-  onFocusLegacyFinding: () => undefined,
   onInspectAgentAsset: () => undefined,
-  onRunLegacyInspection: () => undefined,
 }
 
 const agentRenderSet = {
@@ -206,10 +193,10 @@ export function runWorkbenchDrawersSmoke(): void {
   assert(componentText.includes('核心外壳示例') && componentText.includes('预览替换'), 'component drawer must render asset details and replace action')
   assert(materialText.includes('磨砂金属') && materialText.includes('材质只描述外观'), 'material drawer must render visual-only boundary')
   assert(qualityText.includes('模型检查') && qualityText.includes('通过'), 'quality drawer must render current result')
-  assert(exportText.includes('下载当前设计') && exportText.includes('展示设计'), 'legacy export drawer must render purpose choices')
+  assert(exportText.includes('下载当前设计') && exportText.includes('当前没有可导出的 Agent 资产'), 'export drawer must reject non-Agent export state')
+  assert(!exportText.includes('展示设计') && !exportText.includes('OBJ 模型') && !exportText.includes('概念源包'), 'export drawer must never expose legacy export choices')
   const agentExportText = collectText(ExportDrawer({
     ...exportProps,
-    agentAssetActive: true,
     activeAgentAssetVersion: { asset_version_id: 'assetver_smoke', version_no: 1 } as NonNullable<ExportDrawerProps['activeAgentAssetVersion']>,
     renderSet: agentRenderSet,
   }))

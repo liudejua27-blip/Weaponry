@@ -61,13 +61,13 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F024`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A–G824D 已证明候选在 macOS arm64 与 Windows x64 的 provenance/readback、隔离取消、真实临时权威状态提升以及 packaged 预算/许可证；G825 已按 ADR-0013 接入唯一 Manifold Python handler和不可变 Feature History，G826 已补齐同一 GLB 的 edge finish/normal/UV0/tangent/稳定 face→part/zone 事实；A003 已建立无密钥可观察的 Provider preflight、SSE/cancel/usage/稳定错误和 no-fallback 边界。F025 是唯一 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A–G824D 已证明候选在 macOS arm64 与 Windows x64 的 provenance/readback、隔离取消、真实临时权威状态提升以及 packaged 预算/许可证；G825 已按 ADR-0013 接入唯一 Manifold Python handler和不可变 Feature History，G826 已补齐同一 GLB 的 edge finish/normal/UV0/tangent/稳定 face→part/zone 事实；A003 已建立无密钥可观察的 Provider preflight、SSE/cancel/usage/稳定错误和 no-fallback 边界；F025 已把 legacy 控制限制在显式只读表面。D005 是唯一 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
 
 ## 4. S1：ActiveDesignSnapshot
 
 目标：Project、AgentAssetVersion、Selection、Preview、Quality 和 Export 只由一个服务端 Snapshot 绑定。
 
-`FGC-S001`–`FGC-S008` 已完成：Snapshot 合同、存储/CAS、API、desktop client/reducer、Agent 恢复/选择/视口/质量/不可变回退/前进/GLB 导出，以及 legacy 只读/转换授权/原子提升均有对应 smoke 证据。S008 覆盖 preview、确认、质量、undo→redo、重启恢复、导出、preview 阻断和 selection/quality 的 revision 竞争；当前工作台 r3 Agent-first 路径也已通过（参考 GLB v1 → 可编辑资产 v2–v5）。legacy 兼容 UI 仍未退出、legacy 组件替换写入仍被阻断且工作台尚未完成前端组合层拆分，因此不能把整个产品称为生产级单一状态运行时。
+`FGC-S001`–`FGC-S008` 已完成：Snapshot 合同、存储/CAS、API、desktop client/reducer、Agent 恢复/选择/视口/质量/不可变回退/前进/GLB 导出，以及 legacy 只读/转换授权/原子提升均有对应 smoke 证据。S008 覆盖 preview、确认、质量、undo→redo、重启恢复、导出、preview 阻断和 selection/quality 的 revision 竞争；当前工作台 r3 Agent-first 路径也已通过（参考 GLB v1 → 可编辑资产 v2–v5）。F025 已把 legacy Graph、旧参数、旧质量与旧格式限制在显式只读表面，但兼容数据尚未完成最终迁移，工作台也尚未完成前端组合层拆分，因此不能把整个产品称为生产级单一状态运行时。
 
 工作包：
 
