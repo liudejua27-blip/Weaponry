@@ -31,4 +31,4 @@ for candidate in report["candidates"]:
         assert case["object_store_unchanged"] is True
         assert case["authoritative_paths_passed_to_child"] is False
         assert case["process_reaped"] is True
-print("G824B CSG promotion boundary passed: all interruption windows preserve authoritative state; candidate selection remains blocked")
+print("G824B CSG promotion boundary passed: historical interruption windows still preserve authoritative state")

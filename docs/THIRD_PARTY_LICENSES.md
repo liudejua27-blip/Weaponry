@@ -52,7 +52,7 @@ These projects are referenced by the product design or supported as external ada
 | TripoSR | Legacy local 3D experiment | Rejected for P0 | Not bundled and not part of the zero-beginner product route. |
 | Hunyuan3D | Research reference only | Rejected for P0 | Not integrated; model weight, VRAM and install cost conflict with the lightweight product. |
 | TRELLIS | Research reference only | Rejected for P0 | Not integrated; model weight and GPU runtime conflict with the lightweight product. |
-| Manifold Python 3.5.2 | Selected CSG production candidate | Selected by ADR-0013; not integrated until G825 | Apache-2.0. G824C records wheel license hashes and macOS packaged budget; G824D adds real Windows x64 frozen evidence. Production lock/SBOM remains unchanged until G825. |
+| Manifold Python 3.5.2 | Production CSG kernel | Integrated only by G825 through the existing Python sidecar; exact direct dependency and packaged collection are frozen | Apache-2.0. G824C/G824D record macOS/Windows packaged evidence; G825 adds the exact production lock/SBOM and no JS/WASM fallback. |
 | Manifold WASM 3.5.1 | Evaluated geometry runtime candidate | Not recommended for current host; not integrated | Apache-2.0. Smaller payload does not justify a second JS/WASM host or moving authoritative geometry into the WebView. |
 | Trimesh | Candidate mesh analysis/export runtime | Candidate review | MIT upstream; exact pinned dependency graph and release lock must be reviewed before integration. |
 | Unity glTFast | Legacy Unity import verifier | Not a product dependency | Used only by the legacy smoke through Package Manager and not bundled; review separately if Unity export becomes a supported product feature again. |
@@ -68,6 +68,6 @@ OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider、JSCAD、glTF Trans
 
 ## Current Production Blockers
 
-- G825 must add the exact Manifold Python production lock/SBOM and handler under ADR-0013, with no second WASM host or silent fallback, before it enters the release build.
+- G825 has added the exact Manifold Python/NumPy production lock and packaged handler under ADR-0013. Future changes must preserve the single-kernel boundary and rerun license/SBOM plus packaged sidecar Gates.
 - Review Trimesh packaging and add exact pinned dependencies before it enters the release build.
 - Add an attribution bundle for licenses that require notices.

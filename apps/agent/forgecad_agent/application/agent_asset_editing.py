@@ -55,6 +55,7 @@ from forgecad_agent.infrastructure.db.agent_repositories import (
 )
 from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
 from forgecad_agent.infrastructure.storage.content_addressed_store import ContentAddressedStore, ObjectStoreError
+from .manifold_csg import ManifoldCsgError
 
 
 class AgentAssetError(RuntimeError):
@@ -71,6 +72,11 @@ class AgentAssetIdempotencyConflict(RuntimeError):
 def _runtime_operation_rejected(exc: Exception) -> AgentAssetError:
     """Expose one stable API code for every refused ShapeProgram runtime path."""
 
+    if isinstance(exc, ManifoldCsgError):
+        return AgentAssetError(exc.code, str(exc), status_code=409)
+    message = str(exc)
+    if message.startswith("CSG_"):
+        return AgentAssetError(message.split(":", 1)[0].split(" ", 1)[0], message, status_code=409)
     return AgentAssetError("UNSUPPORTED_RUNTIME_OPERATION", str(exc), status_code=409)
 
 

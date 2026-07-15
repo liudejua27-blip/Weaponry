@@ -8,12 +8,15 @@ Provider itself; credentials remain an explicit desktop runtime concern.
 from __future__ import annotations
 
 import argparse
+import multiprocessing
 import os
 import sys
 from pathlib import Path
 
 
 def main() -> int:
+    # Required for the bounded G825 CSG child process in a PyInstaller sidecar.
+    multiprocessing.freeze_support()
     parser = argparse.ArgumentParser(prog="wushen-agent")
     agent = parser.add_subparsers(dest="command", required=True)
     serve = agent.add_parser("agent").add_subparsers(dest="agent_command", required=True)

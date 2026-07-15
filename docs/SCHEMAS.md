@@ -162,7 +162,9 @@ outputs[]
 metadata
 ```
 
-当前唯一允许集合由 `ShapeProgramRuntimeManifest@1` 定义：box、cylinder、capsule、wedge、profile、extrude、revolve、mirror、array、radial_array、union、subtract、bevel_approx、surface_panel。`prism`、translate/rotate/scale、intersect、fillet_approx、pivot、Connector 和 Material Zone 从未拥有当前 Worker 执行器，现已在 Schema/Pydantic/Worker/质量入口/导出前统一拒绝。G801–G804 已实现基础 primitive、轮廓、旋转和复制；G805 仅实现不重叠复合 union 与轴对齐贯穿槽 subtract；G806 实现了受限低多边形 bevel_approx 和 ±Y surface_panel；G807 使用这些受控操作组成 48 个四领域变体，G812/G813 只将同一方向三项族中的一个经稳定 index 解析的结果接入 build/segment 和预览轮换，不开放自由曲面、任意变体文本或技术目录；其余任意网格布尔、fillet 和自由曲面仍由 validator/worker 拒绝、等待后续实现。
+当前唯一允许集合由 `ShapeProgramRuntimeManifest@1` 定义：box、cylinder、capsule、wedge、profile、extrude、revolve、loft、sweep、mirror、array、radial_array、union、subtract、bevel_approx、surface_panel。`prism`、translate/rotate/scale、intersect、fillet_approx、pivot、Connector 和 Material Zone 从未拥有当前 Worker 执行器，现已在 Schema/Pydantic/Worker/质量入口/导出前统一拒绝。G801–G804 已实现基础 primitive、轮廓、旋转和复制；G805 的旧有限 box fixture 已由 G825 显式迁移到唯一 `manifold3d==3.5.2` handler，不存在旧 box fallback；G806 实现受限低多边形 bevel_approx 和 ±Y surface_panel；G807 使用这些受控操作组成 48 个四领域变体。任意 mesh 修复、intersect、自由 fillet 和自由曲面仍由 validator/worker 拒绝。
+
+`GeometryCompileReadback@1.feature_history` 由同次 Worker 编译与 GLB extras 回读。每个 `GeometryFeatureNodeReadback@1` 按 ShapeProgram 顺序保存 node/op、输入 node/hash、规范参数 hash、node input/result/provenance hash、runtime manifest、CSG kernel/version、深度、triangle/closed 和 material/zone/surface role；union/subtract 必须声明唯一 Manifold kernel。旧 G824 证据 GLB 可只读返回空历史，但任何新 Worker 编译缺少历史都会失败。CSG 只接受封闭输入、有限深度/输入数/三角预算；取消、超时、近退化、非封闭和 provenance 丢失均返回稳定错误且不写部分 GLB。
 
 不变量：`additionalProperties=false`；有限数值；引用有序无环；禁止代码、路径和 URL；operation、深度、array、bounds 和 triangle budget 有硬上限；canonical JSON 和 runtime version 进入 hash。
 

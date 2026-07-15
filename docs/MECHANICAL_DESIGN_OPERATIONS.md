@@ -3,7 +3,7 @@
 版本：v1（2026-07-15）
 状态：目标操作设计；不是当前 Alpha 用户指南
 
-本手册定义 ForgeCAD 完成后，零基础用户如何用一句话、参考图和少量可视化操作生成、检查和继续编辑机械概念 3D。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准；当前 Alpha 仍显示三个方向。后端已有受限 Profile/Extrude/Revolve/Loft/Sweep runtime 与真实 GLB readback，但 Planner/工作台尚未自动采用，也没有自由轮廓、Loft 或 Sweep 编辑入口；G824A–G824D 已完成稳健布尔候选的双平台 packaged/provenance/readback/生命周期证据，ADR-0013 选择 Python 供 G825 集成，但默认 handler 尚未改变。稳健布尔、真实多区纹理和单一最佳结果仍未提供，不能按本文宣称已经支持。
+本手册定义 ForgeCAD 完成后，零基础用户如何用一句话、参考图和少量可视化操作生成、检查和继续编辑机械概念 3D。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准；当前 Alpha 仍显示三个方向。后端已有受限 Profile/Extrude/Revolve/Loft/Sweep runtime、唯一 Manifold Python union/subtract、不可变 Feature History 与真实 GLB readback，但 Planner/工作台尚未自动采用，也没有自由轮廓、Loft、Sweep 或 CSG 编辑入口。edge finish/tangent/稳定 Material Zone、真实多区纹理和单一最佳结果仍未提供，不能按本文宣称已经支持。
 
 ## 1. 核心操作模型
 

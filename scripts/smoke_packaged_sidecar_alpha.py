@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -13,6 +14,10 @@ import urllib.request
 from base64 import b64decode
 from pathlib import Path
 from typing import Any
+
+from forgecad_agent.application.geometry_worker import read_shape_program_glb_facts
+from forgecad_agent.application.manifold_csg import MANIFOLD_KERNEL_ID, MANIFOLD_KERNEL_VERSION
+from smoke_g825_feature_csg import boolean_program
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +36,7 @@ def main() -> int:
             payload = _wait_for_health(port, process)
             _assert(payload == {"status": "ok", "service": "wushen-agent", "mode": "sqlite_mock"}, "unexpected health payload")
             _assert((library_root / "library.db").is_file(), "first initialization did not create the library")
-            asset_version_id = _create_and_export_editable_asset(port)
+            asset_version_id = _create_and_export_editable_asset(port, library_root)
         finally:
             _stop_sidecar(process)
 
@@ -50,6 +55,7 @@ def main() -> int:
         "packaged_sidecar_health": True,
         "empty_library_initialized": True,
         "editable_glb_export": True,
+        "packaged_manifold_csg": True,
         "restart_recovery": True,
         "provider_calls": 0,
     }))
@@ -86,7 +92,7 @@ def _stop_sidecar(process: subprocess.Popen[str]) -> None:
         process.wait(timeout=10)
 
 
-def _create_and_export_editable_asset(port: int) -> str:
+def _create_and_export_editable_asset(port: int, library_root: Path) -> str:
     project = _request(
         port,
         "/api/v1/projects",
@@ -143,8 +149,42 @@ def _create_and_export_editable_asset(port: int) -> str:
         body={"client_request_id": "p002-commit", "project_id": project_id, "artifact_id": segmented["artifact_id"], "summary": "P002 本机 Alpha 可编辑概念资产"},
     )
     asset_version_id = committed["asset_version_id"]
+    asset = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}")
+    target = next(item for item in asset["parts"] if item["editable_parameter_bindings"])
+    tool = next(item for item in asset["parts"] if item["part_id"] != target["part_id"])
+    program = boolean_program("subtract", suffix="packaged")
+    program["operations"][0]["args"].update({
+        "part_role": target["role"],
+        "position": list(target["position_mm"]),
+        "size": list(target["size_mm"]),
+    })
+    program["operations"][1]["args"].update({
+        "part_role": tool["role"],
+        "position": list(target["position_mm"]),
+        "size": [
+            max(10, target["size_mm"][0] * 0.25),
+            target["size_mm"][1] * 1.2,
+            target["size_mm"][2] * 0.4,
+        ],
+    })
+    program["operations"][2]["args"]["part_role"] = target["role"]
+    program["outputs"][0]["part_role"] = target["role"]
+    canonical = json.dumps(program, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    with sqlite3.connect(library_root / "library.db") as connection:
+        connection.execute(
+            "UPDATE agent_asset_versions SET shape_program_json = ? WHERE asset_version_id = ?",
+            (canonical, asset_version_id),
+        )
+        connection.commit()
     exported = _request(port, f"/api/v1/agent/asset-versions/{asset_version_id}:export", method="POST")
-    _assert(b64decode(exported["glb_base64"])[:4] == b"glTF", "editable GLB export is invalid")
+    glb = b64decode(exported["glb_base64"])
+    _assert(glb[:4] == b"glTF", "editable GLB export is invalid")
+    facts = read_shape_program_glb_facts(glb)
+    csg = facts.feature_history[-1]
+    _assert(csg["kernel_id"] == MANIFOLD_KERNEL_ID, "packaged export did not use the Manifold kernel")
+    _assert(csg["kernel_version"] == MANIFOLD_KERNEL_VERSION, "packaged export used an unexpected kernel version")
+    _assert(csg["result_closed"] is True, "packaged CSG result is not closed")
+    _assert("boolean_cut" in csg["surface_roles"], "packaged CSG cut provenance is missing")
     return str(asset_version_id)
 
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Smoke the intentionally restricted, failure-explicit union/subtract path."""
+"""Compatibility smoke for the G805 fixtures on the selected G825 CSG kernel."""
 
-from forgecad_agent.application.geometry_worker import build_glb_from_shape_program, read_shape_program_glb
+from forgecad_agent.application.geometry_worker import (
+    build_glb_from_shape_program,
+    compile_shape_program,
+    read_shape_program_glb,
+)
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
 
 
@@ -26,12 +30,10 @@ def boolean_program(op: str, second_position: list[float], suffix: str) -> dict:
 def main() -> int:
     union = boolean_program("union", [0, 300, 0], "union_overlap")
     validate_shape_program(union)
-    try:
-        build_glb_from_shape_program(union)
-    except ValueError as error:
-        assert "disjoint" in str(error)
-    else:
-        raise AssertionError("overlapping union must fail explicitly")
+    compiled_union = compile_shape_program(union)
+    union_feature = compiled_union.readback.feature_history[-1]
+    assert union_feature.kernel_id == "manifold3d" and union_feature.kernel_version == "3.5.2"
+    assert union_feature.result_closed and union_feature.result_triangle_count > 0
 
     disjoint = boolean_program("union", [700, 300, 0], "union_disjoint")
     validate_shape_program(disjoint)
@@ -48,12 +50,9 @@ def main() -> int:
     unsupported = boolean_program("subtract", [0, 300, 0], "subtract_partial")
     unsupported["operations"][1]["args"]["size"] = [200, 500, 600]
     validate_shape_program(unsupported)
-    try:
-        build_glb_from_shape_program(unsupported)
-    except ValueError as error:
-        assert "spanning" in str(error)
-    else:
-        raise AssertionError("partial subtract cutter must fail explicitly")
+    compiled_partial = compile_shape_program(unsupported)
+    assert compiled_partial.readback.feature_history[-1].result_closed
+    assert any("boolean_cut" in item.surface_roles for item in compiled_partial.readback.surface_provenance)
 
     invalid = boolean_program("union", [700, 300, 0], "missing_input")
     invalid["operations"][2]["inputs"] = ["op_base"]
@@ -63,7 +62,7 @@ def main() -> int:
         assert "UNION_INPUT" in str(error)
     else:
         raise AssertionError("boolean arity must be rejected")
-    print("G805 ShapeProgram smoke passed: restricted union/subtract manifold and failure boundaries")
+    print("G805 fixture migration passed: legacy boxes compile through the single Manifold CSG handler")
     return 0
 
 

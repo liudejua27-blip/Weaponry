@@ -6807,6 +6807,14 @@
             "title": "Bounds Mm",
             "type": "array"
           },
+          "feature_history": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryFeatureNodeReadback"
+            },
+            "maxItems": 256,
+            "title": "Feature History",
+            "type": "array"
+          },
           "glb_byte_size": {
             "maximum": 67108864.0,
             "minimum": 20.0,
@@ -6942,9 +6950,164 @@
         "title": "GeometryCompileReadback",
         "type": "object"
       },
+      "GeometryFeatureNodeReadback": {
+        "additionalProperties": false,
+        "description": "Canonical feature input and real compiled result identity for one ordered node.",
+        "properties": {
+          "csg_depth": {
+            "maximum": 8.0,
+            "minimum": 0.0,
+            "title": "Csg Depth",
+            "type": "integer"
+          },
+          "input_hashes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Input Hashes",
+            "type": "array"
+          },
+          "input_node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Input Node Ids",
+            "type": "array"
+          },
+          "kernel_id": {
+            "enum": [
+              "forgecad_builtin",
+              "manifold3d"
+            ],
+            "title": "Kernel Id",
+            "type": "string"
+          },
+          "kernel_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Kernel Version",
+            "type": "string"
+          },
+          "material_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Material Ids",
+            "type": "array"
+          },
+          "material_zone_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Material Zone Ids",
+            "type": "array"
+          },
+          "node_id": {
+            "pattern": "^op_[a-z0-9_\\-]+$",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "node_input_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Node Input Sha256",
+            "type": "string"
+          },
+          "operation": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Operation",
+            "type": "string"
+          },
+          "parameters_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Parameters Sha256",
+            "type": "string"
+          },
+          "result_closed": {
+            "title": "Result Closed",
+            "type": "boolean"
+          },
+          "result_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Result Sha256",
+            "type": "string"
+          },
+          "result_triangle_count": {
+            "minimum": 0.0,
+            "title": "Result Triangle Count",
+            "type": "integer"
+          },
+          "runtime_manifest_version": {
+            "const": "ShapeProgramRuntimeManifest@1",
+            "default": "ShapeProgramRuntimeManifest@1",
+            "title": "Runtime Manifest Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "GeometryFeatureNodeReadback@1",
+            "default": "GeometryFeatureNodeReadback@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "surface_provenance_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Surface Provenance Sha256",
+            "type": "string"
+          },
+          "surface_roles": {
+            "items": {
+              "enum": [
+                "surface",
+                "side",
+                "loft_side",
+                "sweep_side",
+                "hole_wall",
+                "start_cap",
+                "end_cap",
+                "seam",
+                "boolean_cut"
+              ],
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Surface Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node_id",
+          "operation",
+          "parameters_sha256",
+          "node_input_sha256",
+          "result_sha256",
+          "surface_provenance_sha256",
+          "kernel_id",
+          "kernel_version",
+          "csg_depth",
+          "result_triangle_count",
+          "result_closed"
+        ],
+        "title": "GeometryFeatureNodeReadback",
+        "type": "object"
+      },
       "GeometrySurfaceProvenance": {
         "additionalProperties": false,
         "properties": {
+          "boolean_backside": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boolean Backside"
+          },
           "boundary_edge_count": {
             "minimum": 0.0,
             "title": "Boundary Edge Count",
@@ -6958,6 +7121,30 @@
             "minimum": 0.0,
             "title": "Degenerate Triangle Count",
             "type": "integer"
+          },
+          "feature_node_id": {
+            "anyOf": [
+              {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Node Id"
+          },
+          "material_zone_id": {
+            "anyOf": [
+              {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Zone Id"
           },
           "non_manifold_edge_count": {
             "minimum": 0.0,
@@ -6982,6 +7169,14 @@
             ],
             "title": "Profile Input Id"
           },
+          "source_operation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Source Operation Ids",
+            "type": "array"
+          },
           "surface_ranges": {
             "items": {
               "$ref": "#/components/schemas/GeometrySurfaceRange"
@@ -7001,7 +7196,8 @@
                 "hole_wall",
                 "start_cap",
                 "end_cap",
-                "seam"
+                "seam",
+                "boolean_cut"
               ],
               "type": "string"
             },
@@ -7060,7 +7256,8 @@
               "hole_wall",
               "start_cap",
               "end_cap",
-              "seam"
+              "seam",
+              "boolean_cut"
             ],
             "title": "Surface Role",
             "type": "string"

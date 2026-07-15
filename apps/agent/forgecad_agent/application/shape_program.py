@@ -137,6 +137,7 @@ def _assert_semantics(program: Mapping[str, Any]) -> None:
         raise ShapeProgramValidationError("SHAPE_PROGRAM_DUPLICATE_OPERATION")
     seen: set[str] = set()
     operation_by_id: dict[str, Mapping[str, Any]] = {}
+    csg_depth_by_id: dict[str, int] = {}
     for operation in operations:
         for input_id in operation["inputs"]:
             if input_id not in seen:
@@ -187,6 +188,16 @@ def _assert_semantics(program: Mapping[str, Any]) -> None:
             _assert_surface_panel_reference(operation, operation_by_id)
         elif op_name in {"union", "subtract"}:
             _assert_boolean_references(operation, operation_by_id, op_name.upper())
+            depth = 1 + max(csg_depth_by_id.get(input_id, 0) for input_id in operation["inputs"])
+            if depth > 8:
+                raise ShapeProgramValidationError(
+                    f"CSG_DEPTH_EXCEEDED: {operation['operation_id']} depth {depth} exceeds 8"
+                )
+            csg_depth_by_id[operation["operation_id"]] = depth
+        csg_depth_by_id.setdefault(
+            operation["operation_id"],
+            max((csg_depth_by_id.get(input_id, 0) for input_id in operation["inputs"]), default=0),
+        )
         seen.add(operation["operation_id"])
         operation_by_id[operation["operation_id"]] = operation
     output_ids = {item["output_id"] for item in program["outputs"]}

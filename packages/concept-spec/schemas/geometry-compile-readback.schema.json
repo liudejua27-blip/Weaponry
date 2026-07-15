@@ -59,7 +59,7 @@
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam"] }
+            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] }
           },
           "surface_ranges": {
             "type": "array",
@@ -70,7 +70,7 @@
               "additionalProperties": false,
               "required": ["surface_role", "first_triangle", "triangle_count"],
               "properties": {
-                "surface_role": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam"] },
+                "surface_role": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] },
                 "first_triangle": { "type": "integer", "minimum": 0 },
                 "triangle_count": { "type": "integer", "minimum": 0 }
               }
@@ -81,7 +81,93 @@
           "closed": { "type": "boolean" },
           "boundary_edge_count": { "type": "integer", "minimum": 0 },
           "non_manifold_edge_count": { "type": "integer", "minimum": 0 },
-          "degenerate_triangle_count": { "type": "integer", "minimum": 0 }
+          "degenerate_triangle_count": { "type": "integer", "minimum": 0 },
+          "feature_node_id": {
+            "anyOf": [
+              { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" },
+              { "type": "null" }
+            ]
+          },
+          "source_operation_ids": {
+            "type": "array",
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" }
+          },
+          "material_zone_id": {
+            "anyOf": [
+              { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
+              { "type": "null" }
+            ]
+          },
+          "boolean_backside": {
+            "anyOf": [
+              { "type": "boolean" },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "feature_history": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "node_id",
+          "operation",
+          "input_node_ids",
+          "input_hashes",
+          "parameters_sha256",
+          "node_input_sha256",
+          "result_sha256",
+          "surface_provenance_sha256",
+          "runtime_manifest_version",
+          "kernel_id",
+          "kernel_version",
+          "csg_depth",
+          "result_triangle_count",
+          "result_closed",
+          "material_ids",
+          "material_zone_ids",
+          "surface_roles"
+        ],
+        "properties": {
+          "schema_version": { "const": "GeometryFeatureNodeReadback@1" },
+          "node_id": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" },
+          "operation": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "input_node_ids": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$" }
+          },
+          "input_hashes": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "$ref": "common.schema.json#/$defs/sha256" }
+          },
+          "parameters_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "node_input_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "result_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "surface_provenance_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "runtime_manifest_version": { "const": "ShapeProgramRuntimeManifest@1" },
+          "kernel_id": { "type": "string", "enum": ["forgecad_builtin", "manifold3d"] },
+          "kernel_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "csg_depth": { "type": "integer", "minimum": 0, "maximum": 8 },
+          "result_triangle_count": { "type": "integer", "minimum": 0 },
+          "result_closed": { "type": "boolean" },
+          "material_ids": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+          "material_zone_ids": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" } },
+          "surface_roles": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "type": "string", "enum": ["surface", "side", "loft_side", "sweep_side", "hole_wall", "start_cap", "end_cap", "seam", "boolean_cut"] }
+          }
         }
       }
     },

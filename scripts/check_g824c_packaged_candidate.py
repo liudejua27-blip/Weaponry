@@ -32,5 +32,6 @@ assert len(report["recommendation"]["remaining_blockers"]) == 2
 package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
 assert "manifold-3d" not in package.get("dependencies", {})
 assert "manifold-3d" not in package.get("devDependencies", {})
-assert "manifold3d" not in (ROOT / "apps/agent/pyproject.toml").read_text(encoding="utf-8")
-print("G824C packaged candidate passed: Python fits the macOS budget and is recommended; Windows runtime and final ADR remain blocked")
+pyproject = (ROOT / "apps/agent/pyproject.toml").read_text(encoding="utf-8")
+assert '"manifold3d==3.5.2"' in pyproject and '"numpy==2.4.6"' in pyproject
+print("G824C packaged candidate passed: the frozen budget evidence remains valid for the Python-only G825 integration")

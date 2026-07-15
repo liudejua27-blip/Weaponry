@@ -1123,6 +1123,7 @@ export type GeometryCompileReadback = {
   "uv0_primitive_count": number
   "normal_primitive_count": number
   "surface_provenance": Array<GeometrySurfaceProvenance>
+  "feature_history"?: Array<GeometryFeatureNodeReadback>
   "operation_ids": Array<string>
   "operation_names": Array<string>
   "output_roles": Array<string>
@@ -1130,10 +1131,31 @@ export type GeometryCompileReadback = {
   "readback_status"?: "passed"
 }
 
+export type GeometryFeatureNodeReadback = {
+  "schema_version"?: "GeometryFeatureNodeReadback@1"
+  "node_id": string
+  "operation": string
+  "input_node_ids"?: Array<string>
+  "input_hashes"?: Array<string>
+  "parameters_sha256": string
+  "node_input_sha256": string
+  "result_sha256": string
+  "surface_provenance_sha256": string
+  "runtime_manifest_version"?: "ShapeProgramRuntimeManifest@1"
+  "kernel_id": "forgecad_builtin" | "manifold3d"
+  "kernel_version": string
+  "csg_depth": number
+  "result_triangle_count": number
+  "result_closed": boolean
+  "material_ids"?: Array<string>
+  "material_zone_ids"?: Array<string>
+  "surface_roles"?: Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
+}
+
 export type GeometrySurfaceProvenance = {
   "part_role": string
   "profile_input_id"?: string | null
-  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam">
+  "surface_roles": Array<"surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut">
   "surface_ranges": Array<GeometrySurfaceRange>
   "uv0_min": Array<number>
   "uv0_max": Array<number>
@@ -1141,10 +1163,14 @@ export type GeometrySurfaceProvenance = {
   "boundary_edge_count": number
   "non_manifold_edge_count": number
   "degenerate_triangle_count": number
+  "feature_node_id"?: string | null
+  "source_operation_ids"?: Array<string>
+  "material_zone_id"?: string | null
+  "boolean_backside"?: boolean | null
 }
 
 export type GeometrySurfaceRange = {
-  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam"
+  "surface_role": "surface" | "side" | "loft_side" | "sweep_side" | "hole_wall" | "start_cap" | "end_cap" | "seam" | "boolean_cut"
   "first_triangle": number
   "triangle_count": number
 }

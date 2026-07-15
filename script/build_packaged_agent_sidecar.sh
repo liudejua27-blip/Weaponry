@@ -34,6 +34,10 @@ mkdir -p "$BINARY_DIR" "$BUILD_ROOT"
   --collect-all starlette \
   --collect-all pydantic \
   --collect-all jsonschema \
+  --collect-all manifold3d \
+  --hidden-import manifold3d \
+  --collect-all numpy \
+  --hidden-import numpy._core._exceptions \
   --collect-all wushen_agent \
   --collect-all forgecad_agent \
   --distpath "$BINARY_DIR" \

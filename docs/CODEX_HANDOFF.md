@@ -5,12 +5,21 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
-## 2026-07-15：FGC-G824D Windows packaged evidence（已完成；G825 ready）
+## 2026-07-15：FGC-G825 单一生产 CSG 与不可变 Feature History（已完成；G826 ready）
+
+- 只按 ADR-0013 将 `manifold3d==3.5.2` 与 NumPy 2.4.6 接入现有 Python sidecar；`manifold_csg.py` 是 union/subtract 的唯一生产 handler，旧 G805 box 路径不再作为 fallback。输入须封闭并满足 8 层深度、32 solids、200,000 输入 triangles 与既有 ShapeProgram 预算；隔离子进程支持取消/5 秒 timeout，且不接收数据库、对象库、Snapshot、URL 或文件路径。
+- `GeometryCompileReadback@1.feature_history` 和 GLB root extras 现在按 ShapeProgram 顺序保存 node/op、input IDs/hashes、规范参数/node input/result/provenance hash、runtime/kernel version、CSG depth、triangle/closed、material/zone/surface role；布尔逐三角保留 source operation/part/material/zone/face/backside，并将切面标为 `boolean_cut`。旧 G824 证据 GLB 仍可只读，但新 Worker 编译缺少 Feature History 会失败。
+- `agent:g825-feature-csg-smoke` 覆盖闭合壳体 union、窗洞/轮拱/凹槽 subtract、coplanar、近退化、非封闭、超深度、输入/三角预算、取消/超时、重复 GLB/result hash、旧 G805、preview 零版本副作用、confirm 不可变子版本、父版本不改写、质量和导出 GLB 同源 readback。失败保留稳定 CSG code/node ID 且不输出部分 GLB。
+- 生产 pyproject/release lock、PyInstaller collect/hidden import、frozen `multiprocessing.freeze_support()`、生成 Schema/TypeScript/OpenAPI、CI backend Gate 和许可证账本已同步。重建的 macOS arm64 sidecar 为 31,622,192 bytes；扩展后的 `desktop:packaged-sidecar-alpha-smoke` 已让 frozen binary 实际执行 subtract 子进程，GLB 回读确认 Manifold 3.5.2、closed 和 `boolean_cut`，随后通过重启恢复。该能力仍是受限概念级 CSG；Planner/UI 尚未自动采用，不提供自由 mesh 修复、B-Rep、工程实体或制造结论。
+- 本轮已通过：G1–G7、G805、G819/Q003、G820–G825、18 个 Agent unit、Ruff/compile、contracts、docs walkthrough、repository integrity、安全范围、密钥文件、license/SBOM、desktop typecheck/build、Agent-first r3、sidecar preflight/build/真实 frozen CSG Alpha、cargo check 与 `git diff --check`。Vite 仍只有既有 chunk/dynamic-import warning。`release:packaging-readiness` 按预期继续失败，因为 Intel macOS/Windows/Linux sidecar 仍为空占位；不得删除该发布阻断。`desktop:packaged-tauri-alpha-smoke` 未运行，因为用户当前打开的既有 CAD 工作台占用固定 8000 端口；没有擅自终止该应用。
+- 下一唯一可领取任务是 `FGC-G826`：受控 edge finish、法线、UV0、tangent 与稳定 Material Zone face provenance。提交、push 与 PR checks 以本节后续最终命令记录为准。
+
+## 2026-07-15：FGC-G824D Windows packaged evidence（历史交接；其后 G825 已完成）
 
 - GitHub 登录已恢复，用户明确授权 commit/push 当前工作区；分支 `codex/repository-integrity` 已推送到 Draft PR #3。主工作区提交为 `f12aa381`，后续 CI 修复截至 `6a9edefa`。
 - GitHub Actions run `29383382978` 的真实 `windows-2022` frozen sidecar job 已通过并上传 `g824d-windows-packaged-candidate`。报告保存为 `evaluations/csg-g824d/windows-report.json`，再次运行 `check_g824d_windows_packaged_candidate.py` 通过。
 - Windows AMD64/Python 3.11.9：executable 35,788,283 bytes，健康冷启动 2,528.125 ms；五组有效 fixture 的 provenance/GLB readback 通过，near-degenerate 在写出前拒绝；三个中断窗口均回收进程、清理 staging、保持 SQLite/对象库不变，Version/head/Snapshot 原子回滚/提交通过，Provider 调用为零。
-- ADR-0013 已选择 `manifold3d==3.5.2` 作为 G825 唯一生产候选。当前生产依赖和默认 handler 仍未改变；G825 是唯一 `ready`，完成前不得宣称稳健通用 CSG 已实现。
+- ADR-0013 在该任务时选择 `manifold3d==3.5.2` 作为 G825 唯一生产候选；生产依赖和默认 handler 当时仍未改变。该历史边界已由上节 G825 集成取代。
 - 为使干净 runner 与 Windows 语义一致，修复了 PyInstaller `_MEIPASS` 资源定位、C104 完整 ShapeProgram fixture、F006 10px 文本、desktop/Agent CI 隔离、sidecar 空输入临时夹具、D003 历史迁移夹具及 Windows SQLite 清理。backend、desktop 与 G824D 已在同一 run 通过；完整 PR checks 仍应以 `gh pr checks 3` 的最终状态为准。
 
 ## 2026-07-15：FGC-G824D Windows packaged evidence runner（历史阻断记录；已由上节解除）

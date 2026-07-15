@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the committed G824 report and ensure candidates stayed isolated."""
+"""Validate the immutable pre-adoption G824 research report after G825."""
 
 from __future__ import annotations
 
@@ -29,5 +29,6 @@ package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
 assert "manifold-3d" not in package.get("dependencies", {})
 assert "manifold-3d" not in package.get("devDependencies", {})
 pyproject = (ROOT / "apps/agent/pyproject.toml").read_text(encoding="utf-8")
-assert "manifold3d" not in pyproject
-print("G824 CSG benchmark report passed: candidates are comparable, rejected, and absent from production dependencies")
+assert '"manifold3d==3.5.2"' in pyproject
+assert '"numpy==2.4.6"' in pyproject
+print("G824 CSG benchmark report passed: the historical rejection evidence remains immutable; G825 selected only Python")

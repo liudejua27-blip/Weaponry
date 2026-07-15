@@ -26,7 +26,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
-  "geometry-compile-readback.schema.json": "5fa8ee93164d698cfc0049b9de6b63d326b71405e905d1518cc9e7f4273dbee4",
+  "geometry-compile-readback.schema.json": "457c5dd52dab4397cb06be905e598b198bb1f7be95738f93ff68dbe06bf4bcee",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "d4a9f62dfb924b12a1321ee88cb77f144f6d53b076ed0aa15be54f910290e4bf",
   "material-texture-object.schema.json": "98119df4b682ddfe7d914a14e71cc3c9dbaea2d1f665be32207b3db574bdcc45",
@@ -3150,6 +3150,140 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "bounds_mm": {
         "$ref": "common.schema.json#/$defs/vec3"
       },
+      "feature_history": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "csg_depth": {
+              "maximum": 8,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "input_hashes": {
+              "items": {
+                "$ref": "common.schema.json#/$defs/sha256"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
+            "input_node_ids": {
+              "items": {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 8,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "kernel_id": {
+              "enum": [
+                "forgecad_builtin",
+                "manifold3d"
+              ],
+              "type": "string"
+            },
+            "kernel_version": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "material_ids": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "material_zone_ids": {
+              "items": {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "node_id": {
+              "pattern": "^op_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "node_input_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "operation": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "parameters_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "result_closed": {
+              "type": "boolean"
+            },
+            "result_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "result_triangle_count": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "runtime_manifest_version": {
+              "const": "ShapeProgramRuntimeManifest@1"
+            },
+            "schema_version": {
+              "const": "GeometryFeatureNodeReadback@1"
+            },
+            "surface_provenance_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "surface_roles": {
+              "items": {
+                "enum": [
+                  "surface",
+                  "side",
+                  "loft_side",
+                  "sweep_side",
+                  "hole_wall",
+                  "start_cap",
+                  "end_cap",
+                  "seam",
+                  "boolean_cut"
+                ],
+                "type": "string"
+              },
+              "maxItems": 16,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "schema_version",
+            "node_id",
+            "operation",
+            "input_node_ids",
+            "input_hashes",
+            "parameters_sha256",
+            "node_input_sha256",
+            "result_sha256",
+            "surface_provenance_sha256",
+            "runtime_manifest_version",
+            "kernel_id",
+            "kernel_version",
+            "csg_depth",
+            "result_triangle_count",
+            "result_closed",
+            "material_ids",
+            "material_zone_ids",
+            "surface_roles"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "type": "array"
+      },
       "glb_byte_size": {
         "maximum": 67108864,
         "minimum": 20,
@@ -3232,6 +3366,16 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "items": {
           "additionalProperties": false,
           "properties": {
+            "boolean_backside": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "boundary_edge_count": {
               "minimum": 0,
               "type": "integer"
@@ -3242,6 +3386,28 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "degenerate_triangle_count": {
               "minimum": 0,
               "type": "integer"
+            },
+            "feature_node_id": {
+              "anyOf": [
+                {
+                  "pattern": "^op_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "material_zone_id": {
+              "anyOf": [
+                {
+                  "pattern": "^zone_[a-z0-9_\\-]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "non_manifold_edge_count": {
               "minimum": 0,
@@ -3263,6 +3429,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 }
               ]
             },
+            "source_operation_ids": {
+              "items": {
+                "pattern": "^op_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "type": "array",
+              "uniqueItems": true
+            },
             "surface_ranges": {
               "items": {
                 "additionalProperties": false,
@@ -3280,7 +3455,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                       "hole_wall",
                       "start_cap",
                       "end_cap",
-                      "seam"
+                      "seam",
+                      "boolean_cut"
                     ],
                     "type": "string"
                   },
@@ -3310,7 +3486,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "hole_wall",
                   "start_cap",
                   "end_cap",
-                  "seam"
+                  "seam",
+                  "boolean_cut"
                 ],
                 "type": "string"
               },

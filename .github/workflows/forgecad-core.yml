@@ -79,6 +79,7 @@ jobs:
           npm run agent:g824c-packaged-candidate-smoke
           npm run agent:g804-transform-arrays-smoke
           npm run agent:g805-boolean-smoke
+          npm run agent:g825-feature-csg-smoke
           npm run agent:g806-bevel-surface-panel-smoke
           npm run agent:g807-blockout-diversity-smoke
           npm run agent:g817-showcase-quality-smoke

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate committed G824A evidence and the continued production isolation."""
+"""Validate committed G824A evidence after the G825 production decision."""
 
 from __future__ import annotations
 
@@ -31,5 +31,6 @@ for candidate in report["candidates"]:
 package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
 assert "manifold-3d" not in package.get("dependencies", {})
 assert "manifold-3d" not in package.get("devDependencies", {})
-assert "manifold3d" not in (ROOT / "apps/agent/pyproject.toml").read_text(encoding="utf-8")
-print("G824A CSG evidence passed: provenance/readback and isolated cancellation are proven; production adoption remains blocked")
+pyproject = (ROOT / "apps/agent/pyproject.toml").read_text(encoding="utf-8")
+assert '"manifold3d==3.5.2"' in pyproject and '"numpy==2.4.6"' in pyproject
+print("G824A CSG evidence passed: historical provenance/readback and isolated cancellation remain valid for G825")

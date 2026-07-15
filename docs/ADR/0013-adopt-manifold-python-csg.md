@@ -4,7 +4,7 @@
 - 日期：2026-07-15
 - 决策者：项目维护者
 - 取代：ADR-0012 的“不采用候选”结论
-- 生效边界：允许领取 G825；本 ADR 本身不修改生产依赖或默认 handler
+- 生效边界：G825 已按本 ADR 完成生产依赖、默认 handler 和不可变 Feature History 集成
 
 ## 背景
 
@@ -18,7 +18,7 @@ G825 只允许接入 `manifold3d==3.5.2`（上游 commit `11235e6b8ebea2dbed8aec
 
 - 执行宿主继续是现有 Python sidecar，不新增 JS/WASM host，也不在 WebView 执行权威几何。
 - 不允许 Python/WASM 双默认、静默 fallback 或失败后退回旧 box CSG 并冒充成功。
-- G825 才能修改生产 lock/SBOM、runtime handler 和不可变 feature node；本 ADR 不代表生产 CSG 已经集成。
+- G825 已修改生产 lock/SBOM、runtime handler 和不可变 feature node；只有该任务的当前 Gate 证据代表受限生产 CSG 已集成。
 - 候选进程不得接收 SQLite、对象库或 Snapshot 路径；完整 GLB 只能在事务外 staging，校验通过后由单一 UnitOfWork 提升。
 - `CSG_CANCELLED`、`CSG_TIMEOUT`、`CSG_DEGENERATE_OUTPUT` 与不支持操作必须显式失败，不能留下部分 GLB 或权威状态。
 
@@ -28,6 +28,6 @@ Python 与 WASM 的几何/provenance 结果均满足隔离 benchmark，但当前
 
 ## 后果与回滚
 
-- G824D 标记 `done`，G825 变为唯一 `ready` 任务。
-- 当前产品仍只有受限兼容 box boolean；在 G825 Gate 通过前，用户指南不得宣称稳健通用 CSG 已实现。
+- G824D 与 G825 均标记 `done`，G826 变为唯一 `ready` 任务。
+- 当前产品只有受限、有界、封闭输入的 Manifold union/subtract；用户指南可描述该后端事实，但不得宣称自由或工程级通用 CSG。
 - 若 G825 无法满足确定性、provenance、取消、预算或零部分提升门，移除新增生产依赖和 handler，恢复 ADR-0012 的不采用状态；不得保留隐式 fallback。

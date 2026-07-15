@@ -12,6 +12,8 @@ h11==0.16.0  # license=MIT; required_by=uvicorn
 idna==3.18  # license=BSD-3-Clause; required_by=anyio
 jsonschema==4.26.0  # license=MIT; required_by=direct
 jsonschema-specifications==2025.9.1  # license=MIT; required_by=jsonschema
+manifold3d==3.5.2  # license=Apache-2.0; required_by=direct
+numpy==2.4.6  # license=BSD-3-Clause; required_by=direct,manifold3d
 pydantic==2.13.4  # license=MIT; required_by=direct
 pydantic_core==2.46.4  # license=MIT; required_by=pydantic
 referencing==0.37.0  # license=MIT; required_by=jsonschema

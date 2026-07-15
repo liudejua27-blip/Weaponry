@@ -1335,7 +1335,7 @@ Remaining blockers:
 
 ## 10. 用户优先：CAD 设计能力闭环
 
-2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G824D 已完成；Windows run `29383382978` 的真实 frozen sidecar artifact 已通过独立校验，ADR-0013 选择 Manifold Python 作为唯一 G825 生产候选。G825 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
+2026-07-14，用户先建立 `G819 → Q003 → F025 → D005 → V002`，随后明确取消“三方向让用户选择”的产品目标，并要求 DeepSeek/Codex/Claude 式 Agent、Codex 式简洁工作台、专属 Skill、真实纹理、多材质、参考引导重建和通用生活机械扩展。ADR-0010 因此将 V002 标记为 `superseded`。2026-07-15，用户进一步确认不采用 HTML 六面或单一 box 雕刻，而采用 Profile/Loft/Sweep/Revolve/CSG/Recipe 的 3D 机械设计系统；ADR-0011 将几何与外观主链调整为：`G819 → Q003 → G820 → G821 → G822 → G823 → G824 → G824A → G824B → G824C → G824D → G825 → G826 → A003 → F025 → D005 → A004 → M108 → C105 → V003 → F026 → A005 → R007 → D006`。G819、Q003、G820–G825 已完成；G825 按 ADR-0013 只接入 Manifold Python 生产 CSG，并以真实 GLB readback 固化不可变 Feature History。G826 现在是唯一 `ready`；一次只领取一个原子任务。P009 仍是独立发布回归任务。
 
 | Task | 状态 | 前置 | 当前退出边界 |
 |---|---|---|---|
@@ -1350,8 +1350,8 @@ Remaining blockers:
 | FGC-G824B | done | G824A | 生产式 staging、真实 SQLite/对象库与权威状态原子提升边界 |
 | FGC-G824C | done | G824B | macOS packaged candidate、预算、许可证/SBOM 与执行宿主选择建议 |
 | FGC-G824D | done | G824C | Windows x64 frozen sidecar artifact、provenance/readback、生命周期和原子提升证据通过 |
-| FGC-G825 | ready | G824D | 按 ADR-0013 接入唯一 Manifold Python CSG，保存不可变 feature node/input hash 与表面 provenance |
-| FGC-G826 | blocked | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
+| FGC-G825 | done | G824D | 唯一 Manifold Python CSG、不可变 feature node/input/result hash、surface/material provenance 与失败零部分 GLB 已通过 |
+| FGC-G826 | ready | G825 | 受控 edge finish、法线、UV0、tangent 与稳定 Material Zone 面事实 |
 | FGC-A003 | blocked | G826 | DeepSeek Provider metadata/Keychain preflight、流式生命周期、取消、用量与稳定错误分类 |
 | FGC-F025 | blocked | A003 | Agent 资产主流程与 legacy 参数、旧导出、Graph Inspector 隔离，并继续拆薄工作台父层 |
 | FGC-D005 | blocked | F025、G811、G826 | 四领域非工程语义比例/Style Token 配方与受限参数绑定 |
@@ -1477,7 +1477,7 @@ Remaining blockers:
 
 验收：`agent:g824a-csg-adoption-evidence-smoke` 验证 `evaluations/csg-g824a/report.json`。两个候选的有效 fixture 必须通过 property→simplify→GLB→ForgeCAD readback，近退化输出必须以 `CSG_DEGENERATE_OUTPUT` 在部分 GLB 前拒绝，cancel/timeout 必须分别映射 `CSG_CANCELLED`/`CSG_TIMEOUT`、回收进程并保持隔离状态不变；生产依赖继续不含候选。
 
-退出：已满足。Python/WASM 的六组 fixture 均保留 deterministic source/material/zone/face/backside 事实；五组有效结果生成相同 GLB hash 并通过 ForgeCAD readback，near-degenerate 均在 GLB 写出前稳定拒绝；两个候选的 cancel/timeout 隔离进程均被回收且没有候选 GLB。该证据只证明候选包装边界，生产 Worker/Version/Snapshot/cache 生命周期与 Windows x64 packaged sidecar 未验证，ADR-0012 继续不选择候选，G825 仍 blocked。
+退出：已满足。任务完成时的历史边界是：Python/WASM 的六组 fixture 均保留 deterministic source/material/zone/face/backside 事实；五组有效结果生成相同 GLB hash 并通过 ForgeCAD readback，near-degenerate 均在 GLB 写出前稳定拒绝；两个候选的 cancel/timeout 隔离进程均被回收且没有候选 GLB。当时尚未验证的生产 Worker/Version/Snapshot/cache 与 Windows x64 packaged 边界，现已由 G824B–G825 后续任务补齐。
 
 ### FGC-G824B 任务卡
 
@@ -1521,11 +1521,11 @@ Remaining blockers:
 
 当前证据：`evaluations/csg-g824d/windows-report.json` 来自 run `29383382978` 的真实 `windows-2022` frozen executable。五组有效 fixture 通过 provenance/GLB readback，near-degenerate 以 `CSG_DEGENERATE_OUTPUT` 在写出前拒绝；cancel/timeout/ready-before-promotion 均回收进程且保持 SQLite、对象库和部分 GLB 不变，Version/head/Snapshot 原子回滚/提交通过，Provider 调用为零。
 
-退出：已满足。artifact 经 `check_g824d_windows_packaged_candidate.py` 通过，ADR-0013 已取代 ADR-0012 的不采用结论并选择 Python；生产依赖和默认 handler 仍未改变，只允许下一原子任务 G825 开始集成。
+退出：已满足。artifact 经 `check_g824d_windows_packaged_candidate.py` 通过，ADR-0013 已取代 ADR-0012 的不采用结论并选择 Python；任务完成时只允许下一原子任务 G825 开始集成，现已由 G825 完成生产依赖与默认 handler 接入。
 
 ### FGC-G825 任务卡
 
-状态：ready（G824D artifact 和 ADR-0013 已完成；这是唯一可领取任务）。
+状态：done（2026-07-15；ADR-0013 的唯一生产内核、Feature History、失败边界与版本链 Gate 已完成）。
 
 目标：只接入 G824 选定的一种生产 CSG，实现可靠的受限 union/subtract，并将每次建模保存为不可变 feature node/input hash，而不是破坏性改写旧顶点。
 
@@ -1535,11 +1535,13 @@ Remaining blockers:
 
 验收：新增 `agent:g825-feature-csg-smoke`，覆盖多种闭合壳体 union、窗洞/轮拱/凹槽 subtract、coplanar/退化/非封闭/超深度/超预算失败、取消、重复 hash、surface provenance、旧 G805 fixture、preview 零版本副作用、confirm 不可变子版本和 GLB readback。G819/Q003/G820–G824、G6、r3 继续通过。
 
-退出：默认运行时只有一个 CSG handler，特征历史和派生 GLB 可追溯，任何失败不输出部分成功模型；G824 未选择候选时不得领取。
+证据：新增 `manifold_csg.py`，生产依赖精确锁定 `manifold3d==3.5.2`/NumPy 2.4.6；`GeometryCompileReadback@1` 与 GLB extras 保存有序 node、input/result/parameter/provenance hash、runtime/kernel version 和布尔表面来源。`npm run agent:g825-feature-csg-smoke` 覆盖壳体 union、窗洞/轮拱/凹槽 subtract、coplanar、退化/非封闭/深度/预算拒绝、取消/超时、重复 hash、旧 G805、preview 零版本副作用、confirm 不可变子版本、质量及导出 GLB 同源 readback。
+
+退出：已满足。默认运行时只有一个 CSG handler，特征历史和派生 GLB 可追溯，任何失败不输出部分成功模型；它不增加 UI、纹理或工程实体承诺。
 
 ### FGC-G826 任务卡
 
-状态：blocked（等待 G825）。
+状态：ready（G825 已完成；这是下一唯一可领取任务）。
 
 目标：建立纹理前的真实表面完成事实：受控 edge finish、法线、UV0、tangent 和稳定 Material Zone face provenance，使 M108 不再从颜色或前端猜测区域。
 

@@ -61,7 +61,7 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G824D`、`FGC-Q002`–`FGC-Q003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F024`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A–G824C 已证明候选在 macOS arm64 的 provenance/readback、隔离取消、真实临时权威状态提升以及 packaged 预算/许可证；G824D 由 run `29383382978` 在真实 Windows x64 frozen sidecar 内通过同源证据。ADR-0013 选择 Manifold Python 作为唯一生产候选，因此 G825 是唯一 `ready`；默认 handler 和生产依赖仍未改变。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G825`、`FGC-Q002`–`FGC-Q003`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F024`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。G824A–G824D 已证明候选在 macOS arm64 与 Windows x64 的 provenance/readback、隔离取消、真实临时权威状态提升以及 packaged 预算/许可证；G825 已按 ADR-0013 接入唯一 Manifold Python handler、精确生产依赖和不可变 Feature History，G826 是唯一 `ready`。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
 
 ## 4. S1：ActiveDesignSnapshot
 
@@ -187,7 +187,7 @@ FGC-G819 运行时操作白名单单一真值
 - G819 已建立 `ShapeProgramRuntimeManifest@1`：Schema enum 由 manifest 生成且 contracts gate 检查漂移，Pydantic `ShapeProgramPayload`、Worker executor coverage、preview/confirm、质量和导出共同消费该清单；未知/失去执行器的操作返回 `UNSUPPORTED_RUNTIME_OPERATION`，并由故障注入 smoke 验证零副作用；
 - Q003 必须从同一编译/GLB readback 结果取得 triangle、bounds、operation 与失败信息，不以重复的 primitive 常数估算代替；
 - G820–G823 必须按 ProfileSketch、增强 Extrude/Revolve、Loft、Sweep 四个原子任务逐项建立 Schema、Pydantic、runtime、预算、确定性 topology hash、GLB readback 和失败测试；SVG/HTML 只做编辑器，不成为几何真值；
-- G824 只做现有 Worker、Manifold Python 和 Manifold WASM 的可复现实测与 ADR，不在 benchmark 任务中同时集成；G824A 只补充 provenance/readback 与隔离取消，G824B 使用真实临时 SQLite/对象库/UnitOfWork 验证事务外 staging 和原子提升，G824C 实际冻结/启动 macOS 候选 sidecar 并固定包体、相对冷启动、进程树 RSS、许可证/SBOM 与执行宿主适配门；G824D 只在真实 Windows x64 frozen sidecar 内运行同源 provenance/lifecycle/事务证据并上传 artifact。没有远端报告时不得把 workflow 冒充通过；A–D 都不接入默认 handler；G825 只接入新 ADR 选择的一种生产 CSG，并保存不可变 feature node/input hash，失败不输出部分网格；
+- G824 只做现有 Worker、Manifold Python 和 Manifold WASM 的可复现实测与 ADR，不在 benchmark 任务中同时集成；G824A–G824D 已补齐 provenance/readback、隔离取消、真实 SQLite/对象库提升、macOS packaged 预算/许可证和 Windows frozen artifact。G825 已只接入 ADR-0013 选择的 Manifold Python 生产 CSG，并保存不可变 feature node/input/result hash 与 surface/material provenance，失败不输出部分 GLB；后续不得再引入第二默认内核或隐藏 fallback；
 - G826 只建立受控边缘完成、法线、UV0、tangent 与 stable face/Material Zone provenance；它不自动引入纹理资产或工程材料，M108 才消费这些真实表面事实；
 - A003 必须解决当前未配置却像“无响应”的问题，提供 metadata/Keychain preflight、真实网络调用标记、stream/cancel、用量和 DeepSeek 400/401/402/422/429/500/503/空 JSON/Schema 错误；失败不得静默回退并冒充 Provider 成功；
 - F025 只隔离 legacy 参数、旧导出和 Graph Inspector，不移动 Agent Snapshot/CAS、ChangeSet、质量、下载或 renderer 真值；

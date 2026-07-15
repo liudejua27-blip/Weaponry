@@ -5,9 +5,16 @@ import json
 import math
 import struct
 from dataclasses import dataclass, replace
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple
 
 from .geometry_models import GeometryCompileReadback
+from .manifold_csg import (
+    DEFAULT_CSG_TIMEOUT_SECONDS,
+    MANIFOLD_KERNEL_ID,
+    MANIFOLD_KERNEL_VERSION,
+    ManifoldCsgError,
+    execute_manifold_boolean,
+)
 from .mechanical_planner import MechanicalConceptPlan
 from .shape_program import validate_shape_program
 from .shape_program_runtime import (
@@ -48,6 +55,19 @@ class BoxPrimitive:
     bevel_radius_mm: float = 0.0
     bevel_segments: int = 1
     material_id: str | None = None
+    material_zone_id: str | None = None
+    source_operation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class CsgMeshPrimitive:
+    part_role: str
+    feature_node_id: str
+    triangles: Tuple[Mapping[str, Any], ...]
+    primitive_kind: str = "csg_mesh"
+
+
+GeometryPrimitive = BoxPrimitive | CsgMeshPrimitive
 
 
 @dataclass(frozen=True)
@@ -80,6 +100,7 @@ class ShapeProgramGlbReadbackFacts:
     uv0_primitive_count: int
     normal_primitive_count: int
     surface_provenance: List[Dict[str, Any]]
+    feature_history: List[Dict[str, Any]]
 
 
 class GeometryCompileReadbackError(ValueError):
@@ -110,6 +131,7 @@ class ImportedGlbInspection:
 
 MAX_IMPORTED_GLB_BYTES = 32 * 1024 * 1024
 MAX_IMPORTED_GLB_TRIANGLES = 250_000
+MAX_CSG_DEPTH = 8
 
 # Executor identifiers, not another operation allow-list.  The manifest owns
 # the operation -> executor mapping; this set proves the shipped Worker still
@@ -292,7 +314,12 @@ def build_blockout(
     )
 
 
-def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
+def compile_shape_program(
+    program: Dict[str, Any],
+    *,
+    cancel_check: Callable[[], bool] | None = None,
+    csg_timeout_seconds: float = DEFAULT_CSG_TIMEOUT_SECONDS,
+) -> GeometryCompileResult:
     """Compile once, then bind all trusted facts to the resulting GLB readback."""
     program = assert_shape_program_runtime_compatible(program)
     profile_inputs = {
@@ -300,7 +327,10 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
         for item in program.get("profile_inputs", [])
         if isinstance(item, dict)
     }
-    resolved: Dict[str, List[BoxPrimitive]] = {}
+    resolved: Dict[str, List[GeometryPrimitive]] = {}
+    csg_depth_by_id: Dict[str, int] = {}
+    feature_hash_by_id: Dict[str, str] = {}
+    feature_history: List[Dict[str, Any]] = []
     for operation in program.get("operations", []):
         if not isinstance(operation, dict):
             raise _runtime_operation_error("", "", "operation must be an object")
@@ -314,6 +344,7 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
             raise _runtime_operation_error(operation_id, op, "position must be a three-number vector")
         role = str(args.get("part_role", "part"))
         material_id = str(args.get("material_id", "")) or None
+        material_zone_id = str(args.get("zone_id", "")) or None
         material = _material_index(material_id or "")
         if op == "box":
             size = args.get("size")
@@ -545,7 +576,11 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
             elif op == "array":
                 count = int(args.get("count", 0))
                 spacing = float(args.get("spacing", 0))
-                resolved[operation_id] = [replace(item, center_mm=_translate_center(item.center_mm, axis, spacing * index)) for index in range(count) for item in source]
+                resolved[operation_id] = [
+                    _translate_primitive(item, axis, spacing * index)
+                    for index in range(count)
+                    for item in source
+                ]
             else:
                 count = int(args.get("count", 0))
                 radius = float(args.get("radius", 0))
@@ -556,21 +591,66 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
             first = resolved.get(inputs[0], []) if len(inputs) > 0 else []
             second = resolved.get(inputs[1], []) if len(inputs) > 1 else []
             if not first or not second:
-                raise ValueError(f"{op} requires two exportable geometry inputs")
-            if op == "union":
-                if any(not _supported_boolean_primitive(item) for item in [*first, *second]):
-                    raise ValueError("union only supports box, cylinder, capsule and wedge primitives")
-                if any(not _aabb_disjoint(left, right) for index, left in enumerate(first) for right in [*first[index + 1 :], *second] if left is not right):
-                    raise ValueError("union requires disjoint or touching primitive bounds")
-                if any(not _aabb_disjoint(left, right) for left in second for right in second if left is not right):
-                    raise ValueError("union requires disjoint or touching primitive bounds")
-                resolved[operation_id] = [*first, *second]
-            else:
-                if len(first) != 1 or len(second) != 1 or first[0].primitive_kind != "box" or second[0].primitive_kind != "box":
-                    raise ValueError("subtract only supports one axis-aligned box minus one box")
-                resolved[operation_id] = _subtract_box_pair(first[0], second[0])
+                raise ManifoldCsgError("CSG_INPUT_MISSING", operation_id, f"{op} requires two exportable geometry inputs")
+            depth = 1 + max(csg_depth_by_id.get(str(input_id), 0) for input_id in inputs)
+            if depth > MAX_CSG_DEPTH:
+                raise ManifoldCsgError(
+                    "CSG_DEPTH_EXCEEDED",
+                    operation_id,
+                    f"boolean feature depth {depth} exceeds {MAX_CSG_DEPTH}",
+                )
+            csg_depth_by_id[operation_id] = depth
+            if any(
+                _box_inputs_have_near_coincident_planes(left, right)
+                for left in first
+                for right in second
+                if isinstance(left, BoxPrimitive) and isinstance(right, BoxPrimitive)
+            ):
+                raise ManifoldCsgError(
+                    "CSG_DEGENERATE_OUTPUT",
+                    operation_id,
+                    "near-coincident input planes were rejected before kernel/GLB",
+                )
+            triangles = execute_manifold_boolean(
+                node_id=operation_id,
+                operation=str(op),
+                left_solids=[_primitive_csg_solid(item) for item in first],
+                right_solids=[_primitive_csg_solid(item) for item in second],
+                triangle_budget=int(program.get("triangle_budget", 0)),
+                cancel_check=cancel_check,
+                timeout_seconds=csg_timeout_seconds,
+            )
+            resolved[operation_id] = [
+                CsgMeshPrimitive(
+                    part_role=role,
+                    feature_node_id=operation_id,
+                    triangles=tuple(triangles),
+                )
+            ]
         else:
             raise _runtime_operation_error(operation_id, op, "operation has no Worker implementation")
+        csg_depth_by_id.setdefault(
+            operation_id,
+            max((csg_depth_by_id.get(str(input_id), 0) for input_id in operation.get("inputs", [])), default=0),
+        )
+        resolved[operation_id] = [
+            replace(
+                item,
+                material_zone_id=item.material_zone_id or material_zone_id or f"zone_{item.part_role}",
+                source_operation_id=item.source_operation_id or operation_id,
+            )
+            if isinstance(item, BoxPrimitive)
+            else item
+            for item in resolved.get(operation_id, [])
+        ]
+        feature = _feature_node_readback(
+            operation=operation,
+            primitives=resolved.get(operation_id, []),
+            input_hashes=[feature_hash_by_id[str(input_id)] for input_id in operation.get("inputs", [])],
+            csg_depth=csg_depth_by_id[operation_id],
+        )
+        feature_hash_by_id[operation_id] = str(feature["result_sha256"])
+        feature_history.append(feature)
     boxes = [item for output in program.get("outputs", []) if isinstance(output, dict) for item in resolved.get(str(output.get("operation_id")), [])]
     if not boxes:
         raise ValueError("ShapeProgram has no exportable geometry outputs")
@@ -582,11 +662,13 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
             "compile",
             f"compiled triangle count {expected_triangles} exceeds budget {triangle_budget}",
         )
-    glb, compiler_bounds = _build_glb(boxes)
+    glb, compiler_bounds = _build_glb(boxes, feature_history=feature_history)
     try:
         facts = read_shape_program_glb_facts(glb)
     except (ValueError, TypeError, KeyError, IndexError, struct.error, json.JSONDecodeError) as exc:
         raise GeometryCompileReadbackError(f"GLB readback failed: {exc}") from exc
+    if not facts.feature_history:
+        raise GeometryCompileReadbackError("GLB immutable feature history is missing")
     if facts.triangle_count != expected_triangles:
         raise GeometryCompileReadbackError("GLB readback triangle count does not match compiled geometry")
     if any(abs(float(left) - float(right)) > 0.01 for left, right in zip(compiler_bounds, facts.bounds_mm)):
@@ -613,10 +695,11 @@ def compile_shape_program(program: Dict[str, Any]) -> GeometryCompileResult:
         uv0_primitive_count=facts.uv0_primitive_count,
         normal_primitive_count=facts.normal_primitive_count,
         surface_provenance=facts.surface_provenance,
+        feature_history=facts.feature_history,
         operation_ids=[str(item["operation_id"]) for item in operations],
         operation_names=[str(item["op"]) for item in operations],
         output_roles=[str(item["part_role"]) for item in outputs],
-        material_ids=sorted({item.material_id for item in boxes if item.material_id}),
+        material_ids=sorted(_material_ids_for_primitives(boxes)),
         readback_status="passed",
     )
     return GeometryCompileResult(glb_bytes=glb, readback=readback)
@@ -675,6 +758,35 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     materials = document.get("materials", [])
     if not isinstance(materials, list):
         raise ValueError("GLB materials are invalid")
+    document_extras = document.get("extras", {})
+    feature_history = document_extras.get("forgecad_feature_history") if isinstance(document_extras, dict) else None
+    if feature_history is None:
+        # Historical G824 evidence GLBs predate immutable feature history and
+        # remain readable. New Worker compilation rejects this empty result.
+        feature_history = []
+    elif not isinstance(feature_history, list):
+        raise ValueError("GLB immutable feature history is invalid")
+    for feature in feature_history:
+        if (
+            not isinstance(feature, dict)
+            or feature.get("schema_version") != "GeometryFeatureNodeReadback@1"
+            or not isinstance(feature.get("node_id"), str)
+            or not isinstance(feature.get("input_node_ids"), list)
+            or not isinstance(feature.get("input_hashes"), list)
+            or len(feature["input_node_ids"]) != len(feature["input_hashes"])
+            or any(
+                not isinstance(feature.get(field), str)
+                or len(feature[field]) != 64
+                or any(char not in "0123456789abcdef" for char in feature[field])
+                for field in (
+                    "parameters_sha256",
+                    "node_input_sha256",
+                    "result_sha256",
+                    "surface_provenance_sha256",
+                )
+            )
+        ):
+            raise ValueError("GLB immutable feature history is invalid")
     for mesh in meshes:
         for primitive in mesh.get("primitives", []):
             attributes = primitive.get("attributes", {})
@@ -741,7 +853,16 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                     raise ValueError("profile GLB UV0 is outside the normalized baseline")
                 if any(math.sqrt(sum(value * value for value in normal)) < 0.5 for normal in normal_values):
                     raise ValueError("profile GLB contains a degenerate normal")
-            surface_provenance.append({
+            csg_provenance = extras.get("forgecad_csg_provenance")
+            if csg_provenance is not None and (
+                not isinstance(csg_provenance, dict)
+                or not isinstance(csg_provenance.get("source_operation_ids"), list)
+                or not csg_provenance["source_operation_ids"]
+                or not isinstance(csg_provenance.get("material_zone_id"), str)
+                or not isinstance(csg_provenance.get("boolean_backside"), bool)
+            ):
+                raise ValueError("GLB CSG surface provenance is invalid")
+            provenance_item = {
                 "part_role": str(extras.get("forgecad_part_role", "part")),
                 "profile_input_id": profile_input_id,
                 "surface_roles": roles,
@@ -749,7 +870,20 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                 "uv0_min": [min(value[index] for value in uv_values) for index in range(2)],
                 "uv0_max": [max(value[index] for value in uv_values) for index in range(2)],
                 **topology,
-            })
+            }
+            feature_node_id = extras.get("forgecad_feature_node_id")
+            if feature_node_id is not None:
+                provenance_item["feature_node_id"] = str(feature_node_id)
+            material_zone_id = extras.get("forgecad_material_zone_id")
+            if material_zone_id is not None:
+                provenance_item["material_zone_id"] = str(material_zone_id)
+            if csg_provenance is not None:
+                provenance_item.update({
+                    "source_operation_ids": [str(value) for value in csg_provenance["source_operation_ids"]],
+                    "material_zone_id": str(csg_provenance["material_zone_id"]),
+                    "boolean_backside": bool(csg_provenance["boolean_backside"]),
+                })
+            surface_provenance.append(provenance_item)
             material_index = primitive.get("material")
             if not isinstance(material_index, int) or material_index < 0 or material_index >= len(materials):
                 raise ValueError("GLB primitive material is invalid")
@@ -775,6 +909,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         uv0_primitive_count=uv0_primitive_count,
         normal_primitive_count=normal_primitive_count,
         surface_provenance=surface_provenance,
+        feature_history=[dict(item) for item in feature_history],
     )
 
 
@@ -1405,7 +1540,9 @@ def _cylinder(
     return BoxPrimitive(role, center, (radius * 2, height, radius * 2), material, "cylinder", radius, height, axis, material_id=material_id)
 
 
-def _primitive_triangle_count(primitive: BoxPrimitive) -> int:
+def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
+    if isinstance(primitive, CsgMeshPrimitive):
+        return len(primitive.triangles)
     if primitive.primitive_kind in {"box", "surface_panel"}:
         return 12
     if primitive.primitive_kind == "wedge":
@@ -1575,14 +1712,51 @@ def _translate_center(center: Tuple[float, float, float], axis: int, distance: f
     return tuple(translated)
 
 
-def _mirror_primitive(primitive: BoxPrimitive, axis: int) -> BoxPrimitive:
+def _translate_csg_triangle(triangle: Mapping[str, Any], delta: Sequence[float]) -> Dict[str, Any]:
+    return {
+        **dict(triangle),
+        "vertices_mm": [
+            [round(float(point[index]) + float(delta[index]), 7) for index in range(3)]
+            for point in triangle["vertices_mm"]
+        ],
+    }
+
+
+def _translate_primitive(primitive: GeometryPrimitive, axis: int, distance: float) -> GeometryPrimitive:
+    if isinstance(primitive, CsgMeshPrimitive):
+        delta = [0.0, 0.0, 0.0]
+        delta[axis] = distance
+        return replace(
+            primitive,
+            triangles=tuple(_translate_csg_triangle(item, delta) for item in primitive.triangles),
+        )
+    return replace(primitive, center_mm=_translate_center(primitive.center_mm, axis, distance))
+
+
+def _mirror_primitive(primitive: GeometryPrimitive, axis: int) -> GeometryPrimitive:
+    if isinstance(primitive, CsgMeshPrimitive):
+        mirrored = []
+        for triangle in primitive.triangles:
+            points = [list(point) for point in triangle["vertices_mm"]]
+            for point in points:
+                point[axis] = -float(point[axis])
+            # Reflection flips handedness; reverse winding to keep outward normals.
+            mirrored.append({**dict(triangle), "vertices_mm": [points[0], points[2], points[1]]})
+        return replace(primitive, triangles=tuple(mirrored))
     center = list(primitive.center_mm)
     center[axis] = -center[axis]
     return replace(primitive, center_mm=tuple(center))
 
 
-def _radial_primitive(primitive: BoxPrimitive, axis: int, radius: float, angle: float) -> BoxPrimitive:
-    center = primitive.center_mm
+def _primitive_center(primitive: GeometryPrimitive) -> Tuple[float, float, float]:
+    if isinstance(primitive, BoxPrimitive):
+        return primitive.center_mm
+    points = [point for triangle in primitive.triangles for point in triangle["vertices_mm"]]
+    return tuple((min(float(point[axis]) for point in points) + max(float(point[axis]) for point in points)) / 2 for axis in range(3))
+
+
+def _radial_primitive(primitive: GeometryPrimitive, axis: int, radius: float, angle: float) -> GeometryPrimitive:
+    center = _primitive_center(primitive)
     cosine = math.cos(angle)
     sine = math.sin(angle)
     if axis == 0:
@@ -1594,44 +1768,25 @@ def _radial_primitive(primitive: BoxPrimitive, axis: int, radius: float, angle: 
     else:
         radial_a, radial_b = center[0] + radius, center[2]
         rotated = (radial_a * cosine - radial_b * sine, center[1], radial_a * sine + radial_b * cosine)
+    if isinstance(primitive, CsgMeshPrimitive):
+        delta = [rotated[index] - center[index] for index in range(3)]
+        return replace(primitive, triangles=tuple(_translate_csg_triangle(item, delta) for item in primitive.triangles))
     return replace(primitive, center_mm=rotated)
 
 
-def _supported_boolean_primitive(primitive: BoxPrimitive) -> bool:
-    return primitive.primitive_kind in {"box", "cylinder", "capsule", "wedge"}
-
-
-def _aabb(primitive: BoxPrimitive) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
-    half = tuple(value / 2 for value in primitive.size_mm)
-    lower = tuple(primitive.center_mm[index] - half[index] for index in range(3))
-    upper = tuple(primitive.center_mm[index] + half[index] for index in range(3))
-    return lower, upper
-
-
-def _aabb_disjoint(left: BoxPrimitive, right: BoxPrimitive) -> bool:
-    left_lower, left_upper = _aabb(left)
-    right_lower, right_upper = _aabb(right)
-    return any(left_upper[index] <= right_lower[index] or right_upper[index] <= left_lower[index] for index in range(3))
-
-
-def _subtract_box_pair(base: BoxPrimitive, cutter: BoxPrimitive) -> List[BoxPrimitive]:
-    base_lower, base_upper = _aabb(base)
-    cutter_lower, cutter_upper = _aabb(cutter)
-    epsilon = 1e-6
-    if any(cutter_lower[index] < base_lower[index] - epsilon or cutter_upper[index] > base_upper[index] + epsilon for index in range(3)):
-        raise ValueError("subtract cutter must be contained by the base box")
-    if abs(cutter_lower[1] - base_lower[1]) > epsilon or abs(cutter_upper[1] - base_upper[1]) > epsilon or abs(cutter_lower[2] - base_lower[2]) > epsilon or abs(cutter_upper[2] - base_upper[2]) > epsilon:
-        raise ValueError("subtract only supports a cutter spanning the base Y/Z extent")
-    pieces: List[BoxPrimitive] = []
-    left_width = cutter_lower[0] - base_lower[0]
-    right_width = base_upper[0] - cutter_upper[0]
-    if left_width > epsilon:
-        pieces.append(replace(base, center_mm=((base_lower[0] + cutter_lower[0]) / 2, base.center_mm[1], base.center_mm[2]), size_mm=(left_width, base.size_mm[1], base.size_mm[2])))
-    if right_width > epsilon:
-        pieces.append(replace(base, center_mm=((cutter_upper[0] + base_upper[0]) / 2, base.center_mm[1], base.center_mm[2]), size_mm=(right_width, base.size_mm[1], base.size_mm[2])))
-    if not pieces:
-        raise ValueError("subtract would remove the entire base box")
-    return pieces
+def _box_inputs_have_near_coincident_planes(left: BoxPrimitive, right: BoxPrimitive) -> bool:
+    for axis in range(3):
+        left_planes = (
+            left.center_mm[axis] - left.size_mm[axis] / 2,
+            left.center_mm[axis] + left.size_mm[axis] / 2,
+        )
+        right_planes = (
+            right.center_mm[axis] - right.size_mm[axis] / 2,
+            right.center_mm[axis] + right.size_mm[axis] / 2,
+        )
+        if any(0 < abs(a - b) < 1e-5 for a in left_planes for b in right_planes):
+            return True
+    return False
 
 
 def _program_for_boxes(
@@ -1776,7 +1931,234 @@ def _assembly_graph(
     }
 
 
-def _build_glb(boxes: List[BoxPrimitive]) -> Tuple[bytes, List[float]]:
+def _material_id_for_index(index: int) -> str:
+    return {
+        0: "mat_primary",
+        1: "mat_aluminum",
+        2: "mat_signal_red",
+        3: "mat_composite",
+        4: "mat_rubber",
+        5: "mat_dark_glass",
+        6: "mat_emissive_blue",
+    }.get(index, "mat_primary")
+
+
+def _primitive_csg_solid(primitive: GeometryPrimitive) -> Dict[str, Any]:
+    if isinstance(primitive, CsgMeshPrimitive):
+        return {"triangles": [dict(item) for item in primitive.triangles]}
+    positions, _normals, _uvs, indices, _lower, _upper = _primitive_geometry(primitive)
+    vertices = [
+        [round(float(value) * 1000, 7) for value in struct.unpack_from("<3f", positions, offset)]
+        for offset in range(0, len(positions), 12)
+    ]
+    index_values = list(struct.unpack(f"<{len(indices) // 2}H", indices))
+    ranges = _surface_ranges_for_primitive(primitive)
+
+    def surface_role(face_id: int) -> str:
+        for item in ranges:
+            first = int(item["first_triangle"])
+            if first <= face_id < first + int(item["triangle_count"]):
+                return str(item["surface_role"])
+        return "surface"
+
+    triangles = []
+    for face_id, offset in enumerate(range(0, len(index_values), 3)):
+        triangles.append({
+            "vertices_mm": [vertices[index_values[offset + index]] for index in range(3)],
+            "source_operation_id": primitive.source_operation_id or "op_source",
+            "source_part_role": primitive.part_role,
+            "material_id": primitive.material_id or _material_id_for_index(primitive.material_index),
+            "material_zone_id": primitive.material_zone_id or f"zone_{primitive.part_role}",
+            "source_face_id": face_id,
+            "boolean_backside": False,
+            "surface_role": surface_role(face_id),
+        })
+    return {"triangles": triangles}
+
+
+def _solid_is_closed(solid: Mapping[str, Any]) -> bool:
+    edges: Dict[Tuple[Tuple[float, float, float], Tuple[float, float, float]], int] = {}
+    for triangle in solid.get("triangles", []):
+        points = [tuple(round(float(value), 6) for value in point) for point in triangle["vertices_mm"]]
+        if len(set(points)) != 3:
+            return False
+        for left, right in ((points[0], points[1]), (points[1], points[2]), (points[2], points[0])):
+            edge = tuple(sorted((left, right)))
+            edges[edge] = edges.get(edge, 0) + 1
+    return bool(edges) and all(count == 2 for count in edges.values())
+
+
+def _material_ids_for_primitives(primitives: Sequence[GeometryPrimitive]) -> set[str]:
+    result: set[str] = set()
+    for primitive in primitives:
+        if isinstance(primitive, BoxPrimitive):
+            result.add(primitive.material_id or _material_id_for_index(primitive.material_index))
+        else:
+            result.update(str(item["material_id"]) for item in primitive.triangles)
+    return result
+
+
+def _feature_node_readback(
+    *,
+    operation: Mapping[str, Any],
+    primitives: Sequence[GeometryPrimitive],
+    input_hashes: Sequence[str],
+    csg_depth: int,
+) -> Dict[str, Any]:
+    operation_id = str(operation["operation_id"])
+    op = str(operation["op"])
+    parameters_sha256 = hashlib.sha256(_canonical_json(operation.get("args", {})).encode()).hexdigest()
+    kernel_id = MANIFOLD_KERNEL_ID if op in {"union", "subtract"} else "forgecad_builtin"
+    kernel_version = MANIFOLD_KERNEL_VERSION if kernel_id == MANIFOLD_KERNEL_ID else "ShapeProgramRuntimeManifest@1"
+    node_input = {
+        "node_id": operation_id,
+        "operation": op,
+        "input_node_ids": list(operation.get("inputs", [])),
+        "input_hashes": list(input_hashes),
+        "parameters_sha256": parameters_sha256,
+        "runtime_manifest_version": MANIFEST_SCHEMA_VERSION,
+        "kernel_id": kernel_id,
+        "kernel_version": kernel_version,
+    }
+    node_input_sha256 = hashlib.sha256(_canonical_json(node_input).encode()).hexdigest()
+    solids = [_primitive_csg_solid(item) for item in primitives]
+    geometry_payload = [solid["triangles"] for solid in solids]
+    result_sha256 = hashlib.sha256(_canonical_json({"node_input_sha256": node_input_sha256, "geometry": geometry_payload}).encode()).hexdigest()
+    provenance = [
+        {
+            key: value
+            for key, value in triangle.items()
+            if key != "vertices_mm"
+        }
+        for solid in solids
+        for triangle in solid["triangles"]
+    ]
+    material_ids = sorted({str(item["material_id"]) for item in provenance})
+    material_zone_ids = sorted({str(item["material_zone_id"]) for item in provenance})
+    surface_roles = sorted({str(item["surface_role"]) for item in provenance})
+    return {
+        "schema_version": "GeometryFeatureNodeReadback@1",
+        "node_id": operation_id,
+        "operation": op,
+        "input_node_ids": list(operation.get("inputs", [])),
+        "input_hashes": list(input_hashes),
+        "parameters_sha256": parameters_sha256,
+        "node_input_sha256": node_input_sha256,
+        "result_sha256": result_sha256,
+        "surface_provenance_sha256": hashlib.sha256(_canonical_json(provenance).encode()).hexdigest(),
+        "runtime_manifest_version": MANIFEST_SCHEMA_VERSION,
+        "kernel_id": kernel_id,
+        "kernel_version": kernel_version,
+        "csg_depth": csg_depth,
+        "result_triangle_count": len(provenance),
+        "result_closed": (
+            True
+            if primitives and all(isinstance(item, CsgMeshPrimitive) for item in primitives)
+            else (all(_solid_is_closed(item) for item in solids) if solids else False)
+        ),
+        "material_ids": material_ids,
+        "material_zone_ids": material_zone_ids,
+        "surface_roles": surface_roles,
+    }
+
+
+def _csg_glb_payloads(primitive: CsgMeshPrimitive) -> List[Dict[str, Any]]:
+    grouped: Dict[Tuple[Any, ...], List[Mapping[str, Any]]] = {}
+    for triangle in primitive.triangles:
+        key = (
+            str(triangle["source_operation_id"]),
+            str(triangle["material_id"]),
+            str(triangle["material_zone_id"]),
+            str(triangle["surface_role"]),
+            bool(triangle["boolean_backside"]),
+        )
+        grouped.setdefault(key, []).append(triangle)
+    payloads = []
+    for key in sorted(grouped):
+        source_operation_id, material_id, zone_id, surface_role, backside = key
+        positions: List[float] = []
+        normals: List[float] = []
+        uvs: List[float] = []
+        indices: List[int] = []
+        source_face_ids: set[int] = set()
+        for triangle in grouped[key]:
+            points = [[float(value) / 1000 for value in point] for point in triangle["vertices_mm"]]
+            ab = [points[1][index] - points[0][index] for index in range(3)]
+            ac = [points[2][index] - points[0][index] for index in range(3)]
+            normal = [
+                ab[1] * ac[2] - ab[2] * ac[1],
+                ab[2] * ac[0] - ab[0] * ac[2],
+                ab[0] * ac[1] - ab[1] * ac[0],
+            ]
+            length = math.sqrt(sum(value * value for value in normal))
+            if length <= 1e-12:
+                raise ManifoldCsgError("CSG_DEGENERATE_OUTPUT", primitive.feature_node_id, "degenerate triangle rejected before GLB")
+            normal = [value / length for value in normal]
+            base = len(positions) // 3
+            for point in points:
+                positions.extend(point)
+                normals.extend(normal)
+            uvs.extend((0, 0, 1, 0, 0, 1))
+            indices.extend((base, base + 1, base + 2))
+            source_face_ids.add(int(triangle["source_face_id"]))
+        axes = [[positions[offset + axis] for offset in range(0, len(positions), 3)] for axis in range(3)]
+        index_component = 5125 if len(positions) // 3 > 65535 else 5123
+        index_format = "I" if index_component == 5125 else "H"
+        payloads.append({
+            "positions": struct.pack(f"<{len(positions)}f", *positions),
+            "normals": struct.pack(f"<{len(normals)}f", *normals),
+            "uvs": struct.pack(f"<{len(uvs)}f", *uvs),
+            "indices": struct.pack(f"<{len(indices)}{index_format}", *indices),
+            "index_component": index_component,
+            "minimum": [min(values) for values in axes],
+            "maximum": [max(values) for values in axes],
+            "material_index": _material_index(material_id),
+            "extras": {
+                "forgecad_part_role": primitive.part_role,
+                "forgecad_profile_input_id": None,
+                "forgecad_feature_node_id": primitive.feature_node_id,
+                "forgecad_surface_roles": [surface_role],
+                "forgecad_surface_ranges": [{"surface_role": surface_role, "first_triangle": 0, "triangle_count": len(indices) // 3}],
+                "forgecad_csg_provenance": {
+                    "source_operation_ids": [source_operation_id],
+                    "material_zone_id": zone_id,
+                    "boolean_backside": backside,
+                    "source_face_ids": sorted(source_face_ids),
+                },
+            },
+        })
+    return payloads
+
+
+def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, Any]]:
+    if isinstance(primitive, CsgMeshPrimitive):
+        return _csg_glb_payloads(primitive)
+    positions, normals, uvs, indices, lower, upper = _primitive_geometry(primitive)
+    return [{
+        "positions": positions,
+        "normals": normals,
+        "uvs": uvs,
+        "indices": indices,
+        "index_component": 5123,
+        "minimum": lower,
+        "maximum": upper,
+        "material_index": primitive.material_index,
+        "extras": {
+            "forgecad_part_role": primitive.part_role,
+            "forgecad_profile_input_id": primitive.profile_input_id,
+            "forgecad_feature_node_id": primitive.source_operation_id,
+            "forgecad_surface_roles": _surface_roles_for_primitive(primitive),
+            "forgecad_surface_ranges": _surface_ranges_for_primitive(primitive),
+            "forgecad_material_zone_id": primitive.material_zone_id,
+        },
+    }]
+
+
+def _build_glb(
+    boxes: Sequence[GeometryPrimitive],
+    *,
+    feature_history: Sequence[Mapping[str, Any]],
+) -> Tuple[bytes, List[float]]:
     binary = bytearray()
     views: List[Dict[str, Any]] = []
     accessors: List[Dict[str, Any]] = []
@@ -1784,26 +2166,29 @@ def _build_glb(boxes: List[BoxPrimitive]) -> Tuple[bytes, List[float]]:
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
     for box in boxes:
-        positions, normals, uvs, indices, box_min, box_max = _primitive_geometry(box)
-        for axis in range(3):
-            minimum[axis] = min(minimum[axis], box_min[axis])
-            maximum[axis] = max(maximum[axis], box_max[axis])
-        p = _add_accessor(binary, views, accessors, positions, 5126, len(positions) // 12, "VEC3", box_min, box_max)
-        n = _add_accessor(binary, views, accessors, normals, 5126, len(normals) // 12, "VEC3")
-        uv = _add_accessor(binary, views, accessors, uvs, 5126, len(uvs) // 8, "VEC2")
-        ix = _add_accessor(binary, views, accessors, indices, 5123, len(indices) // 2, "SCALAR", target=34963)
-        primitives.append({
-            "attributes": {"POSITION": p, "NORMAL": n, "TEXCOORD_0": uv},
-            "indices": ix,
-            "material": box.material_index,
-            "mode": 4,
-            "extras": {
-                "forgecad_part_role": box.part_role,
-                "forgecad_profile_input_id": box.profile_input_id,
-                "forgecad_surface_roles": _surface_roles_for_primitive(box),
-                "forgecad_surface_ranges": _surface_ranges_for_primitive(box),
-            },
-        })
+        for payload in _glb_payloads_for_primitive(box):
+            positions = payload["positions"]
+            normals = payload["normals"]
+            uvs = payload["uvs"]
+            indices = payload["indices"]
+            box_min = payload["minimum"]
+            box_max = payload["maximum"]
+            for axis in range(3):
+                minimum[axis] = min(minimum[axis], box_min[axis])
+                maximum[axis] = max(maximum[axis], box_max[axis])
+            p = _add_accessor(binary, views, accessors, positions, 5126, len(positions) // 12, "VEC3", box_min, box_max)
+            n = _add_accessor(binary, views, accessors, normals, 5126, len(normals) // 12, "VEC3")
+            uv = _add_accessor(binary, views, accessors, uvs, 5126, len(uvs) // 8, "VEC2")
+            index_component = int(payload["index_component"])
+            index_size = 4 if index_component == 5125 else 2
+            ix = _add_accessor(binary, views, accessors, indices, index_component, len(indices) // index_size, "SCALAR", target=34963)
+            primitives.append({
+                "attributes": {"POSITION": p, "NORMAL": n, "TEXCOORD_0": uv},
+                "indices": ix,
+                "material": payload["material_index"],
+                "mode": 4,
+                "extras": payload["extras"],
+            })
     document = {
         "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram blockout/1"},
         "scene": 0,
@@ -1822,6 +2207,7 @@ def _build_glb(boxes: List[BoxPrimitive]) -> Tuple[bytes, List[float]]:
         "buffers": [{"byteLength": len(binary)}],
         "bufferViews": views,
         "accessors": accessors,
+        "extras": {"forgecad_feature_history": list(feature_history)},
     }
     json_chunk = json.dumps(document, separators=(",", ":")).encode("utf-8")
     json_chunk += b" " * ((4 - len(json_chunk) % 4) % 4)
