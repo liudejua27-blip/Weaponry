@@ -5,6 +5,7 @@ from forgecad_agent.application.geometry_worker import (
     build_glb_from_shape_program,
     compile_shape_program,
     read_shape_program_glb,
+    read_shape_program_glb_facts,
 )
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
 
@@ -27,6 +28,22 @@ def boolean_program(op: str, second_position: list[float], suffix: str) -> dict:
     }
 
 
+def assert_boolean_glb(program: dict, expected_operation: str) -> tuple[dict, int, list[float]]:
+    payload, bounds, triangles = build_glb_from_shape_program(program)
+    assert triangles > 0
+    assert read_shape_program_glb(payload) == (triangles, bounds)
+    facts = read_shape_program_glb_facts(payload)
+    assert facts.triangle_count == triangles
+    assert facts.bounds_mm == bounds
+    assert facts.material_zone_faces
+    feature = facts.feature_history[-1]
+    assert feature["operation"] == expected_operation
+    assert feature["kernel_id"] == "manifold3d" and feature["kernel_version"] == "3.5.2"
+    assert feature["result_closed"] is True
+    assert feature["result_triangle_count"] == triangles
+    return feature, triangles, bounds
+
+
 def main() -> int:
     union = boolean_program("union", [0, 300, 0], "union_overlap")
     validate_shape_program(union)
@@ -37,15 +54,13 @@ def main() -> int:
 
     disjoint = boolean_program("union", [700, 300, 0], "union_disjoint")
     validate_shape_program(disjoint)
-    payload, bounds, triangles = build_glb_from_shape_program(disjoint)
-    assert triangles == 24
-    assert read_shape_program_glb(payload) == (triangles, bounds)
+    disjoint_feature, _, _ = assert_boolean_glb(disjoint, "union")
+    assert "boolean_cut" not in disjoint_feature["surface_roles"]
 
     subtract = boolean_program("subtract", [0, 300, 0], "subtract_slot")
     validate_shape_program(subtract)
-    payload, bounds, triangles = build_glb_from_shape_program(subtract)
-    assert triangles == 24
-    assert read_shape_program_glb(payload) == (triangles, bounds)
+    subtract_feature, _, _ = assert_boolean_glb(subtract, "subtract")
+    assert "boolean_cut" in subtract_feature["surface_roles"]
 
     unsupported = boolean_program("subtract", [0, 300, 0], "subtract_partial")
     unsupported["operations"][1]["args"]["size"] = [200, 500, 600]
