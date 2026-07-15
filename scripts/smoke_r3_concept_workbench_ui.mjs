@@ -292,6 +292,15 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: 20_000 })
     await page.getByLabel('Agent 完整外观方向').getByRole('button').first().click()
     await page.getByLabel('分件候选').waitFor({ timeout: 20_000 })
+    await page.waitForFunction(
+      () => {
+        const viewport = document.querySelector('.weapon-viewport')
+        return viewport?.getAttribute('data-blockout-load-state') === 'ready'
+          && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
+          && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
+      },
+      { timeout: 20_000 },
+    )
     await assertText(page.getByLabel('分件候选'), ['分件候选', '可调整', '预览状态'])
     await page.getByLabel('视觉材质目录').waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('视觉材质目录'), ['石墨深灰', '拉丝铝', '亮面汽车漆'])

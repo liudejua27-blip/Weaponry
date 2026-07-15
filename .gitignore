@@ -16,6 +16,7 @@ __pycache__/
 .playwright-cli/
 output/playwright/
 output/evaluations/
+output/m108-visual-benchmark/
 artifacts/design-qa/
 *.db
 *.db-shm

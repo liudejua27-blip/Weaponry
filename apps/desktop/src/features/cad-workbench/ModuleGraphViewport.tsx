@@ -108,6 +108,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const [blockoutLoadState, setBlockoutLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
   const [blockoutLoadMessage, setBlockoutLoadMessage] = useState('')
   const [blockoutPreviewPrimitiveKinds, setBlockoutPreviewPrimitiveKinds] = useState<string[]>([])
+  const [blockoutRenderSource, setBlockoutRenderSource] = useState<'empty' | 'glb_pbr' | 'shape_program_fallback'>('empty')
+  const [blockoutEmbeddedPbrMaterialCount, setBlockoutEmbeddedPbrMaterialCount] = useState(0)
 
   // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
   // overlay and wireframe updates below never destroy the WebGL context.
@@ -399,6 +401,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
+      setBlockoutRenderSource('empty')
+      setBlockoutEmbeddedPbrMaterialCount(0)
       runtime.scheduleRender()
       return
     }
@@ -414,6 +418,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       setBlockoutPreviewPrimitiveKinds(Array.isArray(source.userData.forgecadPreviewPrimitiveKinds)
         ? source.userData.forgecadPreviewPrimitiveKinds.filter((item: unknown): item is string => typeof item === 'string')
         : [])
+      setBlockoutEmbeddedPbrMaterialCount(
+        typeof source.userData.forgecadEmbeddedPbrMaterialCount === 'number'
+          ? source.userData.forgecadEmbeddedPbrMaterialCount
+          : 0,
+      )
       source.updateMatrixWorld(true)
       runtime.blockoutRoot.updateMatrixWorld(true)
       let bounds = new THREE.Box3().setFromObject(source)
@@ -436,29 +445,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       setBlockoutLoadMessage(message)
       runtime.scheduleRender()
     }
-    if (props.blockoutShapeProgram) {
-      setBlockoutLoadMessage('正在解释 Agent ShapeProgram…')
-      try {
-        attachPreview(
-          buildShapeProgramPreview(
-            props.blockoutShapeProgram,
-            {
-              materialOverride: props.blockoutMaterialOverride,
-              selectedAgentPartId: props.selectedAgentPartId,
-              hiddenAgentPartIds: props.hiddenAgentPartIds,
-              isolatedAgentPartId: props.isolatedAgentPartId,
-              lockedAgentPartIds: props.lockedAgentPartIds,
-            },
-          ),
-          'Agent ShapeProgram 已加载',
-        )
-      } catch (error) {
-        setBlockoutLoadState('failed')
-        setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
-        runtime.scheduleRender()
-      }
-    } else if (props.blockoutGlbBase64) {
-      setBlockoutLoadMessage('正在加载导入 GLB…')
+    if (props.blockoutGlbBase64) {
+      // The compiled Agent GLB is the only source that contains its exact
+      // texture bytes, UV/tangent bindings and zone-to-material mapping.
+      // Prefer it over the bounded ShapeProgram display adapter whenever both
+      // are available; silently replacing it with parameter materials would
+      // make the PBR/readback promise unverifiable in the workbench.
+      setBlockoutLoadMessage('正在加载同源 PBR GLB…')
       void import('three/examples/jsm/loaders/GLTFLoader.js')
         .then(({ GLTFLoader }) => new Promise<THREE.Object3D>((resolve, reject) => {
           const loader = new GLTFLoader()
@@ -474,18 +467,65 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
                 child.castShadow = true
                 child.receiveShadow = true
                 child.userData.agentBlockout = true
+                child.material = Array.isArray(child.material)
+                  ? child.material.map((material) => material.clone())
+                  : child.material.clone()
               }
             })
+            applyAgentBlockoutVisualState(source, propsRef.current)
+            const embeddedPbrMaterialCount = countEmbeddedPbrMaterials(source)
+            if (embeddedPbrMaterialCount === 0) {
+              reject(new Error('同源 GLB 没有可用的完整 PBR 纹理材质，不能作为真实纹理预览显示'))
+              return
+            }
+            source.userData.forgecadEmbeddedPbrMaterialCount = embeddedPbrMaterialCount
             resolve(source)
           }, reject)
         }))
-        .then((source) => attachPreview(source, '导入 GLB 参考模型已加载'))
+        .then((source) => {
+          if (cancelled) {
+            disposeObject(source)
+            return
+          }
+          setBlockoutRenderSource('glb_pbr')
+          attachPreview(source, '同源 PBR GLB 已加载')
+        })
         .catch((error) => {
           if (cancelled) return
+          setBlockoutRenderSource('empty')
+          setBlockoutEmbeddedPbrMaterialCount(0)
           setBlockoutLoadState('failed')
           setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
           runtime.scheduleRender()
         })
+    } else if (props.blockoutShapeProgram) {
+      // A source GLB is unavailable only while a bounded program is being
+      // prepared. This adapter is intentionally labelled as a display-only
+      // fallback and is never presented as embedded-texture PBR output.
+      setBlockoutLoadMessage('正在解释 Agent ShapeProgram（参数外观回退）…')
+      try {
+        setBlockoutRenderSource('shape_program_fallback')
+        setBlockoutEmbeddedPbrMaterialCount(0)
+        attachPreview(
+          buildShapeProgramPreview(
+            props.blockoutShapeProgram,
+            {
+              materialOverride: props.blockoutMaterialOverride,
+              selectedAgentPartId: props.selectedAgentPartId,
+              hiddenAgentPartIds: props.hiddenAgentPartIds,
+              isolatedAgentPartId: props.isolatedAgentPartId,
+              lockedAgentPartIds: props.lockedAgentPartIds,
+            },
+          ),
+          'Agent ShapeProgram 参数外观预览已加载；等待同源 PBR GLB',
+        )
+      } catch (error) {
+        setBlockoutRenderSource('empty')
+        setBlockoutEmbeddedPbrMaterialCount(0)
+        setBlockoutLoadState('failed')
+        setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
+        runtime.scheduleRender()
+      }
     }
     return () => { cancelled = true }
   }, [
@@ -497,6 +537,23 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.isolatedAgentPartId,
     props.lockedAgentPartIds,
     props.cameraView,
+  ])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    runtime.blockoutRoot.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
+    })
+    runtime.scheduleRender()
+  }, [
+    props.selectedAgentPartId,
+    props.hiddenAgentPartIds,
+    props.isolatedAgentPartId,
+    props.lockedAgentPartIds,
+    props.wireframe,
+    props.xRay,
+    props.ghostPreview,
   ])
 
   useEffect(() => {
@@ -560,6 +617,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         )}
         data-blockout-preview={props.blockoutGlbBase64 ? 'ready' : 'empty'}
         data-blockout-load-state={blockoutLoadState}
+        data-blockout-render-source={blockoutRenderSource}
+        data-blockout-embedded-pbr-material-count={String(blockoutEmbeddedPbrMaterialCount)}
         data-blockout-preview-primitives={blockoutPreviewPrimitiveKinds.join(',')}
         data-agent-hidden-part-ids={props.hiddenAgentPartIds.join(',')}
         data-agent-isolated-part-id={props.isolatedAgentPartId ?? ''}
@@ -723,6 +782,79 @@ function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportPr
         }
       })
     })
+  })
+}
+
+function applyAgentBlockoutVisualState(root: THREE.Object3D, props: ModuleGraphViewportProps): void {
+  root.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
+  })
+}
+
+function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
+  const materials = new Set<THREE.Material>()
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) materials.add(material)
+  })
+  return [...materials].filter((material) => (
+    (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
+    && material.map
+    && material.metalnessMap
+    && material.roughnessMap
+    && material.normalMap
+    && material.aoMap
+    && material.emissiveMap
+  )).length
+}
+
+function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphViewportProps): void {
+  const partRole = typeof mesh.userData.forgecad_part_role === 'string'
+    ? mesh.userData.forgecad_part_role
+    : typeof mesh.userData.partRole === 'string'
+      ? mesh.userData.partRole
+      : ''
+  const matchesPart = (partId: string | null): boolean => Boolean(partId && partRole && partId.endsWith(`_${partRole}`))
+  const selected = matchesPart(props.selectedAgentPartId)
+  const hidden = props.hiddenAgentPartIds.some((partId) => matchesPart(partId))
+  const isolatedAway = Boolean(props.isolatedAgentPartId && !matchesPart(props.isolatedAgentPartId))
+  const locked = props.lockedAgentPartIds.some((partId) => matchesPart(partId))
+  mesh.visible = !hidden && !isolatedAway
+  mesh.userData.agentPartLocked = locked
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  materials.forEach((material) => {
+    if ('wireframe' in material) material.wireframe = props.wireframe
+    if (!('transparent' in material) || !('opacity' in material) || !('depthWrite' in material)) return
+    const baseline = material.userData.forgecadBlockoutVisualBaseline as {
+      transparent: boolean
+      opacity: number
+      depthWrite: boolean
+      emissive?: number
+      emissiveIntensity?: number
+    } | undefined
+    const original = baseline ?? {
+      transparent: material.transparent,
+      opacity: material.opacity,
+      depthWrite: material.depthWrite,
+      ...(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial
+        ? { emissive: material.emissive.getHex(), emissiveIntensity: material.emissiveIntensity }
+        : {}),
+    }
+    if (!baseline) material.userData.forgecadBlockoutVisualBaseline = original
+    material.transparent = props.ghostPreview || props.xRay || original.transparent
+    material.opacity = props.ghostPreview ? 0.58 : props.xRay ? 0.24 : original.opacity
+    material.depthWrite = props.ghostPreview || props.xRay ? false : original.depthWrite
+    if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+      material.emissive.setHex(original.emissive ?? 0)
+      material.emissiveIntensity = original.emissiveIntensity ?? 1
+      if (selected) {
+        material.emissive.set('#1f64a8')
+        material.emissiveIntensity = 0.42
+      } else if (locked) {
+        material.emissive.set('#9b6e21')
+        material.emissiveIntensity = 0.24
+      }
+    }
   })
 }
 

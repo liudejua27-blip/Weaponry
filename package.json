@@ -76,6 +76,8 @@
     "agent:q003-compile-readback-quality-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_q003_compile_readback_quality.py",
     "agent:m107-active-zone-smoke": "PYTHONPATH=apps/agent .venv/bin/python scripts/smoke_active_design_selected_zone.py",
     "agent:m108-visual-pbr-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/smoke_m108_visual_pbr.py",
+    "agent:m108-visual-benchmark-kit": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/prepare_m108_visual_benchmark.py --output output/m108-visual-benchmark",
+    "agent:m108-visual-benchmark-kit-smoke": "PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/prepare_m108_visual_benchmark.py --verify",
     "agent:m108-gltf-validator-smoke": "node scripts/smoke_m108_gltf_validator.mjs",
     "agent:m108-gltf-transform-evaluation": "node scripts/smoke_m108_gltf_transform_core.mjs",
     "desktop:s5-active-design-machine-smoke": "node scripts/smoke_active_design_machine.mjs",
