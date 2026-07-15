@@ -71,7 +71,7 @@ def _run_native_smoke(temporary_path: Path) -> dict[str, object]:
         log_path = temporary_path / "WushenForge/agent.log"
         _wait_for_log(log_path, "ForgeCAD supervisor healthy mode=packaged-sidecar")
         _assert((library_root / "library.db").is_file(), "native first initialization did not create the Library")
-        asset_version_id = _create_and_export_editable_asset(8000)
+        asset_version_id = _create_and_export_editable_asset(8000, library_root)
     finally:
         _stop_desktop_and_listener(first)
 
@@ -96,6 +96,7 @@ def _run_native_smoke(temporary_path: Path) -> dict[str, object]:
         "supervisor_mode": "packaged-sidecar",
         "empty_library_initialized": True,
         "editable_glb_export": True,
+        "packaged_manifold_csg": True,
         "restart_recovery": True,
         "provider_calls": 0,
     }
