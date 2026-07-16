@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 Airfoil Loft 与第二轮 Codex 代理审核（进行中，未完成）
+
+- 航空器 A 的左右主翼不再使用厚 wedge，而是分别通过受限 `ProfileSectionSet@1 → loft` 生成固定非对称 airfoil 截面。该内置截面使用四段 tangent quadratic、`symmetry=none`、固定 16 点重采样和 Z 主轴；轴长、截面尺度与四个代码所有截面由 G818 锁定，不开放用户曲线、自由细分或 Planner 路由。
+- 四个升力单元改为 52 mm 半径、48 mm 高的小铝轮毂与两片交叉复合材料叶片；支撑罩改为连接翼面与轮毂的纵向桥。道具后部和机械臂基座原先突兀的三角 guard 改为紧凑 bevel box，航空器侧 chine、翼根和脊背贴片同步缩小。所有修改仍是非功能视觉件，不是推进、结构、制造或适航设计。
+- `codex-iteration-9` 的真实工作台画面由 Codex 进行第二轮代理审核：四领域的比例/轮廓、材质可读性、表面细节均给出 3–4 分开发反馈；四个领域都没有同时达到三维度 4/5。报告明确标为非真人，不写入空的 `review-responses.json`，不能满足三位独立 reviewer 退出门。主要剩余问题是连接过渡、边缘语言、尺度化纹理、车辆轮拱/悬挂语义、机械臂关节/线缆语义和航空器旋翼支撑。
+- 最新真实 capture 全部为 `ready/glb_pbr`、单 WebGL context 并通过 GPU 预算：虚构道具 4,688 triangles/33 draw calls，车辆 6,748/72，航空器 6,508/96，机械臂 4,960/45。航空器仍低于既有 7,000 triangle 上限，未放宽任何 renderer、纹理或 readback 门槛。
+- 本轮已通过 `agent:m108-gate`、`desktop:m108-workbench-renderer-smoke`、G5/G6/G818、Agent 18 项单测、contracts、`agent:check`、desktop typecheck/build、R3、Tauri check、文档/integrity/安全/密钥门。tracked macOS arm64 sidecar 从当前源码重建为 31,809,232 bytes，SHA-256 `e6ca477d0b98b34ba0d20c0e53c4b61d69781124a0fe955685b6892e423133ff`；经仓库 Rust toolchain wrapper 重建的 `.app` 和 `desktop:packaged-tauri-alpha-smoke` 也通过。packaged 路径实际覆盖空库初始化、当前 PBR readback、Manifold CSG、undo/redo、导出和重启恢复，`provider_calls=0`。完整 `release:packaging-readiness` 仍按设计以 `SIDECAR_BINARY_INVALID` 拒绝 Intel macOS、Windows x64 和 Linux x64 空占位，没有放宽跨平台发布阻断。M108 继续 `in_progress`，C105/V003/F026 不解锁。
+
 ## 2026-07-16：FGC-M108 Loft 代表资产与 Codex 代理审核（进行中，未完成）
 
 - 四领域 A 审阅资产中，车辆底盘/座舱和航空器机身/座舱现在通过受限 `ProfileSectionSet@1 → loft` 真实执行，不再由多个 box/wedge 冒充连续外壳。这些固定截面由代码所有、经 canonical profile 和 G819 白名单验证；未增加自由 Profile UI、Recipe 或 Planner 自动路由。

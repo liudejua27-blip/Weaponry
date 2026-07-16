@@ -173,6 +173,8 @@ showcase 外观层按四领域独立的 primary-role 白名单生成；找不到
 
 开发者可先生成无评分 kit，再运行 `npm run agent:m108-visual-benchmark-workbench-capture` 保留开发截图；CI/本机可重复 Gate 使用 `npm run desktop:m108-workbench-renderer-smoke`，它从当前源码生成临时 kit，不信任旧截图。在同一真实工作台、同一 renderer/canvas 中依次捕获四领域 iso + `cad_neutral` PNG，并对实时应用的完整环境 recipe 重新计算 SHA-256；该值必须等于 GLB 环境 hash。GLB 的 metre→millimetre 换算不会被 fit scale 覆盖，默认展示对角线固定为 520 mm；manifest 编译 bounds 必须等于 GLTFLoader 的毫米 bounds，8 个角点必须完整进入 `[-0.9, 0.9]` NDC，阴影接收面、shadow camera 与 fog 随当前 framed bounds/距离变化。Gate 同时校验 PBR 颜色空间和固定 renderer/GPU 上限；24 段 cylinder/capsule 后 triangle 上限为 7,000，其他资源上限不变，顺序载入后资源泄漏会累计并失败。当前真实捕获已验证四领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`、环境/颜色空间/bounds/安全区/预算通过、单 WebGL context 且截图 hash 互异；`committed` 是视口状态，不是 Git 提交。`M108WorkbenchCapture@1` 仍固定为 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`；截图不进入人工响应、不替代至少三位独立 reviewer，也不能把 M108 标为完成。
 
+当前航空器代表资产的主翼进一步使用受限非对称 airfoil Loft，而不是厚 wedge；这改善的是轮廓和高光连续性，不改变材质合同。`codex-iteration-9` 的第二轮 Codex 代理审核仍只给四领域 3–4 分，并明确指出边缘、连接和尺度化表面细节不足；代理报告不进入 `review-responses.json`，因此不能被材料或展示自动 Gate 当成独立人工达标证据。
+
 ## 7. 工程边界
 
 P0 不保存或推断屈服强度、密度、疲劳、耐热、成本、供应商牌号、加工方法或结构适用性。以后 Engineering Pack 可以增加独立 `EngineeringMaterialProfile`，但不能用视觉 `MaterialPreset` 自动生成工程结论。

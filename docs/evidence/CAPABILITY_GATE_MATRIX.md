@@ -81,6 +81,8 @@ M108 的“至少五套”评分事实按至少五个不同 material index、tex
 
 M108 Loft/代理审核增量（2026-07-16）：固定车辆/航空器 A 的主壳与座舱已经真实 `ProfileSectionSet@1 → loft → GLB/readback`，G818 锁定轴长、截面比例、材质、车辆饰面嵌合、航空器小轮毂/叶片和旧突兀构件不得回归。Loft/Sweep 用物理周长/路径距离生成有界 UV，并由 M108 从真实 primitive 回读 320 mm 展示元数据。最新四领域真实工作台捕获依旧为 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`；航空器 6,196 triangles/96 draw calls 通过但已到 draw-call 上限。Codex 代理审查不写 `review-responses.json`、不计入三位真人退出门；当前结论仍是连续外壳已改善，但翼面与表面细节仍未达到真实产品级，M108 保持 `in_progress`。
 
+M108 Airfoil/第二轮代理审核增量（2026-07-16）：航空器 A 左右主翼现在真实执行 Z 主轴 `ProfileSectionSet@1 → loft`，每个代码所有 airfoil Profile 固定四段 tangent quadratic、`symmetry=none` 和 16 点重采样；G818 同时锁定 600 mm 轴长、420×24 mm 截面尺度、四个 52×48 mm 轮毂、八片交叉叶片，并拒绝旧 wedge 主翼与 `lift_hub_*` role。道具/机械臂三角 guard 已替换为紧凑 bevel box。最新四领域 readback 为 4,688/33、6,748/72、6,508/96、4,960/45（triangles/draw calls），全部单 context、GPU passed。第二轮 Codex 代理审核仍为 3–4 分且四领域均未同时达到三项 4/5；不写人工响应、不完成 M108。tracked arm64 sidecar 31,809,232 bytes、SHA-256 `e6ca477d0b98b34ba0d20c0e53c4b61d69781124a0fe955685b6892e423133ff` 的 packaged Alpha 已通过，`provider_calls=0`。
+
 ## 2. 仅兼容基线
 
 以下能力仍可能有代码和历史 Gate，但不是通用机械 Agent 产品承诺：旧 Weapon 创建、Concept ModuleGraph、Patch、ComfyUI、神经 3D、Unity export/import、Concept OBJ/PNG/turntable。只在 [legacy](../legacy/README.md) 和具体历史 evidence 中追溯。

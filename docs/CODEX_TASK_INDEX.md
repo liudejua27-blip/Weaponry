@@ -1705,6 +1705,8 @@ CI 回归检查点（2026-07-15）：native Tauri smoke 必须复用当前 navig
 
 Loft 代表资产与代理审核检查点（2026-07-16）：车辆 A 的底盘/座舱与航空器 A 的机身/座舱现在真实消费代码所有的 canonical `ProfileSectionSet@1` 和 G819 `loft` runtime，不再仅以 box/wedge 拼主壳。Loft/Sweep 侧面 UV 按实际截面周长/路径累计距离生成，cap 按平面物理坐标生成，并继续由 GLB readback 锁定 320 mm 展示基线。车辆移除突兀后部三角件、缩小前灯并重新贴合顶部饰面；航空器把四个实心旋翼盘改为小轮毂和可见叶片。最新真实工作台捕获全部通过 GPU 门，航空器为 6,196 triangles/96 draw calls。Codex 代理审核明确标记为非真人、未写入 `review-responses.json`；结论仍是飞机翼面偏平、各领域表面细节仍为 Alpha blockout 级。因此该代理审核只是开发反馈，不冒充三位真实独立审核或满足每领域 4/5 退出门；M108 保持 `in_progress`，C105 保持 blocked。当前 tracked arm64 sidecar 已重建并通过 packaged sidecar Alpha，但 packaged Tauri/r3 因另一工作区的现有服务占用 127.0.0.1:8000 而未运行；不会停止该跨项目服务来伪造通过。
 
+Airfoil Loft 与第二轮代理审核检查点（2026-07-16）：航空器 A 的左右主翼改为代码所有的非对称 airfoil `ProfileSketch@1`，以 Z 主轴、固定 16 点重采样和四个受限截面执行真实 Loft；G818 锁定四段 tangent quadratic、`symmetry=none`、600 mm 轴长、420×24 mm 截面尺度与主翼材质。四个升力轮毂固定为 52 mm 半径/48 mm 高，并各由两片交叉叶片表达；旧 `lift_hub_*` role 和厚 wedge 主翼不得回归。道具后部、机械臂角部 guard 改为紧凑 bevel box，航空器 chine/翼根贴片缩小。`codex-iteration-9` 工作台真实 readback 分别为道具 4,688/33、车辆 6,748/72、航空器 6,508/96、机械臂 4,960/45（triangles/draw calls），全部通过单 context/GPU/PBR 门。Codex 代理审核仍只给出 3–4 分，四领域无一同时达到三项 4/5；该报告不进入 `review-responses.json`，M108 保持 `in_progress`，C105 继续 blocked。当前 tracked arm64 sidecar 为 31,809,232 bytes、SHA-256 `e6ca477d0b98b34ba0d20c0e53c4b61d69781124a0fe955685b6892e423133ff`，packaged sidecar、require-ready preflight、新 `.app` 与原生 Tauri smoke 全部通过，`provider_calls=0`。
+
 ### FGC-C105 任务卡
 
 状态：blocked（等待 M108、C104、G826、D005）。

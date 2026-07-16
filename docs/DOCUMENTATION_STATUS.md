@@ -39,6 +39,8 @@ M108 最终 GLB 真值增量（2026-07-16）：12 份固定审阅 fixture 的最
 
 M108 Loft 与代理审核增量（2026-07-16）：车辆/航空器 A 代表资产的主壳与座舱已切换为真实 canonical ProfileSectionSet 驱动的受限 Loft，固定截面、参数、材质区和来源仍经 Schema/G819/Worker/Q003 同一链。Loft/Sweep 不再把 0–1 UV 拉伸一次覆盖长壳，而按周长与路径物理距离以 320 mm 展示基线生成并从 GLB 回读。车辆已去除屏幕中明显突兀的后部三角板与前端亮白盖；航空器实心旋翼盘改为小轮毂+叶片，工作台最高为 6,196 triangles/96 draw calls，未越 GPU 预算。Codex 只以明确标识的代理审查为开发反馈，不写人工回复、不伪造真人身份；代理结论仍指出飞机翼面偏大平直、所有领域表面细节仍为 Alpha 概念级。因此 M108 仍为 `in_progress`，C105/V003/F026 未解锁。
 
+M108 Airfoil 与第二轮代理审核增量（2026-07-16）：航空器 A 左右主翼现以代码所有、四段 tangent quadratic 的非对称 `ProfileSketch@1` 经 Z 主轴 `ProfileSectionSet@1 → loft` 真实生成，固定 16 点重采样、600 mm 轴长和 420×24 mm 截面尺度由 G818 锁定；未开放自由曲线、细分参数或新 operation。四个轮毂为 52×48 mm，并各有两片交叉叶片；道具和机械臂突兀三角 guard 已改为紧凑 bevel box。`codex-iteration-9` 真实工作台 readback 为道具 4,688/33、车辆 6,748/72、航空器 6,508/96、机械臂 4,960/45（triangles/draw calls），全部单 WebGL context、GPU passed。Codex 第二轮代理评分仍只有 3–4 分，四领域均未同时达到比例、材质、细节 4/5；报告不写入人工响应，不能解除 M108/C105。tracked arm64 sidecar 已从当前源码重建为 31,809,232 bytes、SHA-256 `e6ca477d0b98b34ba0d20c0e53c4b61d69781124a0fe955685b6892e423133ff`，packaged sidecar 和新 `.app` 的原生 Tauri smoke 均覆盖 PBR/CSG/undo/redo/导出/重启并通过，`provider_calls=0`。
+
 评分校验中的“至少五套”按至少五个不同 material index、texture-set ID 和规范 texture material 计算，重复 authored alias 不能累加；renderer line instrumentation 缺失、非法或非零都会 fail closed。
 
 ## 2. 事实的唯一归属

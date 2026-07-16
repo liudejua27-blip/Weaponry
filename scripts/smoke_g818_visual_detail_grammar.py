@@ -253,6 +253,8 @@ def main() -> int:
     assert prop_ops["prop_core"]["op"] == prop_ops["prop_grip"]["op"] == "capsule"
     assert prop_ops["prop_rear_housing"]["op"] == "capsule"
     assert prop_ops["prop_sight"]["op"] == "wedge"
+    assert prop_ops["visual_guard_prop_rear"]["op"] == "box"
+    assert prop_ops["visual_guard_prop_rear"]["args"]["size"] == [270.0, 100.0, 24.0]
     assert prop_ops["visual_guard_prop_mount_collar"]["op"] == "cylinder"
     assert _capsule_panel_edge_gap_mm(
         prop_ops["prop_core"],
@@ -318,18 +320,47 @@ def main() -> int:
         "airframe_core",
         1,
     ) <= 0.0201
-    assert {aircraft_ops[role]["op"] for role in aircraft_ops if role.startswith("lift_wing_")} == {"wedge"}
-    assert {aircraft_ops[role]["args"]["size"][1] for role in aircraft_ops if role.startswith("lift_wing_")} == {56}
+    assert {aircraft_ops[role]["op"] for role in aircraft_ops if role.startswith("lift_wing_")} == {"loft"}
+    assert {aircraft_ops[role]["args"]["axis_length"] for role in aircraft_ops if role.startswith("lift_wing_")} == {600}
+    assert {
+        tuple(aircraft_ops[role]["args"]["cross_section_scale"])
+        for role in aircraft_ops
+        if role.startswith("lift_wing_")
+    } == {(420, 24)}
+    aircraft_profile_inputs = {
+        item["input_id"]: item["canonical_payload"]
+        for item in build_blockout(
+            plans_by_pack["pack_aircraft_concept"],
+            plans_by_pack["pack_aircraft_concept"].directions[0].direction_id,
+            variant_id="vertical_takeoff_a",
+            presentation_profile="showcase",
+        ).shape_program["profile_inputs"]
+    }
+    for side in ("left", "right"):
+        profile_input_id = aircraft_ops[f"lift_wing_{side}"]["args"]["section_set_input_id"]
+        wing_contract = aircraft_profile_inputs[profile_input_id]
+        assert wing_contract["main_axis"] == "z"
+        assert wing_contract["symmetry"] == "none"
+        assert wing_contract["resample_policy"]["count"] == 16
+        assert all(
+            profile["symmetry"] == "none"
+            and profile["continuity_hint"] == "tangent"
+            and len(profile["segments"]) == 4
+            for profile in wing_contract["profiles"]
+        )
     assert {aircraft_ops[role]["args"]["material_id"] for role in aircraft_ops if role.startswith("lift_wing_")} == {"mat_primary"}
-    assert {aircraft_ops[role]["args"]["height"] for role in aircraft_ops if role.startswith("lift_rotor_")} == {24}
-    assert {aircraft_ops[role]["args"]["radius"] for role in aircraft_ops if role.startswith("lift_rotor_")} == {55}
+    assert {aircraft_ops[role]["args"]["height"] for role in aircraft_ops if role.startswith("lift_rotor_")} == {48}
+    assert {aircraft_ops[role]["args"]["radius"] for role in aircraft_ops if role.startswith("lift_rotor_")} == {52}
     blade_roles = [role for role in aircraft_ops if role.startswith("visual_blade_aircraft_")]
-    assert len(blade_roles) == 4
-    assert {tuple(aircraft_ops[role]["args"]["size"]) for role in blade_roles} == {(350, 12, 34), (34, 12, 350)}
+    assert len(blade_roles) == 8
+    assert {tuple(aircraft_ops[role]["args"]["size"]) for role in blade_roles} == {
+        (300, 10, 24),
+        (24, 10, 300),
+    }
     assert {aircraft_ops[role]["args"]["material_id"] for role in blade_roles} == {"mat_composite"}
-    assert sum(role.startswith("lift_hub_") for role in aircraft_ops) == 4
-    assert {aircraft_ops[role]["args"]["radius"] for role in aircraft_ops if role.startswith("lift_hub_")} == {48}
-    assert {aircraft_ops[role]["args"]["height"] for role in aircraft_ops if role.startswith("lift_hub_")} == {48}
+    assert not any(role.startswith("lift_hub_") for role in aircraft_ops)
+    assert aircraft_ops["visual_guard_aircraft_chine_left"]["op"] == "wedge"
+    assert aircraft_ops["visual_guard_aircraft_chine_right"]["op"] == "wedge"
     for side in ("left", "right"):
         root_role = f"visual_guard_aircraft_wing_root_{side}"
         assert aircraft_ops[root_role]["op"] == "wedge"
@@ -377,6 +408,7 @@ def main() -> int:
         2,
     ) <= 0.0081
     assert robot_ops["visual_guard_robot_shoulder_bridge"]["op"] == "box"
+    assert robot_ops["visual_guard_robot_corner"]["op"] == "box"
     _assert_aabb_overlap_and_exposure(
         selected_bounds["pack_robotic_arm_concept"],
         "visual_guard_robot_shoulder_bridge",
