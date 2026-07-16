@@ -66,6 +66,8 @@ class BoxPrimitive:
     material_id: str | None = None
     material_zone_id: str | None = None
     source_operation_id: str | None = None
+    profile_contract: Mapping[str, Any] | None = None
+    loft_cross_section_scale: Tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -2015,7 +2017,7 @@ def _presentation_primitives(
     elif plan.domain_pack_id == "pack_vehicle_concept":
         details = _vehicle_showcase_details(primary, detail_level, boxes)
     elif plan.domain_pack_id == "pack_aircraft_concept":
-        details = _aircraft_showcase_details(primary, detail_level)
+        details = _aircraft_showcase_details(primary, detail_level, boxes)
     elif plan.domain_pack_id == "pack_robotic_arm_concept":
         details = _robotic_arm_showcase_details(primary, detail_level, boxes)
     else:
@@ -2178,12 +2180,12 @@ def _showcase_connection_fairings(
                     f"visual_guard_vehicle_side_bridge_{side}",
                     (
                         (front.center_mm[0] + rear.center_mm[0]) / 2,
-                        (front.center_mm[1] + rear.center_mm[1]) / 2 + wheel_radius * 0.45,
+                        (front.center_mm[1] + rear.center_mm[1]) / 2 + wheel_radius * 0.3,
                         center_z,
                     ),
                     (
-                        abs(front.center_mm[0] - rear.center_mm[0]) + wheel_radius * 1.2,
-                        wheel_radius * 0.8,
+                        abs(front.center_mm[0] - rear.center_mm[0]) + wheel_radius * 1.05,
+                        wheel_radius * 0.55,
                         thickness,
                     ),
                     7,
@@ -2211,6 +2213,7 @@ def _showcase_connection_fairings(
                 wing = roles[f"lift_wing_{side}"]
                 rotor = roles[rotor_role]
                 wing_thickness = _primitive_display_extent(wing)[1]
+                rotor_span = max(rotor.radius_mm, 150.0)
                 fairings.append(
                     _wedge(
                         f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
@@ -2218,12 +2221,12 @@ def _showcase_connection_fairings(
                             rotor.center_mm[0],
                             (wing.center_mm[1] + rotor.center_mm[1]) / 2,
                             rotor.center_mm[2]
-                            + math.copysign(rotor.radius_mm * 0.25, rotor.center_mm[2]),
+                            + math.copysign(rotor_span * 0.1, rotor.center_mm[2]),
                         ),
                         (
-                            rotor.radius_mm * 0.9,
-                            max(72.0, wing_thickness + 18.0),
-                            rotor.radius_mm * 0.55,
+                            rotor_span * 0.72,
+                            max(64.0, wing_thickness + 12.0),
+                            rotor_span * 0.5,
                         ),
                         3,
                         material_id="mat_aluminum",
@@ -2381,17 +2384,17 @@ def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> L
     thickness = _detail_thickness(width, height, depth)
     vent_radius = max(9.0, min(20.0, min(height, depth) * 0.045))
     details = [
-        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.5, thickness, depth * 0.24), 3, material_id="mat_composite"),
-        _box("visual_groove_prop_side", (cx - width * 0.18, cy - height * 0.05, cz + depth / 2 + thickness / 2), (width * 0.28, height * 0.22, thickness), 0, material_id="mat_rubber"),
-        _wedge("visual_guard_prop_rear", (cx + width * 0.3, cy + height * 0.05, cz + depth / 2 + thickness), (width * 0.22, height * 0.38, thickness * 1.8), 1, material_id="mat_aluminum"),
-        _box("visual_light_strip_prop_side", (cx - width * 0.28, cy + height * 0.14, cz + depth / 2 + thickness / 2), (width * 0.2, max(12.0, height * 0.055), thickness), 6, material_id="mat_emissive_blue"),
-        _box("visual_cable_slot_prop_lower", (cx + width * 0.06, cy - height * 0.24, cz + depth / 2 + thickness / 2), (width * 0.34, max(12.0, height * 0.05), thickness), 0, material_id="mat_rubber"),
+        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2 - 8.0, cz), (width * 0.5, thickness, depth * 0.24), 3, material_id="mat_composite"),
+        _box("visual_groove_prop_side", (cx - width * 0.18, cy - height * 0.05, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.28, height * 0.22, thickness), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_prop_rear", (cx + width * 0.3, cy + height * 0.05, cz + depth / 2 + thickness - 8.0), (width * 0.22, height * 0.38, thickness * 1.8), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_prop_side", (cx - width * 0.28, cy + height * 0.14, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.2, max(12.0, height * 0.055), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_prop_lower", (cx + width * 0.06, cy - height * 0.24, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.34, max(12.0, height * 0.05), thickness), 0, material_id="mat_rubber"),
     ]
     for index, y_offset in enumerate((-vent_radius * 1.4, 0.0, vent_radius * 1.4), 1):
-        details.append(_cylinder(f"visual_vent_prop_{index}", (cx + width * 0.25, cy + y_offset, cz + depth / 2 + thickness / 2), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
+        details.append(_cylinder(f"visual_vent_prop_{index}", (cx + width * 0.25, cy + y_offset, cz + depth / 2 + thickness / 2 - 8.0), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
     fastener_radius = max(8.0, min(16.0, min(width, depth) * 0.025))
     for index, x_offset in enumerate((-width * 0.18, width * 0.2), 1):
-        details.append(_cylinder(f"visual_fastener_prop_{index}", (cx + x_offset, cy + height / 2 + thickness / 2, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+        details.append(_cylinder(f"visual_fastener_prop_{index}", (cx + x_offset, cy + height / 2 + thickness / 2 - 8.0, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
     if detail_level >= 4:
         details.append(_box("visual_panel_prop_lower", (cx + width * 0.22, cy - height / 2 - thickness / 2, cz), (width * 0.24, thickness, depth * 0.48), 2, material_id="mat_signal_red"))
     return details
@@ -2413,8 +2416,20 @@ def _vehicle_showcase_details(
         required_roles=("vehicle_nose", "vehicle_cabin"),
     )
     if anchors is None:
-        paint_panel = _box("visual_panel_vehicle_paint", (cx - width * 0.23, cy + height / 2 + thickness / 2, cz), (width * 0.34, thickness, depth * 0.72), 7, material_id="mat_automotive_paint")
-        deck_panel = _box("visual_panel_vehicle_deck", (cx + width * 0.3, cy + height / 2 + thickness / 2, cz), (width * 0.24, thickness, depth * 0.58), 3, material_id="mat_composite")
+        paint_panel = _box(
+            "visual_panel_vehicle_paint",
+            (cx - width * 0.1, cy + height * 0.44, cz),
+            (width * 0.18, thickness, depth * 0.52),
+            7,
+            material_id="mat_automotive_paint",
+        )
+        deck_panel = _box(
+            "visual_panel_vehicle_deck",
+            (cx + width * 0.28, cy + height * 0.335, cz),
+            (width * 0.14, thickness, depth * 0.44),
+            3,
+            material_id="mat_composite",
+        )
     else:
         nose = anchors["vehicle_nose"]
         cabin = anchors["vehicle_cabin"]
@@ -2445,46 +2460,99 @@ def _vehicle_showcase_details(
     details = [
         paint_panel,
         deck_panel,
-        _box("visual_groove_vehicle_rocker_left", (cx + width * 0.02, cy - height * 0.28, cz - depth / 2 - thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
-        _box("visual_groove_vehicle_rocker_right", (cx + width * 0.02, cy - height * 0.28, cz + depth / 2 + thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
-        _wedge("visual_guard_vehicle_rear_deck", (cx + width * 0.38, cy + height / 2 + thickness, cz), (width * 0.2, max(60.0, height * 0.3), depth * 0.5), 1, material_id="mat_aluminum"),
-        _box("visual_light_strip_vehicle_front", (cx - width / 2 - thickness / 2, cy + height * 0.08, cz), (thickness, max(28.0, height * 0.22), depth * 0.5), 6, material_id="mat_emissive_blue"),
-        _box("visual_cable_slot_vehicle_belt", (cx - width * 0.05, cy + height * 0.12, cz + depth / 2 + thickness / 2), (width * 0.46, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
+        _box("visual_groove_vehicle_rocker_left", (cx + width * 0.02, cy - height * 0.28, cz - depth / 2 - thickness / 2 + 6.0), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _box("visual_groove_vehicle_rocker_right", (cx + width * 0.02, cy - height * 0.28, cz + depth / 2 + thickness / 2 - 6.0), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _box(
+            "visual_guard_vehicle_rear_bumper",
+            (cx + width / 2 - max(18.0, thickness * 0.45), cy - height * 0.08, cz),
+            (max(16.0, thickness * 0.5), max(30.0, height * 0.1), depth * 0.46),
+            3,
+            material_id="mat_composite",
+        ),
+        _box(
+            "visual_light_strip_vehicle_front",
+            (cx - width / 2 + max(18.0, thickness * 0.45), cy + height * 0.02, cz),
+            (max(16.0, thickness * 0.5), max(18.0, height * 0.07), depth * 0.34),
+            6,
+            material_id="mat_emissive_blue",
+        ),
+        _box("visual_cable_slot_vehicle_belt", (cx - width * 0.05, cy + height * 0.12, cz + depth / 2 + thickness / 2 - 6.0), (width * 0.46, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
     ]
+    if anchors is not None:
+        cabin = anchors["vehicle_cabin"]
+        cabin_extent = _primitive_display_extent(cabin)
+        for side, sign in (("left", -1.0), ("right", 1.0)):
+            details.append(
+                _box(
+                    f"visual_guard_vehicle_cabin_frame_{side}",
+                    (
+                        cabin.center_mm[0] - cabin_extent[0] * 0.04,
+                        cabin.center_mm[1] + cabin_extent[1] * 0.08,
+                        cabin.center_mm[2] + sign * (cabin_extent[2] / 2 + thickness / 2 - 6.0),
+                    ),
+                    (cabin_extent[0] * 0.7, max(24.0, cabin_extent[1] * 0.1), thickness),
+                    3,
+                    material_id="mat_composite",
+                )
+            )
     vent_radius = max(9.0, min(19.0, min(width, depth) * 0.028))
     for index, z_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
-        details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
+        details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2 - 6.0, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
     fastener_radius = max(8.0, min(15.0, min(height, depth) * 0.03))
     for index, x_offset in enumerate((-width * 0.32, width * 0.32), 1):
-        details.append(_cylinder(f"visual_fastener_vehicle_sill_{index}", (cx + x_offset, cy - height * 0.18, cz + depth / 2 + thickness / 2), fastener_radius, thickness, 1, (0.0, 0.0, 1.0), material_id="mat_aluminum"))
+        details.append(_cylinder(f"visual_fastener_vehicle_sill_{index}", (cx + x_offset, cy - height * 0.18, cz + depth / 2 + thickness / 2 - 6.0), fastener_radius, thickness, 1, (0.0, 0.0, 1.0), material_id="mat_aluminum"))
     if detail_level >= 4:
         details.append(_box("visual_light_strip_vehicle_rear", (cx + width / 2 + thickness / 2, cy + height * 0.04, cz), (thickness, max(24.0, height * 0.18), depth * 0.38), 6, material_id="mat_emissive_blue"))
     return details
 
 
-def _aircraft_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+def _aircraft_showcase_details(
+    primary: BoxPrimitive,
+    detail_level: int,
+    boxes: Sequence[BoxPrimitive],
+) -> List[BoxPrimitive]:
     """Aircraft shell language: dorsal spine, paired chines and wing-tip markers."""
 
     cx, cy, cz = primary.center_mm
     width, height, depth = _primitive_display_extent(primary)
     thickness = _detail_thickness(width, height, depth)
+    surface_inset = 20.0 if primary.primitive_kind == "loft_contract" else 8.0
     details = [
-        _box("visual_panel_aircraft_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.46, thickness, depth * 0.24), 3, material_id="mat_composite"),
-        _box("visual_groove_aircraft_belly", (cx + width * 0.12, cy - height / 2 - thickness / 2, cz), (width * 0.42, thickness, depth * 0.36), 0, material_id="mat_rubber"),
-        _wedge("visual_guard_aircraft_chine_left", (cx - width * 0.02, cy - height * 0.08, cz - depth / 2 - thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
-        _wedge("visual_guard_aircraft_chine_right", (cx - width * 0.02, cy - height * 0.08, cz + depth / 2 + thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
-        _box("visual_light_strip_aircraft_port", (cx - width * 0.28, cy + height * 0.06, cz - depth / 2 - thickness / 2), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
-        _box("visual_light_strip_aircraft_starboard", (cx - width * 0.28, cy + height * 0.06, cz + depth / 2 + thickness / 2), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
-        _box("visual_cable_slot_aircraft_spine", (cx + width * 0.18, cy + height / 2 + thickness / 2, cz), (width * 0.3, thickness, max(14.0, depth * 0.06)), 0, material_id="mat_rubber"),
+        _box("visual_panel_aircraft_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2 - surface_inset, cz), (width * 0.46, thickness, depth * 0.24), 3, material_id="mat_composite"),
+        _box("visual_groove_aircraft_belly", (cx + width * 0.12, cy - height / 2 - thickness / 2 + surface_inset, cz), (width * 0.42, thickness, depth * 0.36), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_aircraft_chine_left", (cx - width * 0.02, cy - height * 0.08, cz - depth / 2 - thickness + surface_inset), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
+        _wedge("visual_guard_aircraft_chine_right", (cx - width * 0.02, cy - height * 0.08, cz + depth / 2 + thickness - surface_inset), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_aircraft_port", (cx - width * 0.28, cy + height * 0.06, cz - depth / 2 - thickness / 2 + surface_inset), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_light_strip_aircraft_starboard", (cx - width * 0.28, cy + height * 0.06, cz + depth / 2 + thickness / 2 - surface_inset), (width * 0.16, max(12.0, height * 0.06), thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_aircraft_spine", (cx + width * 0.18, cy + height / 2 + thickness / 2 - surface_inset, cz), (width * 0.3, thickness, max(14.0, depth * 0.06)), 0, material_id="mat_rubber"),
     ]
+    lift_anchors = _exact_showcase_roles(
+        boxes,
+        domain_pack_id="pack_aircraft_concept",
+        required_roles=("lift_wing_left", "lift_wing_right"),
+    )
+    if lift_anchors is not None:
+        for side, sign in (("left", -1.0), ("right", 1.0)):
+            wing = lift_anchors[f"lift_wing_{side}"]
+            wing_extent = _primitive_display_extent(wing)
+            panel_depth = wing_extent[2] * 0.18
+            details.append(
+                _wedge(
+                    f"visual_guard_aircraft_wing_root_{side}",
+                    (
+                        wing.center_mm[0] - wing_extent[0] * 0.12,
+                        wing.center_mm[1] + wing_extent[1] / 2 + thickness / 2 - 6.0,
+                        cz + sign * (depth / 2 + panel_depth / 2 - 10.0),
+                    ),
+                    (wing_extent[0] * 0.3, thickness, panel_depth),
+                    0,
+                    material_id="mat_primary",
+                )
+            )
     vent_radius = max(9.0, min(18.0, min(height, depth) * 0.04))
-    for index, z_offset in enumerate((-vent_radius * 1.6, vent_radius * 1.6), 1):
-        details.append(_cylinder(f"visual_vent_aircraft_tail_{index}", (cx + width / 2 + thickness / 2, cy - height * 0.1, cz + z_offset), vent_radius, thickness, 0, (1.0, 0.0, 0.0), material_id="mat_rubber"))
+    details.append(_cylinder("visual_vent_aircraft_tail_1", (cx + width / 2 + thickness / 2 - surface_inset, cy - height * 0.1, cz), vent_radius, thickness, 0, (1.0, 0.0, 0.0), material_id="mat_rubber"))
     fastener_radius = max(8.0, min(14.0, min(width, depth) * 0.025))
-    for index, x_offset in enumerate((-width * 0.12, width * 0.16), 1):
-        details.append(_cylinder(f"visual_fastener_aircraft_dorsal_{index}", (cx + x_offset, cy + height / 2 + thickness / 2, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
-    if detail_level >= 4:
-        details.append(_box("visual_panel_aircraft_tail", (cx + width * 0.36, cy + height / 2 + thickness / 2, cz), (width * 0.16, thickness, depth * 0.3), 2, material_id="mat_signal_red"))
+    details.append(_cylinder("visual_fastener_aircraft_dorsal_1", (cx - width * 0.12, cy + height / 2 + thickness / 2 - surface_inset, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
     return details
 
 
@@ -2509,7 +2577,7 @@ def _robotic_arm_showcase_details(
             (
                 link.center_mm[0],
                 link.center_mm[1],
-                link.center_mm[2] + link.radius_mm + thickness / 2 - 2.0,
+                link.center_mm[2] + link.radius_mm + thickness / 2 - 8.0,
             ),
             (link.radius_mm * 0.64, link_extent[1] * 0.42, thickness),
             3,
@@ -2519,17 +2587,36 @@ def _robotic_arm_showcase_details(
         panel = _box("visual_panel_robot_base", (cx, cy + height / 2 + thickness / 2, cz), (width * 0.58, thickness, depth * 0.58), 3, material_id="mat_composite")
     details = [
         panel,
-        _box("visual_groove_robot_plinth", (cx, cy - height * 0.2, cz + depth / 2 + thickness / 2), (width * 0.58, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
-        _wedge("visual_guard_robot_corner", (cx + width * 0.3, cy + height * 0.12, cz + depth / 2 + thickness), (width * 0.2, height * 0.44, thickness * 1.8), 1, material_id="mat_aluminum"),
-        _box("visual_light_strip_robot_status", (cx - width * 0.32, cy + height * 0.08, cz + depth / 2 + thickness / 2), (max(18.0, width * 0.08), height * 0.42, thickness), 6, material_id="mat_emissive_blue"),
-        _box("visual_cable_slot_robot_service", (cx + width * 0.08, cy + height * 0.16, cz + depth / 2 + thickness / 2), (width * 0.34, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
+        _box("visual_groove_robot_plinth", (cx, cy - height * 0.2, cz + depth / 2 + thickness / 2 - 6.0), (width * 0.58, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
+        _wedge("visual_guard_robot_corner", (cx + width * 0.3, cy + height * 0.12, cz + depth / 2 + thickness - 6.0), (width * 0.2, height * 0.44, thickness * 1.8), 1, material_id="mat_aluminum"),
+        _box("visual_light_strip_robot_status", (cx - width * 0.32, cy + height * 0.08, cz + depth / 2 + thickness / 2 - 6.0), (max(18.0, width * 0.08), height * 0.42, thickness), 6, material_id="mat_emissive_blue"),
+        _box("visual_cable_slot_robot_service", (cx + width * 0.08, cy + height * 0.16, cz + depth / 2 + thickness / 2 - 6.0), (width * 0.34, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
     ]
+    forearm_matches = [item for item in boxes if item.part_role == "precision_link_2"]
+    if len(forearm_matches) > 1:
+        raise ValueError("showcase robot forearm anchor is duplicated")
+    if forearm_matches:
+        forearm = forearm_matches[0]
+        forearm_extent = _primitive_display_extent(forearm)
+        details.append(
+            _box(
+                "visual_cable_slot_robot_forearm",
+                (
+                    forearm.center_mm[0],
+                    forearm.center_mm[1] - forearm.radius_mm * 0.34,
+                    forearm.center_mm[2] + forearm.radius_mm + thickness / 2 - 8.0,
+                ),
+                (forearm_extent[0] * 0.5, max(12.0, forearm.radius_mm * 0.18), thickness),
+                0,
+                material_id="mat_rubber",
+            )
+        )
     vent_radius = max(9.0, min(18.0, min(width, height) * 0.04))
     for index, x_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
-        details.append(_cylinder(f"visual_vent_robot_base_{index}", (cx + width * 0.2 + x_offset, cy - height * 0.1, cz + depth / 2 + thickness / 2), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
+        details.append(_cylinder(f"visual_vent_robot_base_{index}", (cx + width * 0.2 + x_offset, cy - height * 0.1, cz + depth / 2 + thickness / 2 - 6.0), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
     fastener_radius = max(8.0, min(15.0, min(width, depth) * 0.025))
     for index, z_offset in enumerate((-depth * 0.22, depth * 0.22), 1):
-        details.append(_cylinder(f"visual_fastener_robot_top_{index}", (cx, cy + height / 2 + thickness / 2, cz + z_offset), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+        details.append(_cylinder(f"visual_fastener_robot_top_{index}", (cx, cy + height / 2 + thickness / 2 - 6.0, cz + z_offset), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
     if detail_level >= 4:
         details.append(_box("visual_panel_robot_warning", (cx + width * 0.32, cy - height * 0.02, cz - depth / 2 - thickness / 2), (width * 0.16, height * 0.24, thickness), 2, material_id="mat_signal_red"))
     return details
@@ -2568,6 +2655,102 @@ def _capsule(
     return BoxPrimitive(role, center, (radius * 2, height, radius * 2), material, "capsule", radius, height, axis)
 
 
+def _showcase_ellipse_profile(sketch_id: str, half_u: float, half_v: float) -> Dict[str, Any]:
+    """Build one bounded rounded cross-section for a fixed reviewed loft.
+
+    The four quadratic arcs are part of the built-in visual fixture, not a
+    user-authored free curve.  G820/G822 still own normalization, resampling,
+    winding and runtime rejection.
+    """
+
+    start = [0.0, -half_v]
+    return {
+        "schema_version": "ProfileSketch@1",
+        "sketch_id": sketch_id,
+        "version": 1,
+        "plane": "cross_section",
+        "closed": True,
+        "winding": "counter_clockwise",
+        "start": start,
+        "segments": [
+            {"kind": "quadratic", "control": [half_u, -half_v], "to": [half_u, 0.0]},
+            {"kind": "quadratic", "control": [half_u, half_v], "to": [0.0, half_v]},
+            {"kind": "quadratic", "control": [-half_u, half_v], "to": [-half_u, 0.0]},
+            {"kind": "quadratic", "control": [-half_u, -half_v], "to": start},
+        ],
+        "holes": [],
+        "normalized_bounds": {
+            "min": [-half_u, -half_v],
+            "max": [half_u, half_v],
+        },
+        "symmetry": "vertical",
+        "continuity_hint": "tangent",
+        "resample_count": 24,
+        "provenance": {
+            "source": "component_recipe",
+            "source_ref": "m108_reviewed_showcase_loft",
+        },
+    }
+
+
+def _showcase_loft_shell(
+    role: str,
+    center: Tuple[float, float, float],
+    *,
+    axis_length: float,
+    cross_section_scale: Tuple[float, float],
+    sections: Sequence[Tuple[float, float, float]],
+    material: int,
+    material_id: str,
+) -> BoxPrimitive:
+    """Describe a fixed multi-section shell that must execute through G822."""
+
+    if len(sections) < 3 or sections[0][0] != -1.0 or sections[-1][0] != 1.0:
+        raise ValueError("showcase loft requires at least three sections spanning -1..1")
+    profiles = [
+        _showcase_ellipse_profile(f"sketch_{role}_{index}", half_u, half_v)
+        for index, (_position, half_u, half_v) in enumerate(sections, 1)
+    ]
+    section_set = {
+        "schema_version": "ProfileSectionSet@1",
+        "section_set_id": f"sectionset_{role}",
+        "version": 1,
+        "main_axis": "x",
+        "profiles": profiles,
+        "sections": [
+            {
+                "section_id": f"section_{role}_{index}",
+                "position": position,
+                "profile_sketch_id": profiles[index - 1]["sketch_id"],
+                "scale": 1.0,
+                "twist_degrees": 0.0,
+                "cap_policy": "start" if index == 1 else "end" if index == len(sections) else "none",
+            }
+            for index, (position, _half_u, _half_v) in enumerate(sections, 1)
+        ],
+        "resample_policy": {"mode": "uniform_count", "count": 24},
+        "symmetry": "vertical",
+        "provenance": {
+            "source": "component_recipe",
+            "source_ref": f"m108_reviewed_{role}",
+        },
+    }
+    max_u = max(item[1] for item in sections) * cross_section_scale[0]
+    max_v = max(item[2] for item in sections) * cross_section_scale[1]
+    return BoxPrimitive(
+        role,
+        center,
+        (axis_length, max_u * 2, max_v * 2),
+        material,
+        "loft_contract",
+        height_mm=axis_length,
+        loft_axis="x",
+        material_id=material_id,
+        profile_contract=section_set,
+        loft_cross_section_scale=cross_section_scale,
+    )
+
+
 def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitive]:
     """Return an explicit, low-poly structure for the G807 diversity catalog.
 
@@ -2581,8 +2764,8 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
                 _capsule("prop_core", (0, 590, 0), 250, 1500, 0, (1, 0, 0)),
                 _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
                 _capsule("prop_grip", (-160, 210, 0), 130, 620, 1),
-                _box("prop_rear_housing", (630, 620, 0), (480, 320, 440), 0),
-                _box("prop_sight", (120, 870, 0), (300, 120, 170), 1),
+                _capsule("prop_rear_housing", (650, 610, 0), 205, 520, 0, (1, 0, 0)),
+                _wedge("prop_sight", (90, 850, 0), (320, 110, 150), 1),
             ],
             "compact_prop_b": [_capsule("prop_capsule_body", (0, 570, 0), 300, 1500, 0, (1, 0, 0)), _box("prop_side_housing", (100, 520, -390), (680, 260, 180), 1), _box("prop_grip", (-250, 170, 0), (300, 560, 280), 1), _wedge("prop_optic", (250, 840, 0), (360, 180, 220), 2), _box("prop_panel", (520, 590, 390), (380, 80, 220), 2)],
             "compact_prop_c": [_wedge("prop_front_shell", (-500, 600, 0), (720, 420, 560), 0), _box("prop_rear_shell", (480, 600, 0), (900, 500, 600), 1), _cylinder("prop_muzzle_ring", (-900, 600, 0), 180, 240, 2, (1, 0, 0)), _box("prop_grip", (-120, 170, 0), (320, 560, 300), 1), _box("prop_back_panel", (700, 820, 0), (260, 180, 280), 2)],
@@ -2598,10 +2781,36 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
         },
         "pack_vehicle_concept": {
             "urban_scout_a": [
-                _box("vehicle_chassis", (0, 430, 0), (2200, 280, 980), 0, material_id="mat_automotive_paint"),
-                _box("vehicle_nose", (-850, 550, 0), (720, 280, 900), 0, material_id="mat_automotive_paint"),
-                _box("vehicle_cabin", (240, 630, 0), (1000, 260, 780), 0, material_id="mat_automotive_paint"),
-                _box("vehicle_canopy", (40, 810, 0), (720, 150, 600), 1),
+                _showcase_loft_shell(
+                    "vehicle_chassis",
+                    (0, 520, 0),
+                    axis_length=2200,
+                    cross_section_scale=(380, 490),
+                    sections=(
+                        (-1.0, 0.3, 0.48),
+                        (-0.72, 0.55, 0.9),
+                        (-0.2, 0.88, 1.0),
+                        (0.45, 0.72, 0.96),
+                        (1.0, 0.45, 0.72),
+                    ),
+                    material=7,
+                    material_id="mat_automotive_paint",
+                ),
+                _showcase_loft_shell(
+                    "vehicle_canopy",
+                    (-120, 820, 0),
+                    axis_length=700,
+                    cross_section_scale=(130, 280),
+                    sections=(
+                        (-1.0, 0.25, 0.55),
+                        (-0.6, 0.75, 0.9),
+                        (0.0, 0.95, 1.0),
+                        (0.7, 0.65, 0.88),
+                        (1.0, 0.25, 0.5),
+                    ),
+                    material=5,
+                    material_id="mat_dark_glass",
+                ),
                 _cylinder("vehicle_wheel_fl", (-720, 250, -550), 250, 220, 2, (0, 0, 1)),
                 _cylinder("vehicle_wheel_fr", (-720, 250, 550), 250, 220, 2, (0, 0, 1)),
                 _cylinder("vehicle_wheel_rl", (720, 250, -550), 250, 220, 2, (0, 0, 1)),
@@ -2635,23 +2844,69 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
 
 
 def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
+    def rotor_blades(position: str, center: Tuple[float, float, float]) -> List[BoxPrimitive]:
+        """Return a restrained fixed-pitch visual blade instead of an opaque disc."""
+
+        x, y, z = center
+        longitudinal = position.startswith("front")
+        return [
+            _box(
+                f"visual_blade_aircraft_{position}",
+                (x, y, z),
+                (350, 12, 34) if longitudinal else (34, 12, 350),
+                3,
+                material_id="mat_composite",
+            ),
+        ]
+
     return {
         "pack_aircraft_concept": {
             "vertical_takeoff_a": [
-                _capsule("airframe_core", (80, 650, 0), 220, 2000, 0, (1, 0, 0)),
-                _wedge("airframe_nose", (-1010, 640, 0), (240, 140, 280), 0),
-                _box("airframe_canopy", (-430, 820, 0), (500, 130, 320), 1),
-                _wedge("lift_wing_left", (120, 630, -610), (1280, 72, 1040), 3),
-                _wedge("lift_wing_right", (120, 630, 610), (1280, 72, 1040), 3),
-                _wedge("airframe_tail", (900, 760, 0), (360, 260, 280), 1),
-                _cylinder("lift_rotor_front_left", (-400, 680, -1050), 205, 54, 3, (0, 1, 0)),
-                _cylinder("lift_rotor_front_right", (-400, 680, 1050), 205, 54, 3, (0, 1, 0)),
-                _cylinder("lift_rotor_rear_left", (620, 680, -1050), 205, 54, 3, (0, 1, 0)),
-                _cylinder("lift_rotor_rear_right", (620, 680, 1050), 205, 54, 3, (0, 1, 0)),
-                _cylinder("lift_hub_front_left", (-400, 705, -1050), 92, 88, 1, (0, 1, 0)),
-                _cylinder("lift_hub_front_right", (-400, 705, 1050), 92, 88, 1, (0, 1, 0)),
-                _cylinder("lift_hub_rear_left", (620, 705, -1050), 92, 88, 1, (0, 1, 0)),
-                _cylinder("lift_hub_rear_right", (620, 705, 1050), 92, 88, 1, (0, 1, 0)),
+                _showcase_loft_shell(
+                    "airframe_core",
+                    (40, 650, 0),
+                    axis_length=2200,
+                    cross_section_scale=(190, 210),
+                    sections=(
+                        (-1.0, 0.18, 0.18),
+                        (-0.72, 0.78, 0.78),
+                        (-0.25, 1.0, 1.0),
+                        (0.35, 0.92, 0.9),
+                        (0.78, 0.58, 0.55),
+                        (1.0, 0.22, 0.2),
+                    ),
+                    material=0,
+                    material_id="mat_primary",
+                ),
+                _showcase_loft_shell(
+                    "airframe_canopy",
+                    (-420, 805, 0),
+                    axis_length=520,
+                    cross_section_scale=(105, 150),
+                    sections=(
+                        (-1.0, 0.25, 0.4),
+                        (-0.55, 0.85, 0.9),
+                        (0.2, 1.0, 1.0),
+                        (1.0, 0.3, 0.45),
+                    ),
+                    material=5,
+                    material_id="mat_dark_glass",
+                ),
+                _wedge("lift_wing_left", (150, 610, -590), (1350, 56, 880), 0, material_id="mat_primary"),
+                _wedge("lift_wing_right", (150, 610, 590), (1350, 56, 880), 0, material_id="mat_primary"),
+                _wedge("airframe_tail", (870, 780, 0), (420, 320, 160), 1),
+                _cylinder("lift_rotor_front_left", (-380, 676, -980), 55, 24, 1, (0, 1, 0), material_id="mat_aluminum"),
+                _cylinder("lift_rotor_front_right", (-380, 676, 980), 55, 24, 1, (0, 1, 0), material_id="mat_aluminum"),
+                _cylinder("lift_rotor_rear_left", (600, 676, -980), 55, 24, 1, (0, 1, 0), material_id="mat_aluminum"),
+                _cylinder("lift_rotor_rear_right", (600, 676, 980), 55, 24, 1, (0, 1, 0), material_id="mat_aluminum"),
+                *rotor_blades("front_left", (-380, 684, -980)),
+                *rotor_blades("front_right", (-380, 684, 980)),
+                *rotor_blades("rear_left", (600, 684, -980)),
+                *rotor_blades("rear_right", (600, 684, 980)),
+                _cylinder("lift_hub_front_left", (-380, 696, -980), 48, 48, 1, (0, 1, 0)),
+                _cylinder("lift_hub_front_right", (-380, 696, 980), 48, 48, 1, (0, 1, 0)),
+                _cylinder("lift_hub_rear_left", (600, 696, -980), 48, 48, 1, (0, 1, 0)),
+                _cylinder("lift_hub_rear_right", (600, 696, 980), 48, 48, 1, (0, 1, 0)),
             ],
             "vertical_takeoff_b": [_box("tilt_body", (0, 600, 0), (2200, 480, 760), 0), _wedge("tilt_nose", (-850, 700, 0), (720, 420, 720), 1), _cylinder("tilt_pod_left", (100, 450, -720), 180, 420, 2, (1, 0, 0)), _cylinder("tilt_pod_right", (100, 450, 720), 180, 420, 2, (1, 0, 0)), _box("tilt_tail", (850, 820, 0), (520, 520, 420), 1)],
             "vertical_takeoff_c": [_capsule("lift_fan_body", (0, 650, 0), 360, 2100, 0, (1, 0, 0)), _box("lift_fan_canopy", (-450, 940, 0), (620, 320, 520), 1), _cylinder("lift_fan_front", (-500, 500, 0), 250, 180, 2, (1, 0, 0)), _cylinder("lift_fan_rear", (600, 500, 0), 250, 180, 2, (1, 0, 0)), _wedge("lift_fan_tail", (820, 900, 0), (420, 360, 520), 2)],
@@ -2683,16 +2938,16 @@ def _robotic_arm_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
     return {
         "pack_robotic_arm_concept": {
             "precision_light_a": [
-                _box("precision_base", (0, 160, 0), (720, 320, 720), 0),
-                _cylinder("precision_turntable", (0, 380, 0), 230, 120, 2),
-                _cylinder("precision_joint_1", (0, 580, 0), 170, 300, 2, (0, 0, 1)),
-                _capsule("precision_link_1", (210, 850, 0), 130, 620, 0),
-                _cylinder("precision_joint_2", (210, 1160, 0), 155, 300, 2, (0, 0, 1)),
-                _capsule("precision_link_2", (500, 1160, 0), 120, 600, 1, (1, 0, 0)),
-                _cylinder("precision_wrist", (800, 1160, 0), 120, 260, 2, (0, 0, 1)),
-                _box("precision_tool_palm", (930, 1160, 0), (240, 210, 330), 1),
-                _box("precision_gripper_upper", (1100, 1260, 0), (280, 70, 100), 4),
-                _box("precision_gripper_lower", (1100, 1060, 0), (280, 70, 100), 4),
+                _box("precision_base", (0, 150, 0), (700, 300, 700), 0),
+                _cylinder("precision_turntable", (0, 350, 0), 210, 100, 2),
+                _cylinder("precision_joint_1", (0, 550, 0), 150, 260, 2, (0, 0, 1)),
+                _capsule("precision_link_1", (190, 820, 0), 115, 560, 0),
+                _cylinder("precision_joint_2", (190, 1080, 0), 140, 260, 2, (0, 0, 1)),
+                _capsule("precision_link_2", (460, 1080, 0), 105, 540, 1, (1, 0, 0)),
+                _cylinder("precision_wrist", (730, 1080, 0), 105, 230, 2, (0, 0, 1)),
+                _box("precision_tool_palm", (850, 1080, 0), (220, 190, 290), 1),
+                _box("precision_gripper_upper", (1010, 1170, 0), (260, 64, 92), 4),
+                _box("precision_gripper_lower", (1010, 990, 0), (260, 64, 92), 4),
             ],
             "precision_light_b": [_box("desktop_base", (0, 180, 0), (620, 360, 620), 0), _cylinder("desktop_turntable", (0, 500, 0), 180, 280, 2), _capsule("desktop_link", (0, 1050, 0), 120, 820, 1), _cylinder("desktop_wrist", (0, 1550, 0), 130, 260, 2), _box("desktop_tool", (0, 1880, 0), (360, 320, 260), 1)],
             "precision_light_c": [_box("rail_base", (0, 160, 0), (1000, 320, 460), 0), _box("rail_carriage", (-320, 500, 0), (360, 260, 420), 1), _cylinder("rail_pivot", (-320, 800, 0), 140, 300, 2), _box("rail_link", (-320, 1250, 0), (260, 760, 260), 1), _cylinder("rail_wrist", (-320, 1720, 0), 120, 240, 2), _wedge("rail_tool", (-320, 2000, 0), (420, 320, 360), 2)],
@@ -2986,6 +3241,7 @@ def _program_for_boxes(
 ) -> Dict[str, Any]:
     operations = []
     outputs = []
+    profile_inputs: List[Dict[str, Any]] = []
     for index, box in enumerate(boxes):
         op_id = f"op_{index + 1}_{box.part_role}"
         args = {
@@ -3004,6 +3260,27 @@ def _program_for_boxes(
         elif box.primitive_kind == "wedge":
             op_name = "wedge"
             args["size"] = list(box.size_mm)
+        elif box.primitive_kind == "loft_contract":
+            if box.profile_contract is None or any(value <= 0 for value in box.loft_cross_section_scale):
+                raise ValueError(f"showcase loft contract is incomplete for {box.part_role}")
+            from .profile_contracts import canonical_profile_payload
+
+            canonical, _canonical_json, digest = canonical_profile_payload(box.profile_contract)
+            profile_input_id = f"profileinput_{index + 1}_{box.part_role}"
+            profile_inputs.append({
+                "input_id": profile_input_id,
+                "input_kind": "profile_section_set",
+                "contract_version": "ProfileSectionSet@1",
+                "input_sha256": digest,
+                "canonical_payload": canonical,
+            })
+            op_name = "loft"
+            args.update({
+                "section_set_input_id": profile_input_id,
+                "cross_section_scale": list(box.loft_cross_section_scale),
+                "axis_length": box.height_mm,
+                "continuity": "linear",
+            })
         elif box.primitive_kind == "revolve":
             op_name = "revolve"
             args.update({"angle": box.revolve_angle, "points": [list(point) for point in box.profile_points]})
@@ -3040,7 +3317,7 @@ def _program_for_boxes(
                 "part_role": box.part_role,
             }
         )
-    return {
+    program = {
         "schema_version": "ShapeProgram@1",
         "program_id": f"shape_{plan.domain_pack_id.removeprefix('pack_')}_{direction_id}{('_' + variant_id) if variant_id else ''}{'_showcase' if presentation_profile == 'showcase' else ''}",
         "units": "millimeter",
@@ -3051,6 +3328,9 @@ def _program_for_boxes(
         "outputs": outputs,
         "non_functional_only": True,
     }
+    if profile_inputs:
+        program["profile_inputs"] = profile_inputs
+    return program
 
 
 def _assembly_graph(
@@ -3413,6 +3693,7 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
             "forgecad_normal_mode": "split_weighted" if primitive.primitive_kind in weighted_kinds else "split",
             "forgecad_visual_uv_repeat_mm": VISUAL_UV_REPEAT_MM if primitive.primitive_kind in {
                 "box", "surface_panel", "wedge", "cylinder", "capsule", "bevel_box",
+                "loft_profile", "sweep_profile",
             } else None,
             "forgecad_edge_finish": edge_finish,
             "forgecad_source_face_ids": list(range(_primitive_triangle_count(primitive))),
@@ -3846,6 +4127,25 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
     uvs: List[float] = []
     indices: List[int] = []
     center = tuple(value / 1000 for value in loft.center_mm)
+    ring_centers = [
+        tuple(sum(point[axis] for point in ring) / point_count for axis in range(3))
+        for ring in rings
+    ]
+    longitudinal_repeats = [0.0]
+    for index in range(1, len(ring_centers)):
+        longitudinal_repeats.append(
+            longitudinal_repeats[-1]
+            + math.dist(ring_centers[index - 1], ring_centers[index]) / VISUAL_UV_REPEAT_MM
+        )
+    perimeter_repeats: List[List[float]] = []
+    for ring in rings:
+        cumulative = [0.0]
+        for index in range(point_count):
+            cumulative.append(
+                cumulative[-1]
+                + math.dist(ring[index], ring[(index + 1) % point_count]) / VISUAL_UV_REPEAT_MM
+            )
+        perimeter_repeats.append(cumulative)
 
     def vector(left: Tuple[float, float, float], right: Tuple[float, float, float]) -> Tuple[float, float, float]:
         return right[0] - left[0], right[1] - left[1], right[2] - left[2]
@@ -3870,7 +4170,7 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
         return len(positions) // 3 - 1
 
     for span in range(len(rings) - 1):
-        v0, v1 = span / (len(rings) - 1), (span + 1) / (len(rings) - 1)
+        v0, v1 = longitudinal_repeats[span], longitudinal_repeats[span + 1]
         centerline = tuple(
             (sum(point[axis] for point in rings[span]) / point_count + sum(point[axis] for point in rings[span + 1]) / point_count) / 2
             for axis in range(3)
@@ -3884,9 +4184,18 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
             if sum(face_normal[axis] * outward[axis] for axis in range(3)) < 0:
                 quad = [quad[0], quad[3], quad[2], quad[1]]
                 face_normal = tuple(-value for value in face_normal)
-            u0, u1 = index / point_count, (index + 1) / point_count
+            current_u0, current_u1 = perimeter_repeats[span][index:index + 2]
+            next_u0, next_u1 = perimeter_repeats[span + 1][index:index + 2]
             base = len(positions) // 3
-            for point, uv in zip(quad, ((u0, v0), (u0, v1), (u1, v1), (u1, v0))):
+            for point, uv in zip(
+                quad,
+                (
+                    (current_u0, v0),
+                    (next_u0, v1),
+                    (next_u1, v1),
+                    (current_u1, v0),
+                ),
+            ):
                 append(point, face_normal, uv)
             indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
 
@@ -3900,9 +4209,8 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
         plane = profiles[section_index]
         ring = rings[section_index]
         point_lookup = {point: ring[index] for index, point in enumerate(plane)}
-        min_u, max_u = min(point[0] for point in plane), max(point[0] for point in plane)
-        min_v, max_v = min(point[1] for point in plane), max(point[1] for point in plane)
-        span_u, span_v = max(max_u - min_u, 1e-9), max(max_v - min_v, 1e-9)
+        min_u = min(point[0] for point in plane)
+        min_v = min(point[1] for point in plane)
         for triangle in _triangulate_profile_cap(plane, []):
             points = [point_lookup[point] for point in triangle]
             normal = normalized(cross(vector(points[0], points[1]), vector(points[0], points[2])))
@@ -3910,7 +4218,14 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
                 points.reverse()
             base = len(positions) // 3
             for point_2d, point_3d in zip(triangle if points[0] == point_lookup[triangle[0]] else reversed(triangle), points):
-                append(point_3d, outward, ((point_2d[0] - min_u) / span_u, (point_2d[1] - min_v) / span_v))
+                append(
+                    point_3d,
+                    outward,
+                    (
+                        (point_2d[0] - min_u) / VISUAL_UV_REPEAT_MM,
+                        (point_2d[1] - min_v) / VISUAL_UV_REPEAT_MM,
+                    ),
+                )
             indices.extend((base, base + 1, base + 2))
 
     if loft.cap_start:

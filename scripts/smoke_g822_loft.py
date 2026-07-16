@@ -135,7 +135,7 @@ def main() -> int:
         assert sum(item["triangle_count"] for item in provenance["surface_ranges"]) == facts.triangle_count
         assert provenance["closed"] is True
         assert provenance["boundary_edge_count"] == provenance["non_manifold_edge_count"] == provenance["degenerate_triangle_count"] == 0
-        assert all(0 <= value <= 1 for value in [*provenance["uv0_min"], *provenance["uv0_max"]])
+        assert all(0 <= value <= 64 for value in [*provenance["uv0_min"], *provenance["uv0_max"]])
 
     unordered = copy.deepcopy(fixtures[0])
     unordered["profile_inputs"][0]["canonical_payload"]["sections"][1]["position"] = -0.95

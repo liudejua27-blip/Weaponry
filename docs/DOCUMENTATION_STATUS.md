@@ -37,6 +37,8 @@ M108 审阅真值增量（2026-07-16）：工作台截图前必须证明 ModuleG
 
 M108 最终 GLB 真值增量（2026-07-16）：12 份固定审阅 fixture 的最终 BIN POSITION 现在由严格 accessor/bufferView 解码并与声明 bounds 对照，负索引、越出 view、非法 stride/alignment、缺失显式 buffer、伪造图片 view 和 scene/node 变换或实例均 fail closed；当前 ShapeProgram GLB 只接受单 mesh、单 scene、单 identity node。A/B/C fixture 的视觉连续性门要求一个最终 AABB 分量，新增航空器 pod 与机械臂 wrist/rail/carriage 外罩还锁定由目标部件推导的中心、轴向和双边尺寸范围。该证据只覆盖 12 份 fixture，且 AABB 连续不等于实体焊接、工程 connector 或全部 catalog；视觉件仍是 root 级绝对展示分组，真实配方附着归 C105。独立人工视觉评分仍为空，M108/C105 状态不变。
 
+M108 Loft 与代理审核增量（2026-07-16）：车辆/航空器 A 代表资产的主壳与座舱已切换为真实 canonical ProfileSectionSet 驱动的受限 Loft，固定截面、参数、材质区和来源仍经 Schema/G819/Worker/Q003 同一链。Loft/Sweep 不再把 0–1 UV 拉伸一次覆盖长壳，而按周长与路径物理距离以 320 mm 展示基线生成并从 GLB 回读。车辆已去除屏幕中明显突兀的后部三角板与前端亮白盖；航空器实心旋翼盘改为小轮毂+叶片，工作台最高为 6,196 triangles/96 draw calls，未越 GPU 预算。Codex 只以明确标识的代理审查为开发反馈，不写人工回复、不伪造真人身份；代理结论仍指出飞机翼面偏大平直、所有领域表面细节仍为 Alpha 概念级。因此 M108 仍为 `in_progress`，C105/V003/F026 未解锁。
+
 评分校验中的“至少五套”按至少五个不同 material index、texture-set ID 和规范 texture material 计算，重复 authored alias 不能累加；renderer line instrumentation 缺失、非法或非零都会 fail closed。
 
 ## 2. 事实的唯一归属

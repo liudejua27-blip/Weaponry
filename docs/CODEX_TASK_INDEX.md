@@ -1703,6 +1703,8 @@ CI 回归检查点（2026-07-15）：native Tauri smoke 必须复用当前 navig
 
 该评分检查点的“至少五套”同时要求至少五个不同 material index、texture-set ID 和规范 texture material，重复 authored alias 不能累加；self-test 已覆盖 alias 重复计数与五通道 role 缺失/重复。renderer line instrumentation 缺失、非法或非零也会拒绝。
 
+Loft 代表资产与代理审核检查点（2026-07-16）：车辆 A 的底盘/座舱与航空器 A 的机身/座舱现在真实消费代码所有的 canonical `ProfileSectionSet@1` 和 G819 `loft` runtime，不再仅以 box/wedge 拼主壳。Loft/Sweep 侧面 UV 按实际截面周长/路径累计距离生成，cap 按平面物理坐标生成，并继续由 GLB readback 锁定 320 mm 展示基线。车辆移除突兀后部三角件、缩小前灯并重新贴合顶部饰面；航空器把四个实心旋翼盘改为小轮毂和可见叶片。最新真实工作台捕获全部通过 GPU 门，航空器为 6,196 triangles/96 draw calls。Codex 代理审核明确标记为非真人、未写入 `review-responses.json`；结论仍是飞机翼面偏平、各领域表面细节仍为 Alpha blockout 级。因此该代理审核只是开发反馈，不冒充三位真实独立审核或满足每领域 4/5 退出门；M108 保持 `in_progress`，C105 保持 blocked。当前 tracked arm64 sidecar 已重建并通过 packaged sidecar Alpha，但 packaged Tauri/r3 因另一工作区的现有服务占用 127.0.0.1:8000 而未运行；不会停止该跨项目服务来伪造通过。
+
 ### FGC-C105 任务卡
 
 状态：blocked（等待 M108、C104、G826、D005）。

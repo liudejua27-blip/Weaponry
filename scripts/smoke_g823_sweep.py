@@ -92,7 +92,7 @@ def assert_compiles(candidate: dict, roles: list[str], closed: bool) -> None:
     assert surface.closed is closed
     assert surface.non_manifold_edge_count == surface.degenerate_triangle_count == 0
     assert surface.boundary_edge_count == 0 if closed else surface.boundary_edge_count > 0
-    assert all(0 <= value <= 1 for value in [*surface.uv0_min, *surface.uv0_max])
+    assert all(0 <= value <= 64 for value in [*surface.uv0_min, *surface.uv0_max])
 
 
 def main() -> int:

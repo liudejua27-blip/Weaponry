@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 Loft 代表资产与 Codex 代理审核（进行中，未完成）
+
+- 四领域 A 审阅资产中，车辆底盘/座舱和航空器机身/座舱现在通过受限 `ProfileSectionSet@1 → loft` 真实执行，不再由多个 box/wedge 冒充连续外壳。这些固定截面由代码所有、经 canonical profile 和 G819 白名单验证；未增加自由 Profile UI、Recipe 或 Planner 自动路由。
+- Loft/Sweep 的侧面 UV 改为按截面周长与中心线累计距离以 320 mm 展示基线计算，cap 也使用物理平面坐标；实际 GLB primitive 回读 `forgecad_visual_uv_repeat_mm=320`。G822/G823 保留有界 UV 上限，M108 继续对每个实际 primitive 检查该值，没有为新曲面降低 PBR/readback 门槛。
+- 车辆移除了会在截图中形成大型三角杂件的后甲板，前灯缩成嵌入式灯带，两块顶部饰面按当前 loft 截面高度重新贴合。航空器的四个实心旋翼盘改为小铝轮毂与可见复合材料叶片；最终工作台实拍为 6,196 triangles/96 draw calls，恰好达到但未超过现有预算，后续不能继续靠堆 primitive 提升该 fixture。
+- Codex 已以代理审查员身份检查 `codex-iteration-4` 的四份真实 GLB/readback 与工作台 PNG，并保存明确标记的代理报告；未改写 `review-responses.json`、未伪造三位真人 ID，也未把代理评分送入人工退出门。审查仍认定飞机翼面偏大且平、四领域纹理/细节密度为 Alpha 概念资产级，不足以宣称真实产品外观。
+- 本检查点已通过 `agent:m108-gate`、`desktop:m108-workbench-renderer-smoke`、Q003、G5/G6/G818/G822/G823、Agent 18 项单测、contracts、`agent:check`、desktop build/Rust check、文档/integrity/安全/密钥门。从当前源码重建的 tracked macOS arm64 sidecar 为 31,808,512 bytes，SHA-256 `51d2df030672901840de72fb9cf4adb1eff02288ce44ad6ad2ac4482ed59ef7e`；packaged sidecar Alpha 已通过 PBR/CSG/undo/redo/导出/重启且 `provider_calls=0`，`.app` 也已由该二进制重建。`desktop:packaged-tauri-alpha-smoke` 未进入产品断言：它在启动前按设计拒绝被 `/Users/liuchongjiang/Documents/大A交易系统/backend` 的 Python/uvicorn 占用的 127.0.0.1:8000；本轮未停止该跨工作区服务，因此 packaged Tauri 和依赖同一端口的 r3 记为未运行，不得写 PASS。arm64 `--require-ready` preflight 通过；完整 `release:packaging-readiness` 仍按设计以 `SIDECAR_BINARY_INVALID` 拒绝空的 Intel macOS/Windows/Linux sidecar，该发布阻断未放宽。M108 继续 `in_progress`，C105/V003/F026 仍不解锁。
+
 ## 2026-07-16：FGC-M108 最终 GLB 真值与十二份审阅资产嵌合增量（进行中，未完成）
 
 - `read_shape_program_glb_facts()` 现在从 BIN 中逐个解码真实 POSITION，而不是信任 accessor `min/max`；声明 bounds 必须与有限实际坐标一致。accessor/bufferView 的引用、count、offset、显式 `byteStride`、component alignment 和读取末端都使用同一严格入口，负下标、越出自身 view、缺失显式 buffer、2/6/256 stride、错位 offset 都会拒绝。PBR 图片 view 同样必须显式引用单一内嵌 buffer，不能用字符串/浮点/bool offset 或 accessor stride。
