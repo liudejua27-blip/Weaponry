@@ -785,6 +785,7 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
         "_side_bridge_",
         "_rotor_pylon_",
         "_shoulder_bridge",
+        "_service_loop",
         "_tilt_pod_bridge_",
         "_wrist_bridge",
         "_rail_bridge",

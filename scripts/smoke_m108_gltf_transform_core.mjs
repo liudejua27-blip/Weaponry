@@ -6,7 +6,9 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { NodeIO } from '@gltf-transform/core';
@@ -41,26 +43,32 @@ const fixtures = JSON.parse(fixtureResult.stdout);
 assert.equal(fixtures.length, 4, 'expected one raw showcase GLB fixture per supported domain');
 
 const readbackProgram = [
-  'from dataclasses import asdict',
   'import json, sys',
   'from forgecad_agent.application.geometry_worker import read_shape_program_glb_facts',
-  'facts = read_shape_program_glb_facts(sys.stdin.buffer.read())',
-  'print(json.dumps(asdict(facts), ensure_ascii=True, sort_keys=True, separators=(\',\', \':\')))',
+  'facts = read_shape_program_glb_facts(open(sys.argv[1], \'rb\').read())',
+  'payload = {\'material_zone_faces\': facts.material_zone_faces, \'visual_texture_sets\': facts.visual_texture_sets}',
+  'print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(\',\', \':\')))',
 ].join('; ');
 
 function runReadback(payload) {
-  return spawnSync(python, ['-c', readbackProgram], {
-    cwd: ROOT,
-    input: Buffer.from(payload),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PYTHONPATH: [join(ROOT, 'apps', 'agent'), join(ROOT, 'scripts'), process.env.PYTHONPATH]
-        .filter(Boolean)
-        .join(process.platform === 'win32' ? ';' : ':'),
-    },
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const fixtureDirectory = mkdtempSync(join(tmpdir(), 'forgecad-m108-readback-'));
+  const fixturePath = join(fixtureDirectory, 'asset.glb');
+  writeFileSync(fixturePath, Buffer.from(payload));
+  try {
+    return spawnSync(python, ['-c', readbackProgram, fixturePath], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PYTHONPATH: [join(ROOT, 'apps', 'agent'), join(ROOT, 'scripts'), process.env.PYTHONPATH]
+          .filter(Boolean)
+          .join(process.platform === 'win32' ? ';' : ':'),
+      },
+      maxBuffer: 20 * 1024 * 1024,
+    });
+  } finally {
+    rmSync(fixtureDirectory, { recursive: true, force: true });
+  }
 }
 
 function readback(payload) {

@@ -5,6 +5,15 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 Sweep 连接与线缆细化（进行中，未完成）
+
+- `compact_prop_a` 的握把由等截面 capsule 改为五截面、Y 主轴的受限 Loft，并让安装环从真实显示外包围读取握把半径，避免几何语法改变后连接环塌缩。它仍是非功能虚构游戏/影视道具外观，不表达现实武器结构、制造尺寸或性能。
+- `urban_scout_a` 的四个楔形轮眉改为四点路径、八点椭圆截面的真实 G823 Sweep；为守住实际 GPU 预算，删除重复座舱框、将顶置排气视觉件收敛为两个并只保留一个侧围紧固件。`vertical_takeoff_a` 的四块平板旋翼支架改为封闭 Sweep 曲线外罩，尾部 24 段圆柱排气口改为低多边形楔形出风口；`precision_light_a` 增加封闭的橡胶材质服务线缆 Sweep。所有新件都进入同一 ShapeProgram、GLB、PBR、zone、surface provenance 和 readback，不是前端贴图或静默估算。
+- `codex-iteration-14` 的真实工作台 readback 为道具 6,248/51、车辆 6,892/78、航空器 6,868/96、机械臂 5,720/53（triangles/draw calls）；四项均为 `ready/glb_pbr`、单 WebGL context、固定环境和 GPU passed。车辆 7,180 与航空器 7,132 的真实超限中间结果被 Gate 拒绝，没有放宽 7,000 triangles 或 96 draw calls 上限。
+- glTF Transform 评估原先会把约 0.7–0.9 MB GLB 通过同步 stdin 送入 Python，完整 npm 链中可偶发管道等待；现在改用临时文件输入且只返回本测试需要的 zone/texture 映射。连续两次评估和完整 M108 Gate 已通过；Transform writer 仍因改变固定采样状态而被拒绝，不能替代不可变编译 GLB。
+- 已通过 Agent 18 项单测、G3–G7 相关 Gate、G817/G819/G822/G823、完整 M108 Gate、contracts、desktop typecheck/build、真实 M108 renderer、R3、T002 14/14、T003 和 Tauri check。tracked macOS arm64 sidecar 已从当前源码重建为 31,813,296 bytes、SHA-256 `202dca17abcbb2c6210c1b753cdebc5607747dcb34482ca8dce7e0975b5c4383`；require-ready 与 packaged sidecar Alpha 覆盖当前 PBR readback、Manifold CSG、undo/redo、导出和重启并通过，`provider_calls=0`，`.app`/DMG 也已重建。当前用户打开的既有 CAD 工作台占用固定 8000 端口，因此没有终止它去重复运行 packaged Tauri smoke。完整 `release:packaging-readiness` 仍按设计以 `SIDECAR_BINARY_INVALID` 拒绝 Intel macOS、Windows 和 Linux 空占位，没有放宽发布阻断。
+- Codex 代理审核仍认为虚构道具主体偏筒形、车辆轮眉有模块拼接感，四领域仍是高质量概念资产而非照片级真实产品。未写人工评分或真人回复；M108 继续 `in_progress`，C105/V003/F026 不解锁。
+
 ## 2026-07-16：FGC-M108 四领域轮廓与连接细化（进行中，未完成）
 
 - `compact_prop_a` 主体由等截面 capsule 改为六截面受限 Loft，保留非功能虚构道具边界，并加入复合材料传感器壳与深色玻璃面；删除重复发光小件后，真实工作台 renderer 从超限的 7,028 triangles 降到 6,836，未放宽 7,000 上限。

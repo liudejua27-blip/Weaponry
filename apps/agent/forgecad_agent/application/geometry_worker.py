@@ -68,6 +68,7 @@ class BoxPrimitive:
     source_operation_id: str | None = None
     profile_contract: Mapping[str, Any] | None = None
     loft_cross_section_scale: Tuple[float, float] = (0.0, 0.0)
+    sweep_profile_scale: Tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -2131,6 +2132,11 @@ def _showcase_connection_fairings(
         core = roles["prop_core"]
         grip = roles["prop_grip"]
         core_height = _primitive_display_extent(core)[1]
+        grip_extent = _primitive_display_extent(grip)
+        grip_visual_radius = max(
+            grip.radius_mm,
+            min(grip_extent[0], grip_extent[2]) / 2,
+        )
         collar_height = 64.0
         return [
             _cylinder(
@@ -2140,7 +2146,7 @@ def _showcase_connection_fairings(
                     core.center_mm[1] - core_height / 2 - collar_height / 2 + 16.0,
                     grip.center_mm[2],
                 ),
-                grip.radius_mm * 1.15,
+                grip_visual_radius * 1.15,
                 collar_height,
                 1,
                 (0.0, 1.0, 0.0),
@@ -2214,22 +2220,49 @@ def _showcase_connection_fairings(
                 rotor = roles[rotor_role]
                 wing_thickness = _primitive_display_extent(wing)[1]
                 rotor_span = max(rotor.radius_mm, 150.0)
-                bridge_length = abs(rotor.center_mm[0] - wing.center_mm[0]) + rotor_span * 0.4
+                side_sign = math.copysign(1.0, rotor.center_mm[2])
+                wing_attach = (
+                    wing.center_mm[0],
+                    wing.center_mm[1] + wing_thickness * 0.04,
+                    rotor.center_mm[2] - side_sign * rotor_span * 0.22,
+                )
+                rotor_attach = (
+                    rotor.center_mm[0],
+                    rotor.center_mm[1] - rotor.height_mm * 0.08,
+                    rotor.center_mm[2],
+                )
+                center = tuple(
+                    (wing_attach[axis] + rotor_attach[axis]) / 2
+                    for axis in range(3)
+                )
+                relative_start = tuple(
+                    wing_attach[axis] - center[axis] for axis in range(3)
+                )
+                relative_end = tuple(
+                    rotor_attach[axis] - center[axis] for axis in range(3)
+                )
                 fairings.append(
-                    _wedge(
+                    _showcase_sweep_tube(
                         f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
-                        (
-                            (wing.center_mm[0] + rotor.center_mm[0]) / 2,
-                            (wing.center_mm[1] + rotor.center_mm[1]) / 2,
-                            rotor.center_mm[2]
-                            + math.copysign(rotor_span * 0.04, rotor.center_mm[2]),
+                        center,
+                        path_points=(
+                            relative_start,
+                            tuple(
+                                relative_start[axis] * 0.64
+                                + relative_end[axis] * 0.36
+                                + (24.0 if axis == 1 else 0.0)
+                                for axis in range(3)
+                            ),
+                            tuple(
+                                relative_start[axis] * 0.28
+                                + relative_end[axis] * 0.72
+                                + (34.0 if axis == 1 else 0.0)
+                                for axis in range(3)
+                            ),
+                            relative_end,
                         ),
-                        (
-                            bridge_length,
-                            max(40.0, wing_thickness * 0.84),
-                            rotor_span * 0.8,
-                        ),
-                        3,
+                        profile_scale=(30.0, 30.0),
+                        material=3,
                         material_id="mat_aluminum",
                     )
                 )
@@ -2489,23 +2522,6 @@ def _vehicle_showcase_details(
         ),
         _box("visual_cable_slot_vehicle_belt", (cx - width * 0.05, cy + height * 0.12, cz + depth / 2 + thickness / 2 - 6.0), (width * 0.46, max(12.0, height * 0.055), thickness), 0, material_id="mat_rubber"),
     ]
-    if anchors is not None:
-        cabin = anchors["vehicle_cabin"]
-        cabin_extent = _primitive_display_extent(cabin)
-        for side, sign in (("left", -1.0), ("right", 1.0)):
-            details.append(
-                _box(
-                    f"visual_guard_vehicle_cabin_frame_{side}",
-                    (
-                        cabin.center_mm[0] - cabin_extent[0] * 0.04,
-                        cabin.center_mm[1] + cabin_extent[1] * 0.08,
-                        cabin.center_mm[2] + sign * (cabin_extent[2] / 2 + thickness / 2 - 6.0),
-                    ),
-                    (cabin_extent[0] * 0.7, max(24.0, cabin_extent[1] * 0.1), thickness),
-                    3,
-                    material_id="mat_composite",
-                )
-            )
     wheel_anchors = _exact_showcase_roles(
         boxes,
         domain_pack_id="pack_vehicle_concept",
@@ -2520,30 +2536,42 @@ def _vehicle_showcase_details(
     if wheel_anchors is not None:
         for position in ("fl", "fr", "rl", "rr"):
             wheel = wheel_anchors[f"vehicle_wheel_{position}"]
+            side_sign = math.copysign(1.0, wheel.center_mm[2])
             details.append(
-                _wedge(
+                _showcase_sweep_tube(
                     f"visual_guard_vehicle_fender_{position}",
                     (
                         wheel.center_mm[0],
-                        wheel.center_mm[1] + wheel.radius_mm * 0.88,
+                        wheel.center_mm[1],
                         wheel.center_mm[2]
-                        - math.copysign(wheel.height_mm * 0.08, wheel.center_mm[2]),
+                        + side_sign * (wheel.height_mm / 2 + 4.0),
                     ),
-                    (
-                        wheel.radius_mm * 1.68,
-                        max(44.0, wheel.radius_mm * 0.22),
-                        wheel.height_mm * 1.18,
+                    path_points=(
+                        (-wheel.radius_mm * 0.82, wheel.radius_mm * 0.36, 0.0),
+                        (-wheel.radius_mm * 0.36, wheel.radius_mm * 1.12, 0.0),
+                        (wheel.radius_mm * 0.36, wheel.radius_mm * 1.12, 0.0),
+                        (wheel.radius_mm * 0.82, wheel.radius_mm * 0.36, 0.0),
                     ),
-                    7,
+                    profile_scale=(26.0, 26.0),
+                    material=7,
                     material_id="mat_automotive_paint",
                 )
             )
     vent_radius = max(9.0, min(19.0, min(width, depth) * 0.028))
-    for index, z_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
+    for index, z_offset in enumerate((-vent_radius * 1.15, vent_radius * 1.15), 1):
         details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2 - 6.0, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
     fastener_radius = max(8.0, min(15.0, min(height, depth) * 0.03))
-    for index, x_offset in enumerate((-width * 0.32, width * 0.32), 1):
-        details.append(_cylinder(f"visual_fastener_vehicle_sill_{index}", (cx + x_offset, cy - height * 0.18, cz + depth / 2 + thickness / 2 - 6.0), fastener_radius, thickness, 1, (0.0, 0.0, 1.0), material_id="mat_aluminum"))
+    details.append(
+        _cylinder(
+            "visual_fastener_vehicle_sill_center",
+            (cx, cy - height * 0.18, cz + depth / 2 + thickness / 2 - 6.0),
+            fastener_radius,
+            thickness,
+            1,
+            (0.0, 0.0, 1.0),
+            material_id="mat_aluminum",
+        )
+    )
     if detail_level >= 4:
         details.append(_box("visual_light_strip_vehicle_rear", (cx + width / 2 + thickness / 2, cy + height * 0.04, cz), (thickness, max(24.0, height * 0.18), depth * 0.38), 6, material_id="mat_emissive_blue"))
     return details
@@ -2613,7 +2641,15 @@ def _aircraft_showcase_details(
                 )
             )
     vent_radius = max(9.0, min(18.0, min(height, depth) * 0.04))
-    details.append(_cylinder("visual_vent_aircraft_tail_1", (cx + width / 2 + thickness / 2 - surface_inset, cy - height * 0.1, cz), vent_radius, thickness, 0, (1.0, 0.0, 0.0), material_id="mat_rubber"))
+    details.append(
+        _wedge(
+            "visual_vent_aircraft_tail_1",
+            (cx + width / 2 + thickness / 2 - surface_inset, cy - height * 0.1, cz),
+            (thickness, vent_radius * 2, vent_radius * 2),
+            0,
+            material_id="mat_rubber",
+        )
+    )
     fastener_radius = max(8.0, min(14.0, min(width, depth) * 0.025))
     details.append(_cylinder("visual_fastener_aircraft_dorsal_1", (cx - width * 0.12, cy + height / 2 + thickness / 2 - surface_inset, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
     return details
@@ -2712,6 +2748,23 @@ def _robotic_arm_showcase_details(
                     material_id="mat_aluminum",
                 )
             )
+        details.append(
+            _showcase_sweep_tube(
+                "visual_cable_robot_service_loop",
+                (365.0, 835.0, 142.0),
+                path_points=(
+                    (-365.0, -285.0, 0.0),
+                    (-315.0, -135.0, 10.0),
+                    (-175.0, 5.0, 0.0),
+                    (-175.0, 245.0, 0.0),
+                    (95.0, 245.0, -20.0),
+                    (365.0, 245.0, -32.0),
+                ),
+                profile_scale=(14.0, 14.0),
+                material=4,
+                material_id="mat_rubber",
+            )
+        )
     vent_radius = max(9.0, min(18.0, min(width, height) * 0.04))
     for index, x_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
         details.append(_cylinder(f"visual_vent_robot_base_{index}", (cx + width * 0.2 + x_offset, cy - height * 0.1, cz + depth / 2 + thickness / 2 - 6.0), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
@@ -2937,6 +2990,59 @@ def _showcase_loft_shell(
     )
 
 
+def _showcase_sweep_tube(
+    role: str,
+    center: Tuple[float, float, float],
+    *,
+    path_points: Sequence[Tuple[float, float, float]],
+    profile_scale: Tuple[float, float],
+    material: int,
+    material_id: str,
+    resample_count: int = 8,
+) -> BoxPrimitive:
+    """Describe a reviewed visual tube that must execute through G823."""
+
+    if not 3 <= len(path_points) <= 8:
+        raise ValueError("showcase sweep requires 3-8 reviewed path points")
+    if resample_count != 8:
+        raise ValueError("showcase sweep uses the reviewed eight-point profile")
+    if any(value <= 0 or value > 64 for value in profile_scale):
+        raise ValueError("showcase sweep profile scale is outside the visual budget")
+    if any(
+        not math.isfinite(value)
+        for point in path_points
+        for value in point
+    ):
+        raise ValueError("showcase sweep path must be finite")
+    profile = _showcase_ellipse_profile(
+        f"sketch_{role}",
+        1.0,
+        1.0,
+        resample_count=resample_count,
+    )
+    minimum = [
+        min(point[axis] for point in path_points) - max(profile_scale)
+        for axis in range(3)
+    ]
+    maximum = [
+        max(point[axis] for point in path_points) + max(profile_scale)
+        for axis in range(3)
+    ]
+    return BoxPrimitive(
+        role,
+        center,
+        tuple(maximum[axis] - minimum[axis] for axis in range(3)),
+        material,
+        "sweep_contract",
+        material_id=material_id,
+        profile_contract=profile,
+        sweep_profile_scale=profile_scale,
+        sweep_path_mm=tuple(path_points),
+        cap_start=True,
+        cap_end=True,
+    )
+
+
 def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitive]:
     """Return an explicit, low-poly structure for the G807 diversity catalog.
 
@@ -2964,7 +3070,22 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
                     material_id="mat_primary",
                 ),
                 _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
-                _capsule("prop_grip", (-160, 210, 0), 130, 620, 1),
+                _showcase_loft_shell(
+                    "prop_grip",
+                    (-160, 210, 0),
+                    axis_length=620,
+                    cross_section_scale=(130, 110),
+                    sections=(
+                        (-1.0, 0.62, 0.58),
+                        (-0.62, 0.88, 0.78),
+                        (0.0, 0.9, 0.96),
+                        (0.62, 0.76, 0.82),
+                        (1.0, 0.54, 0.62),
+                    ),
+                    material=1,
+                    material_id="mat_rubber",
+                    main_axis="y",
+                ),
                 _capsule("prop_rear_housing", (650, 610, 0), 205, 520, 0, (1, 0, 0)),
                 _box(
                     "prop_sensor_housing",
@@ -3528,6 +3649,36 @@ def _program_for_boxes(
                 "cross_section_scale": list(box.loft_cross_section_scale),
                 "axis_length": box.height_mm,
                 "continuity": "linear",
+            })
+        elif box.primitive_kind == "sweep_contract":
+            if (
+                box.profile_contract is None
+                or any(value <= 0 for value in box.sweep_profile_scale)
+                or len(box.sweep_path_mm) < 3
+            ):
+                raise ValueError(f"showcase sweep contract is incomplete for {box.part_role}")
+            from .profile_contracts import canonical_profile_payload
+
+            canonical, _canonical_json, digest = canonical_profile_payload(
+                box.profile_contract
+            )
+            profile_input_id = f"profileinput_{index + 1}_{box.part_role}"
+            profile_inputs.append({
+                "input_id": profile_input_id,
+                "input_kind": "profile_sketch",
+                "contract_version": "ProfileSketch@1",
+                "input_sha256": digest,
+                "canonical_payload": canonical,
+            })
+            op_name = "sweep"
+            args.update({
+                "profile_input_id": profile_input_id,
+                "profile_scale": list(box.sweep_profile_scale),
+                "path_points": [list(point) for point in box.sweep_path_mm],
+                "path_closed": False,
+                "path_twist_degrees": 0.0,
+                "cap_start": box.cap_start,
+                "cap_end": box.cap_end,
             })
         elif box.primitive_kind == "revolve":
             op_name = "revolve"

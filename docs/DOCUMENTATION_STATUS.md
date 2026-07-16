@@ -43,6 +43,8 @@ M108 Airfoil 与第二轮代理审核增量（2026-07-16）：航空器 A 左右
 
 M108 四领域轮廓与连接细化增量（2026-07-16）：虚构道具 A 主壳由 capsule 改为六截面受限 Loft，并加入复合传感器壳和深色玻璃面；车辆 A 显式绑定橡胶轮胎、缩薄侧桥并增加四个受限楔形轮眉；航空器 A 的四个旋翼支架缩至约 40.32 mm 厚、120 mm 深，最终 GLB 与对应翼面 Z 范围仍至少重叠 0.03 m；机械臂 A 增加肩/肘/腕铝端盖。`codex-iteration-11` 真实工作台 readback 为道具 6,836/51、车辆 6,844/84、航空器 6,508/96、机械臂 5,536/51（triangles/draw calls），均保持单 WebGL context、`glb_pbr`、固定环境和 GPU passed。31,809,920-byte、SHA-256 `50bc173dd452d6e29e789f371bf437d2b6b9e252d949da1eb0ae35035ff74c4c` 的 tracked arm64 sidecar 已通过 require-ready、packaged sidecar、Tauri `.app`/DMG build 与 packaged Tauri smoke，`provider_calls=0`。Codex 代理审核仍认为连续轮拱、翼根/推进外罩、线缆/执行器和端部过渡不足，四领域没有同时达到三维度 4/5；M108 继续 `in_progress`，C105 不解锁。
 
+M108 Sweep 连接与线缆增量（2026-07-16）：虚构道具 A 握把由 capsule 改为五截面 Y 主轴 Loft，安装环从真实显示外包围恢复半径；车辆 A 的四个楔形轮眉改为四点路径、八点截面的封闭 G823 Sweep，并收敛重复座舱框、顶置排气和侧围紧固件以保持固定 GPU 预算；航空器 A 的四块平板旋翼支架改为封闭 Sweep 曲线外罩，尾部圆柱视觉排气口改为楔形；机械臂 A 增加封闭橡胶服务线缆 Sweep。`codex-iteration-14` 真实工作台 readback 为道具 6,248/51、车辆 6,892/78、航空器 6,868/96、机械臂 5,720/53（triangles/draw calls），均为单 WebGL context、`glb_pbr`、固定环境和 GPU passed；车辆 7,180 与航空器 7,132 的中间结果按真实 renderer 预算失败后才减面，没有放宽 7,000/96 上限。glTF Transform 评估改为临时文件 readback，消除大 GLB 同步 stdin 的偶发等待，但 writer 仍按原合同被拒绝。31,813,296-byte、SHA-256 `202dca17abcbb2c6210c1b753cdebc5607747dcb34482ca8dce7e0975b5c4383` 的 tracked arm64 sidecar 已通过 require-ready、packaged sidecar Alpha 和 Tauri check，`.app`/DMG 已重建；当前打开的 CAD 工作台占用固定端口，因此本轮未重复运行 packaged Tauri smoke。完整 packaging readiness 仍因 Intel macOS、Windows 和 Linux 空 sidecar 占位按设计阻断。Codex 代理审核仍认为道具偏筒形、车辆轮眉有模块拼接感；独立人工视觉评分仍为空，M108/C105 状态不变。
+
 评分校验中的“至少五套”按至少五个不同 material index、texture-set ID 和规范 texture material 计算，重复 authored alias 不能累加；renderer line instrumentation 缺失、非法或非零都会 fail closed。
 
 ## 2. 事实的唯一归属

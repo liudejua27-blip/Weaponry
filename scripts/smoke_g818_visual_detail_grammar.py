@@ -253,7 +253,9 @@ def main() -> int:
     assert prop_ops["prop_core"]["op"] == "loft"
     assert prop_ops["prop_core"]["args"]["axis_length"] == 1500
     assert prop_ops["prop_core"]["args"]["cross_section_scale"] == [250, 250]
-    assert prop_ops["prop_grip"]["op"] == "capsule"
+    assert prop_ops["prop_grip"]["op"] == "loft"
+    assert prop_ops["prop_grip"]["args"]["axis_length"] == 620
+    assert prop_ops["prop_grip"]["args"]["cross_section_scale"] == [130, 110]
     assert prop_ops["prop_rear_housing"]["op"] == "capsule"
     assert "prop_sight" not in prop_ops
     assert prop_ops["prop_sensor_housing"]["op"] == "box"
@@ -305,15 +307,21 @@ def main() -> int:
     for position in ("fl", "fr", "rl", "rr"):
         fender_role = f"visual_guard_vehicle_fender_{position}"
         wheel_role = f"vehicle_wheel_{position}"
-        assert vehicle_ops[fender_role]["op"] == "wedge"
+        assert vehicle_ops[fender_role]["op"] == "sweep"
         assert vehicle_ops[fender_role]["args"]["material_id"] == "mat_automotive_paint"
-        _assert_vector_close(vehicle_ops[fender_role]["args"]["size"], (420.0, 55.0, 259.6))
+        assert vehicle_ops[fender_role]["args"]["profile_scale"] == [26.0, 26.0]
+        assert len(vehicle_ops[fender_role]["args"]["path_points"]) == 4
         assert _axis_overlap(
             selected_bounds["pack_vehicle_concept"],
             fender_role,
             wheel_role,
             1,
         ) > 0
+    assert {
+        role
+        for role in vehicle_ops
+        if role.startswith("visual_fastener_vehicle_sill_")
+    } == {"visual_fastener_vehicle_sill_center"}
     vehicle_bounds = selected_bounds["pack_vehicle_concept"]
     for panel_role in ("visual_panel_vehicle_paint", "visual_panel_vehicle_deck"):
         assert _axis_overlap(vehicle_bounds, panel_role, "vehicle_chassis", 1) > 0
@@ -394,12 +402,9 @@ def main() -> int:
         bridge_role = f"visual_guard_aircraft_rotor_pylon_{position}"
         wing_role = f"lift_wing_{'left' if position.endswith('left') else 'right'}"
         rotor_role = f"lift_rotor_{position}"
-        assert aircraft_ops[bridge_role]["op"] == "wedge"
-        _assert_values_in_range(
-            aircraft_ops[bridge_role]["args"]["size"],
-            (399.0, 39.0, 119.0),
-            (565.0, 41.0, 121.0),
-        )
+        assert aircraft_ops[bridge_role]["op"] == "sweep"
+        assert aircraft_ops[bridge_role]["args"]["profile_scale"] == [30.0, 30.0]
+        assert len(aircraft_ops[bridge_role]["args"]["path_points"]) == 4
         _assert_aabb_overlap_and_exposure(
             selected_bounds["pack_aircraft_concept"],
             bridge_role,
@@ -435,6 +440,11 @@ def main() -> int:
     ) <= 0.0081
     assert robot_ops["visual_guard_robot_shoulder_bridge"]["op"] == "box"
     assert robot_ops["visual_guard_robot_corner"]["op"] == "box"
+    service_loop = robot_ops["visual_cable_robot_service_loop"]
+    assert service_loop["op"] == "sweep"
+    assert service_loop["args"]["material_id"] == "mat_rubber"
+    assert service_loop["args"]["profile_scale"] == [14.0, 14.0]
+    assert len(service_loop["args"]["path_points"]) == 6
     for label, radius, z in (
         ("shoulder", 102.0, 136.0),
         ("elbow", 95.2, 136.0),
