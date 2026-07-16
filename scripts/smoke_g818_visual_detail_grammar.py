@@ -250,17 +250,20 @@ def main() -> int:
         selected_operations[pack_id], selected_bounds[pack_id] = variant_facts(pack_id, variant_id)
 
     prop_ops = selected_operations["pack_future_weapon_prop"]
-    assert prop_ops["prop_core"]["op"] == prop_ops["prop_grip"]["op"] == "capsule"
+    assert prop_ops["prop_core"]["op"] == "loft"
+    assert prop_ops["prop_core"]["args"]["axis_length"] == 1500
+    assert prop_ops["prop_core"]["args"]["cross_section_scale"] == [250, 250]
+    assert prop_ops["prop_grip"]["op"] == "capsule"
     assert prop_ops["prop_rear_housing"]["op"] == "capsule"
-    assert prop_ops["prop_sight"]["op"] == "wedge"
+    assert "prop_sight" not in prop_ops
+    assert prop_ops["prop_sensor_housing"]["op"] == "box"
+    assert prop_ops["prop_sensor_housing"]["args"]["material_id"] == "mat_composite"
+    assert prop_ops["prop_sensor_glass"]["op"] == "box"
+    assert prop_ops["prop_sensor_glass"]["args"]["material_id"] == "mat_dark_glass"
+    assert "prop_status_light" not in prop_ops
     assert prop_ops["visual_guard_prop_rear"]["op"] == "box"
     assert prop_ops["visual_guard_prop_rear"]["args"]["size"] == [270.0, 100.0, 24.0]
     assert prop_ops["visual_guard_prop_mount_collar"]["op"] == "cylinder"
-    assert _capsule_panel_edge_gap_mm(
-        prop_ops["prop_core"],
-        prop_ops["visual_panel_prop_dorsal"],
-        2,
-    ) <= 8.0
     assert 0 < _axis_overlap(
         selected_bounds["pack_future_weapon_prop"],
         "visual_panel_prop_dorsal",
@@ -282,17 +285,35 @@ def main() -> int:
     assert "vehicle_nose" not in vehicle_ops and "vehicle_cabin" not in vehicle_ops
     assert sum(role.startswith("vehicle_hub_") for role in vehicle_ops) == 4
     assert {vehicle_ops[role]["args"]["material_id"] for role in vehicle_ops if role.startswith("vehicle_hub_")} == {"mat_aluminum"}
+    assert {vehicle_ops[role]["args"]["material_id"] for role in vehicle_ops if role.startswith("vehicle_wheel_")} == {"mat_rubber"}
     for side, wheels in (
         ("left", ("vehicle_wheel_fl", "vehicle_wheel_rl")),
         ("right", ("vehicle_wheel_fr", "vehicle_wheel_rr")),
     ):
         bridge_role = f"visual_guard_vehicle_side_bridge_{side}"
         assert vehicle_ops[bridge_role]["op"] == "box"
+        _assert_values_in_range(
+            vehicle_ops[bridge_role]["args"]["size"],
+            (1610.0, 94.0, 68.0),
+            (1620.0, 96.0, 70.0),
+        )
         _assert_aabb_overlap_and_exposure(
             selected_bounds["pack_vehicle_concept"],
             bridge_role,
             ("vehicle_chassis", *wheels),
         )
+    for position in ("fl", "fr", "rl", "rr"):
+        fender_role = f"visual_guard_vehicle_fender_{position}"
+        wheel_role = f"vehicle_wheel_{position}"
+        assert vehicle_ops[fender_role]["op"] == "wedge"
+        assert vehicle_ops[fender_role]["args"]["material_id"] == "mat_automotive_paint"
+        _assert_vector_close(vehicle_ops[fender_role]["args"]["size"], (420.0, 55.0, 259.6))
+        assert _axis_overlap(
+            selected_bounds["pack_vehicle_concept"],
+            fender_role,
+            wheel_role,
+            1,
+        ) > 0
     vehicle_bounds = selected_bounds["pack_vehicle_concept"]
     for panel_role in ("visual_panel_vehicle_paint", "visual_panel_vehicle_deck"):
         assert _axis_overlap(vehicle_bounds, panel_role, "vehicle_chassis", 1) > 0
@@ -374,6 +395,11 @@ def main() -> int:
         wing_role = f"lift_wing_{'left' if position.endswith('left') else 'right'}"
         rotor_role = f"lift_rotor_{position}"
         assert aircraft_ops[bridge_role]["op"] == "wedge"
+        _assert_values_in_range(
+            aircraft_ops[bridge_role]["args"]["size"],
+            (399.0, 39.0, 119.0),
+            (565.0, 41.0, 121.0),
+        )
         _assert_aabb_overlap_and_exposure(
             selected_bounds["pack_aircraft_concept"],
             bridge_role,
@@ -382,7 +408,7 @@ def main() -> int:
         pylon_min, pylon_max = selected_bounds["pack_aircraft_concept"][bridge_role]
         wing_min, wing_max = selected_bounds["pack_aircraft_concept"][wing_role]
         wing_z_overlap = min(pylon_max[2], wing_max[2]) - max(pylon_min[2], wing_min[2])
-        assert wing_z_overlap >= 0.07, (bridge_role, wing_role, wing_z_overlap)
+        assert wing_z_overlap >= 0.03, (bridge_role, wing_role, wing_z_overlap)
     robot_ops = selected_operations["pack_robotic_arm_concept"]
     assert robot_ops["precision_link_1"]["op"] == robot_ops["precision_link_2"]["op"] == "capsule"
     assert robot_ops["visual_panel_robot_upper_link"]["op"] == "box"
@@ -409,6 +435,18 @@ def main() -> int:
     ) <= 0.0081
     assert robot_ops["visual_guard_robot_shoulder_bridge"]["op"] == "box"
     assert robot_ops["visual_guard_robot_corner"]["op"] == "box"
+    for label, radius, z in (
+        ("shoulder", 102.0, 136.0),
+        ("elbow", 95.2, 136.0),
+        ("wrist", 71.4, 121.0),
+    ):
+        cap = robot_ops[f"visual_guard_robot_joint_cap_{label}"]
+        assert cap["op"] == "cylinder"
+        assert cap["args"]["material_id"] == "mat_aluminum"
+        assert abs(cap["args"]["radius"] - radius) <= 1e-6
+        assert cap["args"]["height"] == 28.0
+        _assert_vector_close(cap["args"]["axis"], (0.0, 0.0, 1.0))
+        assert abs(cap["args"]["position"][2] - z) <= 1e-6
     _assert_aabb_overlap_and_exposure(
         selected_bounds["pack_robotic_arm_concept"],
         "visual_guard_robot_shoulder_bridge",

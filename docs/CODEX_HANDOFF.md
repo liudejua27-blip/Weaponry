@@ -5,6 +5,13 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 四领域轮廓与连接细化（进行中，未完成）
+
+- `compact_prop_a` 主体由等截面 capsule 改为六截面受限 Loft，保留非功能虚构道具边界，并加入复合材料传感器壳与深色玻璃面；删除重复发光小件后，真实工作台 renderer 从超限的 7,028 triangles 降到 6,836，未放宽 7,000 上限。
+- `urban_scout_a` 明确将四轮绑定为 `mat_rubber`，侧桥缩薄并增加四个受限楔形轮眉；`vertical_takeoff_a` 四个旋翼支架从 64×217.5 mm 级厚板缩为约 40.32×120 mm 外罩，继续与翼面和轮毂正体积重叠；`precision_light_a` 增加肩、肘、腕三处铝端盖。
+- `codex-iteration-11` 的真实工作台 readback 为道具 6,836/51、车辆 6,844/84、航空器 6,508/96、机械臂 5,536/51（triangles/draw calls），四项均为 `ready/glb_pbr`、单 WebGL context、GPU passed。Codex 代理审核仍判定四领域没有同时达到比例/材质/细节 4/5，报告未写人工响应，M108 保持 `in_progress`、C105 继续 blocked。
+- 已通过完整 `agent:m108-gate`、Agent 18 项单测、G5/G6、contracts、desktop typecheck/build、M108 renderer、R3、T002 14/14、T003、文档/integrity/安全/密钥门。tracked macOS arm64 sidecar 已从当前源码重建为 31,809,920 bytes、SHA-256 `50bc173dd452d6e29e789f371bf437d2b6b9e252d949da1eb0ae35035ff74c4c`；require-ready preflight、packaged sidecar、Tauri check/`.app`/DMG build 和 packaged Tauri smoke 均通过，`provider_calls=0`。
+
 ## 2026-07-16：FGC-M108 Airfoil Loft 与第二轮 Codex 代理审核（进行中，未完成）
 
 - 航空器 A 的左右主翼不再使用厚 wedge，而是分别通过受限 `ProfileSectionSet@1 → loft` 生成固定非对称 airfoil 截面。该内置截面使用四段 tangent quadratic、`symmetry=none`、固定 16 点重采样和 Z 主轴；轴长、截面尺度与四个代码所有截面由 G818 锁定，不开放用户曲线、自由细分或 Planner 路由。

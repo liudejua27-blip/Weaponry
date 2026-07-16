@@ -2172,20 +2172,20 @@ def _showcase_connection_fairings(
             front = roles[front_role]
             rear = roles[rear_role]
             wheel_radius = min(front.radius_mm, rear.radius_mm)
-            thickness = max(80.0, depth * 0.1)
+            thickness = max(64.0, depth * 0.07)
             center_z = (front.center_mm[2] + rear.center_mm[2]) / 2
-            center_z -= math.copysign(thickness * 0.25, center_z)
+            center_z -= math.copysign(thickness * 0.72, center_z)
             fairings.append(
                 _box(
                     f"visual_guard_vehicle_side_bridge_{side}",
                     (
                         (front.center_mm[0] + rear.center_mm[0]) / 2,
-                        (front.center_mm[1] + rear.center_mm[1]) / 2 + wheel_radius * 0.3,
+                        (front.center_mm[1] + rear.center_mm[1]) / 2 + wheel_radius * 0.55,
                         center_z,
                     ),
                     (
-                        abs(front.center_mm[0] - rear.center_mm[0]) + wheel_radius * 1.05,
-                        wheel_radius * 0.55,
+                        abs(front.center_mm[0] - rear.center_mm[0]) + wheel_radius * 0.7,
+                        wheel_radius * 0.38,
                         thickness,
                     ),
                     7,
@@ -2214,7 +2214,7 @@ def _showcase_connection_fairings(
                 rotor = roles[rotor_role]
                 wing_thickness = _primitive_display_extent(wing)[1]
                 rotor_span = max(rotor.radius_mm, 150.0)
-                bridge_length = abs(rotor.center_mm[0] - wing.center_mm[0]) + rotor_span * 0.45
+                bridge_length = abs(rotor.center_mm[0] - wing.center_mm[0]) + rotor_span * 0.4
                 fairings.append(
                     _wedge(
                         f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
@@ -2222,12 +2222,12 @@ def _showcase_connection_fairings(
                             (wing.center_mm[0] + rotor.center_mm[0]) / 2,
                             (wing.center_mm[1] + rotor.center_mm[1]) / 2,
                             rotor.center_mm[2]
-                            + math.copysign(rotor_span * 0.1, rotor.center_mm[2]),
+                            + math.copysign(rotor_span * 0.04, rotor.center_mm[2]),
                         ),
                         (
                             bridge_length,
-                            max(64.0, wing_thickness + 12.0),
-                            rotor_span * 1.45,
+                            max(40.0, wing_thickness * 0.84),
+                            rotor_span * 0.8,
                         ),
                         3,
                         material_id="mat_aluminum",
@@ -2506,6 +2506,38 @@ def _vehicle_showcase_details(
                     material_id="mat_composite",
                 )
             )
+    wheel_anchors = _exact_showcase_roles(
+        boxes,
+        domain_pack_id="pack_vehicle_concept",
+        required_roles=(
+            "vehicle_chassis",
+            "vehicle_wheel_fl",
+            "vehicle_wheel_fr",
+            "vehicle_wheel_rl",
+            "vehicle_wheel_rr",
+        ),
+    )
+    if wheel_anchors is not None:
+        for position in ("fl", "fr", "rl", "rr"):
+            wheel = wheel_anchors[f"vehicle_wheel_{position}"]
+            details.append(
+                _wedge(
+                    f"visual_guard_vehicle_fender_{position}",
+                    (
+                        wheel.center_mm[0],
+                        wheel.center_mm[1] + wheel.radius_mm * 0.88,
+                        wheel.center_mm[2]
+                        - math.copysign(wheel.height_mm * 0.08, wheel.center_mm[2]),
+                    ),
+                    (
+                        wheel.radius_mm * 1.68,
+                        max(44.0, wheel.radius_mm * 0.22),
+                        wheel.height_mm * 1.18,
+                    ),
+                    7,
+                    material_id="mat_automotive_paint",
+                )
+            )
     vent_radius = max(9.0, min(19.0, min(width, depth) * 0.028))
     for index, z_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
         details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2 - 6.0, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
@@ -2652,6 +2684,34 @@ def _robotic_arm_showcase_details(
                 material_id="mat_rubber",
             )
         )
+    joint_anchors = _exact_showcase_roles(
+        boxes,
+        domain_pack_id="pack_robotic_arm_concept",
+        required_roles=("precision_joint_1", "precision_joint_2", "precision_wrist"),
+    )
+    if joint_anchors is not None:
+        for label, role in (
+            ("shoulder", "precision_joint_1"),
+            ("elbow", "precision_joint_2"),
+            ("wrist", "precision_wrist"),
+        ):
+            joint = joint_anchors[role]
+            cap_height = 28.0
+            details.append(
+                _cylinder(
+                    f"visual_guard_robot_joint_cap_{label}",
+                    (
+                        joint.center_mm[0],
+                        joint.center_mm[1],
+                        joint.center_mm[2] + joint.height_mm / 2 + cap_height / 2 - 8.0,
+                    ),
+                    joint.radius_mm * 0.68,
+                    cap_height,
+                    1,
+                    (0.0, 0.0, 1.0),
+                    material_id="mat_aluminum",
+                )
+            )
     vent_radius = max(9.0, min(18.0, min(width, height) * 0.04))
     for index, x_offset in enumerate((-vent_radius * 1.5, 0.0, vent_radius * 1.5), 1):
         details.append(_cylinder(f"visual_vent_robot_base_{index}", (cx + width * 0.2 + x_offset, cy - height * 0.1, cz + depth / 2 + thickness / 2 - 6.0), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
@@ -2887,11 +2947,39 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
     catalog: Dict[str, Dict[str, List[BoxPrimitive]]] = {
         "pack_future_weapon_prop": {
             "compact_prop_a": [
-                _capsule("prop_core", (0, 590, 0), 250, 1500, 0, (1, 0, 0)),
+                _showcase_loft_shell(
+                    "prop_core",
+                    (0, 590, 0),
+                    axis_length=1500,
+                    cross_section_scale=(250, 250),
+                    sections=(
+                        (-1.0, 0.58, 0.62),
+                        (-0.78, 0.86, 0.9),
+                        (-0.3, 1.0, 0.96),
+                        (0.35, 0.94, 0.9),
+                        (0.75, 0.82, 0.78),
+                        (1.0, 0.6, 0.65),
+                    ),
+                    material=0,
+                    material_id="mat_primary",
+                ),
                 _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
                 _capsule("prop_grip", (-160, 210, 0), 130, 620, 1),
                 _capsule("prop_rear_housing", (650, 610, 0), 205, 520, 0, (1, 0, 0)),
-                _wedge("prop_sight", (90, 850, 0), (320, 110, 150), 1),
+                _box(
+                    "prop_sensor_housing",
+                    (70, 850, 0),
+                    (300, 96, 150),
+                    3,
+                    material_id="mat_composite",
+                ),
+                _box(
+                    "prop_sensor_glass",
+                    (-86, 850, 0),
+                    (20, 62, 96),
+                    5,
+                    material_id="mat_dark_glass",
+                ),
             ],
             "compact_prop_b": [_capsule("prop_capsule_body", (0, 570, 0), 300, 1500, 0, (1, 0, 0)), _box("prop_side_housing", (100, 520, -390), (680, 260, 180), 1), _box("prop_grip", (-250, 170, 0), (300, 560, 280), 1), _wedge("prop_optic", (250, 840, 0), (360, 180, 220), 2), _box("prop_panel", (520, 590, 390), (380, 80, 220), 2)],
             "compact_prop_c": [_wedge("prop_front_shell", (-500, 600, 0), (720, 420, 560), 0), _box("prop_rear_shell", (480, 600, 0), (900, 500, 600), 1), _cylinder("prop_muzzle_ring", (-900, 600, 0), 180, 240, 2, (1, 0, 0)), _box("prop_grip", (-120, 170, 0), (320, 560, 300), 1), _box("prop_back_panel", (700, 820, 0), (260, 180, 280), 2)],
@@ -2937,10 +3025,10 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
                     material=5,
                     material_id="mat_dark_glass",
                 ),
-                _cylinder("vehicle_wheel_fl", (-720, 250, -550), 250, 220, 2, (0, 0, 1)),
-                _cylinder("vehicle_wheel_fr", (-720, 250, 550), 250, 220, 2, (0, 0, 1)),
-                _cylinder("vehicle_wheel_rl", (720, 250, -550), 250, 220, 2, (0, 0, 1)),
-                _cylinder("vehicle_wheel_rr", (720, 250, 550), 250, 220, 2, (0, 0, 1)),
+                _cylinder("vehicle_wheel_fl", (-720, 250, -550), 250, 220, 2, (0, 0, 1), material_id="mat_rubber"),
+                _cylinder("vehicle_wheel_fr", (-720, 250, 550), 250, 220, 2, (0, 0, 1), material_id="mat_rubber"),
+                _cylinder("vehicle_wheel_rl", (720, 250, -550), 250, 220, 2, (0, 0, 1), material_id="mat_rubber"),
+                _cylinder("vehicle_wheel_rr", (720, 250, 550), 250, 220, 2, (0, 0, 1), material_id="mat_rubber"),
                 _cylinder("vehicle_hub_fl", (-720, 250, -550), 118, 246, 1, (0, 0, 1)),
                 _cylinder("vehicle_hub_fr", (-720, 250, 550), 118, 246, 1, (0, 0, 1)),
                 _cylinder("vehicle_hub_rl", (720, 250, -550), 118, 246, 1, (0, 0, 1)),
