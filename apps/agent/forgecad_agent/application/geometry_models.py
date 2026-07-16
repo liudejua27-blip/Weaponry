@@ -161,7 +161,8 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
     def migrate_historical_texture_material_id(cls, value: Any) -> Any:
         """Hydrate only an exact legacy-v1 report from before this field existed.
 
-        Current v2 output must always carry ``texture_material_id`` explicitly.
+        Current v3 output and historical v2 output must always carry
+        ``texture_material_id`` explicitly.
         The legacy bridge therefore verifies the immutable v1 texture manifest,
         authored-to-canonical material binding, and fixed material index before
         filling the missing field.  It must not turn a forged persisted report
@@ -175,6 +176,7 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
             not isinstance(texture_set_id, str)
             or not texture_set_id.endswith("_builtin")
             or texture_set_id.endswith("_builtin_v2")
+            or texture_set_id.endswith("_builtin_v3")
         ):
             return value
         material_id = value.get("material_id")

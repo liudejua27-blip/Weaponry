@@ -137,6 +137,7 @@ def main() -> int:
         for texture_set in legacy_readback["visual_texture_sets"]:
             assert texture_set["visual_texture_set_id"].endswith("_builtin")
             assert not texture_set["visual_texture_set_id"].endswith("_builtin_v2")
+            assert not texture_set["visual_texture_set_id"].endswith("_builtin_v3")
             texture_set.pop("texture_material_id")
         pre_v2_report = passed_report.model_dump(mode="json")
         pre_v2_report.update({

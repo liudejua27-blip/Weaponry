@@ -5,6 +5,15 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 v3 微表面纹理与历史 readback（进行中，未完成）
+
+- 当前新生成视觉纹理升级为 `builtin_v3`：texture-set ID 以 `_builtin_v3` 结尾、map ID 含 `_v3_`、`version=3`。v3 使用材质专属、高频低振幅、多尺度且周期连续的 roughness/normal 微表面，细化拉丝、机加工、复合材料、橡胶和涂层橘皮；baseColor 只保留弱色差。该增量不新增 primitive、triangle、draw call、operation、Recipe 或工程材料字段。
+- 第一次 v3 真实 renderer 自动门虽然通过，但 Codex 代理视觉检查明确拒绝了机械臂铝件的波纹和复合材料棋盘感；随后降低振幅并提高细节频率。最终 `proxy-review-20260716-iteration17-v3` 四领域为道具 6,248/51、车辆 6,556/78、航空器 6,868/96、机械臂 5,832/53（triangles/draw calls），与上一轮几何预算一致；宽条带、金属波纹和明显棋盘被压回细尺度材质响应。它仍是 Alpha 概念资产，不是照片级真实性证明。
+- 新资产只写 v3；历史 v2 的固定聚合 SHA-256 为 `045f788cce7bdb8a83cfa8bbdfec0e554a2914e4637b63ef526ecb136aaab661`，v1 为 `0b4701fe31946dfc9572990daa5e1e9260d05ddcfcfdef640c9eac776e10b62f`。readback 对 v3/v2/v1 分别核对原 texture-set/map ID、metadata 和 PNG 字节，拒绝跨版本混用；只有精确 v1 历史报告允许补齐旧缺失的规范材质字段。全量三版本 cache 上限为 24 个集合、702,750 字节压缩 PNG。
+- 当前已通过 `agent:m108-visual-pbr-smoke`、完整 `agent:m108-gate`、Khronos Validator、Transform 预期拒绝、G818/G826 和真实 `desktop:m108-workbench-renderer-smoke`。最终四份 screenshot hash 互异，捕获仍固定为 `development_visual_audit_only/not_scored/human_benchmark_evidence=false`。独立人工评分仍为空，因此 M108 保持 `in_progress`，C105/V003/F026 不解锁。
+- tracked macOS arm64 sidecar 已从最终 v3 源码重建为 31,817,584 bytes、SHA-256 `39b8a0cf9e4038a5ea36f03307e67371b962d11f338886cc66dc9af1e7ca92c9`；`--require-ready`、packaged sidecar Alpha 与 Tauri check 已通过，精确产物覆盖空库初始化、v3 PBR readback、Manifold CSG、undo/redo、导出和重启，`provider_calls=0`。用户当前运行的 ForgeCAD Agent 正占用 127.0.0.1:8000，本轮不会终止它去重复 packaged Tauri smoke；该项记为未运行，不冒充 PASS。
+- `release:packaging-readiness` 已按要求复跑并保持预期阻断：Intel macOS、Windows x64 和 Linux x64 sidecar 仍为空占位，返回 `SIDECAR_BINARY_INVALID`。当前 arm64 Alpha 通过不代表跨平台安装、签名、公证或正式发布完成。
+
 ## 2026-07-16：FGC-M108 硬表面截面与领域轮廓细化（进行中，未完成）
 
 - 新增代码所有的八段 `hard_surface` ProfileSketch：平顶、平底和直侧带通过四个受限 quadratic 圆角闭合，仍经 `ProfileSectionSet@1 → loft → GLB/readback` 执行。`compact_prop_a` 主壳和 `urban_scout_a` 底盘改用该截面，消除代理截图中偏圆筒/胶囊的主体轮廓；没有开放自由轮廓、工程截面、用户细分或新 operation。

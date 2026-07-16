@@ -244,6 +244,7 @@ def main() -> int:
         assert all(
             item["visual_texture_set_id"].endswith("_builtin")
             and not item["visual_texture_set_id"].endswith("_builtin_v2")
+            and not item["visual_texture_set_id"].endswith("_builtin_v3")
             for item in legacy_readback["visual_texture_sets"]
         )
         # This field did not exist when the v1 quality report was persisted.

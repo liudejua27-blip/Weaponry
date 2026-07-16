@@ -35,6 +35,7 @@ from forgecad_agent.application.visual_texture_sets import (  # noqa: E402
     builtin_visual_material_count,
     builtin_visual_texture_cache_facts,
     legacy_builtin_visual_texture_sets,
+    legacy_builtin_visual_texture_sets_v2,
     visual_texture_png_bytes,
 )
 
@@ -57,6 +58,7 @@ PBR_TEXTURE_FIELDS = {
 }
 RADIAL_TRIANGLES_BY_OPERATION = {"cylinder": 96, "capsule": 432}
 LEGACY_V1_TEXTURE_AGGREGATE_SHA256 = "0b4701fe31946dfc9572990daa5e1e9260d05ddcfcfdef640c9eac776e10b62f"
+LEGACY_V2_TEXTURE_AGGREGATE_SHA256 = "045f788cce7bdb8a83cfa8bbdfec0e554a2914e4637b63ef526ecb136aaab661"
 
 
 def _schema_validator() -> Draft202012Validator:
@@ -440,24 +442,34 @@ def _legacy_v1_texture_aggregate_sha256() -> str:
     return digest.hexdigest()
 
 
-def _rewrite_visual_textures_as_legacy_v1(
+def _legacy_v2_texture_aggregate_sha256() -> str:
+    digest = hashlib.sha256()
+    for texture_set in legacy_builtin_visual_texture_sets_v2():
+        digest.update(texture_set.visual_texture_set_id.encode("utf-8"))
+        for texture_map in texture_set.maps:
+            digest.update(texture_map.texture_id.encode("utf-8"))
+            digest.update(visual_texture_png_bytes(texture_map.texture_id))
+    return digest.hexdigest()
+
+
+def _rewrite_visual_textures(
     document: dict,
     binary: bytearray,
     *,
+    texture_sets,
     material_indices: tuple[int, ...] | None = None,
 ) -> tuple[dict, bytearray]:
-    """Rewrite selected current GLB materials with exact immutable v1 payloads."""
+    """Rewrite selected current GLB materials with one immutable texture set."""
 
-    legacy_sets = legacy_builtin_visual_texture_sets()
     selected_indices = (
-        tuple(range(len(legacy_sets)))
+        tuple(range(len(texture_sets)))
         if material_indices is None
         else material_indices
     )
     assert selected_indices and len(selected_indices) == len(set(selected_indices))
-    assert all(0 <= index < len(legacy_sets) for index in selected_indices)
+    assert all(0 <= index < len(texture_sets) for index in selected_indices)
     for material_index in selected_indices:
-        texture_set = legacy_sets[material_index]
+        texture_set = texture_sets[material_index]
         material = document["materials"][material_index]
         material["extras"]["forgecad_visual_texture_set_id"] = texture_set.visual_texture_set_id
         for texture_map in texture_set.maps:
@@ -484,8 +496,40 @@ def _rewrite_visual_textures_as_legacy_v1(
     return document, binary
 
 
+def _rewrite_visual_textures_as_legacy_v1(
+    document: dict,
+    binary: bytearray,
+    *,
+    material_indices: tuple[int, ...] | None = None,
+) -> tuple[dict, bytearray]:
+    """Rewrite selected current GLB materials with exact immutable v1 payloads."""
+
+    return _rewrite_visual_textures(
+        document,
+        binary,
+        texture_sets=legacy_builtin_visual_texture_sets(),
+        material_indices=material_indices,
+    )
+
+
+def _rewrite_visual_textures_as_legacy_v2(
+    document: dict,
+    binary: bytearray,
+    *,
+    material_indices: tuple[int, ...] | None = None,
+) -> tuple[dict, bytearray]:
+    """Rewrite selected current GLB materials with exact immutable v2 payloads."""
+
+    return _rewrite_visual_textures(
+        document,
+        binary,
+        texture_sets=legacy_builtin_visual_texture_sets_v2(),
+        material_indices=material_indices,
+    )
+
+
 def _texture_cache_entry_count() -> int:
-    """Inspect the bounded byte cache without eagerly resolving both versions."""
+    """Inspect the bounded byte cache without eagerly resolving old versions."""
 
     return visual_texture_sets_module._cached_texture_set_bytes.cache_info().currsize
 
@@ -721,14 +765,14 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     assert len({item.material_zone_id for item in readback.material_zone_faces}) >= 3
     assert len(readback.visual_texture_sets) >= 3
     assert len({item.material_index for item in readback.visual_texture_sets}) >= 5
-    incomplete_v2_texture_set = readback.visual_texture_sets[0].model_dump(mode="json")
-    incomplete_v2_texture_set.pop("texture_material_id")
+    incomplete_current_texture_set = readback.visual_texture_sets[0].model_dump(mode="json")
+    incomplete_current_texture_set.pop("texture_material_id")
     try:
-        GeometryVisualTextureSetReadback.model_validate(incomplete_v2_texture_set)
+        GeometryVisualTextureSetReadback.model_validate(incomplete_current_texture_set)
     except ValueError:
         pass
     else:
-        raise AssertionError("current v2 texture readback accepted a missing canonical material field")
+        raise AssertionError("current v3 texture readback accepted a missing canonical material field")
     assert any(item.edge_finish.mode == "bevel_approximation" for item in readback.surface_provenance)
     zones_by_material: dict[str, set[str]] = {}
     for zone in readback.material_zone_faces:
@@ -834,9 +878,9 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     assert automotive_material["pbrMetallicRoughness"]["baseColorTexture"]["index"] != aluminum_material["pbrMetallicRoughness"]["baseColorTexture"]["index"]
     assert automotive_material["extensions"]["KHR_materials_clearcoat"]["clearcoatFactor"] == 0.86
     assert "KHR_materials_clearcoat" not in aluminum_material.get("extensions", {})
-    assert automotive_material["extras"]["forgecad_visual_texture_set_id"].endswith("_builtin_v2")
+    assert automotive_material["extras"]["forgecad_visual_texture_set_id"].endswith("_builtin_v3")
     assert all(
-        str(material["extras"]["forgecad_visual_texture_set_id"]).endswith("_builtin_v2")
+        str(material["extras"]["forgecad_visual_texture_set_id"]).endswith("_builtin_v3")
         for material in document["materials"]
     )
     assert all(
@@ -901,6 +945,10 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
                 _legacy_v1_texture_aggregate_sha256()
                 == LEGACY_V1_TEXTURE_AGGREGATE_SHA256
             )
+            assert (
+                _legacy_v2_texture_aggregate_sha256()
+                == LEGACY_V2_TEXTURE_AGGREGATE_SHA256
+            )
         legacy_document, legacy_binary = _rewrite_visual_textures_as_legacy_v1(
             copy.deepcopy(document),
             bytearray(binary),
@@ -917,10 +965,12 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
         assert all(
             item["visual_texture_set_id"].endswith("_builtin")
             and not item["visual_texture_set_id"].endswith("_builtin_v2")
+            and not item["visual_texture_set_id"].endswith("_builtin_v3")
             for item in legacy_facts.visual_texture_sets
         )
         assert all(
             "_v2_" not in texture_map["texture_id"]
+            and "_v3_" not in texture_map["texture_id"]
             for item in legacy_facts.visual_texture_sets
             for texture_map in item["maps"]
         )
@@ -961,6 +1011,33 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
                 _glb_payload(mixed_document, mixed_binary),
                 "mix incompatible built-in visual texture contract versions",
             )
+            v2_document, v2_binary = _rewrite_visual_textures_as_legacy_v2(
+                copy.deepcopy(document),
+                bytearray(binary),
+            )
+            v2_facts = read_shape_program_glb_facts(
+                _glb_payload(v2_document, v2_binary)
+            )
+            assert all(
+                item["visual_texture_set_id"].endswith("_builtin_v2")
+                and item["texture_material_id"].startswith("mat_")
+                for item in v2_facts.visual_texture_sets
+            )
+            assert all(
+                "_v2_" in texture_map["texture_id"]
+                for item in v2_facts.visual_texture_sets
+                for texture_map in item["maps"]
+            )
+            forged_v2 = copy.deepcopy(v2_facts.visual_texture_sets[0])
+            forged_v2.pop("texture_material_id")
+            try:
+                GeometryVisualTextureSetReadback.model_validate(forged_v2)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(
+                    "historical v2 texture readback accepted a missing canonical material field"
+                )
         else:
             assert {5, 7}.issubset(fixture_legacy_indices)
             _assert_legacy_persisted_quality_hydration(
@@ -1193,9 +1270,9 @@ def main() -> int:
         asset_count += 1
     assert asset_count == 12
     assert legacy_v1_readback_indices == set(range(builtin_visual_material_count()))
-    assert _texture_cache_entry_count() == 16
+    assert _texture_cache_entry_count() == 24
     cache_facts = builtin_visual_texture_cache_facts()
-    assert cache_facts["entry_count"] == cache_facts["max_entries"] == 16, cache_facts
+    assert cache_facts["entry_count"] == cache_facts["max_entries"] == 24, cache_facts
     assert cache_facts["png_byte_size"] <= 4_000_000, cache_facts
     print("M108 visual PBR smoke passed: 12 multi-zone assets across four domains use one embedded GLB/readback texture truth")
     return 0

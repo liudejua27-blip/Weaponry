@@ -1713,6 +1713,8 @@ Airfoil Loft 与第二轮代理审核检查点（2026-07-16）：航空器 A 的
 
 硬表面截面与领域轮廓检查点（2026-07-16）：M108 增加代码所有、八段 line/quadratic 组成的 `hard_surface` ProfileSketch，只供固定 showcase 通过现有 G822 Loft 使用；道具 A 主壳和车辆 A 底盘因此获得平顶/平底/直侧带与受限圆角肩线。车辆四个轮眉改为五点 Sweep、24×18 mm 椭圆视觉截面，并以两个低面数楔形顶槽替代高面数圆形视觉口；航空器主翼调整为 700 mm Z 主轴、360×32 mm airfoil 尺度与更明显翼尖收敛；机械臂夹爪改为三截面、16 点重采样的渐缩 hard-surface Loft。第一次车辆真实捕获为 7,084 triangles，按原 7,000 上限失败；最终 `proxy-review-20260716-iteration15b` 为 6,248/51、6,556/78、6,868/96、5,832/53（四领域 triangles/draw calls），没有放宽任何 GPU 门。`agent:m108-gate` 和真实 renderer 已通过；tracked arm64 sidecar 重建为 31,815,424 bytes、SHA-256 `bd582746e0daa3646a1de1b3ea881ddcc66ccdf003e9f03377279ee32038793b`。代理审核仍不是独立真人评分，M108/C105/V003/F026 状态不变。
 
+v3 微表面与历史纹理兼容检查点（2026-07-16）：当前新生成集合冻结为 `_builtin_v3`/`_v3_`/`version=3`，以材质专属、高频低振幅、多尺度且周期连续的 roughness/normal 细节替代 v2 在真实工作台中仍可见的宽条带、金属波纹和复合材料棋盘；baseColor 只保留弱色差。第一次 v3 自动 renderer 虽通过，但 Codex 代理视觉审核拒绝机械臂铝件波纹与明显 checker，最终收敛后的 `proxy-review-20260716-iteration17-v3` 为 6,248/51、6,556/78、6,868/96、5,832/53（四领域 triangles/draw calls），没有新增几何、draw call、operation、Recipe 或放宽预算。历史 v2 聚合 SHA-256 固定为 `045f788cce7bdb8a83cfa8bbdfec0e554a2914e4637b63ef526ecb136aaab661`，v1 继续使用 `0b4701fe31946dfc9572990daa5e1e9260d05ddcfcfdef640c9eac776e10b62f`；readback 分版本逐字节核对并拒绝混用。三版本全量 PNG cache 上限为 24 个集合、702,750 字节。`agent:m108-gate` 与真实 renderer 通过；tracked arm64 sidecar 已重建为 31,817,584 bytes、SHA-256 `39b8a0cf9e4038a5ea36f03307e67371b962d11f338886cc66dc9af1e7ca92c9`，require-ready、packaged sidecar Alpha 和 Tauri check 通过，`provider_calls=0`。用户当前运行的 ForgeCAD Agent 占用 127.0.0.1:8000，因此 packaged Tauri smoke 未重复运行。工件仍为 `not_scored/human_benchmark_evidence=false`；独立人工视觉退出条件未完成，M108 保持 `in_progress`，C105/V003/F026 不解锁。
+
 ### FGC-C105 任务卡
 
 状态：blocked（等待 M108、C104、G826、D005）。

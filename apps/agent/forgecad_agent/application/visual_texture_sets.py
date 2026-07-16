@@ -105,7 +105,9 @@ def _smooth_periodic_noise(x: int, y: int, seed: int, cell_size: int) -> int:
     return round(top * (1.0 - smooth_y) + bottom * smooth_y)
 
 
-def _surface_height(pattern: str, x: int, y: int, seed: int) -> int:
+def _v2_surface_height(pattern: str, x: int, y: int, seed: int) -> int:
+    """Reproduce the immutable builtin v2 texture bytes for readback."""
+
     micro = _noise(x, y, seed)
     broad = _smooth_periodic_noise(x, y, seed + 19, 16)
     if pattern == "brushed":
@@ -124,6 +126,62 @@ def _surface_height(pattern: str, x: int, y: int, seed: int) -> int:
     if pattern == "emissive":
         return 2 + broad // 4
     return micro // 3 + round(1.5 * math.sin(2.0 * math.pi * x / 32.0))
+
+
+def _v3_surface_height(pattern: str, x: int, y: int, seed: int) -> int:
+    """Return bounded multi-scale detail without broad horizontal banding.
+
+    Frequencies use integer cycles over the fixed 128 px extent, so every
+    directional field remains tileable at both PNG edges.  The amplitude stays
+    intentionally small: the maps provide readable micro-surface response
+    while the real G826 geometry and Material Zone facts remain authoritative
+    for silhouettes, seams, and part boundaries.
+    """
+
+    fine = _smooth_periodic_noise(x, y, seed + 7, 4)
+    medium = _smooth_periodic_noise(x, y, seed + 19, 8)
+    broad = _smooth_periodic_noise(x, y, seed + 37, 16)
+    phase_x = 2.0 * math.pi * x / TEXTURE_WIDTH
+    phase_y = 2.0 * math.pi * y / TEXTURE_HEIGHT
+    if pattern == "brushed":
+        # Sub-pixel-to-few-pixel scratches avoid corrugated macro bands.
+        grain = (
+            0.9 * math.sin(47.0 * phase_y + 1.2 * math.sin(3.0 * phase_x))
+            + 0.55 * math.sin(31.0 * phase_y + 5.0 * phase_x)
+        )
+        return round(grain + fine * 0.1 + medium * 0.04)
+    if pattern == "composite":
+        # Fine twill response without a visible cloth-sized checker.
+        warp = 0.9 * math.sin(24.0 * phase_x + 24.0 * phase_y)
+        weft = 0.7 * math.sin(24.0 * phase_x - 24.0 * phase_y)
+        interlace = (
+            0.4
+            * math.sin(48.0 * phase_x)
+            * math.sin(48.0 * phase_y)
+        )
+        return round(warp + weft + interlace + fine * 0.06)
+    if pattern == "rubber":
+        # Fine stipple and shallow dimples, kept below geometric feature scale.
+        dimples = (
+            0.9
+            * math.sin(28.0 * phase_x)
+            * math.sin(28.0 * phase_y)
+        )
+        return round(dimples + fine * 0.22 + medium * 0.08)
+    if pattern == "coated":
+        # Low-amplitude orange peel; colour remains mostly uniform.
+        return round(fine * 0.28 + medium * 0.18 + broad * 0.08)
+    if pattern == "glass":
+        return round(broad * 0.08 + medium * 0.05)
+    if pattern == "emissive":
+        diffuser = 0.8 * math.sin(6.0 * phase_x) * math.sin(6.0 * phase_y)
+        return round(diffuser + medium * 0.1)
+    # Cross-hatched machining marks avoid the v2 single-axis wide bands.
+    machining = (
+        0.9 * math.sin(29.0 * phase_x + 13.0 * phase_y)
+        + 0.55 * math.sin(17.0 * phase_x - 23.0 * phase_y)
+    )
+    return round(machining + fine * 0.08 + medium * 0.04)
 
 
 def _legacy_surface_height(pattern: str, x: int, y: int, seed: int) -> int:
@@ -177,7 +235,13 @@ def _render_texture_set_bytes(
     emissive = tuple(int(value) for value in material["emissive"])
     pattern = str(material["pattern"])
     seed = sum(base) + metallic * 3 + roughness * 5
-    height_function = _legacy_surface_height if version == "1" else _surface_height
+    height_function = {
+        "1": _legacy_surface_height,
+        "2": _v2_surface_height,
+        "3": _v3_surface_height,
+    }.get(version)
+    if height_function is None:
+        raise ValueError(f"unsupported built-in visual texture version: {version}")
     heights = tuple(
         height_function(pattern, x, y, seed)
         for y in range(TEXTURE_HEIGHT)
@@ -188,11 +252,19 @@ def _render_texture_set_bytes(
         row_by_role = {role: bytearray() for role in SUPPORTED_PBR_ROLES}
         for x in range(TEXTURE_WIDTH):
             height = heights[y * TEXTURE_WIDTH + x]
-            variation = height + (
-                _noise(x // 8, y // 8, seed + 53) // 4
-                if version == "1"
-                else _smooth_periodic_noise(x, y, seed + 53, 8) // 4
-            )
+            if version == "1":
+                variation = height + _noise(x // 8, y // 8, seed + 53) // 4
+            elif version == "2":
+                variation = (
+                    height
+                    + _smooth_periodic_noise(x, y, seed + 53, 8) // 4
+                )
+            else:
+                variation = round(
+                    height
+                    + _smooth_periodic_noise(x, y, seed + 53, 4) * 0.18
+                    + _smooth_periodic_noise(x, y, seed + 71, 16) * 0.08
+                )
             if version == "1":
                 color_variation = variation
             elif pattern == "coated":
@@ -214,7 +286,9 @@ def _render_texture_set_bytes(
             row_by_role["normal"].extend(
                 (_clamp(128 - (right - left) * 2), _clamp(128 + (below - above) * 2), 254)
             )
-            ambient = _clamp(248 - max(0, -height) * 2)
+            ambient = _clamp(
+                248 - max(0, -height) * (1 if version == "3" else 2)
+            )
             row_by_role["occlusion"].extend((ambient, ambient, ambient))
             row_by_role["emissive"].extend(
                 tuple(_clamp(value + variation * 2) if value else 0 for value in emissive)
@@ -224,7 +298,7 @@ def _render_texture_set_bytes(
     return {role: _png_rgb(rows_by_role[role]) for role in SUPPORTED_PBR_ROLES}
 
 
-@lru_cache(maxsize=len(_MATERIALS) * 2)
+@lru_cache(maxsize=len(_MATERIALS) * 3)
 def _cached_texture_set_bytes(version: str, material_id: str) -> Mapping[str, bytes]:
     material = next(
         (item for item in _MATERIALS if item["material_id"] == material_id),
@@ -232,7 +306,7 @@ def _cached_texture_set_bytes(version: str, material_id: str) -> Mapping[str, by
     )
     if material is None:
         raise ValueError(f"unknown built-in visual material id: {material_id}")
-    if version not in {"1", "2"}:
+    if version not in {"1", "2", "3"}:
         raise ValueError(f"unsupported built-in visual texture version: {version}")
     return _render_texture_set_bytes(material, version=version)
 
@@ -247,8 +321,9 @@ def _texture_bytes(role: str, material: Mapping[str, object], *, version: str = 
 def _map(role: str, material: Mapping[str, object], *, version: str) -> VisualTextureMap:
     payload = _texture_bytes(role, material, version=version)
     slug = str(material["material_id"]).removeprefix("mat_")
+    version_segment = "" if version == "1" else f"_v{version}"
     return VisualTextureMap(
-        texture_id=f"vtex_{slug}{'_v2' if version == '2' else ''}_{role}",
+        texture_id=f"vtex_{slug}{version_segment}_{role}",
         texture_role=role,
         mime_type="image/png",
         byte_size=len(payload),
@@ -264,6 +339,24 @@ def _map(role: str, material: Mapping[str, object], *, version: str) -> VisualTe
 
 @lru_cache(maxsize=1)
 def builtin_visual_texture_sets() -> tuple[VisualTextureSet, ...]:
+    return tuple(
+        VisualTextureSet(
+            visual_texture_set_id=f"vtexset_{str(material['material_id']).removeprefix('mat_')}_builtin_v3",
+            material_id=str(material["material_id"]),
+            display_name=str(material["name"]),
+            maps=[_map(role, material, version="3") for role in SUPPORTED_PBR_ROLES],
+            source="forgecad_builtin",
+            license="not_applicable",
+            version="3",
+        )
+        for material in _MATERIALS
+    )
+
+
+@lru_cache(maxsize=1)
+def legacy_builtin_visual_texture_sets_v2() -> tuple[VisualTextureSet, ...]:
+    """Return exact v2 manifests so immutable historical GLBs still read."""
+
     return tuple(
         VisualTextureSet(
             visual_texture_set_id=f"vtexset_{str(material['material_id']).removeprefix('mat_')}_builtin_v2",
@@ -310,8 +403,10 @@ def builtin_visual_texture_set_for_readback(
     """Resolve only an exact current or immutable legacy built-in identity."""
 
     try:
-        if visual_texture_set_id.endswith("_builtin_v2"):
+        if visual_texture_set_id.endswith("_builtin_v3"):
             candidate = builtin_visual_texture_sets()[index]
+        elif visual_texture_set_id.endswith("_builtin_v2"):
+            candidate = legacy_builtin_visual_texture_sets_v2()[index]
         elif visual_texture_set_id.endswith("_builtin"):
             candidate = legacy_builtin_visual_texture_sets()[index]
         else:
@@ -332,15 +427,18 @@ def builtin_visual_material_count() -> int:
 
 
 def visual_texture_png_bytes(texture_id: str) -> bytes:
-    # v2 map ids always contain the reviewed `_v2_` segment; immutable v1 ids
-    # never do.  Select one manifest lazily so current compilation does not
-    # generate the legacy PNG set merely to reject it.
-    version = "2" if "_v2_" in texture_id else "1"
-    texture_sets = (
-        builtin_visual_texture_sets()
-        if version == "2"
-        else legacy_builtin_visual_texture_sets()
-    )
+    # Versioned map ids select one exact immutable manifest lazily so current
+    # compilation does not generate either historical PNG set merely to reject
+    # it.
+    if "_v3_" in texture_id:
+        version = "3"
+        texture_sets = builtin_visual_texture_sets()
+    elif "_v2_" in texture_id:
+        version = "2"
+        texture_sets = legacy_builtin_visual_texture_sets_v2()
+    else:
+        version = "1"
+        texture_sets = legacy_builtin_visual_texture_sets()
     for material, texture_set in zip(_MATERIALS, texture_sets):
         for item in texture_set.maps:
             if item.texture_id == texture_id:
@@ -366,10 +464,10 @@ def builtin_visual_texture_cache_facts() -> Mapping[str, int]:
 
     cached_sets = tuple(
         _cached_texture_set_bytes(version, str(material["material_id"]))
-        for version in ("1", "2")
+        for version in ("1", "2", "3")
         for material in _MATERIALS
     )
-    # Resolve both immutable versions: only forty compact PNG byte strings per
+    # Resolve all immutable versions: only forty compact PNG byte strings per
     # version are retained, never
     # 128x128 Python cache entries per channel/pixel.
     return {
