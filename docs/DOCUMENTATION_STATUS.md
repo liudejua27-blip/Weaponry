@@ -35,6 +35,8 @@ M108 新生成 PBR 的 texture-set ID 以 `_builtin_v2` 结尾、map ID 含 `_v2
 
 M108 审阅真值增量（2026-07-16）：工作台截图前必须证明 ModuleGraph root 隐藏、blockout root 可见、axes/grid/transform helper 全部隐藏且 renderer line 数为 0，并把相同事实写入捕获 manifest；当前源码重建的四领域画面均通过，旧过暗/带坐标轴工件不会成为通过输入。评分校验器从提交 GLB 真实 readback 要求至少五套当前 `_builtin_v2`、完整五通道 `_v2_` map 和 128×128 尺寸，拒绝 manifest 自报替代。航空器四个旋翼支柱还从最终 POSITION accessor 要求与对应机翼 Z 范围至少重叠 0.07 m。以上仍是自动化概念视觉证据；真实独立评审未完成，M108 保持 `in_progress`、C105 保持 blocked。
 
+M108 最终 GLB 真值增量（2026-07-16）：12 份固定审阅 fixture 的最终 BIN POSITION 现在由严格 accessor/bufferView 解码并与声明 bounds 对照，负索引、越出 view、非法 stride/alignment、缺失显式 buffer、伪造图片 view 和 scene/node 变换或实例均 fail closed；当前 ShapeProgram GLB 只接受单 mesh、单 scene、单 identity node。A/B/C fixture 的视觉连续性门要求一个最终 AABB 分量，新增航空器 pod 与机械臂 wrist/rail/carriage 外罩还锁定由目标部件推导的中心、轴向和双边尺寸范围。该证据只覆盖 12 份 fixture，且 AABB 连续不等于实体焊接、工程 connector 或全部 catalog；视觉件仍是 root 级绝对展示分组，真实配方附着归 C105。独立人工视觉评分仍为空，M108/C105 状态不变。
+
 评分校验中的“至少五套”按至少五个不同 material index、texture-set ID 和规范 texture material 计算，重复 authored alias 不能累加；renderer line instrumentation 缺失、非法或非零都会 fail closed。
 
 ## 2. 事实的唯一归属

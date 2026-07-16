@@ -106,6 +106,46 @@ def _assert_aabb_overlap_and_exposure(
     )
 
 
+def _axis_overlap(
+    bounds: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]],
+    left_role: str,
+    right_role: str,
+    axis: int,
+) -> float:
+    left_min, left_max = bounds[left_role]
+    right_min, right_max = bounds[right_role]
+    return min(left_max[axis], right_max[axis]) - max(left_min[axis], right_min[axis])
+
+
+def _capsule_panel_edge_gap_mm(capsule_operation: dict, panel_operation: dict, span_axis: int) -> float:
+    assert capsule_operation["op"] == "capsule"
+    radius = float(capsule_operation["args"]["radius"])
+    half_span = float(panel_operation["args"]["size"][span_axis]) / 2
+    assert 0 < half_span < radius
+    return radius - (radius * radius - half_span * half_span) ** 0.5
+
+
+def _assert_vector_close(actual: list[float], expected: tuple[float, ...], *, tolerance: float = 1e-6) -> None:
+    assert len(actual) == len(expected)
+    assert all(abs(float(value) - target) <= tolerance for value, target in zip(actual, expected)), (
+        actual,
+        expected,
+    )
+
+
+def _assert_values_in_range(
+    actual: list[float],
+    lower: tuple[float, ...],
+    upper: tuple[float, ...],
+) -> None:
+    assert len(actual) == len(lower) == len(upper)
+    assert all(minimum <= float(value) <= maximum for value, minimum, maximum in zip(actual, lower, upper)), (
+        actual,
+        lower,
+        upper,
+    )
+
+
 def main() -> int:
     planner = DeterministicMechanicalPlanner()
     visual_roles_by_pack: dict[str, set[str]] = {}
@@ -166,10 +206,15 @@ def main() -> int:
         parts = segment_blockout(plan, direction_id, presentation_profile="showcase")
         graph_parts = showcase.assembly_graph["parts"]
         assert [part["part_id"] for part in graph_parts] == [part["part_id"] for part in parts]
-        for part in graph_parts:
+        graph_parts_by_id = {part["part_id"]: part for part in graph_parts}
+        for candidate in parts:
+            part = graph_parts_by_id[candidate["part_id"]]
             if part["role"].startswith("visual_"):
                 assert part["joints"] == []
-                assert part["editable_parameters"] == []
+                assert part["editable_parameters"] == candidate["editable_parameters"] == []
+                assert candidate["editable_parameter_bindings"] == []
+                assert part["parent_part_id"] == candidate["parent_part_id"]
+                assert part["material_zones"] == candidate["material_zone_ids"]
         if pack.pack_id == "pack_robotic_arm_concept":
             visual_part_ids = {part["part_id"] for part in graph_parts if part["role"].startswith("visual_")}
             assert not any(joint["target_part_id"] in visual_part_ids for part in graph_parts for joint in part["joints"])
@@ -185,7 +230,8 @@ def main() -> int:
     }
     selected_operations = {}
     selected_bounds = {}
-    for pack_id, variant_id in selected_variants.items():
+
+    def variant_facts(pack_id: str, variant_id: str):
         plan = plans_by_pack[pack_id]
         result = build_blockout(
             plan,
@@ -193,16 +239,24 @@ def main() -> int:
             variant_id=variant_id,
             presentation_profile="showcase",
         )
-        selected_operations[pack_id] = {
+        operations = {
             item["args"]["part_role"]: item
             for item in result.shape_program["operations"]
             if item["op"] not in {"profile", "bevel_approx"}
         }
-        selected_bounds[pack_id] = _glb_bounds_by_role(result.glb_bytes)
+        return operations, _glb_bounds_by_role(result.glb_bytes)
+
+    for pack_id, variant_id in selected_variants.items():
+        selected_operations[pack_id], selected_bounds[pack_id] = variant_facts(pack_id, variant_id)
 
     prop_ops = selected_operations["pack_future_weapon_prop"]
     assert prop_ops["prop_core"]["op"] == prop_ops["prop_grip"]["op"] == "capsule"
     assert prop_ops["visual_guard_prop_mount_collar"]["op"] == "cylinder"
+    assert _capsule_panel_edge_gap_mm(
+        prop_ops["prop_core"],
+        prop_ops["visual_panel_prop_dorsal"],
+        2,
+    ) <= 8.0
     _assert_aabb_overlap_and_exposure(
         selected_bounds["pack_future_weapon_prop"],
         "visual_guard_prop_mount_collar",
@@ -223,8 +277,26 @@ def main() -> int:
             bridge_role,
             ("vehicle_chassis", *wheels),
         )
+    vehicle_bounds = selected_bounds["pack_vehicle_concept"]
+    for panel_role, target_role in (
+        ("visual_panel_vehicle_paint", "vehicle_nose"),
+        ("visual_panel_vehicle_deck", "vehicle_cabin"),
+    ):
+        _assert_aabb_overlap_and_exposure(vehicle_bounds, panel_role, (target_role,))
+        assert 0 < _axis_overlap(vehicle_bounds, panel_role, target_role, 1) <= 0.0021
+    assert _axis_overlap(
+        vehicle_bounds,
+        "visual_panel_vehicle_paint",
+        "vehicle_cabin",
+        0,
+    ) <= 0
     aircraft_ops = selected_operations["pack_aircraft_concept"]
     assert aircraft_ops["airframe_core"]["op"] == "capsule"
+    assert _capsule_panel_edge_gap_mm(
+        aircraft_ops["airframe_core"],
+        aircraft_ops["visual_panel_aircraft_dorsal"],
+        2,
+    ) <= 8.0
     assert {aircraft_ops[role]["op"] for role in aircraft_ops if role.startswith("lift_wing_")} == {"wedge"}
     assert {aircraft_ops[role]["args"]["height"] for role in aircraft_ops if role.startswith("lift_rotor_")} == {54}
     assert sum(role.startswith("lift_hub_") for role in aircraft_ops) == 4
@@ -244,11 +316,144 @@ def main() -> int:
         assert wing_z_overlap >= 0.07, (bridge_role, wing_role, wing_z_overlap)
     robot_ops = selected_operations["pack_robotic_arm_concept"]
     assert robot_ops["precision_link_1"]["op"] == robot_ops["precision_link_2"]["op"] == "capsule"
+    assert robot_ops["visual_panel_robot_upper_link"]["op"] == "box"
+    assert _capsule_panel_edge_gap_mm(
+        robot_ops["precision_link_1"],
+        robot_ops["visual_panel_robot_upper_link"],
+        0,
+    ) <= 8.0
+    assert 0 < _axis_overlap(
+        selected_bounds["pack_robotic_arm_concept"],
+        "visual_panel_robot_upper_link",
+        "precision_link_1",
+        2,
+    ) <= 0.0021
     assert robot_ops["visual_guard_robot_shoulder_bridge"]["op"] == "box"
     _assert_aabb_overlap_and_exposure(
         selected_bounds["pack_robotic_arm_concept"],
         "visual_guard_robot_shoulder_bridge",
         ("precision_joint_1", "precision_link_1"),
+    )
+
+    aircraft_b_ops, aircraft_b_bounds = variant_facts("pack_aircraft_concept", "vertical_takeoff_b")
+    tilt_body = aircraft_b_ops["tilt_body"]["args"]
+    for side in ("left", "right"):
+        bridge_role = f"visual_guard_aircraft_tilt_pod_bridge_{side}"
+        pod_role = f"tilt_pod_{side}"
+        bridge = aircraft_b_ops[bridge_role]
+        pod = aircraft_b_ops[pod_role]["args"]
+        assert bridge["op"] == "box"
+        direction = -1.0 if pod["position"][2] < tilt_body["position"][2] else 1.0
+        body_edge_z = tilt_body["position"][2] + direction * tilt_body["size"][2] / 2
+        pod_edge_z = pod["position"][2] - direction * pod["radius"]
+        expected_position = (
+            float(pod["position"][0]),
+            (tilt_body["position"][1] + pod["position"][1]) / 2,
+            (body_edge_z + pod_edge_z) / 2,
+        )
+        expected_size = (
+            min(500.0, tilt_body["size"][0] * 0.24),
+            min(tilt_body["size"][1], pod["radius"] * 2) * 0.5,
+            abs(pod_edge_z - body_edge_z) + 80.0,
+        )
+        _assert_vector_close(bridge["args"]["position"], expected_position)
+        _assert_vector_close(bridge["args"]["size"], expected_size)
+        _assert_values_in_range(
+            bridge["args"]["size"],
+            (480.0, 170.0, 230.0),
+            (500.0, 180.0, 240.0),
+        )
+        _assert_aabb_overlap_and_exposure(
+            aircraft_b_bounds,
+            bridge_role,
+            ("tilt_body", pod_role),
+        )
+
+    robot_b_ops, robot_b_bounds = variant_facts("pack_robotic_arm_concept", "precision_light_b")
+    robot_b_bridge = robot_b_ops["visual_guard_robot_wrist_bridge"]
+    wrist = robot_b_ops["desktop_wrist"]["args"]
+    tool = robot_b_ops["desktop_tool"]["args"]
+    assert robot_b_bridge["op"] == "cylinder"
+    wrist_top = wrist["position"][1] + wrist["height"] / 2
+    tool_bottom = tool["position"][1] - tool["size"][1] / 2
+    _assert_vector_close(
+        robot_b_bridge["args"]["position"],
+        (float(wrist["position"][0]), (wrist_top + tool_bottom) / 2, float(wrist["position"][2])),
+    )
+    _assert_vector_close(robot_b_bridge["args"]["axis"], (0.0, 1.0, 0.0))
+    expected_radius = min(wrist["radius"] * 0.82, tool["size"][0] * 0.36, tool["size"][2] * 0.36)
+    expected_height = abs(tool_bottom - wrist_top) + 40.0
+    assert abs(robot_b_bridge["args"]["radius"] - expected_radius) <= 1e-6
+    assert abs(robot_b_bridge["args"]["height"] - expected_height) <= 1e-6
+    assert 90.0 <= robot_b_bridge["args"]["radius"] <= 100.0
+    assert 75.0 <= robot_b_bridge["args"]["height"] <= 80.0
+    _assert_aabb_overlap_and_exposure(
+        robot_b_bounds,
+        "visual_guard_robot_wrist_bridge",
+        ("desktop_wrist", "desktop_tool"),
+    )
+
+    robot_c_ops, robot_c_bounds = variant_facts("pack_robotic_arm_concept", "precision_light_c")
+    rail_bridge = robot_c_ops["visual_guard_robot_rail_bridge"]
+    rail_base = robot_c_ops["rail_base"]["args"]
+    rail_carriage = robot_c_ops["rail_carriage"]["args"]
+    rail_pivot = robot_c_ops["rail_pivot"]["args"]
+    assert rail_bridge["op"] == "box"
+    base_top = rail_base["position"][1] + rail_base["size"][1] / 2
+    carriage_bottom = rail_carriage["position"][1] - rail_carriage["size"][1] / 2
+    _assert_vector_close(
+        rail_bridge["args"]["position"],
+        (
+            float(rail_carriage["position"][0]),
+            (base_top + carriage_bottom) / 2,
+            float(rail_carriage["position"][2]),
+        ),
+    )
+    _assert_vector_close(
+        rail_bridge["args"]["size"],
+        (
+            rail_carriage["size"][0] * 0.8,
+            abs(carriage_bottom - base_top) + 40.0,
+            min(rail_base["size"][2], rail_carriage["size"][2]) * 0.8,
+        ),
+    )
+    _assert_values_in_range(
+        rail_bridge["args"]["size"],
+        (280.0, 85.0, 330.0),
+        (288.0, 90.0, 336.0),
+    )
+    _assert_aabb_overlap_and_exposure(
+        robot_c_bounds,
+        "visual_guard_robot_rail_bridge",
+        ("rail_base", "rail_carriage"),
+    )
+    carriage_bridge = robot_c_ops["visual_guard_robot_carriage_bridge"]
+    assert carriage_bridge["op"] == "cylinder"
+    carriage_top = rail_carriage["position"][1] + rail_carriage["size"][1] / 2
+    pivot_bottom = rail_pivot["position"][1] - rail_pivot["height"] / 2
+    _assert_vector_close(
+        carriage_bridge["args"]["position"],
+        (
+            float(rail_pivot["position"][0]),
+            (carriage_top + pivot_bottom) / 2,
+            float(rail_pivot["position"][2]),
+        ),
+    )
+    _assert_vector_close(carriage_bridge["args"]["axis"], (0.0, 1.0, 0.0))
+    expected_radius = min(
+        rail_pivot["radius"] * 0.82,
+        rail_carriage["size"][0] * 0.36,
+        rail_carriage["size"][2] * 0.36,
+    )
+    expected_height = abs(pivot_bottom - carriage_top) + 40.0
+    assert abs(carriage_bridge["args"]["radius"] - expected_radius) <= 1e-6
+    assert abs(carriage_bridge["args"]["height"] - expected_height) <= 1e-6
+    assert 110.0 <= carriage_bridge["args"]["radius"] <= 115.0
+    assert 55.0 <= carriage_bridge["args"]["height"] <= 60.0
+    _assert_aabb_overlap_and_exposure(
+        robot_c_bounds,
+        "visual_guard_robot_carriage_bridge",
+        ("rail_carriage", "rail_pivot"),
     )
 
     print("G818 visual detail grammar smoke passed: four role-whitelisted detail layouts and eight independent GLB PBR materials stay same-source")

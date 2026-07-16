@@ -779,6 +779,8 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         raise ValueError("GLB asset version is not 2.0")
     accessors = document.get("accessors", [])
     views = document.get("bufferViews", [])
+    if not isinstance(accessors, list) or not isinstance(views, list):
+        raise ValueError("GLB accessors or bufferViews are invalid")
     triangles = 0
     primitive_count = 0
     uv0_primitive_count = 0
@@ -790,8 +792,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
     meshes = document.get("meshes", [])
-    if not meshes:
-        raise ValueError("GLB contains no mesh")
+    _validate_static_readback_scene(document, meshes)
     materials = document.get("materials", [])
     if not isinstance(materials, list):
         raise ValueError("GLB materials are invalid")
@@ -839,13 +840,13 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                     "GLB primitive is missing POSITION, NORMAL, TEXCOORD_0, TANGENT, "
                     "stable face provenance or indices"
                 )
-            position_accessor = accessors[int(position_index)]
-            normal_accessor = accessors[int(normal_index)]
-            uv_accessor = accessors[int(uv_index)]
-            tangent_accessor = accessors[int(tangent_index)]
-            face_id_accessor = accessors[int(face_id_index)]
-            source_face_id_accessor = accessors[int(source_face_id_index)]
-            index_accessor = accessors[int(index_index)]
+            position_accessor = _readback_accessor_record(accessors, position_index)
+            normal_accessor = _readback_accessor_record(accessors, normal_index)
+            uv_accessor = _readback_accessor_record(accessors, uv_index)
+            tangent_accessor = _readback_accessor_record(accessors, tangent_index)
+            face_id_accessor = _readback_accessor_record(accessors, face_id_index)
+            source_face_id_accessor = _readback_accessor_record(accessors, source_face_id_index)
+            index_accessor = _readback_accessor_record(accessors, index_index)
             if (
                 position_accessor.get("type") != "VEC3"
                 or normal_accessor.get("type") != "VEC3"
@@ -857,13 +858,13 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             ):
                 raise ValueError("GLB accessor types are invalid")
             vertex_count = position_accessor.get("count")
-            if any(
+            if type(vertex_count) is not int or vertex_count <= 0 or any(
                 accessor.get("count") != vertex_count
                 for accessor in (normal_accessor, uv_accessor, tangent_accessor, face_id_accessor, source_face_id_accessor)
             ):
                 raise ValueError("GLB surface attribute counts do not align")
-            count = int(index_accessor.get("count", 0))
-            if count % 3:
+            count = index_accessor.get("count")
+            if type(count) is not int or count <= 0 or count % 3:
                 raise ValueError("GLB index count is not divisible by three")
             triangles += count // 3
             primitive_count += 1
@@ -893,23 +894,53 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                 if item["first_triangle"] != cursor:
                     raise ValueError("GLB surface triangle ranges are not contiguous")
                 cursor += item["triangle_count"]
+            position_values = _readback_float_accessor(
+                accessors,
+                views,
+                binary,
+                position_index,
+                3,
+            )
+            if any(not math.isfinite(value) for position in position_values for value in position):
+                raise ValueError("GLB POSITION contains non-finite values")
+            actual_lower = [min(position[axis] for position in position_values) for axis in range(3)]
+            actual_upper = [max(position[axis] for position in position_values) for axis in range(3)]
+            declared_lower = position_accessor.get("min")
+            declared_upper = position_accessor.get("max")
+            if (
+                not isinstance(declared_lower, list)
+                or not isinstance(declared_upper, list)
+                or len(declared_lower) != 3
+                or len(declared_upper) != 3
+                or any(
+                    not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value))
+                    for value in [*declared_lower, *declared_upper]
+                )
+            ):
+                raise ValueError("GLB position bounds are missing or invalid")
+            if any(
+                not math.isclose(float(declared_lower[axis]), actual_lower[axis], rel_tol=1e-6, abs_tol=1e-7)
+                or not math.isclose(float(declared_upper[axis]), actual_upper[axis], rel_tol=1e-6, abs_tol=1e-7)
+                for axis in range(3)
+            ):
+                raise ValueError("GLB declared position bounds do not match POSITION bytes")
             topology = _readback_primitive_topology(
                 accessors,
                 views,
                 binary,
-                int(position_index),
-                int(index_index),
+                position_index,
+                index_index,
             )
-            uv_values = _readback_float_accessor(accessors, views, binary, int(uv_index), 2)
-            normal_values = _readback_float_accessor(accessors, views, binary, int(normal_index), 3)
-            tangent_values = _readback_float_accessor(accessors, views, binary, int(tangent_index), 4)
-            indices = _readback_index_accessor(accessors, views, binary, int(index_index))
-            face_id_values = _readback_stable_face_id_accessor(accessors, views, binary, int(face_id_index))
+            uv_values = _readback_float_accessor(accessors, views, binary, uv_index, 2)
+            normal_values = _readback_float_accessor(accessors, views, binary, normal_index, 3)
+            tangent_values = _readback_float_accessor(accessors, views, binary, tangent_index, 4)
+            indices = _readback_index_accessor(accessors, views, binary, index_index)
+            face_id_values = _readback_stable_face_id_accessor(accessors, views, binary, face_id_index)
             source_face_id_values = _readback_stable_face_id_accessor(
                 accessors,
                 views,
                 binary,
-                int(source_face_id_index),
+                source_face_id_index,
             )
             if any(not math.isfinite(value) for item in [*uv_values, *normal_values, *tangent_values] for value in item):
                 raise ValueError("GLB UV0, normal or tangent contains non-finite values")
@@ -1054,27 +1085,9 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
                 "texture_ready": True,
             })
             primitive_material_bindings.append((material_index, material_id, material_zone_id))
-            lower = position_accessor.get("min")
-            upper = position_accessor.get("max")
-            if not isinstance(lower, list) or not isinstance(upper, list) or len(lower) != 3 or len(upper) != 3:
-                raise ValueError("GLB position bounds are missing")
             for axis in range(3):
-                minimum[axis] = min(minimum[axis], float(lower[axis]) * 1000)
-                maximum[axis] = max(maximum[axis], float(upper[axis]) * 1000)
-            for accessor_index in (
-                position_index,
-                normal_index,
-                uv_index,
-                tangent_index,
-                face_id_index,
-                source_face_id_index,
-                index_index,
-            ):
-                accessor = accessors[int(accessor_index)]
-                view = views[int(accessor["bufferView"])]
-                end = int(view.get("byteOffset", 0)) + int(view.get("byteLength", 0))
-                if end > len(binary):
-                    raise ValueError("GLB accessor exceeds binary buffer")
+                minimum[axis] = min(minimum[axis], actual_lower[axis] * 1000)
+                maximum[axis] = max(maximum[axis], actual_upper[axis] * 1000)
     primitive_ids = [str(item["primitive_id"]) for item in surface_provenance]
     if len(primitive_ids) != len(set(primitive_ids)):
         raise ValueError("GLB material zones overlap because primitive identity is duplicated")
@@ -1161,9 +1174,21 @@ def _read_visual_pbr_facts(
         view = views[view_index]
         if not isinstance(view, dict):
             raise ValueError("GLB PBR image view is invalid")
-        offset = int(view.get("byteOffset", 0))
+        buffer_index = view.get("buffer")
+        offset = view.get("byteOffset", 0)
         length = view.get("byteLength")
-        if offset < 0 or not isinstance(length, int) or length <= 0 or offset + length > len(binary):
+        if type(buffer_index) is not int or buffer_index != 0:
+            raise ValueError("GLB PBR image view must explicitly reference the embedded buffer")
+        if "byteStride" in view:
+            raise ValueError("GLB PBR image view cannot declare an accessor byteStride")
+        if (
+            type(offset) is not int
+            or offset < 0
+            or offset % 4 != 0
+            or type(length) is not int
+            or length <= 0
+            or offset + length > len(binary)
+        ):
             raise ValueError("GLB PBR image exceeds its binary buffer")
         payload = binary[offset:offset + length]
         width, height = _readback_png_dimensions(payload)
@@ -1381,26 +1406,27 @@ def _readback_primitive_topology(
     position_accessor_index: int,
     index_accessor_index: int,
 ) -> Dict[str, Any]:
-    position_accessor = accessors[position_accessor_index]
-    position_view = views[int(position_accessor["bufferView"])]
-    position_count = int(position_accessor["count"])
-    position_stride = int(position_view.get("byteStride", 12))
-    position_base = int(position_view.get("byteOffset", 0)) + int(position_accessor.get("byteOffset", 0))
-    vertices: List[Tuple[float, float, float]] = []
-    for index in range(position_count):
-        vertex = struct.unpack_from("<3f", binary, position_base + index * position_stride)
-        vertices.append(tuple(round(float(value), 8) for value in vertex))
-
-    index_accessor = accessors[index_accessor_index]
-    index_view = views[int(index_accessor["bufferView"])]
-    index_count = int(index_accessor["count"])
-    component_type = int(index_accessor["componentType"])
-    format_code, byte_size = {5123: ("H", 2), 5125: ("I", 4)}.get(component_type, (None, None))
-    if format_code is None:
+    vertices = [
+        tuple(round(float(value), 8) for value in vertex)
+        for vertex in _readback_float_accessor(
+            accessors,
+            views,
+            binary,
+            position_accessor_index,
+            3,
+        )
+    ]
+    index_accessor = _readback_accessor_record(accessors, index_accessor_index)
+    if index_accessor.get("componentType") not in {5123, 5125}:
         raise ValueError("GLB topology readback requires uint16 or uint32 indices")
-    index_stride = int(index_view.get("byteStride", byte_size))
-    index_base = int(index_view.get("byteOffset", 0)) + int(index_accessor.get("byteOffset", 0))
-    indices = [struct.unpack_from(f"<{format_code}", binary, index_base + index * index_stride)[0] for index in range(index_count)]
+    indices = _readback_index_accessor(
+        accessors,
+        views,
+        binary,
+        index_accessor_index,
+    )
+    if any(index < 0 or index >= len(vertices) for index in indices):
+        raise ValueError("GLB index references a missing POSITION vertex")
     edge_counts: Dict[Tuple[Tuple[float, float, float], Tuple[float, float, float]], int] = {}
     degenerate = 0
     for offset in range(0, len(indices), 3):
@@ -1421,6 +1447,130 @@ def _readback_primitive_topology(
     }
 
 
+def _readback_accessor_record(accessors: List[Any], accessor_index: Any) -> Dict[str, Any]:
+    if (
+        type(accessor_index) is not int
+        or accessor_index < 0
+        or accessor_index >= len(accessors)
+        or not isinstance(accessors[accessor_index], dict)
+    ):
+        raise ValueError("GLB accessor index is invalid")
+    accessor = accessors[accessor_index]
+    if accessor.get("sparse") is not None:
+        raise ValueError("GLB sparse accessors are not supported by readback")
+    return accessor
+
+
+def _validate_static_readback_scene(document: Dict[str, Any], meshes: Any) -> None:
+    """Freeze compiled ForgeCAD GLBs to one untransformed mesh instance."""
+
+    scenes = document.get("scenes")
+    nodes = document.get("nodes")
+    active_scene = document.get("scene")
+    if (
+        not isinstance(meshes, list)
+        or len(meshes) != 1
+        or not isinstance(meshes[0], dict)
+        or not isinstance(scenes, list)
+        or len(scenes) != 1
+        or not isinstance(scenes[0], dict)
+        or type(active_scene) is not int
+        or active_scene != 0
+        or not isinstance(scenes[0].get("nodes"), list)
+        or len(scenes[0]["nodes"]) != 1
+        or type(scenes[0]["nodes"][0]) is not int
+        or scenes[0]["nodes"][0] != 0
+        or not isinstance(nodes, list)
+        or len(nodes) != 1
+        or not isinstance(nodes[0], dict)
+        or type(nodes[0].get("mesh")) is not int
+        or nodes[0]["mesh"] != 0
+    ):
+        raise ValueError("GLB must use the single-mesh static scene contract")
+    if any(
+        key in nodes[0]
+        for key in (
+            "children",
+            "matrix",
+            "rotation",
+            "scale",
+            "skin",
+            "translation",
+            "weights",
+        )
+    ) or "extensions" in nodes[0]:
+        raise ValueError("GLB static scene node must be untransformed and uninstanced")
+
+
+def _readback_accessor_layout(
+    accessors: List[Any],
+    views: List[Any],
+    binary: bytes,
+    accessor_index: Any,
+    *,
+    element_size: int,
+    component_size: int,
+) -> Tuple[Dict[str, Any], int, int, int]:
+    """Resolve one tightly bounded accessor without reading outside its bufferView."""
+
+    accessor = _readback_accessor_record(accessors, accessor_index)
+    view_index = accessor.get("bufferView")
+    if (
+        type(view_index) is not int
+        or view_index < 0
+        or view_index >= len(views)
+        or not isinstance(views[view_index], dict)
+    ):
+        raise ValueError("GLB accessor bufferView index is invalid")
+    view = views[view_index]
+    buffer_index = view.get("buffer")
+    if type(buffer_index) is not int or buffer_index != 0:
+        raise ValueError("GLB accessor references an unsupported buffer")
+
+    count = accessor.get("count")
+    accessor_offset = accessor.get("byteOffset", 0)
+    view_offset = view.get("byteOffset", 0)
+    view_length = view.get("byteLength")
+    explicit_stride = view.get("byteStride")
+    stride = element_size if explicit_stride is None else explicit_stride
+    if type(count) is not int or count <= 0:
+        raise ValueError("GLB accessor count is invalid")
+    if (
+        type(accessor_offset) is not int
+        or accessor_offset < 0
+        or type(view_offset) is not int
+        or view_offset < 0
+        or type(view_length) is not int
+        or view_length < 0
+    ):
+        raise ValueError("GLB accessor buffer range is invalid")
+    if explicit_stride is not None and (
+        type(explicit_stride) is not int
+        or explicit_stride < 4
+        or explicit_stride > 252
+        or explicit_stride % 4 != 0
+    ):
+        raise ValueError("GLB explicit byteStride is outside the glTF range")
+    if (
+        type(stride) is not int
+        or stride < element_size
+        or stride % component_size != 0
+        or accessor_offset % component_size != 0
+        or view_offset % component_size != 0
+        or (view_offset + accessor_offset) % component_size != 0
+    ):
+        raise ValueError("GLB accessor byte stride or alignment is invalid")
+
+    base = view_offset + accessor_offset
+    view_end = view_offset + view_length
+    end = base + (count - 1) * stride + element_size
+    if view_end > len(binary):
+        raise ValueError("GLB bufferView exceeds binary buffer")
+    if base < view_offset or end > view_end:
+        raise ValueError("GLB accessor exceeds its bufferView")
+    return accessor, count, stride, base
+
+
 def _readback_float_accessor(
     accessors: List[Any],
     views: List[Any],
@@ -1428,14 +1578,18 @@ def _readback_float_accessor(
     accessor_index: int,
     component_count: int,
 ) -> List[Tuple[float, ...]]:
-    accessor = accessors[accessor_index]
-    if int(accessor.get("componentType", 0)) != 5126:
+    accessor = _readback_accessor_record(accessors, accessor_index)
+    if accessor.get("componentType") != 5126:
         raise ValueError("GLB float accessor has an unsupported component type")
-    view = views[int(accessor["bufferView"])]
-    count = int(accessor["count"])
     element_size = component_count * 4
-    stride = int(view.get("byteStride", element_size))
-    base = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    _accessor, count, stride, base = _readback_accessor_layout(
+        accessors,
+        views,
+        binary,
+        accessor_index,
+        element_size=element_size,
+        component_size=4,
+    )
     return [
         tuple(float(value) for value in struct.unpack_from(f"<{component_count}f", binary, base + index * stride))
         for index in range(count)
@@ -1448,20 +1602,26 @@ def _readback_index_accessor(
     binary: bytes,
     accessor_index: int,
 ) -> List[int]:
-    accessor = accessors[accessor_index]
+    accessor = _readback_accessor_record(accessors, accessor_index)
     if accessor.get("type") != "SCALAR":
         raise ValueError("GLB integer accessor must be SCALAR")
-    component_type = int(accessor.get("componentType", 0))
+    component_type = accessor.get("componentType")
+    if type(component_type) is not int:
+        raise ValueError("GLB integer accessor has an unsupported component type")
     format_code, byte_size = {5121: ("B", 1), 5123: ("H", 2), 5125: ("I", 4)}.get(
         component_type,
         (None, None),
     )
     if format_code is None or byte_size is None:
         raise ValueError("GLB integer accessor has an unsupported component type")
-    view = views[int(accessor["bufferView"])]
-    count = int(accessor["count"])
-    stride = int(view.get("byteStride", byte_size))
-    base = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    _accessor, count, stride, base = _readback_accessor_layout(
+        accessors,
+        views,
+        binary,
+        accessor_index,
+        element_size=byte_size,
+        component_size=byte_size,
+    )
     return [
         int(struct.unpack_from(f"<{format_code}", binary, base + index * stride)[0])
         for index in range(count)
@@ -1746,7 +1906,12 @@ def segment_blockout(
     role_counts = {role: sum(item.part_role == role for item in boxes) for role in {item.part_role for item in boxes}}
     for index, box in enumerate(boxes):
         part_id = f"part_{index + 1}_{box.part_role}"
-        parent_index = index - 1 if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 else 0
+        is_visual_detail = box.part_role.startswith("visual_")
+        parent_index = (
+            index - 1
+            if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 and not is_visual_detail
+            else 0
+        )
         parent_part_id = None if index == 0 else f"part_{parent_index + 1}_{boxes[parent_index].part_role}"
         parameter_bindings = _editable_parameter_bindings_for_part(
             part_id=part_id,
@@ -1763,7 +1928,11 @@ def segment_blockout(
                 "material_zone_ids": [f"zone_{box.part_role}"],
                 "editable_parameters": [
                     *(item["path"] for item in parameter_bindings),
-                    *(["joint.rotation"] if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 else []),
+                    *(
+                        ["joint.rotation"]
+                        if plan.domain_pack_id == "pack_robotic_arm_concept" and index > 0 and not is_visual_detail
+                        else []
+                    ),
                 ],
                 "editable_parameter_bindings": parameter_bindings,
                 "locked": False,
@@ -1844,11 +2013,11 @@ def _presentation_primitives(
     if plan.domain_pack_id == "pack_future_weapon_prop":
         details = _future_prop_showcase_details(primary, detail_level)
     elif plan.domain_pack_id == "pack_vehicle_concept":
-        details = _vehicle_showcase_details(primary, detail_level)
+        details = _vehicle_showcase_details(primary, detail_level, boxes)
     elif plan.domain_pack_id == "pack_aircraft_concept":
         details = _aircraft_showcase_details(primary, detail_level)
     elif plan.domain_pack_id == "pack_robotic_arm_concept":
-        details = _robotic_arm_showcase_details(primary, detail_level)
+        details = _robotic_arm_showcase_details(primary, detail_level, boxes)
     else:
         raise ValueError(f"showcase detail grammar is not defined for {plan.domain_pack_id}")
     fairings = _showcase_connection_fairings(boxes, plan.domain_pack_id)
@@ -2035,33 +2204,67 @@ def _showcase_connection_fairings(
             domain_pack_id=domain_pack_id,
             required_roles=("lift_wing_left", "lift_wing_right", *rotor_roles),
         )
-        if roles is None:
-            return []
-        fairings = []
-        for rotor_role in rotor_roles:
-            side = "left" if rotor_role.endswith("left") else "right"
-            wing = roles[f"lift_wing_{side}"]
-            rotor = roles[rotor_role]
-            wing_thickness = _primitive_display_extent(wing)[1]
-            fairings.append(
-                _wedge(
-                    f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
-                    (
-                        rotor.center_mm[0],
-                        (wing.center_mm[1] + rotor.center_mm[1]) / 2,
-                        rotor.center_mm[2]
-                        + math.copysign(rotor.radius_mm * 0.25, rotor.center_mm[2]),
-                    ),
-                    (
-                        rotor.radius_mm * 0.9,
-                        max(72.0, wing_thickness + 18.0),
-                        rotor.radius_mm * 0.55,
-                    ),
-                    3,
-                    material_id="mat_aluminum",
+        if roles is not None:
+            fairings = []
+            for rotor_role in rotor_roles:
+                side = "left" if rotor_role.endswith("left") else "right"
+                wing = roles[f"lift_wing_{side}"]
+                rotor = roles[rotor_role]
+                wing_thickness = _primitive_display_extent(wing)[1]
+                fairings.append(
+                    _wedge(
+                        f"visual_guard_aircraft_rotor_pylon_{rotor_role.removeprefix('lift_rotor_')}",
+                        (
+                            rotor.center_mm[0],
+                            (wing.center_mm[1] + rotor.center_mm[1]) / 2,
+                            rotor.center_mm[2]
+                            + math.copysign(rotor.radius_mm * 0.25, rotor.center_mm[2]),
+                        ),
+                        (
+                            rotor.radius_mm * 0.9,
+                            max(72.0, wing_thickness + 18.0),
+                            rotor.radius_mm * 0.55,
+                        ),
+                        3,
+                        material_id="mat_aluminum",
+                    )
                 )
-            )
-        return fairings
+            return fairings
+
+        tilt_roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("tilt_body", "tilt_pod_left", "tilt_pod_right"),
+        )
+        if tilt_roles is not None:
+            body = tilt_roles["tilt_body"]
+            fairings = []
+            for side in ("left", "right"):
+                pod = tilt_roles[f"tilt_pod_{side}"]
+                body_extent = _primitive_display_extent(body)
+                pod_extent = _primitive_display_extent(pod)
+                body_edge_z = body.center_mm[2] + math.copysign(body_extent[2] / 2, pod.center_mm[2])
+                pod_edge_z = pod.center_mm[2] - math.copysign(pod_extent[2] / 2, pod.center_mm[2])
+                bridge_depth = abs(pod_edge_z - body_edge_z) + 80.0
+                fairings.append(
+                    _box(
+                        f"visual_guard_aircraft_tilt_pod_bridge_{side}",
+                        (
+                            pod.center_mm[0],
+                            (body.center_mm[1] + pod.center_mm[1]) / 2,
+                            (body_edge_z + pod_edge_z) / 2,
+                        ),
+                        (
+                            min(500.0, body_extent[0] * 0.24),
+                            min(body_extent[1], pod_extent[1]) * 0.5,
+                            bridge_depth,
+                        ),
+                        3,
+                        material_id="mat_composite",
+                    )
+                )
+            return fairings
+        return []
 
     if domain_pack_id == "pack_robotic_arm_concept":
         roles = _exact_showcase_roles(
@@ -2069,28 +2272,103 @@ def _showcase_connection_fairings(
             domain_pack_id=domain_pack_id,
             required_roles=("precision_joint_1", "precision_link_1"),
         )
-        if roles is None:
-            return []
-        joint = roles["precision_joint_1"]
-        link = roles["precision_link_1"]
-        return [
-            _box(
-                "visual_guard_robot_shoulder_bridge",
-                (
-                    (joint.center_mm[0] + link.center_mm[0]) / 2,
-                    joint.center_mm[1] + 70.0,
-                    (joint.center_mm[2] + link.center_mm[2]) / 2
-                    + joint.radius_mm * 0.45,
+        if roles is not None:
+            joint = roles["precision_joint_1"]
+            link = roles["precision_link_1"]
+            return [
+                _box(
+                    "visual_guard_robot_shoulder_bridge",
+                    (
+                        (joint.center_mm[0] + link.center_mm[0]) / 2,
+                        joint.center_mm[1] + 70.0,
+                        (joint.center_mm[2] + link.center_mm[2]) / 2
+                        + joint.radius_mm * 0.45,
+                    ),
+                    (
+                        abs(joint.center_mm[0] - link.center_mm[0]) + 80.0,
+                        140.0,
+                        min(joint.radius_mm * 2, link.radius_mm * 2) * 0.75,
+                    ),
+                    3,
+                    material_id="mat_composite",
+                )
+            ]
+
+        desktop_roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("desktop_wrist", "desktop_tool"),
+        )
+        if desktop_roles is not None:
+            wrist = desktop_roles["desktop_wrist"]
+            tool = desktop_roles["desktop_tool"]
+            wrist_extent = _primitive_display_extent(wrist)
+            tool_extent = _primitive_display_extent(tool)
+            wrist_top = wrist.center_mm[1] + wrist_extent[1] / 2
+            tool_bottom = tool.center_mm[1] - tool_extent[1] / 2
+            return [
+                _cylinder(
+                    "visual_guard_robot_wrist_bridge",
+                    (
+                        wrist.center_mm[0],
+                        (wrist_top + tool_bottom) / 2,
+                        wrist.center_mm[2],
+                    ),
+                    min(wrist.radius_mm * 0.82, tool_extent[0] * 0.36, tool_extent[2] * 0.36),
+                    abs(tool_bottom - wrist_top) + 40.0,
+                    3,
+                    (0.0, 1.0, 0.0),
+                    material_id="mat_aluminum",
+                )
+            ]
+
+        rail_roles = _exact_showcase_roles(
+            boxes,
+            domain_pack_id=domain_pack_id,
+            required_roles=("rail_base", "rail_carriage", "rail_pivot"),
+        )
+        if rail_roles is not None:
+            base = rail_roles["rail_base"]
+            carriage = rail_roles["rail_carriage"]
+            pivot = rail_roles["rail_pivot"]
+            base_extent = _primitive_display_extent(base)
+            carriage_extent = _primitive_display_extent(carriage)
+            pivot_extent = _primitive_display_extent(pivot)
+            base_top = base.center_mm[1] + base_extent[1] / 2
+            carriage_bottom = carriage.center_mm[1] - carriage_extent[1] / 2
+            carriage_top = carriage.center_mm[1] + carriage_extent[1] / 2
+            pivot_bottom = pivot.center_mm[1] - pivot_extent[1] / 2
+            return [
+                _box(
+                    "visual_guard_robot_rail_bridge",
+                    (
+                        carriage.center_mm[0],
+                        (base_top + carriage_bottom) / 2,
+                        carriage.center_mm[2],
+                    ),
+                    (
+                        carriage_extent[0] * 0.8,
+                        abs(carriage_bottom - base_top) + 40.0,
+                        min(base_extent[2], carriage_extent[2]) * 0.8,
+                    ),
+                    3,
+                    material_id="mat_composite",
                 ),
-                (
-                    abs(joint.center_mm[0] - link.center_mm[0]) + 80.0,
-                    140.0,
-                    min(joint.radius_mm * 2, link.radius_mm * 2) * 0.75,
+                _cylinder(
+                    "visual_guard_robot_carriage_bridge",
+                    (
+                        pivot.center_mm[0],
+                        (carriage_top + pivot_bottom) / 2,
+                        pivot.center_mm[2],
+                    ),
+                    min(pivot.radius_mm * 0.82, carriage_extent[0] * 0.36, carriage_extent[2] * 0.36),
+                    abs(pivot_bottom - carriage_top) + 40.0,
+                    3,
+                    (0.0, 1.0, 0.0),
+                    material_id="mat_composite",
                 ),
-                3,
-                material_id="mat_composite",
-            )
-        ]
+            ]
+        return []
 
     raise ValueError(f"showcase connection grammar is not defined for {domain_pack_id}")
 
@@ -2103,7 +2381,7 @@ def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> L
     thickness = _detail_thickness(width, height, depth)
     vent_radius = max(9.0, min(20.0, min(height, depth) * 0.045))
     details = [
-        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.5, thickness, depth * 0.62), 3, material_id="mat_composite"),
+        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.5, thickness, depth * 0.24), 3, material_id="mat_composite"),
         _box("visual_groove_prop_side", (cx - width * 0.18, cy - height * 0.05, cz + depth / 2 + thickness / 2), (width * 0.28, height * 0.22, thickness), 0, material_id="mat_rubber"),
         _wedge("visual_guard_prop_rear", (cx + width * 0.3, cy + height * 0.05, cz + depth / 2 + thickness), (width * 0.22, height * 0.38, thickness * 1.8), 1, material_id="mat_aluminum"),
         _box("visual_light_strip_prop_side", (cx - width * 0.28, cy + height * 0.14, cz + depth / 2 + thickness / 2), (width * 0.2, max(12.0, height * 0.055), thickness), 6, material_id="mat_emissive_blue"),
@@ -2119,15 +2397,54 @@ def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> L
     return details
 
 
-def _vehicle_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+def _vehicle_showcase_details(
+    primary: BoxPrimitive,
+    detail_level: int,
+    boxes: Sequence[BoxPrimitive],
+) -> List[BoxPrimitive]:
     """Vehicle shell language: hood/rocker layers, front lighting and top vents."""
 
     cx, cy, cz = primary.center_mm
     width, height, depth = _primitive_display_extent(primary)
     thickness = _detail_thickness(width, height, depth)
+    anchors = _exact_showcase_roles(
+        boxes,
+        domain_pack_id="pack_vehicle_concept",
+        required_roles=("vehicle_nose", "vehicle_cabin"),
+    )
+    if anchors is None:
+        paint_panel = _box("visual_panel_vehicle_paint", (cx - width * 0.23, cy + height / 2 + thickness / 2, cz), (width * 0.34, thickness, depth * 0.72), 7, material_id="mat_automotive_paint")
+        deck_panel = _box("visual_panel_vehicle_deck", (cx + width * 0.3, cy + height / 2 + thickness / 2, cz), (width * 0.24, thickness, depth * 0.58), 3, material_id="mat_composite")
+    else:
+        nose = anchors["vehicle_nose"]
+        cabin = anchors["vehicle_cabin"]
+        nose_extent = _primitive_display_extent(nose)
+        cabin_extent = _primitive_display_extent(cabin)
+        paint_panel = _box(
+            "visual_panel_vehicle_paint",
+            (
+                nose.center_mm[0],
+                nose.center_mm[1] + nose_extent[1] / 2 + thickness / 2 - 2.0,
+                nose.center_mm[2],
+            ),
+            (nose_extent[0] * 0.58, thickness, nose_extent[2] * 0.7),
+            7,
+            material_id="mat_automotive_paint",
+        )
+        deck_panel = _box(
+            "visual_panel_vehicle_deck",
+            (
+                cabin.center_mm[0] + cabin_extent[0] * 0.38,
+                cabin.center_mm[1] + cabin_extent[1] / 2 + thickness / 2 - 2.0,
+                cabin.center_mm[2],
+            ),
+            (cabin_extent[0] * 0.22, thickness, cabin_extent[2] * 0.62),
+            3,
+            material_id="mat_composite",
+        )
     details = [
-        _box("visual_panel_vehicle_paint", (cx - width * 0.23, cy + height / 2 + thickness / 2, cz), (width * 0.34, thickness, depth * 0.72), 7, material_id="mat_automotive_paint"),
-        _box("visual_panel_vehicle_deck", (cx + width * 0.3, cy + height / 2 + thickness / 2, cz), (width * 0.24, thickness, depth * 0.58), 3, material_id="mat_composite"),
+        paint_panel,
+        deck_panel,
         _box("visual_groove_vehicle_rocker_left", (cx + width * 0.02, cy - height * 0.28, cz - depth / 2 - thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
         _box("visual_groove_vehicle_rocker_right", (cx + width * 0.02, cy - height * 0.28, cz + depth / 2 + thickness / 2), (width * 0.62, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
         _wedge("visual_guard_vehicle_rear_deck", (cx + width * 0.38, cy + height / 2 + thickness, cz), (width * 0.2, max(60.0, height * 0.3), depth * 0.5), 1, material_id="mat_aluminum"),
@@ -2152,7 +2469,7 @@ def _aircraft_showcase_details(primary: BoxPrimitive, detail_level: int) -> List
     width, height, depth = _primitive_display_extent(primary)
     thickness = _detail_thickness(width, height, depth)
     details = [
-        _box("visual_panel_aircraft_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.46, thickness, depth * 0.42), 3, material_id="mat_composite"),
+        _box("visual_panel_aircraft_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2, cz), (width * 0.46, thickness, depth * 0.24), 3, material_id="mat_composite"),
         _box("visual_groove_aircraft_belly", (cx + width * 0.12, cy - height / 2 - thickness / 2, cz), (width * 0.42, thickness, depth * 0.36), 0, material_id="mat_rubber"),
         _wedge("visual_guard_aircraft_chine_left", (cx - width * 0.02, cy - height * 0.08, cz - depth / 2 - thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
         _wedge("visual_guard_aircraft_chine_right", (cx - width * 0.02, cy - height * 0.08, cz + depth / 2 + thickness), (width * 0.36, height * 0.22, thickness * 1.6), 1, material_id="mat_aluminum"),
@@ -2171,14 +2488,37 @@ def _aircraft_showcase_details(primary: BoxPrimitive, detail_level: int) -> List
     return details
 
 
-def _robotic_arm_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
+def _robotic_arm_showcase_details(
+    primary: BoxPrimitive,
+    detail_level: int,
+    boxes: Sequence[BoxPrimitive],
+) -> List[BoxPrimitive]:
     """Robot shell language: grounded base fascia, service plate and status bar."""
 
     cx, cy, cz = primary.center_mm
     width, height, depth = _primitive_display_extent(primary)
     thickness = _detail_thickness(width, height, depth)
+    link_matches = [item for item in boxes if item.part_role == "precision_link_1"]
+    if len(link_matches) > 1:
+        raise ValueError("showcase robot upper-link anchor is duplicated")
+    if link_matches:
+        link = link_matches[0]
+        link_extent = _primitive_display_extent(link)
+        panel = _box(
+            "visual_panel_robot_upper_link",
+            (
+                link.center_mm[0],
+                link.center_mm[1],
+                link.center_mm[2] + link.radius_mm + thickness / 2 - 2.0,
+            ),
+            (link.radius_mm * 0.64, link_extent[1] * 0.42, thickness),
+            3,
+            material_id="mat_composite",
+        )
+    else:
+        panel = _box("visual_panel_robot_base", (cx, cy + height / 2 + thickness / 2, cz), (width * 0.58, thickness, depth * 0.58), 3, material_id="mat_composite")
     details = [
-        _box("visual_panel_robot_base", (cx, cy + height / 2 + thickness / 2, cz), (width * 0.58, thickness, depth * 0.58), 3, material_id="mat_composite"),
+        panel,
         _box("visual_groove_robot_plinth", (cx, cy - height * 0.2, cz + depth / 2 + thickness / 2), (width * 0.58, max(14.0, height * 0.12), thickness), 0, material_id="mat_rubber"),
         _wedge("visual_guard_robot_corner", (cx + width * 0.3, cy + height * 0.12, cz + depth / 2 + thickness), (width * 0.2, height * 0.44, thickness * 1.8), 1, material_id="mat_aluminum"),
         _box("visual_light_strip_robot_status", (cx - width * 0.32, cy + height * 0.08, cz + depth / 2 + thickness / 2), (max(18.0, width * 0.08), height * 0.42, thickness), 6, material_id="mat_emissive_blue"),

@@ -83,6 +83,273 @@ def _glb_parts(payload: bytes) -> tuple[dict, bytearray]:
     return document, binary
 
 
+def _visual_aabb_components(
+    document: dict,
+    binary: bytearray,
+    *,
+    contact_tolerance_m: float = 0.001,
+) -> tuple[tuple[str, ...], ...]:
+    """Return final-GLB visual AABB components without implying solid joints."""
+
+    accessors = document.get("accessors")
+    views = document.get("bufferViews")
+    assert isinstance(accessors, list) and isinstance(views, list)
+    assert len(document.get("meshes", [])) == 1
+    assert type(document.get("scene")) is int and document["scene"] == 0
+    scenes = document.get("scenes")
+    assert isinstance(scenes, list) and len(scenes) == 1 and isinstance(scenes[0], dict)
+    scene_nodes = scenes[0].get("nodes")
+    assert (
+        isinstance(scene_nodes, list)
+        and len(scene_nodes) == 1
+        and type(scene_nodes[0]) is int
+        and scene_nodes[0] == 0
+    )
+    nodes = document.get("nodes")
+    assert (
+        isinstance(nodes, list)
+        and len(nodes) == 1
+        and type(nodes[0].get("mesh")) is int
+        and nodes[0]["mesh"] == 0
+    )
+    assert not any(
+        key in nodes[0]
+        for key in ("children", "extensions", "matrix", "rotation", "scale", "skin", "translation", "weights")
+    )
+    records: list[tuple[str, tuple[float, float, float], tuple[float, float, float]]] = []
+    for primitive_index, primitive in enumerate(document["meshes"][0]["primitives"]):
+        accessor_index = primitive["attributes"]["POSITION"]
+        assert (
+            type(accessor_index) is int
+            and 0 <= accessor_index < len(accessors)
+            and isinstance(accessors[accessor_index], dict)
+        ), (primitive_index, "POSITION accessor index is invalid")
+        accessor = accessors[accessor_index]
+        assert accessor["componentType"] == 5126 and accessor["type"] == "VEC3"
+        assert accessor.get("sparse") is None
+        view_index = accessor.get("bufferView")
+        assert (
+            type(view_index) is int
+            and 0 <= view_index < len(views)
+            and isinstance(views[view_index], dict)
+        ), (primitive_index, "POSITION bufferView index is invalid")
+        view = views[view_index]
+        assert type(view.get("buffer")) is int and view["buffer"] == 0
+        count = accessor.get("count")
+        accessor_offset = accessor.get("byteOffset", 0)
+        view_offset = view.get("byteOffset", 0)
+        view_length = view.get("byteLength")
+        explicit_stride = view.get("byteStride")
+        stride = 12 if explicit_stride is None else explicit_stride
+        assert type(count) is int and count > 0
+        assert type(accessor_offset) is int and accessor_offset >= 0
+        assert type(view_offset) is int and view_offset >= 0
+        assert type(view_length) is int and view_length >= 0
+        if explicit_stride is not None:
+            assert (
+                type(explicit_stride) is int
+                and 4 <= explicit_stride <= 252
+                and explicit_stride % 4 == 0
+            )
+        assert type(stride) is int and stride >= 12 and stride % 4 == 0
+        base = view_offset + accessor_offset
+        end = base + (count - 1) * stride + 12
+        view_end = view_offset + view_length
+        assert accessor_offset % 4 == 0 and view_offset % 4 == 0 and base % 4 == 0
+        assert view_end <= len(binary), (primitive_index, "POSITION bufferView exceeds BIN bytes")
+        assert end <= view_end, (primitive_index, "POSITION accessor exceeds its bufferView")
+        positions = [
+            struct.unpack_from("<3f", binary, base + index * stride)
+            for index in range(count)
+        ]
+        assert all(math.isfinite(value) for position in positions for value in position)
+        minimum = tuple(min(position[axis] for position in positions) for axis in range(3))
+        maximum = tuple(max(position[axis] for position in positions) for axis in range(3))
+        assert all(
+            math.isclose(float(accessor["min"][axis]), minimum[axis], rel_tol=1e-6, abs_tol=1e-7)
+            and math.isclose(float(accessor["max"][axis]), maximum[axis], rel_tol=1e-6, abs_tol=1e-7)
+            for axis in range(3)
+        ), (primitive_index, "declared POSITION bounds diverge from BIN bytes")
+        role = str(primitive["extras"]["forgecad_part_role"])
+        records.append((f"{role}#{primitive_index}", minimum, maximum))
+
+    def touches(left_index: int, right_index: int) -> bool:
+        _, left_min, left_max = records[left_index]
+        _, right_min, right_max = records[right_index]
+        return all(
+            max(left_min[axis], right_min[axis])
+            <= min(left_max[axis], right_max[axis]) + contact_tolerance_m
+            for axis in range(3)
+        )
+
+    remaining = set(range(len(records)))
+    components: list[tuple[str, ...]] = []
+    while remaining:
+        seed = min(remaining)
+        remaining.remove(seed)
+        stack = [seed]
+        members: list[int] = []
+        while stack:
+            current = stack.pop()
+            members.append(current)
+            connected = {
+                candidate
+                for candidate in remaining
+                if touches(current, candidate)
+            }
+            remaining.difference_update(connected)
+            stack.extend(sorted(connected, reverse=True))
+        components.append(tuple(records[index][0] for index in sorted(members)))
+    return tuple(components)
+
+
+def _assert_glb_readback_contract_self_test(document: dict, binary: bytearray) -> None:
+    forged_document = copy.deepcopy(document)
+    forged_binary = bytearray(binary)
+    primitive = forged_document["meshes"][0]["primitives"][0]
+    accessor = forged_document["accessors"][primitive["attributes"]["POSITION"]]
+    view = forged_document["bufferViews"][accessor["bufferView"]]
+    offset = int(view.get("byteOffset", 0)) + int(accessor.get("byteOffset", 0))
+    position = list(struct.unpack_from("<3f", forged_binary, offset))
+    position[0] += 100.0
+    struct.pack_into("<3f", forged_binary, offset, *position)
+    _expect_rejected(
+        _glb_payload(forged_document, forged_binary),
+        "declared position bounds do not match POSITION bytes",
+    )
+
+    truncated_document = copy.deepcopy(document)
+    primitive = truncated_document["meshes"][0]["primitives"][0]
+    accessor = truncated_document["accessors"][primitive["attributes"]["POSITION"]]
+    truncated_document["bufferViews"][accessor["bufferView"]]["byteLength"] = 12
+    _expect_rejected(
+        _glb_payload(truncated_document, bytearray(binary)),
+        "accessor exceeds its bufferView",
+    )
+
+    negative_index_document = copy.deepcopy(document)
+    primitive = negative_index_document["meshes"][0]["primitives"][0]
+    primitive["attributes"]["POSITION"] = -len(negative_index_document["accessors"])
+    _expect_rejected(
+        _glb_payload(negative_index_document, bytearray(binary)),
+        "accessor index is invalid",
+    )
+
+    missing_buffer_document = copy.deepcopy(document)
+    primitive = missing_buffer_document["meshes"][0]["primitives"][0]
+    accessor = missing_buffer_document["accessors"][primitive["attributes"]["POSITION"]]
+    del missing_buffer_document["bufferViews"][accessor["bufferView"]]["buffer"]
+    _expect_rejected(
+        _glb_payload(missing_buffer_document, bytearray(binary)),
+        "accessor references an unsupported buffer",
+    )
+
+    bad_stride_document = copy.deepcopy(document)
+    primitive = bad_stride_document["meshes"][0]["primitives"][0]
+    index_accessor = bad_stride_document["accessors"][primitive["indices"]]
+    bad_stride_document["bufferViews"][index_accessor["bufferView"]]["byteStride"] = 2
+    _expect_rejected(
+        _glb_payload(bad_stride_document, bytearray(binary)),
+        "explicit byteStride is outside the glTF range",
+    )
+
+    for bad_stride in (6, 256):
+        bad_stride_document = copy.deepcopy(document)
+        primitive = bad_stride_document["meshes"][0]["primitives"][0]
+        index_accessor = bad_stride_document["accessors"][primitive["indices"]]
+        bad_stride_document["bufferViews"][index_accessor["bufferView"]]["byteStride"] = bad_stride
+        _expect_rejected(
+            _glb_payload(bad_stride_document, bytearray(binary)),
+            "explicit byteStride is outside the glTF range",
+        )
+
+    misaligned_document = copy.deepcopy(document)
+    primitive = misaligned_document["meshes"][0]["primitives"][0]
+    accessor = misaligned_document["accessors"][primitive["attributes"]["POSITION"]]
+    accessor["byteOffset"] = 2
+    _expect_rejected(
+        _glb_payload(misaligned_document, bytearray(binary)),
+        "byte stride or alignment is invalid",
+    )
+
+    misaligned_view_document = copy.deepcopy(document)
+    primitive = misaligned_view_document["meshes"][0]["primitives"][0]
+    accessor = misaligned_view_document["accessors"][primitive["attributes"]["POSITION"]]
+    misaligned_view_document["bufferViews"][accessor["bufferView"]]["byteOffset"] = 2
+    _expect_rejected(
+        _glb_payload(misaligned_view_document, bytearray(binary)),
+        "byte stride or alignment is invalid",
+    )
+
+    instanced_document = copy.deepcopy(document)
+    instanced_document["nodes"].append({"mesh": 0, "translation": [100.0, 0.0, 0.0]})
+    instanced_document["scenes"][0]["nodes"].append(1)
+    _expect_rejected(
+        _glb_payload(instanced_document, bytearray(binary)),
+        "single-mesh static scene contract",
+    )
+
+    transformed_document = copy.deepcopy(document)
+    transformed_document["nodes"][0]["translation"] = [100.0, 0.0, 0.0]
+    _expect_rejected(
+        _glb_payload(transformed_document, bytearray(binary)),
+        "static scene node must be untransformed and uninstanced",
+    )
+
+    bool_node_document = copy.deepcopy(document)
+    bool_node_document["scenes"][0]["nodes"] = [False]
+    _expect_rejected(
+        _glb_payload(bool_node_document, bytearray(binary)),
+        "single-mesh static scene contract",
+    )
+
+    float_node_document = copy.deepcopy(document)
+    float_node_document["scenes"][0]["nodes"] = [0.0]
+    _expect_rejected(
+        _glb_payload(float_node_document, bytearray(binary)),
+        "single-mesh static scene contract",
+    )
+
+    second_mesh_document = copy.deepcopy(document)
+    second_mesh_document["meshes"].append(copy.deepcopy(second_mesh_document["meshes"][0]))
+    _expect_rejected(
+        _glb_payload(second_mesh_document, bytearray(binary)),
+        "single-mesh static scene contract",
+    )
+
+    second_scene_document = copy.deepcopy(document)
+    second_scene_document["scenes"].append({"nodes": [0]})
+    _expect_rejected(
+        _glb_payload(second_scene_document, bytearray(binary)),
+        "single-mesh static scene contract",
+    )
+
+    missing_image_buffer_document = copy.deepcopy(document)
+    image_view_index = missing_image_buffer_document["images"][0]["bufferView"]
+    del missing_image_buffer_document["bufferViews"][image_view_index]["buffer"]
+    _expect_rejected(
+        _glb_payload(missing_image_buffer_document, bytearray(binary)),
+        "image view must explicitly reference the embedded buffer",
+    )
+
+    external_image_buffer_document = copy.deepcopy(document)
+    image_view_index = external_image_buffer_document["images"][0]["bufferView"]
+    external_image_buffer_document["bufferViews"][image_view_index]["buffer"] = 1
+    _expect_rejected(
+        _glb_payload(external_image_buffer_document, bytearray(binary)),
+        "image view must explicitly reference the embedded buffer",
+    )
+
+    for invalid_offset in (False, 0.0, "0"):
+        invalid_image_offset_document = copy.deepcopy(document)
+        image_view_index = invalid_image_offset_document["images"][0]["bufferView"]
+        invalid_image_offset_document["bufferViews"][image_view_index]["byteOffset"] = invalid_offset
+        _expect_rejected(
+            _glb_payload(invalid_image_offset_document, bytearray(binary)),
+            "PBR image exceeds its binary buffer",
+        )
+
+
 def _glb_payload(document: dict, binary: bytearray) -> bytes:
     encoded = json.dumps(document, separators=(",", ":")).encode("utf-8")
     encoded += b" " * ((4 - len(encoded) % 4) % 4)
@@ -494,6 +761,13 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     )
 
     document, binary = _glb_parts(result.glb_bytes)
+    visual_components = _visual_aabb_components(document, binary)
+    assert len(visual_components) == 1, (
+        plan.domain_pack_id,
+        result.variant_id,
+        "showcase contains visually disconnected final-GLB AABB components",
+        visual_components,
+    )
     assert len(document["images"]) == len(document["textures"]) == builtin_visual_material_count() * len(PBR_ROLES)
     assert not any("uri" in image for image in document["images"])
     assert {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"} <= set(document["extensionsUsed"])
@@ -506,7 +780,16 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
         str(item["extras"]["forgecad_part_role"]): str(item["extras"]["forgecad_material_id"])
         for item in primitives
     }
-    connection_tokens = ("_mount_collar", "_side_bridge_", "_rotor_pylon_", "_shoulder_bridge")
+    connection_tokens = (
+        "_mount_collar",
+        "_side_bridge_",
+        "_rotor_pylon_",
+        "_shoulder_bridge",
+        "_tilt_pod_bridge_",
+        "_wrist_bridge",
+        "_rail_bridge",
+        "_carriage_bridge",
+    )
     connection_roles = {
         role for role in material_by_role
         if any(token in role for token in connection_tokens)
@@ -684,6 +967,9 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
                 legacy_facts,
                 legacy_glb,
             )
+
+    if plan.domain_pack_id == "pack_aircraft_concept" and result.variant_id == "vertical_takeoff_b":
+        _assert_glb_readback_contract_self_test(document, binary)
 
     target_material_index = min(used_material_indices)
     wrong_texture_set = copy.deepcopy(document)

@@ -1699,6 +1699,8 @@ CI 回归检查点（2026-07-15）：native Tauri smoke 必须复用当前 navig
 
 审阅真值收紧检查点（2026-07-16）：真实工作台捕获只接受 ModuleGraph root 隐藏、blockout root 可见、axes/grid/transform helper 隐藏且 renderer line 数为 0 的正常展示状态，并把该事实写入每个 capture；旧截图不能作为当前通过输入。评分校验器逐 GLB readback 要求至少五套 `_builtin_v2` texture-set、每套五个完整 `_v2_` map role 和 128×128 尺寸，负例覆盖 v1、少于五套、错误 map 版本与错误尺寸。航空器 showcase 只调整既有四个非功能旋翼支柱的偏移，G818 从最终 POSITION accessor 要求每个支柱与对应机翼 Z 范围至少重叠 0.07 m；未新增 operation、Recipe、参数或工程连接。新的四领域源码捕获通过且仍为 `not_scored/human_benchmark_evidence=false`；三位独立评审未收集，M108 状态不变，C105 不解锁。
 
+最终 GLB/嵌合检查点（2026-07-16）：M108 不再用 accessor 自报 `min/max` 或重复参数估算最终外观；12 份审阅资产逐 primitive 解码 BIN POSITION，声明 bounds 必须匹配真实有限坐标，accessor/view 的非负整数引用、count、offset、4–252 显式 stride、component alignment、view/BIN 末端与图片单 buffer 引用全部 fail closed。当前编译输出同时冻结为单 mesh、单 scene、单 identity node；第二 mesh/scene/node、TRS/children/instancing、bool/float引用均拒绝。12 份 fixture 的最终视觉 AABB 必须各为一个分量；航空器 B pod 与机械臂 B/C wrist/rail/carriage 外罩还从目标部件事实重算中心、轴向和尺寸双边范围，阻止缩小、偏移或错轴仍通过。这只是固定审阅资产的视觉连续性代理，不是实体布尔焊接、工程连接、全部 catalog 或 C105 child slot/transform propagation。车辆/机器人面板锚点改善、胶囊面板窄化和 segmentation/AssemblyGraph 展示分组同源已进入 G818/M108 Gate。模型仍是 Alpha blockout，独立人工评分未完成，任务继续 `in_progress`。
+
 该评分检查点的“至少五套”同时要求至少五个不同 material index、texture-set ID 和规范 texture material，重复 authored alias 不能累加；self-test 已覆盖 alias 重复计数与五通道 role 缺失/重复。renderer line instrumentation 缺失、非法或非零也会拒绝。
 
 ### FGC-C105 任务卡

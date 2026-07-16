@@ -5,6 +5,16 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 最终 GLB 真值与十二份审阅资产嵌合增量（进行中，未完成）
+
+- `read_shape_program_glb_facts()` 现在从 BIN 中逐个解码真实 POSITION，而不是信任 accessor `min/max`；声明 bounds 必须与有限实际坐标一致。accessor/bufferView 的引用、count、offset、显式 `byteStride`、component alignment 和读取末端都使用同一严格入口，负下标、越出自身 view、缺失显式 buffer、2/6/256 stride、错位 offset 都会拒绝。PBR 图片 view 同样必须显式引用单一内嵌 buffer，不能用字符串/浮点/bool offset 或 accessor stride。
+- 当前编译 GLB 明确冻结为一个 mesh、一个 scene、一个无 TRS/children/instancing 的 identity node；第二 mesh/scene/node、平移实例以及 bool/float node 引用都拒绝。该限制是当前静态 ShapeProgram 导出合同，不代表 ForgeCAD 已实现 glTF 场景图或变换实例 readback。
+- M108 的 12 份固定审阅 fixture（四领域各 A/B/C）现在都由最终 GLB POSITION AABB 形成一个视觉连通分量。航空器 B 的两侧 pod 外罩、机械臂 B 的 wrist 外罩、机械臂 C 的 rail/carriage 外罩由目标部件推导中心；G818 同时锁定轴向、尺寸/半径/高度上下界、与两个目标的正重叠和可见外露体积。车辆 A 的 paint/deck 面板、机械臂 A 的 upper-link 面板和道具/航空器胶囊顶部面板也已从隐藏或过宽状态收敛。`segment_blockout()` 与 AssemblyGraph 对视觉部件的 root grouping、无 Joint、无可调参数事实保持一致。
+- 这里的“一个分量”只覆盖这 12 份 M108 fixture，且只是 AABB 视觉连续性代理，不是实体布尔焊接、工程连接或全部 48 项 catalog 的证明。视觉件仍使用 root 级绝对坐标且不可编辑；真正 child slot、局部变换传播和 connector 归 `FGC-C105`。胶囊贴片仍有约 4.84–7.31 mm 的边缘间隙，主体仍是 Alpha blockout，不是照片级产品。
+- 最新源码 `agent:m108-gate`、真实工作台 renderer smoke、G818/G826 和严格负例通过；画面仍为 `not_scored/human_benchmark_evidence=false`。三位独立人工评审尚未收集，因此 M108 继续 `in_progress`、C105 继续 blocked。
+- 从最终源码重建的 tracked macOS arm64 sidecar 为 31,801,392 bytes，SHA-256 `50d89fce6fb8b557ed57aed9aa8957e45cac9226582f642e718fd53899197bab`。该精确产物的 require-ready、packaged sidecar、Tauri check、经仓库 Rust wrapper 的 `.app`/DMG build 与 packaged Tauri smoke 均通过；空 Library、PBR readback、Manifold CSG、undo/redo、导出、重启恢复成功且 `provider_calls=0`。DMG 只完成本机 bundle 构建，未执行外部安装、签名或公证；跨平台 sidecar与正式发布阻断不变。
+- `release:packaging-readiness` 已复跑：结构 smoke 与当前 arm64 preflight 通过，最终报告按设计以 `SIDECAR_BINARY_INVALID` 失败，因为 Intel macOS、Windows x64 和 Linux x64 仍是空占位。该已知发布阻断没有被删除或放宽。
+
 ## 2026-07-16：FGC-M108 审阅真值与航空器连接收紧（进行中，未完成）
 
 - M108 工作台捕获现在只接受正常 blockout 展示状态：截图前必须读取并保存 `presentation_runtime_facts`，证明 legacy ModuleGraph root 隐藏、当前 blockout root 可见、axes/grid/transform helper 全部隐藏，并要求真实 renderer line 数为 0。当前源码重建的四领域捕获全部满足这些事实；旧目录中的过暗/带坐标轴截图不会被读取为通过证据。
