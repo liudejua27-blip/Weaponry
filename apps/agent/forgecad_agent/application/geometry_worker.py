@@ -2547,19 +2547,32 @@ def _vehicle_showcase_details(
                         + side_sign * (wheel.height_mm / 2 + 4.0),
                     ),
                     path_points=(
-                        (-wheel.radius_mm * 0.82, wheel.radius_mm * 0.36, 0.0),
-                        (-wheel.radius_mm * 0.36, wheel.radius_mm * 1.12, 0.0),
-                        (wheel.radius_mm * 0.36, wheel.radius_mm * 1.12, 0.0),
-                        (wheel.radius_mm * 0.82, wheel.radius_mm * 0.36, 0.0),
+                        (-wheel.radius_mm * 0.88, wheel.radius_mm * 0.3, 0.0),
+                        (-wheel.radius_mm * 0.56, wheel.radius_mm * 0.88, 0.0),
+                        (0.0, wheel.radius_mm * 1.12, 0.0),
+                        (wheel.radius_mm * 0.56, wheel.radius_mm * 0.88, 0.0),
+                        (wheel.radius_mm * 0.88, wheel.radius_mm * 0.3, 0.0),
                     ),
-                    profile_scale=(26.0, 26.0),
+                    profile_scale=(24.0, 18.0),
                     material=7,
                     material_id="mat_automotive_paint",
                 )
             )
     vent_radius = max(9.0, min(19.0, min(width, depth) * 0.028))
     for index, z_offset in enumerate((-vent_radius * 1.15, vent_radius * 1.15), 1):
-        details.append(_cylinder(f"visual_vent_vehicle_deck_{index}", (cx + width * 0.28, cy + height / 2 + thickness / 2 - 6.0, cz + z_offset), vent_radius, thickness, 0, (0.0, 1.0, 0.0), material_id="mat_rubber"))
+        details.append(
+            _wedge(
+                f"visual_vent_vehicle_deck_{index}",
+                (
+                    cx + width * 0.28,
+                    cy + height / 2 + thickness / 2 - 6.0,
+                    cz + z_offset,
+                ),
+                (vent_radius * 2.6, thickness, vent_radius * 1.2),
+                0,
+                material_id="mat_rubber",
+            )
+        )
     fastener_radius = max(8.0, min(15.0, min(height, depth) * 0.03))
     details.append(
         _cylinder(
@@ -2908,6 +2921,71 @@ def _showcase_airfoil_profile(
     }
 
 
+def _showcase_hard_surface_profile(
+    sketch_id: str,
+    half_u: float,
+    half_v: float,
+    *,
+    resample_count: int,
+) -> Dict[str, Any]:
+    """Build one rounded-rectangle cross-section for reviewed product shells.
+
+    The flat crown, floor and side bands keep prop, vehicle and tool silhouettes
+    from collapsing into generic cylinders while the quadratic corners preserve
+    a bounded product-style edge transition. This remains a fixed M108 fixture,
+    not a free profile editor or an engineering section.
+    """
+
+    start = [-half_u * 0.68, -half_v]
+    return {
+        "schema_version": "ProfileSketch@1",
+        "sketch_id": sketch_id,
+        "version": 1,
+        "plane": "cross_section",
+        "closed": True,
+        "winding": "counter_clockwise",
+        "start": start,
+        "segments": [
+            {"kind": "line", "to": [half_u * 0.68, -half_v]},
+            {
+                "kind": "quadratic",
+                "control": [half_u, -half_v],
+                "to": [half_u, -half_v * 0.58],
+            },
+            {"kind": "line", "to": [half_u, half_v * 0.52]},
+            {
+                "kind": "quadratic",
+                "control": [half_u, half_v],
+                "to": [half_u * 0.62, half_v],
+            },
+            {"kind": "line", "to": [-half_u * 0.62, half_v]},
+            {
+                "kind": "quadratic",
+                "control": [-half_u, half_v],
+                "to": [-half_u, half_v * 0.52],
+            },
+            {"kind": "line", "to": [-half_u, -half_v * 0.58]},
+            {
+                "kind": "quadratic",
+                "control": [-half_u, -half_v],
+                "to": start,
+            },
+        ],
+        "holes": [],
+        "normalized_bounds": {
+            "min": [-half_u, -half_v],
+            "max": [half_u, half_v],
+        },
+        "symmetry": "vertical",
+        "continuity_hint": "tangent",
+        "resample_count": resample_count,
+        "provenance": {
+            "source": "component_recipe",
+            "source_ref": "m108_reviewed_showcase_hard_surface",
+        },
+    }
+
+
 def _showcase_loft_shell(
     role: str,
     center: Tuple[float, float, float],
@@ -2929,13 +3007,13 @@ def _showcase_loft_shell(
         raise ValueError("showcase loft main axis must be x, y or z")
     if resample_count not in {16, 24}:
         raise ValueError("showcase loft resample count must use a reviewed fixed baseline")
-    if profile_shape not in {"ellipse", "airfoil"}:
+    if profile_shape not in {"ellipse", "airfoil", "hard_surface"}:
         raise ValueError("showcase loft profile shape must use a reviewed fixed profile")
-    profile_factory = (
-        _showcase_airfoil_profile
-        if profile_shape == "airfoil"
-        else _showcase_ellipse_profile
-    )
+    profile_factory = {
+        "ellipse": _showcase_ellipse_profile,
+        "airfoil": _showcase_airfoil_profile,
+        "hard_surface": _showcase_hard_surface_profile,
+    }[profile_shape]
     profiles = [
         profile_factory(
             f"sketch_{role}_{index}",
@@ -3068,6 +3146,7 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
                     ),
                     material=0,
                     material_id="mat_primary",
+                    profile_shape="hard_surface",
                 ),
                 _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
                 _showcase_loft_shell(
@@ -3130,6 +3209,7 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
                     ),
                     material=7,
                     material_id="mat_automotive_paint",
+                    profile_shape="hard_surface",
                 ),
                 _showcase_loft_shell(
                     "vehicle_canopy",
@@ -3236,12 +3316,12 @@ def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
                 _showcase_loft_shell(
                     "lift_wing_left",
                     (180, 610, -500),
-                    axis_length=600,
-                    cross_section_scale=(420, 24),
+                    axis_length=700,
+                    cross_section_scale=(360, 32),
                     sections=(
-                        (-1.0, 0.32, 0.45),
-                        (-0.5, 0.62, 0.7),
-                        (0.2, 0.9, 0.9),
+                        (-1.0, 0.18, 0.34),
+                        (-0.55, 0.5, 0.62),
+                        (0.15, 0.84, 0.86),
                         (1.0, 1.0, 1.0),
                     ),
                     material=0,
@@ -3253,13 +3333,13 @@ def _aircraft_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
                 _showcase_loft_shell(
                     "lift_wing_right",
                     (180, 610, 500),
-                    axis_length=600,
-                    cross_section_scale=(420, 24),
+                    axis_length=700,
+                    cross_section_scale=(360, 32),
                     sections=(
                         (-1.0, 1.0, 1.0),
-                        (-0.2, 0.9, 0.9),
-                        (0.5, 0.62, 0.7),
-                        (1.0, 0.32, 0.45),
+                        (-0.15, 0.84, 0.86),
+                        (0.55, 0.5, 0.62),
+                        (1.0, 0.18, 0.34),
                     ),
                     material=0,
                     material_id="mat_primary",
@@ -3315,8 +3395,36 @@ def _robotic_arm_variant_catalog() -> Dict[str, Dict[str, List[BoxPrimitive]]]:
                 _capsule("precision_link_2", (460, 1080, 0), 105, 540, 1, (1, 0, 0)),
                 _cylinder("precision_wrist", (730, 1080, 0), 105, 230, 2, (0, 0, 1)),
                 _box("precision_tool_palm", (850, 1080, 0), (220, 190, 290), 1),
-                _box("precision_gripper_upper", (1010, 1170, 0), (260, 64, 92), 4),
-                _box("precision_gripper_lower", (1010, 990, 0), (260, 64, 92), 4),
+                _showcase_loft_shell(
+                    "precision_gripper_upper",
+                    (1010, 1170, 0),
+                    axis_length=260,
+                    cross_section_scale=(32, 46),
+                    sections=(
+                        (-1.0, 1.0, 1.0),
+                        (0.45, 0.72, 0.78),
+                        (1.0, 0.38, 0.52),
+                    ),
+                    material=4,
+                    material_id="mat_rubber",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
+                _showcase_loft_shell(
+                    "precision_gripper_lower",
+                    (1010, 990, 0),
+                    axis_length=260,
+                    cross_section_scale=(32, 46),
+                    sections=(
+                        (-1.0, 1.0, 1.0),
+                        (0.45, 0.72, 0.78),
+                        (1.0, 0.38, 0.52),
+                    ),
+                    material=4,
+                    material_id="mat_rubber",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
             ],
             "precision_light_b": [_box("desktop_base", (0, 180, 0), (620, 360, 620), 0), _cylinder("desktop_turntable", (0, 500, 0), 180, 280, 2), _capsule("desktop_link", (0, 1050, 0), 120, 820, 1), _cylinder("desktop_wrist", (0, 1550, 0), 130, 260, 2), _box("desktop_tool", (0, 1880, 0), (360, 320, 260), 1)],
             "precision_light_c": [_box("rail_base", (0, 160, 0), (1000, 320, 460), 0), _box("rail_carriage", (-320, 500, 0), (360, 260, 420), 1), _cylinder("rail_pivot", (-320, 800, 0), 140, 300, 2), _box("rail_link", (-320, 1250, 0), (260, 760, 260), 1), _cylinder("rail_wrist", (-320, 1720, 0), 120, 240, 2), _wedge("rail_tool", (-320, 2000, 0), (420, 320, 360), 2)],

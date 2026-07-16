@@ -246,6 +246,19 @@ def main() -> int:
         }
         return operations, _glb_bounds_by_role(result.glb_bytes)
 
+    def variant_profile_inputs(pack_id: str, variant_id: str):
+        plan = plans_by_pack[pack_id]
+        result = build_blockout(
+            plan,
+            plan.directions[0].direction_id,
+            variant_id=variant_id,
+            presentation_profile="showcase",
+        )
+        return {
+            item["input_id"]: item["canonical_payload"]
+            for item in result.shape_program["profile_inputs"]
+        }
+
     for pack_id, variant_id in selected_variants.items():
         selected_operations[pack_id], selected_bounds[pack_id] = variant_facts(pack_id, variant_id)
 
@@ -253,6 +266,19 @@ def main() -> int:
     assert prop_ops["prop_core"]["op"] == "loft"
     assert prop_ops["prop_core"]["args"]["axis_length"] == 1500
     assert prop_ops["prop_core"]["args"]["cross_section_scale"] == [250, 250]
+    prop_profile_inputs = variant_profile_inputs(
+        "pack_future_weapon_prop",
+        "compact_prop_a",
+    )
+    prop_core_contract = prop_profile_inputs[
+        prop_ops["prop_core"]["args"]["section_set_input_id"]
+    ]
+    assert all(
+        profile["symmetry"] == "vertical"
+        and profile["continuity_hint"] == "tangent"
+        and len(profile["segments"]) == 8
+        for profile in prop_core_contract["profiles"]
+    )
     assert prop_ops["prop_grip"]["op"] == "loft"
     assert prop_ops["prop_grip"]["args"]["axis_length"] == 620
     assert prop_ops["prop_grip"]["args"]["cross_section_scale"] == [130, 110]
@@ -309,8 +335,8 @@ def main() -> int:
         wheel_role = f"vehicle_wheel_{position}"
         assert vehicle_ops[fender_role]["op"] == "sweep"
         assert vehicle_ops[fender_role]["args"]["material_id"] == "mat_automotive_paint"
-        assert vehicle_ops[fender_role]["args"]["profile_scale"] == [26.0, 26.0]
-        assert len(vehicle_ops[fender_role]["args"]["path_points"]) == 4
+        assert vehicle_ops[fender_role]["args"]["profile_scale"] == [24.0, 18.0]
+        assert len(vehicle_ops[fender_role]["args"]["path_points"]) == 5
         assert _axis_overlap(
             selected_bounds["pack_vehicle_concept"],
             fender_role,
@@ -322,6 +348,19 @@ def main() -> int:
         for role in vehicle_ops
         if role.startswith("visual_fastener_vehicle_sill_")
     } == {"visual_fastener_vehicle_sill_center"}
+    vehicle_profile_inputs = variant_profile_inputs(
+        "pack_vehicle_concept",
+        "urban_scout_a",
+    )
+    vehicle_chassis_contract = vehicle_profile_inputs[
+        vehicle_ops["vehicle_chassis"]["args"]["section_set_input_id"]
+    ]
+    assert all(
+        profile["symmetry"] == "vertical"
+        and profile["continuity_hint"] == "tangent"
+        and len(profile["segments"]) == 8
+        for profile in vehicle_chassis_contract["profiles"]
+    )
     vehicle_bounds = selected_bounds["pack_vehicle_concept"]
     for panel_role in ("visual_panel_vehicle_paint", "visual_panel_vehicle_deck"):
         assert _axis_overlap(vehicle_bounds, panel_role, "vehicle_chassis", 1) > 0
@@ -350,12 +389,12 @@ def main() -> int:
         1,
     ) <= 0.0201
     assert {aircraft_ops[role]["op"] for role in aircraft_ops if role.startswith("lift_wing_")} == {"loft"}
-    assert {aircraft_ops[role]["args"]["axis_length"] for role in aircraft_ops if role.startswith("lift_wing_")} == {600}
+    assert {aircraft_ops[role]["args"]["axis_length"] for role in aircraft_ops if role.startswith("lift_wing_")} == {700}
     assert {
         tuple(aircraft_ops[role]["args"]["cross_section_scale"])
         for role in aircraft_ops
         if role.startswith("lift_wing_")
-    } == {(420, 24)}
+    } == {(360, 32)}
     aircraft_profile_inputs = {
         item["input_id"]: item["canonical_payload"]
         for item in build_blockout(
@@ -416,6 +455,24 @@ def main() -> int:
         assert wing_z_overlap >= 0.03, (bridge_role, wing_role, wing_z_overlap)
     robot_ops = selected_operations["pack_robotic_arm_concept"]
     assert robot_ops["precision_link_1"]["op"] == robot_ops["precision_link_2"]["op"] == "capsule"
+    robot_profile_inputs = variant_profile_inputs(
+        "pack_robotic_arm_concept",
+        "precision_light_a",
+    )
+    for role in ("precision_gripper_upper", "precision_gripper_lower"):
+        assert robot_ops[role]["op"] == "loft"
+        assert robot_ops[role]["args"]["axis_length"] == 260
+        assert robot_ops[role]["args"]["cross_section_scale"] == [32, 46]
+        gripper_contract = robot_profile_inputs[
+            robot_ops[role]["args"]["section_set_input_id"]
+        ]
+        assert gripper_contract["resample_policy"]["count"] == 16
+        assert all(
+            profile["symmetry"] == "vertical"
+            and profile["continuity_hint"] == "tangent"
+            and len(profile["segments"]) == 8
+            for profile in gripper_contract["profiles"]
+        )
     assert robot_ops["visual_panel_robot_upper_link"]["op"] == "box"
     assert _capsule_panel_edge_gap_mm(
         robot_ops["precision_link_1"],

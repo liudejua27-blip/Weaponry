@@ -5,6 +5,14 @@
 
 文档状态账本：[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。当本文件与用户指南、能力矩阵或任务索引出现状态冲突时，先按文档地图修正归属，不要直接领取代码任务。
 
+## 2026-07-16：FGC-M108 硬表面截面与领域轮廓细化（进行中，未完成）
+
+- 新增代码所有的八段 `hard_surface` ProfileSketch：平顶、平底和直侧带通过四个受限 quadratic 圆角闭合，仍经 `ProfileSectionSet@1 → loft → GLB/readback` 执行。`compact_prop_a` 主壳和 `urban_scout_a` 底盘改用该截面，消除代理截图中偏圆筒/胶囊的主体轮廓；没有开放自由轮廓、工程截面、用户细分或新 operation。
+- 车辆四个轮眉由四点增为五点 Sweep，截面收窄为 24×18 mm 视觉比例，顶部两个高面数圆形视觉口改为低面数楔形槽；航空器主翼延展为 700 mm Z 主轴、360×32 mm airfoil 尺度并加强翼尖收敛；机械臂上下夹爪由 bevel box 改为三截面、16 点重采样的渐缩 hard-surface Loft。以上仅表达非功能外观，不提供真实武器、车辆、航空或机器人结构结论。
+- `proxy-review-20260716-iteration15b` 真实工作台 readback 为道具 6,248/51、车辆 6,556/78、航空器 6,868/96、机械臂 5,832/53（triangles/draw calls）。四项均为 `ready/glb_pbr`、固定环境、单 WebGL context 和 GPU passed；第一次车辆捕获以 7,084 triangles 被原 7,000 上限拒绝，随后通过把低价值圆形视觉口改为楔形槽降回预算，没有放宽 Gate。
+- 已通过 `agent:m108-gate`、G818、G826、真实 `desktop:m108-workbench-renderer-smoke`、Agent 18 项单测、contracts、desktop typecheck/build、R3、T002 14/14、T003 和 Tauri check。tracked macOS arm64 sidecar 已从当前源码重建为 31,815,424 bytes、SHA-256 `bd582746e0daa3646a1de1b3ea881ddcc66ccdf003e9f03377279ee32038793b`；require-ready 与精确 packaged sidecar Alpha 已覆盖 PBR readback、Manifold CSG、undo/redo、导出和重启并通过，`provider_calls=0`。当前用户打开的 CAD 工作台仍占用固定 8000 端口，因此不会终止它去重复运行 packaged Tauri smoke。
+- Codex 代理视觉审核确认主体肩线、轮眉包覆、机翼比例和夹爪渐缩均比 iteration 14 清楚，但仍是开发反馈，不写 `review-responses.json`、不冒充三位独立真人。M108 继续 `in_progress`，C105/V003/F026 不解锁。
+
 ## 2026-07-16：FGC-M108 Sweep 连接与线缆细化（进行中，未完成）
 
 - `compact_prop_a` 的握把由等截面 capsule 改为五截面、Y 主轴的受限 Loft，并让安装环从真实显示外包围读取握把半径，避免几何语法改变后连接环塌缩。它仍是非功能虚构游戏/影视道具外观，不表达现实武器结构、制造尺寸或性能。
