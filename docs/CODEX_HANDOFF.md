@@ -791,3 +791,7 @@ npm run desktop:r3-concept-workbench-smoke
 同日首次远端聚合 Gate 发现 RustSec 新公告 `RUSTSEC-2026-0185`：锁定的 `quinn-proto 0.11.14` 存在远程乱序流重组导致的内存耗尽风险。没有忽略或放宽审计门；锁文件已最小升级至官方修复版本 `0.11.15`，本机 `cargo check --locked` 通过，须以升级提交对应的新一轮 GitHub dependency audit 作为最终关闭证据。
 
 安全修复后的 dependency audit 已通过；同轮 macOS packaged 前置构建、sidecar、`.app`、原生 smoke 均通过，但 K003 聚合的离线 Rust Core 因 job 未预取测试依赖 `errno` 而 fail-closed。CI 已在 packaged job 增加 `cargo fetch --locked` 宿主预取，继续保留 Rust Core 的 `--offline` 约束；这属于 Gate 编排修复，不是忽略依赖或放宽测试。
+
+预取修复后的 Rust 全套测试进一步暴露 C106 集成测试仍锁定 Material Zone 修复前的旧计数。只读 `c106_robotic_arm_recipe_dump` 已确认三个审阅根配方的确定性合同：desktop/gallery 各 21 个唯一材质区、service 26 个，service ShapeProgram 为 55 个输出；集成断言已逐根更新为这些精确值，没有改用宽松范围，也没有放宽 Recipe、ShapeProgram 或生产质量 Gate。
+
+同一远端 backend job 的 C105 生命周期会编译 `wushen-forge-desktop` 兼容桥，但该 Ubuntu job 原先未安装 Tauri/GTK 系统依赖，因缺少 `glib-2.0.pc` 在测试开始前失败。ForgeCAD Core workflow 现复用既有 Tauri Preflight 的 Linux 宿主依赖清单；C105 四领域生命周期测试本身仍完整保留并保持 `--offline`，不得将宿主缺包误报为产品测试失败或通过删除测试规避。

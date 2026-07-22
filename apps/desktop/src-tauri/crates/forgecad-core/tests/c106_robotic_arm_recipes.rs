@@ -195,13 +195,14 @@ fn c106_arm_pack_is_isolated_and_expands_the_semantic_ten_part_assembly() {
             .flat_map(|part| part["material_zone_ids"].as_array().unwrap())
             .filter_map(|zone| zone.as_str())
             .collect::<BTreeSet<_>>();
+        let expected_material_zone_count = match root {
+            "recipe_c106_arm_desktop_assistant" | "recipe_c106_arm_gallery_industrial" => 21,
+            "recipe_c106_arm_service_display" => 26,
+            _ => unreachable!("ROOTS contains only reviewed C106 roots"),
+        };
         assert_eq!(
             material_zone_ids.len(),
-            if root == "recipe_c106_arm_service_display" {
-                19
-            } else {
-                16
-            },
+            expected_material_zone_count,
             "{root}"
         );
         assert!(parts.iter().all(|part| {
@@ -308,8 +309,8 @@ fn c106_service_display_bakes_a_layered_s_pose_and_curved_visual_cables() {
         .unwrap();
     assert_eq!(
         outputs.len(),
-        48,
-        "the reviewed service-display pack must use the full bounded output budget for visible hard-surface layers"
+        55,
+        "the reviewed service-display pack must retain its bounded visible hard-surface output contract"
     );
     assert_eq!(
         operations
