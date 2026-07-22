@@ -91,6 +91,9 @@ export function MaterialDrawer({
       return { label: '纹理已登记', detail: `${textures.filter((texture) => texture.exists).length} 个受控对象` }
     }
     if (textures.length > 0) return { label: '使用参数外观', detail: '纹理对象不可用，已安全回退' }
+    if (preset.provenance === 'forgecad_builtin') {
+      return { label: '内置五通道 PBR', detail: '确认后写入同源 GLB；部分目录项共享规范 PBR 外观' }
+    }
     if (preset.thumbnail_fallback === 'unavailable') return { label: '无缩略图', detail: '仍可使用参数外观' }
     return { label: '参数外观', detail: '无需纹理文件' }
   }

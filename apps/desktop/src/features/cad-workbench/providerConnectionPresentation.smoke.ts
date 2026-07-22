@@ -59,6 +59,17 @@ function failedCheck(networkCallMade: boolean): AgentProviderCheckResponse {
 export function runProviderConnectionPresentationSmoke(): void {
   assert(providerConfigPresentation(null).label.includes('未调用 DeepSeek'), 'missing metadata must be explicit offline state')
   assert(providerConfigPresentation(readyConfig).ready, 'metadata + Keychain + supervisor + capability must all be ready')
+  const startupConfig = providerConfigPresentation({
+    ...readyConfig,
+    secret_status: 'not_checked',
+    capability_status: 'ready',
+  })
+  assert(
+    !startupConfig.ready && startupConfig.canTest && startupConfig.label.includes('发送请求或测试连接时'),
+    'normal startup must allow an explicit test without implying that Keychain was already read',
+  )
+  const startupWithoutSupervisor = providerConfigPresentation({ ...readyConfig, secret_status: 'not_checked', supervisor_status: 'unavailable' })
+  assert(!startupWithoutSupervisor.canTest, 'metadata-only startup must not enable test when the local supervisor is unavailable')
   const restartFailed = providerConfigPresentation({ ...readyConfig, supervisor_status: 'restart_failed', failure_code: 'PROVIDER_SUPERVISOR_RESTART_FAILED' })
   assert(!restartFailed.ready && restartFailed.label.includes('PROVIDER_SUPERVISOR_RESTART_FAILED'), 'saved config with failed restart must not appear ready')
   const failed = providerCheckPresentation(failedCheck(true))

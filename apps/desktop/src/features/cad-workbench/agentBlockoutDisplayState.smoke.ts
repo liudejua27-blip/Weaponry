@@ -57,6 +57,47 @@ export function runAgentBlockoutDisplayStateSmoke(): void {
   })
   assert(afterLateExternalGlb === state, 'a late external export must not overwrite a newer generated candidate display')
   assert(state.glbBase64 === 'new-generated-glb' && state.glbKind === 'compiled_agent_pbr', 'generated GLB and provenance must remain atomic after a stale external export')
+  state = agentBlockoutDisplayReducer(state, {
+    type: 'set_shape_program',
+    projectId: 'project-b',
+    requestId: 6,
+    shapeProgram: { schema_version: 'ShapeProgram@1', operations: [{ operation_id: 'op_material_preview' }] },
+  })
+  assert(
+    state.glbBase64 === null && state.glbKind === null && state.shapeProgram !== null && state.latestRequestId === 6,
+    'a ChangeSet ShapeProgram preview must clear the previous compiled GLB instead of displaying stale material truth',
+  )
+  state = agentBlockoutDisplayReducer(state, {
+    type: 'set_glb',
+    projectId: 'project-b',
+    requestId: 6,
+    glbBase64: 'preview-pbr-glb',
+    glbKind: 'compiled_agent_pbr',
+  })
+  assert(
+    state.glbBase64 === 'preview-pbr-glb' && state.glbKind === 'compiled_agent_pbr',
+    'the same ChangeSet preview request must accept its compiled PBR GLB readback',
+  )
+  state = agentBlockoutDisplayReducer(state, {
+    type: 'set_shape_program',
+    projectId: 'project-b',
+    requestId: 7,
+    shapeProgram: { schema_version: 'ShapeProgram@1', operations: [{ operation_id: 'op_newer_preview' }] },
+  })
+  const afterLatePreviewGlb = agentBlockoutDisplayReducer(state, {
+    type: 'set_glb',
+    projectId: 'project-b',
+    requestId: 6,
+    glbBase64: 'late-preview-pbr-glb',
+    glbKind: 'compiled_agent_pbr',
+  })
+  assert(afterLatePreviewGlb === state, 'a late compiled GLB from an older ChangeSet preview must be ignored')
+  assert(
+    state.latestRequestId === 7
+    && state.glbBase64 === null
+    && (state.shapeProgram?.operations as Array<{ operation_id?: string }> | undefined)?.[0]?.operation_id === 'op_newer_preview',
+    'the newer preview ShapeProgram must remain visible while its own compiled GLB is pending',
+  )
   state = agentBlockoutDisplayReducer(state, { type: 'clear', projectId: 'project-b' })
   assert(state.directionId === null && state.variationIndex === 0 && state.previewError === null && state.glbKind === null, 'clearing a candidate must also discard stale preview rotation context')
   assert(!('asset_version_id' in state) && !('snapshot' in state) && !('change_set_id' in state), 'blockout display state must not own persistent design truth')

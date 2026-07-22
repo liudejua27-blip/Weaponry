@@ -4,6 +4,7 @@ import {
   agentBlockoutDisplayReducer,
   initialAgentBlockoutDisplayState,
   type AgentBlockoutGlbKind,
+  type AgentBlockoutGlbPayload,
 } from './agentBlockoutDisplayState.js'
 
 /** Owns only the current display projection; callers retain all API and write ownership. */
@@ -55,7 +56,7 @@ export function useAgentBlockoutDisplay() {
   }, [isCurrentDirectionPreview])
 
   const hydrateBlockoutDisplay = useCallback((projectId: string | null, data: {
-    glbBase64?: string | null
+    glbBase64?: AgentBlockoutGlbPayload | null
     glbKind: AgentBlockoutGlbKind | null
     shapeProgram?: Record<string, unknown> | null
     segmentation?: SegmentAgentBlockoutResponse | null
@@ -73,14 +74,17 @@ export function useAgentBlockoutDisplay() {
     return requestId
   }, [])
 
-  const setBlockoutGlb = useCallback((projectId: string | null, requestId: number, glbBase64: string | null, glbKind: AgentBlockoutGlbKind | null) => {
+  const setBlockoutGlb = useCallback((projectId: string | null, requestId: number, glbBase64: AgentBlockoutGlbPayload | null, glbKind: AgentBlockoutGlbKind | null) => {
     if (projectIdRef.current !== projectId || requestIdRef.current !== requestId) return false
     dispatch({ type: 'set_glb', projectId, requestId, glbBase64, glbKind })
     return true
   }, [])
   const setBlockoutShapeProgram = useCallback((projectId: string | null, shapeProgram: Record<string, unknown> | null) => {
-    requestIdRef.current += 1
-    dispatch({ type: 'set_shape_program', projectId, shapeProgram })
+    if (projectIdRef.current !== projectId) return null
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+    dispatch({ type: 'set_shape_program', projectId, requestId, shapeProgram })
+    return requestId
   }, [])
   const clearBlockoutDisplay = useCallback((projectId: string | null) => {
     requestIdRef.current += 1

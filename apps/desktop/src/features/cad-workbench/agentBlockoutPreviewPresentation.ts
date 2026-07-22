@@ -26,21 +26,21 @@ export function selectAgentBlockoutPreviewPresentation(
     return {
       tone: 'notice',
       title: '完整外观已生成',
-      detail: '暂时不能整理可编辑部件。可换一版外观，或重新选择方向。',
+      detail: '暂时不能整理可编辑部件。请修改描述后重新生成；当前设计没有被写入。',
     }
   }
   if (state.previewError === 'blockout_failed') {
     return {
       tone: 'error',
       title: '这次预览没有生成成功',
-      detail: '已保存设计没有变化。可再试一次或选择其他方向。',
+      detail: '已保存设计没有变化。可再试一次，或修改描述后重新生成。',
     }
   }
   if (state.segmentation) {
     return {
       tone: 'ready',
       title: '完整外观预览已准备好',
-      detail: '可以保存为可编辑模型，或先换一版外观。',
+      detail: '可以确认保存为可编辑模型，或继续用自然语言修改。',
     }
   }
   return null

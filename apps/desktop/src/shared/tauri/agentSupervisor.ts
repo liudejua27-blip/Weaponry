@@ -6,6 +6,7 @@ export type SupervisorState =
   | 'starting'
   | 'stopping'
   | 'wrong_service'
+  | 'capability_mismatch'
   | 'error'
 
 export type AgentSupervisorStatus = {
@@ -28,7 +29,7 @@ export type ProviderConfigMetadata = {
   storage: string
   metadata_status: 'not_checked' | 'missing' | 'valid' | 'invalid' | 'unavailable'
   secret_status: 'not_checked' | 'missing' | 'available' | 'invalid' | 'unavailable'
-  supervisor_status: 'not_checked' | 'running' | 'restart_failed' | 'unavailable'
+  supervisor_status: 'not_checked' | 'running' | 'restart_failed' | 'unavailable' | 'mismatch'
   capability_status: 'offline' | 'ready' | 'mismatch' | 'unavailable'
   failure_code?: string | null
 }

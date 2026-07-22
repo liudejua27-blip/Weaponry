@@ -190,6 +190,7 @@ export type CommitAgentBlockoutRequest = Api.CommitAgentBlockoutRequest
 export type AgentAssetVersion = Api.AgentAssetVersion
 export type EditableParameterBinding = Api.EditableParameterBinding
 export type AgentPartEditOperation = Api.AgentPartEditOperation
+export type AssemblyDeltaProgram = Api.AssemblyDeltaProgram
 export type ProposeAgentAssetChangeSetRequest = Api.ProposeAgentAssetChangeSetRequest
 export type AgentAssetChangeSet = Api.AgentAssetChangeSet
 export type AgentAssetChangeSetConfirmResponse = Api.AgentAssetChangeSetConfirmResponse

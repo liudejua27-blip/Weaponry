@@ -4,10 +4,8 @@ import { AgentConversation, type AgentConversationProps } from './AgentConversat
 const baseProps: AgentConversationProps = {
   loading: false,
   projectExists: true,
-  projectNeedsInitialization: false,
+  projectIsEmpty: false,
   legacyCompatibility: { source: 'none', isLegacyReadOnly: false, showRebuildGuidance: false, rebuildActionEnabled: false },
-  onCreateStarterProject: () => undefined,
-  onInitializeCurrentProject: () => undefined,
   onRequestLegacyAgentRebuild: () => undefined,
   onOpenLegacyDetails: () => undefined,
   providerConfig: null,
@@ -28,19 +26,14 @@ const baseProps: AgentConversationProps = {
   assistantMode: 'brief',
   selectedNode: null,
   selectedModuleLabel: '',
-  chatInput: '',
   assistantNote: '等待输入',
   errorMessage: null,
-  blockoutPreviewPresentation: { tone: 'ready', title: '完整外观预览已准备好', detail: '可以保存为可编辑模型，或先换一版外观。' },
+  blockoutPreviewPresentation: { tone: 'ready', title: '完整外观预览已准备好', detail: '可以确认保存为可编辑模型，或继续用自然语言修改。' },
   agentPlanSourcePresentation: { tone: 'offline', title: '本机离线规划', detail: '当前方向由本机规则生成，尚未调用模型服务，不能代表真实模型质量。' },
-  directionConceptPreviews: {
-    direction_smoke: { status: 'ready', imageDataUrl: 'data:image/png;base64,cG5n' },
-  },
   conceptFamilySuggestions: [['汽车', '设计一辆汽车'], ['飞机', '设计一架飞机']],
   presentationProfile: 'showcase',
+  styleOptionsOpen: true,
   onAssistantModeChange: () => undefined,
-  onChatInputChange: () => undefined,
-  onRunAssistantAction: () => undefined,
   onSuggestionSelect: () => undefined,
   onPresentationProfileChange: () => undefined,
   onClarificationSelect: () => undefined,
@@ -83,7 +76,6 @@ const baseProps: AgentConversationProps = {
     }],
     provider_id: 'deterministic_rules',
   },
-  onPreviewDirection: () => undefined,
 }
 
 function collectText(node: ReactNode): string {
@@ -117,15 +109,15 @@ function assert(value: unknown, message: string): asserts value {
 export function runAgentConversationSmoke(): void {
   const output = AgentConversation(baseProps)
   const text = collectText(output)
+  assert(!text.includes('空项目已就绪'), 'an existing Agent asset must not render the empty Project state')
   assert(text.includes('先确认设计对象'), 'conversation must render clarification state')
   assert(text.includes('飞机与航空器'), 'conversation must render domain choice')
   assert(text.includes('Agent 步骤'), 'conversation must render kernel step group')
   assert(text.includes('已理解整体外观目标'), 'conversation must render step item payload')
-  assert(text.includes('Agent 完整外观方向'), 'conversation must render direction group')
-  assert(text.includes('紧凑救援机'), 'conversation must render direction card')
-  assert(text.includes('软件概念图已准备好'), 'direction cards must describe the available image as a software concept preview')
+  assert(!text.includes('Agent 完整外观方向') && !text.includes('紧凑救援机'), 'F026 conversation must not render direction choices')
+  assert(text.includes('只构建并展示一个当前结果'), 'F026 conversation must describe its one-result presentation boundary')
   assert(!text.includes('variant_family_index') && !text.includes('detail_density'), 'direction cards must not expose visual mapping internals')
-  assert(text.includes('完整外观预览已准备好') && text.includes('可以保存为可编辑模型'), 'conversation must render the shared preview presentation')
+  assert(text.includes('完整外观预览已准备好') && text.includes('确认保存为可编辑模型'), 'conversation must render the shared preview presentation')
   assert(text.includes('本机离线规划') && text.includes('不能代表真实模型质量'), 'conversation must describe the actual plan source without provider internals')
   assert(text.includes('外观生成质量') && text.includes('快速草图') && text.includes('展示模型'), 'conversation must present the two beginner-facing visual quality choices')
   assert(hasAriaLabel(output, '外观生成质量'), 'conversation must expose an accessible visual quality control')
@@ -144,7 +136,20 @@ export function runAgentConversationSmoke(): void {
     },
   }))
   assert(configuredText.includes('模型服务已配置') && !configuredText.includes('private-provider-model-id'), 'provider status must not expose the configured model identifier')
-  assert(hasAriaLabel(output, '设计需求'), 'conversation must expose an accessible input label')
+  assert(!hasAriaLabel(output, '设计需求'), 'the fixed F026 composer, not the scrollable timeline, must own the input')
+  const emptyProjectOutput = AgentConversation({
+    ...baseProps,
+    projectIsEmpty: true,
+    agentPlan: null,
+  })
+  const emptyProjectText = collectText(emptyProjectOutput)
+  assert(
+    emptyProjectText.includes('空项目已就绪') && emptyProjectText.includes('生成第一个 3D 资产'),
+    'an existing empty project must direct the user to generate the first Agent asset',
+  )
+  assert(!emptyProjectText.includes('准备展示组件'), 'empty project must not expose the legacy workbench initializer')
+  const noProjectText = collectText(AgentConversation({ ...baseProps, projectExists: false, projectIsEmpty: false, agentPlan: null }))
+  assert(noProjectText.includes('从左侧开始新设计') && !noProjectText.includes('创建第一个设计'), 'F026 timeline must defer project creation to the left rail')
   const scopeOutput = AgentConversation({
     ...baseProps,
     agentClarification: {

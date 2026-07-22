@@ -61,6 +61,18 @@ export type ActiveDesignSnapshot = {
   "updated_at": string
 }
 
+export type AddReviewedRecipeOperation = {
+  "op": "add_reviewed_recipe"
+  "operation_id": string
+  "new_part_id": string
+  "parent_part_id": string
+  "parent_connector_id": string
+  "child_connector_id": string
+  "recipe_id": "recipe_c106_arm_turntable" | "recipe_c106_arm_joint_housing" | "recipe_c106_arm_link_armor" | "recipe_c106_arm_cable_harness" | "recipe_c106_arm_gripper" | "recipe_c106_arm_surface_trim" | "recipe_c110c_arm_sensor_pod" | "recipe_c110d_arm_actuator_cover" | "recipe_c110d_arm_cable_guide" | "recipe_c110d_arm_wrist_tool_mount"
+  "slot_id": "slot_arm_sensor_pod" | "slot_arm_guard_rail" | "slot_arm_tool_changer" | "slot_arm_camera_boom"
+  "transform": AssemblyDeltaTransform
+}
+
 export type AgentActiveDesignReference = {
   "source"?: "agent_asset"
   "project_id": string
@@ -106,10 +118,15 @@ export type AgentAssetChangeSetConfirmResponse = {
 }
 
 export type AgentAssetExportResponse = {
-  "schema_version"?: "AgentAssetExport@1"
+  "schema_version"?: "AgentAssetExport@1" | "AgentAssetExport@2"
   "asset_version_id": string
   "format"?: "glb"
   "glb_base64": string
+  "artifact_profile_id"?: "external_reference" | "interactive_preview" | "production_concept" | null
+  "artifact_profile_sha256"?: string | null
+  "shape_program_sha256"?: string | null
+  "glb_sha256"?: string | null
+  "glb_byte_size"?: number | null
   "triangle_count": number
   "bounds_mm": Array<number>
   "readback_status"?: "passed"
@@ -325,7 +342,7 @@ export type AgentMaterialTextureSummary = {
 
 export type AgentPartEditOperation = {
   "operation_id": string
-  "op": "set_part_transform" | "set_part_parameter" | "set_joint_pose" | "apply_material_preset" | "replace_part" | "snap_part_to_connector" | "split_part" | "merge_parts"
+  "op": "add_reviewed_recipe" | "replace_reviewed_recipe" | "set_part_transform" | "set_part_parameter" | "set_joint_pose" | "apply_material_preset" | "replace_part" | "snap_part_to_connector" | "split_part" | "merge_parts"
   "part_id": string
   "path"?: string | null
   "value"?: unknown | null
@@ -333,10 +350,22 @@ export type AgentPartEditOperation = {
   "material_id"?: string | null
   "material_zone_id"?: string | null
   "replacement_component_id"?: string | null
+  "new_part_id"?: string | null
+  "recipe_id"?: string | null
+  "slot_id"?: string | null
+  "parent_connector_id"?: string | null
+  "child_connector_id"?: string | null
+  "pose"?: Record<string, unknown> | null
   "target_part_id"?: string | null
   "target_connector_id"?: string | null
   "connector_id"?: string | null
   "structure_suggestion_id"?: string | null
+  "recipe_request_id"?: string
+  "component_recipe_ref"?: ComponentRecipeRef
+  "recipe_slot_bindings"?: Array<RecipeSlotBinding>
+  "recipe_candidate_id"?: string
+  "recipe_candidate_sha256"?: string
+  "recipe_snapshot_revision"?: number
 }
 
 export type AgentProviderCheckResponse = {
@@ -418,6 +447,46 @@ export type AppendConceptVersionRequest = {
   "summary": string
   "spec": WeaponConceptSpec
   "module_graph_id"?: string | null
+}
+
+export type ArmDesignIntent = {
+  "schema_version"?: "ArmDesignIntent@1"
+  "domain_pack_id"?: "pack_robotic_arm_concept"
+  "architecture": "serial_chain" | "parallel_link" | "scara" | "gantry" | "delta" | "cantilever"
+  "joint_language": "armored_bearing" | "exposed_ring" | "gimbal_shell" | "capsule_joint" | "bellows_joint"
+  "link_language": "closed_shell" | "twin_rail" | "open_truss" | "tapered_loft" | "tube_frame"
+  "base_language": "round_turntable" | "hex_platform" | "floating_pedestal" | "industrial_deck" | "compact_puck"
+  "wrist_language": "layered_wrist" | "gimbal_wrist" | "cylindrical_wrist" | "fork_wrist"
+  "end_effector_language": "parallel_gripper" | "adaptive_claw" | "precision_tool" | "sensor_probe" | "soft_pad_gripper"
+  "cable_language": "internal_routing" | "braided_external" | "armored_harness" | "minimal_cable"
+  "surface_language": Array<"panel_seams" | "flowline" | "chevron_relief" | "hex_microgrid" | "engraved_ribs" | "fastener_bands">
+  "material_palette": "graphite_blue" | "white_aluminum" | "industrial_yellow" | "warm_copper" | "monochrome_technical"
+  "detail_density": "light" | "medium" | "dense"
+  "pose": "neutral" | "grounded" | "elevated" | "extended" | "folded"
+  "proportion_profile": "compact" | "balanced" | "long_reach" | "heavy_base" | "slender"
+  "style_keywords"?: Array<string>
+  "source"?: "user_brief" | "reference_evidence" | "agent_inferred"
+  "visual_only"?: true
+}
+
+export type AssemblyDeltaPose = {
+  "rotation": Array<number>
+  "translation": Array<number>
+}
+
+export type AssemblyDeltaProgram = {
+  "schema_version"?: "AssemblyDeltaProgram@1"
+  "domain_pack_id"?: "pack_robotic_arm_concept"
+  "base_asset_version_id": string
+  "summary": string
+  "operations": Array<AddReviewedRecipeOperation | ReplaceReviewedRecipeOperation | SetPartTransformOperation | SetJointPoseOperation | SnapPartToConnectorOperation>
+  "visual_only"?: true
+}
+
+export type AssemblyDeltaTransform = {
+  "position": Array<number>
+  "rotation": Array<number>
+  "scale"?: Array<number>
 }
 
 export type AssetFileResponse = {
@@ -608,6 +677,61 @@ export type CommitAgentBlockoutRequest = {
   "artifact_id": string
   "project_id"?: string | null
   "summary"?: string
+}
+
+export type ComponentRecipeActiveCandidateRequest = {
+  "schema_version": "ComponentRecipeActiveCandidateRequest@1"
+  "recipe_request_id": string
+  "component_recipe_ref": ComponentRecipeRef
+  "slot_bindings": Array<RecipeSlotBinding>
+  "parameter_values": Array<RecipeParameterValue>
+  "material_zone_overrides": Array<RecipeMaterialZoneOverride>
+}
+
+export type ComponentRecipeCandidate = {
+  "schema_version": "ComponentRecipeCandidate@1"
+  "candidate_id": string
+  "request_id": string
+  "project_id": string | null
+  "context_mode": "initial_candidate" | "active_asset_edit"
+  "base_asset_version_id": string | null
+  "snapshot_revision": number | null
+  "target_part_id": string | null
+  "recipe": ComponentRecipeRef
+  "instance_path": string
+  "changeset_id": string | null
+  "expanded_shape_program": Record<string, unknown>
+  "expanded_assembly_graph": Record<string, unknown>
+  "component_recipe_instances": Array<ComponentRecipeInstanceProvenance>
+  "registry_sha256": string
+  "candidate_sha256": string
+  "status": "expanded" | "rejected"
+  "quality_profile": "interactive_preview" | "production_concept"
+  "non_functional_only": true
+}
+
+export type ComponentRecipeInstanceProvenance = {
+  "schema_version": "ComponentRecipeInstanceProvenance@1"
+  "instance_id": string
+  "instance_path": string
+  "recipe": ComponentRecipeRef
+  "registry_sha256": string
+  "policy_version": "ComponentRecipePolicy@1"
+  "parent_instance_id": string | null
+  "parent_slot_id": string | null
+  "domain_pack_id": string
+  "source": Record<string, unknown>
+  "license": Record<string, unknown>
+  "review_state": Record<string, unknown>
+  "quality_status": "passed"
+  "non_functional_only": true
+}
+
+export type ComponentRecipeRef = {
+  "schema_version": "ComponentRecipeRef@1"
+  "recipe_id": string
+  "version": number
+  "recipe_sha256": string
 }
 
 export type ConceptConstraints = {
@@ -1113,9 +1237,26 @@ export type GenerationOptions = {
   "three_d_provider_id"?: string
 }
 
+export type GeometryArtifactProfileReadback = {
+  "schema_version"?: "GeometryArtifactProfile@1"
+  "artifact_profile_id": "interactive_preview" | "production_concept"
+  "radial_segments": 24 | 64
+  "capsule_hemisphere_segments": 5 | 14
+  "smooth_loft_normals": boolean
+  "texture_width": 128 | 1024
+  "texture_height": 128 | 1024
+  "texture_mime_type": "image/png"
+  "texture_compression": "png_deflate"
+  "delivery": "interactive" | "on_demand"
+  "triangle_budget_multiplier": 1 | 6
+  "max_triangle_count": 100000 | 250000
+  "profile_sha256": string
+}
+
 export type GeometryCompileReadback = {
-  "schema_version"?: "GeometryCompileReadback@1"
+  "schema_version"?: "GeometryCompileReadback@1" | "GeometryCompileReadback@2"
   "runtime_manifest_version"?: "ShapeProgramRuntimeManifest@1"
+  "artifact_profile"?: GeometryArtifactProfileReadback | null
   "program_id": string
   "shape_program_sha256": string
   "glb_sha256": string
@@ -1263,6 +1404,11 @@ export type GeometryVisualTextureSetReadback = {
   "maps": Array<GeometryVisualTextureMapReadback>
   "extensions"?: Array<string>
   "texture_byte_size": number
+  "surface_adornment"?: Record<string, unknown> | null
+  "surface_adornment_sha256"?: string | null
+  "surface_layer_lowering"?: Record<string, unknown> | null
+  "surface_layer_lowering_sha256"?: string | null
+  "surface_layer_retained_layers_sha256"?: string | null
 }
 
 export type HTTPValidationError = {
@@ -1474,6 +1620,8 @@ export type MechanicalConceptPlan = {
   "directions": Array<ConceptDirection>
   "provider_id": string
   "model"?: string | null
+  "arm_design_intent"?: ArmDesignIntent | null
+  "assembly_delta"?: AssemblyDeltaProgram | null
   "shape_program_ready"?: boolean
 }
 
@@ -1782,6 +1930,21 @@ export type QualityRunRecord = {
   "job_id"?: string | null
 }
 
+export type RecipeMaterialZoneOverride = {
+  "zone_id": string
+  "material_preset_id": string
+}
+
+export type RecipeParameterValue = {
+  "parameter_id": string
+  "value": number
+}
+
+export type RecipeSlotBinding = {
+  "slot_id": string
+  "child_recipe": ComponentRecipeRef
+}
+
 export type RegisterAgentMaterialTextureRequest = {
   "display_name": string
   "texture_role": "base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive" | "thumbnail"
@@ -1809,6 +1972,13 @@ export type RenderAgentBlockoutConceptPreviewRequest = {
   "variant_id"?: string | null
   "variation_index"?: number
   "presentation_profile"?: "quick_sketch" | "showcase"
+}
+
+export type ReplaceReviewedRecipeOperation = {
+  "op": "replace_reviewed_recipe"
+  "operation_id": string
+  "part_id": string
+  "recipe_id": "recipe_c106_arm_turntable" | "recipe_c106_arm_joint_housing" | "recipe_c106_arm_link_armor" | "recipe_c106_arm_cable_harness" | "recipe_c106_arm_gripper" | "recipe_c106_arm_surface_trim" | "recipe_c110c_arm_sensor_pod" | "recipe_c110d_arm_actuator_cover" | "recipe_c110d_arm_cable_guide" | "recipe_c110d_arm_wrist_tool_mount"
 }
 
 export type ResolveAgentApprovalRequest = {
@@ -1870,6 +2040,15 @@ export type RuntimeWorkOnceResponse = {
   "message": string
 }
 
+export type RustNativeProductError = {
+  "error": {
+  "code": string
+  "message": string
+  "recoverable": boolean
+  "details": Record<string, unknown>
+}
+}
+
 export type SaveAgentComponentRequest = {
   "client_request_id": string
   "part_id": string
@@ -1925,6 +2104,21 @@ export type SetActiveDesignRenderPresetRequest = {
   "light_preset"?: "cad_neutral" | "soft_studio" | "concept_contrast"
 }
 
+export type SetJointPoseOperation = {
+  "op": "set_joint_pose"
+  "operation_id": string
+  "part_id": string
+  "joint_id": string
+  "pose": AssemblyDeltaPose
+}
+
+export type SetPartTransformOperation = {
+  "op": "set_part_transform"
+  "operation_id": string
+  "part_id": string
+  "transform": AssemblyDeltaTransform
+}
+
 export type SkillCard = {
   "slot": "normal" | "heavy" | "mobility_or_defense" | "control" | "passive" | "ultimate"
   "name": string
@@ -1945,6 +2139,15 @@ export type SkillGraphPayload = {
   "skills"?: Array<SkillCard>
   "non_manufacturing_asset"?: true
   "created_at": string
+}
+
+export type SnapPartToConnectorOperation = {
+  "op": "snap_part_to_connector"
+  "operation_id": string
+  "part_id": string
+  "target_part_id": string
+  "target_connector_id": string
+  "connector_id": string
 }
 
 export type StartAgentTurnRequest = {

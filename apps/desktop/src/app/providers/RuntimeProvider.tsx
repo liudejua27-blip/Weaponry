@@ -44,6 +44,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
     getAgentSupervisorStatus()
       .then((status) => {
         setAgentSupervisor(status)
+        if (isTauriRuntime() && (!status.running || status.state !== 'running')) {
+          throw new Error(status.error ?? '本地 Agent 未通过当前桌面会话的所有权校验。')
+        }
         if (status.available && status.baseUrl) api.setBaseUrl(status.baseUrl)
         return api.checkHealth()
       })

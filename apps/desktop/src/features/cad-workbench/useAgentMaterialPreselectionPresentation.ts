@@ -12,7 +12,7 @@ export function useAgentMaterialPreselectionPresentation() {
     initialAgentMaterialPreselectionPresentationState,
   )
   const contextRef = useRef<AgentMaterialPreselectionContext>({
-    projectId: null, assetVersionId: null, selectedPartId: null, source: 'none',
+    projectId: null, assetVersionId: null, selectedPartId: null, materialZoneId: null, source: 'none',
   })
   const openAgentMaterialPreselectionPresentation = useCallback((context: AgentMaterialPreselectionContext) => {
     if (matchesContext(contextRef.current, context)) return
@@ -29,5 +29,6 @@ function matchesContext(left: AgentMaterialPreselectionContext, right: AgentMate
   return left.projectId === right.projectId
     && left.assetVersionId === right.assetVersionId
     && left.selectedPartId === right.selectedPartId
+    && left.materialZoneId === right.materialZoneId
     && left.source === right.source
 }

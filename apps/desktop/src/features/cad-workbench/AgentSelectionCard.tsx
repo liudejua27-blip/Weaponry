@@ -34,8 +34,6 @@ export type AgentSelectionCardProps = {
   editAssistLoading: boolean
   blockoutPreviewPresentation: AgentBlockoutPreviewPresentation | null
   onSelectPart: (partId: string) => void | Promise<void>
-  onCommitBlockout: () => void | Promise<void>
-  onRegenerateBlockout: () => void | Promise<void>
   onPreviewEdit: (operation: AgentPartEditOperation, summary: string) => void | Promise<void>
   onSaveSelectedComponent: () => void | Promise<void>
   onReplaceComponent: (candidate: AgentComponentCandidate) => void | Promise<void>
@@ -44,6 +42,9 @@ export type AgentSelectionCardProps = {
   onInspectAsset: () => void | Promise<void>
   onRejectChange: () => void | Promise<void>
   onConfirmChange: () => void | Promise<void>
+  onOpenSurfaceAdornment?: () => void
+  surfaceAdornmentDisabled?: boolean
+  surfaceAdornmentDetail?: string
 }
 
 function operationId(prefix: string): string {
@@ -68,8 +69,6 @@ export function AgentSelectionCard({
   editAssistLoading,
   blockoutPreviewPresentation,
   onSelectPart,
-  onCommitBlockout,
-  onRegenerateBlockout,
   onPreviewEdit,
   onSaveSelectedComponent,
   onReplaceComponent,
@@ -78,6 +77,9 @@ export function AgentSelectionCard({
   onInspectAsset,
   onRejectChange,
   onConfirmChange,
+  onOpenSurfaceAdornment,
+  surfaceAdornmentDisabled = true,
+  surfaceAdornmentDetail = '请先选择一个可编辑的材质区。',
 }: AgentSelectionCardProps) {
   const eligibleComponentCandidates = agentComponentCandidates.filter((candidate) => candidate.compatibility.eligible)
   const selectedStructureSuggestions = selectedPart
@@ -101,7 +103,7 @@ export function AgentSelectionCard({
       data-external-glb-reference={isExternalGlbReference ? 'true' : 'false'}
     >
       <div className="assistant-directions-heading">
-        <span>分件候选</span>
+        <span>当前结果的组件</span>
         <small>{isExternalGlbReference ? `导入参考模型 v${agentAssetVersion?.version_no}` : agentAssetVersion ? `可编辑资产 v${agentAssetVersion.version_no}` : '预览状态 · 未写入版本'}</small>
       </div>
       <p>{isExternalGlbReference ? '导入模型已通过 GLB 安全检查，当前作为参考显示；请让 Agent 重建后再进行部件级编辑。' : blockoutPreviewPresentation ? `${blockoutPreviewPresentation.title} · ${blockoutPreviewPresentation.detail}` : `Agent 已按领域角色拆出 ${segmentation.parts.length} 个可编辑候选部件。`}</p>
@@ -135,24 +137,7 @@ export function AgentSelectionCard({
       )}
       {!agentAssetVersion && (
         <div className="agent-blockout-preview-actions" aria-label="预览外观动作">
-          <small>当前第 {(segmentation.variation_index ?? 0) + 1} / 3 版 · 仍是预览，不影响已保存设计</small>
-          <button
-            type="button"
-            aria-label="换一版外观"
-            onClick={() => void onRegenerateBlockout()}
-            disabled={Boolean(agentAssetChangeSet)}
-          >
-            换一版外观
-          </button>
-          <button
-            type="button"
-            className="agent-asset-commit"
-            aria-label="保存为可编辑模型"
-            onClick={() => void onCommitBlockout()}
-            disabled={Boolean(agentAssetChangeSet)}
-          >
-            保存为可编辑模型
-          </button>
+          <small>当前唯一展示结果 · 仍是预览，不影响已保存设计；请使用上方“确认保存”创建可编辑版本。</small>
         </div>
       )}
       {agentAssetVersion && selectedPart && !isExternalGlbReference && (
@@ -183,6 +168,15 @@ export function AgentSelectionCard({
               )}
               disabled={persistedActionsDisabled}
             >{isolatedPartId === selectedPart.part_id ? '结束单独查看' : '只看这个部件'}</button>
+            {onOpenSurfaceAdornment && (
+              <button
+                type="button"
+                aria-label="添加外观细节"
+                onClick={onOpenSurfaceAdornment}
+                disabled={persistedActionsDisabled || isSelectedPartLocked || surfaceAdornmentDisabled}
+                title={surfaceAdornmentDisabled ? surfaceAdornmentDetail : '在当前材质区添加图案、流线或浅雕刻感'}
+              >添加外观细节</button>
+            )}
           </div>
           <AgentParameterControls
             agentAssetVersion={agentAssetVersion}
@@ -198,19 +192,8 @@ export function AgentSelectionCard({
             loading={editAssistLoading}
             onPreviewEdit={onPreviewEdit}
           />
-          <div className="agent-part-action-row">
-            <button
-              type="button"
-              aria-label="换成拉丝铝"
-              onClick={() => void onPreviewEdit({
-                operation_id: operationId('op_aluminum'),
-                op: 'apply_material_preset',
-                part_id: selectedPart.part_id,
-                material_id: 'mat_aluminum',
-              }, '换成拉丝铝视觉材质')}
-              disabled={persistedActionsDisabled || isSelectedPartLocked}
-            >换成拉丝铝</button>
-            {isJointPartRole(selectedPart.role) && (
+          {isJointPartRole(selectedPart.role) && (
+            <div className="agent-part-action-row">
               <button
                 type="button"
                 aria-label="关节左转 15°"
@@ -222,8 +205,8 @@ export function AgentSelectionCard({
                 }, '关节向左转 15°')}
                 disabled={persistedActionsDisabled || isSelectedPartLocked}
               >关节左转 15°</button>
-            )}
-          </div>
+            </div>
+          )}
           <div className="agent-part-action-row">
             <button type="button" onClick={() => void onSaveSelectedComponent()} disabled={persistedActionsDisabled || isSelectedPartLocked} aria-label="保存为可复用部件">
               保存为可复用部件

@@ -7,6 +7,10 @@ import {
 import { ExportDrawer, type ExportDrawerProps } from './ExportDrawer.js'
 import { MaterialDrawer } from './MaterialDrawer.js'
 import { QualityDrawer, type QualityDrawerProps } from './QualityDrawer.js'
+import {
+  compatibleQuickMaterialPresets,
+  createQuickMaterialPreviewOperation,
+} from './agentMaterialQuickActions.js'
 
 function collectText(node: ReactNode): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
@@ -279,7 +283,12 @@ export function runMaterialZoneBindingSmoke(): void {
   ;(previewButton.props as { onClick: () => void }).onClick()
   assert(selectedZone === 'zone_trim', 'material zone selection must preserve the stable zone id')
   assert(previewedZone === 'zone_body', 'material preview must send the selected zone id to the parent')
-  assert(collectText(tree).includes('饰条区') && collectText(tree).includes('预览材质'), 'material zone binding UI must be visible')
+  assert(
+    collectText(tree).includes('饰条区')
+    && collectText(tree).includes('预览材质')
+    && collectText(tree).includes('内置五通道 PBR'),
+    'material zone binding UI and built-in compiled PBR truth must be visible',
+  )
 }
 
 export function runMaterialDomainFilterSmoke(): void {
@@ -330,4 +339,33 @@ export function runMaterialDomainFilterSmoke(): void {
   assert(toggle && typeof (toggle.props as { onClick?: () => void }).onClick === 'function', 'all-materials toggle must be actionable')
   ;(toggle.props as { onClick: () => void }).onClick()
   assert(switched.value === false, 'compatibility toggle must notify the parent')
+
+  const quickPresets = compatibleQuickMaterialPresets(presets, 'aircraft_concept')
+  assert(
+    quickPresets.map((preset) => preset.material_id).join(',') === 'mat_aircraft_only,mat_all_domains',
+    'quick material actions must use the same allowed_domains contract as the full catalog',
+  )
+  assert(
+    compatibleQuickMaterialPresets(presets, null).length === 0,
+    'quick material actions must stay unavailable until a supported domain is known',
+  )
+  const operation = createQuickMaterialPreviewOperation({
+    operationId: 'op_material_smoke',
+    partId: 'part_airframe',
+    materialId: 'mat_aircraft_only',
+    materialZoneId: 'zone_primary',
+  })
+  assert(
+    operation?.op === 'apply_material_preset' && operation.material_zone_id === 'zone_primary',
+    'quick material previews must target the stable selected material zone',
+  )
+  assert(
+    createQuickMaterialPreviewOperation({
+      operationId: 'op_material_missing_zone',
+      partId: 'part_airframe',
+      materialId: 'mat_aircraft_only',
+      materialZoneId: '',
+    }) === null,
+    'quick material previews must refuse an Agent asset edit when no stable zone is selected',
+  )
 }

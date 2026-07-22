@@ -3,6 +3,7 @@ import type { ProviderConfigMetadata } from '../../shared/tauri/agentSupervisor.
 
 export type ProviderConnectionPresentation = {
   ready: boolean
+  canTest: boolean
   tone: 'ready' | 'offline' | 'error'
   label: string
 }
@@ -14,12 +15,24 @@ export function providerConfigPresentation(config: ProviderConfigMetadata | null
     && config.supervisor_status === 'running'
     && config.capability_status === 'ready'
   if (ready) {
-    return { ready: true, tone: 'ready', label: '模型服务已配置，等待显式调用' }
+    return { ready: true, canTest: true, tone: 'ready', label: '模型服务已配置，等待显式调用' }
+  }
+  if (config?.configured === true
+    && config.metadata_status === 'valid'
+    && config.secret_status === 'not_checked'
+    && config.supervisor_status === 'running'
+    && config.capability_status === 'ready') {
+    return {
+      ready: false,
+      canTest: true,
+      tone: 'offline',
+      label: '模型服务已配置；发送请求或测试连接时再由 macOS 钥匙串授权',
+    }
   }
   if (config?.failure_code) {
-    return { ready: false, tone: 'error', label: `模型服务未就绪 · ${config.failure_code}` }
+    return { ready: false, canTest: false, tone: 'error', label: `模型服务未就绪 · ${config.failure_code}` }
   }
-  return { ready: false, tone: 'offline', label: '当前使用本机离线规划 · 未调用 DeepSeek' }
+  return { ready: false, canTest: false, tone: 'offline', label: '当前使用本机离线规划 · 未调用 DeepSeek' }
 }
 
 export function providerCheckPresentation(result: AgentProviderCheckResponse): string {

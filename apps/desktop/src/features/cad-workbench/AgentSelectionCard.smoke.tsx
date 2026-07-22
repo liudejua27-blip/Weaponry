@@ -136,10 +136,8 @@ const props: AgentSelectionCardProps = {
     }],
   },
   editAssistLoading: false,
-  blockoutPreviewPresentation: { tone: 'ready', title: '完整外观预览已准备好', detail: '可以保存为可编辑模型，或先换一版外观。' },
+  blockoutPreviewPresentation: { tone: 'ready', title: '完整外观预览已准备好', detail: '可以确认保存为可编辑模型，或继续用自然语言修改。' },
   onSelectPart: () => undefined,
-  onCommitBlockout: () => undefined,
-  onRegenerateBlockout: () => undefined,
   onPreviewEdit: () => undefined,
   onSaveSelectedComponent: () => undefined,
   onReplaceComponent: () => undefined,
@@ -189,11 +187,12 @@ function findHostButton(node: ReactNode, label: string): ReactElement<{ onClick?
 
 export function runAgentSelectionCardSmoke(): void {
   const text = collectText(AgentSelectionCard(props))
-  assert(text.includes('分件候选'), 'selection card must render candidate heading')
+  assert(text.includes('当前结果的组件'), 'selection card must render the current result component heading')
   assert(text.includes('肘部关节') && !text.includes('joint_elbow'), 'selection card must render a Chinese part role without exposing its internal key')
   assert(text.includes('可调参数') && text.includes('长度比例') && text.includes('比例（ratio）'), 'selection card must render declared parameter details')
   assert(text.includes('范围') && text.includes('0.6') && text.includes('1.4') && text.includes('每次') && text.includes('0.1'), 'selection card must render declared parameter bounds and step')
   assert(!text.includes('缩短 20%') && !text.includes('放大 20%'), 'selection card must not retain hard-coded scale actions')
+  assert(!text.includes('换成拉丝铝'), 'selection card must not bypass the zone-aware compatible material catalog with a hard-coded material action')
   assert(text.includes('关节左转 15°'), 'selection card must render joint action')
   assert(text.includes('替换： 可复用肘关节'), 'selection card must render compatible component action')
   assert(text.includes('来源检查通过') && text.includes('保留当前连接位置'), 'selection card must render a factual compatibility explanation')
@@ -210,8 +209,9 @@ export function runAgentSelectionCardSmoke(): void {
     selectedPartId: null,
   }
   const previewText = collectText(AgentSelectionCard(previewProps))
-  assert(previewText.includes('完整外观预览已准备好') && previewText.includes('可以保存为可编辑模型'), 'selection card must use the shared beginner preview presentation')
-  assert(previewText.includes('换一版外观') && previewText.includes('当前第') && previewText.includes('/ 3 版') && previewText.includes('不影响已保存设计'), 'selection card must offer a plain-language preview-only appearance rotation')
+  assert(previewText.includes('完整外观预览已准备好') && previewText.includes('确认保存为可编辑模型'), 'selection card must use the shared beginner preview presentation')
+  assert(previewText.includes('当前唯一展示结果') && previewText.includes('不影响已保存设计'), 'selection card must expose one preview result without candidate rotation')
+  assert(!previewText.includes('换一版外观') && !previewText.includes('/ 3 版'), 'selection card must not expose the superseded three-direction rotation')
 
   const calls: Array<{ operation: unknown; summary: string }> = []
   const controlProps: AgentSelectionCardProps = {
@@ -228,12 +228,6 @@ export function runAgentSelectionCardSmoke(): void {
   assert(recipe && !recipe.props.disabled && recipe.props.onClick, 'resolved semantic recipe must be available')
   recipe.props.onClick()
   assert(Number(calls.length) === 2 && JSON.stringify(calls[1].operation).includes('"value":1.1'), 'semantic recipe must request one existing bounded parameter preview')
-
-  let regenerated = 0
-  const regenerate = findHostButton(AgentSelectionCard({ ...previewProps, onRegenerateBlockout: () => { regenerated += 1 } }), '换一版外观')
-  assert(regenerate && !regenerate.props.disabled && regenerate.props.onClick, 'preview candidate must expose the appearance rotation action')
-  regenerate.props.onClick()
-  assert(regenerated === 1, 'appearance rotation must request one new preview and not commit an asset')
 
   const unavailableText = collectText(AgentSelectionCard({
     ...props,

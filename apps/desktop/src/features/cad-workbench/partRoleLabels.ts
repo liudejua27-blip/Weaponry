@@ -42,6 +42,16 @@ export const PART_ROLE_LABELS: Readonly<Record<string, string>> = {
   visual_cable_slot: '线缆槽点缀',
   visual_vent: '散热孔点缀',
   visual_fastener: '紧固件点缀',
+  // C106 robotic-arm production Recipe roles.  Keep these exact mappings
+  // alongside the stable AssemblyGraph keys so the workbench can describe a
+  // production concept asset without showing an internal identifier.
+  base_form: '底座主体',
+  turntable: '旋转底座',
+  joint_housing: '关节外壳',
+  link_armor: '连杆护甲',
+  cable_harness: '线缆束',
+  end_effector_form: '末端执行器',
+  surface_trim: '表面装饰',
 }
 
 const ROLE_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [

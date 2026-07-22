@@ -20,6 +20,8 @@ import type {
 
 const ACTIVE_PROJECT_KEY = 'forgecad.activeConceptProjectId'
 const ACTIVE_VERSION_KEY_PREFIX = 'forgecad.activeConceptVersionId.'
+const WORKBENCH_SELECTION_SCHEMA_KEY = 'forgecad.workbenchSelectionSchema'
+const AGENT_FIRST_WORKBENCH_SELECTION_SCHEMA = 'agent-first-v1'
 // Rust allows up to ten seconds for a cold Agent startup (migrations plus Pack
 // registration). Keep the UI retry window slightly longer so first launch
 // resolves into the workbench instead of a stale offline screen.
@@ -122,14 +124,13 @@ export function useConceptWorkbench() {
         && versions.some((item) => item.version_id === restoredVersionId)
         ? restoredVersionId
         : project.current_version_id ?? versions.at(-1)?.version_id
-      const [variantResponse, timelineResponse, auditExportResponse, version] = loadLegacyDetails
-        ? await Promise.all([
-            forgeApi.listDesignVariants(projectId),
-            forgeApi.listChangeSets(projectId, { limit: 20 }),
-            forgeApi.listChangeSetAuditExports(projectId, 1),
-            versionId ? forgeApi.getConceptVersion(versionId) : Promise.resolve(null),
-          ])
-        : [{ items: [] }, { items: [], next_cursor: null }, { items: [] }, null]
+      // The explicit legacy-detail surface consumes only immutable Version and
+      // ModuleGraph facts. Historical variants, Concept ChangeSets and audit
+      // export rows are not rendered here and their former parallel reads made
+      // this entire read-only view depend on retired Python product handlers.
+      const version = loadLegacyDetails && versionId
+        ? await forgeApi.getConceptVersion(versionId)
+        : null
       if (requestId !== loadProjectRequestRef.current) return
       const graphRecord = version?.module_graph_id
         ? await forgeApi.getModuleGraph(version.module_graph_id)
@@ -147,15 +148,15 @@ export function useConceptWorkbench() {
         // Component catalog reads are scoped independently by the workbench
         // presentation layer; legacy project hydration must not own that cache.
         modules: [],
-        variants: variantResponse.items ?? [],
+        variants: [],
         brief: null,
         pendingChange: null,
         pendingReplacement: null,
         pendingManualChange: null,
         pendingPreview: null,
-        lastAuditExport: auditExportResponse.items?.[0] ?? null,
-        timeline: timelineResponse.items ?? [],
-        timelineNextCursor: timelineResponse.next_cursor ?? null,
+        lastAuditExport: null,
+        timeline: [],
+        timelineNextCursor: null,
         timelineLoading: false,
         timelineFilters: EMPTY_TIMELINE_FILTERS,
         qualityRun: null,
@@ -165,7 +166,9 @@ export function useConceptWorkbench() {
           ? graphRecord
             ? `已打开旧版只读信息 · ${graphRecord.graph.nodes.length} 个 ModuleGraph 节点。`
             : '旧版当前版本没有可读取的 ModuleGraph。'
-          : '设计项目已加载；旧版 Graph、参数和导出信息尚未读取。',
+          : versionId
+            ? '设计项目已加载；旧版 Graph、参数和导出信息尚未读取。'
+            : '空项目已就绪；直接在设计助手中输入描述，Agent 会生成第一个可编辑资产。',
       }))
     } catch (caught) {
       if (requestId !== loadProjectRequestRef.current) return
@@ -183,7 +186,7 @@ export function useConceptWorkbench() {
       ...current,
       loading: true,
       error: null,
-      statusMessage: '正在创建“前沿概念 P1”并装配初始组件…',
+      statusMessage: '正在创建“前沿概念 P1”…',
     }))
     try {
       const created = await forgeApi.createConceptProject({
@@ -206,14 +209,10 @@ export function useConceptWorkbench() {
         },
         assumptions: ['虚构未来概念、游戏资产、影视道具与非功能性展示模型；不用于真实制造或使用。'],
       })
-      const initialized = await forgeApi.initializeConceptWorkbench(
-        created.project_id,
-        `desktop-initialize-workbench-${Date.now().toString(36)}`,
-      )
       const projects = (await forgeApi.listConceptProjects()).items ?? []
       await loadProject(
-        initialized.project_id,
-        initialized.current_version_id ?? undefined,
+        created.project_id,
+        undefined,
         projects,
       )
     } catch (caught) {
@@ -221,7 +220,7 @@ export function useConceptWorkbench() {
         ...current,
         loading: false,
         error: errorMessage(caught),
-        statusMessage: '初始 Concept Project 创建失败。请检查本地 Agent 与内置资产包。',
+        statusMessage: '初始 Concept Project 创建失败。请检查本地 Agent。',
       }))
     }
   }, [loadProject])
@@ -267,11 +266,28 @@ export function useConceptWorkbench() {
         }))
         return
       }
+      // F026 changed the product entry from a legacy Concept editor into an
+      // Agent-first workbench.  A pre-F026 localStorage selection must not
+      // make a current binary look like the old product by automatically
+      // reopening its legacy project on first launch.  This migrates only a
+      // UI preference; Project/Snapshot truth remains Rust-owned.
+      if (localStorage.getItem(WORKBENCH_SELECTION_SCHEMA_KEY) !== AGENT_FIRST_WORKBENCH_SELECTION_SCHEMA) {
+        localStorage.removeItem(ACTIVE_PROJECT_KEY)
+        localStorage.setItem(WORKBENCH_SELECTION_SCHEMA_KEY, AGENT_FIRST_WORKBENCH_SELECTION_SCHEMA)
+      }
       const storedId = localStorage.getItem(ACTIVE_PROJECT_KEY)
-      const activeId = projects.some((project) => project.project_id === storedId)
-        ? storedId!
-        : projects[0].project_id
-      await loadProject(activeId, undefined, projects)
+      if (!storedId || !projects.some((project) => project.project_id === storedId)) {
+        if (storedId) localStorage.removeItem(ACTIVE_PROJECT_KEY)
+        setState((current) => ({
+          ...current,
+          projects,
+          loading: false,
+          error: null,
+          statusMessage: '工作台已就绪。直接描述你想生成的机械概念，或从左侧明确打开已有项目。',
+        }))
+        return
+      }
+      await loadProject(storedId, undefined, projects)
     } catch (caught) {
       if (isTransientConnectionFailure(caught) && attempt < STARTUP_SYNC_RETRY_LIMIT) {
         setState((current) => ({
@@ -382,38 +398,6 @@ export function useConceptWorkbench() {
     }
   }, [])
 
-  const initializeCurrentProject = useCallback(async () => {
-    const project = state.project
-    if (!project) return null
-    setState((current) => ({
-      ...current,
-      loading: true,
-      error: null,
-      statusMessage: '正在安装内置 Module Pack 并创建首个 ModuleGraph…',
-    }))
-    try {
-      const initialized = await forgeApi.initializeConceptWorkbench(
-        project.project_id,
-        `desktop-initialize-workbench-${Date.now().toString(36)}`,
-      )
-      const projects = (await forgeApi.listConceptProjects()).items ?? []
-      await loadProject(
-        initialized.project_id,
-        initialized.current_version_id ?? undefined,
-        projects,
-      )
-      return initialized
-    } catch (caught) {
-      setState((current) => ({
-        ...current,
-        loading: false,
-        error: errorMessage(caught),
-        statusMessage: '内置 Module Pack 或初始 ModuleGraph 创建失败。',
-      }))
-      return null
-    }
-  }, [loadProject, state.project])
-
   const createExport = useCallback(async () => {
     if (!state.version?.module_graph_id) {
       setState((current) => ({
@@ -458,7 +442,7 @@ export function useConceptWorkbench() {
   }, [state.version])
 
   const planBrief = useCallback(async (sourceText: string) => {
-    let project = state.project
+    const project = state.project
     if (!project) {
       setState((current) => ({
         ...current,
@@ -467,9 +451,12 @@ export function useConceptWorkbench() {
       return null
     }
     if (!state.version?.module_graph_id) {
-      const initialized = await initializeCurrentProject()
-      if (!initialized) return null
-      project = initialized
+      setState((current) => ({
+        ...current,
+        error: '当前是空项目；请在设计助手中输入描述，由 Agent 生成第一个资产。',
+        statusMessage: '空项目不再创建 legacy ModuleGraph。',
+      }))
+      return null
     }
     const suffix = Date.now().toString(36)
     setState((current) => ({
@@ -514,7 +501,7 @@ export function useConceptWorkbench() {
       }))
       return null
     }
-  }, [initializeCurrentProject, state.project, state.version])
+  }, [state.project, state.version])
 
   const selectVariant = useCallback(async (variantId: string) => {
     const project = state.project
@@ -1271,7 +1258,6 @@ export function useConceptWorkbench() {
     selectProject,
     selectVersion,
     createStarterProject,
-    initializeCurrentProject,
     createExport,
     planBrief,
     selectVariant,

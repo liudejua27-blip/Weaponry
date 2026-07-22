@@ -6,23 +6,26 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } from '../../shared/types'
 import { buildShapeProgramPreview } from './shapeProgramPreview.js'
+import type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
+
+export type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
 type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
 type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
-type BlockoutGlbKind = 'compiled_agent_pbr' | 'external_reference' | null
+type BlockoutGlbKind =
+  | 'compiled_agent_pbr'
+  | 'compiled_agent_preview_pbr'
+  | 'compiled_agent_production_pbr'
+  | 'external_reference'
+  | null
 type Graph = NonNullable<ModuleGraphRecord>['graph']
-export type ViewportMeasurementPoint = {
-  nodeId: string
-  position: [number, number, number]
-  normal: [number, number, number]
-}
-
 const GLB_METERS_TO_WORKBENCH_MILLIMETERS = 1000
 const BLOCKOUT_DISPLAY_DIAGONAL_MM = 520
 const BLOCKOUT_FRAME_TARGET_NDC = 0.84
 const DEFAULT_SCENE_FOG_NEAR_MM = 300
 const DEFAULT_SCENE_FOG_FAR_MM = 820
+const PBR_TEXTURE_ANISOTROPY_CAP = 4
 // Must match ForgeCADVisualEnvironment@1 written into every current ShapeProgram
 // GLB.  The viewport has one renderer/context; this profile only configures its
 // existing RoomEnvironment/PMREM scene and never creates asset state.
@@ -35,23 +38,44 @@ const FORGECAD_STUDIO_MANIFEST = {
   color_workflow: 'linear_srgb',
   output_color_space: 'srgb',
   tone_mapping: 'aces_filmic',
-  tone_mapping_exposure: 1.18,
+  tone_mapping_exposure: 0.86,
   contact_shadows: true,
   pmrem: { near: 0.04, cube_size: 128 },
   cad_neutral_lighting: {
     background: '#0b1420',
-    hemisphere: { sky: '#eef6ff', ground: '#111820', intensity: 3.2 },
-    ambient: { color: '#8aa0b8', intensity: 0.58 },
-    key: { color: '#f7fbff', intensity: 4.8, position: [150, 210, 160] as [number, number, number] },
-    rim: { color: '#91b6d9', intensity: 1.35, position: [-160, 110, -120] as [number, number, number] },
-    warm_rim: { color: '#ffd0b5', intensity: 0.45, position: [110, 20, -190] as [number, number, number] },
+    hemisphere: { sky: '#eef6ff', ground: '#111820', intensity: 1.45 },
+    ambient: { color: '#8aa0b8', intensity: 0.24 },
+    key: { color: '#f7fbff', intensity: 3.6, position: [150, 210, 160] as [number, number, number] },
+    rim: { color: '#91b6d9', intensity: 0.95, position: [-160, 110, -120] as [number, number, number] },
+    warm_rim: { color: '#ffd0b5', intensity: 0.28, position: [110, 20, -190] as [number, number, number] },
     floor: { kind: 'shadow_catcher', color: '#000000', opacity: 0.16, radius_ratio: 1.1 },
   },
   camera_views: {
     iso: { direction: [-0.9, 0.85, 1.55] as [number, number, number], distance_ratio: 0.98, fov_degrees: 38 },
   },
 } as const
-const FORGECAD_STUDIO_ENVIRONMENT_SHA256 = '7173dd0b7c3df1dcf039f6eb6e80a96345873521dc3d07dc6381444a29879655'
+const FORGECAD_STUDIO_ENVIRONMENT_SHA256 = '291b13f7d1606bd3c180a3fb9850538f5d23208086d7f8488c2214fa59061042'
+// GLB material data and its readback remain immutable.  This bounded table
+// only tunes the existing RoomEnvironment reflection in the one workbench
+// renderer, so clearcoat/aluminium highlights do not erase the authored base
+// colour hierarchy.  Unknown/external material ids use the conservative
+// default rather than being recoloured or assigned a ForgeCAD identity.
+const FORGECAD_PBR_ENVIRONMENT_INTENSITY_BY_MATERIAL_ID: Readonly<Record<string, number>> = {
+  mat_primary: 0.5,
+  mat_aluminum: 0.42,
+  mat_composite: 0.25,
+  mat_rubber: 0.14,
+  mat_dark_glass: 0.4,
+  mat_emissive_blue: 0.2,
+  mat_automotive_paint: 0.52,
+}
+const FORGECAD_PBR_DEFAULT_ENVIRONMENT_INTENSITY = 0.45
+// Packaged arm MVP QA asks the mounted viewport to copy pixels through this
+// same-realm event.  It is deliberately not a product API: the event carries
+// no model/state data, is only listened to by the existing host, and its
+// response is fulfilled immediately after this renderer has drawn a frame.
+// This keeps preserveDrawingBuffer disabled for normal interactive rendering.
+const FORGECAD_QA_VIEWPORT_CAPTURE_EVENT = 'forgecad:qa-capture-viewport@1'
 let viewportRendererGeneration = 0
 let activeViewportContexts = 0
 
@@ -70,10 +94,17 @@ type ModuleGraphViewportProps = {
   focusNodeId: string | null
   qualityHighlightNodeIds: string[]
   qualityGeometryRefs: NonNullable<QualityFinding['geometry_refs']>
-  blockoutGlbBase64: string | null
+  blockoutGlbBase64: string | ArrayBuffer | null
   blockoutGlbKind: BlockoutGlbKind
   blockoutShapeProgram: Record<string, unknown> | null
   blockoutMaterialOverride: string | null
+  referenceImage: {
+    url: string
+    evidenceId: string
+    sourceObjectSha256: string
+    referenceClass: 'single_image' | 'multi_view_contact_sheet'
+  } | null
+  onReferenceImageDisplayFailure: () => void
   selectedAgentPartId: string | null
   hiddenAgentPartIds: string[]
   isolatedAgentPartId: string | null
@@ -106,6 +137,7 @@ type ViewportRuntime = {
   displayFloor: THREE.Mesh<THREE.CircleGeometry, THREE.ShadowMaterial>
   moduleRoot: THREE.Group
   blockoutRoot: THREE.Group
+  referenceImageRoot: THREE.Group
   qualityRoot: THREE.Group
   connectorGeometry: THREE.SphereGeometry
   connectorMaterials: { exclusive: THREE.MeshBasicMaterial; shared: THREE.MeshBasicMaterial }
@@ -127,7 +159,21 @@ type ViewportRuntime = {
     displayDiagonalMm: number
     sourceBoundsMm: number[]
   } | null
+  blockoutReplacementGeneration: number
+  disposedBlockoutAssetCount: number
   scheduleRender: () => void
+}
+
+type QaViewportCapture = {
+  width: number
+  height: number
+  pixels: Uint8Array
+}
+
+type QaViewportCaptureRequest = {
+  viewport: HTMLElement
+  resolve: (capture: QaViewportCapture) => void
+  reject: (error: Error) => void
 }
 
 export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
@@ -138,12 +184,14 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const [loadState, setLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>(
     props.graphRecord ? 'loading' : 'empty',
   )
-  const [loadMessage, setLoadMessage] = useState('当前版本尚未绑定 ModuleGraph')
+  const [loadMessage, setLoadMessage] = useState('还没有 Agent 资产；在底部描述你想生成的模型。')
   const [blockoutLoadState, setBlockoutLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
   const [blockoutLoadMessage, setBlockoutLoadMessage] = useState('')
   const [blockoutPreviewPrimitiveKinds, setBlockoutPreviewPrimitiveKinds] = useState<string[]>([])
   const [blockoutRenderSource, setBlockoutRenderSource] = useState<'empty' | 'glb_pbr' | 'external_reference' | 'shape_program_fallback'>('empty')
   const [blockoutEmbeddedPbrMaterialCount, setBlockoutEmbeddedPbrMaterialCount] = useState(0)
+  const [referenceImageLoadState, setReferenceImageLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
+  const [referenceImageLoadMessage, setReferenceImageLoadMessage] = useState('')
 
   // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
   // overlay and wireframe updates below never destroy the WebGL context.
@@ -241,6 +289,9 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const blockoutRoot = new THREE.Group()
     blockoutRoot.name = 'AgentBlockoutPreviewRoot'
     scene.add(blockoutRoot)
+    const referenceImageRoot = new THREE.Group()
+    referenceImageRoot.name = 'ReadOnlyReferenceImageRoot'
+    scene.add(referenceImageRoot)
     const qualityRoot = new THREE.Group()
     qualityRoot.name = 'QualityGeometryOverlay'
     scene.add(qualityRoot)
@@ -251,9 +302,33 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     }
 
     let frame = 0
+    let pendingQaCapture: QaViewportCaptureRequest | null = null
     const render = () => {
       frame = 0
       renderer.render(scene, camera)
+      // The default WebGL framebuffer is allowed to be cleared after
+      // presentation because preserveDrawingBuffer stays false.  Read it in
+      // this exact render callback instead of later from the QA module.
+      const capture = pendingQaCapture
+      if (capture) {
+        pendingQaCapture = null
+        try {
+          const context = renderer.getContext()
+          const width = context.drawingBufferWidth
+          const height = context.drawingBufferHeight
+          if (width < 320 || height < 240 || width * height > 8_400_000) {
+            throw new Error('QA_V3_VIEWPORT_SCREENSHOT_CANVAS_INVALID')
+          }
+          const pixels = new Uint8Array(width * height * 4)
+          context.readPixels(0, 0, width, height, context.RGBA, context.UNSIGNED_BYTE, pixels)
+          if (context.getError() !== context.NO_ERROR) {
+            throw new Error('QA_V3_VIEWPORT_SCREENSHOT_READBACK_FAILED')
+          }
+          capture.resolve({ width, height, pixels })
+        } catch (error) {
+          capture.reject(error instanceof Error ? error : new Error('QA_V3_VIEWPORT_SCREENSHOT_READBACK_FAILED'))
+        }
+      }
       host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
       host.dataset.rendererTextures = String(renderer.info.memory.textures)
       host.dataset.rendererDrawCalls = String(renderer.info.render.calls)
@@ -277,6 +352,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       displayFloor,
       moduleRoot,
       blockoutRoot,
+      referenceImageRoot,
       qualityRoot,
       connectorGeometry,
       connectorMaterials,
@@ -293,10 +369,29 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       graph: null,
       modulesById: new Map(),
       activeBlockoutPreview: null,
+      blockoutReplacementGeneration: 0,
+      disposedBlockoutAssetCount: 0,
       scheduleRender,
     }
     recordAppliedVisualEnvironment(runtime, host)
     runtimeRef.current = runtime
+
+    const onQaViewportCapture = (event: Event) => {
+      const request = event instanceof CustomEvent
+        ? event.detail as QaViewportCaptureRequest | undefined
+        : undefined
+      // A direct dispatch on the desired host means sibling workbenches never
+      // contend for a capture.  Keep this guard for transient React trees and
+      // future multi-window QA runs.
+      if (!request || request.viewport !== host) return
+      if (pendingQaCapture) {
+        request.reject(new Error('QA_V3_VIEWPORT_SCREENSHOT_BUSY'))
+        return
+      }
+      pendingQaCapture = request
+      scheduleRender()
+    }
+    host.addEventListener(FORGECAD_QA_VIEWPORT_CAPTURE_EVENT, onQaViewportCapture)
 
     const onTransformDragging = (event: { value: unknown }) => {
       controls.enabled = event.value !== true
@@ -319,11 +414,26 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       pointer.x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 2 - 1
       pointer.y = -((clientY - rect.top) / Math.max(rect.height, 1)) * 2 + 1
       raycaster.setFromCamera(pointer, camera)
-      const hit = raycaster.intersectObjects(moduleRoot.children, true)[0]
-      const nodeId = hit?.object.userData.nodeId
-      if (typeof nodeId !== 'string' || !hit || !hit.face) return null
+      const hit = raycaster.intersectObjects([...moduleRoot.children, ...blockoutRoot.children], true)
+        .find((candidate) => isMeshObject(candidate.object) && Boolean(candidate.face))
+      if (!hit || !hit.face) return null
+      const nodeId = typeof hit.object.userData.nodeId === 'string'
+        ? hit.object.userData.nodeId
+        : hit.object.userData.agentBlockout
+          ? 'agent_blockout'
+          : null
+      if (!nodeId) return null
       const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
-      return { nodeId, point: hit.point, normal }
+      const point = hit.point.clone()
+      // Production GLBs are visually fitted into the shared CAD camera.  The
+      // fitting scale is presentation-only, so reverse it before passing the
+      // point to the inspection layer; otherwise the two-click readout would
+      // report the on-screen display size instead of the model's millimetres.
+      const displayScale = hit.object.userData.agentBlockout
+        ? runtime.activeBlockoutPreview?.displayScale ?? 1
+        : 1
+      if (displayScale > 0 && displayScale !== 1) point.multiplyScalar(1 / displayScale)
+      return { nodeId, point, normal }
     }
     const selectAtPointer = (event: PointerEvent) => {
       const hit = hitAtClientPoint(event.clientX, event.clientY)
@@ -375,6 +485,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
 
     return () => {
       cancelAnimationFrame(frame)
+      host.removeEventListener(FORGECAD_QA_VIEWPORT_CAPTURE_EVENT, onQaViewportCapture)
+      if (pendingQaCapture) {
+        pendingQaCapture.reject(new Error('QA_V3_VIEWPORT_SCREENSHOT_VIEWPORT_DISPOSED'))
+        pendingQaCapture = null
+      }
       observer.disconnect()
       transformControls.removeEventListener('dragging-changed', onTransformDragging)
       transformControls.removeEventListener('objectChange', onTransformObjectChange)
@@ -387,6 +502,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       renderer.domElement.removeEventListener('drop', dropModule)
       clearNodeObjects(runtime)
       clearObjectChildren(blockoutRoot)
+      clearObjectChildren(referenceImageRoot)
       runtime.moduleCache.forEach((source) => { void source.then(disposeObject) })
       clearObjectChildren(qualityRoot)
       scene.environment = null
@@ -407,6 +523,101 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     }
   }, [])
 
+  const referenceImageIdentity = props.referenceImage
+    ? `${props.referenceImage.evidenceId}:${props.referenceImage.sourceObjectSha256}:${props.referenceImage.referenceClass}:${props.referenceImage.url}`
+    : ''
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    const host = hostRef.current
+    if (!runtime || !host) return
+    const referenceImage = props.referenceImage
+    clearObjectChildren(runtime.referenceImageRoot)
+    runtime.referenceImageRoot.visible = false
+    if (!referenceImage) {
+      host.dataset.referenceDisplayMode = 'result'
+      delete host.dataset.referenceEvidenceId
+      delete host.dataset.referenceSourceObjectSha256
+      delete host.dataset.referenceClass
+      if (referenceImageLoadState !== 'failed') {
+        setReferenceImageLoadState('empty')
+        setReferenceImageLoadMessage('')
+      }
+      runtime.scheduleRender()
+      return
+    }
+
+    let cancelled = false
+    host.dataset.referenceDisplayMode = 'loading'
+    host.dataset.referenceEvidenceId = referenceImage.evidenceId
+    host.dataset.referenceSourceObjectSha256 = referenceImage.sourceObjectSha256
+    host.dataset.referenceClass = referenceImage.referenceClass
+    setReferenceImageLoadState('loading')
+    setReferenceImageLoadMessage('正在把只读参考图片加载到同一个 3D 视口…')
+    const textureLoader = new THREE.TextureLoader()
+    textureLoader.load(referenceImage.url, (texture) => {
+      if (cancelled) {
+        texture.dispose()
+        return
+      }
+      texture.colorSpace = THREE.SRGBColorSpace
+      texture.generateMipmaps = true
+      texture.minFilter = THREE.LinearMipmapLinearFilter
+      texture.magFilter = THREE.LinearFilter
+      const image = texture.image as { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number }
+      const pixelWidth = Math.max(image.naturalWidth ?? image.width ?? 1, 1)
+      const pixelHeight = Math.max(image.naturalHeight ?? image.height ?? 1, 1)
+      const scale = Math.min(360 / pixelWidth, 230 / pixelHeight)
+      const width = pixelWidth * scale
+      const height = pixelHeight * scale
+      const imagePlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, height),
+        new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, side: THREE.DoubleSide }),
+      )
+      imagePlane.name = 'ReadOnlyReferenceImagePlane'
+      imagePlane.position.y = -12
+      const frame = new THREE.Mesh(
+        new THREE.PlaneGeometry(width + 10, height + 48),
+        new THREE.MeshBasicMaterial({ color: '#10243a', toneMapped: false, side: THREE.DoubleSide }),
+      )
+      frame.name = 'ReadOnlyReferenceImageFrame'
+      frame.position.y = 4
+      frame.position.z = -1
+      const header = createReferenceImageHeaderPlane(width, height / 2 + 13, referenceImage.referenceClass)
+      runtime.referenceImageRoot.add(frame, imagePlane, header)
+      runtime.referenceImageRoot.visible = true
+      runtime.blockoutRoot.visible = false
+      runtime.moduleRoot.visible = false
+      runtime.grid.visible = false
+      runtime.axes.visible = false
+      runtime.displayFloor.visible = false
+      runtime.transformControls.detach()
+      runtime.transformHelper.visible = false
+      const bounds = new THREE.Box3().setFromObject(runtime.referenceImageRoot)
+      frameBlockoutCameraToBounds(runtime, 'front', bounds)
+      host.dataset.referenceDisplayMode = 'reference_image'
+      setReferenceImageLoadState('ready')
+      setReferenceImageLoadMessage('只读参考图片 · 同一 renderer 展示 · 不作为几何真值')
+      runtime.scheduleRender()
+    }, undefined, () => {
+      if (cancelled) return
+      clearObjectChildren(runtime.referenceImageRoot)
+      runtime.referenceImageRoot.visible = false
+      host.dataset.referenceDisplayMode = 'failed'
+      setReferenceImageLoadState('failed')
+      setReferenceImageLoadMessage('参考图片纹理加载失败；已安全返回当前结果。')
+      runtime.scheduleRender()
+      propsRef.current.onReferenceImageDisplayFailure()
+    })
+    return () => {
+      cancelled = true
+      clearObjectChildren(runtime.referenceImageRoot)
+      runtime.referenceImageRoot.visible = false
+    }
+  // Identity fields are immutable for the lifetime of one saved evidence view.
+  // Do not restart texture loading for unrelated workbench presentation renders.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referenceImageIdentity])
+
   const graphHash = props.graphRecord?.graph_sha256 ?? ''
   useEffect(() => {
     const runtime = runtimeRef.current
@@ -417,7 +628,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     if (!graph) {
       clearNodeObjects(runtime)
       setLoadState('empty')
-      setLoadMessage('当前版本尚未绑定 ModuleGraph')
+      setLoadMessage('还没有 Agent 资产；在底部描述你想生成的模型。')
       if (runtime.activeBlockoutPreview) {
         refreshActiveBlockoutFrame(runtime, props.cameraView)
       } else {
@@ -471,6 +682,20 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     const runtime = runtimeRef.current
     if (!runtime) return
     restoreModuleGraphPresentation(runtime, propsRef.current)
+    if (props.referenceImage) {
+      runtime.moduleRoot.visible = false
+      runtime.blockoutRoot.visible = false
+      runtime.axes.visible = false
+      runtime.grid.visible = false
+      runtime.displayFloor.visible = false
+      setBlockoutLoadState('empty')
+      setBlockoutLoadMessage('')
+      setBlockoutPreviewPrimitiveKinds([])
+      setBlockoutRenderSource('empty')
+      setBlockoutEmbeddedPbrMaterialCount(0)
+      runtime.scheduleRender()
+      return
+    }
     if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
@@ -547,17 +772,28 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       runtime.scheduleRender()
     }
     if (props.blockoutGlbBase64) {
+      const blockoutGlbPayload = props.blockoutGlbBase64
       // The compiled Agent GLB is the only source that contains its exact
       // texture bytes, UV/tangent bindings and zone-to-material mapping.
       // Prefer it over the bounded ShapeProgram display adapter whenever both
       // are available; silently replacing it with parameter materials would
       // make the PBR/readback promise unverifiable in the workbench.
       const externalReference = props.blockoutGlbKind === 'external_reference'
-      setBlockoutLoadMessage(externalReference ? '正在加载只读外部参考 GLB…' : '正在加载同源 PBR GLB…')
+      const productionConcept = props.blockoutGlbKind === 'compiled_agent_production_pbr'
+      setBlockoutLoadMessage(
+        externalReference
+          ? '正在加载只读外部参考 GLB…'
+          : productionConcept
+            ? '正在加载生产概念工件档 PBR GLB…'
+            : '正在加载同源轻量 PBR 预览…',
+      )
       void import('three/examples/jsm/loaders/GLTFLoader.js')
         .then(({ GLTFLoader }) => new Promise<THREE.Object3D>((resolve, reject) => {
           const loader = new GLTFLoader()
-          loader.parse(base64ToArrayBuffer(props.blockoutGlbBase64 as string), '', (gltf) => {
+          const glbPayload = typeof blockoutGlbPayload === 'string'
+            ? base64ToArrayBuffer(blockoutGlbPayload)
+            : blockoutGlbPayload.slice(0)
+          loader.parse(glbPayload, '', (gltf) => {
             const source = gltf.scene ?? gltf.scenes[0]
             if (!source) {
               reject(new Error('导入 GLB 没有 scene'))
@@ -565,7 +801,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             }
             source.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
             source.traverse((child) => {
-              if (child instanceof THREE.Mesh) {
+              if (isMeshObject(child)) {
                 child.castShadow = true
                 child.receiveShadow = true
                 child.userData.agentBlockout = true
@@ -573,10 +809,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
                   ? child.material.map((material) => material.clone())
                   : child.material.clone()
                 const materials = Array.isArray(child.material) ? child.material : [child.material]
+                materials.forEach(applyForgecadPbrDisplayCalibration)
                 const hasTransparentSurface = materials.some((material) => (
                   material.transparent
                   || material.opacity < 0.99
-                  || (material instanceof THREE.MeshPhysicalMaterial && material.transmission > 0)
+                  || (isPbrMaterial(material) && 'transmission' in material && material.transmission > 0)
                 ))
                 child.geometry.computeBoundingBox()
                 const geometrySize = child.geometry.boundingBox?.getSize(new THREE.Vector3()).length() ?? 0
@@ -600,11 +837,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             applyAgentBlockoutVisualState(source, propsRef.current)
             const embeddedPbrMaterialCount = countEmbeddedPbrMaterials(source)
             if (!externalReference && embeddedPbrMaterialCount === 0) {
-              reject(new Error('同源 GLB 没有可用的完整 PBR 纹理材质，不能作为真实纹理预览显示'))
+              reject(new Error(`同源 GLB 没有可用的完整 PBR 纹理材质，不能作为真实纹理预览显示 [${diagnosePbrMaterialGap(source)}]`))
               return
             }
+            const targetPbrAnisotropy = configurePbrTextureSampling(source, runtime.renderer)
             source.userData.forgecadEmbeddedPbrMaterialCount = embeddedPbrMaterialCount
-            source.userData.forgecadPbrTextureFacts = collectPbrTextureFacts(source)
+            source.userData.forgecadPbrTextureFacts = collectPbrTextureFacts(source, targetPbrAnisotropy)
             resolve(source)
           }, reject)
         }))
@@ -672,18 +910,14 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.blockoutGlbKind,
     props.blockoutShapeProgram,
     props.blockoutMaterialOverride,
-    props.selectedAgentPartId,
-    props.hiddenAgentPartIds,
-    props.isolatedAgentPartId,
-    props.lockedAgentPartIds,
-    props.cameraView,
+    referenceImageIdentity,
   ])
 
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
     runtime.blockoutRoot.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
+      if (isMeshObject(child) && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
     })
     runtime.scheduleRender()
   }, [
@@ -699,6 +933,15 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
+    if (propsRef.current.referenceImage) {
+      runtime.moduleRoot.visible = false
+      runtime.blockoutRoot.visible = false
+      runtime.axes.visible = false
+      runtime.grid.visible = false
+      runtime.displayFloor.visible = false
+      runtime.scheduleRender()
+      return
+    }
     applyVisualState(runtime, propsRef.current)
     syncTransformControls(runtime, propsRef.current)
     runtime.scheduleRender()
@@ -720,6 +963,18 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     props.snapEnabled,
     graphHash,
   ])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    // Measuring intentionally freezes orbit for the two-click interaction.
+    // It only switches the existing controls on the one renderer; no overlay
+    // canvas or second scene is created.
+    runtime.controls.enabled = !props.measureEnabled
+    const host = runtime.renderer.domElement.parentElement
+    if (host instanceof HTMLElement) host.dataset.measureEnabled = String(props.measureEnabled)
+    runtime.scheduleRender()
+  }, [props.measureEnabled])
 
   useEffect(() => {
     const runtime = runtimeRef.current
@@ -768,13 +1023,19 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         data-blockout-render-source={blockoutRenderSource}
         data-blockout-embedded-pbr-material-count={String(blockoutEmbeddedPbrMaterialCount)}
         data-blockout-preview-primitives={blockoutPreviewPrimitiveKinds.join(',')}
+        data-reference-display-mode={referenceImageLoadState === 'ready' ? 'reference_image' : referenceImageLoadState === 'loading' ? 'loading' : referenceImageLoadState === 'failed' ? 'failed' : 'result'}
+        data-reference-image-load-state={referenceImageLoadState}
+        data-reference-evidence-id={props.referenceImage?.evidenceId ?? ''}
+        data-reference-source-object-sha256={props.referenceImage?.sourceObjectSha256 ?? ''}
+        data-reference-class={props.referenceImage?.referenceClass ?? ''}
         data-agent-hidden-part-ids={props.hiddenAgentPartIds.join(',')}
         data-agent-isolated-part-id={props.isolatedAgentPartId ?? ''}
         data-agent-locked-part-ids={props.lockedAgentPartIds.join(',')}
+        data-measure-enabled={String(props.measureEnabled)}
       />
-      {loadState !== 'ready' && blockoutLoadState !== 'ready' && (
+      {referenceImageLoadState === 'empty' && loadState !== 'ready' && blockoutLoadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
-          <strong>{loadState === 'loading' ? '加载 ModuleGraph' : loadState === 'failed' ? 'GLB 无法显示' : '等待模块组合'}</strong>
+          <strong>{loadState === 'loading' ? '加载 3D 资产' : loadState === 'failed' ? 'GLB 无法显示' : '等待 Agent 生成'}</strong>
           <span>{loadMessage}</span>
         </div>
       )}
@@ -782,6 +1043,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         <div className={`viewport-data-state blockout-${blockoutLoadState}`} role="status">
           <strong>{blockoutLoadState === 'loading' ? '加载 Agent blockout' : 'Agent blockout 无法显示'}</strong>
           <span>{blockoutLoadMessage}</span>
+        </div>
+      )}
+      {props.referenceImage && referenceImageLoadState !== 'ready' && (
+        <div className={`viewport-data-state reference-image-${referenceImageLoadState}`} role="status">
+          <strong>{referenceImageLoadState === 'loading' ? '加载只读参考图片' : '参考图片无法显示'}</strong>
+          <span>{referenceImageLoadMessage}</span>
         </div>
       )}
     </div>
@@ -935,14 +1202,14 @@ function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportPr
 
 function applyAgentBlockoutVisualState(root: THREE.Object3D, props: ModuleGraphViewportProps): void {
   root.traverse((child) => {
-    if (child instanceof THREE.Mesh && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
+    if (isMeshObject(child) && child.userData.agentBlockout) applyAgentBlockoutMeshVisualState(child, props)
   })
 }
 
 function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
   const textureSetKeys = new Set<string>()
   root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return
+    if (!isMeshObject(child)) return
     for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
       if (!isCompletePbrMaterial(material)) continue
       const declaredTextureSetId = typeof material.userData.forgecad_visual_texture_set_id === 'string'
@@ -964,6 +1231,28 @@ function countEmbeddedPbrMaterials(root: THREE.Object3D): number {
   return textureSetKeys.size
 }
 
+function diagnosePbrMaterialGap(root: THREE.Object3D): string {
+  const materials: Array<THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial> = []
+  root.traverse((child) => {
+    if (!isMeshObject(child)) return
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+      if (isPbrMaterial(material)) materials.push(material)
+    }
+  })
+  if (materials.length === 0) return 'PBR_MATERIAL_TYPE_MISSING'
+  for (const [field, code] of [
+    ['map', 'PBR_BASE_COLOR_MAP_MISSING'],
+    ['metalnessMap', 'PBR_METALNESS_MAP_MISSING'],
+    ['roughnessMap', 'PBR_ROUGHNESS_MAP_MISSING'],
+    ['normalMap', 'PBR_NORMAL_MAP_MISSING'],
+    ['aoMap', 'PBR_AO_MAP_MISSING'],
+    ['emissiveMap', 'PBR_EMISSIVE_MAP_MISSING'],
+  ] as const) {
+    if (materials.every((material) => !material[field])) return code
+  }
+  return 'PBR_TEXTURE_SET_FRAGMENTED'
+}
+
 type CompletePbrMaterial = (THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial) & {
   map: THREE.Texture
   metalnessMap: THREE.Texture
@@ -973,9 +1262,32 @@ type CompletePbrMaterial = (THREE.MeshStandardMaterial | THREE.MeshPhysicalMater
   emissiveMap: THREE.Texture
 }
 
+function isMeshObject(object: THREE.Object3D): object is THREE.Mesh {
+  // Three.js documents the `isMesh` discriminator for runtime type checks.
+  // It remains reliable when Vite places GLTFLoader and the workbench runtime
+  // in separate chunks, whereas `instanceof` can fail across module copies.
+  return (object as THREE.Mesh).isMesh === true
+}
+
+function isPbrMaterial(
+  material: THREE.Material,
+): material is THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial {
+  const candidate = material as THREE.MeshStandardMaterial & { isMeshPhysicalMaterial?: boolean }
+  return candidate.isMeshStandardMaterial === true || candidate.isMeshPhysicalMaterial === true
+}
+
+function applyForgecadPbrDisplayCalibration(material: THREE.Material): void {
+  if (!isPbrMaterial(material)) return
+  const materialId = typeof material.userData.forgecad_texture_material_id === 'string'
+    ? material.userData.forgecad_texture_material_id
+    : ''
+  material.envMapIntensity = FORGECAD_PBR_ENVIRONMENT_INTENSITY_BY_MATERIAL_ID[materialId]
+    ?? FORGECAD_PBR_DEFAULT_ENVIRONMENT_INTENSITY
+}
+
 function isCompletePbrMaterial(material: THREE.Material): material is CompletePbrMaterial {
   return (
-    (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)
+    isPbrMaterial(material)
     && Boolean(material.map)
     && Boolean(material.metalnessMap)
     && Boolean(material.roughnessMap)
@@ -989,6 +1301,9 @@ type BlockoutPbrTextureFacts = {
   uniqueTextureCount: number
   estimatedGpuBytes: number
   colorSpacesValid: boolean
+  samplingValid: boolean
+  minAnisotropy: number
+  maxAnisotropy: number
 }
 
 type BlockoutFrameNdcFacts = {
@@ -1020,10 +1335,14 @@ function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView):
 
 function restoreModuleGraphPresentation(runtime: ViewportRuntime, props: ModuleGraphViewportProps): void {
   runtime.activeBlockoutPreview = null
+  const disposedCount = runtime.blockoutRoot.children.length
   clearObjectChildren(runtime.blockoutRoot)
+  if (disposedCount > 0) runtime.disposedBlockoutAssetCount += disposedCount
+  runtime.blockoutReplacementGeneration += 1
   runtime.blockoutRoot.visible = false
   runtime.moduleRoot.visible = true
   runtime.axes.visible = true
+  runtime.displayFloor.visible = true
   if (runtime.scene.fog instanceof THREE.Fog) {
     runtime.scene.fog.near = DEFAULT_SCENE_FOG_NEAR_MM
     runtime.scene.fog.far = DEFAULT_SCENE_FOG_FAR_MM
@@ -1033,7 +1352,11 @@ function restoreModuleGraphPresentation(runtime: ViewportRuntime, props: ModuleG
   frameVisibleObjects(runtime, props)
   recordBlockoutRuntimeFacts(runtime, null)
   const host = runtime.renderer.domElement.parentElement
-  if (host instanceof HTMLElement) host.dataset.presentationSource = 'module_graph'
+  if (host instanceof HTMLElement) {
+    host.dataset.presentationSource = 'module_graph'
+    host.dataset.blockoutReplacementGeneration = String(runtime.blockoutReplacementGeneration)
+    host.dataset.disposedBlockoutAssetCount = String(runtime.disposedBlockoutAssetCount)
+  }
   recordPresentationRuntimeFacts(runtime)
 }
 
@@ -1070,25 +1393,80 @@ function recordPresentationRuntimeFacts(runtime: ViewportRuntime): void {
   })
 }
 
-function collectPbrTextureFacts(root: THREE.Object3D): BlockoutPbrTextureFacts {
+function pbrTextureMaps(
+  material: THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial,
+): Array<[THREE.Texture | null, string]> {
+  return [
+    [material.map, THREE.SRGBColorSpace],
+    [material.metalnessMap, THREE.NoColorSpace],
+    [material.roughnessMap, THREE.NoColorSpace],
+    [material.normalMap, THREE.NoColorSpace],
+    [material.aoMap, THREE.NoColorSpace],
+    [material.emissiveMap, THREE.SRGBColorSpace],
+  ]
+}
+
+function configurePbrTextureSampling(root: THREE.Object3D, renderer: THREE.WebGLRenderer): number {
+  const hardwareMaxAnisotropy = renderer.capabilities.getMaxAnisotropy()
+  const targetAnisotropy = Math.min(
+    PBR_TEXTURE_ANISOTROPY_CAP,
+    Number.isFinite(hardwareMaxAnisotropy) ? Math.max(1, hardwareMaxAnisotropy) : 1,
+  )
+  const textures = new Set<THREE.Texture>()
+  root.traverse((child) => {
+    if (!isMeshObject(child)) return
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+      if (!isPbrMaterial(material)) continue
+      for (const [texture] of pbrTextureMaps(material)) {
+        if (texture) textures.add(texture)
+      }
+    }
+  })
+  for (const texture of textures) {
+    const samplingChanged = (
+      texture.wrapS !== THREE.RepeatWrapping
+      || texture.wrapT !== THREE.RepeatWrapping
+      || texture.magFilter !== THREE.LinearFilter
+      || texture.minFilter !== THREE.LinearMipmapLinearFilter
+      || !texture.generateMipmaps
+      || texture.anisotropy !== targetAnisotropy
+    )
+    texture.wrapS = THREE.RepeatWrapping
+    texture.wrapT = THREE.RepeatWrapping
+    texture.magFilter = THREE.LinearFilter
+    texture.minFilter = THREE.LinearMipmapLinearFilter
+    texture.generateMipmaps = true
+    texture.anisotropy = targetAnisotropy
+    if (samplingChanged) texture.needsUpdate = true
+  }
+  return targetAnisotropy
+}
+
+function collectPbrTextureFacts(
+  root: THREE.Object3D,
+  expectedAnisotropy: number,
+): BlockoutPbrTextureFacts {
   const textures = new Set<THREE.Texture>()
   let colorSpacesValid = true
+  let samplingValid = true
   root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return
+    if (!isMeshObject(child)) return
     for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
-      if (!(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)) continue
-      const maps: Array<[THREE.Texture | null, string]> = [
-        [material.map, THREE.SRGBColorSpace],
-        [material.metalnessMap, THREE.NoColorSpace],
-        [material.roughnessMap, THREE.NoColorSpace],
-        [material.normalMap, THREE.NoColorSpace],
-        [material.aoMap, THREE.NoColorSpace],
-        [material.emissiveMap, THREE.SRGBColorSpace],
-      ]
-      for (const [texture, expectedColorSpace] of maps) {
+      if (!isPbrMaterial(material)) continue
+      for (const [texture, expectedColorSpace] of pbrTextureMaps(material)) {
         if (!texture) continue
         textures.add(texture)
         if (texture.colorSpace !== expectedColorSpace) colorSpacesValid = false
+        if (
+          texture.wrapS !== THREE.RepeatWrapping
+          || texture.wrapT !== THREE.RepeatWrapping
+          || texture.magFilter !== THREE.LinearFilter
+          || texture.minFilter !== THREE.LinearMipmapLinearFilter
+          || !texture.generateMipmaps
+          || texture.anisotropy !== expectedAnisotropy
+        ) {
+          samplingValid = false
+        }
       }
     }
   })
@@ -1102,7 +1480,15 @@ function collectPbrTextureFacts(root: THREE.Object3D): BlockoutPbrTextureFacts {
     // PNG byte size is not a GPU budget and must not be substituted here.
     estimatedGpuBytes += Math.ceil(width * height * 4 * (4 / 3))
   }
-  return { uniqueTextureCount: textures.size, estimatedGpuBytes, colorSpacesValid }
+  const anisotropyValues = [...textures].map((texture) => texture.anisotropy)
+  return {
+    uniqueTextureCount: textures.size,
+    estimatedGpuBytes,
+    colorSpacesValid,
+    samplingValid,
+    minAnisotropy: anisotropyValues.length ? Math.min(...anisotropyValues) : 0,
+    maxAnisotropy: anisotropyValues.length ? Math.max(...anisotropyValues) : 0,
+  }
 }
 
 function recordBlockoutRuntimeFacts(
@@ -1121,6 +1507,9 @@ function recordBlockoutRuntimeFacts(
   host.dataset.blockoutPbrTextureCount = String(facts?.uniqueTextureCount ?? 0)
   host.dataset.blockoutPbrEstimatedGpuBytes = String(facts?.estimatedGpuBytes ?? 0)
   host.dataset.blockoutPbrColorSpaces = facts ? (facts.colorSpacesValid ? 'valid' : 'invalid') : 'not_applicable'
+  host.dataset.blockoutPbrSamplingValid = facts ? String(facts.samplingValid) : 'not_applicable'
+  host.dataset.blockoutPbrMinAnisotropy = String(facts?.minAnisotropy ?? 0)
+  host.dataset.blockoutPbrMaxAnisotropy = String(facts?.maxAnisotropy ?? 0)
   host.dataset.blockoutDisplayScale = String(display?.displayScale ?? 0)
   host.dataset.blockoutDisplayDiagonalMm = String(display?.displayDiagonalMm ?? 0)
   host.dataset.blockoutSourceBoundsMm = JSON.stringify(display?.sourceBoundsMm ?? [])
@@ -1157,7 +1546,7 @@ function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphV
       transparent: material.transparent,
       opacity: material.opacity,
       depthWrite: material.depthWrite,
-      ...(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial
+      ...(isPbrMaterial(material)
         ? { emissive: material.emissive.getHex(), emissiveIntensity: material.emissiveIntensity }
         : {}),
     }
@@ -1165,7 +1554,7 @@ function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphV
     material.transparent = props.ghostPreview || props.xRay || original.transparent
     material.opacity = props.ghostPreview ? 0.58 : props.xRay ? 0.24 : original.opacity
     material.depthWrite = props.ghostPreview || props.xRay ? false : original.depthWrite
-    if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+    if (isPbrMaterial(material)) {
       material.emissive.setHex(original.emissive ?? 0)
       material.emissiveIntensity = original.emissiveIntensity ?? 1
       if (selected) {
@@ -1406,6 +1795,40 @@ function reconcileNodeObjects(runtime: ViewportRuntime, graph: Graph) {
     disposeNodeInstance(object)
     runtime.nodeObjects.delete(nodeId)
   })
+}
+
+function createReferenceImageHeaderPlane(
+  width: number,
+  y: number,
+  referenceClass: 'single_image' | 'multi_view_contact_sheet',
+): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1024
+  canvas.height = 112
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('只读参考图片标签无法创建')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#10243a'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#55b9ff'
+  context.font = '600 42px system-ui, sans-serif'
+  context.textBaseline = 'middle'
+  context.fillText('只读参考图', 30, 56)
+  context.fillStyle = '#b5c8db'
+  context.font = '30px system-ui, sans-serif'
+  context.textAlign = 'right'
+  context.fillText(referenceClass === 'multi_view_contact_sheet' ? '多视图联系表 · 非几何真值' : '单图线索 · 非几何真值', 994, 56)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.minFilter = THREE.LinearFilter
+  texture.magFilter = THREE.LinearFilter
+  const header = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, Math.min(width * (canvas.height / canvas.width), 40)),
+    new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false, side: THREE.DoubleSide }),
+  )
+  header.name = 'ReadOnlyReferenceImageHeader'
+  header.position.set(0, y, 0.1)
+  return header
 }
 
 function clearObjectChildren(root: THREE.Object3D) {

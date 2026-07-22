@@ -1,10 +1,16 @@
 import type { SegmentAgentBlockoutResponse } from '../../shared/types.js'
 
-export type AgentBlockoutGlbKind = 'compiled_agent_pbr' | 'external_reference'
+export type AgentBlockoutGlbKind =
+  | 'compiled_agent_pbr'
+  | 'compiled_agent_preview_pbr'
+  | 'compiled_agent_production_pbr'
+  | 'external_reference'
+export type AgentBlockoutGlbPayload = string | ArrayBuffer
 
 export type AgentBlockoutDisplayState = {
   projectId: string | null
-  glbBase64: string | null
+  /** Legacy candidate builds are base64; hydrated/derived artifacts stay binary. */
+  glbBase64: AgentBlockoutGlbPayload | null
   glbKind: AgentBlockoutGlbKind | null
   shapeProgram: Record<string, unknown> | null
   segmentation: SegmentAgentBlockoutResponse | null
@@ -35,9 +41,9 @@ export type AgentBlockoutDisplayAction =
   | { type: 'segmentation_received'; projectId: string | null; requestId: number; segmentation: SegmentAgentBlockoutResponse }
   | { type: 'segmentation_failed'; projectId: string | null; requestId: number }
   | { type: 'preview_failed'; projectId: string | null; requestId: number }
-  | { type: 'hydrate'; projectId: string | null; requestId: number; glbBase64: string | null; glbKind: AgentBlockoutGlbKind | null; shapeProgram: Record<string, unknown> | null; segmentation: SegmentAgentBlockoutResponse | null }
-  | { type: 'set_glb'; projectId: string | null; requestId: number; glbBase64: string | null; glbKind: AgentBlockoutGlbKind | null }
-  | { type: 'set_shape_program'; projectId: string | null; shapeProgram: Record<string, unknown> | null }
+  | { type: 'hydrate'; projectId: string | null; requestId: number; glbBase64: AgentBlockoutGlbPayload | null; glbKind: AgentBlockoutGlbKind | null; shapeProgram: Record<string, unknown> | null; segmentation: SegmentAgentBlockoutResponse | null }
+  | { type: 'set_glb'; projectId: string | null; requestId: number; glbBase64: AgentBlockoutGlbPayload | null; glbKind: AgentBlockoutGlbKind | null }
+  | { type: 'set_shape_program'; projectId: string | null; requestId: number; shapeProgram: Record<string, unknown> | null }
   | { type: 'clear'; projectId: string | null }
 
 /**
@@ -93,7 +99,15 @@ export function agentBlockoutDisplayReducer(
     case 'set_glb':
       return isCurrent(state, action) ? { ...state, glbBase64: action.glbBase64, glbKind: action.glbKind } : state
     case 'set_shape_program':
-      return state.projectId === action.projectId ? { ...state, shapeProgram: action.shapeProgram } : state
+      return state.projectId === action.projectId && action.requestId > state.latestRequestId
+        ? {
+            ...state,
+            glbBase64: null,
+            glbKind: null,
+            shapeProgram: action.shapeProgram,
+            latestRequestId: action.requestId,
+          }
+        : state
     case 'clear':
       return state.projectId === action.projectId
         ? {
