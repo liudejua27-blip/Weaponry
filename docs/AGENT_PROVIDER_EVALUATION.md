@@ -43,6 +43,8 @@ npm run agent:e001-provider-evaluation-dry-run
 npm run agent:e001-provider-evaluation-contract-smoke
 npm run agent:e002-provider-evaluation
 npm run agent:e002-provider-evaluation-runner-smoke
+npm run desktop:deepseek-mvp-acceptance
+npm run desktop:deepseek-mvp-acceptance-smoke
 ```
 
 前两个命令只验证合同和 fixture；第三个是执行器的默认 dry-run。前三者均报告 `network_calls_made=0`、`asset_or_snapshot_writes=0`、`default_spend_cap_cny=0`，不读取 Keychain、secret file、环境变量或 Provider 配置，也不写评测结果。第四个只用合成 Provider 覆盖完整 80+20 运行、超时、取消、无 usage、预算和脱敏；它不联网、不会读取本机密钥，也永远不是模型质量证据。
@@ -74,7 +76,9 @@ npm run agent:e002-provider-evaluation -- \
   --provider-config-source macos-keychain
 ```
 
-执行器只读取现有的 OpenAI-compatible 本机 Provider 配置，并将单请求 timeout 强制收紧到 45 秒以内、输出 token 收紧到 1,200 以内。macOS 本机 Alpha 应明确选择 `--provider-config-source macos-keychain`：它读取工作台已保存的非敏感 `~/Library/Application Support/ForgeCAD/provider.json` 和同一 `ForgeCAD Agent Provider/default` Keychain 项；密钥只在评测进程内存中使用，绝不会导出到环境、报告、ledger 或控制台。浏览器开发才可使用默认 `environment` 来源和既有 0600 secret file。它不从 Provider usage 猜测人民币费用；`approved_budget_cny` 是人工批准门，实际账单必须在 Provider 控制台另行核对。无法读取有效 Provider 配置时，在任何网络调用前拒绝。真实运行开始前，执行器会在本机 `~/.forgecad/provider-evaluation-runs/` 原子保留运行编号：文件只含编号哈希对应的 fixture SHA-256，目录/文件权限分别收紧为 0700/0600；同一编号即使因崩溃中断也不会自动重试。
+`agent:e002-provider-evaluation` 保留其历史四领域合同与 synthetic 评测用途，但 Python 已不再允许 `--provider-config-source macos-keychain`：该参数会在任何凭据读取或网络调用之前固定拒绝为 `E002_RUST_NATIVE_PROVIDER_REQUIRED`。这是 K003 的所有权边界，不是可绕过的暂时限制；Python 不得执行 Keychain bridge。浏览器开发才可使用默认 `environment` 来源和既有 0600 secret file 验证合同。
+
+macOS 原生单 Turn 验收改由 `desktop:deepseek-mvp-acceptance` 完成。它默认 dry-run；真实运行必须同时传入 `--confirm-live-provider`、`--accept-network`、确认字符串、唯一 `live_...` 运行编号和绝对 JSON 输出路径。启动器只将这些非敏感开关交给已构建的应用，Rust `ProviderCredentialStore` 才会在进程内访问既有 Keychain 项。该验收只允许一次未确认 Turn、一次取消和一次本地 unsupported-provider fail-closed；临时项目必须无资产或 Snapshot 写入，报告仅保存运行编号 SHA-256、固定状态/错误类别与 token 汇总。它不会保存 Provider Key、Base URL、模型名、Prompt、响应或绝对 Library 路径。
 
 live run 的停止策略固定为：每条最多一次请求、单请求最多 45 秒、最多 1,200 输出 token、最多 120,000 输出 token、最多 720,000 已报告总 token、最多 80 次 Provider 请求。达到任一上限时，在下一条请求前停止；不会自动重试或自动增加预算。20 条澄清/拒绝输入由隔离评测 preflight 本地拦截，正常 Agent Turn 不会因此自动触发评测。
 
@@ -86,6 +90,6 @@ live run 的停止策略固定为：每条最多一次请求、单请求最多 4
 
 ## 6. 当前状态与后续任务
 
-`FGC-E001` 已提供 4×20+20 fixture、零费用默认预算、人工授权字段、脱敏边界和无网络 smoke；`FGC-E002` 已提供默认拒绝联网的执行器、80 次 Provider 调用上限、本地安全停止、固定错误分类和内存中的脱敏 run report。二者均不证明任何 Provider 的生成质量，也不产生外部计费。
+`FGC-E001` 已提供 4×20+20 fixture、零费用默认预算、人工授权字段、脱敏边界和无网络 smoke；`FGC-E002` 已提供默认拒绝联网的 Python 合同执行器、80 次 Provider 调用上限、本地安全停止、固定错误分类和内存中的脱敏 run report。Rust-native 单 Turn 验收是其 macOS Keychain 对应物，不改变 E002 的四领域人工质量基准。二者均不证明任何 Provider 的生成质量，也不产生外部计费，除非操作者显式执行上面的 live 命令。
 
 只有用户授权一次实际 run、人工审阅并保留脱敏汇总后，才能在能力矩阵中新增真实 Provider baseline 的证据。

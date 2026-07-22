@@ -1,6 +1,6 @@
 # ForgeCAD Codex 执行总计划
 
-版本：2026-07-15
+版本：2026-07-19
 状态：后续实现工作的权威顺序
 
 执行前先阅读 [DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。本计划定义目标顺序，不等同于当前用户能力；当前能力以 USER_GUIDE 和 Gate 矩阵为准。
@@ -11,8 +11,8 @@
 
 ```text
 创意理解
-→ Agent 内部生成、编译和评审多个候选
-→ 只展示一个最佳完整外观及轻量概念 3D/概念视图
+→ 一次完整合成、真实编译/readback 硬门与最多两次同意图原位修复
+→ 只展示通过硬门的唯一完整外观及轻量运行的生产级概念 3D/概念视图
 → 自动分件候选
 → 可编辑 Agent 资产
 → 部件比例、姿态、替换和材质
@@ -23,7 +23,7 @@
 
 ## 2. 当前基线
 
-当前已有 G1–G7 最小纵向切片：Agent Kernel、通用合同、ShapeProgram validator、box/cylinder Worker、三方向 Planner、四领域 48 个后端 blockout 变体、分件候选、AgentAssetVersion、受限 ChangeSet、13 个六类视觉材质、项目内组件、GLB 导出/readback 和只读 GLB 参考导入。前端仍只暴露三方向，48 变体目录不是已实现用户能力。
+当前已有 G1–G7 最小纵向切片：Agent Kernel、通用合同、ShapeProgram validator、box/cylinder Worker、legacy 三方向 Planner、四领域 48 个后端 blockout 变体、分件候选、AgentAssetVersion、受限 ChangeSet、13 个六类视觉材质、项目内组件、GLB 导出/readback 和只读 GLB 参考导入。F026 已移除三方向 UI；过渡期只允许第一条文本方向通过兼容适配器编译/展示一个 3D 结果，48 变体目录不是已实现用户能力。
 
 当前生产阻断：
 
@@ -36,7 +36,7 @@
 - `FGC-Q002` 已冻结 `GET /active-design` 的兼容初始化边界，并将质量检查收紧为 Snapshot ETag + Idempotency-Key 的重放写入；广泛多客户端压力仍未覆盖；
 - Material Zone UI 已把纹理存在性、来源摘要、参数回退、稳定 zone 选择和领域兼容筛选呈现给零基础用户；当前确定性 blockout 多数只有一个 zone，zone 选择的 Snapshot 重启持久化和更多正式资产槽位仍未完成；
 - 备份已覆盖 `agent_imported_glbs.object_path`，恢复 smoke 已通过 API 回读 Agent head、Snapshot 与 export source/version；
-- packaged sidecar 为空；
+- macOS arm64 packaged sidecar 已为非空并通过 K001 程序化 WebView/重启 cursor 链；Intel macOS、Windows x64 与 Linux x64 sidecar 仍为空，正式跨平台发布继续 blocked；
 - 真实 Provider truth set 未完成。
 
 ## 3. 依赖主链
@@ -61,7 +61,7 @@ R1 sidecar、恢复、安装和发布
 
 后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-M101`–`FGC-M107`、`FGC-C101`–`FGC-C104`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A004`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F025`、`FGC-P008` 与 `FGC-P002` 已完成。ADR-0010 取代原三方向目标，ADR-0011 再把视觉真实度落实为 Profile/Loft/Sweep/CSG/Recipe 的 3D 机械设计系统。A004 已让离线 Planner 与 DeepSeek 在同一 Turn 内使用代码所有的 Product Tool Registry 完成候选构建、真实 readback、渲染、硬门与未保存 preview；`FGC-M108` 正在执行，仍是唯一主链原子任务。原 `V002` 为 `superseded`。P009 保持独立发布回归任务。当前 R006/G812/G813 的三方向和三项轮换仍是 Alpha 事实，V003 完成前不能从用户指南删除；它们也不能被当作真实 Provider 或最终视觉质量。`FGC-E003` 仍是 external，只能由用户针对一次具体 run 明确授权后手工执行。
+当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-R007A`–`FGC-R007B`、`FGC-M101`–`FGC-M108A`、`FGC-M109A`、`FGC-C101`–`FGC-C108`、`FGC-C110A`–`FGC-C110B`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A005`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F026`、`FGC-P008`、`FGC-P002`、`FGC-K001`–`FGC-K003` 与 `FGC-V003` 已完成当前代码级退出门。C110C 的 AssemblyDelta Core 合同、6 项 Rust focused tests 和 ChangeSet 编译接入已完成，但新 packaged add+pose+snap readback 尚未通过；第一次复验因 compact confirm envelope 读取错误而 fail-closed，已修正探针并待重跑，旧 `@1` packaged 证据不替代它。C110C 仍未提供任意架构、任意风格或任意自由装配；真实 DeepSeek structured delta、更多 Recipe 家族、Python/GLB readback 和 M108B 独立真人 `4/5` 仍是下一阶段。完整 M109 的四领域 2K/压缩纹理与设备分级继续等待 M108B。
 
 ## 4. S1：ActiveDesignSnapshot
 
@@ -109,7 +109,7 @@ R1 sidecar、恢复、安装和发布
 
 ## 6. S3：前端状态机、E2E 和 CI
 
-目标：把工作台组件拆为可测试的状态与视图模块。F001 characterization 已在本机 Chrome 通过，F002–F006 已完成 AgentConversation、AgentStepItem、AgentSelectionCard、四类抽屉、组合层和可访问性收敛；FGC-T002 已将单一 r3 smoke 拆成 12 个独立工作台场景并纳入 CI；FGC-T003 已完成单 WebGL、内存和 bundle 预算门禁；FGC-G801 已完成 wedge/capsule，FGC-G802 已完成 profile/extrude，FGC-G803 已完成 revolve，FGC-G804 已完成 mirror/array/radial_array，FGC-G805 已完成受限 union/subtract，FGC-G806 已完成受控 bevel_approx/surface_panel，G807 已完成四领域 48 个后端 blockout 多样性门禁；后续需把变体目录以零基础用户可理解的方式接入前端。
+目标：把工作台组件拆为可测试的状态与视图模块。F001 characterization 已在本机 Chrome 通过，F002–F006 已完成 AgentConversation、AgentStepItem、AgentSelectionCard、四类抽屉、组合层和可访问性收敛；FGC-T002 当前包含 14 个独立工作台场景并纳入 CI；FGC-T003 已完成单 WebGL、内存和 bundle 预算门禁；FGC-G801 已完成 wedge/capsule，FGC-G802 已完成 profile/extrude，FGC-G803 已完成 revolve，FGC-G804 已完成 mirror/array/radial_array，FGC-G805 已完成受限 union/subtract，FGC-G806 已完成受控 bevel_approx/surface_panel，G807 已完成四领域 48 个后端 blockout 多样性门禁；后续需把变体目录以零基础用户可理解的方式接入前端。
 
 建议结构：
 
@@ -175,12 +175,21 @@ FGC-G819 运行时操作白名单单一真值
   → FGC-F025 Agent-first 工作台与 legacy 隔离
   → FGC-D005 四领域语义比例配方与受限绑定
   → FGC-A004 受限 Agent Action Loop
-  → FGC-M108 多材质区与高真实度 PBR 管线
+  → FGC-M108A 生产概念工件真值与轻量 PBR 管线
+  → FGC-K001 Rust app-server 协议、initialize 与桌面桥接
+  → FGC-K002 Rust Agent 生命周期、Provider 与 Product Tool 所有权
+  → FGC-K003 Rust Project/Snapshot/ChangeSet/SQLite 所有权
   → FGC-C105 可编辑组件配方
-  → FGC-V003 内部候选评审与单一最佳结果
-  → FGC-F026 Codex 式简洁工作台与左上 mini 3D
+  → FGC-M108B Recipe 驱动的生产级概念视觉基线与独立 4/5 门（外部 blocked，不是当前实现依赖）
+  → FGC-F026 Codex 式简洁工作台 shell、左侧历史/组件、右侧 3D 与底部输入
   → FGC-A005 可设计的产品专属 Skill
-  → FGC-R007 参考模型引导重建
+  → FGC-R007A 参考证据与受限 ChangeSet 闭环
+  → FGC-V003 单次合成、硬门与有界原位修复的唯一结果
+  → FGC-C106 机械臂优先生产 Recipe 目录
+  → FGC-R007B 生产 Recipe 参考保真度
+  → FGC-M109A 机械臂同源轻量预览与按需 1K/99k 展示档
+  → FGC-M108B 四领域正式视觉验收
+  → FGC-M109 自适应 production profile / 1K–2K 压缩 PBR / LOD
   → FGC-D006 通用机械领域包扩展
 ```
 
@@ -188,15 +197,21 @@ FGC-G819 运行时操作白名单单一真值
 - Q003 必须从同一编译/GLB readback 结果取得 triangle、bounds、operation 与失败信息，不以重复的 primitive 常数估算代替；
 - G820–G823 必须按 ProfileSketch、增强 Extrude/Revolve、Loft、Sweep 四个原子任务逐项建立 Schema、Pydantic、runtime、预算、确定性 topology hash、GLB readback 和失败测试；SVG/HTML 只做编辑器，不成为几何真值；
 - G824 只做现有 Worker、Manifold Python 和 Manifold WASM 的可复现实测与 ADR，不在 benchmark 任务中同时集成；G824A–G824D 已补齐 provenance/readback、隔离取消、真实 SQLite/对象库提升、macOS packaged 预算/许可证和 Windows frozen artifact。G825 已只接入 ADR-0013 选择的 Manifold Python 生产 CSG，并保存不可变 feature node/input/result hash 与 surface/material provenance，失败不输出部分 GLB；后续不得再引入第二默认内核或隐藏 fallback；
-- G826 已建立受控边缘完成、法线、UV0、tangent 与 stable face/Material Zone provenance；它没有自动引入纹理资产或工程材料，M108 才消费这些真实表面事实；
+- G826 已建立受控边缘完成、法线、UV0、tangent 与 stable face/Material Zone provenance；它没有自动引入纹理资产或工程材料，M108A 才消费这些真实表面事实；
 - A003 已解决未配置却像“无响应”的问题：metadata/Keychain/supervisor/capability preflight、真实网络调用标记、stream/cancel、用量和 DeepSeek 400/401/402/422/429/500/503/空 JSON/Schema 错误均有 Gate；失败不静默回退并冒充 Provider 成功；
 - F025 只隔离 legacy 参数、旧导出和 Graph Inspector，不移动 Agent Snapshot/CAS、ChangeSet、质量、下载或 renderer 真值；
 - D005 只能声明四领域的概念比例/姿态配方和有界步长，不增加自由工程尺寸、制造参数或功能结论；
 - A004 已只允许 DeepSeek/离线 Planner 调用 13 个 ForgeCAD Product Tool，遵守 G819、审批、12 次调用、时间和费用，并按官方 thinking/tool-call 合同在同一短生命周期上下文续传 `reasoning_content`；工具 Item 不保存原始隐藏推理，桌面不再自动串接三次方向预览请求；
-- M108/C105 在 G826 真实表面事实之上依次建立完整 PBR/多材质区与可编辑组件 Recipe；V003 随后才能让 Agent 自动选择已实现建模语法、Recipe 和最佳候选，只展示一个通过硬门的结果；原 V002 三方向选择目标不再实施；
-- F026 只调整组合层与信息架构：3D 默认缩到左上，点击后移动同一 canvas 到中央 focus，不创建第二 renderer；
-- A005 的专属 Skill 必须声明 Schema、严格工具策略、示例/eval、版本和来源，不允许任意代码/URL/路径；
-- R007/D006 分别推进只读参考引导重建和新机械领域包，仍按一次一个原子任务实施。
+- M108A 先在 G826 真实表面事实之上闭合双档 GLB、完整 PBR/多材质区、production readback、质量/导出和派生缓存；它不承担独立视觉 `4/5`，也不能把 profile 名称当作视觉达标；
+- K001 已按 ADR-0014 完成协议与桌面传输所有权：Rust-owned 入口覆盖 initialize、JSON-RPC、通知、取消、背压、cursor replay 和 Tauri bridge，packaged WebView 还验证重启后从既有 cursor 连续恢复；K001 的 Python writer 字段只作为历史迁移 fixture 保留；
+- K002 已完成 Rust Agent 生命周期/Provider/Product Tool 所有权迁移；K003 已完成 Project/Snapshot/ChangeSet/Quality/Export、SQLite/WAL、CAS 和对象库所有权迁移。当前只有 Rust app-server/core 写产品状态，Python 只执行受限几何；
+- C105 已在 K003 的 Rust-owned core 上完成代码所有、first-party visual-only 的可编辑组件 Recipe：8 项 registry 覆盖四领域，候选展开零写，固定 optional child slot、connector/pivot、Recipe ref/registry hash 与来源审阅事实在确认后持久化，non-root active edit 与替换/比例/材质继续走 ChangeSet preview→confirm，Python 只编译 Rust 已展开的受限几何；版本升级、undo/redo、重启和 stale/lock 拒绝均有 Gate。其四领域 4 个 production GLB 合计 416 triangles，只能作为机制/跨语言线路证据。M108B 的工程 checkpoint 已建立，但正式 Recipe kit 与三位独立真人逐领域三项中位数 `4/5` 尚未收齐，因而保持外部 `blocked`，不再作为当前实现链的前置；
+- C106 已完成 3 roots、10 Parts/9 connections、22,212 triangles/21 primitives/10 zones/512 v4 PBR 与 9/9 A005 slots 的机械臂黄金路径；exact discriminator 保证每 Turn 只选 1 个 root，production 真实经 `RestrictedGeometryExecutor`，provider call 从 deny-on-call/FakeDeepSeekClient 实测为 0，A005 immutable v2 与旧 v1 隔离。这是 M108A/Q003/G826 同源的机械臂机制退出证据，不是图片级或 M108B 真人 `4/5`；
+- C107 在不改变上述产品所有权下，把 service-display 深化为 56,244 triangles/109 primitives，并将受限 `SurfaceLayerProgram@1` 经密封 Rust lowering 和 Python restricted executor 真实绑定到 GLB Material Zone；SVG 只负责编辑预览，同一 renderer 增加选择/测量并复用既有剖切。当前仍只有 512 贴图且截图未达目标图，1K/2K 与 LOD 留给 M109；
+- M109A 已在用户明确的机械臂 MVP 优先级下先行完成：preview 保持 18,324 triangles/128 PBR，按需 production 达到 99,092 triangles/1K 五通道 PBR，并保持同一 ShapeProgram、产品状态、质量/导出/CAS 与单 renderer。截图证明剩余主矛盾是 Recipe 结构细节而不是三角形预算；完整 M109 仍负责四领域 2K/压缩纹理和设备分级；
+- F026 先调整组合层与信息架构：左侧承载项目/对话记录与组件库，中央承载会话/步骤及 `GenerationResultPresentation@1` 状态槽，底部固定输入与“+”菜单，3D 停靠在右侧并可把同一 canvas 移到中央 focus；不创建第二 renderer。必须移除三方向 UI；legacy Planner 仅能经临时适配器取第一条文本方向并编译/展示一个 3D 结果，不能把该结果称为 V003；
+- A005 已完成受限表面细节语言；R007A 已让用户授权的图片/GLB 作为只读、可追溯的证据并经标准 ChangeSet 闭环重建。C106 已提供机械臂 production Recipe 基线；R007B 已证明单图/多视图/GLB 会形成不同受限计划，并在真实 packaged 同一 renderer 中完成只读参考→新结果 exact-lineage 对比。其 manifest 仍固定 `visual_fidelity_validated=false`，视觉相似度继续由 M108B/人工评审处理；
+- V003 最后将 Agent 路由到一次完整合成、真实 hard-gate 和最多两次同意图原位修复。它不生成多个完整模型、不做评分比较；失败明确、零版本副作用，“换一个思路”开启新 Turn。D006 继续在这些任务之后按一次一个原子任务实施。
 
 ### 7.2 3D 机械设计系统的几何边界
 

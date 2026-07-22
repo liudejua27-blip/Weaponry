@@ -151,7 +151,7 @@ fixture 最低要求：
 
 ## 9. G4：完整外观 Agent 闭环
 
-当前已落地 `MechanicalConceptPlan@1` 的内存模型与 Planner port：默认使用 deterministic fallback；设置 `FORGECAD_AGENT_PROVIDER=openai_compatible` 后通过本机 secret file 调用 OpenAI-compatible Chat Completions。离线 fake-provider smoke 已覆盖 JSON Schema 请求、三方向响应和未配置拒绝。真实外网仍未纳入 smoke；方向确认后现在可调用轻量 Geometry Worker 生成预览，但还不会写入正式版本。
+当前已落地 `MechanicalConceptPlan@1` 的内存模型与 Planner port：默认使用 deterministic fallback；设置 `FORGECAD_AGENT_PROVIDER=openai_compatible` 后通过本机 secret file 调用 OpenAI-compatible Chat Completions。离线 fake-provider smoke 已覆盖 JSON Schema 请求、legacy 三方向响应和未配置拒绝。真实外网仍未纳入 smoke；F026 只从该 legacy 计划取第一条文本方向生成单个临时预览，且不会写入正式版本或冒充 V003。
 
 新增工具：
 
@@ -245,7 +245,7 @@ export_project
 
 每个领域至少 5 名第一次使用者，≥70% 无口头指导完成；首次有效导出中位数 <5 分钟。
 
-当前状态：部分实现但未退出。主工作台已提供 Agent 输入、三方向、blockout、分件候选、受限部件动作、材质、检查、不可变撤销/重做和 GLB 导出；Agent 路径的版本/选择/preview/质量/GLB 导出已接入 Snapshot，核心浏览器 smoke 已通过。仍缺未知领域澄清、完整并发、前端拆分、字号/点击目标验收和原生安装 E2E。当前用户能力以 [USER_GUIDE.md](USER_GUIDE.md) 为准。
+当前状态：部分实现但未退出。主工作台已提供 Agent 输入、第一条 legacy 文本方向的单结果兼容预览、blockout、分件候选、受限部件动作、材质、检查、不可变撤销/重做和 GLB 导出；Agent 路径的版本/选择/preview/质量/GLB 导出已接入 Snapshot，核心浏览器 smoke 已通过。仍缺未知领域澄清、完整并发、前端拆分、字号/点击目标验收和原生安装 E2E。当前用户能力以 [USER_GUIDE.md](USER_GUIDE.md) 为准。
 
 ## 13. G8：发布与 legacy 退出
 

@@ -1,10 +1,35 @@
-# FGC-M108 独立视觉基准操作协议
+# FGC-M108B 独立视觉基准操作协议
 
-状态：当前可执行；评分结果尚未收集。
+状态：协议已冻结；当前只能生成 `production_concept` 开发预检包。M108A、K003 与 C105 已通过；M108B 的 12 份 Recipe-backed 正式审阅资产和独立真人评分尚未完成。
 
-目的：验证四领域同源 GLB 在 ForgeCAD 工作台的实际 PBR 视口中，是否达到任务卡所要求的比例、材质可读性和表面细节中位数门槛。它不是 Provider 评测、工程验证、制造评价或“照片级真实”声明。
+历史兼容：文件名、`M108VisualBenchmark*` Schema 和 `agent:m108-*` 命令保留旧 M108 名称。按 ADR-0015，自动生产工件 Gate 归 `FGC-M108A`，本协议中的 Recipe 资产与真人 `4/5` 退出门归 `FGC-M108B`。
 
-## 1. 生成不可变审阅包
+目的：验证四领域 Recipe-backed production GLB 在同一 ForgeCAD PBR 工作台中的比例、材质可读性和表面细节是否达到生产级概念资产基线。它不是 Provider 评测、照片级保证、工程验证、制造评价或对所有提示的普遍质量承诺。
+
+## 1. M108A 工件前置条件
+
+进入人工审阅前，每份 GLB 必须先通过 M108A 的生产工件合同：
+
+- 同一不可变 ShapeProgram/AgentAssetVersion 可分别派生 `interactive_preview` 与 `production_concept`，不创建第二版本链；
+- 正式审阅只接受 `artifact_profile_id=production_concept`；
+- GLB root extras 与 `GeometryCompileReadback@2` 携带完全匹配的 profile manifest/hash；
+- production 使用 48 段旋转体、10 段 capsule 半球、Loft/Sweep 平滑法线、512×512 v4 五通道 PBR；
+- 实际使用的 texture-set ID 以 `_builtin_v4` 结尾，map ID 含 `_v4_`，五通道为 base color、metallic-roughness、normal、occlusion、emissive；
+- Part、Material Zone、material、operation/output role 和 source-operation 身份与同源 preview 保持一致；
+- GLB、readback、质量、正式展示、下载和导出使用同一 production 工件；profile 缺失、篡改、128/512 或 v3/v4 混用均拒绝；
+- production 派生缓存使用内容寻址对象，不把 GLB/base64 写入 SQLite、事件、日志或索引。
+
+这些条件由以下自动命令验证：
+
+```bash
+npm run agent:m108-production-concept-smoke
+npm run agent:m108-gate
+npm run desktop:m108-workbench-renderer-smoke
+```
+
+自动 Gate 通过只能写“生产概念工件管线已验证”，不能写“视觉已达到生产级概念资产基线”。
+
+## 2. 当前开发预检包
 
 在仓库根目录执行：
 
@@ -12,49 +37,91 @@
 npm run agent:m108-visual-benchmark-kit
 ```
 
-该命令只从 `smoke_m108_visual_pbr.py` 的确定性 showcase 编译路径选择四份 GLB（每个已启用领域一份），写入被忽略的 `output/m108-visual-benchmark/`。`manifest.json` 记录每份 GLB 的 SHA-256、字节数、triangle、zone、实际 authored 材质 ID、规范 texture material、纹理集、纹理尺寸、受限 edge-finish primitive 数和固定工作室环境；`review-responses.json` 必须初始为空。当前审阅包要求五通道纹理均为材质专属、确定性生成的 128×128 PNG，且其 texture-set ID 以 `_builtin_v3` 结尾、map ID 含 `_v3_`、`version=3`，并至少回读一个受限 `bevel_approximation`；旧 v1/v2 仅用于历史资产 readback，不能混入新审阅包，任何实际使用材质的跨版本混版都会被源码 Gate 拒绝。这仍只是概念视觉资产，不是照片级或工程材质证明。
+当前命令从固定 showcase 路径生成四份 `production_concept` GLB，写入被忽略的 `output/m108-visual-benchmark/`。`manifest.json` 记录 GLB SHA-256、字节数、artifact profile、triangle、bounds、Material Zone、实际材质/纹理、512×512 v4 五通道和工作室环境；`review-responses.json` 初始必须为空。
 
-执行前或 CI 中可运行：
+可重复性检查：
 
 ```bash
 npm run agent:m108-visual-benchmark-kit-smoke
 ```
 
-它只验证审阅包可复现、四领域齐全、每份 GLB 具有多 zone、至少五条实际材质/纹理绑定、统一 128×128 五通道纹理和受限 bevel readback，不产生评分。评分校验器会再次从每份提交的 GLB 真实 readback，拒绝少于五套当前材质、非 `_builtin_v3` texture-set、非 `_v3_` map、非 128×128 图或不完整/重复的五通道 role；manifest 自报计数不能代替该检查。M108 PBR smoke 另按 primitive 的真实 material index/role 核对轮胎/握把、座舱/玻璃、灯带、关节/旋翼等受限绑定，并且只接受实际使用材质触发的 clearcoat 或 transmission/IOR；仅在 GLB 声明未使用扩展不算通过。汽车代表 fixture 还必须实际使用独立 index 7 的 `mat_automotive_paint`，其 coated texture set 与 clearcoat 不得复用 aluminum；删除或篡改已使用 clearcoat 必须拒绝。PBR smoke 解码八种内置材质的全部五通道，拒绝 8/12/16/18/28/32 px 格线；只对 metallicRoughness/normal 要求微变化，不把纯色 baseColor/AO/emissive 误判为逃避。authored material→规范 texture material、texture-set/map identity、完整元数据、PNG 字节、UV0 TextureInfo 和固定采样状态必须与 current v3/historical v2/v1 清单一致；更新自报 SHA、自定义 sampler/texture transform、未知材质和布尔伪索引都不能伪装为可信。当前 fixture 的内置视觉 primitive 还必须回读 `forgecad_visual_uv_repeat_mm=320`；G826 同时锁定封闭 primitive 外向绕序、非退化三角形和正有向体积，并拒绝错误重复元数据或超界 UV。G818 从最终 GLB POSITION accessor 要求固定连接外罩 AABB 与每个目标正体积交叠，并有体积位于目标 AABB 并集外；航空器四个旋翼支柱还必须各自与对应机翼在 GLB Z 轴范围保持至少 0.03 m 正重叠。这些是固定 fixture 的纹理可见性/稳定网格 Gate，不是曲面实体相交或工程几何证明。
+现有包适合验证 M108A production profile、工作台加载、PBR readback、相机和资源预算，但固定资产仍主要由绝对坐标 primitive、Loft 和 Sweep 组成。它没有证明 `EditableComponentRecipe@1` 的 child slot、connector/pivot、局部变换、语义比例和可复用完整部件，因此只能作为 `M108B preflight`，不能直接提交为 M108B 正式评分证据。
 
-评分入口的“至少五套”同时表示至少五个不同 material index、texture-set ID 和规范 texture material；重复 authored alias 不能累加数量。校验器 self-test 必须覆盖 alias 重复计数和五通道 role 缺失/重复。
+## 3. M108B 正式审阅包
 
-## 2. 开发视觉审计截图（不是评分）
+C105 完成后，正式包必须满足：
 
-生成审阅包后，可以运行：
+1. 四领域每个领域至少 3 份 `EditableComponentRecipe@1` 实例化的 production fixture；
+2. 每份 fixture 记录 Recipe ID/version/hash、实例化 provenance、关键 role、Profile/Section/feature template、child slot、connector/pivot、语义比例、Material Zone 和 production texture provenance；
+3. 每份 fixture 通过 M108A、Q003 与 G826 自动硬门；
+4. 每领域在评分前冻结代表 fixture，不由 V003 或评分结果事后挑选最高分；
+5. `manifest.json` 明确标记 Recipe-backed 事实；缺少该事实时评分校验必须拒绝；
+6. 固定资产只表达非功能外观。未来武器领域仅限虚构游戏、影视和展示道具，不包含现实武器机构、制造尺寸、材料配方、加工步骤或性能建议。
+
+M108B-05 已交付的只是正式合同与校验器骨架，正式路径与旧预检路径完全分离：`agent:m108b-formal-benchmark-kit` 只消费未来由 M108B-04 生成并在评分前冻结的 `M108BFormalFixtureSourceManifest@1`，写出 `M108BFormalVisualBenchmarkKit@1`。它要求恰好 12 份不同 hash 的真实 GLB、每领域 3 份，并冻结 Recipe/ref/hash、registry hash/lock、candidate/provenance、role/Profile/Section/feature、child slot、connector/pivot、semantic binding、Material Zone、v4 PBR map hash。每份还必须带三个不同的 `M108BGateEvidence@1` M108A/Q003/G826 `passed` report（各自 Gate ID、execution ID、文件/hash、source-GLB 与同一真实 readback hash 绑定）；不能将一份 readback JSON 复制三次冒充执行证据。还必须带 `M108BRendererCaptureEvidence@1` 的真实 renderer capture 文件/hash/source-GLB/逐项预算，并锁定 ForgeCAD 工作台 renderer、固定工作室环境 hash、iso 相机、ready/glb_pbr、实际嵌入 PBR 材质和单一 WebGL context；预算不可只由 source manifest 自报。缺 source、GLB、Gate report、capture 或任何漂移均明确 blocked；它不会生成资产、选择样本或接受 Python showcase shortcut。当前仓库尚不存在可消费的 12-fixture formal source/capture，因此不产生正式 kit 或评分证据。
+
+正式评分只能运行：
+
+```bash
+npm run agent:m108b-formal-score-validator -- \
+  --kit output/m108b-formal-visual-benchmark \
+  --responses output/m108b-formal-visual-benchmark/review-responses.json
+```
+
+该校验器只接受正式 kit，拒绝旧四 fixture showcase、少于 12、领域分布错误、评分后选择、source/GLB/hash/readback/PBR 漂移，以及任何非真人、非独立或自动/代理评分。每位真人必须完整评完 12 份；每个 fixture 三项中位数和每领域三项聚合中位数都必须至少为 `4/5`。
+
+## 4. 开发工作台捕获
+
+生成预检包后可运行：
 
 ```bash
 npm run agent:m108-visual-benchmark-workbench-capture
 ```
 
-CI 和本机可重复 renderer Gate 使用：
+CI/本机 renderer Gate：
 
 ```bash
 npm run desktop:m108-workbench-renderer-smoke
 ```
 
-后一命令会在临时目录重新生成同源 kit，再启动真实工作台完成四领域捕获；设置 `FORGECAD_M108_RENDERER_OUTPUT_DIR=output/m108-workbench-renderer` 时才保留无评分截图工件。它不读取旧截图作为通过依据。
+该 Gate 复用真实 ForgeCAD 工作台和唯一 renderer/canvas，依次导入四领域 production GLB，固定 `iso`、`cad_neutral` 与 `env_forgecad_room_studio_v1`。它校验 metre→millimetre、520 mm 展示对角线、真实 bounds、初始及 1180×1024 resize 的安全取景、环境 hash、PBR 色彩空间、调试辅助隐藏、损坏 GLB 恢复和单 WebGL context。
 
-该 Gate 复用 R3 的真实 ForgeCAD 工作台和唯一 renderer/canvas，依次导入四领域 fixture，固定 `iso`、`cad_neutral` 与 `env_forgecad_room_studio_v1`，并使用环境合同中的前向 iso 方向与 `ShadowMaterial` 地面。GLB 的 metre→millimetre 换算先保留，再乘以确定性的视口 fit scale；当前展示对角线固定为 520 mm，不能由隐藏的 legacy graph 尺寸决定。kit manifest 的编译 `bounds_mm` 必须与 GLTFLoader 加载后的三轴毫米 bounds 一致；工作台再按实际 FOV、viewport aspect、OrbitControls 相机基和 8 个 bounds 角点求安全距离，初始视口及 1180×1024 resize 后捕获的 NDC 都必须位于 `[-0.9, 0.9]`。studio fog 移到完整对象之后，阴影接收面和 shadow camera 随当前 framed bounds 收敛；这些显示事实均不写回资产或 Snapshot。
+当前 production renderer 上限为：
 
-`M108WorkbenchCapture@1` 除源 manifest、GLB/screenshot、load/render/preview/xray 与单 context 事实外，还必须把工作台实时应用的完整环境配方 canonicalize 后重新计算 SHA-256，并与 GLB 环境 hash 相同；baseColor/emissive 必须为 sRGB，metallicRoughness/normal/AO 必须为数据色彩空间。截图前必须从当前视口读取并记录 `presentation_runtime_facts`：legacy ModuleGraph root 隐藏、当前 blockout root 可见，axes/grid/transform helper 全部隐藏，且真实 renderer 的 line 数为 0；任一不满足都拒绝捕获，不能把调试辅助线或旧展示状态作为审阅画面。每个 fixture 还要记录 source bounds、初始与 resize 后 NDC、安全 fog 和正相机距离，并通过真实 renderer 上限：geometries ≤72、textures ≤48、draw calls ≤96、triangles ≤7,000、实际使用的嵌入 PBR texture ≤35、按 RGBA8 完整 mip chain 保守估算的纹理显存 ≤4 MiB。triangle 上限只因固定 24 段 cylinder/capsule 的 renderer pass 保守上界达到 6,776 而调整；最新 `proxy-review-20260716-iteration17-v3` 的当前最大值仍为航空器 6,868 triangles/96 draw calls，其余预算未放宽。顺序载入四个 GLB 后仍使用同一 renderer/canvas，因此未释放资源会在后续 fixture 中累计并触发预算失败。四个 fixture 后还会让浏览器上传损坏 GLB，同时只向服务端控制路径转交合法 fixture；客户端解析必须明确失败，恢复 300–820 fog、ModuleGraph/空工作台、相机/地面/shadow camera，清空 bounds/NDC/PBR facts，并保留同一个 renderer/context。最新真实捕获已验证四个领域均为 `ready/glb_pbr`、`preview_mode=committed`、`xray=disabled`、环境 recipe hash 匹配、颜色空间有效、520 mm 展示对角线、readback bounds、初始/窄视口安全取景、失败恢复、预算通过、无 renderer lines 和单 WebGL context；此处 `committed` 只是非 ghost 的视口状态，不是 Git 提交或新资产版本。
+- geometries ≤ 72；
+- textures ≤ 48；
+- draw calls ≤ 96；
+- triangles ≤ 24,000；
+- 实际嵌入 PBR texture ≤ 35；
+- RGBA8 完整 mip chain 估算纹理显存 ≤ 64 MiB。
 
-这条命令只用于开发视觉审计。其工件固定为 `purpose=development_visual_audit_only`、`score_status=not_scored`、`human_benchmark_evidence=false`；自动截图不会向 `review-responses.json` 写入任何内容，不能成为 reviewer，不能证明比例/材质/细节达到 4/5，也不能完成 M108。若截图暴露比例断裂、材质区不可读或细节重复，应继续修复或在人工评分中如实失败，不能选择性隐藏截图或降低门槛。
+当前 M108A 检查点四领域 production 捕获为 7,308/68、9,148/78、8,116/96、13,704/53（triangles/draw calls），GLB 约 2.1–2.7 MB，估算 GPU 约 35–49 MiB。preview 的 T003 预算保持独立，不得为了 production 全局放宽交互档。
 
-## 3. 独立评审步骤
+捕获工件固定为：
 
-1. 至少邀请 3 位未实现本任务的评审者；由组织者在流程外人工核验其身份及与 M108 实现工作的独立性，只在工件中记录不重复的匿名 ID 和独立性声明，不记录个人敏感信息。校验器不能从匿名 ID 自动证明真实身份或独立性。
-2. 每位评审者在同一版本的 ForgeCAD 工作台逐一导入四份 `fixtures/*.glb`，使用 `cad_neutral`、等轴相机、默认工作室环境，并在评分前人工确认视口不是 ghost preview 且 xray 关闭。不得用软件概念 PNG、外部 glTF 查看器截图或参数化 ShapeProgram 回退代替。
-3. 对每份资产确认视口属性 `data-blockout-load-state=ready`、`data-blockout-render-source=glb_pbr`，且 `data-blockout-embedded-pbr-material-count` 大于 0。这里“导入”只负责把 fixture 带入同一工作台；普通外部 GLB 即使能以 `external_reference` 正常只读显示，也不能评分。只有内容通过完整 PBR map 检查并报告 `glb_pbr` 才是有效基准。任一失败使本次 run 无效，不可用“看起来接近”补分。
-4. 对每份资产独立给出 1–5 分：`proportion`（主次体比例与轮廓）、`material_readability`（多材质/PBR 区域的区分）和 `surface_detail`（接缝、边缘、重复视觉细节是否服从部件边界）。可附简短失败原因和截图 SHA，但不应记录 API Key、外部 URL、原始 Provider 内容或工程材料性能推断。
-5. 将每位评审的声明和 4×3 分数写入 `review-responses.json`；每条 fixture review 必须记录 `pbr_load_failure: false`，以及 `viewport.load_state: "ready"`、`viewport.render_source: "glb_pbr"` 与大于零的 `embedded_pbr_material_count`。提交前核对 `kit_manifest_sha256` 与本次 `manifest.json` 一致。
+```text
+purpose=development_visual_audit_only
+score_status=not_scored
+human_benchmark_evidence=false
+```
 
-评分 JSON 的最小结构如下；`reviewer_id` 可以是非敏感的匿名代号，但不能重复：
+自动截图不能成为 reviewer、不能写入 `review-responses.json`、不能证明三项达到 `4/5`，也不能完成 M108B。
+
+## 5. 独立评审步骤
+
+只有第 3 节 Recipe-backed 正式包可执行本节：
+
+1. 至少邀请 3 位未参与 M108B/C105 资产与实现工作的真人评审者。组织者在流程外核验身份和独立性；工件只记录不重复匿名 ID 和独立性声明，不记录个人敏感信息。
+2. 每位评审者在同一版本 ForgeCAD 工作台逐一查看冻结的 `production_concept` GLB，使用固定工作室环境、等轴相机、非 ghost preview、xray 关闭状态。不得用软件概念 PNG、外部查看器或参数外观回退代替。
+3. 视口必须报告 `load_state=ready`、`render_source=glb_pbr`、`embedded_pbr_material_count>0`，且 GLB/profile/Recipe/hash 与 manifest 一致。任一失败使本次 run 无效。
+4. 对每个领域 fixture 分别给出 1–5 整数分：
+   - `proportion`：主次体比例、完整轮廓和部件关系；
+   - `material_readability`：多材质/PBR 区域与透明、橡胶、涂层等外观区分；
+   - `surface_detail`：接缝、边缘、流线、图案和重复细节是否服从部件边界。
+5. 可记录简短失败原因和截图 SHA，不记录 API Key、外部 URL、Provider 原文或工程材料/性能推断。
+6. 将每位评审的声明和完整评分写入 `review-responses.json`，并核对 `kit_manifest_sha256`。
+
+评分 JSON 保留历史兼容 Schema：
 
 ```json
 {
@@ -69,7 +136,7 @@ npm run desktop:m108-workbench-renderer-smoke
       "viewport": {
         "load_state": "ready",
         "render_source": "glb_pbr",
-        "embedded_pbr_material_count": 3
+        "embedded_pbr_material_count": 5
       },
       "scores": {
         "proportion": 4,
@@ -81,7 +148,7 @@ npm run desktop:m108-workbench-renderer-smoke
 }
 ```
 
-在提交任何通过结论前运行：
+正式提交前运行：
 
 ```bash
 PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/validate_m108_visual_benchmark_scores.py \
@@ -89,10 +156,16 @@ PYTHONPATH=apps/agent:scripts .venv/bin/python scripts/validate_m108_visual_benc
   --responses output/m108-visual-benchmark/review-responses.json
 ```
 
-该校验器不生成、补齐或修改评分；它先重读四份 GLB 并执行上述当前 v3、至少五套、五通道、128×128 纹理事实，再要求至少三个不同 reviewer ID、每人提交独立性声明并覆盖四领域、同源 PBR 视口事实和 1–5 整数分数，最后分别计算每个领域的三个维度中位数。ID 与声明可机器校验，真实身份和独立性只能由上述人工流程核验。`npm run agent:m108-visual-benchmark-score-validator-smoke` 仅使用临时合成合同 fixture 验证拒绝边界，绝不是人工评分证据。
+校验器不生成、补齐或修改评分。M108B-05 的正式校验器已对 Recipe-backed manifest/provenance、production GLB/readback、v4 PBR map hash、独立 Gate report、renderer capture、12-fixture 冻结与独立真人完整评分执行拒绝边界；它只能在后续存在冻结 source/capture 时验证提交，不能把本阶段的自测或预检包变为真人退出证据。
 
-## 4. 通过口径与禁止项
+## 6. 通过口径
 
-有效 run 需要人工确认 3 位或以上评审者确实与实现工作独立，并且每个领域 fixture 的 `proportion`、`material_readability`、`surface_detail` 所有有效评审者分数中位数都至少为 4/5；跨领域总中位数只作摘要，不能掩盖任何一个领域失败。四个 fixture 的领域 ID 必须对应，GLB 路径和内容哈希必须互不重复。任意同源 PBR GLB 加载失败、身份/独立性未人工核验、少于四领域、少于三个不同 reviewer ID、manifest 或 fixture GLB hash/readback 不匹配、分数不是 1–5 整数或参数外观回退冒充嵌入纹理，均为未通过，而非缺失值补齐。
+有效 run 必须满足：
 
-通过后才可在 `CODEX_TASK_INDEX`、`DOCUMENTATION_STATUS` 和能力—Gate 矩阵把 M108 的人工基准项更新为有证据；在此之前，M108 仍为 `in_progress`，C105 继续 blocked。
+- 至少 3 位真实、与实现独立的评审者；
+- 四领域 Recipe-backed fixture 全部通过 production GLB/readback；
+- 每个领域的 `proportion`、`material_readability`、`surface_detail` 三项中位数分别不少于 `4/5`；
+- 任何领域失败都使 M108B 未通过，跨领域总分不能掩盖失败；
+- 不得降低门槛、选择性隐藏截图、伪造 reviewer，或用 Codex/其他代理评分补齐。
+
+只有通过后，才可在任务索引、状态账本、能力矩阵和用户指南中把基准覆盖的四领域输出写为“生产级概念资产基线”。仍不得写成照片级保证、工程 CAD、制造级模型或对任意提示的普遍保证。

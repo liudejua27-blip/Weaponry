@@ -37,4 +37,5 @@ jobs:
             libxdo-dev \
             librsvg2-dev \
             wget
-      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace

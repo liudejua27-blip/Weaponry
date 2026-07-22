@@ -1,6 +1,6 @@
 # ForgeCAD 本机开发与调试
 
-版本：2026-07-13
+版本：2026-07-18
 适用对象：桌面、Agent、合同和测试开发者
 
 ## 1. 环境要求
@@ -33,7 +33,8 @@ script/build_and_run.sh --verify
 - 当前机器能够完成前端和 Tauri 构建；
 - 桌面进程可以启动；
 - 本地 Agent 健康检查通过；
-- supervisor 当前处于 `local-dev-python`。
+- supervisor 当前处于 `local-dev-python`；
+- K001–K003 已让 Rust app-server/core 单一拥有协议、Agent/DeepSeek/Product Tool 生命周期及 Project/Snapshot/ChangeSet/Quality/Export/SQLite/CAS/对象库；Python 只执行受限几何。`local-dev-python` 是开发 sidecar mode 标签，不表示 Python 拥有产品状态。
 
 ### 本机 Agent supervisor
 
@@ -53,6 +54,23 @@ Rust 静态检查：
 ```bash
 npm run desktop:tauri-check
 ```
+
+K001–K003 Rust workspace、跨语言 port 与桌面 native 回归：
+
+```bash
+npm run desktop:k001-rust-app-server-test
+npm run agent:k001-app-server-smoke
+npm run desktop:k001-app-server-transport-smoke
+npm run agent:k002-python-port-test
+npm run agent:k002-product-tool-manifest-smoke
+npm run desktop:k002-native-forge-api-smoke
+npm run k003:layered-gate-self-tests
+npm run k003:layered-gate
+```
+
+K002 的历史检查点覆盖 Rust Agent lifecycle 和迁移 ports。K003 当前唯一的机器证据是源码绑定的 `output/k003-layered-gate-final-source-20260718/report.json` 及同目录 manifest：五层顺序固定为 `host → rust_core → rust_python_contract → packaged → workbench`，并要求 `status=passed`、`exit_code=0`、`source_changed=false`。manifest 保留 Gate 前后同一 dirty source fingerprint 与 `.app`/sidecar 身份；运行单一层不能替代总 Gate，也不能用旧 K001/K002 fixture 的 Python owner 字段推翻当前 Rust ownership marker。
+
+Host 层将 `kern.num_vnodes` 视为 kernel cache proxy，只作 warning/corroboration，不以该读数单独宣告容量耗尽。读数达到阈值时，Gate 必须在 tmp 与隔离 library 上分别运行可终止、有时限的真实 filesystem capacity probe；`ENFILE`/`EMFILE`、`ENOSPC`、`EIO`、`EROFS`、超时、清理残留或 worker residue 都是 hard fail。报告只保留稳定 root label 和错误类别，不得包含绝对路径。
 
 工作台行为基线（前端拆分前必须先跑）：
 
@@ -77,7 +95,7 @@ npm run desktop:d3-domain-clarification-smoke
 npm run desktop:r3-concept-workbench-smoke
 ```
 
-F001 已加入 `.github/workflows/forgecad-core.yml`，并在本机 Chrome 通过；它验证了项目加载、legacy 显式转换、澄清、预览不写盘、Agent 提交、Snapshot/导出对齐、重启恢复和单 WebGL canvas。F006 accessibility smoke 已加入 desktop job，覆盖静态尺寸/字号、按钮类型、aria 语义、dialog 初始焦点和键盘 Escape/焦点返回；F007–F016 的回归边界见任务索引；F017 edit-assist-presentation smoke 覆盖当前 asset/part 的候选和建议过滤、context 切换清空、迟到成功/失败拒绝及失败不伪造建议，并断言展示状态不含 Snapshot、质量、ChangeSet、导出、asset head 或 renderer。T002 场景套件在 workbench-e2e job 中输出 12 个独立报告；T003 在同一 job 中输出 `output/playwright/fgt003-performance.json`，验证单 canvas/context、重复抽屉/重载、GC 后内存、几何/纹理和 bundle 阈值；CI runner 的结果仍以对应 commit 为准。
+F001 已加入 `.github/workflows/forgecad-core.yml`，并在本机 Chrome 通过；它验证了项目加载、legacy 显式转换、澄清、预览不写盘、Agent 提交、Snapshot/导出对齐、重启恢复和单 WebGL canvas。F006 accessibility smoke 已加入 desktop job，覆盖静态尺寸/字号、按钮类型、aria 语义、dialog 初始焦点和键盘 Escape/焦点返回；F007–F016 的回归边界见任务索引；F017 edit-assist-presentation smoke 覆盖当前 asset/part 的候选和建议过滤、context 切换清空、迟到成功/失败拒绝及失败不伪造建议，并断言展示状态不含 Snapshot、质量、ChangeSet、导出、asset head 或 renderer。T002 场景套件在 workbench-e2e job 中输出 14 个独立报告；T003 在同一 job 中输出 `output/playwright/fgt003-performance.json`，验证单 canvas/context、重复抽屉/重载、GC 后内存、几何/纹理和 bundle 阈值；CI runner 的结果仍以对应 commit 为准。
 
 ## 3. 浏览器开发预览
 
@@ -116,7 +134,25 @@ export FORGECAD_AGENT_API_KEY_FILE="$HOME/.config/forgecad/provider.key"
 
 不要把 API Key 放入 shell history、`.env`、SQLite、测试 fixture、日志或截图。真实调用必须由操作者显式执行；默认 smoke 使用确定性或本机 fake Provider。
 
-保存配置后不等于已经调用 DeepSeek。原生工作台会依次显示 metadata、Keychain、受管 supervisor 与 Agent capability 四段 preflight；全部就绪后，普通 Turn 或“测试连接（会联网）”才可能发起真实请求。连接测试可取消，Provider 失败不会自动重试或静默切换为离线 Planner。浏览器调试没有 Tauri/Keychain preflight，只适合使用上面的权限受限 secret file 验证 Agent 端合同。
+保存配置后不等于已经调用 DeepSeek。普通工作台启动只通过 `inspect_metadata_only()` 读取非敏感 metadata；不得在 mount 或 DeepSeek client 初始化时读取 Keychain。一次显式连接测试只建立一个 `turn_session()` 凭据快照；一次普通 Turn 也只建立一个快照，并在 preflight、budget、stream/tool follow-up 间复用，terminal success/failure/cancel 后释放和 zeroize。保存/清除仍按配置生命周期访问 Keychain。界面在尚未读取密钥时显示 `secret_status=not_checked`，不能伪装成已连接。连接测试可取消，Provider 失败不会自动重试或静默切换为离线 Planner。ad-hoc 重建会改变请求者身份，开发包更新后 macOS 可能再次要求用户授权，不能把“始终允许”视为稳定开发合同。浏览器调试没有 Tauri/Keychain preflight，只适合使用上面的权限受限 secret file 验证 Agent 端合同。
+
+### 显式 DeepSeek 机械臂验收（默认绝不联网）
+
+`desktop:deepseek-mvp-acceptance` 是单次、隔离的 Rust-native 验收入口，不是普通生成路径，也不加入 CI。无参数时只输出 dry-run，保证 `network_calls_made=0`、`credential_reads=0` 且不启动应用。只有操作者显式确认可能产生 Provider 费用时才会启动已构建的 `.app`；Python 启动器不会读取 Keychain、secret file、Provider 配置或 API Key，应用内才由 Rust `ProviderCredentialStore` 从既有 Keychain 配置取得凭据。
+
+```bash
+npm run desktop:deepseek-mvp-acceptance
+
+# 仅在已在原生工作台保存凭据、并且操作者确认可联网后手工执行。
+npm run desktop:deepseek-mvp-acceptance -- \
+  --confirm-live-provider \
+  --accept-network \
+  --confirmation I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST \
+  --run-id live_20260719_arm_acceptance \
+  --output /absolute/path/deepseek-mvp-acceptance.json
+```
+
+真实验收只检查一次未确认的生成 Turn、一次取消和一次本地 fail-closed 路径；每个临时项目必须保持无 ActiveDesignSnapshot/资产写入。报告只含运行编号哈希、状态、token 汇总和固定错误码，不含 Key、端点、模型名、Prompt 或 Provider 原始响应。它不证明 C106 的视觉质量、R007B 的参考重建质量或 M108B 的真人评审；这些仍由离线黄金路径和正式视觉基准分别验证。
 
 ## 5. 当前核心验证
 
@@ -177,7 +213,7 @@ cargo audit --file apps/desktop/src-tauri/Cargo.lock --json
 
 任何高危结果都保持失败。2026-07-13 升级 FastAPI 0.139.0 / Starlette 1.3.1 后，本机 Python 审计为 0 vulnerabilities；Rust 审计为 0 vulnerabilities。上游版本变化后必须重新执行。
 
-截至 2026-07-13，该 E2E 已通过 Agent-first 路径：同一项目先导入参考 GLB v1，生成可编辑资产从 v2 开始，确认/回退/重做后恢复到 v5。测试同时确认 Agent 激活时旧 ModuleGraph 替换入口被禁用；R005 还验证 Agent 下载抽屉直接下载 GLB 和概念图包，不显示旧用途/OBJ/源包。多客户端并发、原生安装和发布仍不在该门内。
+截至 2026-07-17，该 E2E 已通过 Agent-first 路径：同一项目先导入参考 GLB v1，生成可编辑资产从 v2 开始，确认/回退/重做后恢复到 v5。测试同时确认 Agent 激活时旧 ModuleGraph 替换入口被禁用；R005 还验证 Agent 下载抽屉直接下载 GLB 和概念图包，不显示旧用途/OBJ/源包。K001 packaged WebView 另有程序化业务链和重启 cursor 证据，但原生用户点击下载、完整安装和多客户端压力仍不在该门内。
 
 ### 5.1 R005 本机 Tauri 下载验收
 

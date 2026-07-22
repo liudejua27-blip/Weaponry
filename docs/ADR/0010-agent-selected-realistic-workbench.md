@@ -1,6 +1,6 @@
 # ADR-0010：Agent 自动选择单一最佳方案、Codex 式工作台与视觉真实度管线
 
-- 状态：Accepted（目标设计；实现任务均未完成）
+- 状态：Accepted（目标设计；F026 已开始实施，V003/A005/R007 尚未完成）
 - 日期：2026-07-14
 - 决策者：项目维护者
 - 取代：面向零基础用户展示三个方向并要求用户先选一个的目标流程；`FGC-V002` 的三方向解释/单维重混交互
@@ -13,10 +13,10 @@
 
 ## 决策
 
-1. Agent 可以在内部生成多个受限候选，但默认只向用户展示一个经过编译、GLB readback、概念渲染和规则评审后选出的最佳结果；不再显示三张方向选择卡。
-2. “最佳”必须有 `BestCandidateDecision@1` 证据：Brief 覆盖、完整外观、语义比例、运行时/GLB 质量、可编辑性、材质/纹理覆盖和视觉一致性。失败候选不允许被选中，评分不能替代真实编译/readback。
+1. Agent 对一个 Turn 只合成一份完整受限模型，默认只向用户展示通过编译、GLB readback、概念渲染和规则硬门的唯一结果；不再显示三张方向选择卡，也不在后台生成多个完整模型比较。
+2. 该唯一结果必须有 `SingleGenerationAttempt@1`、`GenerationGateReport@1` 与 `SingleResultDecision@1` 证据：Brief 覆盖、完整外观、语义比例、运行时/GLB 质量、可编辑性、材质/纹理覆盖和视觉一致性。初始工件失败时只允许最多两次保持同一 Brief、Domain Pack、核心 Recipe/轮廓意图和 provenance 的有界原位修复；失败工件不允许展示，硬门不能被评分替代。
 3. 用户仍可用自然语言要求“换一个思路”或继续修改，但这是新 Turn，不是三方向选择器，也不能静默覆盖已确认版本。
-4. 工作台采用 Codex 式单任务界面：中心是连续 Agent 会话、步骤和结果；3D 视口缩为左上角 mini viewport，点击后把**同一个 canvas/renderer**移动到中央焦点层，关闭后返回左上角。不得同时创建 mini 与 full 两个 renderer。
+4. 工作台采用 Codex 式单任务界面：左侧是项目/对话记录与组件库，中央是连续 Agent 会话、步骤和单一结果，底部固定自然语言输入框及“+”菜单，右上是持续可见的 3D 工作区。点击 3D 后把**同一个 canvas/renderer**移动到中央焦点层，关闭后返回右侧 dock；不得同时创建 docked 与 full 两个 renderer。
 5. DeepSeek 接入升级为可观察 Provider Gateway：配置来源、连接状态、请求开始、流式进度、取消、用量和固定错误类别均形成可读 Item；未配置时明确离线，已经选择真实 Provider 后失败时不得静默回退并冒充成功。
 6. ForgeCAD 参考 Codex 的 Thread/Turn/Item 生命周期和 Skill 渐进加载，参考 Claude Code 的专用 Agent、Skill、hook 和受限工具思想，但只实现 ForgeCAD 产品工具，不复制 shell/code Agent。DeepSeek thinking/tool-call 多轮必须遵守官方 `reasoning_content` 续传合同；用户只看到可审计的思考摘要和动作，不显示原始隐藏推理。
 7. 允许创建 ForgeCAD 专属 Skill，但 Skill 必须是版本化声明资产：`SKILL.md + tool-policy + input/output schema + examples + evals`。Skill 只能引用 G819 运行时清单和产品工具注册表，不能执行任意 Python、JavaScript、shell、URL 或文件路径。
@@ -25,15 +25,18 @@
 
 ## 后果
 
-- `FGC-V002` 标记为 `superseded`，以 `FGC-V003` 的内部候选评审和单一最佳结果取代；当前 Alpha 在相关任务完成前仍会显示三个方向，用户指南必须继续如实描述当前行为。
-- `FGC-F025` 只负责 legacy 隔离和继续拆薄父层；新的 Codex 式布局由独立 `FGC-F026` 实施，避免在同一任务中重写状态和视觉。
+- `FGC-V002` 标记为 `superseded`，以 `FGC-V003` 的单次合成、硬门与有界原位修复取代；F026 先移除三方向 UI，只保留第一条 legacy 文本方向到单个临时 3D 结果的适配边界，不能将其说成 V003。
+- `FGC-F025` 只负责 legacy 隔离和继续拆薄父层；新的 Codex 式布局由独立 `FGC-F026` 实施。用户在 2026-07-18 明确实施顺序为 F026 → A005 → R007 → V003；F026 先提供结果状态槽和单 renderer shell，并禁止渲染、隐藏或复用三方向交互。
 - 新增 DeepSeek Provider Gateway、受限 Action Loop、产品 Skill、视觉真实度、多材质、组件配方、参考引导重建和通用机械扩展任务；所有任务仍受 ActiveDesignSnapshot、preview→confirm、单 WebGL 和安全范围约束。
 - 高视觉真实度是目标设计，不是当前能力。它不等于工程精度、制造可行性、真实材料性能、车辆安全、适航或机器人控制结论。
+
+2026-07-16 布局修订：用户明确指定“左侧组件库和对话记录、右上 3D、底部输入框与加号风格/材质入口”。本修订取代本 ADR 早期的“左上 mini viewport”位置描述，但不改变单一 canvas/renderer、单一最佳结果和 preview→confirm 边界。
 
 ## 被否决方案
 
 - 继续让用户在三张方向卡中承担评审：增加认知负担，也掩盖 Agent 缺少自评闭环。
+- 对同一 Brief 生成多个完整模型再进行评分比较：增加 Provider、几何编译和 GPU 成本，也让有限规则评分冒充审美判断；只允许一次合成与有界、可追溯的原位修复。
 - 只更换大模型或扩大 prompt：无法补足几何、UV、纹理、灯光、readback 和资产质量问题。
-- mini viewport 与中央 viewport 各建一个 Three.js renderer：违反单 WebGL 约束并增加显存、资源释放和状态同步问题。
+- docked viewport 与中央 viewport 各建一个 Three.js renderer：违反单 WebGL 约束并增加显存、资源释放和状态同步问题。
 - 直接安装完整 Codex/Claude Code/CAD/DCC 运行时：会引入任意工具权限、重复状态真值、安装体积和发布风险。
 - 允许用户 Skill 携带任意脚本或 URL：破坏 ShapeProgram 和本地权限边界。

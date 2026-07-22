@@ -1,6 +1,6 @@
 # ForgeCAD 文档地图与生命周期
 
-版本：2026-07-15
+版本：2026-07-17
 状态：文档唯一入口
 
 本文件回答三个问题：先读什么、哪份文档拥有哪类真相、哪些内容只是历史记录。后续 Codex 不得通过文件名猜测权威性。
@@ -25,13 +25,16 @@
 | 当前用户可用功能 | [USER_GUIDE](USER_GUIDE.md) | DESIGN 的目标能力、历史 evidence |
 | 目标系统架构 | [DESIGN](DESIGN.md) | GitHub 参考项目自身架构 |
 | 目标 3D 机械设计操作流程 | [MECHANICAL_DESIGN_OPERATIONS](MECHANICAL_DESIGN_OPERATIONS.md) | 当前 USER_GUIDE、HTML/SVG demo、聊天建议 |
+| Design Surface Compiler 分层、编译边界与实施顺序 | [ADR-0016](ADR/0016-design-surface-compiler.md) | HTML/CSS 折面 demo、单次概念图、旧多候选方案 |
 | Project/Version/Selection/Quality/Export 真值 | [AUTHORITATIVE_STATE](AUTHORITATIVE_STATE.md) | 前端 localStorage、旧 Concept hook |
-| 当前 Agent API | [API](API.md) | legacy API、生成类型文件 |
+| 当前桌面 app-server 协议与 Agent HTTP compatibility API | [API](API.md)、[ADR-0014](ADR/0014-rust-first-codex-app-server.md) | legacy API、生成类型文件、仅有目标架构的旧说明 |
 | 真实 Provider 四领域评测合同 | [AGENT_PROVIDER_EVALUATION](AGENT_PROVIDER_EVALUATION.md) | legacy R4/Weapon 评测、离线 smoke |
 | 实施顺序 | [CODEX_EXECUTION_PLAN](CODEX_EXECUTION_PLAN.md) | 旧里程碑证据 |
 | 原子任务状态 | [CODEX_TASK_INDEX](CODEX_TASK_INDEX.md) | 聊天中的口头进度 |
 | 文档当前状态、标签和同步规则 | [DOCUMENTATION_STATUS](DOCUMENTATION_STATUS.md) | 单次 smoke、旧 handoff、未重跑 evidence |
 | 测试与生产退出条件 | [TEST_STRATEGY](TEST_STRATEGY.md)、[PRODUCTION_RELEASE_CHECKLIST](PRODUCTION_RELEASE_CHECKLIST.md) | 单次 smoke 结果 |
+| 生产概念工件与视觉验收拆分 | [ADR-0015](ADR/0015-split-production-artifact-and-visual-acceptance.md)、[CODEX_TASK_INDEX](CODEX_TASK_INDEX.md) 的 M108A/M108B 任务卡 | 旧 M108 状态、固定 showcase 截图、单次高分辨率 GLB |
+| M108B 独立视觉评分操作 | [M108_VISUAL_BENCHMARK_PROTOCOL](evidence/M108_VISUAL_BENCHMARK_PROTOCOL.md) | Codex 代理评分、自动截图、M108A production profile 名称 |
 | 开源参考与采用边界 | [AGENT_GITHUB_REFERENCE_ARCHITECTURE](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md) | 仓库 star、营销页 |
 | 开发插件、Skill 与产品内 Skill | [AGENT_PLUGINS_SKILLS_DESIGN](AGENT_PLUGINS_SKILLS_DESIGN.md) | 用户安装包内的插件市场 |
 
@@ -39,7 +42,7 @@
 
 ### 当前权威
 
-根 README、上表所列产品/架构/操作/执行文档，以及 ADR-0008–ADR-0011。修改功能时必须同步更新相关当前权威文档。
+根 README、上表所列产品/架构/操作/执行文档，以及状态为 Accepted 且未被后续 ADR 取代的当前决策；本轮 M108 拆分以 ADR-0015 为准。修改功能时必须同步更新相关当前权威文档。
 
 ### 历史决策
 
@@ -47,7 +50,7 @@
 
 ### 历史证据
 
-`docs/evidence/` 保存过去命令、fixture 和审计结果。它们不可执行地承诺当前能力，也不得进入零基础用户阅读路径。新的当前能力要同时出现在能力—Gate 矩阵和当前测试结果中。
+`docs/evidence/` 保存过去命令、fixture 和审计结果。它们不可单独承诺当前能力，也不得进入零基础用户默认阅读路径。`M108_VISUAL_BENCHMARK_PROTOCOL.md` 是 M108B 的受控人工操作协议，但只有 Recipe-backed 正式 kit 和有效真人评分才构成退出证据；当前固定 showcase kit 只是 preflight。新的当前能力要同时出现在能力—Gate 矩阵和当前测试结果中。
 
 ### 兼容资料
 

@@ -76,7 +76,7 @@ npm run agent:s8-active-design-navigation-smoke
 
 ```text
 明确写出汽车/飞机/机械臂/未来武器概念道具
-→ 选择三个方向之一
+→ 查看一个临时兼容 3D 结果（仅取 legacy Planner 第一条文本方向；不是 V003）
 → 生成简单完整 blockout
 → 查看分件候选
 → 保存 AgentAssetVersion

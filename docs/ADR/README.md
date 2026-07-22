@@ -13,5 +13,8 @@
 - [ADR-0011：以轮廓、特征与组件配方构建 3D 机械设计系统](0011-3d-mechanical-design-system.md)
 - [ADR-0012：G824 布尔内核 benchmark 暂不采用候选](0012-csg-kernel-benchmark-no-adoption.md)
 - [ADR-0013：选择 Manifold Python 作为唯一生产 CSG 实现](0013-adopt-manifold-python-csg.md)（取代 ADR-0012 的不采用结论；允许领取 G825）
+- [ADR-0014：Rust-first ForgeCAD app-server 与受限几何执行器](0014-rust-first-codex-app-server.md)（K001 协议/传输已落地，K002/K003 所有权迁移待完成；取代长期保留 FastAPI 状态所有权的目标结论）
+- [ADR-0015：拆分生产概念工件管线与生产级视觉验收](0015-split-production-artifact-and-visual-acceptance.md)（取代 ADR-0014 中“完整 M108 退出后才开始 K001”的依赖结论）
+- [ADR-0016：ForgeCAD Design Surface Compiler](0016-design-surface-compiler.md)（将平面设计升级为轮廓/截面/材质区/表面细节语言，并取代多完整候选评比策略）
 
 Accepted ADR 的修改应通过新增 superseding ADR 完成，不直接抹掉历史决策。

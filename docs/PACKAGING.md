@@ -12,7 +12,7 @@ The packaged product is a desktop Agent for fictional mechanical concept assets 
 mode=local-dev-python
 ```
 
-P002 已在本机构建 `aarch64-apple-darwin` frozen sidecar。独立与原生 bundled smoke 均验证：无 Provider 环境的 health、空 SQLite Library 初始化、确定性可编辑资产的 GLB 导出，以及重启后资产读取/导出。原生 smoke 还验证了实际 `.app` 的 supervisor 报告下列 mode、sidecar 为其受管后代，以及正常窗口关闭回收 listener；当前仍不是可分发安装包。
+P002 已在本机构建 `aarch64-apple-darwin` frozen sidecar。K001/K002 的 packaged 历史链验证 Rust-owned 协议与 Agent 生命周期；K003 的真实双启动进一步验证 Rust core 单一拥有 Project/Snapshot/ChangeSet/Quality/Export、SQLite/WAL、CAS 和对象库，Python product/lifecycle route 返回 410，sidecar 环境没有数据库/对象库/Provider 路径，重启语义 hash 一致且 `provider_calls=0`。当前 sidecar 与 `.app` executable 的精确 SHA-256 只读取 `output/k003-layered-gate-final-source-20260718/manifest.json`，不在说明文档复制易失效 hash。原生 smoke 还验证 sidecar 为实际 `.app` 的受管后代和正常关闭回收 listener；当前仍不是可分发安装包。
 
 生产构建必须启动 bundled Agent sidecar 并报告：
 
@@ -37,9 +37,12 @@ P002 本机命令：
 npm run desktop:packaged-sidecar-build
 npm run desktop:packaged-sidecar-alpha-smoke
 npm run desktop:packaged-tauri-alpha-smoke
+npm run desktop:k002-packaged-native-smoke
+npm run desktop:k003-packaged-native-smoke
+npm run k003:layered-gate
 ```
 
-前者只在构建机冻结当前 macOS arm64 runtime；后两者分别执行真实 sidecar 与通过 LaunchServices 启动的实际 Tauri bundle。它们均使用临时 Library、移除 Provider 环境变量、不读取 Keychain、不会自动调用模型 Provider。第三条命令当前只适用于 macOS，本机 Alpha 通过不等于安装器、签名、公证或外部发布。
+第一条只在构建机冻结当前 macOS arm64 runtime；后续命令分别执行真实 sidecar、通过 LaunchServices 启动的实际 Tauri bundle、K002/K003 原生双启动和五层最终聚合。它们均使用临时 Rust-owned Library、清空/最小化 Python sidecar 环境、不读取 Keychain、不会自动调用模型 Provider。原生命令当前只适用于 macOS；其程序化证明不等于用户点击下载、安装器、签名、公证或外部发布。
 
 ## Required Production Shape
 
@@ -80,11 +83,11 @@ The sidecar must be a frozen Agent runtime, not a dependency on the user's local
 
 Minimum contract:
 
-- Contains the FastAPI Agent entrypoint.
-- Contains migrations and schema registry needed at runtime.
-- Reads provider configuration from environment variables and local config, not from committed secrets.
-- Uses a user data directory for the library by default, not the source repository.
-- Exposes `GET /api/health` with `service=wushen-agent` and `status=ok`.
+- Contains only the FastAPI restricted-geometry entrypoint and audited geometry/PBR dependencies.
+- Contains the read-only geometry schema/material resources needed for compilation, but no selectable product-state migration or database handler.
+- Receives no Provider credential, user session, Snapshot write token, database path or object-store path.
+- Resolves only its code-derived read-only resource root; the user data Library is owned by Rust core and is not mounted into Python.
+- Exposes `GET /api/health` with `python_role=restricted_geometry_executor` and a capability-gated compile surface.
 - Keeps API keys out of logs, SQLite rows, job events, asset files, Unity ZIP packages, and crash reports.
 - Preserves the fictional mechanical concept / non-manufacturing safety boundary.
 
@@ -94,10 +97,10 @@ The development fallback may remain available behind explicit dev overrides such
 
 Production supervisor behavior:
 
-1. Resolve and spawn the bundled sidecar.
-2. Set `WUSHEN_LIBRARY_ROOT` to an app data directory.
-3. Set `WUSHEN_MIGRATIONS_DIR` and schema paths to bundled resources or sidecar-internal paths.
-4. Probe `GET /api/health` before marking the Agent online.
+1. Open the Rust-owned app-data Library, run Rust migrations, acquire the single-writer epoch and initialize CAS before accepting product requests.
+2. Resolve and spawn the bundled restricted-geometry sidecar without Library, migration, object-store or Provider paths.
+3. Keep Project/Version/Snapshot/ChangeSet/Quality/Export transactions in Rust; pass Python only validated geometry IR through the capability-gated port.
+4. Probe `GET /api/health` and verify the restricted geometry identity before marking the geometry capability online.
 5. Reject wrong services on the fixed local port.
 6. Stop the managed child on window close and process shutdown.
 7. Persist sidecar lifecycle logs without leaking secrets.

@@ -1,9 +1,11 @@
 # ForgeCAD 3D 机械设计系统目标操作手册
 
-版本：v1（2026-07-15）
-状态：目标操作设计；不是当前 Alpha 用户指南
+版本：v1（2026-07-17）
+状态：目标操作设计；不是当前本机 Alpha 用户指南
 
-本手册定义 ForgeCAD 完成后，零基础用户如何用一句话、参考图和少量可视化操作生成、检查和继续编辑机械概念 3D。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准；当前 Alpha 仍显示三个方向。后端已有受限 Profile/Extrude/Revolve/Loft/Sweep runtime、唯一 Manifold Python union/subtract、不可变 Feature History，以及 G826 的 edge finish/UV0/tangent/稳定 face→part/zone GLB readback；Planner/工作台尚未自动采用新语法，也没有自由轮廓、Loft、Sweep 或 CSG 编辑入口。M108 已为当前四领域 showcase 提供部分同源多区五通道 PBR、环境和真实 readback 自动证据，但独立人工视觉基准尚未完成；单一最佳结果也仍未提供，不能按本文宣称已经达到目标产品能力。
+本手册定义 ForgeCAD 完成后，零基础用户如何用一句话、参考图和少量可视化操作生成、检查和继续编辑机械概念 3D。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准；F026 已移除三方向 UI，过渡期仅允许第一条 legacy 文本方向适配为一个临时 3D 结果。后端已有受限 Profile/Extrude/Revolve/Loft/Sweep runtime、唯一 Manifold Python union/subtract、不可变 Feature History，以及 G826 的 edge finish/UV0/tangent/稳定 face→part/zone GLB readback；零基础工作台仍没有自由轮廓、Loft、Sweep 或 CSG 编辑入口。
+
+ADR-0015 已把视觉路线拆为两层：M108A 已建立同一 ShapeProgram 的 `interactive_preview`（128×128 v3）与 `production_concept`（512×512 v4、`GeometryCompileReadback@2`、production 质量/导出/CAS）工件管线；K003 与 C105 也已完成机制闭环。M108B 仍须用 Recipe-backed fixture 和至少三位独立真人逐领域三项中位数 `4/5` 验证生产级概念资产视觉基线。现有固定 showcase 和 C105 的 416-triangle 四领域 fixture 只能作为机制/preflight 证据，不能按本文宣称已经达到完整目标产品能力。ADR-0016 将本路线正式命名为 ForgeCAD Design Surface Compiler。
 
 ## 1. 核心操作模型
 
@@ -15,7 +17,7 @@ UI Component + Props
 
 3D Component Recipe + Parameters
 → ShapeProgram
-→ GeometryCompileReadback
+→ GeometryCompileReadback@2（production）
 → GLB
 ```
 
@@ -39,8 +41,9 @@ UI Component + Props
 → Agent 回述理解与不确定项
 → 内部选择领域包、风格 Token 和组件 Recipe
 → 内部建立轮廓与截面
-→ 内部生成、编译并检查多个候选
-→ 只展示一个最佳完整外观
+→ 完成一次完整合成并编译真实 GLB
+→ 硬门失败时，对同一设计意图最多原位修复两次
+→ 只展示一个通过结果
 → 用户查看 3D 或继续用自然语言修改
 → 需要时编辑轮廓、组件或材质区
 → 预览
@@ -80,29 +83,30 @@ UI Component + Props
 ```text
 ✓ 已理解完整外观目标
 ✓ 已选择适合的结构与外观语言
-○ 正在生成并检查候选 2 / 4
-○ 正在选择最符合目标的一版
+○ 正在生成完整模型
+○ 正在检查几何、材质与可编辑性
+○ 正在修复同一设计（1 / 2）
 ```
 
-系统内部才执行候选比较。每个候选必须先通过范围、Schema、运行时白名单、预算、编译、GLB readback、完整外观和安全硬门，再比较 Brief 覆盖、比例、角色完整、材质区、可编辑性、概念视图一致性和复杂度。没有候选通过时必须明确失败，不能展示“最不坏”的无效模型。
+系统不再生成多个完整模型后评分比较。同一尝试必须通过范围、Schema、运行时白名单、预算、编译、GLB readback、Brief 覆盖、比例、角色完整、材质区、可编辑性和安全硬门。硬门只能产生可诊断修复项，且最多修复两次；仍未通过时必须明确失败并保持零版本副作用。
 
 ### 2.4 查看最佳结果
 
-默认只显示一个 `BestCandidateResultCard`，包含：
+默认只显示一个 `GenerationResultCard`，包含：
 
 - 完整外观预览；
-- Agent 选择理由；
+- Agent 的合成与硬门摘要；
 - 已覆盖和未覆盖的 Brief 要点；
 - 当前来源是本机离线规划还是已连接模型服务；
 - “查看 3D”“继续修改”“换一个思路”。
 
-“换一个思路”创建新 Turn，不展开被淘汰候选，也不覆盖已确认版本。
+“换一个思路”创建新 Turn 和新的单次合成尝试，不覆盖已确认版本。
 
 ## 3. 3D 视口操作
 
-### 3.1 mini 与 focus
+### 3.1 docked 与 focus
 
-3D 默认位于左上角约 280×180 的 mini viewport。点击后，同一个 canvas/renderer 移到中央 focus；关闭或按 Escape 后返回左上。
+3D 默认持续显示在工作台右侧的 docked viewport。点击后，同一个 canvas/renderer 移到中央 focus；关闭或按 Escape 后返回右侧。
 
 切换过程中必须保持同一场景、相机、选择、材质、纹理缓存和 `ActiveDesignSnapshot.render_preset`，不得创建第二个 WebGL context，也不得因为视口移动创建资产版本。
 
@@ -200,6 +204,10 @@ version / provenance
 
 Agent 只能从同领域、同角色、连接兼容、质量通过、来源可追溯的 Recipe 中选择。锁定部件、循环父子关系、超预算、跨领域或质量失败均在预览前拒绝。
 
+Recipe 目录不是开放资产市场。C105 的当前合同限定为 ForgeCAD 代码所有、已审阅、不可再分发的非功能视觉 Recipe；`source/review/license` 必须随实例保存。child slot 不是“任意换件”：它只能启用配方已固定的 reviewed child，真正替换仍走 C102 兼容性检查和 ChangeSet preview→confirm。实例化先做 Rust-only、零写的展开；只有同一 expanded ShapeProgram 取得实际 GLB/readback 后才能给出预览，最终组件替换、比例或材质修改仍必须 preview→confirm。Recipe ref、版本和 registry hash 失配时拒绝为 stale，不能悄悄换成目录最新版本；确认前和被拒绝的候选都不写 Snapshot 或版本。
+
+connector 的 `normal/up`、pivot 和固定 slot local transform 共同定义局部附着。当前静态 GLB 路线只能烘焙最终平移；任何无法在 Rust 校验后烘焙的旋转/缩放、坏 frame 或循环都会失败，而不会在 Python 几何端被忽略。Python 只编译 Rust 展开的受限 ShapeProgram，不拥有 Recipe registry、项目状态、密钥或 Snapshot 写权限。
+
 ## 7. 材质区与真实外观
 
 目标模型不是给整个对象换一种颜色，而是先建立稳定表面区域，再绑定视觉 PBR：
@@ -227,7 +235,7 @@ proposed
 - confirm 创建不可变子版本，并原子更新 Agent head 与 Snapshot；
 - stale Snapshot 不得覆盖新版本；
 - undo/redo 通过新的不可变版本恢复内容；
-- Quality 只读取本次真实 `GeometryCompileReadback@1`；
+- Quality 只读取本次真实 production `GeometryCompileReadback@2`；
 - 导出只引用与 Snapshot、质量、选择一致的当前资产版本。
 
 质量提示只说明网格、bounds、预算、法线、UV、材质区、装配引用和 GLB 格式事实，不给出结构、安全、适航、动力学或制造结论。
@@ -244,7 +252,7 @@ proposed
 6. 当前请求阶段、耗时、用量与缓存；
 7. 错误类别与已有资产安全状态。
 
-错误已区分：请求格式、API Key、余额不足、参数/模型、请求过多、服务故障、超时/网络、空 JSON、无效 JSON、Schema 不符，以及 Action Loop 的 Tool Call 上限、重复 ID、stale Snapshot 和未注册工具。连接测试和普通 Turn 都可以取消；取消会传播到 Provider 和可取消 Worker。选择真实 Provider 后失败不会静默回退为“DeepSeek 已成功”；已有资产保持不变，由用户显式重试。`GET /api/v1/agent/product-tools` 可用于核对当前固定工具合同，但不会执行工具；原始 `reasoning_content` 不会出现在 Item 或日志中。更精简的顶栏仍由 F026 后续整理。
+错误已区分：请求格式、API Key、余额不足、参数/模型、请求过多、服务故障、超时/网络、空 JSON、无效 JSON、Schema 不符，以及 Action Loop 的 Tool Call 上限、重复 ID、stale Snapshot 和未注册工具。连接测试和普通 Turn 都可以取消；取消会传播到 Provider 和可取消 Worker。选择真实 Provider 后失败不会静默回退为“DeepSeek 已成功”；已有资产保持不变，由用户显式重试。`GET /api/v1/agent/product-tools` 可用于核对当前固定工具合同，但不会执行工具；原始 `reasoning_content` 不会出现在 Item 或日志中。F026 已将顶栏收敛为面向用户的连接状态，未暴露 Provider 技术细节。
 
 ## 10. GSAP 动画边界
 
@@ -261,16 +269,16 @@ GSAP 只用于提高操作连续性：
 
 ## 11. 当前与目标对照
 
-| 能力 | 当前 Alpha | 目标状态 |
+| 能力 | 当前本机 Alpha 软件 | 目标状态 |
 | --- | --- | --- |
-| 候选选择 | 用户看到三个方向 | Agent 内部评审，只显示一个最佳结果 |
-| 主形体 | 低多边形 primitive 和有限组合 | 轮廓、Loft、Sweep、Revolve、受限 CSG |
+| 结果生成 | F026 过渡期只显示第一条 legacy 文本方向适配的一个临时 3D 结果；它没有 V003 Gate 结论 | Agent 单次合成，失败时最多两次同意图原位修复，只显示一个通过结果 |
+| 主形体 | 已有受限 Profile/Loft/Sweep/Revolve/CSG runtime，但固定 showcase 仍以 primitive 和绝对坐标组合为主 | Recipe 自动选择轮廓、Loft、Sweep、Revolve 与受限 CSG |
 | 轮廓编辑 | 未提供 | 受限 SVG/ProfileSketch 编辑 |
-| 布尔 | 轴对齐 box 等有限场景 | benchmark 后选择单一稳健实现 |
-| 材质 | 少量参数材质，多数单区 | 多区、UV/tangent、完整 PBR、真实 readback |
-| 组件 | 项目内受限替换 | 版本化 EditableComponentRecipe |
-| 视口 | 当前大视口 | 左上 mini，点击同一 canvas 中央 focus |
-| Provider | 配置/错误可观察性不足 | preflight、stream、cancel、usage、稳定错误分类 |
+| 布尔 | 单一 Manifold Python 受限 union/subtract 已实现，无自由 UI | Recipe 内受限采用并保留 feature/source provenance |
+| 材质/工件 | M108A 已完成 preview 128 v3 与 production 512 v4、多区、UV/tangent、真实 readback/CAS；固定 showcase 仍不是 M108B 视觉完成证据 | M108B Recipe-backed 真人视觉 4/5 |
+| 组件 | C102 项目内受限替换；C105 已实现 8 项、四领域、Rust-owned 的 Recipe Registry/展开/版本生命周期，但 416 triangles 只是机制证据 | 扩展为生产级 Recipe 目录，并经 M108B 验收完整外观 |
+| 视口 | 当前大视口 | 右侧 docked，点击同一 canvas 中央 focus |
+| Provider | A003 preflight、stream、cancel、usage 和稳定错误已实现；K001–K003 已由 Rust app-server/core 单一拥有 Provider/Tool、产品状态和持久化，Python 只执行受限几何；本机仍可能未配置 Provider | Rust-first 边界维持，后续只在受限 Tool/审批合同内扩展 |
 | 产品范围 | 四个首批领域 | 逐包晋级生活机械，不使用万能 fallback |
 
 ## 12. 目标验收清单
@@ -282,7 +290,7 @@ GSAP 只用于提高操作连续性：
 - ProfileSketch、Extrude/Revolve 增强、Loft、Sweep 逐项有 Schema、Worker、readback、预算和失败 Gate；
 - 稳健布尔候选经过许可证、体积、冷启动、内存、确定性、材质区和 macOS/Windows 打包 benchmark；
 - 边缘处理、法线、UV0、tangent 和稳定 Material Zone 有真实回读；
-- Recipe、PBR、内部最佳候选、mini/focus 和 Provider Gateway 均通过各自任务 Gate；
+- M108A production 工件与 K003 Rust-first 已通过；C105 Recipe 的完整 preview/confirm、版本/恢复、production readback Gate，M108B 视觉基线、内部最佳候选和 docked/focus 仍须通过各自任务 Gate；
 - 工作台始终只有一个 WebGL renderer/context；
-- 四领域视觉基准达到计划阈值，新领域只有通过 `draft → evaluated → enabled` 才可自动使用；
+- 四领域 Recipe-backed 视觉基准达到逐领域三项真人中位数 `4/5`，新领域只有通过 `draft → evaluated → enabled` 才可自动使用；
 - USER_GUIDE、能力—Gate 矩阵和 handoff 已按真实结果同步。

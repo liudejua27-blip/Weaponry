@@ -1,6 +1,6 @@
 # ForgeCAD Schema Contract
 
-版本：2026-07-15
+版本：2026-07-18
 
 Schema 是桌面端、本地 Agent、领域包、组件库、材质库、几何 worker 和导出的稳定边界。所有 JSON 必须包含 `schema_version`，并在写入不可变对象前验证。
 
@@ -13,9 +13,9 @@ packages/weapon-spec/      legacy Weapon/Unity runtime
 packages/concept-spec/     当前通用机械概念 Agent 工作台
 ```
 
-D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；A004 新增 Pydantic/OpenAPI `ForgeCADProductToolRegistry@1`、`ProductToolManifest` 与持久化 Tool Item 使用的 `AgentActionToolEvent@1`。这些合同均已进入生成类型或 OpenAPI 与任务 Gate。
+D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；A004 新增 Pydantic/OpenAPI `ForgeCADProductToolRegistry@1`、`ProductToolManifest` 与持久化 Tool Item 使用的 `AgentActionToolEvent@1`。K001 新增代码所有的 `ForgeCADAppServerProtocolManifest@1`，冻结 `forgecad.app-server/1`、JSON-RPC 方法/通知、能力、队列/帧限制、canonical hash、显式 method+segment compatibility 路由白名单与只读资源边界。旧 K001 manifest 的 `state_owner=python_compatibility_adapter` 和 `persistent_state_writers=[python_fastapi]` 作为历史迁移 fixture 保持字节稳定；K003 当前所有权由 initialize 的 Rust owner、SQLite ownership marker 和 packaged/layered Gate 证明。这些合同均已进入生成类型、固定 fixture 或任务 Gate。
 
-当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。这些合同已经有 JSON Schema、TypeScript/Python registry 或 OpenAPI 类型与 smoke；G3 已有受限 ShapeProgram/领域 blockout 生成链，G6 已有声明式 Connector 吸附与 GLB readback，G6.5 可引入只读 `ExternalGLBReference@1`。G807 另有运行时版本化变体目录；G812 在 build/segment OpenAPI 请求与响应中增加可选、受限的 `variant_id`，G813 再增加仅为 `0..2` 的 `variation_index`（旧响应缺失时默认为 `0`）。G815 的 `VisualIntentMapping@1` 将三张方向的有限轮廓、细节、色彩和展示姿态分类映射到同一 Pack 已审核的 0–3 视觉族；实际 ID/index 只用于同一方向三项视觉预览的一致性，经候选 JSON 与已保存的 ShapeProgram/AssemblyGraph 可追溯；它们不改变 `ModuleAssetManifest@1` 或 `ActiveDesignSnapshot` 合同，也不开放自由参数。G811 已将当前 AssetVersion 的受限声明接入零基础步进控件，不开放自由参数、单位换算或新几何执行；真实碰撞、外部 GLB 的自动重建与深度分件仍未完成。
+当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。C105 另冻结 `EditableComponentRecipe@1`、`ComponentRecipeRef@1`、`ComponentRecipeInstantiationRequest@1`、`ComponentRecipeCandidate@1` 与 `ComponentRecipeInstanceProvenance@1` 的合同；其完整运行时/版本/恢复 Gate 仍在进行，不能因 Schema 存在即标记 C105 完成。这些合同已经有 JSON Schema、TypeScript/Python registry 或 OpenAPI 类型与 smoke；G3 已有受限 ShapeProgram/领域 blockout 生成链，G6 已有声明式 Connector 吸附与 GLB readback，G6.5 可引入只读 `ExternalGLBReference@1`。G807 另有运行时版本化变体目录；G812 在 build/segment OpenAPI 请求与响应中增加可选、受限的 `variant_id`，G813 再增加仅为 `0..2` 的 `variation_index`（旧响应缺失时默认为 `0`）。G815 的 `VisualIntentMapping@1` 将三张方向的有限轮廓、细节、色彩和展示姿态分类映射到同一 Pack 已审核的 0–3 视觉族；实际 ID/index 只用于同一方向三项视觉预览的一致性，经候选 JSON 与已保存的 ShapeProgram/AssemblyGraph 可追溯；它们不改变 `ModuleAssetManifest@1` 或 `ActiveDesignSnapshot` 合同，也不开放自由参数。G811 已将当前 AssetVersion 的受限声明接入零基础步进控件，不开放自由参数、单位换算或新几何执行；真实碰撞、外部 GLB 的自动重建与深度分件仍未完成。
 
 生成与漂移检查：
 
@@ -31,7 +31,7 @@ npm run contracts:types:check
 | `DomainPackManifest@1` | 领域、模板、Connector、Joint、材质和质量/导出 Profile |
 | `DomainInferenceResult@1` | 在创建计划前表达唯一识别、含糊候选或不支持；不是可持久化资产 |
 | `ConceptScopeDecision@1` | DomainInference 后、Planner 前的本地范围决策；不是 Project、资产、Snapshot 或版本真值 |
-| `VisualIntentMapping@1` | 三个方向的本机受限外观分类到既有视觉族；不包含尺寸、脚本、自由网格或工程参数 |
+| `VisualIntentMapping@1` | legacy Planner 文本方向的本机受限外观分类到既有视觉族；F026 只消费第一条文本方向，不包含尺寸、脚本、自由网格或工程参数 |
 | `MechanicalConceptSpec@1` | 完整外观意图、设计语言、包围盒、姿态、材料意图和生成阶段 |
 | `AssemblyGraph@1` | 分层部件、几何来源、变换、连接、关节和材质区 |
 | `ShapeProgramRuntimeManifest@1` | 版本化运行时操作与 Worker executor 的唯一清单；JSON Schema enum 由此生成 |
@@ -40,6 +40,13 @@ npm run contracts:types:check
 | `ProfileSectionSet@1` | 沿一个主轴排序的 2–12 个截面引用、有限 scale/twist/cap 与统一重采样策略 |
 | `GeometryCompileReadback@1` | 同一次 ShapeProgram 编译后从 GLB 回读的 hash、triangle、bounds、mesh/primitive/material、operation/output role，以及 normal/UV0/tangent、稳定 face→part/zone 与 edge-finish 事实 |
 | `EditableParameterBinding@1` | 一个 Agent Part 的非执行式、用户可读数值路径声明：稳定 ID、范围、步长、单位和显示名称 |
+| `EditableComponentRecipe@1` | 代码所有、已审阅、仅限非功能视觉用途的组件定义：受限 ShapeProgram 模板、轮廓/截面引用、G808 绑定、connector/pivot、Material Zone、固定 child slot、质量和来源/许可证边界 |
+| `ComponentRecipeRef@1` | `recipe_id + version + recipe_sha256` 的不可变引用；永远不以“最新同名 Recipe”重写已有资产 |
+| `ComponentRecipeInstantiationRequest@1` | Rust-only 的临时展开请求；区分不绑定项目的 `initial_candidate` 与绑定 project/base/snapshot 的 `active_asset_edit`，不携带 world transform、代码、URL 或路径 |
+| `ComponentRecipeCandidate@1` | 只读 Recipe 展开证据，含 expanded ShapeProgram/AssemblyGraph、registry/candidate hash 与 provenance；不是第二条资产版本链或已完成 GLB |
+| `ComponentRecipeInstanceProvenance@1` | 成功确认后保存在 AssemblyGraph 的实例路径、Recipe ref、registry hash、parent/slot、领域、审阅与许可证事实 |
+| `SurfaceLayerProgram@1` | C107 受限二维 Design Surface：规范化向量路径、内置 decal、normal/roughness/emissive mask、对称和 UV frame；禁止 SVG 字符串、脚本、URL、文件路径与任意 shader |
+| `SurfaceLayerLowering@1` / `RestrictedSurfaceLayerInput@1` | Rust 校验后生成的密封 lowering 与 canonical SHA；Python 只能消费该 DTO，将 A005 与 retained 五通道 PBR 绑定到一个已验证 Material Zone，最终 GLB/readback 保留完整 hash provenance |
 | `MaterialPreset@1` | 可追溯 metallic-roughness PBR 预设 |
 | `MaterialBinding@1` | Part Material Zone 到材质预设的绑定 |
 | `DesignChangeSet@2` | legacy Concept 工作台的部件、连接和参数修改 |
@@ -58,6 +65,7 @@ npm run contracts:types:check
 | `AgentItem@1` | 消息、计划、工具、预览、澄清、批准和工件 |
 | `ForgeCADProductToolRegistry@1` | 代码所有、不可动态扩展的 13 项产品工具清单，包含稳定 ID、输入/输出 Schema 和审批策略 |
 | `AgentActionToolEvent@1` | 同一 Turn 的 tool call/result 公开事实：call/tool ID、状态、耗时、幂等键、失败类别与审批策略；不含隐藏推理 |
+| `ForgeCADAppServerProtocolManifest@1` | K001 桌面协议 manifest：`forgecad.app-server/1` initialize、JSON-RPC 方法/通知、能力、limits、cursor/canonical hash、显式 compatibility route allowlist 与 `forgecad-resource` 只读无状态边界；fixture 内 owner 是 K001 历史迁移快照，K003 当前由 Rust core 单写 |
 | `ApprovalRequest@1` | 永久副作用确认 |
 | `ModelQualityReport@1` | 通用 Mesh/Assembly/Material/Domain Finding |
 
@@ -152,6 +160,7 @@ parts[] {
   provenance
 }
 connections[]
+component_recipe_instances[]?  // 仅 Recipe-backed 资产；legacy 图安全视为空
 ```
 
 不变量：node ID 唯一；root 存在；无环；parent/child 双向一致；geometry source 已注册；Connector/Joint 引用存在；Material Zone ID 在 Part 内唯一；锁定节点不能被普通 ChangeSet 修改。
@@ -183,6 +192,23 @@ metadata
 `MechanicalStyleToken@1` 只保存版本、中文名称、离散比例/边缘/表面/细节/对称/材质调色板/灯光语言、允许领域和 builtin 来源。`DomainSemanticProportionRecipe@1` 将普通语言意图绑定到 `primary_form`、`cabin_form`、`upper_link_form` 等有限语义部件槽，以及唯一的 `transform.scale.x/y/z` 路径和 `-1|+1` 声明步长；它不包含 mm、自由表达式或 ShapeProgram operation。
 
 `ResolvedSemanticProportionOptions@1` 是活动资产的只读派生结果，绑定 asset/part/domain、runtime manifest、ShapeProgram/GLB hash、锁定状态与选项。每个选项都带真实 G808 binding 的 current/target/min/max/step/unit，以及 G826 readback 的非空 `source_operation_ids`。解析失败返回明确 `unavailable_message`，不能静默猜测。该对象不进入 Snapshot 或 localStorage，也不替代 ChangeSet。
+
+### 6.3 EditableComponentRecipe@1（C105，in progress）
+
+`EditableComponentRecipeRegistry@1` 是代码所有的 first-party 视觉目录，而不是用户可写模板市场。每项 `EditableComponentRecipe@1` 必须同时声明：唯一 Recipe ID/version、受限 `ShapeProgram@1` template、Profile/ProfileSectionSet canonical input、feature→operation 映射、G808/D005 parameter binding、局部正交 connector/pivot、Material Zone/目录材质、child slot、允许领域、三角预算，以及 source/review/license。当前目录的 `source_kind=forgecad_first_party`、`reviewer_kind=forgecad_internal`、`license_id=ForgeCAD-Internal-Visual-Only`、`redistributable=false` 都是强制边界：它们只描述非功能概念外观，不可作为第三方素材再分发、工程材料或制造资料。
+
+实例持久化只保存 `ComponentRecipeRef@1` 与 registry SHA-256；确认后的 `AssemblyGraph.component_recipe_instances[]` 还保存 instance path、parent instance/slot、domain、source/review/license、quality 与 policy version。Recipe 内容或 registry 中的“最新版本”绝不能重写旧 `AgentAssetVersion`。如果 ref/hash/版本不再能在当前代码所有 registry 中精确解析，或 registry 发现不一致，操作必须以 stale/invalid 拒绝；旧资产按其已保存 hash 保持可读，迁移只能显式创建新的 preview→confirm 子版本。
+
+`ComponentRecipeInstantiationRequest@1` 只允许两种上下文：
+
+- `initial_candidate` 的 project、base asset、Snapshot revision、target part 和 ChangeSet 全为 null；它只产生暂存候选，不能伪造项目、版本或 Snapshot；
+- `active_asset_edit` 必须带当前 project/base asset/Snapshot revision，并在 Rust core 重新检查 head、CAS、领域、目标 Part 和 C104 lock；展开本身仍为零写，之后才可进入既有 ChangeSet preview。
+
+`slot_bindings[]` 只能显式启用 Recipe 已声明的固定、已审阅 child Recipe；它不接受任意 child 或“换一个组件”。项目内组件替换继续使用 C102 的兼容性读取与 preview→confirm 路径。父/child Recipe graph、instance path、slot ID 和 parent/child connector 必须无环、有限并可验证。child world placement 由 parent world、parent connector、slot local transform、child connector inverse 和 child root local transform 确定性组合；当前静态 GLB/worker 边界只接受最终可烘焙的平移，残余旋转/缩放或非正交 frame 必须 fail closed，不能在 Python 侧悄悄丢弃。
+
+Recipe 展开、canonical hash、child graph/connector 校验和 AssemblyGraph/provenance 由 Rust core 完成。Python `RestrictedGeometryExecutor` 只接收已展开的 `RestrictedGeometryInput`/ShapeProgram，绝不接收 Recipe registry、connector graph、project/SQLite/CAS 路径、Provider Key 或 Snapshot 写权限。`ComponentRecipeCandidate@1` 的 `expanded` 仅证明 Rust 展开成功；只有同一 ShapeProgram 的 `interactive_preview` 或 `production_concept` artifact profile hash、实际 GLB 和 `GeometryCompileReadback@2` 之后，才可声称对应预览或 production 工件存在。最终替换、比例和材质变更仍一律走 ChangeSet preview→confirm。
+
+当前四领域的低复杂度 Recipe/GLB fixture 仅用来验证 C105 合同、展开和跨语言 readback 线路；它们不是 M108B 的 Recipe-backed production visual kit，也没有满足独立真人逐领域 `4/5` 或“生产级概念资产”结论。
 
 ## 7. MaterialPreset 与 Binding
 

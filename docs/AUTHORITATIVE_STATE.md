@@ -1,11 +1,17 @@
 # ForgeCAD 唯一权威状态设计
 
-版本：2026-07-15
-状态：S001–S008、D001–D005、F001–F006、T001–T004、G801–G826、R001–R004、M101–M107、C101–C104 与 Q002–Q003 的当前原子任务已按各自边界完成；F001/T002/T003 已在本机 Chrome 验证启动、澄清、预览不写盘、Agent 提交、Snapshot/导出一致、重启和单 WebGL canvas。当前 Agent 路径的恢复、选择、预览、质量、回退/前进和 GLB 导出已读取同一 Snapshot；R003 的爆炸概念图和 R004 的 PNG/manifest 图包均是条件式只读派生物；Q002 将质量写入收紧为 ETag + Idempotency-Key 重放，任务级 CAS 竞争已有 smoke，广泛多客户端压力矩阵仍未完成。
+版本：2026-07-18
+状态：S001–S008、D001–D005、F001–F006、T001–T004、G801–G826、R001–R004、M101–M107、C101–C105、Q002–Q003 与 K001–K003 的当前原子任务已按各自边界完成；F001/T002/T003 已在本机 Chrome 验证启动、澄清、预览不写盘、Agent 提交、Snapshot/导出一致、重启和单 WebGL canvas。当前 Agent 路径的恢复、选择、预览、质量、回退/前进和 GLB 导出读取同一 Snapshot；R003 的爆炸概念图和 R004 的 PNG/manifest 图包均是条件式只读派生物；Q002 将质量写入收紧为 ETag + Idempotency-Key 重放，任务级 CAS 竞争已有 smoke，广泛多客户端压力矩阵仍未完成。K003 已把 Agent 生命周期与权威产品状态/持久化统一交给 Rust app-server/core；Python 仅执行受限几何。
 
 2026-07-15 增量真值：G819 已将 ShapeProgram 操作接受/拒绝收敛到单一 manifest；Q003 已将质量与导出的 triangle、bounds、hash、operation/output/material 证据收敛到当次 `GeometryCompileReadback@1`。G825 再把每个有序 ShapeProgram node 的输入/结果/参数/provenance hash、runtime/kernel version 和 CSG surface/material 来源收敛到同次 GLB 回读的不可变 `feature_history`；该历史是资产内容的派生证据，不是第二个 Project/Version/FeatureGraph 真值。旧估算报告和缺少 Feature History 的新编译均不是当前资产质量真值。
 
 D005 增量真值：Style Token 和语义比例 Recipe 是版本化只读目录，不保存当前参数值。可用选项每次从当前活动 `AgentAssetVersion` 的 AssemblyGraph、G808 binding 和同一 ShapeProgram 的 G826 GLB readback 重新解析；当前比例值来自 AssemblyGraph transform。点击配方仍创建普通 ChangeSet preview，只有 confirm 创建不可变子版本并更新 Snapshot。配方选择本身不写 localStorage/Snapshot，也不能扩大路径、范围、步长或 G819 operation manifest。
+
+C105 增量真值（已完成）：`EditableComponentRecipeRegistry@1` 是 Rust/代码所有的 first-party visual-only 目录。`ComponentRecipeInstantiationRequest@1` 的展开是只读计算：`initial_candidate` 不关联 project/base asset/Snapshot/ChangeSet，`active_asset_edit` 则必须以当前 project、base asset、Snapshot revision 和 C104 lock 重新校验；两种模式的 candidate 都不得写 Version、head、Snapshot、SQLite、CAS 或对象库。`ComponentRecipeCandidate@1` 不是第二条资产版本链，`expanded` 不等于 preview、quality、export 或 GLB 成功。最终替换、比例和材质改动仍由既有 `AgentAssetChangeSet@1` preview→confirm 创建不可变子版本。
+
+确认后的 Recipe-backed `AssemblyGraph` 在 `component_recipe_instances[]` 中保留 recipe ref、registry hash、固定 child slot 与审阅来源，在对应 Part 中保留 connector `up`、pivot、Material Zone 与 frozen G808 binding。registry/ref 不一致或无法精确解析时必须 stale-reject，绝不能以同名新 Recipe 重写旧资产；旧版本仍按已保存 hash 读取。child 的局部变换在 Rust 验证/计算，Python 只接收已展开的受限几何输入，不能接触 Recipe registry、project/SQLite/CAS、Provider Key 或 Snapshot 写权。当前静态 GLB 管线只接受可烘焙的最终平移；残余 rotation/scale、无效 frame、循环、跨领域、锁定、质量/预算失败均零写拒绝。
+
+K003 增量真值：Rust `forgecad-app-server-protocol`、app-server、Tauri bridge 和 TypeScript transport 单一拥有桌面到 Agent 的 `forgecad.app-server/1` initialize/JSON-RPC、连接、稳定 ID、取消、通知确认、有界队列与 cursor replay；Rust app-server/core 单一拥有 Thread/Turn/Item/Approval policy、Context Builder、DeepSeek Provider、13 项 Product Tool Action Loop，以及 Project、Version、ActiveDesignSnapshot、ChangeSet、Quality、Export、SQLite/WAL、CAS 和对象库。`compat/http` 与 `forgecad-resource` 只是受限传输，不是业务状态真值。Python `RestrictedGeometryExecutor` 只接收经 Rust 校验的几何请求并返回 GLB/readback/hash/结构化错误，不获得数据库/对象库路径、Provider Key、会话决策或 Snapshot 写权限。K001/K002 fixture 的 Python owner 字段是历史迁移快照，不是当前所有权真值。
 
 ## 1. 历史问题与当前边界
 
@@ -47,13 +53,15 @@ ActiveDesignSnapshot@1
 
 | 状态 | 唯一真值 | 允许缓存 | 禁止行为 |
 | --- | --- | --- | --- |
-| Project | SQLite `projects`/目标通用 Project repository | 前端只读摘要 | 用 localStorage 创建第二个 Project 真值 |
-| AgentAsset | SQLite `agent_asset_versions` + 内容寻址对象 | GLB/缩略图缓存 | 把旧 ConceptVersion 当作同一个资产版本号 |
-| Version Head | 服务端原子更新的 Agent asset head + Snapshot | 前端缓存 Snapshot revision | 前端自行推断最新版本 |
+| Desktop-Agent protocol | Rust `forgecad.app-server/1` connection/cursor/cancel/ack transport；业务 payload 由 Rust app-server/core 产生 | 前端仅缓存当前连接与短生命周期 replay cursor | 把 transport cursor 当 Snapshot revision，或让 `forgecad-resource`/browser adapter 写业务状态 |
+| Thread / Turn / Item / Approval policy、Provider lifecycle | Rust app-server | 前端有序 Item 投影 | 让 Python 重新决策会话/Provider/预算/Tool，或让 Rust/Python 双写同表 |
+| Project | Rust `forgecad-core` + SQLite `projects` | 前端只读摘要 | 用 localStorage 创建第二个 Project 真值 |
+| AgentAsset | Rust `forgecad-core` + SQLite `agent_asset_versions` + 内容寻址对象 | GLB/缩略图缓存 | 把旧 ConceptVersion 当作同一个资产版本号 |
+| Version Head | Rust core 事务原子更新的 Agent asset head + Snapshot | 前端缓存 Snapshot revision | 前端自行推断最新版本 |
 | Selection | Snapshot 的 `selected_part_id` + `selected_material_zone_id` | 视口临时 hover | 同时保存 ModuleGraph node 和 Agent part/zone 为活动选择 |
-| Preview | 单个未确认 ChangeSet | 视口 ghost 几何 | 直接改写父版本或存在多个活动预览 |
-| Quality | 指向活动资产版本的最新报告 | UI 摘要 | 显示旧 Concept 报告为 Agent 资产报告 |
-| Export | Snapshot 的 `export.source_version_id` | 下载状态 | 根据文件格式切换到另一版本链 |
+| Preview | Rust core 持有的单个未确认 ChangeSet | 视口 ghost 几何 | 直接改写父版本或存在多个活动预览 |
+| Quality | Rust core 中指向活动资产版本的最新报告 | UI 摘要 | 显示旧 Concept 报告为 Agent 资产报告 |
+| Export | Rust core Snapshot 的 `export.source_version_id` | 下载状态 | 根据文件格式切换到另一版本链 |
 | Camera / light | Snapshot 的 `render_preset`（Agent asset only） | localStorage 仅作首次加载前的 UI 偏好 | 把 localStorage 当版本真值或给 legacy Snapshot 写入 Agent preset |
 | Part display / protection | Snapshot 的 `part_display`（Agent asset only） | 视口临时 hover | 用组件 local state 伪造锁定、让隐藏部件保持选中，或把显示动作变成几何版本 |
 | Concept scope | Agent Kernel 在每次 Turn 内本地计算的 `ConceptScopeDecision@1` | 当前 Turn 的 Item 展示 | 将它当作 Project、Version、Selection、Quality、Export 或 Snapshot 真值 |
@@ -63,7 +71,7 @@ ActiveDesignSnapshot@1
 ```text
 NoProject
   → ProjectReady
-  → DirectionPreview
+  → CompatibilityResultPreview（仅 F026 过渡适配；不是 V003）
   → SegmentationCandidate
   → EditableAsset(version N)
   → ChangePreview(base N)
@@ -88,7 +96,7 @@ NoProject
 目标状态机不得把未知领域默认映射为武器包：
 
 ```text
-recognized → 创建三方向计划
+recognized → 创建 legacy 计划；F026 兼容适配器只可读取第一条文本方向并形成单结果临时展示
 ambiguous  → waiting_for_clarification
 unsupported → completed scope stop（不调用 Planner 或 Provider）
 ```
@@ -128,6 +136,8 @@ POST /api/v1/projects/{project_id}/active-design:part-display
 ```
 
 `GET /active-design` 与 S003 POST 返回 `ETag: W/"active-design-{revision}"`，并固定 `Cache-Control: no-store`。首次 GET 只会从有效 Agent head 或 legacy current version创建一个兼容 Snapshot；空项目不创建 Snapshot。navigation 是派生读模型，同样 `no-store` 且不提供独立 ETag，客户端必须刷新 Snapshot 后再写。选择、legacy hand-off、撤销、重做、render-preset 和 part-display 至少提交 `snapshot_revision` 或 ETag；质量检查必须同时提交 `Idempotency-Key` 和当前 ETag，重试重放原报告、旧 revision 返回 `ACTIVE_DESIGN_STALE`。part-display 只允许 Agent Snapshot；legacy 返回 `ACTIVE_DESIGN_LEGACY_READ_ONLY`，preview 存在时返回可恢复冲突，并按请求幂等重放。Agent ChangeSet preview 会绑定 `preview.change_set_id/base_asset_version_id`；确认子版本会清除 preview、quality 与 selection，拒绝 preview 会清空该引用。S007 将 hand-off 持久化为只含 source/revision 的转换授权；它不创建或修改 legacy 版本。撤销/重做只接受当前 Agent head 的服务端历史目标，在新版本中复制目标内容，不会改写或重新标记历史版本。只有获得授权后确认的新 Agent 资产才能原子替换活动设计，旧数据继续保留。
+
+K003 之后，上述 API 从 packaged WebView 经 Rust app-server protocol/bridge 到达 Rust core 单写事务；浏览器开发经同合同的 compatibility frames。传输层只能验证和搬运请求/响应，不得根据 cursor、HTTP status、缓存或资源 URL 推断 Snapshot/head，也不得持久化任何业务对象。Python restricted geometry port 不拥有或修改这些对象。
 
 ## 8. 前端要求
 

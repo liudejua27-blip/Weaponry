@@ -40,6 +40,7 @@ jobs:
 
   backend-and-contracts:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,13 +50,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
       - run: python -m venv .venv
       - run: .venv/bin/python -m pip install --upgrade pip
       - run: .venv/bin/pip install -e 'apps/agent[dev]'
       - run: npm ci
+      # The C105 lifecycle runner intentionally executes its focused Core
+      # checks offline.  Fetch the locked graph explicitly once so the test
+      # itself cannot resolve or mutate dependencies while exercising the
+      # no-Provider fake-geometry lifecycle.
+      - run: cargo fetch --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
       - run: npm run agent:check
       - run: .venv/bin/ruff check apps/agent
       - run: npm run agent:unit
+      - name: K001 Python app-server compatibility oracle
+        run: npm run agent:k001-app-server-smoke
+      - name: K002 Python compatibility ports and Product Tool manifest
+        run: |
+          npm run agent:k002-python-port-test
+          npm run agent:k002-product-tool-manifest-smoke
+      - name: K003 packaged gate validator self-test
+        run: npm run desktop:k003-packaged-native-smoke-self-test
+      - name: K003 layered gate self-tests
+        run: npm run k003:layered-gate-self-tests
       - name: ForgeCAD Agent G1-G7 and domain smoke
         run: |
           npm run contracts:types:check
@@ -106,6 +123,11 @@ jobs:
           npm run agent:c102-component-compatibility-smoke
           npm run agent:c103-structure-suggestions-smoke
           npm run agent:c104-part-display-smoke
+          # Q003 and the complete M108A gate run later in this same job.
+          # Keep the focused C105 lifecycle here so those expensive shared
+          # regressions execute once, while local/release invocation remains
+          # the script's full default aggregation.
+          npm run agent:c105-recipe-lifecycle-smoke -- --skip-regression-gates
           npm run agent:q002-active-design-contract-smoke
           npm run agent:g7-external-glb-import-smoke
           npm run agent:r001-render-preset-smoke
@@ -172,6 +194,7 @@ jobs:
 
   desktop:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -181,6 +204,8 @@ jobs:
       - run: npm ci
       - run: npm run desktop:typecheck
       - run: npm run desktop:build
+      - run: npm run desktop:k001-app-server-transport-smoke
+      - run: npm run desktop:k002-native-forge-api-smoke
       - run: npm run desktop:f006-accessibility-smoke
       - run: npm run desktop:f007-workbench-lifecycle-smoke
       - run: npm run desktop:f008-agent-conversation-state-smoke
@@ -209,6 +234,10 @@ jobs:
     # P009: validates the actual arm64 .app and frozen sidecar. It is a
     # no-secret, no-Provider local Alpha gate; it is not a signing/release job.
     runs-on: macos-14
+    # The build and direct packaged checks run before the aggregate.  The
+    # aggregate has six bounded child commands (five layers plus M108), so its
+    # 10-minute child ceiling needs headroom to write its fail-closed report.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -224,19 +253,42 @@ jobs:
       - run: .venv/bin/pip install -e 'apps/agent[dev]' -r apps/agent/requirements-sidecar-build.lock
       - run: npm ci
       - run: npm run desktop:packaged-sidecar-build
-      - run: npm --workspace apps/desktop run tauri -- build --bundles app
+      - run: npm run desktop:packaged-sidecar-alpha-smoke
+      - run: npm run desktop:tauri-build-app
       - run: npm run desktop:packaged-tauri-alpha-smoke
         env:
           FORGECAD_NATIVE_SMOKE_ARTIFACT_DIR: output/packaged-macos-alpha
+      - run: npm run desktop:k002-packaged-native-smoke
+        env:
+          FORGECAD_K002_PACKAGED_SMOKE_ARTIFACT_DIR: output/packaged-macos-alpha
+      - name: Verify system Chrome for the aggregate workbench layer
+        shell: bash
+        run: |
+          chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+          test -x "$chrome"
+          "$chrome" --version
+          echo "WUSHEN_BROWSER_EXECUTABLE=$chrome" >> "$GITHUB_ENV"
+      - name: K003 five-layer aggregate gate
+        run: npm run k003:layered-gate -- --artifact-dir output/k003-layered-gate-ci --timeout-seconds 600
+        env:
+          FORGECAD_REQUIRE_BROWSER_DOWNLOADS: '0'
+          FORGECAD_M108_SELF_TEST_OUTPUT_ROOT: output/k003-layered-gate-ci/m108-self-test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: packaged-macos-alpha-evidence
           path: output/packaged-macos-alpha
-          if-no-files-found: warn
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k003-layered-gate-ci
+          path: output/k003-layered-gate-ci
+          if-no-files-found: error
 
   workbench-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [backend-and-contracts, desktop]
     steps:
       - uses: actions/checkout@v4

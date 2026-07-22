@@ -83,7 +83,7 @@ mode=packaged-sidecar
 
 每个发布平台必须有非空、正确格式和正确权限的目标文件。详细合同见 [PACKAGING.md](PACKAGING.md)。普通用户机器不得依赖仓库、本机 Python、`.venv` 或开发路径。
 
-先运行 `npm run release:packaged-sidecar-preflight` 阅读 P008 报告。它不读取 Provider Key、不联网或执行外来二进制；当前 macOS arm64 P002 已由 `desktop:packaged-sidecar-alpha-smoke` 与 `desktop:packaged-tauri-alpha-smoke` 验证真实启动、`GET /api/health`、首次初始化、GLB 导出和重启恢复。预检绿色或本机 Alpha E2E 都不替代新机器安装、签名、公证或外部发布。
+先运行 `npm run release:packaged-sidecar-preflight` 阅读 P008 报告。它不读取 Provider Key、不联网或执行外来二进制；当前 macOS arm64 P002 已由 `desktop:packaged-sidecar-alpha-smoke` 与 `desktop:packaged-tauri-alpha-smoke` 验证真实启动、`GET /api/health`、首次初始化、GLB 导出和重启恢复。K001 packaged WebView Gate 还验证完整兼容业务链、两条二进制资源路径、同 GLB hash 与从既有 cursor 重启连续恢复，且 `provider_calls=0`。这仍是程序化本机 Alpha 证据，不替代原生用户点击、新机器安装、签名、公证或外部发布。
 
 ## 5. 许可证与资产审阅
 
