@@ -787,3 +787,5 @@ npm run desktop:r3-concept-workbench-smoke
 本轮修复了 C106 Recipe Material Zone 一区多材质和无渲染输出、历史 v1/v2 纹理字节兼容、readback Schema nullable 合同、M108 validator/Transform 大型 GLB IPC 缓冲溢出，以及 K003 后仍调用 Python 产品状态 smoke 的过时 CI 映射。C105 四领域生命周期、M108 PBR/production/benchmark、Khronos validator、glTF Transform、Rust legacy read-only/first-run、Q002/G7/R001-R004/R006/D1-D3/M107、Agent 单元测试（124 passed）、desktop typecheck/build、contracts、ruff、文档/完整性/安全/密钥与 `git diff --check` 已通过。工程 Gate 通过不等于图片级视觉批准：`FGC-M108B` 仍因四领域正式 production Recipe kit 和每领域三位独立真人 `4/5` 未完成而保持 `blocked`。
 
 本次用户明确授权直接合并并推送 `main`。推送后必须以对应 HEAD 的 GitHub Repository Integrity、Security Baseline 和 ForgeCAD Core 结果为最终远端证据；若 ForgeCAD Core 失败，应继续读取失败日志并修复，不得用较早 commit 的绿色结论代替。当前 Codex 主进程在交接前不会被自杀式终止；用户阅读最终汇报后应使用 `Cmd+Q` 完全退出 Codex，再重新打开，以回收当前应用拥有的 Node/MCP/V8 子进程树。
+
+同日首次远端聚合 Gate 发现 RustSec 新公告 `RUSTSEC-2026-0185`：锁定的 `quinn-proto 0.11.14` 存在远程乱序流重组导致的内存耗尽风险。没有忽略或放宽审计门；锁文件已最小升级至官方修复版本 `0.11.15`，本机 `cargo check --locked` 通过，须以升级提交对应的新一轮 GitHub dependency audit 作为最终关闭证据。
