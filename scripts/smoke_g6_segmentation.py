@@ -26,6 +26,7 @@ def main() -> int:
             pack=pack,
             project_id="prj_g6_segmentation_smoke",
         )
+        assert len(plan.directions) == 1, f"{pack.pack_id} must expose one V003 synthesis direction"
         for direction in plan.directions:
             first = segment_blockout(plan, direction.direction_id)
             repeat = segment_blockout(plan, direction.direction_id)
@@ -48,7 +49,7 @@ def main() -> int:
                 ]
                 assert part["editable_parameters"][:3] == [item["path"] for item in bindings]
             count += 1
-    assert count == 12
+    assert count == len(BRIEFS)
     print(f"G6 segmentation smoke passed: {count} deterministic candidate graphs")
     return 0
 

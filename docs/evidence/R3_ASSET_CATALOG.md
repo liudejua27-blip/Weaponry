@@ -19,7 +19,7 @@ npm run desktop:typecheck
 npm run desktop:r3-concept-workbench-smoke
 ```
 
-结果：上述命令通过。浏览器 smoke 覆盖缩略图加载、展开检视器、待审/原创声明、兼容筛选、拖拽候选、ghost preview、确认创建版本与 20 轮视口生命周期；结果保持单一 canvas / 单一 WebGL context。
+结果：上述命令通过。K003 后 `agent:r2-module-registry-smoke` 和 `agent:r3-asset-catalog-smoke` 由 Rust Core 验证 legacy 目录只读、分页、元数据/GLB 回读和零写入；不再授权 Python Agent 修改组件目录。浏览器 smoke 覆盖缩略图加载、展开检视器、待审/原创声明、兼容筛选、拖拽候选、ghost preview、确认创建版本与 20 轮视口生命周期；结果保持单一 canvas / 单一 WebGL context。
 
 ## 边界
 

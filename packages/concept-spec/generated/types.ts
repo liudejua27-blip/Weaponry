@@ -772,17 +772,17 @@ export type GeometryCompileReadback = {
 }>
   "extensions": Array<"KHR_materials_clearcoat" | "KHR_materials_transmission" | "KHR_materials_ior">
   "texture_byte_size": number
-  "surface_adornment"?: SurfaceAdornmentProgram
-  "surface_adornment_sha256"?: Sha256
+  "surface_adornment"?: SurfaceAdornmentProgram | null
+  "surface_adornment_sha256"?: Sha256 | null
   "surface_layer_lowering"?: {
   "schema_version": "SurfaceLayerLowering@1"
   "source_program_sha256": Sha256
   "adornments": Array<SurfaceAdornmentProgram>
   "retained_layers": Record<string, unknown>
   "retained_layers_sha256": Sha256
-}
-  "surface_layer_lowering_sha256"?: Sha256
-  "surface_layer_retained_layers_sha256"?: Sha256
+} | null
+  "surface_layer_lowering_sha256"?: Sha256 | null
+  "surface_layer_retained_layers_sha256"?: Sha256 | null
 }>
   "visual_environment": {
   "schema_version": "ForgeCADVisualEnvironment@1"

@@ -228,22 +228,47 @@
           },
           "extensions": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "type": "string", "enum": ["KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"] } },
           "texture_byte_size": { "type": "integer", "minimum": 1, "maximum": 20000000 },
-          "surface_adornment": { "$ref": "surface-adornment-program.schema.json" },
-          "surface_adornment_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
-          "surface_layer_lowering": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["schema_version", "source_program_sha256", "adornments", "retained_layers", "retained_layers_sha256"],
-            "properties": {
-              "schema_version": { "const": "SurfaceLayerLowering@1" },
-              "source_program_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
-              "adornments": { "type": "array", "maxItems": 8, "items": { "$ref": "surface-adornment-program.schema.json" } },
-              "retained_layers": { "type": "object" },
-              "retained_layers_sha256": { "$ref": "common.schema.json#/$defs/sha256" }
-            }
+          "surface_adornment": {
+            "anyOf": [
+              { "$ref": "surface-adornment-program.schema.json" },
+              { "type": "null" }
+            ]
           },
-          "surface_layer_lowering_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
-          "surface_layer_retained_layers_sha256": { "$ref": "common.schema.json#/$defs/sha256" }
+          "surface_adornment_sha256": {
+            "anyOf": [
+              { "$ref": "common.schema.json#/$defs/sha256" },
+              { "type": "null" }
+            ]
+          },
+          "surface_layer_lowering": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["schema_version", "source_program_sha256", "adornments", "retained_layers", "retained_layers_sha256"],
+                "properties": {
+                  "schema_version": { "const": "SurfaceLayerLowering@1" },
+                  "source_program_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+                  "adornments": { "type": "array", "maxItems": 8, "items": { "$ref": "surface-adornment-program.schema.json" } },
+                  "retained_layers": { "type": "object" },
+                  "retained_layers_sha256": { "$ref": "common.schema.json#/$defs/sha256" }
+                }
+              },
+              { "type": "null" }
+            ]
+          },
+          "surface_layer_lowering_sha256": {
+            "anyOf": [
+              { "$ref": "common.schema.json#/$defs/sha256" },
+              { "type": "null" }
+            ]
+          },
+          "surface_layer_retained_layers_sha256": {
+            "anyOf": [
+              { "$ref": "common.schema.json#/$defs/sha256" },
+              { "type": "null" }
+            ]
+          }
         }
       }
     },

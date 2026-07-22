@@ -15,6 +15,10 @@ from forgecad_agent.application.geometry_worker import (
     segment_blockout,
 )
 from forgecad_agent.application.mechanical_planner import DeterministicMechanicalPlanner
+from forgecad_agent.application.visual_texture_sets import (
+    builtin_material_properties,
+    builtin_visual_material_binding,
+)
 
 
 BRIEFS = (
@@ -197,7 +201,9 @@ def main() -> int:
         automotive_clearcoat = automotive["extensions"][
             "KHR_materials_clearcoat"
         ]
-        assert automotive_clearcoat["clearcoatFactor"] == 0.86
+        assert automotive_clearcoat["clearcoatFactor"] == builtin_material_properties(
+            builtin_visual_material_binding("mat_automotive_paint")[0]
+        )["clearcoat"]
         assert automotive_clearcoat["clearcoatRoughnessFactor"] == 1
         assert (
             automotive_clearcoat["clearcoatRoughnessTexture"]["index"]

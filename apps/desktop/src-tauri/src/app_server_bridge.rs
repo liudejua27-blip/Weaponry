@@ -5233,7 +5233,9 @@ fn native_recipe_blockout_parts_and_graph(
                     .ok_or_else(|| {
                         NativeBlockoutCompatError::conflict(
                             "RECIPE_PREVIEW_GRAPH_INVALID",
-                            "C106 semantic component has no rendered output for one declared Material Zone.",
+                            format!(
+                                "C106 semantic component has no rendered output for declared Material Zone `{zone_id}`."
+                            ),
                         )
                     })?;
                 let output_args = operation_args.get(&output.operation_id).ok_or_else(|| {

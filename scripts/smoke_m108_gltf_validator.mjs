@@ -3,8 +3,10 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 import { validateBytes, version as validatorVersion } from 'gltf-validator';
 
@@ -14,35 +16,44 @@ const python = process.env.PYTHON ?? join(
   '.venv',
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
 );
-const fixtureResult = spawnSync(
-  python,
-  [join(ROOT, 'scripts', 'smoke_m108_visual_pbr.py'), '--emit-validator-fixtures'],
-  {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PYTHONPATH: [join(ROOT, 'apps', 'agent'), join(ROOT, 'scripts'), process.env.PYTHONPATH]
-        .filter(Boolean)
-        .join(process.platform === 'win32' ? ';' : ':'),
+const fixtureDirectory = mkdtempSync(join(tmpdir(), 'forgecad-gltf-validator-'));
+try {
+  const fixtureResult = spawnSync(
+    python,
+    [
+      join(ROOT, 'scripts', 'smoke_m108_visual_pbr.py'),
+      '--emit-validator-directory',
+      fixtureDirectory,
+    ],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PYTHONPATH: [join(ROOT, 'apps', 'agent'), join(ROOT, 'scripts'), process.env.PYTHONPATH]
+          .filter(Boolean)
+          .join(process.platform === 'win32' ? ';' : ':'),
+      },
+      maxBuffer: 1024 * 1024,
     },
-    maxBuffer: 20 * 1024 * 1024,
-  },
-);
-assert.equal(fixtureResult.status, 0, fixtureResult.stderr || fixtureResult.stdout);
-
-const fixtures = JSON.parse(fixtureResult.stdout);
-assert.equal(validatorVersion(), '2.0.0-dev.3.10');
-assert.equal(fixtures.length, 4, 'expected one raw showcase GLB fixture per supported domain');
-
-for (const fixture of fixtures) {
-  assert.equal(typeof fixture.fixture_id, 'string');
-  const report = await validateBytes(
-    new Uint8Array(Buffer.from(fixture.glb_base64, 'base64')),
-    { format: 'glb', maxIssues: 0, writeTimestamp: false },
   );
-  assert.equal(report.issues.numErrors, 0, `${fixture.fixture_id}: ${JSON.stringify(report.issues.messages)}`);
-  assert.equal(report.issues.numWarnings, 0, `${fixture.fixture_id}: ${JSON.stringify(report.issues.messages)}`);
+  assert.equal(fixtureResult.status, 0, fixtureResult.stderr || fixtureResult.stdout);
+
+  const fixtures = JSON.parse(fixtureResult.stdout);
+  assert.equal(validatorVersion(), '2.0.0-dev.3.10');
+  assert.equal(fixtures.length, 4, 'expected one raw showcase GLB fixture per supported domain');
+
+  for (const fixture of fixtures) {
+    assert.equal(typeof fixture.fixture_id, 'string');
+    const report = await validateBytes(
+      new Uint8Array(readFileSync(fixture.glb_path)),
+      { format: 'glb', maxIssues: 0, writeTimestamp: false },
+    );
+    assert.equal(report.issues.numErrors, 0, `${fixture.fixture_id}: ${JSON.stringify(report.issues.messages)}`);
+    assert.equal(report.issues.numWarnings, 0, `${fixture.fixture_id}: ${JSON.stringify(report.issues.messages)}`);
+  }
+} finally {
+  rmSync(fixtureDirectory, { recursive: true, force: true });
 }
 
 const malformed = await validateBytes(new Uint8Array([0, 1, 2, 3]), {

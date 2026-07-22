@@ -33,7 +33,9 @@ from forgecad_agent.application.geometry_worker import (  # noqa: E402
 )
 from forgecad_agent.application.mechanical_planner import DeterministicMechanicalPlanner  # noqa: E402
 from forgecad_agent.application.visual_texture_sets import (  # noqa: E402
+    builtin_material_properties,
     builtin_visual_material_count,
+    builtin_visual_material_binding,
     builtin_visual_texture_cache_facts,
     legacy_builtin_visual_texture_sets,
     legacy_builtin_visual_texture_sets_v2,
@@ -70,11 +72,17 @@ def _schema_validator() -> Draft202012Validator:
             encoding="utf-8"
         )
     )
+    surface_adornment = json.loads(
+        (SCHEMA_DIR / "surface-adornment-program.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
     resolver = RefResolver.from_schema(
         schema,
         store={
             common["$id"]: common,
             artifact_profile["$id"]: artifact_profile,
+            surface_adornment["$id"]: surface_adornment,
         },
     )
     return Draft202012Validator(schema, resolver=resolver)
@@ -949,7 +957,9 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     automotive_clearcoat = automotive_material["extensions"][
         "KHR_materials_clearcoat"
     ]
-    assert automotive_clearcoat["clearcoatFactor"] == 0.86
+    assert automotive_clearcoat["clearcoatFactor"] == builtin_material_properties(
+        builtin_visual_material_binding("mat_automotive_paint")[0]
+    )["clearcoat"]
     assert automotive_clearcoat["clearcoatRoughnessFactor"] == 1
     assert (
         automotive_clearcoat["clearcoatRoughnessTexture"]["index"]
@@ -1359,20 +1369,34 @@ def main() -> int:
         action="store_true",
         help="write one deterministic showcase GLB per domain as base64 JSON for the external standard validator smoke",
     )
+    parser.add_argument(
+        "--emit-validator-directory",
+        type=Path,
+        help="write production GLB validator fixtures to an existing temporary directory and print a compact JSON manifest",
+    )
     args = parser.parse_args()
     _assert_texture_microdetail_gate_self_test()
     assert _texture_cache_entry_count() == 0
     assets = _build_showcase_assets()
     assert _texture_cache_entry_count() == builtin_visual_material_count() == 8
-    if args.emit_validator_fixtures:
+    if args.emit_validator_fixtures or args.emit_validator_directory:
         # Keep the external validator independent of ForgeCAD readback: it
         # receives raw bytes for one representative asset in each domain.
-        fixtures = [
-            {"fixture_id": fixture_id, "glb_base64": base64.b64encode(glb_bytes).decode("ascii")}
-            for fixture_id, glb_bytes in _build_showcase_assets(
-                artifact_profile_id="production_concept"
-            )[::3]
-        ]
+        assets = _build_showcase_assets(artifact_profile_id="production_concept")[::3]
+        if args.emit_validator_directory:
+            output_dir = args.emit_validator_directory.resolve()
+            if not output_dir.is_dir():
+                raise ValueError("validator fixture directory must already exist")
+            fixtures = []
+            for index, (fixture_id, glb_bytes) in enumerate(assets):
+                path = output_dir / f"fixture-{index}.glb"
+                path.write_bytes(glb_bytes)
+                fixtures.append({"fixture_id": fixture_id, "glb_path": str(path)})
+        else:
+            fixtures = [
+                {"fixture_id": fixture_id, "glb_base64": base64.b64encode(glb_bytes).decode("ascii")}
+                for fixture_id, glb_bytes in assets
+            ]
         assert len(fixtures) == 4
         print(json.dumps(fixtures, separators=(",", ":")))
         return 0

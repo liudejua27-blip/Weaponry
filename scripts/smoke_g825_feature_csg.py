@@ -336,7 +336,10 @@ def assert_preview_confirm() -> None:
         assert child.parent_asset_version_id == base.asset_version_id
         assert child.asset_version_id != base.asset_version_id
         assert assets.get_version(base.asset_version_id).shape_program == base_program
-        compiled = compile_shape_program(child.shape_program)
+        compiled = compile_shape_program(
+            child.shape_program,
+            artifact_profile_id="production_concept",
+        )
         assert compiled.readback.feature_history[-1].kernel_id == "manifold3d"
         with SQLiteUnitOfWork(factory) as unit:
             assert len(unit.agent_assets.list_versions(base.project_id)) == before_versions + 1

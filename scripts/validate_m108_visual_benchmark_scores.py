@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from forgecad_agent.application.geometry_worker import read_shape_program_glb_facts
+from forgecad_agent.application.visual_texture_sets import geometry_artifact_profile_manifest
 from prepare_m108_visual_benchmark import DOMAINS, build_kit
 
 
@@ -32,6 +33,9 @@ REQUIRED_VIEWPORT = {
     "load_state": "ready",
     "render_source": "glb_pbr",
 }
+PRODUCTION_TEXTURE_SIZE = int(
+    geometry_artifact_profile_manifest("production_concept")["texture_width"]
+)
 
 
 class BenchmarkValidationError(ValueError):
@@ -92,8 +96,13 @@ def _validate_current_review_texture_sets(texture_sets: object, *, fixture_id: s
             texture_role = _require_string(texture_map.get("texture_role"), f"{map_field}.texture_role")
             if "_v4_" not in texture_id:
                 raise BenchmarkValidationError(f"{map_field} 不是当前 production v4 纹理 readback")
-            if texture_map.get("width") != 512 or texture_map.get("height") != 512:
-                raise BenchmarkValidationError(f"{map_field} 必须是当前 512x512 生产级嵌入纹理")
+            if (
+                texture_map.get("width") != PRODUCTION_TEXTURE_SIZE
+                or texture_map.get("height") != PRODUCTION_TEXTURE_SIZE
+            ):
+                raise BenchmarkValidationError(
+                    f"{map_field} 必须是当前 {PRODUCTION_TEXTURE_SIZE}x{PRODUCTION_TEXTURE_SIZE} 生产级嵌入纹理"
+                )
             map_roles.add(texture_role)
         if map_roles != PBR_TEXTURE_ROLES:
             raise BenchmarkValidationError(f"{field} 的五通道 PBR map role 不完整或重复")
@@ -317,7 +326,7 @@ def _self_test() -> None:
         try:
             _validate_current_review_texture_sets(invalid_texture_sets, fixture_id=fixture_ids[0])
         except BenchmarkValidationError as error:
-            if "512x512" not in str(error):
+            if f"{PRODUCTION_TEXTURE_SIZE}x{PRODUCTION_TEXTURE_SIZE}" not in str(error):
                 raise
         else:
             raise AssertionError("non-current embedded texture dimensions were accepted for M108 review")

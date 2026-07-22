@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -22,9 +22,17 @@ const python = process.env.PYTHON ?? join(
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
 );
 
+const validatorFixtureDirectory = mkdtempSync(join(tmpdir(), 'forgecad-m108-transform-'));
+process.on('exit', () => {
+  rmSync(validatorFixtureDirectory, { recursive: true, force: true });
+});
 const fixtureResult = spawnSync(
   python,
-  [join(ROOT, 'scripts', 'smoke_m108_visual_pbr.py'), '--emit-validator-fixtures'],
+  [
+    join(ROOT, 'scripts', 'smoke_m108_visual_pbr.py'),
+    '--emit-validator-directory',
+    validatorFixtureDirectory,
+  ],
   {
     cwd: ROOT,
     encoding: 'utf8',
@@ -34,7 +42,7 @@ const fixtureResult = spawnSync(
         .filter(Boolean)
         .join(process.platform === 'win32' ? ';' : ':'),
     },
-    maxBuffer: 20 * 1024 * 1024,
+    maxBuffer: 1024 * 1024,
   },
 );
 assert.equal(fixtureResult.status, 0, fixtureResult.stderr || fixtureResult.stdout);
@@ -140,7 +148,7 @@ const byteSizes = [];
 const rejectionReasons = [];
 
 for (const fixture of fixtures) {
-  const source = new Uint8Array(Buffer.from(fixture.glb_base64, 'base64'));
+  const source = new Uint8Array(readFileSync(fixture.glb_path));
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   const document = await io.readBinary(source);
   const sourceFacts = readback(source);

@@ -439,7 +439,7 @@
               "height": 48,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_joint_shell"
+              "zone_id": "zone_arm_joint_ring"
             }
           },
           {
@@ -483,11 +483,17 @@
               "height": 30,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_joint_core"
+              "zone_id": "zone_arm_joint_cap"
             }
           }
         ],
         "outputs": [
+          {
+            "output_id": "output_joint_graphite_shell",
+            "operation_id": "op_joint_bearing_box",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
           {
             "output_id": "output_joint_shell",
             "operation_id": "op_joint_bearing_face",
@@ -522,6 +528,11 @@
         "non_functional_only": true
       },
       "feature_template": [
+        {
+          "feature_id": "feature_joint_graphite_shell",
+          "operation_id": "op_joint_bearing_box",
+          "role": "secondary_form"
+        },
         {
           "feature_id": "feature_joint_shell",
           "operation_id": "op_joint_bearing_face",
@@ -606,13 +617,23 @@
       "material_zones": [
         {
           "zone_id": "zone_arm_joint_shell",
-          "role": "trim",
-          "material_preset_id": "mat_aluminum"
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
         },
         {
           "zone_id": "zone_arm_joint_core",
           "role": "trim",
           "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_joint_ring",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint_cap",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
         },
         {
           "zone_id": "zone_arm_joint_paint",
@@ -771,7 +792,7 @@
               ],
               "part_role": "upper_link_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_link_armor"
+              "zone_id": "zone_arm_link_trim"
             }
           },
           {
@@ -790,7 +811,7 @@
                 92
               ],
               "part_role": "upper_link_form",
-              "material_id": "mat_aluminum",
+              "material_id": "mat_graphite",
               "zone_id": "zone_arm_link_rail"
             }
           },
@@ -863,7 +884,7 @@
               "position": [0, 0, 0],
               "part_role": "upper_link_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_link_armor"
+              "zone_id": "zone_arm_link_trim"
             }
           },
           {
@@ -882,7 +903,7 @@
                 58
               ],
               "part_role": "upper_link_form",
-              "material_id": "mat_graphite",
+              "material_id": "mat_emissive_blue",
               "zone_id": "zone_arm_link_signal"
             }
           },
@@ -922,6 +943,12 @@
             "part_role": "upper_link_form"
           },
           {
+            "output_id": "output_link_armor_plate",
+            "operation_id": "op_link_armor_plate",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
             "output_id": "output_link_flowline_panel",
             "operation_id": "op_link_flowline_panel",
             "kind": "mesh",
@@ -930,6 +957,12 @@
           {
             "output_id": "output_link_side_rail_a",
             "operation_id": "op_link_side_rail_a",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_armor_right",
+            "operation_id": "op_link_armor_right",
             "kind": "mesh",
             "part_role": "upper_link_form"
           },
@@ -962,6 +995,11 @@
         {
           "feature_id": "feature_link_flowline_panel",
           "operation_id": "op_link_flowline_panel",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_armor_right",
+          "operation_id": "op_link_armor_right",
           "role": "upper_link_form"
         },
         {
@@ -1048,6 +1086,11 @@
         },
         {
           "zone_id": "zone_arm_link_rail",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_link_trim",
           "role": "trim",
           "material_preset_id": "mat_aluminum"
         },
@@ -1343,8 +1386,8 @@
                 438
               ],
               "part_role": "visual_detail",
-              "material_id": "mat_graphite",
-              "zone_id": "zone_arm_cable"
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable_clamp_trim"
             }
           },
           {
@@ -1357,7 +1400,7 @@
               "position": [0, 0, 0],
               "part_role": "visual_detail",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_cable"
+              "zone_id": "zone_arm_cable_clamp_trim"
             }
           }
         ],
@@ -1471,6 +1514,11 @@
           "zone_id": "zone_arm_cable_signal",
           "role": "signal",
           "material_preset_id": "mat_emissive_blue"
+        },
+        {
+          "zone_id": "zone_arm_cable_clamp_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
         }
       ],
       "surface_adornment_slots": [
@@ -1646,7 +1694,7 @@
               ],
               "part_role": "end_effector_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_gripper"
+              "zone_id": "zone_arm_gripper_trim"
             }
           },
           {
@@ -1709,7 +1757,7 @@
               ],
               "part_role": "end_effector_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_gripper"
+              "zone_id": "zone_arm_gripper_trim"
             }
           },
           {
@@ -1763,7 +1811,7 @@
               "radial_segments": 48,
               "part_role": "end_effector_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_gripper"
+              "zone_id": "zone_arm_gripper_trim"
             }
           }
         ],
@@ -1900,6 +1948,11 @@
           "zone_id": "zone_arm_gripper_paint",
           "role": "shell",
           "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_arm_gripper_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
         }
       ],
       "surface_adornment_slots": [
@@ -3513,7 +3566,7 @@
               "height": 16,
               "part_role": "base_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_base_deck"
+              "zone_id": "zone_arm_base_fastener"
             }
           },
           {
@@ -3529,7 +3582,7 @@
               "angle": 6.283185307179586,
               "part_role": "base_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_base_deck"
+              "zone_id": "zone_arm_base_fastener"
             }
           },
           {
@@ -3580,7 +3633,7 @@
               ],
               "part_role": "base_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_base_deck"
+              "zone_id": "zone_arm_base_service"
             }
           },
           {
@@ -3594,7 +3647,7 @@
               "segments": 2,
               "part_role": "base_form",
               "material_id": "mat_aluminum",
-              "zone_id": "zone_arm_base_deck"
+              "zone_id": "zone_arm_base_service"
             }
           }
         ],
@@ -3898,6 +3951,16 @@
           "zone_id": "zone_arm_base_signal",
           "role": "signal",
           "material_preset_id": "mat_emissive_blue"
+        },
+        {
+          "zone_id": "zone_arm_base_fastener",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_base_service",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
         }
       ],
       "surface_adornment_slots": [

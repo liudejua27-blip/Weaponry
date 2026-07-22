@@ -38,7 +38,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "editable-component-recipe.schema.json": "dc78c0b7302462082b427d48e8d1a567c00bd46e9551bd413ff64dab6294cce3",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
-  "geometry-compile-readback.schema.json": "966fd54133fad48f96fa29c48d27fd7de97408c825afb55e92e8a0007939e20e",
+  "geometry-compile-readback.schema.json": "f88c32e4888a5cc923cc11786920790d16d52a816883b57b4ab6572407073bd9",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
   "material-texture-object.schema.json": "5818946a17dfa9dd19b13133aa3afab6717604f7b8258e17332d341271bfc1d2",
@@ -6318,48 +6318,83 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "const": "VisualTextureSet@1"
             },
             "surface_adornment": {
-              "$ref": "surface-adornment-program.schema.json"
+              "anyOf": [
+                {
+                  "$ref": "surface-adornment-program.schema.json"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "surface_adornment_sha256": {
-              "$ref": "common.schema.json#/$defs/sha256"
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "surface_layer_lowering": {
-              "additionalProperties": false,
-              "properties": {
-                "adornments": {
-                  "items": {
-                    "$ref": "surface-adornment-program.schema.json"
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adornments": {
+                      "items": {
+                        "$ref": "surface-adornment-program.schema.json"
+                      },
+                      "maxItems": 8,
+                      "type": "array"
+                    },
+                    "retained_layers": {
+                      "type": "object"
+                    },
+                    "retained_layers_sha256": {
+                      "$ref": "common.schema.json#/$defs/sha256"
+                    },
+                    "schema_version": {
+                      "const": "SurfaceLayerLowering@1"
+                    },
+                    "source_program_sha256": {
+                      "$ref": "common.schema.json#/$defs/sha256"
+                    }
                   },
-                  "maxItems": 8,
-                  "type": "array"
-                },
-                "retained_layers": {
+                  "required": [
+                    "schema_version",
+                    "source_program_sha256",
+                    "adornments",
+                    "retained_layers",
+                    "retained_layers_sha256"
+                  ],
                   "type": "object"
                 },
-                "retained_layers_sha256": {
-                  "$ref": "common.schema.json#/$defs/sha256"
-                },
-                "schema_version": {
-                  "const": "SurfaceLayerLowering@1"
-                },
-                "source_program_sha256": {
-                  "$ref": "common.schema.json#/$defs/sha256"
+                {
+                  "type": "null"
                 }
-              },
-              "required": [
-                "schema_version",
-                "source_program_sha256",
-                "adornments",
-                "retained_layers",
-                "retained_layers_sha256"
-              ],
-              "type": "object"
+              ]
             },
             "surface_layer_lowering_sha256": {
-              "$ref": "common.schema.json#/$defs/sha256"
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "surface_layer_retained_layers_sha256": {
-              "$ref": "common.schema.json#/$defs/sha256"
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "texture_byte_size": {
               "maximum": 20000000,

@@ -28,6 +28,6 @@ npm run desktop:typecheck
 npm run desktop:build
 ```
 
-以上命令在此基线通过。WorkBench E2E 由独立工作流运行，以避免在每次基础完整性检查中重复启动浏览器。
+以上命令在当前基线通过。K003 完成后，`r2-module-registry`、`r3-asset-catalog` 与 `r3-first-run-workbench` 命令已经迁移为 Rust Core 测试：前两者验证 legacy 组件目录只读、分页、GLB 回读与零写入，后者验证 Rust 项目 bootstrap 不创建 legacy 版本。它们不再通过 Python Agent 写入产品状态。WorkBench E2E 由独立工作流运行，以避免在每次基础完整性检查中重复启动浏览器。
 
 `npm run release:license-sbom` 当前会如实失败并列出待审外部依赖；它是发布阻断条件，不是 CI 配置失败。

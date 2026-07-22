@@ -119,6 +119,20 @@ _MATERIALS: tuple[Mapping[str, object], ...] = (
     {"material_id": "mat_automotive_paint", "name": "蓝色汽车漆外观", "pattern": "coated", "base": (22, 75, 160), "metallic": 140, "roughness": 45, "normal_scale": 0.22, "clearcoat": 0.9, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
 )
 
+# v1/v2 GLBs are immutable persisted assets.  Their texture ids and PNG hashes
+# must continue to resolve from the material parameters that authored them,
+# even when the current v3/v4 catalog is visually refined.
+_LEGACY_MATERIALS: tuple[Mapping[str, object], ...] = (
+    {"material_id": "mat_primary", "name": "深石墨金属外观", "pattern": "machined", "base": (96, 110, 124), "metallic": 96, "roughness": 142, "normal_scale": 0.3, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_aluminum", "name": "拉丝金属外观", "pattern": "brushed", "base": (176, 187, 198), "metallic": 232, "roughness": 82, "normal_scale": 0.55, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_signal_red", "name": "信号红涂层外观", "pattern": "coated", "base": (196, 55, 43), "metallic": 72, "roughness": 88, "normal_scale": 0.25, "clearcoat": 0.34, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_composite", "name": "哑光复合外观", "pattern": "composite", "base": (74, 87, 101), "metallic": 18, "roughness": 182, "normal_scale": 0.4, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_rubber", "name": "橡胶外观", "pattern": "rubber", "base": (34, 39, 46), "metallic": 0, "roughness": 226, "normal_scale": 0.65, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_dark_glass", "name": "深色透明外观", "pattern": "glass", "base": (45, 70, 94), "metallic": 8, "roughness": 48, "normal_scale": 0.12, "clearcoat": 0.18, "transmission": 0.54, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_emissive_blue", "name": "蓝色发光饰条外观", "pattern": "emissive", "base": (30, 92, 174), "metallic": 28, "roughness": 76, "normal_scale": 0.2, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (16, 116, 255)},
+    {"material_id": "mat_automotive_paint", "name": "蓝色汽车漆外观", "pattern": "coated", "base": (61, 120, 184), "metallic": 97, "roughness": 51, "normal_scale": 0.18, "clearcoat": 0.86, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+)
+
 
 # ShapeProgram and the visual material catalog keep the authored appearance id
 # in immutable zone facts.  The fixed eight-entry GLB material table is a
@@ -1140,8 +1154,9 @@ def surface_adornment_texture_cache_facts() -> Mapping[str, int]:
 
 @lru_cache(maxsize=len(_MATERIALS) * 3)
 def _cached_texture_set_bytes(version: str, material_id: str) -> Mapping[str, bytes]:
+    catalog = _LEGACY_MATERIALS if version in {"1", "2"} else _MATERIALS
     material = next(
-        (item for item in _MATERIALS if item["material_id"] == material_id),
+        (item for item in catalog if item["material_id"] == material_id),
         None,
     )
     if material is None:
