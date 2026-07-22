@@ -24,6 +24,7 @@ def main() -> int:
     for brief in BRIEFS:
         pack = domain_pack_for_message(brief)
         plan = planner.plan_complete_concept(brief=brief, pack=pack, project_id="prj_g5_smoke")
+        assert len(plan.directions) == 1, f"{pack.pack_id} must produce one V003 synthesis direction"
         for direction in plan.directions:
             result = build_blockout(plan, direction.direction_id)
             assert result.glb_bytes[:4] == b"glTF"
@@ -41,7 +42,7 @@ def main() -> int:
             assert result.topology_hash == repeat.topology_hash
             assert result.glb_bytes == repeat.glb_bytes
             results.append((pack.pack_id, direction.direction_id, result.triangle_count, len(result.glb_bytes)))
-    assert len(results) == 12
+    assert len(results) == len(BRIEFS)
     print(f"G5 geometry worker smoke passed: {len(results)} blockouts, deterministic GLB, AssemblyGraph summaries")
     return 0
 
