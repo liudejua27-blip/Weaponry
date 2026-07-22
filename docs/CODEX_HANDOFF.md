@@ -781,3 +781,9 @@ npm run desktop:r3-concept-workbench-smoke
 交接必须列出真实命令结果、工作区是否干净、是否提交/推送，以及下一项已解除阻断的任务 ID。
 
 2026-07-19 启动 Keychain 回归修复（早期检查点，脏工作区，未提交）：用户报告普通打开 CAD 即出现 macOS 密码框。根因是工作台 mount 的 `get_provider_config` 使用 secret-aware `inspect()`，在没有显式 Provider 动作时读取了 Keychain；频繁重建且未使用正式 Developer ID 签名的本机 Alpha 又可能触发 macOS 重新授权。该检查点先改为 `inspect_metadata_only()`，普通启动只读 `provider.json`，并新增 backend read-counter 与 UI smoke。其记录的 `.app` SHA 只对应当时构建，已被本文件顶部的 session-snapshot、packaged 和五层聚合检查点取代；不得用该旧 SHA 判断用户当前运行包。该检查点未执行真实 Provider 调用、未提交或 push。
+
+2026-07-22 仓库整理与聚合 Gate：已在 `main` 分批提交 Rust-first Core、Codex 式工作台、文档/仓库卫生和生产 Gate 回归修复，最后一批代码提交为 `f172d03`。清理前确认生成目录和进程归属；随后停止旧 ForgeCAD/Xcode/测试服务，删除约 40.5 GB 的被忽略产物（含 Rust `target`、`build`、`output`、`artifacts`），保留 `node_modules`、`.venv` 和受 Git 跟踪的 release 模板。`.gitignore` 明确排除 `.next`、Remotion/视频缓存、`.xcresult`、构建目录和大型测试输出；没有把 API Key、缓存或大型生成资产加入 Git。
+
+本轮修复了 C106 Recipe Material Zone 一区多材质和无渲染输出、历史 v1/v2 纹理字节兼容、readback Schema nullable 合同、M108 validator/Transform 大型 GLB IPC 缓冲溢出，以及 K003 后仍调用 Python 产品状态 smoke 的过时 CI 映射。C105 四领域生命周期、M108 PBR/production/benchmark、Khronos validator、glTF Transform、Rust legacy read-only/first-run、Q002/G7/R001-R004/R006/D1-D3/M107、Agent 单元测试（124 passed）、desktop typecheck/build、contracts、ruff、文档/完整性/安全/密钥与 `git diff --check` 已通过。工程 Gate 通过不等于图片级视觉批准：`FGC-M108B` 仍因四领域正式 production Recipe kit 和每领域三位独立真人 `4/5` 未完成而保持 `blocked`。
+
+本次用户明确授权直接合并并推送 `main`。推送后必须以对应 HEAD 的 GitHub Repository Integrity、Security Baseline 和 ForgeCAD Core 结果为最终远端证据；若 ForgeCAD Core 失败，应继续读取失败日志并修复，不得用较早 commit 的绿色结论代替。当前 Codex 主进程在交接前不会被自杀式终止；用户阅读最终汇报后应使用 `Cmd+Q` 完全退出 Codex，再重新打开，以回收当前应用拥有的 Node/MCP/V8 子进程树。
