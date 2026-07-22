@@ -10,10 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import {
-  legacyLifecycleTestOracleEnvironment,
-  waitForAgentSingleResultAndCandidate,
-} from './workbench_agent_blockout_test_helper.mjs'
+import { legacyLifecycleTestOracleEnvironment } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -26,6 +23,7 @@ async function main() {
   const viteBaseUrl = `http://127.0.0.1:${vitePort}`
   const processes = []
   let browser = null
+  let context = null
   try {
     const agent = spawn(
       join(ROOT, '.venv', 'bin', 'python'),
@@ -55,7 +53,8 @@ async function main() {
     await waitForHttp(viteBaseUrl, vite, 'Vite')
 
     browser = await launchBrowser()
-    const page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
+    context = await browser.newContext({ viewport: { width: 1440, height: 960 } })
+    const page = await context.newPage()
     const browserErrors = []
     let legacyBriefPosts = 0
     let legacyWorkbenchInitializations = 0
@@ -201,7 +200,7 @@ async function main() {
     }
     if (legacyBriefPosts !== 0) throw new Error('ambiguous input fell back to legacy Brief interpretation')
     const afterClarificationSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-    if (afterClarificationSnapshot.active_design?.source === 'agent_asset') {
+    if (afterClarificationSnapshot.body?.active_design?.source === 'agent_asset') {
       throw new Error('ambiguous input changed the legacy Snapshot before clarification')
     }
 
@@ -212,49 +211,29 @@ async function main() {
       throw new Error(`clarification did not expose exactly one aircraft choice (count=${aircraftChoiceCount}): ${bodyText.slice(0, 1500)}`)
     }
     await clickWithRetry(aircraftChoice, 'aircraft clarification choice')
-    const candidates = page.getByLabel('分件候选')
-    await waitForAgentSingleResultAndCandidate(
-      page,
-      { candidateLocator: candidates, label: 'F001 aircraft automatic result preview' },
-    )
-    await assertText(candidates, ['当前结果的组件', '预览状态 · 未写入版本'])
-    const afterPreviewSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-    if (!isLegacyOrMissingSnapshot(afterPreviewSnapshot)) {
-      throw new Error('automatic result preview changed the legacy Snapshot before commit')
+    const failure = page.locator('[data-generation-state="failed"][aria-label="生成失败"]')
+    await failure.waitFor({ timeout: 60_000 })
+    const failureText = await failure.innerText()
+    if (!failureText.includes('Agent 没有返回正式的单一结果决策')) {
+      throw new Error(`compatibility Planner was not rejected by the V003 decision contract: ${failureText}`)
     }
-
-    await page.getByRole('button', { name: '保存为可编辑模型', exact: true }).click()
-    await candidates.getByText('可编辑资产 v1', { exact: true }).waitFor({ timeout: 20_000 })
-    const committedSnapshot = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-    if (committedSnapshot.active_design?.source !== 'agent_asset') {
-      throw new Error(`commit did not activate an Agent asset: ${JSON.stringify(committedSnapshot)}`)
+    if (await page.getByLabel('当前临时结果').count() !== 0) {
+      throw new Error('F001 rendered a legacy Planner payload as a formal V003 result')
     }
-    if (committedSnapshot.export?.source_version_id !== committedSnapshot.active_design.asset_version_id) {
-      throw new Error('export source did not follow the committed Agent asset')
+    if (await page.getByLabel('Agent 完整外观方向').count() !== 0) {
+      throw new Error('F001 restored the retired direction-selection surface')
     }
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
-      throw new Error('workbench created a second WebGL canvas after commit')
+      throw new Error('workbench created a second WebGL canvas after V003 rejection')
     }
-    await page.getByTestId('agent-asset-inspector').waitFor({ state: 'attached', timeout: 20_000 })
-    if (await page.getByTestId('legacy-readonly-boundary').count() !== 0) {
-      throw new Error('Agent-active workbench still rendered the legacy compatibility boundary')
-    }
-    await page.getByRole('button', { name: '导出', exact: true }).click()
-    const exportDrawer = page.getByRole('dialog', { name: /下载当前设计/ })
-    await exportDrawer.waitFor({ timeout: 20_000 })
-    const exportText = await exportDrawer.innerText()
-    for (const forbidden of ['SOURCE ZIP', 'OBJ', 'MP4', '导出当前版本']) {
-      if (exportText.includes(forbidden)) throw new Error(`Agent export leaked legacy choice: ${forbidden}`)
-    }
-    await exportDrawer.getByRole('button', { name: '取消', exact: true }).click()
-
-    await page.reload({ waitUntil: 'networkidle' })
-    await page.getByLabel('分件候选').getByText('可编辑资产 v1', { exact: true }).waitFor({ timeout: 20_000 })
-    if (await page.locator('.weapon-viewport canvas').count() !== 1) {
-      throw new Error('workbench created a second WebGL canvas after reload')
+    const afterRejectionSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
+    if (stableSnapshot(afterClarificationSnapshot) !== stableSnapshot(afterRejectionSnapshot)) {
+      throw new Error(
+        `V003 compatibility rejection changed ActiveDesignSnapshot: before=${stableSnapshot(afterClarificationSnapshot)} after=${stableSnapshot(afterRejectionSnapshot)}`,
+      )
     }
     if (legacyDetailReads.length !== legacyDetailReadCountAfterExplicitClose) {
-      throw new Error(`Agent-active reload issued legacy detail reads: ${legacyDetailReads.slice(legacyDetailReadCountAfterExplicitClose).join(' | ')}`)
+      throw new Error(`Agent request issued implicit legacy detail reads: ${legacyDetailReads.slice(legacyDetailReadCountAfterExplicitClose).join(' | ')}`)
     }
     if (legacyBriefPosts !== 0 || legacyWorkbenchInitializations !== 0 || legacyMutationRequests.length > 0 || browserErrors.length > 0) {
       throw new Error(`browser characterization errors: legacyBriefPosts=${legacyBriefPosts}, legacyWorkbenchInitializations=${legacyWorkbenchInitializations}, legacyMutationRequests=${legacyMutationRequests.join(' | ')}, errors=${browserErrors.join(' | ')}`)
@@ -265,26 +244,49 @@ async function main() {
       assertions: [
         'single_canvas',
         'ambiguous_clarification_write_barrier',
-      'preview_does_not_write_version',
-      'agent_commit_snapshot_export_alignment',
-        'reload_restores_agent_head',
+        'v003_rejects_legacy_planner_without_snapshot_write',
         'legacy_details_require_explicit_entry',
         'legacy_surface_is_read_only',
-        'agent_export_has_no_legacy_choices',
         'agent_flow_makes_no_legacy_mutation_calls',
-        'empty_project_generates_first_asset_without_legacy_initializer',
+        'empty_project_requires_no_legacy_initializer',
         ...(legacyConversionRequested ? ['legacy_rebuild_requires_explicit_handoff'] : []),
     ],
     }, null, 2))
   } finally {
-    if (browser) await browser.close()
-    await Promise.all(processes.reverse().map(stopProcess))
+    const cleanupFailures = []
+    for (const cleanup of [
+      context && (() => withinTimeout(context.close(), 5_000, 'browser context close')),
+      browser && (async () => {
+        try {
+          await withinTimeout(browser.close(), 5_000, 'browser close')
+        } catch (error) {
+          if (browser.isConnected()) throw error
+        }
+      }),
+    ].filter(Boolean)) {
+      try { await cleanup() } catch (error) { cleanupFailures.push(error) }
+    }
+    const processCleanup = await Promise.allSettled(processes.reverse().map(stopProcess))
+    cleanupFailures.push(...processCleanup.filter((entry) => entry.status === 'rejected').map((entry) => entry.reason))
     await rm(tempRoot, { recursive: true, force: true })
+    if (cleanupFailures.length > 0) {
+      throw new Error(`F001 runtime cleanup failed: ${cleanupFailures.map((failure) => String(failure)).join('; ').slice(0, 2_000)}`)
+    }
   }
 }
 
 function isLegacyOrMissingSnapshot(response) {
   return response.status === 404 || response.body?.active_design?.source === 'legacy_concept_read_only'
+}
+
+function stableSnapshot(response) {
+  return JSON.stringify({
+    status: response.status,
+    revision: response.body?.revision ?? null,
+    asset_version_id: response.body?.active_design?.asset_version_id ?? null,
+    preview: response.body?.preview ?? null,
+    error_code: response.body?.error?.code ?? null,
+  })
 }
 
 async function waitForProjectId(baseUrl) {
@@ -364,6 +366,13 @@ async function freePort() {
 }
 
 function sleep(milliseconds) { return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)) }
+
+function withinTimeout(promise, timeoutMs, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs)),
+  ])
+}
 
 async function clickWithRetry(locator, label) {
   let lastError = null
