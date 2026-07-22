@@ -252,6 +252,7 @@ jobs:
       - run: .venv/bin/python -m pip install --upgrade pip
       - run: .venv/bin/pip install -e 'apps/agent[dev]' -r apps/agent/requirements-sidecar-build.lock
       - run: npm ci
+      - run: cargo fetch --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
       - run: npm run desktop:packaged-sidecar-build
       - run: npm run desktop:packaged-sidecar-alpha-smoke
       - run: npm run desktop:tauri-build-app

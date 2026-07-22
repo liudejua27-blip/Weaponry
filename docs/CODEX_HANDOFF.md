@@ -789,3 +789,5 @@ npm run desktop:r3-concept-workbench-smoke
 本次用户明确授权直接合并并推送 `main`。推送后必须以对应 HEAD 的 GitHub Repository Integrity、Security Baseline 和 ForgeCAD Core 结果为最终远端证据；若 ForgeCAD Core 失败，应继续读取失败日志并修复，不得用较早 commit 的绿色结论代替。当前 Codex 主进程在交接前不会被自杀式终止；用户阅读最终汇报后应使用 `Cmd+Q` 完全退出 Codex，再重新打开，以回收当前应用拥有的 Node/MCP/V8 子进程树。
 
 同日首次远端聚合 Gate 发现 RustSec 新公告 `RUSTSEC-2026-0185`：锁定的 `quinn-proto 0.11.14` 存在远程乱序流重组导致的内存耗尽风险。没有忽略或放宽审计门；锁文件已最小升级至官方修复版本 `0.11.15`，本机 `cargo check --locked` 通过，须以升级提交对应的新一轮 GitHub dependency audit 作为最终关闭证据。
+
+安全修复后的 dependency audit 已通过；同轮 macOS packaged 前置构建、sidecar、`.app`、原生 smoke 均通过，但 K003 聚合的离线 Rust Core 因 job 未预取测试依赖 `errno` 而 fail-closed。CI 已在 packaged job 增加 `cargo fetch --locked` 宿主预取，继续保留 Rust Core 的 `--offline` 约束；这属于 Gate 编排修复，不是忽略依赖或放宽测试。
