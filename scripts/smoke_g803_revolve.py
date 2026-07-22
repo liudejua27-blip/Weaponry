@@ -11,6 +11,7 @@ from forgecad_agent.application.geometry_worker import (
     read_shape_program_glb,
 )
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
+from forgecad_agent.application.visual_texture_sets import geometry_artifact_profile_manifest
 
 
 def revolve_program(points: list[list[float]], suffix: str, angle: float = math.pi * 2) -> dict:
@@ -102,7 +103,8 @@ def main() -> int:
     assert build_glb_from_shape_program(program)[0] == payload
 
     production = compile_production_concept_shape_program(program)
-    assert production.readback.triangle_count == 48 * (1 + 2 + 2 + 1)
+    production_segments = int(geometry_artifact_profile_manifest("production_concept")["radial_segments"])
+    assert production.readback.triangle_count == production_segments * (1 + 2 + 2 + 1)
     assert len(production.readback.surface_provenance) == 1
     surface = production.readback.surface_provenance[0]
     assert surface.closed is True
