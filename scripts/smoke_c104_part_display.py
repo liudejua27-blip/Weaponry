@@ -43,7 +43,10 @@ async def _request(
     raw_headers: list[tuple[bytes, bytes]] = [(b"host", b"testserver")]
     if payload is not None:
         raw_headers.append((b"content-type", b"application/json"))
-    raw_headers.extend((key.lower().encode("latin-1"), value.encode("latin-1")) for key, value in (headers or {}).items())
+    raw_headers.extend(
+        (key.lower().encode("latin-1"), value.encode("latin-1"))
+        for key, value in (headers or {}).items()
+    )
     await app(  # type: ignore[operator]
         {
             "type": "http",
@@ -61,10 +64,23 @@ async def _request(
         receive,
         send,
     )
-    start = next(message for message in outgoing if message["type"] == "http.response.start")
-    response_body = b"".join(message.get("body", b"") for message in outgoing if message["type"] == "http.response.body")
-    response_headers = {key.decode("latin-1").lower(): value.decode("latin-1") for key, value in start.get("headers", [])}  # type: ignore[union-attr]
-    return int(start["status"]), response_headers, json.loads(response_body.decode("utf-8"))
+    start = next(
+        message for message in outgoing if message["type"] == "http.response.start"
+    )
+    response_body = b"".join(
+        message.get("body", b"")
+        for message in outgoing
+        if message["type"] == "http.response.body"
+    )
+    response_headers = {
+        key.decode("latin-1").lower(): value.decode("latin-1")
+        for key, value in start.get("headers", [])
+    }  # type: ignore[union-attr]
+    return (
+        int(start["status"]),
+        response_headers,
+        json.loads(response_body.decode("utf-8")),
+    )
 
 
 def _error_code(payload: dict[str, object]) -> str:
@@ -94,7 +110,9 @@ def _seed_project(factory: Any) -> None:
         connection.close()
 
 
-def _parts(part_ids: tuple[str, str] = (PART_BODY, PART_WING)) -> list[dict[str, object]]:
+def _parts(
+    part_ids: tuple[str, str] = (PART_BODY, PART_WING),
+) -> list[dict[str, object]]:
     body, wing = part_ids
     return [
         {
@@ -122,15 +140,34 @@ def _parts(part_ids: tuple[str, str] = (PART_BODY, PART_WING)) -> list[dict[str,
     ]
 
 
-def _add_version(unit: Any, *, asset_version_id: str, version_no: int, parent: str | None, part_ids: tuple[str, str] = (PART_BODY, PART_WING)) -> str:
+def _add_version(
+    unit: Any,
+    *,
+    asset_version_id: str,
+    version_no: int,
+    parent: str | None,
+    part_ids: tuple[str, str] = (PART_BODY, PART_WING),
+) -> str:
     body, wing = part_ids
     graph_id = f"mg_{asset_version_id.removeprefix('assetver_')}"
     graph = {
         "schema_version": "AssemblyGraph@1",
         "graph_id": graph_id,
         "parts": [
-            {"part_id": body, "parent_part_id": None, "material_zones": ["zone_body"], "connectors": [], "joints": []},
-            {"part_id": wing, "parent_part_id": body, "material_zones": ["zone_wing"], "connectors": [], "joints": []},
+            {
+                "part_id": body,
+                "parent_part_id": None,
+                "material_zones": ["zone_body"],
+                "connectors": [],
+                "joints": [],
+            },
+            {
+                "part_id": wing,
+                "parent_part_id": body,
+                "material_zones": ["zone_wing"],
+                "connectors": [],
+                "joints": [],
+            },
         ],
         "connections": [],
     }
@@ -192,18 +229,36 @@ def main() -> int:
         os.environ["WUSHEN_MIGRATIONS_DIR"] = str(ROOT / "migrations")
         os.environ["WUSHEN_LOCAL_WORKER_ENABLED"] = "0"
         os.environ["FORGECAD_CONCEPT_WORKER_ENABLED"] = "0"
+        os.environ["FORGECAD_TEST_ONLY_LEGACY_AGENT_LIFECYCLE"] = "1"
+        os.environ["FORGECAD_TEST_ONLY_LEGACY_PRODUCT_CORE"] = "1"
+        os.environ["FORGECAD_K001_PACKAGED_PROBE"] = "1"
 
-        from forgecad_agent.application.agent_asset_editing import AgentAssetEditingService, AgentAssetError
-        from forgecad_agent.application.agent_models import AgentPartEditOperation, ProposeAgentAssetChangeSetRequest
-        from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteUnitOfWork
-        from wushen_agent.main import create_app
+        from forgecad_agent.application.agent_asset_editing import (
+            AgentAssetEditingService,
+            AgentAssetError,
+        )
+        from forgecad_agent.application.agent_models import (
+            AgentPartEditOperation,
+            ProposeAgentAssetChangeSetRequest,
+        )
+        from forgecad_agent.infrastructure.db import (
+            SQLiteConnectionFactory,
+            SQLiteUnitOfWork,
+        )
+        from wushen_agent.main import create_test_only_legacy_product_core_app
 
-        app = create_app()
+        app = create_test_only_legacy_product_core_app()
         factory = SQLiteConnectionFactory(root / "library" / "library.db")
         _seed_project(factory)
         with SQLiteUnitOfWork(factory) as unit:
-            graph_id = _add_version(unit, asset_version_id="assetver_c104_v1", version_no=1, parent=None)
-            unit.agent_assets.set_head(project_id=PROJECT_ID, asset_version_id="assetver_c104_v1", updated_at=NOW)
+            graph_id = _add_version(
+                unit, asset_version_id="assetver_c104_v1", version_no=1, parent=None
+            )
+            unit.agent_assets.set_head(
+                project_id=PROJECT_ID,
+                asset_version_id="assetver_c104_v1",
+                updated_at=NOW,
+            )
             unit.active_designs.create_agent_snapshot(
                 project_id=PROJECT_ID,
                 asset_version_id="assetver_c104_v1",
@@ -211,17 +266,47 @@ def main() -> int:
                 updated_at=NOW,
             )
 
-        status, headers, snapshot = asyncio.run(_request(app, "GET", f"/api/v1/projects/{PROJECT_ID}/active-design"))
+        status, headers, snapshot = asyncio.run(
+            _request(app, "GET", f"/api/v1/projects/{PROJECT_ID}/active-design")
+        )
         assert status == 200 and headers["etag"] == 'W/"active-design-1"'
         assert snapshot["part_display"]["locked_part_ids"] == []
 
-        lock = {"client_request_id": "c104-lock", "snapshot_revision": 1, "action": "lock", "part_id": PART_WING}
-        lock_headers = {"Idempotency-Key": "c104-lock-key", "If-Match": 'W/"active-design-1"'}
-        status, headers, locked = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:part-display", payload=lock, headers=lock_headers))
+        lock = {
+            "client_request_id": "c104-lock",
+            "snapshot_revision": 1,
+            "action": "lock",
+            "part_id": PART_WING,
+        }
+        lock_headers = {
+            "Idempotency-Key": "c104-lock-key",
+            "If-Match": 'W/"active-design-1"',
+        }
+        status, headers, locked = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:part-display",
+                payload=lock,
+                headers=lock_headers,
+            )
+        )
         assert status == 200 and headers["etag"] == 'W/"active-design-2"'
         assert locked["part_display"]["locked_part_ids"] == [PART_WING]
-        status, replay_headers, replay = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:part-display", payload=lock, headers=lock_headers))
-        assert status == 200 and replay_headers["etag"] == 'W/"active-design-2"' and replay == locked
+        status, replay_headers, replay = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:part-display",
+                payload=lock,
+                headers=lock_headers,
+            )
+        )
+        assert (
+            status == 200
+            and replay_headers["etag"] == 'W/"active-design-2"'
+            and replay == locked
+        )
 
         assets = AgentAssetEditingService(factory)
         try:
@@ -230,7 +315,15 @@ def main() -> int:
                 ProposeAgentAssetChangeSetRequest(
                     client_request_id="c104-locked-edit-request",
                     summary="attempt locked edit",
-                    operations=[AgentPartEditOperation(operation_id="op_c104_locked", op="set_part_parameter", part_id=PART_WING, path="transform.scale.x", value=1.2)],
+                    operations=[
+                        AgentPartEditOperation(
+                            operation_id="op_c104_locked",
+                            op="set_part_parameter",
+                            part_id=PART_WING,
+                            path="transform.scale.x",
+                            value=1.2,
+                        )
+                    ],
                 ),
                 "c104-locked-edit",
             )
@@ -238,27 +331,124 @@ def main() -> int:
         except AgentAssetError as exc:
             assert exc.code == "PART_PROTECTED"
 
-        select = {"client_request_id": "c104-select", "snapshot_revision": 2, "selected_part_id": PART_WING, "selected_material_zone_id": "zone_wing"}
-        status, _, selected = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:select", payload=select, headers={"Idempotency-Key": "c104-select-key", "If-Match": 'W/"active-design-2"'}))
+        select = {
+            "client_request_id": "c104-select",
+            "snapshot_revision": 2,
+            "selected_part_id": PART_WING,
+            "selected_material_zone_id": "zone_wing",
+        }
+        status, _, selected = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:select",
+                payload=select,
+                headers={
+                    "Idempotency-Key": "c104-select-key",
+                    "If-Match": 'W/"active-design-2"',
+                },
+            )
+        )
         assert status == 200 and selected["selected_part_id"] == PART_WING
-        hide = {"client_request_id": "c104-hide", "snapshot_revision": 3, "action": "hide", "part_id": PART_WING}
-        status, _, hidden = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:part-display", payload=hide, headers={"Idempotency-Key": "c104-hide-key", "If-Match": 'W/"active-design-3"'}))
-        assert status == 200 and hidden["selected_part_id"] is None and hidden["part_display"]["hidden_part_ids"] == [PART_WING]
-        blocked_select = {"client_request_id": "c104-hidden-select", "snapshot_revision": 4, "selected_part_id": PART_WING}
-        status, _, blocked = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:select", payload=blocked_select, headers={"Idempotency-Key": "c104-hidden-select-key", "If-Match": 'W/"active-design-4"'}))
+        hide = {
+            "client_request_id": "c104-hide",
+            "snapshot_revision": 3,
+            "action": "hide",
+            "part_id": PART_WING,
+        }
+        status, _, hidden = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:part-display",
+                payload=hide,
+                headers={
+                    "Idempotency-Key": "c104-hide-key",
+                    "If-Match": 'W/"active-design-3"',
+                },
+            )
+        )
+        assert (
+            status == 200
+            and hidden["selected_part_id"] is None
+            and hidden["part_display"]["hidden_part_ids"] == [PART_WING]
+        )
+        blocked_select = {
+            "client_request_id": "c104-hidden-select",
+            "snapshot_revision": 4,
+            "selected_part_id": PART_WING,
+        }
+        status, _, blocked = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:select",
+                payload=blocked_select,
+                headers={
+                    "Idempotency-Key": "c104-hidden-select-key",
+                    "If-Match": 'W/"active-design-4"',
+                },
+            )
+        )
         assert status == 409 and _error_code(blocked) == "ACTIVE_DESIGN_INVALID"
 
-        isolate = {"client_request_id": "c104-isolate", "snapshot_revision": 4, "action": "isolate", "part_id": PART_BODY}
-        status, _, isolated = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:part-display", payload=isolate, headers={"Idempotency-Key": "c104-isolate-key", "If-Match": 'W/"active-design-4"'}))
-        assert status == 200 and isolated["part_display"]["isolated_part_id"] == PART_BODY
-        show_all = {"client_request_id": "c104-show-all", "snapshot_revision": 5, "action": "show_all"}
-        status, _, visible = asyncio.run(_request(app, "POST", f"/api/v1/projects/{PROJECT_ID}/active-design:part-display", payload=show_all, headers={"Idempotency-Key": "c104-show-all-key", "If-Match": 'W/"active-design-5"'}))
-        assert status == 200 and visible["part_display"]["hidden_part_ids"] == [] and visible["part_display"]["isolated_part_id"] is None
+        isolate = {
+            "client_request_id": "c104-isolate",
+            "snapshot_revision": 4,
+            "action": "isolate",
+            "part_id": PART_BODY,
+        }
+        status, _, isolated = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:part-display",
+                payload=isolate,
+                headers={
+                    "Idempotency-Key": "c104-isolate-key",
+                    "If-Match": 'W/"active-design-4"',
+                },
+            )
+        )
+        assert (
+            status == 200 and isolated["part_display"]["isolated_part_id"] == PART_BODY
+        )
+        show_all = {
+            "client_request_id": "c104-show-all",
+            "snapshot_revision": 5,
+            "action": "show_all",
+        }
+        status, _, visible = asyncio.run(
+            _request(
+                app,
+                "POST",
+                f"/api/v1/projects/{PROJECT_ID}/active-design:part-display",
+                payload=show_all,
+                headers={
+                    "Idempotency-Key": "c104-show-all-key",
+                    "If-Match": 'W/"active-design-5"',
+                },
+            )
+        )
+        assert (
+            status == 200
+            and visible["part_display"]["hidden_part_ids"] == []
+            and visible["part_display"]["isolated_part_id"] is None
+        )
 
         with SQLiteUnitOfWork(factory) as unit:
-            graph_id_v2 = _add_version(unit, asset_version_id="assetver_c104_v2", version_no=2, parent="assetver_c104_v1")
+            graph_id_v2 = _add_version(
+                unit,
+                asset_version_id="assetver_c104_v2",
+                version_no=2,
+                parent="assetver_c104_v1",
+            )
             unit.agent_assets.supersede("assetver_c104_v1")
-            unit.agent_assets.set_head(project_id=PROJECT_ID, asset_version_id="assetver_c104_v2", updated_at=NOW)
+            unit.agent_assets.set_head(
+                project_id=PROJECT_ID,
+                asset_version_id="assetver_c104_v2",
+                updated_at=NOW,
+            )
             advanced = unit.active_designs.advance_agent_snapshot(
                 project_id=PROJECT_ID,
                 expected_revision=6,
@@ -266,13 +456,23 @@ def main() -> int:
                 assembly_graph_id=graph_id_v2,
                 updated_at=NOW,
             )
-            assert advanced.part_display is not None and advanced.part_display.asset_version_id == "assetver_c104_v2"
+            assert (
+                advanced.part_display is not None
+                and advanced.part_display.asset_version_id == "assetver_c104_v2"
+            )
             assert advanced.part_display.locked_part_ids == [PART_WING]
-        status, _, restored = asyncio.run(_request(app, "GET", f"/api/v1/projects/{PROJECT_ID}/active-design"))
-        assert status == 200 and restored["part_display"]["asset_version_id"] == "assetver_c104_v2"
+        status, _, restored = asyncio.run(
+            _request(app, "GET", f"/api/v1/projects/{PROJECT_ID}/active-design")
+        )
+        assert (
+            status == 200
+            and restored["part_display"]["asset_version_id"] == "assetver_c104_v2"
+        )
         assert restored["part_display"]["locked_part_ids"] == [PART_WING]
 
-    print("C104 part display smoke passed: lock protection, hide/isolate, idempotency, selection guard and version-state normalization")
+    print(
+        "C104 part display smoke passed: lock protection, hide/isolate, idempotency, selection guard and version-state normalization"
+    )
     return 0
 
 

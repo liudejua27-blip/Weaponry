@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-skill-eval-report.schema.json",
+  "title": "AgentSkillEvalReport",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "report_id", "skill_id", "skill_version", "skill_sha256", "status", "findings", "evaluated_at"],
+  "properties": {
+    "schema_version": { "const": "AgentSkillEvalReport@1" },
+    "report_id": { "type": "string", "pattern": "^skilleval_[a-z0-9_\\-]+$" },
+    "skill_id": { "type": "string", "pattern": "^skill_[a-z0-9_\\-]+$" },
+    "skill_version": { "type": "integer", "minimum": 1 },
+    "skill_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "status": { "enum": ["passed", "failed"] },
+    "findings": { "type": "array", "maxItems": 32, "items": { "type": "string", "minLength": 1, "maxLength": 300 } },
+    "evaluated_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }
+  }
+}

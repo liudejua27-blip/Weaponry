@@ -1,0 +1,76 @@
+{
+  "schema_version": "SurfaceLayerProgram@1",
+  "program_id": "surface_layer_arm_link_panel",
+  "target_part_id": "part_c106_link",
+  "target_zone_id": "zone_c106_link_shell",
+  "target_part_role": "link_armor",
+  "material_zone_id": "zone_c106_link_shell",
+  "base_material": "mat_aluminum",
+  "vector_paths": [
+    {
+      "path_id": "path_link_spine",
+      "closed": false,
+      "commands": [
+        { "kind": "move", "points": [[0.16, 0.26]] },
+        { "kind": "line", "points": [[0.38, 0.31]] },
+        { "kind": "quadratic", "points": [[0.57, 0.37], [0.73, 0.51]] },
+        { "kind": "cubic", "points": [[0.79, 0.58], [0.82, 0.68], [0.76, 0.78]] }
+      ]
+    }
+  ],
+  "decal_layers": [
+    {
+      "decal_id": "decal_service_badge",
+      "motif": "panel_label",
+      "text_token": "A-01",
+      "color_token": "accent_blue",
+      "anchor_uv": [0.32, 0.62],
+      "scale_milli": 180,
+      "opacity_milli": 840
+    }
+  ],
+  "normal_relief_layers": [
+    {
+      "layer_id": "relief_primary_grooves",
+      "motif": "parallel_groove",
+      "intensity": "balanced",
+      "coverage": "center_band",
+      "seed": 106
+    }
+  ],
+  "roughness_masks": [
+    {
+      "mask_id": "rough_edge_wear",
+      "motif": "edge_wear",
+      "coverage": "edge_band",
+      "intensity_milli": 260,
+      "seed": 107
+    }
+  ],
+  "emissive_masks": [
+    {
+      "mask_id": "emissive_status_flow",
+      "motif": "double_flowline",
+      "color_token": "accent_blue",
+      "coverage": "symmetric_pair",
+      "intensity_milli": 420,
+      "seed": 108
+    }
+  ],
+  "symmetry": { "mode": "mirror_u", "center_uv": [0.5, 0.5] },
+  "uv_frame": {
+    "frame_id": "uvframe_arm_link_shell",
+    "u_min": 0.08,
+    "u_max": 0.92,
+    "v_min": 0.12,
+    "v_max": 0.88,
+    "rotation_degrees": 0
+  },
+  "quality_profile": "production_concept",
+  "execution": "lower_to_a005_and_retain",
+  "skill_id": "skill_first_party_surface_adornment",
+  "skill_version": 2,
+  "skill_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "generator": "surface_layer_v1",
+  "non_functional_only": true
+}

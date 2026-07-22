@@ -1,0 +1,7 @@
+{
+  "schema_version": "ComponentRecipePack@1",
+  "pack_id": "pack_aircraft_concept_core",
+  "domain_pack_id": "pack_aircraft_concept",
+  "recipe_source": "shared/c105-v1-compatibility-registry.json",
+  "recipe_ids": ["recipe_aircraft_fuselage", "recipe_aircraft_trim"]
+}

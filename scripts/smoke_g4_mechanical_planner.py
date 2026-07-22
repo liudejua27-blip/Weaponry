@@ -45,22 +45,6 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
                                         "primary_part_roles": ["base", "upper_link", "end_effector"],
                                         "material_direction": "深色金属与橡胶",
                                     },
-                                    {
-                                        "direction_id": "direction_2",
-                                        "title": "长臂维护",
-                                        "summary": "延展运动链的维护机构完整外观。",
-                                        "silhouette": "extended",
-                                        "primary_part_roles": ["base", "forearm_link", "end_effector"],
-                                        "material_direction": "铝与复合材料",
-                                    },
-                                    {
-                                        "direction_id": "direction_3",
-                                        "title": "双工具服务",
-                                        "summary": "带可替换末端工具的服务机构。",
-                                        "silhouette": "industrial",
-                                        "primary_part_roles": ["base", "wrist_joint", "end_effector"],
-                                        "material_direction": "石墨灰与信号色",
-                                    },
                                 ],
                                 "provider_id": "fake",
                                 "model": "fake-model",
@@ -92,8 +76,8 @@ def main() -> int:
     )
     assert isinstance(deterministic, MechanicalConceptPlan)
     assert deterministic.domain_pack_id == "pack_robotic_arm_concept"
-    assert len(deterministic.directions) == 3
-    assert deterministic.spec["visual_intent_mapping"]["schema_version"] == "VisualIntentMapping@1"
+    assert len(deterministic.directions) == 1
+    assert deterministic.spec["visual_intent_mapping"]["schema_version"] == "VisualIntentMapping@2"
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), FakeProviderHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -114,9 +98,9 @@ def main() -> int:
         )
         assert plan.provider_id == "openai_compatible_mechanical_planner"
         assert plan.model == "fake-model"
-        assert len(plan.directions) == 3
+        assert len(plan.directions) == 1
         mapping = plan.spec["visual_intent_mapping"]
-        assert mapping["schema_version"] == "VisualIntentMapping@1"
+        assert mapping["schema_version"] == "VisualIntentMapping@2"
         assert [item["direction_id"] for item in mapping["directions"]] == [item.direction_id for item in plan.directions]
         assert all(direction.material_direction for direction in plan.directions)
         request_body = FakeProviderHandler.request_body or {}

@@ -5,8 +5,18 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "domain_pack_id", "source", "directions"],
+  "allOf": [
+    {
+      "if": { "properties": { "schema_version": { "const": "VisualIntentMapping@1" } } },
+      "then": { "properties": { "directions": { "minItems": 3, "maxItems": 3 } } }
+    },
+    {
+      "if": { "properties": { "schema_version": { "const": "VisualIntentMapping@2" } } },
+      "then": { "properties": { "directions": { "minItems": 1, "maxItems": 1 } } }
+    }
+  ],
   "properties": {
-    "schema_version": { "const": "VisualIntentMapping@1" },
+    "schema_version": { "enum": ["VisualIntentMapping@1", "VisualIntentMapping@2"] },
     "domain_pack_id": {
       "type": "string",
       "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"]
@@ -14,7 +24,7 @@
     "source": { "const": "brief_lexicon_v1" },
     "directions": {
       "type": "array",
-      "minItems": 3,
+      "minItems": 1,
       "maxItems": 3,
       "uniqueItems": true,
       "items": {

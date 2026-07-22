@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/reference-guided-rebuild-preview-request.schema.json",
+  "title": "ReferenceGuidedRebuildPreviewRequest",
+  "description": "R007 request to prepare a normal ChangeSet preview from same-project read-only reference evidence. It requires an active editable ForgeCAD base and never edits, executes, or adopts the referenced image or GLB.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "client_request_id", "evidence_id", "domain_pack_id", "base_asset_version_id"],
+  "properties": {
+    "schema_version": { "const": "ReferenceGuidedRebuildPreviewRequest@1" },
+    "client_request_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "evidence_id": { "type": "string", "pattern": "^refevid_[a-z0-9_\\-]+$" },
+    "domain_pack_id": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "base_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" }
+  }
+}

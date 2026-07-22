@@ -10,7 +10,10 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { selectAgentDirectionAndWaitForCandidate } from './workbench_agent_blockout_test_helper.mjs'
+import {
+  legacyLifecycleTestOracleEnvironment,
+  waitForAgentSingleResultAndCandidate,
+} from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -26,18 +29,17 @@ async function main() {
   try {
     const agent = spawn(
       join(ROOT, '.venv', 'bin', 'python'),
-      ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
+      ['-m', 'uvicorn', 'wushen_agent.test_oracle:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
       {
         cwd: ROOT,
-        env: {
-          ...process.env,
+        env: legacyLifecycleTestOracleEnvironment(process.env, {
           WUSHEN_LIBRARY_ROOT: libraryRoot,
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_CORS_ORIGINS: viteBaseUrl,
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
           FORGECAD_CONCEPT_WORKER_ENABLED: '1',
           FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
-        },
+        }),
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
@@ -56,6 +58,7 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
     const browserErrors = []
     let legacyBriefPosts = 0
+    let legacyWorkbenchInitializations = 0
     const legacyDetailReads = []
     const legacyMutationRequests = []
     let legacyDetailReadCountAfterExplicitClose = 0
@@ -63,6 +66,7 @@ async function main() {
     page.on('request', (request) => {
       const url = request.url()
       if (request.method() === 'POST' && url.includes('/brief:interpret')) legacyBriefPosts += 1
+      if (request.method() === 'POST' && url.includes(':initialize-workbench')) legacyWorkbenchInitializations += 1
       if (request.method() === 'GET' && (
         url.includes('/api/v1/module-graphs/')
         || /\/api\/v1\/versions\/[^/]+$/.test(url)
@@ -86,18 +90,37 @@ async function main() {
 
     await page.goto(`${viteBaseUrl}/#/cad`, { waitUntil: 'networkidle' })
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
-    await page.getByPlaceholder('描述你想设计的道具…').waitFor({ timeout: 20_000 })
+    await page.getByLabel('设计需求', { exact: true }).waitFor({ timeout: 20_000 })
     await waitForUiProject(page)
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
       throw new Error('characterization requires exactly one WebGL canvas')
     }
-    await assertText(page.locator('.agent-first-panel'), ['设计助手', '汽车', '飞机', '机械臂'])
+    await assertText(page.locator('.f026-agent-timeline'), ['设计助手', '汽车', '飞机', '机械臂'])
 
     const projectId = await waitForProjectId(agentBaseUrl)
     const initialProject = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}`)
     const initialActiveDesign = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
     if (!isLegacyOrMissingSnapshot(initialActiveDesign)) {
       throw new Error(`new characterization project has an unexpected Snapshot state: ${initialActiveDesign.status} ${JSON.stringify(initialActiveDesign.body)}`)
+    }
+    if (initialActiveDesign.status === 404) {
+      const emptyProject = page.getByTestId('agent-empty-project')
+      try {
+        await emptyProject.waitFor({ timeout: 20_000 })
+      } catch (error) {
+        const timeline = await page.locator('.f026-agent-timeline').innerText().catch(() => '')
+        throw new Error(
+          `empty project state did not render (current_version_id=${initialProject.current_version_id ?? 'null'}): `
+          + `${error instanceof Error ? error.message : String(error)}\n${timeline.slice(0, 2000)}`,
+        )
+      }
+      await assertText(emptyProject, ['空项目已就绪', '生成第一个 3D 资产'])
+      if (await page.getByRole('button', { name: '准备展示组件', exact: true }).count() !== 0) {
+        throw new Error('empty Project still exposed the legacy workbench initializer')
+      }
+    }
+    if (legacyWorkbenchInitializations !== 0) {
+      throw new Error(`empty Project called the legacy workbench initializer ${legacyWorkbenchInitializations} time(s)`)
     }
 
     // The current starter project can legitimately open as a legacy read-only
@@ -162,7 +185,7 @@ async function main() {
 
     // Ambiguous input is a write barrier: one question, no legacy fallback,
     // and no Plan/Asset/Snapshot before the user chooses a domain.
-    const input = page.getByPlaceholder('描述你想设计的道具…')
+    const input = page.getByLabel('设计需求', { exact: true })
     await input.fill('设计一台能飞的无人机载具')
     await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
     const clarification = page.getByLabel('需要确认设计类别')
@@ -189,18 +212,15 @@ async function main() {
       throw new Error(`clarification did not expose exactly one aircraft choice (count=${aircraftChoiceCount}): ${bodyText.slice(0, 1500)}`)
     }
     await clickWithRetry(aircraftChoice, 'aircraft clarification choice')
-    const directions = page.getByLabel('Agent 完整外观方向')
-    await directions.waitFor({ timeout: 20_000 })
     const candidates = page.getByLabel('分件候选')
-    await selectAgentDirectionAndWaitForCandidate(
+    await waitForAgentSingleResultAndCandidate(
       page,
-      () => directions.getByRole('button').first().click(),
-      { candidateLocator: candidates, label: 'F001 aircraft direction preview' },
+      { candidateLocator: candidates, label: 'F001 aircraft automatic result preview' },
     )
-    await assertText(candidates, ['分件候选', '预览状态 · 未写入版本'])
+    await assertText(candidates, ['当前结果的组件', '预览状态 · 未写入版本'])
     const afterPreviewSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
     if (!isLegacyOrMissingSnapshot(afterPreviewSnapshot)) {
-      throw new Error('direction preview changed the legacy Snapshot before commit')
+      throw new Error('automatic result preview changed the legacy Snapshot before commit')
     }
 
     await page.getByRole('button', { name: '保存为可编辑模型', exact: true }).click()
@@ -236,8 +256,8 @@ async function main() {
     if (legacyDetailReads.length !== legacyDetailReadCountAfterExplicitClose) {
       throw new Error(`Agent-active reload issued legacy detail reads: ${legacyDetailReads.slice(legacyDetailReadCountAfterExplicitClose).join(' | ')}`)
     }
-    if (legacyBriefPosts !== 0 || legacyMutationRequests.length > 0 || browserErrors.length > 0) {
-      throw new Error(`browser characterization errors: legacyBriefPosts=${legacyBriefPosts}, legacyMutationRequests=${legacyMutationRequests.join(' | ')}, errors=${browserErrors.join(' | ')}`)
+    if (legacyBriefPosts !== 0 || legacyWorkbenchInitializations !== 0 || legacyMutationRequests.length > 0 || browserErrors.length > 0) {
+      throw new Error(`browser characterization errors: legacyBriefPosts=${legacyBriefPosts}, legacyWorkbenchInitializations=${legacyWorkbenchInitializations}, legacyMutationRequests=${legacyMutationRequests.join(' | ')}, errors=${browserErrors.join(' | ')}`)
     }
     console.log(JSON.stringify({
       ok: true,
@@ -252,6 +272,7 @@ async function main() {
         'legacy_surface_is_read_only',
         'agent_export_has_no_legacy_choices',
         'agent_flow_makes_no_legacy_mutation_calls',
+        'empty_project_generates_first_asset_without_legacy_initializer',
         ...(legacyConversionRequested ? ['legacy_rebuild_requires_explicit_handoff'] : []),
     ],
     }, null, 2))

@@ -56,7 +56,7 @@ def main() -> int:
         assert provider_trace["network_call_made"] is False
         assert provider_trace["attempt"] == 1
         plan_item = next(item for item in turn.items if item.item_type == "plan")
-        assert len(plan_item.payload["directions"]) == 3
+        assert len(plan_item.payload["directions"]) == 1
         action_calls = [
             item.payload["tool_name"]
             for item in turn.items

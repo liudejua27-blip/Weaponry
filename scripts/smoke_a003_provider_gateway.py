@@ -36,14 +36,13 @@ def _plan_payload() -> dict:
         "spec": {"non_functional_only": True},
         "directions": [
             {
-                "direction_id": f"direction_{index}",
-                "title": f"方向 {index}",
+                "direction_id": "direction_1",
+                "title": "唯一结果",
                 "summary": "完整外观概念。",
-                "silhouette": silhouette,
+                "silhouette": "compact",
                 "primary_part_roles": ["body_shell", "cabin"],
                 "material_direction": "视觉涂层",
             }
-            for index, silhouette in enumerate(("compact", "balanced", "industrial"), start=1)
         ],
         "provider_id": "fake",
         "model": "fake",

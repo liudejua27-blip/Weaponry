@@ -1,0 +1,14 @@
+{
+  "schema_version": "ComponentRecipePackManifest@1",
+  "registry_id": "registry_production_concept_core",
+  "policy_version": "ComponentRecipePolicy@1",
+  "aggregate_path": "../editable-component-recipe-registry.json",
+  "aggregate_strategy": "legacy_c105_v1_exact",
+  "packs": [
+    {"pack_id":"pack_future_weapon_prop_core","path":"packs/future-weapon-prop.json"},
+    {"pack_id":"pack_vehicle_concept_core","path":"packs/vehicle-concept.json"},
+    {"pack_id":"pack_aircraft_concept_core","path":"packs/aircraft-concept.json"},
+    {"pack_id":"pack_robotic_arm_concept_core","path":"packs/robotic-arm-concept.json"}
+  ],
+  "lock_path": "locks/c105-v1.lock.json"
+}

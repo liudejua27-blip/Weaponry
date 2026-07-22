@@ -1,0 +1,13 @@
+[package]
+name = "forgecad-app-server-protocol"
+version = "0.1.0"
+description = "Versioned JSON-RPC protocol for the ForgeCAD desktop app-server"
+edition = "2021"
+
+[lib]
+name = "forgecad_app_server_protocol"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

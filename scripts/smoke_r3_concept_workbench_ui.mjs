@@ -6,7 +6,24 @@ import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { agentGeometryTimeoutMs, assertGeometryCompileReadbackQuality, selectAgentDirectionAndWaitForCandidate } from './workbench_agent_blockout_test_helper.mjs'
+import {
+  agentGeometryTimeoutMs,
+  assertGeometryCompileReadbackQuality,
+  inspectCompatHttpRequest,
+  legacyLifecycleTestOracleEnvironment,
+  readCompatHttpResponse,
+  waitForCompatHttpPlaywrightResponse,
+} from './workbench_agent_blockout_test_helper.mjs'
+import {
+  M108B_RENDERER_DEVELOPMENT_PLAN_SCHEMA,
+  M108B_RENDERER_PASS_TRIANGLE_MULTIPLIER,
+  M108B_RENDERER_PASS_TRIANGLE_OVERHEAD,
+  assertSourceGlbHash,
+  createDevelopmentEvidence,
+  safeCaptureStem,
+  sha256 as m108bSha256,
+  validateDevelopmentPlan,
+} from './m108b_renderer_capture_evidence.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT_DIR = join(ROOT, 'output', 'playwright')
@@ -33,15 +50,26 @@ const M108_WORKBENCH_GPU_BUDGET = Object.freeze({
   // One visible PBR part participates in the main and shadow passes; the
   // current 25-zone fixtures peak at 75 calls with the shared floor pass.
   renderer_draw_calls: 96,
-  // The fixed 24-segment cylinder/capsule baseline has a conservative 6,776
-  // triangle pass envelope; 7k keeps the quality increase bounded without
-  // changing draw calls, textures or memory budgets.
-  renderer_triangles: 7_000,
+  // Production-concept fixtures use the 64-segment radial profile while the
+  // separate interactive preview remains at 24. Keep the live review result
+  // bounded without forcing the final asset back to the preview ceiling.
+  renderer_triangles: 24_000,
   embedded_pbr_texture_count: 35,
-  estimated_gpu_texture_bytes: 4 * 1024 * 1024,
+  // Seven five-channel 1K RGBA8 texture sets with full mip chains peak at
+  // about 187 MiB. KTX2 is not claimed until an offline encoder and packaged
+  // transcoder gate exist, so use an explicit uncompressed production budget.
+  estimated_gpu_texture_bytes: 256 * 1024 * 1024,
 })
 const M108_NARROW_VIEWPORT = Object.freeze({ width: 1180, height: 1024 })
 let smokeStage = 'initializing'
+
+function waitForProductResponse(page, method, path, timeout) {
+  return waitForCompatHttpPlaywrightResponse(page, {
+    method,
+    path,
+    ...(timeout === undefined ? {} : { timeout }),
+  })
+}
 
 function assertM108SafeFrame(frameNdc, fogNearMm, fogFarMm, fixtureId, phase) {
   const frameValues = ['minX', 'maxX', 'minY', 'maxY'].map((key) => Number(frameNdc?.[key]))
@@ -78,18 +106,17 @@ async function main() {
   try {
     const agent = spawn(
       join(ROOT, '.venv', 'bin', 'python'),
-      ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
+      ['-m', 'uvicorn', 'wushen_agent.test_oracle:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
       {
         cwd: ROOT,
-        env: {
-          ...process.env,
+        env: legacyLifecycleTestOracleEnvironment(process.env, {
           WUSHEN_LIBRARY_ROOT: libraryRoot,
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_CORS_ORIGINS: viteBaseUrl,
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
           FORGECAD_CONCEPT_WORKER_ENABLED: '1',
           FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
-        },
+        }),
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
@@ -111,7 +138,7 @@ async function main() {
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
     smokeStage = 'running browser workbench flow'
     const result = await runWorkbenchUi(viteBaseUrl, agentBaseUrl, seeded)
-    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1') {
+    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1' || process.env.FORGECAD_M108B_WORKBENCH_CAPTURE === '1') {
       smokeStage = 'writing M108 workbench capture result'
       console.log(JSON.stringify({ ok: true, ...seeded, ...result }, null, 2))
       return
@@ -122,16 +149,15 @@ async function main() {
     const restartBaseUrl = `http://127.0.0.1:${restartPort}`
     const restartedAgent = spawn(
       join(ROOT, '.venv', 'bin', 'python'),
-      ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(restartPort)],
+      ['-m', 'uvicorn', 'wushen_agent.test_oracle:create_app', '--factory', '--host', '127.0.0.1', '--port', String(restartPort)],
       {
         cwd: ROOT,
-        env: {
-          ...process.env,
+        env: legacyLifecycleTestOracleEnvironment(process.env, {
           WUSHEN_LIBRARY_ROOT: libraryRoot,
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
           FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
-        },
+        }),
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
@@ -270,47 +296,59 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
   let legacyBriefInterpretPosts = 0
   page.on('pageerror', (error) => browserErrors.push(error.message))
   page.on('request', (request) => {
-    if (request.method() === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(request.url())) {
+    const observed = inspectCompatHttpRequest(request)
+    if (observed?.method === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(observed.path)) {
       legacyConceptExportPosts += 1
     }
-    if (request.method() === 'POST' && request.url().includes('/brief:interpret')) {
+    if (observed?.method === 'POST' && observed.path.includes('/brief:interpret')) {
       legacyBriefInterpretPosts += 1
     }
   })
   page.on('response', async (response) => {
-    if (process.env.FORGECAD_DEBUG_API !== '1' || response.status() < 400) return
-    let body = ''
-    try { body = (await response.text()).slice(0, 1200) } catch {}
-    console.error(`[debug-api] ${response.status()} ${response.request().method()} ${response.url()} ${body}`)
+    if (process.env.FORGECAD_DEBUG_API !== '1' || !inspectCompatHttpRequest(response.request())) return
+    try {
+      const productResponse = await readCompatHttpResponse(response)
+      if (productResponse.status < 400) return
+      console.error(`[debug-api] ${productResponse.status} ${productResponse.method} ${productResponse.path} ${productResponse.body.text.slice(0, 1200)}`)
+    } catch (error) {
+      console.error(`[debug-api] malformed compat/http response: ${error instanceof Error ? error.message : String(error)}`)
+    }
   })
   try {
     smokeStage = 'agent-first bootstrap'
     await mkdir(OUTPUT_DIR, { recursive: true })
     await page.goto(`${baseUrl}/#/cad`, { waitUntil: 'networkidle' })
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
+    // F026 intentionally clears the pre-F026 active-project preference on a
+    // fresh Agent-first launch.  The seeded project must therefore be opened
+    // explicitly in this smoke; otherwise the test would mistake the correct
+    // empty Agent workspace for a stale legacy workbench.
+    const projectList = page.getByLabel('项目列表')
+    await projectList.getByRole('button').first().waitFor({ state: 'visible', timeout: 20_000 })
+    const seededProject = projectList.getByRole('button', { name: /寒地巡逻 S1/ })
+    await seededProject.waitFor({ state: 'visible', timeout: 20_000 })
+    await seededProject.click()
     await page.waitForFunction(
       () => document.querySelector('.cad-workspace-title')?.textContent?.includes('已自动保存'),
       undefined,
       { timeout: 20_000 },
     )
-    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1') {
+    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1' || process.env.FORGECAD_M108B_WORKBENCH_CAPTURE === '1') {
       return await captureM108WorkbenchFixtures(page)
     }
     await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
-    await assertText(page.locator('.agent-first-panel'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
+    await assertText(page.locator('.f026-agent-timeline'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
     await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('旧版设计转换'), ['这是旧版只读设计', '原设计会保留不变', '让 Agent 重建可编辑资产'])
     smokeStage = 'explicit legacy-to-Agent hand-off'
-    const conversionResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:convert-legacy') && response.request().method() === 'POST',
-    )
+    const conversionResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:convert-legacy$/)
     await page.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true }).click()
     if (!(await conversionResponse).ok()) throw new Error('legacy Agent rebuild hand-off failed')
     await page.getByRole('button', { name: '配置模型服务', exact: true }).click()
     await page.getByLabel('配置模型服务').waitFor()
     await assertText(page.getByLabel('配置模型服务'), ['连接你的大模型 API', 'API Base URL', 'Model', 'API Key', 'secret file'])
     await page.getByLabel('配置模型服务').getByRole('button', { name: '取消', exact: true }).click()
-    await page.getByPlaceholder('描述你想设计的道具…').waitFor()
+    await page.getByLabel('设计需求', { exact: true }).waitFor()
     if (await page.locator('.cad-right-rail').isVisible()) {
       throw new Error('legacy permanent property panel remains visible')
     }
@@ -335,7 +373,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     )
 
     smokeStage = 'Agent clarification and blockout preview'
-    const agentBrief = page.getByPlaceholder('描述你想设计的道具…')
+    const agentBrief = page.getByLabel('设计需求', { exact: true })
     await agentBrief.fill('设计一台能飞的无人机载具')
     await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
     await page.getByLabel('需要确认设计类别').waitFor({ timeout: 20_000 })
@@ -343,48 +381,84 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (legacyBriefInterpretPosts !== 0) {
       throw new Error('ambiguous Agent input incorrectly fell back to legacy Brief interpretation')
     }
-    await page.getByLabel('需要确认设计类别').getByRole('button', { name: '飞机与航空器', exact: true }).click()
-    const agentDirections = page.getByLabel('Agent 完整外观方向')
-    await agentDirections.waitFor({ timeout: 20_000 })
-    await selectAgentDirectionAndWaitForCandidate(
-      page,
-      () => agentDirections.getByRole('button').first().click(),
-      { label: 'R3 aircraft direction preview' },
+    const beforeCompatibilityGeneration = await jsonRequest(
+      agentBaseUrl,
+      `/api/v1/projects/${seeded.project_id}/active-design`,
     )
+    await page.getByLabel('需要确认设计类别').getByRole('button', { name: '飞机与航空器', exact: true }).click()
+    await assertCompatibilityV003Rejection(
+      page,
+      agentBaseUrl,
+      seeded.project_id,
+      beforeCompatibilityGeneration,
+      'R3 aircraft compatibility generation',
+    )
+    // This test-only dev-shell fixture deliberately does not claim that the
+    // Python Planner created the V003 result. The Rust Playwright fixture is
+    // the formal V003 proof. R3 needs an editable asset only to exercise the
+    // pre-existing browser renderer, material, quality, export and recovery
+    // chains, so seed it through the explicit compatibility protocol.
+    const seededAgentSnapshot = await ensureCompatibilitySeedAgentAsset(
+      page,
+      agentBaseUrl,
+      seeded.project_id,
+      'R3 aircraft asset fixture',
+    )
+    if (seededAgentSnapshot.active_design?.source !== 'agent_asset') {
+      throw new Error(`R3 compatibility seed did not activate an Agent asset: ${JSON.stringify(seededAgentSnapshot)}`)
+    }
+    await page.getByLabel('分件候选').getByText('可编辑资产 v2', { exact: true }).waitFor({ timeout: 20_000 })
     await page.waitForFunction(
       () => {
         const viewport = document.querySelector('.weapon-viewport')
         return viewport?.getAttribute('data-blockout-load-state') === 'ready'
-          && viewport.getAttribute('data-blockout-glb-kind') === 'compiled_agent_pbr'
+          && ['compiled_agent_production_pbr', 'compiled_agent_preview_pbr'].includes(
+            viewport.getAttribute('data-blockout-glb-kind'),
+          )
           && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
           && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
       },
       undefined,
       { timeout: 20_000 },
     )
-    await assertText(page.getByLabel('分件候选'), ['分件候选', '可调整', '预览状态'])
-    await page.getByLabel('视觉材质目录').waitFor({ timeout: 20_000 })
-    await assertText(page.getByLabel('视觉材质目录'), ['石墨深灰', '拉丝铝', '亮面汽车漆'])
-    await page.getByLabel('视觉材质目录').getByRole('button', { name: '拉丝铝', exact: true }).click()
+    await assertText(page.getByLabel('分件候选'), ['当前结果的组件', '可调整', '检查这个模型'])
+    await page.getByLabel('添加风格、材质或参考').click()
+    await page.getByRole('menuitem', { name: '选择材质', exact: true }).click()
+    const materialCatalog = page.getByLabel('视觉材质目录')
+    await materialCatalog.waitFor({ timeout: 20_000 })
+    const quickMaterials = materialCatalog.locator('.agent-material-preview-list')
+    await assertText(quickMaterials, ['石墨深灰', '拉丝铝', '哑光复合材料'])
+    if ((await quickMaterials.innerText()).includes('亮面汽车漆')) {
+      throw new Error('aircraft quick materials exposed an incompatible vehicle-only preset')
+    }
+    await page.getByLabel('添加风格、材质或参考').click()
+    await page.getByRole('menuitem', { name: '选择材质', exact: true }).click()
+    await materialCatalog.waitFor({ state: 'detached', timeout: 20_000 })
 
-    smokeStage = 'Agent asset commit and parameter preview'
-    await page.getByRole('button', { name: '保存为可编辑模型', exact: true }).click()
-    // The GLB reference imported above is an immutable Agent asset v1 in this
-    // same project; the generated editable blockout therefore starts at v2.
-    await page.getByLabel('分件候选').getByText('可编辑资产 v2', { exact: true }).waitFor({ timeout: 20_000 })
+    smokeStage = 'compatibility-seeded Agent asset parameter preview'
+    // The GLB reference imported above remains immutable Agent asset v1. The
+    // explicit compatibility fixture is v2; it is not presented as V003.
     await assertText(page.getByLabel('分件候选'), ['可编辑资产 v2'])
     // Primitive kinds vary by direction: a capsule/cylinder intentionally has
     // no independent scale bindings. Select a server-declared adjustable part
     // instead of assuming the visual first part exposes “长度比例”.
     const firstAgentPart = page.getByLabel('分件候选').locator('.agent-segmentation-list button').filter({ hasText: '可调整' }).first()
-    const selectActivePartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
-    )
+    const selectActivePartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:select$/)
     await firstAgentPart.click()
     const selectedActivePartResponse = await selectActivePartResponse
     if (!selectedActivePartResponse.ok()) {
       throw new Error(`active Agent part selection failed: ${selectedActivePartResponse.status()}`)
     }
+    const selectedActivePart = await selectedActivePartResponse.json()
+    if (!selectedActivePart.selected_part_id) {
+      throw new Error(`active Agent part selection omitted its stable part id: ${JSON.stringify(selectedActivePart)}`)
+    }
+    await page.waitForFunction(
+      (selectedPartId) => document.querySelector('[aria-label="分件候选"]')
+        ?.getAttribute('data-selected-part-id') === selectedPartId,
+      selectedActivePart.selected_part_id,
+      { timeout: 20_000 },
+    )
     await assertText(page.getByLabel('分件候选'), ['可编辑资产 v2', '修改只作用于此部件', '只会依据当前已知的部件关系', '当前部件暂不能建议拆分或合并'])
     const selectedSnapshot = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
     if (
@@ -421,9 +495,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       undefined,
       { timeout: 20_000 },
     )
-    const undoResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/active-design:undo') && response.request().method() === 'POST',
-    )
+    const undoResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:undo$/)
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     const undoResponse = await undoResponsePromise
     if (!undoResponse.ok()) throw new Error(`Agent undo failed: ${undoResponse.status()}`)
@@ -443,9 +515,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       undefined,
       { timeout: 20_000 },
     )
-    const redoResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/active-design:redo') && response.request().method() === 'POST',
-    )
+    const redoResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:redo$/)
     await page.getByRole('button', { name: '重做', exact: true }).click()
     const redoResponse = await redoResponsePromise
     if (!redoResponse.ok()) throw new Error(`Agent redo failed: ${redoResponse.status()}`)
@@ -456,17 +526,17 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     }
     const agentAssetVersionId = await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id')
     if (!agentAssetVersionId) throw new Error('agent asset version id is missing after confirmation')
-    const selectConfirmedPartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
-    )
+    const selectConfirmedPartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:select$/)
     await page.getByLabel('分件候选').locator('.agent-segmentation-list button').first().click()
     if (!(await selectConfirmedPartResponse).ok()) {
       throw new Error('active Agent part selection failed after child version confirmation')
     }
     smokeStage = 'Agent quality and reusable component readback'
-    const agentQualityResponsePromise = page.waitForResponse(
-      (response) => /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/.test(response.url()) && response.request().method() === 'POST',
-      { timeout: agentGeometryTimeoutMs() },
+    const agentQualityResponsePromise = waitForProductResponse(
+      page,
+      'POST',
+      /\/api\/v1\/agent\/asset-versions\/[^/]+:quality$/,
+      agentGeometryTimeoutMs(),
     ).then((response) => ({ response, error: null }), (error) => ({ response: null, error }))
     await page.getByRole('button', { name: '检查这个模型', exact: true }).click()
     const agentQualityOutcome = await agentQualityResponsePromise
@@ -478,7 +548,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       const qualityFailure = await agentQualityResponse.text().catch(() => '')
       throw new Error(`Agent quality readback failed (${agentQualityResponse.status()}): ${qualityFailure.slice(0, 2000)}`)
     }
-    await page.getByText(/模型检查(通过|有提示)/).waitFor({ timeout: 20_000 })
+    await page.locator('.cad-status-bar').getByText(/^(通过|需复核) · 模型检查$/).waitFor({ timeout: 20_000 })
     const qualityReport = await agentQualityResponse.json()
     assertGeometryCompileReadbackQuality(qualityReport, 'R3 Agent quality report')
     if (!['passed', 'warning'].includes(qualityReport.status)) {
@@ -510,9 +580,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     // part. Select a server-declared adjustable part again before verifying
     // that C104 disables its actual declared control after locking.
     const lockablePart = page.getByLabel('分件候选').locator('.agent-segmentation-list button').filter({ hasText: '可调整' }).first()
-    const selectLockablePartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:select') && response.request().method() === 'POST',
-    )
+    const selectLockablePartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:select$/)
     await lockablePart.click()
     if (!(await selectLockablePartResponse).ok()) {
       throw new Error('active adjustable Agent part selection failed before lock verification')
@@ -530,8 +598,10 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       const button = document.querySelector('button[aria-label="锁定部件"]')
       return button instanceof HTMLButtonElement && !button.disabled
     }, undefined, { timeout: 20_000 })
-    const lockPartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
+    const lockPartResponse = waitForProductResponse(
+      page,
+      'POST',
+      /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/,
     ).then((response) => ({ response }), (error) => ({ error }))
     const lockButton = page.getByRole('button', { name: '锁定部件', exact: true })
     if (await lockButton.textContent() !== '锁定此部件') {
@@ -543,7 +613,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       const diagnostic = await page.evaluate(() => ({
         buttonDisabled: document.querySelector('button[aria-label="锁定部件"]')?.disabled ?? null,
         agentCardVersion: document.querySelector('[aria-label="分件候选"]')?.getAttribute('data-agent-asset-version-id') ?? null,
-        workbenchText: document.querySelector('.agent-first-panel')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+        workbenchText: document.querySelector('.f026-agent-timeline')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
       }))
       throw new Error(`locking an Agent part did not issue a part-display request: ${JSON.stringify(diagnostic)}; original=${lockResult.error instanceof Error ? lockResult.error.message : String(lockResult.error)}`)
     }
@@ -576,16 +646,12 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       }))
       throw new Error(`locked part was not projected into the restarted workbench: ${JSON.stringify(diagnostic)}; original=${caught instanceof Error ? caught.message : String(caught)}`)
     }
-    const unlockPartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
-    )
+    const unlockPartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/)
     await page.getByRole('button', { name: '解除部件锁定', exact: true }).click()
     if (!(await unlockPartResponse).ok()) throw new Error('unlocking an Agent part failed')
 
     await waitForEnabledButton(page, '只看当前部件', '只看这个部件')
-    const isolatePartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
-    )
+    const isolatePartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/)
     await page.getByRole('button', { name: '只看当前部件', exact: true }).click()
     if (!(await isolatePartResponse).ok()) throw new Error('isolating an Agent part failed')
     await page.locator(`.weapon-viewport[data-agent-isolated-part-id="${lockedPartId}"]`).waitFor({ timeout: 20_000 })
@@ -596,18 +662,14 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       const button = [...(controls?.querySelectorAll('button') ?? [])].find((element) => element.textContent?.trim() === '结束单独查看')
       return button instanceof HTMLButtonElement && !button.disabled
     }, undefined, { timeout: 20_000 })
-    const clearIsolationResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
-    )
+    const clearIsolationResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/)
     await clearIsolationButton.click()
     const clearIsolationResult = await clearIsolationResponse
     if (!clearIsolationResult.ok()) throw new Error(`clearing Agent part isolation failed: ${clearIsolationResult.status()} ${await clearIsolationResult.text()}`)
     await page.locator('.weapon-viewport[data-agent-isolated-part-id=""]').waitFor({ timeout: 20_000 })
 
     await waitForEnabledButton(page, '隐藏当前部件', '隐藏此部件')
-    const hidePartResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
-    )
+    const hidePartResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/)
     await page.getByRole('button', { name: '隐藏当前部件', exact: true }).click()
     if (!(await hidePartResponse).ok()) throw new Error('hiding an Agent part failed')
     const snapshotAfterHide = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
@@ -616,9 +678,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     }
     await page.locator(`.weapon-viewport[data-agent-hidden-part-ids*="${lockedPartId}"]`).waitFor({ timeout: 20_000 })
     await waitForEnabledButton(page, '显示所有部件')
-    const showAllPartsResponse = page.waitForResponse(
-      (response) => response.url().includes('/active-design:part-display') && response.request().method() === 'POST',
-    )
+    const showAllPartsResponse = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:part-display$/)
     await page.getByRole('button', { name: '显示所有部件', exact: true }).click()
     if (!(await showAllPartsResponse).ok()) throw new Error('showing all Agent parts failed')
     const snapshotAfterShowAll = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
@@ -678,6 +738,11 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       version_id: seeded.version_id,
       agent_asset_version_id: agentAssetVersionId,
       agent_first_screenshot: AGENT_FIRST_SCREENSHOT,
+      compatibility_generation: {
+        dev_shell: 'V003_DECISION_CONTRACT_FAILED with zero Snapshot write',
+        seed: 'explicit_test_oracle_compatibility_seed_not_v003',
+        formal_v003_gate: 'npm run desktop:v003-rust-fixture-workbench-playwright-e2e',
+      },
     }
   } catch (error) {
     const diagnostic = await page.evaluate((stage) => {
@@ -719,16 +784,18 @@ async function captureM108WorkbenchFixtures(page) {
   const captureRoot = join(kitRoot, 'workbench-captures')
   const manifestPath = join(kitRoot, 'manifest.json')
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
-  if (manifest.schema_version !== 'M108VisualBenchmarkKit@1' || manifest.score_status !== 'not_scored') {
+  const m108bDevelopmentCapture = manifest.schema_version === M108B_RENDERER_DEVELOPMENT_PLAN_SCHEMA
+  const captureFixtures = m108bDevelopmentCapture
+    ? validateDevelopmentPlan(manifest)
+    : manifest.fixtures
+  if (!m108bDevelopmentCapture && (manifest.schema_version !== 'M108VisualBenchmarkKit@1' || manifest.score_status !== 'not_scored')) {
     throw new Error('M108 workbench capture requires an unscored M108VisualBenchmarkKit@1 manifest')
   }
-  if (!Array.isArray(manifest.fixtures) || manifest.fixtures.length !== 4) {
-    throw new Error('M108 workbench capture requires exactly four domain fixtures')
+  if (!Array.isArray(captureFixtures) || captureFixtures.length !== (m108bDevelopmentCapture ? 12 : 4)) {
+    throw new Error('M108 workbench capture fixture count is invalid')
   }
   await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
-  const conversionResponsePromise = page.waitForResponse(
-    (response) => response.url().includes('/active-design:convert-legacy') && response.request().method() === 'POST',
-  )
+  const conversionResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:convert-legacy$/)
   await page.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true }).click()
   const conversionResponse = await conversionResponsePromise
   if (!conversionResponse.ok()) {
@@ -737,27 +804,33 @@ async function captureM108WorkbenchFixtures(page) {
   }
   const viewport = page.locator('.weapon-viewport')
   const rendererGeneration = await viewport.getAttribute('data-renderer-generation')
-  if (!rendererGeneration || await page.locator('.weapon-viewport canvas').count() !== 1) {
+  if (
+    !rendererGeneration
+    || await page.locator('.weapon-viewport canvas').count() !== 1
+    || await page.locator('canvas').count() !== 1
+  ) {
     throw new Error('M108 workbench capture requires the existing single renderer/canvas')
   }
   const defaultViewportSize = page.viewportSize()
   if (!defaultViewportSize) throw new Error('M108 workbench capture requires a fixed browser viewport')
   await mkdir(captureRoot, { recursive: true })
   const records = []
-  for (const fixture of manifest.fixtures) {
+  let previousDisposedBlockoutAssetCount = 0
+  const m108bExecutionId = m108bDevelopmentCapture
+    ? `renderer_development_${m108bSha256(await readFile(manifestPath)).slice(0, 16)}`
+    : null
+  for (const fixture of captureFixtures) {
     const fixturePath = resolve(kitRoot, fixture.file)
     if (!fixturePath.startsWith(`${kitRoot}/`)) throw new Error(`unsafe M108 fixture path: ${fixture.file}`)
     const glbBytes = await readFile(fixturePath)
-    const glbSha256 = createHash('sha256').update(glbBytes).digest('hex')
-    if (glbSha256 !== fixture.glb_sha256) {
-      throw new Error(`M108 fixture hash mismatch before workbench import: ${fixture.fixture_id}`)
-    }
+    const glbSha256 = m108bDevelopmentCapture
+      ? assertSourceGlbHash(fixture, glbBytes)
+      : createHash('sha256').update(glbBytes).digest('hex')
+    if (!m108bDevelopmentCapture && glbSha256 !== fixture.glb_sha256) throw new Error(`M108 fixture hash mismatch before workbench import: ${fixture.fixture_id}`)
 
     smokeStage = `M108 workbench capture ${fixture.fixture_id}`
     const previousAssetVersionId = await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id').catch(() => null)
-    const importResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/agent/imports:glb') && response.request().method() === 'POST',
-    )
+    const importResponsePromise = waitForProductResponse(page, 'POST', '/api/v1/agent/imports:glb')
     await page.getByLabel('导入 GLB 参考模型').setInputFiles(fixturePath)
     const importResponse = await importResponsePromise
     if (!importResponse.ok()) {
@@ -807,6 +880,7 @@ async function captureM108WorkbenchFixtures(page) {
       await viewport.getAttribute('data-renderer-generation') !== rendererGeneration
       || await viewport.getAttribute('data-active-webgl-contexts') !== '1'
       || await page.locator('.weapon-viewport canvas').count() !== 1
+      || await page.locator('canvas').count() !== 1
     ) {
       throw new Error(`M108 fixture replaced or duplicated the workbench renderer: ${fixture.fixture_id}`)
     }
@@ -838,7 +912,8 @@ async function captureM108WorkbenchFixtures(page) {
         + JSON.stringify(presentationRuntimeFacts),
       )
     }
-    const screenshotPath = join(captureRoot, `${fixture.domain_pack_id}.png`)
+    const screenshotStem = m108bDevelopmentCapture ? safeCaptureStem(fixture.fixture_id) : fixture.domain_pack_id
+    const screenshotPath = join(captureRoot, `${screenshotStem}.png`)
     await viewport.screenshot({ path: screenshotPath, animations: 'disabled' })
     const screenshotBytes = await readFile(screenshotPath)
     if (screenshotBytes.length < 10_000) {
@@ -858,6 +933,8 @@ async function captureM108WorkbenchFixtures(page) {
       xray: element.getAttribute('data-xray'),
       renderer_generation: element.getAttribute('data-renderer-generation'),
       active_webgl_contexts: Number(element.getAttribute('data-active-webgl-contexts') ?? '0'),
+      blockout_replacement_generation: Number(element.getAttribute('data-blockout-replacement-generation') ?? '0'),
+      disposed_blockout_asset_count: Number(element.getAttribute('data-disposed-blockout-asset-count') ?? '0'),
       renderer_geometries: Number(element.getAttribute('data-renderer-geometries') ?? '0'),
       renderer_textures: Number(element.getAttribute('data-renderer-textures') ?? '0'),
       renderer_draw_calls: Number(element.getAttribute('data-renderer-draw-calls') ?? '0'),
@@ -865,6 +942,9 @@ async function captureM108WorkbenchFixtures(page) {
       embedded_pbr_texture_count: Number(element.getAttribute('data-blockout-pbr-texture-count') ?? '0'),
       estimated_gpu_texture_bytes: Number(element.getAttribute('data-blockout-pbr-estimated-gpu-bytes') ?? '0'),
       pbr_color_spaces: element.getAttribute('data-blockout-pbr-color-spaces'),
+      pbr_sampling_valid: element.getAttribute('data-blockout-pbr-sampling-valid'),
+      pbr_min_anisotropy: Number(element.getAttribute('data-blockout-pbr-min-anisotropy') ?? '-1'),
+      pbr_max_anisotropy: Number(element.getAttribute('data-blockout-pbr-max-anisotropy') ?? '-1'),
       display_scale: Number(element.getAttribute('data-blockout-display-scale') ?? '0'),
       display_diagonal_mm: Number(element.getAttribute('data-blockout-display-diagonal-mm') ?? '0'),
       source_bounds_mm: JSON.parse(element.getAttribute('data-blockout-source-bounds-mm') ?? '[]'),
@@ -886,6 +966,12 @@ async function captureM108WorkbenchFixtures(page) {
     }
     if (
       viewportFacts.pbr_color_spaces !== 'valid'
+      || viewportFacts.pbr_sampling_valid !== 'true'
+      || !Number.isFinite(viewportFacts.pbr_min_anisotropy)
+      || !Number.isFinite(viewportFacts.pbr_max_anisotropy)
+      || viewportFacts.pbr_min_anisotropy < 1
+      || viewportFacts.pbr_max_anisotropy > 4
+      || viewportFacts.pbr_min_anisotropy !== viewportFacts.pbr_max_anisotropy
       || viewportFacts.embedded_pbr_texture_count !== viewportFacts.embedded_pbr_material_count * 5
       || viewportFacts.display_scale <= 0
       || viewportFacts.display_scale > 1
@@ -917,9 +1003,32 @@ async function captureM108WorkbenchFixtures(page) {
       'initial framing',
     )
     for (const [metric, limit] of Object.entries(M108_WORKBENCH_GPU_BUDGET)) {
+      // M108B freezes the immutable source triangle count separately.  The
+      // live Three.js counter includes shadow and transparent double-sided
+      // passes, so comparing it to the source ceiling mixes two units.
+      if (m108bDevelopmentCapture && metric === 'renderer_triangles') continue
       const value = viewportFacts[metric]
       if (!Number.isFinite(value) || value <= 0 || value > limit) {
         throw new Error(`M108 workbench GPU budget exceeded: ${fixture.fixture_id}; ${metric}=${value}, limit=${limit}`)
+      }
+    }
+    if (m108bDevelopmentCapture) {
+      const submittedTriangleLimit = (
+        fixture.source_triangle_count * M108B_RENDERER_PASS_TRIANGLE_MULTIPLIER
+        + M108B_RENDERER_PASS_TRIANGLE_OVERHEAD
+      )
+      if (
+        !Number.isSafeInteger(fixture.source_triangle_count)
+        || fixture.source_triangle_count < 1
+        || fixture.source_triangle_count > M108_WORKBENCH_GPU_BUDGET.renderer_triangles
+        || !Number.isSafeInteger(viewportFacts.renderer_triangles)
+        || viewportFacts.renderer_triangles < fixture.source_triangle_count
+        || viewportFacts.renderer_triangles > submittedTriangleLimit
+      ) {
+        throw new Error(
+          `M108B workbench submitted-triangle budget exceeded: ${fixture.fixture_id}; `
+          + `source=${fixture.source_triangle_count}, submitted=${viewportFacts.renderer_triangles}, limit=${submittedTriangleLimit}`,
+        )
       }
     }
     const initialFrameJson = JSON.stringify(viewportFacts.frame_ndc)
@@ -958,11 +1067,11 @@ async function captureM108WorkbenchFixtures(page) {
       { timeout: 10_000 },
     )
     await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
-    records.push({
+    const record = {
       fixture_id: fixture.fixture_id,
       domain_pack_id: fixture.domain_pack_id,
       glb_sha256: glbSha256,
-      screenshot: `workbench-captures/${fixture.domain_pack_id}.png`,
+      screenshot: `workbench-captures/${screenshotStem}.png`,
       screenshot_sha256: createHash('sha256').update(screenshotBytes).digest('hex'),
       screenshot_byte_size: screenshotBytes.length,
       viewport: {
@@ -974,7 +1083,27 @@ async function captureM108WorkbenchFixtures(page) {
         visual_environment_recipe_sha256: liveEnvironmentSha256,
         gpu_budget_status: 'passed',
       },
-    })
+    }
+    if (m108bDevelopmentCapture) {
+      const evidence = createDevelopmentEvidence({
+        fixture,
+        executionId: m108bExecutionId,
+        captureId: `capture_${safeCaptureStem(fixture.fixture_id)}`,
+        png: { file: record.screenshot, sha256: record.screenshot_sha256, byte_size: record.screenshot_byte_size },
+        viewport: viewportFacts,
+        previousDisposedAssetCount: previousDisposedBlockoutAssetCount,
+      })
+      previousDisposedBlockoutAssetCount = viewportFacts.disposed_blockout_asset_count
+      const evidencePath = join(captureRoot, `${safeCaptureStem(fixture.fixture_id)}.json`)
+      const evidenceBytes = Buffer.from(`${JSON.stringify(evidence, null, 2)}\n`, 'utf8')
+      await writeFile(evidencePath, evidenceBytes)
+      record.renderer_capture = {
+        capture_file: `workbench-captures/${safeCaptureStem(fixture.fixture_id)}.json`,
+        capture_sha256: m108bSha256(evidenceBytes),
+        ...evidence,
+      }
+    }
+    records.push(record)
   }
   smokeStage = 'M108 damaged GLB presentation restore probe'
   const corruptRuntimeFixturePath = join(captureRoot, '.runtime-failure-probe.glb')
@@ -985,25 +1114,79 @@ async function captureM108WorkbenchFixtures(page) {
     releaseActiveDesignRequest = resolveHold
   })
   let failureRestoreProbe = null
-  try {
-    await writeFile(corruptRuntimeFixturePath, Buffer.from('glTF-not-a-valid-runtime-glb', 'utf8'))
-    await page.route(/\/api\/v1\/agent\/imports:glb$/, async (route) => {
-      const request = route.request()
-      const requestBody = JSON.parse(request.postData() ?? '{}')
+  let captureFailure = null
+  let teardownFailure = null
+  let importOverrideApplied = false
+  let activeDesignRequestHeld = false
+  const compatibilityFramesRoute = /\/api\/v1\/app-server\/connections\/[^/]+\/frames$/
+  const compatibilityRouteContinuations = new WeakMap()
+  const inFlightCompatibilityHandlers = new Set()
+  let acceptingCompatibilityHandlers = true
+  let compatibilityHandlerFailure = null
+  const continueCompatibilityRouteOnce = (route, options) => {
+    const existing = compatibilityRouteContinuations.get(route)
+    if (existing) return existing
+    const continuation = Promise.resolve().then(() => (
+      options === undefined ? route.continue() : route.continue(options)
+    ))
+    compatibilityRouteContinuations.set(route, continuation)
+    return continuation
+  }
+  const compatibilityRouteHandler = async (route) => {
+    if (!acceptingCompatibilityHandlers) {
+      await continueCompatibilityRouteOnce(route)
+      return
+    }
+    const request = route.request()
+    const observed = inspectCompatHttpRequest(request)
+    if (
+      !importOverrideApplied
+      && observed?.method === 'POST'
+      && observed.path === '/api/v1/agent/imports:glb'
+    ) {
+      const envelope = JSON.parse(request.postData() ?? '{}')
+      const requestBody = observed.body.json()
+      envelope.frame.params.body = {
+        encoding: 'utf8',
+        data: JSON.stringify({ ...requestBody, glb_base64: serverFixtureBase64 }),
+      }
+      envelope.frame.params.headers = envelope.frame.params.headers.filter(
+        ([name]) => name.toLowerCase() !== 'content-length',
+      )
       const headers = { ...request.headers(), 'content-type': 'application/json' }
       delete headers['content-length']
-      await route.continue({
-        headers,
-        postData: JSON.stringify({ ...requestBody, glb_base64: serverFixtureBase64 }),
-      })
-    }, { times: 1 })
-    await page.route(/\/api\/v1\/projects\/[^/]+\/active-design$/, async (route) => {
+      importOverrideApplied = true
+      await continueCompatibilityRouteOnce(route, { headers, postData: JSON.stringify(envelope) })
+      return
+    }
+    if (
+      !activeDesignRequestHeld
+      && observed?.method === 'GET'
+      && /\/api\/v1\/projects\/[^/]+\/active-design$/.test(observed.path)
+    ) {
+      activeDesignRequestHeld = true
       await activeDesignRequestHold
-      await route.continue()
-    }, { times: 1 })
-    const failureImportResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/agent/imports:glb') && response.request().method() === 'POST',
+    }
+    await continueCompatibilityRouteOnce(route)
+  }
+  const trackedCompatibilityRouteHandler = (route) => {
+    const handlerPromise = compatibilityRouteHandler(route)
+    inFlightCompatibilityHandlers.add(handlerPromise)
+    handlerPromise.then(
+      () => {
+        inFlightCompatibilityHandlers.delete(handlerPromise)
+      },
+      (error) => {
+        compatibilityHandlerFailure ??= error
+        inFlightCompatibilityHandlers.delete(handlerPromise)
+      },
     )
+    return handlerPromise
+  }
+  try {
+    await writeFile(corruptRuntimeFixturePath, Buffer.from('glTF-not-a-valid-runtime-glb', 'utf8'))
+    await page.route(compatibilityFramesRoute, trackedCompatibilityRouteHandler)
+    const failureImportResponsePromise = waitForProductResponse(page, 'POST', '/api/v1/agent/imports:glb')
     await page.getByLabel('导入 GLB 参考模型').setInputFiles(corruptRuntimeFixturePath)
     const failureImportResponse = await failureImportResponsePromise
     if (!failureImportResponse.ok()) {
@@ -1021,6 +1204,9 @@ async function captureM108WorkbenchFixtures(page) {
       frame_ndc: JSON.parse(element.getAttribute('data-blockout-frame-ndc') ?? '{}'),
       source_bounds_mm: JSON.parse(element.getAttribute('data-blockout-source-bounds-mm') ?? '[]'),
       pbr_texture_count: Number(element.getAttribute('data-blockout-pbr-texture-count') ?? '-1'),
+      pbr_sampling_valid: element.getAttribute('data-blockout-pbr-sampling-valid'),
+      pbr_min_anisotropy: Number(element.getAttribute('data-blockout-pbr-min-anisotropy') ?? '-1'),
+      pbr_max_anisotropy: Number(element.getAttribute('data-blockout-pbr-max-anisotropy') ?? '-1'),
       fog_near_mm: Number(element.getAttribute('data-blockout-fog-near-mm') ?? '0'),
       fog_far_mm: Number(element.getAttribute('data-blockout-fog-far-mm') ?? '0'),
       module_graph_load_state: element.getAttribute('data-load-state'),
@@ -1056,6 +1242,9 @@ async function captureM108WorkbenchFixtures(page) {
       || Object.keys(failureRestoreProbe.frame_ndc).length !== 0
       || failureRestoreProbe.source_bounds_mm.length !== 0
       || failureRestoreProbe.pbr_texture_count !== 0
+      || failureRestoreProbe.pbr_sampling_valid !== 'not_applicable'
+      || failureRestoreProbe.pbr_min_anisotropy !== 0
+      || failureRestoreProbe.pbr_max_anisotropy !== 0
       || failureRestoreProbe.fog_near_mm !== 300
       || failureRestoreProbe.fog_far_mm !== 820
       || failureRestoreProbe.module_graph_load_state !== 'empty'
@@ -1092,14 +1281,54 @@ async function captureM108WorkbenchFixtures(page) {
     ) {
       throw new Error(`M108 damaged GLB leaked blockout presentation state: ${JSON.stringify(failureRestoreProbe)}`)
     }
+  } catch (error) {
+    captureFailure = error
   } finally {
+    acceptingCompatibilityHandlers = false
     releaseActiveDesignRequest()
-    await rm(corruptRuntimeFixturePath, { force: true })
+    while (inFlightCompatibilityHandlers.size > 0) {
+      await Promise.allSettled([...inFlightCompatibilityHandlers])
+    }
+    try {
+      await page.unrouteAll({ behavior: 'wait' })
+    } catch (error) {
+      teardownFailure ??= error
+    }
+    while (inFlightCompatibilityHandlers.size > 0) {
+      await Promise.allSettled([...inFlightCompatibilityHandlers])
+    }
+    teardownFailure ??= compatibilityHandlerFailure
+    try {
+      await rm(corruptRuntimeFixturePath, { force: true })
+    } catch (error) {
+      teardownFailure ??= error
+    }
+    if (captureFailure && teardownFailure) {
+      captureFailure = new AggregateError([captureFailure, teardownFailure], 'M108 capture and route teardown failed')
+    } else if (!captureFailure && teardownFailure) {
+      captureFailure = teardownFailure
+    }
   }
-  if (new Set(records.map((record) => record.screenshot_sha256)).size !== records.length) {
+  if (captureFailure) {
+    throw captureFailure
+  }
+  if (!m108bDevelopmentCapture && new Set(records.map((record) => record.screenshot_sha256)).size !== records.length) {
     throw new Error('M108 workbench captures are not visually distinct across the four domain fixtures')
   }
-  const captureManifest = {
+  const captureManifest = m108bDevelopmentCapture ? {
+    schema_version: 'M108BRendererDevelopmentCaptureRun@1',
+    evidence_origin: 'workbench_runtime_capture',
+    formal_eligible: false,
+    human_benchmark_evidence: false,
+    provider_calls: 0,
+    score_status: 'not_scored',
+    fixture_origin: manifest.fixture_origin,
+    execution_id: m108bExecutionId,
+    source_manifest_sha256: m108bSha256(await readFile(manifestPath)),
+    capture_count: records.length,
+    captures: records,
+    damaged_glb_restore_probe: failureRestoreProbe,
+  } : {
     schema_version: 'M108WorkbenchCapture@1',
     purpose: 'development_visual_audit_only',
     score_status: 'not_scored',
@@ -1109,10 +1338,10 @@ async function captureM108WorkbenchFixtures(page) {
     source_manifest_sha256: createHash('sha256').update(await readFile(manifestPath)).digest('hex'),
     captures: records,
   }
-  const captureManifestPath = join(captureRoot, 'capture-manifest.json')
+  const captureManifestPath = join(captureRoot, m108bDevelopmentCapture ? 'm108b-development-capture-manifest.json' : 'capture-manifest.json')
   await writeFile(captureManifestPath, `${JSON.stringify(captureManifest, null, 2)}\n`, 'utf8')
   return {
-    m108_workbench_capture: true,
+    ...(m108bDevelopmentCapture ? { m108b_workbench_capture: true, formal_eligible: false } : { m108_workbench_capture: true }),
     capture_manifest: captureManifestPath,
     capture_count: records.length,
     score_status: 'not_scored',
@@ -1140,7 +1369,8 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
   let conceptExportPosts = 0
   page.on('pageerror', (error) => browserErrors.push(error.message))
   page.on('request', (request) => {
-    if (request.method() === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(request.url())) {
+    const observed = inspectCompatHttpRequest(request)
+    if (observed?.method === 'POST' && /\/api\/v1\/versions\/[^/]+\/exports$/.test(observed.path)) {
       conceptExportPosts += 1
     }
   })
@@ -1198,9 +1428,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await replaceButton.click()
     await page.waitForSelector('[data-testid="component-replacement-preview"]', { timeout: 20_000 })
     await assertText(page.locator('[data-testid="component-replacement-preview"]'), ['幽灵预览已就绪', '确认并创建新版本'])
-    const confirmResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
-    )
+    const confirmResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:confirm$/)
     await page.locator('[data-testid="component-replacement-preview"]').getByRole('button', { name: '确认并创建新版本' }).click()
     const confirmResponse = await confirmResponsePromise
     if (!confirmResponse.ok()) throw new Error(`ChangeSet confirm failed: ${confirmResponse.status()}`)
@@ -1311,9 +1539,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.waitForSelector('.viewport-viewbar button.active[aria-label="爆炸视图"]')
     await page.getByRole('button', { name: '爆炸视图' }).click()
     await page.getByRole('button', { name: /Grip Shell 01/ }).click()
-    const mirrorConfirmPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
-    )
+    const mirrorConfirmPromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:confirm$/)
     await page.getByRole('button', { name: 'X 镜像' }).click()
     const mirrorConfirmResponse = await mirrorConfirmPromise
     if (!mirrorConfirmResponse.ok()) throw new Error(`mirror ChangeSet confirm failed: ${mirrorConfirmResponse.status()}`)
@@ -1337,15 +1563,8 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await assertText(page.getByTestId('transform-command-controls'), ['世界坐标', '吸附：1 mm / 15°'])
     const transformAxis = page.locator('.properties-panel .axis-group').first().locator('input').first()
     await transformAxis.fill('17')
-    const transformProposePromise = page.waitForResponse(
-      (response) => /\/api\/v1\/versions\/[^/]+\/change-sets$/.test(response.url())
-        && response.request().method() === 'POST',
-    )
-    const transformPreviewPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':preview')
-        && response.request().method() === 'POST',
-    )
+    const transformProposePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/versions\/[^/]+\/change-sets$/)
+    const transformPreviewPromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:preview$/)
     await page.getByRole('button', { name: '预览变换', exact: true }).click()
     const [transformProposeResponse, transformPreviewResponse] = await Promise.all([
       transformProposePromise,
@@ -1360,9 +1579,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     }
     await page.getByTestId('manual-transform-preview').waitFor()
     await assertText(page.getByTestId('manual-transform-preview'), ['变换幽灵预览', '变换 node_grip', '确认并创建新版本'])
-    const transformConfirmPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/') && response.url().endsWith(':confirm'),
-    )
+    const transformConfirmPromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:confirm$/)
     await page.getByTestId('manual-transform-preview').getByRole('button', { name: '确认并创建新版本' }).click()
     const transformConfirmResponse = await transformConfirmPromise
     if (!transformConfirmResponse.ok()) throw new Error(`transform ChangeSet confirm failed: ${transformConfirmResponse.status()}`)
@@ -1378,15 +1595,8 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     }
 
     await page.getByRole('button', { name: '连接', exact: true }).click()
-    const connectorSnapProposePromise = page.waitForResponse(
-      (response) => response.url().includes('change-sets:connector-snap')
-        && response.request().method() === 'POST',
-    )
-    const connectorSnapPreviewPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':preview')
-        && response.request().method() === 'POST',
-    )
+    const connectorSnapProposePromise = waitForProductResponse(page, 'POST', /change-sets:connector-snap(?:\?|$)/)
+    const connectorSnapPreviewPromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:preview$/)
     await page.getByRole('button', { name: '修复并预览吸附', exact: true }).click()
     const [connectorSnapProposeResponse, connectorSnapPreviewResponse] = await Promise.all([
       connectorSnapProposePromise,
@@ -1445,9 +1655,10 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByPlaceholder('搜索 ChangeSet…').fill('')
     await page.getByLabel('ChangeSet 状态筛选').selectOption('')
     await page.getByLabel('ChangeSet 操作筛选').selectOption('set_mirror')
-    const mirrorFilterResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/change-sets')
-        && response.url().includes('operation=set_mirror'),
+    const mirrorFilterResponsePromise = waitForProductResponse(
+      page,
+      'GET',
+      (path) => path.includes('/change-sets') && path.includes('operation=set_mirror'),
     )
     await page.getByRole('button', { name: '查询' }).click()
     const mirrorFilterResponse = await mirrorFilterResponsePromise
@@ -1456,14 +1667,8 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     }
     await assertText(page.locator('.timeline-item'), ['set_mirror(node_grip)'])
 
-    const briefResponsePromise = page.waitForResponse(
-      (response) => response.url().endsWith('/brief:interpret')
-        && response.request().method() === 'POST',
-    )
-    const variantsResponsePromise = page.waitForResponse(
-      (response) => /\/api\/v1\/projects\/[^/]+\/variants$/.test(response.url())
-        && response.request().method() === 'POST',
-    )
+    const briefResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/brief:interpret$/)
+    const variantsResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/variants$/)
     await page.getByPlaceholder('输入设计需求…').fill(
       '寒地工业、紧凑、精密细节、信号红点缀的非功能概念资产',
     )
@@ -1503,11 +1708,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (await page.locator('[data-variant-rank]').count() !== 3) {
       throw new Error('desktop planner did not render three variants')
     }
-    const selectVariantResponsePromise = page.waitForResponse(
-      (response) => response.url().endsWith(':select')
-        && response.url().includes('/variants/')
-        && response.request().method() === 'POST',
-    )
+    const selectVariantResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/variants\/[^/]+:select$/)
     await page.locator('[data-variant-rank="2"]').click()
     const selectVariantResponse = await selectVariantResponsePromise
     if (!selectVariantResponse.ok()) {
@@ -1529,16 +1730,8 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByPlaceholder('输入设计需求…').fill(
       '整体长度调整为 218 mm，细节密度调整为 84%',
     )
-    const changePlanResponsePromise = page.waitForResponse(
-      (response) => (response.url().includes('change-sets%3Aplan')
-        || response.url().includes('change-sets:plan'))
-        && response.request().method() === 'POST',
-    )
-    const changePreviewResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':preview')
-        && response.request().method() === 'POST',
-    )
+    const changePlanResponsePromise = waitForProductResponse(page, 'POST', /change-sets(?:%3A|:)plan(?:\?|$)/)
+    const changePreviewResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:preview$/)
     await page.getByRole('button', { name: '生成修改预览', exact: true }).click()
     const changePlanResponse = await changePlanResponsePromise
     const changePreviewResponse = await changePreviewResponsePromise
@@ -1577,11 +1770,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if ((await stat(CHANGE_PLANNER_SCREENSHOT)).size < 20_000) {
       throw new Error('Change Planner ghost preview screenshot is unexpectedly small')
     }
-    const changeConfirmResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/change-sets/')
-        && response.url().endsWith(':confirm')
-        && response.request().method() === 'POST',
-    )
+    const changeConfirmResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/change-sets\/[^/]+:confirm$/)
     await page.getByRole('button', { name: '确认并创建新版本', exact: true }).click()
     const changeConfirmResponse = await changeConfirmResponsePromise
     if (!changeConfirmResponse.ok()) {
@@ -1604,10 +1793,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByPlaceholder('搜索 ChangeSet…').fill('')
     await page.getByLabel('ChangeSet 状态筛选').selectOption('')
     await page.getByLabel('ChangeSet 操作筛选').selectOption('')
-    const auditExportResponsePromise = page.waitForResponse(
-      (response) => /\/api\/v1\/projects\/[^/]+\/change-set-audit-exports$/.test(response.url())
-        && response.request().method() === 'POST',
-    )
+    const auditExportResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/change-set-audit-exports$/)
     const auditDownloadPromise = waitForDownload(page)
     await page.getByTestId('change-set-audit-export').click()
     const auditExportResponse = await auditExportResponsePromise
@@ -1657,9 +1843,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     await page.getByRole('button', { name: '连接' }).click()
     await assertText(page.locator('.properties-panel'), ['grip.core', '已连接'])
     await page.locator('.properties-panel').getByRole('button', { name: '检查', exact: true }).click()
-    const qualityResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('quality-runs') && response.request().method() === 'POST',
-    )
+    const qualityResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/quality-runs(?:\?|$)/)
     await page.getByRole('button', { name: '运行实际几何检查' }).click()
     const qualityResponse = await qualityResponsePromise
     if (!qualityResponse.ok()) throw new Error(`geometry quality inspection failed: ${qualityResponse.status()}`)
@@ -1667,11 +1851,15 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
     if (queuedQualityJob.status !== 'queued') {
       throw new Error(`quality inspection was not queued: ${JSON.stringify(queuedQualityJob)}`)
     }
-    await page.waitForResponse(
-      (response) => /\/api\/v1\/quality-runs\/quality_/.test(response.url())
-        && response.request().method() === 'GET' && response.ok(),
-      { timeout: 20_000 },
+    const completedQualityResponse = await waitForProductResponse(
+      page,
+      'GET',
+      /\/api\/v1\/quality-runs\/quality_/,
+      20_000,
     )
+    if (!completedQualityResponse.ok()) {
+      throw new Error(`completed geometry quality readback failed: ${completedQualityResponse.status()}`)
+    }
     const completedQualityJob = await jsonRequest(
       agentApiBaseUrl, `/api/v1/jobs/${queuedQualityJob.job_id}`, { method: 'GET' },
     )
@@ -1723,10 +1911,7 @@ async function runWorkbenchUi(baseUrl, agentApiBaseUrl, seeded) {
       { timeout: 20_000 },
     )
 
-    const exportResponsePromise = page.waitForResponse(
-      (response) => /\/api\/v1\/versions\/[^/]+\/exports$/.test(response.url())
-        && response.request().method() === 'POST',
-    )
+    const exportResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/versions\/[^/]+\/exports$/)
     const downloadPromise = waitForDownload(page)
     await page.getByRole('button', { name: '创建并下载概念源包' }).click()
     const exportResponse = await exportResponsePromise
@@ -2331,6 +2516,142 @@ function boxGlb(name, color, scale) {
   output.writeUInt32LE(0x004e4942, binaryHeader + 4)
   binary.copy(output, binaryHeader + 8)
   return output
+}
+
+async function assertCompatibilityV003Rejection(page, baseUrl, projectId, beforeSnapshot, label) {
+  const failure = page.locator('[data-generation-state="failed"][aria-label="生成失败"]')
+  await failure.waitFor({ timeout: 20_000 })
+  const text = await failure.innerText()
+  if (!text.includes('Agent 没有返回正式的单一结果决策')) {
+    throw new Error(`${label} did not expose the V003 decision-contract rejection: ${text}`)
+  }
+  if (await page.getByLabel('当前临时结果').count() !== 0) {
+    throw new Error(`${label} rendered a legacy Planner payload as a formal V003 result`)
+  }
+  if (await page.getByLabel('Agent 完整外观方向').count() !== 0) {
+    throw new Error(`${label} restored a direction-selection surface`)
+  }
+  if (await page.locator('.weapon-viewport canvas').count() !== 1) {
+    throw new Error(`${label} created an extra WebGL canvas`)
+  }
+  const afterSnapshot = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}/active-design`)
+  const stable = (snapshot) => JSON.stringify({
+    revision: snapshot?.revision ?? null,
+    active_asset_version_id: snapshot?.active_design?.asset_version_id ?? null,
+    active_source: snapshot?.active_design?.source ?? null,
+    preview: snapshot?.preview ?? null,
+  })
+  if (stable(afterSnapshot) !== stable(beforeSnapshot)) {
+    throw new Error(`${label} changed the active Snapshot: before=${stable(beforeSnapshot)} after=${stable(afterSnapshot)}`)
+  }
+  return afterSnapshot
+}
+
+async function ensureCompatibilitySeedAgentAsset(page, baseUrl, projectId, label) {
+  // This only runs against ``wushen_agent.test_oracle`` with its explicit
+  // legacy lifecycle switches. It prepares a bounded compatibility fixture;
+  // it never creates a SingleResultDecision@1 or claims formal V003 evidence.
+  const seed = `r3-compat-seed-${Date.now()}`
+  const thread = await jsonRequest(baseUrl, '/api/v1/agent/threads', {
+    method: 'POST',
+    idempotencyKey: `${seed}-thread`,
+    body: {
+      client_request_id: `${seed}-thread`,
+      project_id: projectId,
+      title: 'R3 compatibility asset seed',
+      provider_id: 'deterministic_kernel',
+    },
+  })
+  const turn = await jsonRequest(baseUrl, `/api/v1/agent/threads/${thread.thread_id}/turns`, {
+    method: 'POST',
+    idempotencyKey: `${seed}-turn`,
+    body: {
+      client_request_id: `${seed}-turn`,
+      message: '设计一架紧凑的垂直起降概念飞机，作为非功能展示模型。',
+    },
+  })
+  const plan = turn.items
+    ?.find((item) => item?.item_type === 'tool_result' && item?.payload?.result?.plan)
+    ?.payload?.result?.plan
+  if (plan?.schema_version !== 'MechanicalConceptPlan@1') {
+    throw new Error(`${label} compatibility seed did not receive its bounded fixture plan`)
+  }
+  const directionId = plan.directions?.[0]?.direction_id
+  if (typeof directionId !== 'string') throw new Error(`${label} compatibility seed plan is missing its fixture direction`)
+  const build = await jsonRequest(baseUrl, '/api/v1/agent/blockouts', {
+    method: 'POST',
+    idempotencyKey: `${seed}-build`,
+    body: {
+      client_request_id: `${seed}-build`,
+      plan,
+      direction_id: directionId,
+      presentation_profile: 'showcase',
+    },
+  })
+  const segmented = await jsonRequest(baseUrl, '/api/v1/agent/blockouts:segment', {
+    method: 'POST',
+    idempotencyKey: `${seed}-segment`,
+    body: {
+      client_request_id: `${seed}-segment`,
+      plan,
+      direction_id: directionId,
+      artifact_id: build.artifact_id,
+      presentation_profile: 'showcase',
+    },
+  })
+  if (segmented.artifact_id !== build.artifact_id) {
+    throw new Error(`${label} compatibility seed lost build/segment artifact identity`)
+  }
+  const committed = await jsonRequest(baseUrl, '/api/v1/agent/blockouts:commit', {
+    method: 'POST',
+    idempotencyKey: `${seed}-commit`,
+    body: {
+      client_request_id: `${seed}-commit`,
+      artifact_id: segmented.artifact_id,
+      project_id: projectId,
+      summary: 'R3 compatibility seed asset; not a V003 generation result',
+    },
+  })
+  const browserSnapshotResponse = waitForProductResponse(
+    page,
+    'GET',
+    `/api/v1/projects/${projectId}/active-design`,
+  )
+  const browserAssetResponse = waitForProductResponse(
+    page,
+    'GET',
+    (path) => path.startsWith(`/api/v1/agent/asset-versions/${committed.asset_version_id}`),
+  )
+  await page.reload({ waitUntil: 'networkidle' })
+  const browserSnapshotResponseValue = await browserSnapshotResponse
+  const browserSnapshot = {
+    ok: browserSnapshotResponseValue.ok(),
+    body: await browserSnapshotResponseValue.json(),
+  }
+  if (
+    !browserSnapshot.ok
+    || browserSnapshot.body?.active_design?.source !== 'agent_asset'
+    || browserSnapshot.body?.active_design?.asset_version_id !== committed.asset_version_id
+  ) {
+    throw new Error(
+      `${label} browser compatibility transport did not read the committed Agent Snapshot: ${JSON.stringify(browserSnapshot)}`,
+    )
+  }
+  const browserAssetResponseValue = await browserAssetResponse
+  const browserAsset = {
+    ok: browserAssetResponseValue.ok(),
+    body: await browserAssetResponseValue.json(),
+  }
+  if (!browserAsset.ok || browserAsset.body?.asset_version_id !== committed.asset_version_id) {
+    throw new Error(
+      `${label} browser compatibility transport did not hydrate the committed Agent asset: ${JSON.stringify(browserAsset)}`,
+    )
+  }
+  const snapshot = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}/active-design`)
+  if (snapshot.active_design?.asset_version_id !== committed.asset_version_id) {
+    throw new Error(`${label} Snapshot did not bind the explicit compatibility seed`)
+  }
+  return snapshot
 }
 
 async function jsonRequest(baseUrl, path, options = {}) {

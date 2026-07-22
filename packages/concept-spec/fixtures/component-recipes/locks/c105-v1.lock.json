@@ -1,0 +1,27 @@
+{
+  "schema_version": "ComponentRecipeRegistryLock@1",
+  "registry_id": "registry_production_concept_core",
+  "policy_version": "ComponentRecipePolicy@1",
+  "aggregate_strategy": "legacy_c105_v1_exact",
+  "aggregate_registry_sha256": "068a379ea42de5bb71fdd73f94f2bd22e8d08094efdcdf7b3bb66203d7e911c6",
+  "recipe_order": [
+    "recipe_future_prop_shell",
+    "recipe_future_prop_trim",
+    "recipe_vehicle_body_shell",
+    "recipe_vehicle_lighting_trim",
+    "recipe_aircraft_fuselage",
+    "recipe_aircraft_trim",
+    "recipe_robotic_arm_link",
+    "recipe_robotic_arm_detail"
+  ],
+  "recipe_sha256": {
+    "recipe_future_prop_shell": "e7ca3dff6a7f87eab789b4788aeb71df57e4d7f93a7d10c138554e668742d55e",
+    "recipe_future_prop_trim": "10b77ae26739198d2ecfaf4fc6b54cd660f64e59affba0fb4694c037e1a3ccf5",
+    "recipe_vehicle_body_shell": "f860b08330752a27a6c076ab7c4084c3d3979b2e38a24199387d2d2f85c3fdef",
+    "recipe_vehicle_lighting_trim": "876bece0e3ae3a7847beaed372a4b3cf78318b6e86ff937a3f5cf8e0a1a8176d",
+    "recipe_aircraft_fuselage": "f8137c9380e66651d919b80e9ecc24e449a0a6e83057e25a1373a76a15920182",
+    "recipe_aircraft_trim": "34b805fbd7a9b3e9fe0a2e40fd0bd016d25012bc90f7a3befbf618997304a4dd",
+    "recipe_robotic_arm_link": "b075c51d8ce7cca5d7c4c8f436f48b0758636417d7ef8d87e06b6164477b45e7",
+    "recipe_robotic_arm_detail": "27a880b0f381ca800496e98486c916bb846d6f97f3d21b172ba81e7587bcd04e"
+  }
+}

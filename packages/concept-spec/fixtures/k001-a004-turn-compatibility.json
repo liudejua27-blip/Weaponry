@@ -1,0 +1,229 @@
+{
+  "schema_version": "K001A004TurnCompatibilityFixture@1",
+  "fixture_id": "k001_a004_offline_ice_explorer",
+  "brief": "设计一辆双座冰原探索车，完整外观，高离地，哑光车身。",
+  "provider_id": "deterministic_kernel",
+  "expected_turn_status": "completed",
+  "expected_item_count": 16,
+  "expected_ordered_markers": [
+    "user_message",
+    "tool_result:provider_gateway",
+    "tool_call:plan_complete_concept",
+    "tool_result:plan_complete_concept",
+    "tool_call:build_candidate_geometry",
+    "tool_result:build_candidate_geometry",
+    "tool_call:compile_readback_candidate",
+    "tool_result:compile_readback_candidate",
+    "tool_call:render_candidate_views",
+    "tool_result:render_candidate_views",
+    "tool_call:evaluate_candidate",
+    "tool_result:evaluate_candidate",
+    "tool_call:prepare_candidate_preview",
+    "tool_result:prepare_candidate_preview",
+    "plan",
+    "assistant_message"
+  ],
+  "expected_product_tools": [
+    "plan_complete_concept",
+    "build_candidate_geometry",
+    "compile_readback_candidate",
+    "render_candidate_views",
+    "evaluate_candidate",
+    "prepare_candidate_preview"
+  ],
+  "replay_after_sequence": 8,
+  "canonical_fingerprint": {
+    "item_input": "complete persisted AgentItem DTO",
+    "turn_items_input": "ordered array of sequence and item_sha256",
+    "algorithm": "sha256"
+  },
+  "canonical_golden": {
+    "item_sha256": [
+      "a8717282c5c56f15317b07681e9f294c6a7dd9e2f02c3fc04cf4d9d30a48cbf6",
+      "71e7603a8392793b8117219b8d206fa3de32497c8f0eaa7546d8d6e6785f85aa",
+      "fcfa14aa1984ed45f1d11c2e8a61e1a0e2ab11d75b6f0ac24abd703d7d0e46ca",
+      "78c863bd56f7ef5fab80374283fbdd1c56e4fa98cd7f753c48790d6cbb06910e",
+      "d964742f10e20b31489b446a9dc95de9e4f25a4d42fd5e20a11a6dd04ece2297",
+      "1c8cf0e06d967828fc168c1ee5025a6628dce27864abcaffdb3285d1f1d0e246",
+      "58a9a50260cdb64e297b90f7fa7b5c1aea6f3be0246e1e18979cccac6474c38f",
+      "3064029a10464d7bae19c8855d2611548651dfcc5177dfb9686e3cc364a5b201",
+      "76f43c42f3f67c82fec7b3ff9aa4caa03208fab462f1a5eb7023bc3983ccbcdf",
+      "983756cd6de5766720b4bb99ad7c0e31b18020138c8b25cfde1a32802d7267d2",
+      "019bb28a22591328d2759db255a420f0fe5977128d30534ae642f4cd498992f3",
+      "f0b15f5c3ecf2c917234a580175f7efec4b86be0b1c3d4fe26ae4e386accce63",
+      "22831acac9b00d16a648262f275d31f65dc46dca34c6594fd8af1893d19a399e",
+      "1437e2c21222661031e8fe374f0da9b235c5ead779c2126b6f2bb4cc0e50045b",
+      "4c34afb8e73604943d25ee2a99604a05ddd07c1ebfd3ca239ecb7ab54038fe91",
+      "e0fafa66b870b871165e3e92f5c395eabff218112d243d4744ccdbcbb673f1ca"
+    ],
+    "turn_items_sha256": "2981eddeaf38faafc9147211181c44e353666ef790210a12be184530174ebb3e",
+    "items": [
+      {
+        "item_id": "item_k001_01",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 1,
+        "item_type": "user_message",
+        "status": "completed",
+        "payload": {"message": "设计一辆双座冰原探索车，完整外观，高离地，哑光车身。"},
+        "created_at": "2026-07-17T00:00:00Z"
+      },
+      {
+        "item_id": "item_k001_02",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 2,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "provider_gateway", "result": {"provider_id": "deterministic_kernel", "network_call_made": false}},
+        "created_at": "2026-07-17T00:00:01Z"
+      },
+      {
+        "item_id": "item_k001_03",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 3,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "plan_complete_concept", "arguments": {"domain_pack_id": "ground_vehicle"}},
+        "created_at": "2026-07-17T00:00:02Z"
+      },
+      {
+        "item_id": "item_k001_04",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 4,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "plan_complete_concept", "result": {"status": "planned"}},
+        "created_at": "2026-07-17T00:00:03Z"
+      },
+      {
+        "item_id": "item_k001_05",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 5,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "build_candidate_geometry", "arguments": {"candidate_id": "candidate_primary"}},
+        "created_at": "2026-07-17T00:00:04Z"
+      },
+      {
+        "item_id": "item_k001_06",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 6,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "build_candidate_geometry", "result": {"status": "built"}},
+        "created_at": "2026-07-17T00:00:05Z"
+      },
+      {
+        "item_id": "item_k001_07",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 7,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "compile_readback_candidate", "arguments": {"artifact_profile": "interactive_preview"}},
+        "created_at": "2026-07-17T00:00:06Z"
+      },
+      {
+        "item_id": "item_k001_08",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 8,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "compile_readback_candidate", "result": {"status": "compiled", "glb_readback": true}},
+        "created_at": "2026-07-17T00:00:07Z"
+      },
+      {
+        "item_id": "item_k001_09",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 9,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "render_candidate_views", "arguments": {"view_count": 4}},
+        "created_at": "2026-07-17T00:00:08Z"
+      },
+      {
+        "item_id": "item_k001_10",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 10,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "render_candidate_views", "result": {"status": "rendered", "view_count": 4}},
+        "created_at": "2026-07-17T00:00:09Z"
+      },
+      {
+        "item_id": "item_k001_11",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 11,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "evaluate_candidate", "arguments": {"quality_profile": "concept_preview"}},
+        "created_at": "2026-07-17T00:00:10Z"
+      },
+      {
+        "item_id": "item_k001_12",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 12,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "evaluate_candidate", "result": {"status": "passed", "permanent_side_effects": 0}},
+        "created_at": "2026-07-17T00:00:11Z"
+      },
+      {
+        "item_id": "item_k001_13",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 13,
+        "item_type": "tool_call",
+        "status": "completed",
+        "payload": {"tool_name": "prepare_candidate_preview", "arguments": {"candidate_id": "candidate_primary"}},
+        "created_at": "2026-07-17T00:00:12Z"
+      },
+      {
+        "item_id": "item_k001_14",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 14,
+        "item_type": "tool_result",
+        "status": "completed",
+        "payload": {"tool_name": "prepare_candidate_preview", "result": {"requires_user_confirmation": true, "permanent_side_effects": 0}},
+        "created_at": "2026-07-17T00:00:13Z"
+      },
+      {
+        "item_id": "item_k001_15",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 15,
+        "item_type": "plan",
+        "status": "completed",
+        "payload": {"summary": "候选已通过真实编译、回读、渲染与质量门。"},
+        "created_at": "2026-07-17T00:00:14Z"
+      },
+      {
+        "item_id": "item_k001_16",
+        "thread_id": "thread_k001_a004_golden",
+        "turn_id": "turn_k001_a004_golden",
+        "sequence": 16,
+        "item_type": "assistant_message",
+        "status": "completed",
+        "payload": {"message": "已准备一个可确认的冰原探索车概念候选。"},
+        "created_at": "2026-07-17T00:00:15Z"
+      }
+    ]
+  },
+  "required_facts": {
+    "network_call_made": false,
+    "permanent_side_effects": 0,
+    "requires_user_confirmation": true,
+    "reasoning_content_persisted": false
+  }
+}

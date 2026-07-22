@@ -19,14 +19,23 @@
         "required": ["part_id", "role", "parent_part_id", "geometry_source", "transform", "connectors", "joints", "material_zones", "editable_parameters", "locked", "provenance"],
         "properties": {
           "part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+          "recipe_instance_id": { "description": "Optional durable ComponentRecipeInstanceProvenance identity. Recipe-backed parts persist it even when C102 maps their root to a stable project part_id.", "type": "string", "pattern": "^recipeinst_[a-z0-9_\\-]+$" },
           "role": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,63}$" },
           "parent_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
           "geometry_source": { "type": "string", "enum": ["shape_program", "module_asset", "imported_reference"] },
+          "operation_id": { "type": "string", "pattern": "^op_[a-z0-9_\\-]+$", "description": "Optional exact ShapeProgram operation source for recipe-backed parts." },
+          "output_id": { "type": "string", "pattern": "^output_[a-z0-9_\\-]+$", "description": "Optional exact ShapeProgram output source for recipe-backed parts." },
           "transform": { "$ref": "common.schema.json#/$defs/transform" },
           "connectors": { "type": "array", "items": { "$ref": "#/definitions/connector" } },
+          "pivot": {
+            "description": "Optional local orthonormal pivot frame. Recipe-backed parts always persist it; legacy graphs may omit it.",
+            "$ref": "#/definitions/frame"
+          },
           "joints": { "type": "array", "items": { "$ref": "#/definitions/joint" } },
           "material_zones": { "type": "array", "items": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" } },
+          "material_zone_ids": { "description": "Optional stable alias preserved by recipe-backed candidate bridges.", "type": "array", "items": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" } },
           "editable_parameters": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,63}$" } },
+          "editable_parameter_bindings": { "description": "Optional exact frozen G808 bindings for recipe-backed parts.", "type": "array", "maxItems": 16, "items": { "$ref": "common.schema.json#/$defs/editable_parameter_binding" } },
           "locked": { "type": "boolean" },
           "provenance": { "type": "string", "enum": ["agent_generated", "user_created", "imported"] }
         }
@@ -47,6 +56,18 @@
           "status": { "type": "string", "enum": ["connected", "invalid"] }
         }
       }
+    },
+    "component_recipe_instances": {
+      "description": "Optional backward-compatible recipe provenance. New recipe-backed assets persist it here; legacy graphs omit it and are treated as empty.",
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "component-recipe-instance-provenance.schema.json" }
+    },
+    "surface_adornments": {
+      "description": "Optional A005 visual-only texture bake programs. The immutable program includes Skill version/hash and exact Part/Material Zone provenance; legacy graphs omit it and are treated as empty.",
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "surface-adornment-program.schema.json" }
     }
   },
   "definitions": {
@@ -58,7 +79,21 @@
         "connector_id": { "type": "string", "pattern": "^connector_[a-z0-9_\\-]+$" },
         "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_\\-]{1,63}$" },
         "position": { "$ref": "common.schema.json#/$defs/vec3" },
-        "normal": { "$ref": "common.schema.json#/$defs/vec3" }
+        "normal": { "$ref": "common.schema.json#/$defs/vec3" },
+        "up": {
+          "description": "Optional local up vector retained for recipe-backed connector roll. Legacy connectors may omit it.",
+          "$ref": "common.schema.json#/$defs/vec3"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "normal", "up"],
+      "properties": {
+        "position": { "$ref": "common.schema.json#/$defs/vec3" },
+        "normal": { "$ref": "common.schema.json#/$defs/vec3" },
+        "up": { "$ref": "common.schema.json#/$defs/vec3" }
       }
     },
     "joint": {

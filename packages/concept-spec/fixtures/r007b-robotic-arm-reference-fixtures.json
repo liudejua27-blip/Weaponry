@@ -1,0 +1,46 @@
+{
+  "schema_version": "R007BReferenceFixtureSet@1",
+  "domain_pack_id": "pack_robotic_arm_concept",
+  "license_boundary": "user_authorized_fixture_only_no_network_no_mesh_copy",
+  "analysis_source": "declared_user_notes_and_strict_glb_readback",
+  "reference_vision_capability": false,
+  "visual_fidelity_validated": false,
+  "formal_eligible": false,
+  "fixtures": [
+    {
+      "fixture_id": "r007b_arm_single_side_image",
+      "kind": "image",
+      "reference_class": "single_image",
+      "file_name": "authorized-arm-side.png",
+      "media_type": "image/png",
+      "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Jg5gAAAAASUVORK5CYII=",
+      "declared_missing_views": ["front", "rear", "top", "iso", "detail"],
+      "declared_user_notes": "单侧外观参考的用户声明：细长连杆、蓝色装甲条与外露线缆；不可推断背面或内部。",
+      "declared_target_root_recipe_id": "recipe_c106_arm_service_display",
+      "declared_fidelity_ceiling": "single_image_visible_surface_only",
+      "declared_binding_roles": ["link_armor", "cable_harness", "surface_trim"]
+    },
+    {
+      "fixture_id": "r007b_arm_contact_sheet",
+      "kind": "image",
+      "reference_class": "multi_view_contact_sheet",
+      "file_name": "authorized-arm-contact-sheet.png",
+      "media_type": "image/png",
+      "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M/wHwAF/gJ/0Sbl9AAAAABJRU5ErkJggg==",
+      "declared_missing_views": [],
+      "declared_user_notes": "用户声明该图片代表正、侧、后、顶多视图：宽底座、三关节、黑色结构件和受控蓝色发光 trim；不包含近景纹样或材料物理。fixture 的 1×1 PNG 字节不表达这些内容。",
+      "declared_target_root_recipe_id": "recipe_c106_arm_gallery_industrial",
+      "declared_fidelity_ceiling": "multi_view_image_visible_surface_only",
+      "declared_binding_roles": ["base_form", "joint_housing", "surface_trim"]
+    },
+    {
+      "fixture_id": "r007b_arm_authorized_glb",
+      "kind": "glb",
+      "reference_class": "strict_glb_readback",
+      "declared_source": "compile_c106_root_through_restricted_executor",
+      "declared_target_root_recipe_id": "recipe_c106_arm_desktop_assistant",
+      "declared_fidelity_ceiling": "strict_glb_readback_visible_bounds_only",
+      "declared_binding_roles": ["base_form", "turntable", "joint_housing", "link_armor", "cable_harness", "end_effector_form", "surface_trim"]
+    }
+  ]
+}

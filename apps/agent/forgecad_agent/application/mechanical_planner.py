@@ -15,6 +15,8 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Protocol
 from pydantic import Field, ValidationError
 
 from .concept_models import StrictApiModel
+from .arm_design_intent import ArmDesignIntent, infer_arm_design_intent
+from .assembly_delta import AssemblyDeltaProgram
 from .conversation import ProviderConversation
 from .domain_packs import DomainPackManifest
 from .provider_gateway import ProviderConnectionState, ProviderExecutionTrace
@@ -73,9 +75,17 @@ class MechanicalConceptPlan(StrictApiModel):
     brief: str = Field(min_length=1, max_length=2000)
     generation_stage: Literal["blockout"] = "blockout"
     spec: Dict[str, Any]
-    directions: List[ConceptDirection] = Field(min_length=3, max_length=3)
+    # V003 owns one complete synthesis per Turn. Candidate selection is no
+    # longer a user-facing three-direction branch, so the reviewed plan binds
+    # exactly one selected exterior direction.
+    directions: List[ConceptDirection] = Field(min_length=1, max_length=1)
     provider_id: str = Field(min_length=1, max_length=120)
     model: Optional[str] = Field(default=None, max_length=160)
+    arm_design_intent: Optional[ArmDesignIntent] = None
+    # Present only when the user is continuing an existing robotic-arm asset.
+    # Rust revalidates and lowers this candidate; the Provider never receives
+    # a write capability or a client-supplied version truth.
+    assembly_delta: Optional[AssemblyDeltaProgram] = None
     shape_program_ready: bool = False
 
 
@@ -157,7 +167,7 @@ class DeterministicMechanicalPlanner:
         self.last_execution_trace = trace
         _notify_trace(trace_observer, trace)
         roles = _roles_for_pack(pack.domain)
-        direction_ids = [f"direction_{index}" for index in range(1, 4)]
+        direction_ids = ["direction_1"]
         visual_intent = build_visual_intent_mapping(
             brief=brief,
             domain_pack_id=pack.pack_id,
@@ -172,6 +182,7 @@ class DeterministicMechanicalPlanner:
             directions=directions,
             provider_id=self.provider_id,
             model=None,
+            arm_design_intent=infer_arm_design_intent(brief),
             shape_program_ready=False,
         )
         if not action_loop_enabled:
@@ -260,7 +271,7 @@ class OpenAICompatibleMechanicalPlanner:
                 "role": "system",
                 "content": (
                     "You are ForgeCAD's general mechanical concept planner. Return exactly one JSON object "
-                    "matching the supplied schema and exactly three complete exterior directions. The first "
+                    "matching the supplied schema and exactly one complete exterior direction. The first "
                     "stage is a visual, non-functional blockout for a future prop, vehicle, aircraft, or "
                     "robotic arm. Describe whole-object silhouette, primary part roles, and visual materials. "
                     "Do not provide real-world weapon engineering, manufacturing, dimensions for fabrication, "
@@ -454,6 +465,7 @@ class OpenAICompatibleMechanicalPlanner:
                 "directions": normalized_directions,
                 "provider_id": self.provider_id,
                 "model": self.model_name,
+                "arm_design_intent": result.arm_design_intent or infer_arm_design_intent(brief),
                 "shape_program_ready": False,
             }
         )
@@ -497,9 +509,19 @@ class OpenAICompatibleMechanicalPlanner:
         action_system = {
             "role": "system",
             "content": (
-                "Use only the supplied ForgeCAD Product Tools. First call plan_complete_concept with one "
-                "MechanicalConceptPlan@1 containing exactly three full-exterior directions. Then call, in order, "
-                "build_candidate_geometry for the strongest direction, compile_readback_candidate, "
+                "Use only the supplied ForgeCAD Product Tools. First call infer_product_domain, then "
+                "select_style_recipe using the visual intent you infer from the user's brief (the user must not "
+                "choose among directions). For a robotic arm, put one bounded ArmDesignIntent@1 in the plan, "
+                "including architecture, joint/link/base/wrist/end-effector/cable language, surface tokens, "
+                "palette, detail density, pose, and proportion. Then call plan_complete_concept with one "
+                "MechanicalConceptPlan@1 containing exactly one full-exterior direction. If the read-only "
+                "ActiveDesignSnapshot is present and the user asks to continue or modify the current robotic "
+                "arm, also include exactly one bounded visual-only AssemblyDeltaProgram@1 in the plan. Use the "
+                "snapshot's current asset_version_id as base_asset_version_id and only reviewed recipe, part, "
+                "connector, transform, or joint-pose operations; never invent a ShapeProgram operation. For this "
+                "continuation branch, stop immediately after plan_complete_concept: Rust will bridge the validated "
+                "delta to a ChangeSet preview and the user must confirm it before a new version exists. For a new "
+                "model, call, in order, build_candidate_geometry, compile_readback_candidate, "
                 "render_candidate_views, evaluate_candidate, and prepare_candidate_preview. Stop after the preview "
                 "tool succeeds and return a short user-facing summary. Never call shell, code execution, URL, file, "
                 "database, MCP, or permanent mutation tools. This is non-functional visual concept work only."
@@ -975,16 +997,17 @@ def _directions_for_pack(domain: str, roles: List[str], visual_intent: VisualInt
         "aircraft_concept": [("垂直起降", "集中机身、旋翼舱和尾部稳定面，形成完整飞行器轮廓。", "balanced"), ("高速单座", "收窄机身并延展翼面，形成轻快的高速概念。", "extended"), ("宽体运输", "放大中央舱体和机翼根部，形成厚实运输外观。", "industrial")],
         "robotic_arm_concept": [("精密桌面", "缩短各段连杆并突出关节护罩，形成清晰的桌面设备外观。", "compact"), ("长臂维护", "延展上臂与前臂并拉开运动链，形成维护机构轮廓。", "extended"), ("双工具服务", "强调腕部和末端工具分件，形成可继续替换的服务机构。", "industrial")],
     }.get(domain, [("紧凑轮廓", "建立清楚的完整机械外观。", "compact"), ("均衡结构", "平衡主体与附件比例。", "balanced"), ("延展展示", "拉开主轴和层次。", "extended")])
+    title, summary, _silhouette = names[0]
+    intent = visual_intent.directions[0]
     return [
         ConceptDirection(
-            direction_id=f"direction_{index + 1}",
+            direction_id=intent.direction_id,
             title=title,
-            summary=f"{summary} 这版采用{visual_intent_description(visual_intent.directions[index])}的完整外观方向。",
-            silhouette=visual_intent.directions[index].silhouette,
+            summary=f"{summary} 这版采用{visual_intent_description(intent)}的唯一完整外观。",
+            silhouette=intent.silhouette,
             primary_part_roles=roles[: min(len(roles), 6)],
-            material_direction=visual_intent_description(visual_intent.directions[index]),
+            material_direction=visual_intent_description(intent),
         )
-        for index, (title, summary, _silhouette) in enumerate(names)
     ]
 
 
@@ -1009,6 +1032,7 @@ def _draft_spec(
             "detail_density": primary_intent.detail_density,
             "color_direction": visual_intent_description(primary_intent),
         },
+        "arm_design_intent": infer_arm_design_intent(brief).model_dump(mode="json") if pack.pack_id == "pack_robotic_arm_concept" else None,
         "visual_intent_mapping": visual_intent.model_dump(mode="json"),
         "envelope": {"min_mm": [0, 0, 0], "max_mm": [2400, 1800, 1800]},
         "pose": {"position": [0, 0, 0], "rotation": [0, 0, 0]},
@@ -1036,28 +1060,30 @@ def _response_format(config: MechanicalPlannerConfig, schema: Dict[str, Any]) ->
 
 def _provider_output_example(pack: DomainPackManifest) -> Dict[str, Any]:
     roles = _roles_for_pack(pack.domain)
-    return {
+    example = {
         "schema_version": "MechanicalConceptPlan@1",
         "plan_id": "plan_example_contract_v1",
         "domain_pack_id": pack.pack_id,
         "brief": "JSON example only",
         "generation_stage": "blockout",
         "spec": {"non_functional_only": True},
-        "directions": [
-            {
-                "direction_id": f"direction_{index}",
-                "title": f"完整外观方向 {index}",
-                "summary": "描述完整对象轮廓、主要分件和非功能视觉语言。",
-                "silhouette": silhouette,
-                "primary_part_roles": roles[: max(2, min(6, len(roles)))],
-                "material_direction": "描述视觉材质与配色，不提供工程材料配方。",
-            }
-            for index, silhouette in enumerate(("compact", "balanced", "industrial"), start=1)
-        ],
+        "directions": [{
+            "direction_id": "direction_1",
+            "title": "唯一完整外观",
+            "summary": "描述完整对象轮廓、主要分件和非功能视觉语言。",
+            "silhouette": "compact",
+            "primary_part_roles": roles[: max(2, min(6, len(roles)))],
+            "material_direction": "描述视觉材质与配色，不提供工程材料配方。",
+        }],
         "provider_id": "provider_contract_example",
         "model": None,
         "shape_program_ready": False,
     }
+    if pack.pack_id == "pack_robotic_arm_concept":
+        example["arm_design_intent"] = infer_arm_design_intent(
+            "紧凑的蓝黑色未来桌面机械臂，装甲关节、封闭流线连杆、分层腕部和精密夹爪，带流线与接缝，生产级概念外观"
+        ).model_dump(mode="json")
+    return example
 
 
 def _read_provider_response(

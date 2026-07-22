@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json",
+  "title": "AgentSkillManifest",
+  "description": "Immutable, visual-only ForgeCAD Product Skill contract. It is data, never executable code.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "skill_id", "version", "display_name", "purpose", "allowed_domains", "triggers", "product_tool_ids", "g819_operations", "recipe_ids", "material_preset_ids", "reference_hashes", "success_examples", "stop_examples", "author", "source", "license", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "AgentSkillManifest@1" },
+    "skill_id": { "type": "string", "pattern": "^skill_[a-z0-9_\\-]+$" },
+    "version": { "type": "integer", "minimum": 1, "maximum": 9999 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "purpose": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "allowed_domains": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] } },
+    "triggers": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+    "product_tool_ids": { "type": "array", "minItems": 1, "maxItems": 13, "uniqueItems": true, "items": { "enum": ["forgecad.domain.inference.v1", "forgecad.reference.research.v1", "forgecad.style.recipe_selection.v1", "forgecad.profile.author.v1", "forgecad.profile.validate.v1", "forgecad.shape.author.v1", "forgecad.shape.validate.v1", "forgecad.plan.complete_concept.v1", "forgecad.geometry.build.v1", "forgecad.geometry.compile_readback.v1", "forgecad.render.concept.v1", "forgecad.candidate.evaluate.v1", "forgecad.preview.prepare.v1"] } },
+    "g819_operations": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "enum": ["box", "cylinder", "capsule", "wedge", "profile", "extrude", "revolve", "loft", "sweep", "mirror", "array", "radial_array", "union", "subtract", "bevel_approx", "surface_panel"] } },
+    "recipe_ids": { "type": "array", "maxItems": 24, "uniqueItems": true, "items": { "type": "string", "pattern": "^recipe_[a-z0-9_\\-]+$" } },
+    "material_preset_ids": { "type": "array", "maxItems": 12, "uniqueItems": true, "items": { "enum": ["mat_aluminum", "mat_automotive_paint", "mat_composite", "mat_dark_glass", "mat_emissive_blue", "mat_graphite", "mat_rubber", "mat_signal_red"] } },
+    "reference_hashes": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/sha256" } },
+    "success_examples": { "type": "array", "minItems": 3, "maxItems": 20, "items": { "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/example" } },
+    "stop_examples": { "type": "array", "minItems": 3, "maxItems": 20, "items": { "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/example" } },
+    "author": { "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/provenance" },
+    "source": { "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/provenance" },
+    "license": { "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/license" },
+    "non_functional_only": { "const": true }
+  },
+  "$defs": {
+    "example": { "type": "object", "additionalProperties": false, "required": ["example_id", "brief", "expected_outcome"], "properties": { "example_id": { "type": "string", "pattern": "^skillex_[a-z0-9_\\-]+$" }, "brief": { "type": "string", "minLength": 1, "maxLength": 600 }, "expected_outcome": { "type": "string", "minLength": 1, "maxLength": 600 } } },
+    "provenance": { "type": "object", "additionalProperties": false, "required": ["kind", "id"], "properties": { "kind": { "type": "string", "enum": ["forgecad_user", "forgecad_first_party"] }, "id": { "type": "string", "pattern": "^(author|source)_[a-z0-9_\\-]+$" } } },
+    "license": { "type": "object", "additionalProperties": false, "required": ["license_id", "redistributable"], "properties": { "license_id": { "type": "string", "enum": ["ForgeCAD-Internal-Visual-Only", "self_declared_original"] }, "redistributable": { "const": false } } }
+  }
+}

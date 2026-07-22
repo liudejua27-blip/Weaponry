@@ -3,11 +3,22 @@
 
 from __future__ import annotations
 
+import asyncio
+import base64
+import hashlib
+import json
 import tempfile
 from pathlib import Path
 
+from fastapi import FastAPI
+
+from forgecad_agent.api.agent_asset_routes import build_agent_asset_router
 from forgecad_agent.application.agent_asset_editing import AgentAssetEditingService, AgentAssetError
 from forgecad_agent.application.agent_kernel import AgentKernelService
+from forgecad_agent.application.geometry_worker import (
+    compile_shape_program,
+    read_shape_program_glb_facts,
+)
 from forgecad_agent.application.agent_models import (
     AgentPartEditOperation,
     BuildAgentBlockoutRequest,
@@ -22,6 +33,49 @@ from forgecad_agent.infrastructure.db import SQLiteConnectionFactory, SQLiteMigr
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+async def _get_binary(
+    app: FastAPI,
+    path: str,
+) -> tuple[int, dict[str, str], bytes]:
+    messages = [{"type": "http.request", "body": b"", "more_body": False}]
+    response: list[dict[str, object]] = []
+
+    async def receive() -> dict[str, object]:
+        return messages.pop(0) if messages else {"type": "http.disconnect"}
+
+    async def send(message: dict[str, object]) -> None:
+        response.append(message)
+
+    await app(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": path,
+            "raw_path": path.encode("ascii"),
+            "query_string": b"",
+            "headers": [(b"host", b"testserver")],
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+        },
+        receive,
+        send,
+    )
+    start = next(item for item in response if item["type"] == "http.response.start")
+    headers = {
+        key.decode("latin-1").lower(): value.decode("latin-1")
+        for key, value in start.get("headers", [])
+    }
+    body = b"".join(
+        item.get("body", b"")
+        for item in response
+        if item["type"] == "http.response.body"
+    )
+    return int(start["status"]), headers, body
 
 
 def _seed_project(factory: SQLiteConnectionFactory) -> None:
@@ -112,6 +166,8 @@ def main() -> int:
             assert snapshot is not None
             assert snapshot.active_design.asset_version_id == version.asset_version_id
             assert snapshot.export.source_version_id == version.asset_version_id
+        base_export = assets.export_glb(version.asset_version_id)
+        base_glb_sha256 = hashlib.sha256(base64.b64decode(base_export.glb_base64)).hexdigest()
         part = next(item for item in version.parts if item.editable_parameter_bindings)
         joint_index, joint_part = next(
             (index, item)
@@ -149,6 +205,15 @@ def main() -> int:
             ),
             "g6-propose",
         )
+        app = FastAPI()
+        app.include_router(build_agent_asset_router(assets))
+        preview_glb_path = (
+            f"/api/v1/agent/change-sets/{change_set.change_set_id}:preview.glb"
+        )
+        status, _, body = asyncio.run(_get_binary(app, preview_glb_path))
+        assert status == 409
+        assert json.loads(body)["error"]["code"] == "ASSET_CHANGE_SET_NOT_PREVIEWED"
+
         preview = assets.preview_change_set(change_set.change_set_id, "g6-preview")
         assert preview.status == "previewed" and preview.preview is not None
         with SQLiteUnitOfWork(factory) as unit:
@@ -156,14 +221,81 @@ def main() -> int:
             assert snapshot is not None and snapshot.preview is not None
             assert snapshot.preview.change_set_id == change_set.change_set_id
             assert snapshot.preview.base_asset_version_id == version.asset_version_id
+            stored_change = unit.agent_assets.get_change_set(change_set.change_set_id)
+            assert stored_change is not None and stored_change["preview_json"]
+            stored_preview_json = str(stored_change["preview_json"])
+            assert '"glb_base64"' not in stored_preview_json
         preview_descendant = next(item for item in preview.preview.parts if item.part_id == descendant.part_id)
         assert preview_descendant.position_mm != descendant.position_mm, "joint preview must reposition descendants"
+
+        status, headers, preview_glb = asyncio.run(_get_binary(app, preview_glb_path))
+        assert status == 200
+        assert headers["content-type"] == "model/gltf-binary"
+        assert headers["cache-control"] == "no-store"
+        preview_glb_sha256 = hashlib.sha256(preview_glb).hexdigest()
+        assert headers["x-forgecad-preview-glb-sha256"] == preview_glb_sha256
+        assert headers["x-forgecad-base-asset-version-id"] == version.asset_version_id
+        assert int(headers["x-forgecad-preview-triangle-count"]) > 0
+        assert preview_glb_sha256 != base_glb_sha256
+        assert base64.b64encode(preview_glb).decode("ascii") not in stored_preview_json
+        preview_glb_facts = read_shape_program_glb_facts(preview_glb)
+        target_zone_id = part.material_zone_ids[0]
+        assert any(
+            zone["material_zone_id"] == target_zone_id
+            and zone["material_id"] == "mat_aluminum"
+            for zone in preview_glb_facts.material_zone_faces
+        ), "preview GLB readback must bind the requested material to the selected Material Zone"
+        assert any(
+            texture_set["material_id"] == "mat_aluminum"
+            and target_zone_id in texture_set["material_zone_ids"]
+            and texture_set["visual_texture_set_id"].endswith("_builtin_v3")
+            for texture_set in preview_glb_facts.visual_texture_sets
+        ), "preview GLB must carry the current embedded five-channel PBR texture set"
+
+        with SQLiteUnitOfWork(factory) as unit:
+            snapshot = unit.active_designs.get_snapshot("prj_agent_asset_smoke")
+            assert snapshot is not None and snapshot.preview is not None
+            unit.active_designs.set_preview(
+                project_id="prj_agent_asset_smoke",
+                expected_revision=snapshot.revision,
+                change_set_id=None,
+                base_asset_version_id=None,
+                updated_at="2026-07-12T00:00:01+00:00",
+            )
+        status, _, body = asyncio.run(_get_binary(app, preview_glb_path))
+        assert status == 409
+        assert json.loads(body)["error"]["code"] == "ACTIVE_DESIGN_PREVIEW_STALE"
+        with SQLiteUnitOfWork(factory) as unit:
+            snapshot = unit.active_designs.get_snapshot("prj_agent_asset_smoke")
+            assert snapshot is not None and snapshot.preview is None
+            unit.active_designs.set_preview(
+                project_id="prj_agent_asset_smoke",
+                expected_revision=snapshot.revision,
+                change_set_id=change_set.change_set_id,
+                base_asset_version_id=version.asset_version_id,
+                updated_at="2026-07-12T00:00:02+00:00",
+            )
+
         confirmed = assets.confirm_change_set(change_set.change_set_id, "g6-confirm")
         assert confirmed.asset_version.version_no == 2
         assert confirmed.asset_version.stage == "editable_asset"
         assert confirmed.asset_version.material_bindings
         assert confirmed.asset_version.material_bindings.get(f"{part.part_id}:{part.material_zone_ids[0]}") == "mat_aluminum"
         assert assets.get_version(confirmed.asset_version.asset_version_id).version_no == 2
+        confirmed_export = assets.export_glb(confirmed.asset_version.asset_version_id)
+        confirmed_glb_sha256 = hashlib.sha256(base64.b64decode(confirmed_export.glb_base64)).hexdigest()
+        assert confirmed_glb_sha256 != base_glb_sha256, "material ChangeSet must produce a different compiled GLB"
+        confirmed_readback = compile_shape_program(confirmed.asset_version.shape_program).readback
+        assert any(
+            zone.material_zone_id == target_zone_id and zone.material_id == "mat_aluminum"
+            for zone in confirmed_readback.material_zone_faces
+        ), "confirmed GLB readback must bind the requested material to the selected Material Zone"
+        assert any(
+            texture_set.material_id == "mat_aluminum"
+            and target_zone_id in texture_set.material_zone_ids
+            and texture_set.visual_texture_set_id.endswith("_builtin_v3")
+            for texture_set in confirmed_readback.visual_texture_sets
+        ), "confirmed GLB must carry the current embedded five-channel PBR texture set"
         with SQLiteUnitOfWork(factory) as unit:
             snapshot = unit.active_designs.get_snapshot("prj_agent_asset_smoke")
             head = unit.agent_assets.get_head("prj_agent_asset_smoke")
@@ -262,7 +394,30 @@ def main() -> int:
         else:
             raise AssertionError("unregistered material zones must be rejected")
 
-    print("G6 asset editing smoke passed: candidate, commit, preview, confirm, version 2")
+        try:
+            assets.propose_change_set(
+                overlap_confirmed.asset_version.asset_version_id,
+                ProposeAgentAssetChangeSetRequest(
+                    client_request_id="g6-invalid-material-domain",
+                    summary="领域不兼容的视觉材质",
+                    operations=[
+                        AgentPartEditOperation(
+                            operation_id="op_invalid_material_domain",
+                            op="apply_material_preset",
+                            part_id=part.part_id,
+                            material_id="mat_automotive_paint",
+                            material_zone_id=part.material_zone_ids[0],
+                        )
+                    ],
+                ),
+                "g6-invalid-material-domain",
+            )
+        except AgentAssetError as exc:
+            assert exc.code == "MATERIAL_DOMAIN_INCOMPATIBLE"
+        else:
+            raise AssertionError("domain-incompatible material presets must be rejected")
+
+    print("G6 asset editing smoke passed: binary PBR preview, guarded material domain, confirm, version 2")
     return 0
 
 

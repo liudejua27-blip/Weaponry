@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset: http://asset.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' customprotocol: asset: http://asset.localhost http://127.0.0.1:* data: blob:; connect-src 'self' http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      "csp": "default-src 'self' customprotocol: asset: http://asset.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' customprotocol: asset: http://asset.localhost forgecad-resource: http://forgecad-resource.localhost data: blob:; media-src 'self' forgecad-resource: http://forgecad-resource.localhost blob:; connect-src 'self' forgecad-resource: http://forgecad-resource.localhost blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {

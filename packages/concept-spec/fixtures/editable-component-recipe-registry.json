@@ -1,0 +1,991 @@
+{
+  "schema_version": "EditableComponentRecipeRegistry@1",
+  "registry_id": "registry_production_concept_core",
+  "policy_version": "ComponentRecipePolicy@1",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_future_prop_shell",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "未来道具主壳",
+      "description": "非功能游戏或影视道具的连续外壳、视觉握持区和装饰分区。",
+      "profiles": [{"profile_input_id":"profileinput_future_prop","profile_sketch_id":"sketch_future_prop_tube"}],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_future_prop_shell",
+        "units": "millimeter",
+        "seed": 105,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_future_prop",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "3f8bef44ecdc353b84380b98a538a4e94098e8944f56a304e0d67228d8357777",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_future_prop_tube",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [-0.55, -0.4],
+              "segments": [
+                { "kind": "line", "to": [0.55, -0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [0.7, 0.0],
+                  "to": [0.55, 0.4]
+                },
+                { "kind": "line", "to": [-0.55, 0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [-0.7, 0.0],
+                  "to": [-0.55, -0.4]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": { "min": [-0.7, -0.4], "max": [0.7, 0.4] },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_future_prop"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_prop_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_future_prop",
+              "profile_scale": [140, 110],
+              "path_points": [
+                [0, 0, 0],
+                [520, 30, 0],
+                [980, 160, 35]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 8,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "primary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_prop_shell"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_prop_shell",
+            "operation_id": "op_prop_shell",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_prop_shell",
+          "operation_id": "op_prop_shell",
+          "role": "primary_form"
+        }
+      ],
+      "parameter_bindings": [{
+        "schema_version": "EditableParameterBinding@1",
+        "parameter_id": "editparam_prop_shell_profile_height",
+        "path": "transform.scale.y",
+        "display_name": "主壳体高度比例",
+        "unit": "ratio",
+        "default": 1.0,
+        "min": 0.6,
+        "max": 1.4,
+        "step": 0.1
+      }],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_trim",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_shell",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_prop_trim",
+          "accepted_roles": ["visual_detail"],
+          "child_recipe_id": "recipe_future_prop_trim",
+          "parent_connector_id": "connector_prop_trim",
+          "child_connector_id": "connector_trim_mount",
+          "parent_local_transform": {
+            "position": [820, 150, 70],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": ["pack_future_weapon_prop"],
+      "triangle_estimate": 6200,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_future_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_future_prop_shell_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_future_prop_trim",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "未来道具外观饰条",
+      "description": "非功能的流线、面板间隙和信号装饰组件。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_future_prop_trim",
+        "units": "millimeter",
+        "seed": 106,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_prop_trim",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "size": [280, 24, 18],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_prop_trim",
+            "operation_id": "op_prop_trim",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_prop_trim_panel",
+          "operation_id": "op_prop_trim",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_trim_mount",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": ["pack_future_weapon_prop"],
+      "triangle_estimate": 800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_future_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_future_prop_trim_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_vehicle_body_shell",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "概念车连续车身",
+      "description": "非工程概念车的连续主壳、玻璃带和视觉轮廓分区。",
+      "profiles": [{"profile_input_id":"profileinput_vehicle","profile_sketch_id":"sketch_vehicle_body_tube"}],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_vehicle_body",
+        "units": "millimeter",
+        "seed": 107,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_vehicle",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "4db992afdf4e0e46c10bb0d530cf48a15120a7d10aa82c88067f748550361081",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_vehicle_body_tube",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [-0.55, -0.4],
+              "segments": [
+                { "kind": "line", "to": [0.55, -0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [0.7, 0.0],
+                  "to": [0.55, 0.4]
+                },
+                { "kind": "line", "to": [-0.55, 0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [-0.7, 0.0],
+                  "to": [-0.55, -0.4]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": { "min": [-0.7, -0.4], "max": [0.7, 0.4] },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_body"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_vehicle_body",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle",
+              "profile_scale": [650, 430],
+              "path_points": [
+                [0, 0, 0],
+                [1100, 90, 0],
+                [2400, 120, 0]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 3,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "primary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_shell"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_vehicle_body",
+            "operation_id": "op_vehicle_body",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_body",
+          "operation_id": "op_vehicle_body",
+          "role": "primary_form"
+        }
+      ],
+      "parameter_bindings": [{
+        "schema_version": "EditableParameterBinding@1", "parameter_id": "editparam_vehicle_body_profile_height", "path": "transform.scale.y", "display_name": "车身高度比例", "unit": "ratio", "default": 1.0, "min": 0.6, "max": 1.4, "step": 0.1
+      }],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_lighting",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_shell",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_vehicle_lighting",
+          "accepted_roles": ["visual_detail"],
+          "child_recipe_id": "recipe_vehicle_lighting_trim",
+          "parent_connector_id": "connector_vehicle_lighting",
+          "child_connector_id": "connector_lighting_mount",
+          "parent_local_transform": {
+            "position": [2100, 120, 80],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": ["pack_vehicle_concept"],
+      "triangle_estimate": 9800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_vehicle_body_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_vehicle_lighting_trim",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "概念车灯带饰件",
+      "description": "非功能展示用的发光带和车身装饰分区。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_vehicle_lighting",
+        "units": "millimeter",
+        "seed": 108,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_vehicle_lighting",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "size": [420, 28, 14],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_vehicle_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_vehicle_lighting",
+            "operation_id": "op_vehicle_lighting",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_lighting",
+          "operation_id": "op_vehicle_lighting",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_lighting_mount",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": ["pack_vehicle_concept"],
+      "triangle_estimate": 900,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_vehicle_trim_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_aircraft_fuselage",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "概念航空器机身",
+      "description": "非适航概念航空器的流线外壳、座舱罩和视觉翼根。",
+      "profiles": [{"profile_input_id":"profileinput_aircraft","profile_sketch_id":"sketch_aircraft_fuselage_tube"}],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_aircraft_fuselage",
+        "units": "millimeter",
+        "seed": 109,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_aircraft",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "26cf1d7a71f7db30acca0926a373033f4a90c08ced1c3473020874f2634b4387",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_aircraft_fuselage_tube",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [-0.55, -0.4],
+              "segments": [
+                { "kind": "line", "to": [0.55, -0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [0.7, 0.0],
+                  "to": [0.55, 0.4]
+                },
+                { "kind": "line", "to": [-0.55, 0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [-0.7, 0.0],
+                  "to": [-0.55, -0.4]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": { "min": [-0.7, -0.4], "max": [0.7, 0.4] },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_fuselage"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_aircraft_fuselage",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_aircraft",
+              "profile_scale": [500, 340],
+              "path_points": [
+                [0, 0, 0],
+                [1400, 120, 35],
+                [3100, 80, 0]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 4,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "primary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_shell"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_aircraft_fuselage",
+            "operation_id": "op_aircraft_fuselage",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_aircraft_fuselage",
+          "operation_id": "op_aircraft_fuselage",
+          "role": "primary_form"
+        }
+      ],
+      "parameter_bindings": [{
+        "schema_version": "EditableParameterBinding@1", "parameter_id": "editparam_aircraft_fuselage_profile_height", "path": "transform.scale.y", "display_name": "机身高度比例", "unit": "ratio", "default": 1.0, "min": 0.6, "max": 1.4, "step": 0.1
+      }],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_trim",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_shell",
+          "role": "shell",
+          "material_preset_id": "mat_aluminum"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_aircraft_trim",
+          "accepted_roles": ["visual_detail"],
+          "child_recipe_id": "recipe_aircraft_trim",
+          "parent_connector_id": "connector_aircraft_trim",
+          "child_connector_id": "connector_aircraft_trim_mount",
+          "parent_local_transform": {
+            "position": [2700, 100, 45],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": ["pack_aircraft_concept"],
+      "triangle_estimate": 8800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_aircraft_fuselage_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_aircraft_trim",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "概念航空器流线饰件",
+      "description": "非功能展示用的翼面流线和标识图案。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_aircraft_trim",
+        "units": "millimeter",
+        "seed": 110,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_aircraft_trim",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "size": [360, 18, 16],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_trim"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_aircraft_trim",
+            "operation_id": "op_aircraft_trim",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_aircraft_trim_panel",
+          "operation_id": "op_aircraft_trim",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_trim_mount",
+          "kind": "trim_join",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": ["pack_aircraft_concept"],
+      "triangle_estimate": 850,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_aircraft_trim_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_robotic_arm_link",
+      "version": 1,
+      "component_role": "upper_link_form",
+      "display_name": "机械臂上臂外壳",
+      "description": "非工程机械臂的关节外壳、视觉连杆和线缆遮罩。",
+      "profiles": [{"profile_input_id":"profileinput_arm","profile_sketch_id":"sketch_robotic_arm_link_tube"}],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_robotic_arm_link",
+        "units": "millimeter",
+        "seed": 111,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_arm",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "ae10f9d2133f1c848ab8e6116500dda4f84a7625706df1781883a17c80a9813f",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_robotic_arm_link_tube",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [-0.55, -0.4],
+              "segments": [
+                { "kind": "line", "to": [0.55, -0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [0.7, 0.0],
+                  "to": [0.55, 0.4]
+                },
+                { "kind": "line", "to": [-0.55, 0.4] },
+                {
+                  "kind": "quadratic",
+                  "control": [-0.7, 0.0],
+                  "to": [-0.55, -0.4]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": { "min": [-0.7, -0.4], "max": [0.7, 0.4] },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_robotic_arm_link"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_arm_link",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm",
+              "profile_scale": [180, 140],
+              "path_points": [
+                [0, 0, 0],
+                [680, 80, 0],
+                [1250, 360, 80]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 10,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "upper_link_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_shell"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_arm_link",
+            "operation_id": "op_arm_link",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_link",
+          "operation_id": "op_arm_link",
+          "role": "upper_link_form"
+        }
+      ],
+      "parameter_bindings": [{
+        "schema_version": "EditableParameterBinding@1", "parameter_id": "editparam_arm_link_profile_height", "path": "transform.scale.y", "display_name": "连杆高度比例", "unit": "ratio", "default": 1.0, "min": 0.6, "max": 1.4, "step": 0.1
+      }],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_detail",
+          "kind": "visual_mount",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_shell",
+          "role": "shell",
+          "material_preset_id": "mat_aluminum"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_arm_detail",
+          "accepted_roles": ["visual_detail"],
+          "child_recipe_id": "recipe_robotic_arm_detail",
+          "parent_connector_id": "connector_arm_detail",
+          "child_connector_id": "connector_arm_detail_mount",
+          "parent_local_transform": {
+            "position": [1050, 300, 75],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1]
+          },
+          "required": false
+        }
+      ],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 7200,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_robotic_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_robotic_arm_link_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_robotic_arm_detail",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂装饰盖板",
+      "description": "非功能展示用的柔性线缆遮罩、接缝和识别标记。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_robotic_arm_detail",
+        "units": "millimeter",
+        "seed": 112,
+        "triangle_budget": 100000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_arm_detail",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "size": [200, 20, 18],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_arm_decal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_arm_detail",
+            "operation_id": "op_arm_detail",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_detail_panel",
+          "operation_id": "op_arm_detail",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_detail_mount",
+          "kind": "visual_mount",
+          "position": [0, 0, 0],
+          "normal": [1, 0, 0],
+          "up": [0, 0, 1]
+        }
+      ],
+      "pivot": { "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1] },
+      "root_local_transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 750,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_robotic_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_robotic_arm_detail_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    }
+  ]
+}

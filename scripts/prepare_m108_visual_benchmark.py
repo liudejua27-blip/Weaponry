@@ -41,7 +41,9 @@ def build_kit(output: Path) -> dict[str, object]:
     # `_build_showcase_assets` is the M108 compile/readback fixture source.
     # Choose its deterministic `a` showcase for each of the four packs rather
     # than creating a second visual-asset generation path for review.
-    for fixture_id, glb_bytes in _build_showcase_assets()[::3]:
+    for fixture_id, glb_bytes in _build_showcase_assets(
+        artifact_profile_id="production_concept"
+    )[::3]:
         pack_id, candidate_id = fixture_id.split(":", 1)
         if pack_id not in DOMAINS:
             raise ValueError(f"未知 M108 benchmark domain: {pack_id}")
@@ -56,6 +58,7 @@ def build_kit(output: Path) -> dict[str, object]:
             "file": f"fixtures/{filename}",
             "glb_sha256": hashlib.sha256(glb_bytes).hexdigest(),
             "glb_byte_size": len(glb_bytes),
+            "artifact_profile": readback.artifact_profile,
             "triangle_count": readback.triangle_count,
             "bounds_mm": [round(float(value), 4) for value in readback.bounds_mm],
             "material_zone_count": len(readback.material_zone_faces),
@@ -125,11 +128,13 @@ def verify_kit() -> None:
             facts = read_shape_program_glb_facts(payload)
             if len(facts.visual_texture_sets) < 5 or len(facts.material_zone_faces) < 3:
                 raise ValueError("benchmark fixture lacks the required multi-zone PBR evidence")
+            if facts.artifact_profile.get("artifact_profile_id") != "production_concept":
+                raise ValueError("benchmark fixture is not the production concept artifact")
             if {
                 (int(item["width"]), int(item["height"]))
                 for texture_set in facts.visual_texture_sets
                 for item in texture_set["maps"]
-            } != {(128, 128)}:
+            } != {(1024, 1024)}:
                 raise ValueError("benchmark fixture does not use the reviewed texture resolution")
             if not any(item["edge_finish"]["mode"] == "bevel_approximation" for item in facts.surface_provenance):
                 raise ValueError("benchmark fixture lacks the reviewed showcase edge finish")

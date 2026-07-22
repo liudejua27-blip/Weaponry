@@ -1,0 +1,4806 @@
+{
+  "schema_version": "M108BProductionRecipeDomainPack@1",
+  "pack_id": "pack_future-weapon-prop_production",
+  "domain_pack_id": "pack_future_weapon_prop",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_prop_accent",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "虚构未来道具信号透镜",
+      "description": "仅用于游戏与影视展示的高细节环形信号、装饰和表面节奏组件。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_signal_lens",
+          "profile_sketch_id": "sketch_prop_signal_lens"
+        }
+      ],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_prop_accent",
+        "units": "millimeter",
+        "seed": 300,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_signal_lens",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "06130f15f50009174d52c8859c1f8ae52cc33eab03bbd69223045cc668f458d1",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_signal_lens",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                0.004,
+                -0.30
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.014,
+                    -0.25
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.034,
+                    -0.09
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.034,
+                    0.09
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.014,
+                    0.25
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.004,
+                    0.30
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.004,
+                    -0.30
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  0.004,
+                  -0.30
+                ],
+                "max": [
+                  0.034,
+                  0.30
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_m108b_prop_accent"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_lens_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_signal_lens",
+              "profile_scale": [
+                54,
+                54
+              ]
+            }
+          },
+          {
+            "operation_id": "op_lens_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_lens_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_signal"
+            }
+          },
+          {
+            "operation_id": "op_bezel_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_signal_lens",
+              "profile_scale": [
+                60,
+                60
+              ]
+            }
+          },
+          {
+            "operation_id": "op_bezel_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_bezel_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                -2,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 24,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_lens_revolve",
+            "operation_id": "op_lens_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_bezel_revolve",
+            "operation_id": "op_bezel_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_prop_lens",
+          "operation_id": "op_lens_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_m108b_prop_bezel",
+          "operation_id": "op_bezel_revolve",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 2400,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_accent_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_prop_fin",
+      "version": 1,
+      "component_role": "trim",
+      "display_name": "未来道具流线鳍片",
+      "description": "仅用于虚构展示道具的薄型导流线、外观鳍片和侧面节奏组件。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_stream_fin",
+          "profile_sketch_id": "sketch_prop_stream_fin"
+        }
+      ],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_prop_fin",
+        "units": "millimeter",
+        "seed": 304,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_stream_fin",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "b32e4eab6939a69665183229ff1b9703e1614357c5b6c3bed01527d6ddbdcfb1",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_stream_fin",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.18,
+                -0.055
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.12,
+                    -0.08
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.18,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.12,
+                    0.08
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.18,
+                    0.055
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.18,
+                    -0.055
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.18,
+                  -0.08
+                ],
+                "max": [
+                  0.18,
+                  0.08
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 32,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_m108b_prop_fin"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_fin_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_stream_fin",
+              "profile_scale": [
+                46,
+                20
+              ],
+              "path_points": [
+                [
+                -118,
+                -8,
+                  0
+                ],
+                [
+                -38,
+                -2,
+                0
+                ],
+                [
+                48,
+                4,
+                0
+                ],
+                [
+                122,
+                8,
+                  0
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 5,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_fin_sweep",
+            "operation_id": "op_fin_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_prop_fin",
+          "operation_id": "op_fin_sweep",
+          "role": "trim"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_fin_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_prop_rib",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "未来道具环形肋饰",
+      "description": "仅用于虚构展示道具的细密环形肋条、发光边缘和轮廓节奏组件。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_rib_ring",
+          "profile_sketch_id": "sketch_prop_rib_ring"
+        }
+      ],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_prop_rib",
+        "units": "millimeter",
+        "seed": 305,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_rib_ring",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "e1f89c2d62055677aa120bdc490d3053d8528a5b2021eff9194b1fbaebb8f8c9",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_rib_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                0.003,
+                -0.20
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.010,
+                    -0.18
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.030,
+                    -0.08
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.030,
+                    0.08
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.010,
+                    0.18
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.003,
+                    0.20
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.003,
+                    -0.20
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  0.003,
+                  -0.20
+                ],
+                "max": [
+                  0.030,
+                  0.20
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 24,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_m108b_prop_rib"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_rib_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_rib_ring",
+              "profile_scale": [
+                52,
+                52
+              ]
+            }
+          },
+          {
+            "operation_id": "op_rib_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_rib_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_rib_revolve",
+            "operation_id": "op_rib_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_prop_rib",
+          "operation_id": "op_rib_revolve",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 1900,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_rib_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_prop_scout_compact",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "侦察轻型概念道具",
+      "description": "非功能游戏与影视展示道具；紧凑低矮的多截面流线外壳、侧面光带与可编辑装饰透镜。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_scout_compact_trim",
+          "profile_sketch_id": "sketch_prop_scout_compact_trim"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_prop_scout_compact_body",
+          "sha256": "238705af3778c985af41331dec3b4fb86a71eddecef2872ed88c84e9907ffbaf",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_prop_scout_compact_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_prop_scout_compact_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.9,
+                  -0.34
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.42,
+                      -0.7
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.92,
+                      -0.3
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.92,
+                      0.3
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.42,
+                      0.7
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.9,
+                      0.34
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.9,
+                      -0.34
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.9,
+                    -0.72
+                  ],
+                  "max": [
+                    0.92,
+                    0.72
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 48,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_prop_scout_compact"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_prop_scout_compact_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_prop_scout_compact_body",
+                "scale": 0.42,
+                "twist_degrees": -8.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_prop_scout_compact_1",
+                "position": -0.55,
+                "profile_sketch_id": "sketch_prop_scout_compact_body",
+                "scale": 0.82,
+                "twist_degrees": -3.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_scout_compact_2",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_prop_scout_compact_body",
+                "scale": 1.0,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_scout_compact_3",
+                "position": 0.55,
+                "profile_sketch_id": "sketch_prop_scout_compact_body",
+                "scale": 0.76,
+                "twist_degrees": 5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_scout_compact_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_prop_scout_compact_body",
+                "scale": 0.35,
+                "twist_degrees": 10.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 48
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_prop_scout_compact"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_prop_scout_compact",
+        "units": "millimeter",
+        "seed": 401,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_scout_compact_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "238705af3778c985af41331dec3b4fb86a71eddecef2872ed88c84e9907ffbaf",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_prop_scout_compact_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_prop_scout_compact_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.9,
+                    -0.34
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.42,
+                        -0.7
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.92,
+                        -0.3
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.92,
+                        0.3
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.42,
+                        0.7
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.9,
+                        0.34
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.9,
+                        -0.34
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.9,
+                      -0.72
+                    ],
+                    "max": [
+                      0.92,
+                      0.72
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 48,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_prop_scout_compact"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_prop_scout_compact_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_prop_scout_compact_body",
+                  "scale": 0.42,
+                  "twist_degrees": -8.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_prop_scout_compact_1",
+                  "position": -0.55,
+                  "profile_sketch_id": "sketch_prop_scout_compact_body",
+                  "scale": 0.82,
+                  "twist_degrees": -3.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_scout_compact_2",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_prop_scout_compact_body",
+                  "scale": 1.0,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_scout_compact_3",
+                  "position": 0.55,
+                  "profile_sketch_id": "sketch_prop_scout_compact_body",
+                  "scale": 0.76,
+                  "twist_degrees": 5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_scout_compact_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_prop_scout_compact_body",
+                  "scale": 0.35,
+                  "twist_degrees": 10.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 48
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_scout_compact"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_prop_scout_compact_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "a7e7e414c5ba809cf8418955938ae04befad2c3faaf13bf3a5555a9e471a514b",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_scout_compact_trim",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.75,
+                -0.22
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    -0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.82,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    0.22
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    -0.22
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.75,
+                  -0.3
+                ],
+                "max": [
+                  0.82,
+                  0.3
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 24,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_scout_compact"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_prop_scout_compact_sections",
+              "cross_section_scale": [
+                190,
+                165
+              ],
+              "axis_length": 1360,
+              "position": [
+                660,
+                135,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_prop_scout_compact_shell"
+            }
+          },
+          {
+            "operation_id": "op_stream_trim",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_scout_compact_trim",
+              "profile_scale": [
+                24,
+                12
+              ],
+              "path_points": [
+                [
+                  405,
+                  155,
+                  150
+                ],
+                [
+                  505,
+                  168,
+                  168
+                ],
+                [
+                  610,
+                  158,
+                  162
+                ],
+                [
+                  715,
+                  145,
+                  145
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 4,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -96
+                ],
+                [
+                  70,
+                  -72
+                ],
+                [
+                  86,
+                  0
+                ],
+                [
+                  70,
+                  72
+                ],
+                [
+                  0,
+                  96
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_tail_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_tail_profile"
+            ],
+            "args": {
+              "position": [
+                1280,
+                135,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_decal_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                650,
+                300,
+                0
+              ],
+              "size": [
+                420,
+                50,
+                70
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_decal_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_decal_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                130.0,
+                4,
+                26.0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_scout_compact_decal"
+            }
+          },
+          {
+            "operation_id": "op_display_handle_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                610,
+                -160,
+                0
+              ],
+              "size": [
+                110,
+                220,
+                130
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_display_handle",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_display_handle_base"
+            ],
+            "args": {
+              "radius": 24,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                92,
+                -42,
+                0
+              ],
+              "size": [
+                250,
+                110,
+                196
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_brace_base"
+            ],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1110,
+                118,
+                0
+              ],
+              "size": [
+                260,
+                142,
+                238
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_shroud_base"
+            ],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                590,
+                105,
+                176
+              ],
+              "size": [
+                390,
+                84,
+                34
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_side_display_plate_base"
+            ],
+            "args": {
+              "radius": 7,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [500, 270, 0],
+              "size": [560, 70, 82],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine",
+            "op": "bevel_approx",
+            "inputs": ["op_upper_spine_base"],
+            "args": {
+              "radius": 12,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [630, -50, 0],
+              "size": [240, 70, 135],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge",
+            "op": "bevel_approx",
+            "inputs": ["op_grip_bridge_base"],
+            "args": {
+              "radius": 14,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_scout_compact_trim",
+              "profile_scale": [18, 9],
+              "path_points": [[260, 205, 180], [450, 232, 184], [650, 242, 186], [850, 226, 184], [1070, 190, 176]],
+              "path_closed": false,
+              "path_twist_degrees": 2,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_scout_compact_trim",
+              "profile_scale": [14, 7],
+              "path_points": [[300, 48, 182], [500, 34, 186], [700, 30, 188], [900, 42, 184], [1080, 64, 176]],
+              "path_closed": false,
+              "path_twist_degrees": -2,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_scout_compact_decal"
+            }
+          },
+          {
+            "operation_id": "op_mid_panel_seam",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_scout_compact_trim",
+              "profile_scale": [10, 5],
+              "path_points": [[350, 132, 194], [510, 146, 198], [680, 148, 199], [840, 136, 196]],
+              "path_closed": false,
+              "path_twist_degrees": 1,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [835, 112, 194],
+              "size": [20, 92, 20],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib",
+            "op": "bevel_approx",
+            "inputs": ["op_side_rib_base"],
+            "args": {
+              "radius": 4,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_array",
+            "op": "array",
+            "inputs": ["op_side_rib"],
+            "args": {
+              "axis": [1, 0, 0],
+              "count": 3,
+              "spacing": 58,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_scout_compact_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [195, 112, 100],
+              "size": [110, 90, 32],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier",
+            "op": "bevel_approx",
+            "inputs": ["op_rear_tier_base"],
+            "args": {
+              "radius": 7,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_scout_compact_glass"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_stream_trim",
+            "operation_id": "op_stream_trim",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_tail_revolve",
+            "operation_id": "op_tail_revolve",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_decal_panel",
+            "operation_id": "op_decal_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_display_handle",
+            "operation_id": "op_display_handle",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_brace",
+            "operation_id": "op_rear_brace",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_shroud",
+            "operation_id": "op_front_shroud",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_display_plate",
+            "operation_id": "op_side_display_plate",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_spine",
+            "operation_id": "op_upper_spine",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_grip_bridge",
+            "operation_id": "op_grip_bridge",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_flowline",
+            "operation_id": "op_upper_flowline",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_lower_flowline",
+            "operation_id": "op_lower_flowline",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_mid_panel_seam",
+            "operation_id": "op_mid_panel_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_rib_array",
+            "operation_id": "op_side_rib_array",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_tier",
+            "operation_id": "op_rear_tier",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_prop_scout_compact_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_prop_scout_compact_2",
+          "operation_id": "op_stream_trim",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_scout_compact_3",
+          "operation_id": "op_tail_revolve",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_scout_compact_4",
+          "operation_id": "op_decal_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_scout_compact_accent_1",
+          "kind": "visual_mount",
+          "position": [
+            180,
+            135,
+            210
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_scout_compact_accent_2",
+          "kind": "visual_mount",
+          "position": [
+            420,
+            190,
+            -220
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_scout_compact_accent_3",
+          "kind": "visual_mount",
+          "position": [
+            650,
+            215,
+            230
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_scout_compact_accent_4",
+          "kind": "visual_mount",
+          "position": [
+            880,
+            190,
+            -225
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_scout_compact_accent_5",
+          "kind": "visual_mount",
+          "position": [
+            1110,
+            150,
+            210
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_scout_compact_accent_6",
+          "kind": "visual_mount",
+          "position": [
+            1320,
+            105,
+            -160
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          760,
+          150,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_scout_compact_shell",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_prop_scout_compact_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_prop_scout_compact_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_prop_scout_compact_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_prop_scout_compact_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_scout_compact_accent_1",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_scout_compact_accent_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_scout_compact_accent_2",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.2,
+              0,
+              0.2
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_scout_compact_accent_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_scout_compact_accent_3",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_scout_compact_accent_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_scout_compact_accent_4",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_scout_compact_accent_5",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_scout_compact_accent_5",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.15,
+              0,
+              -0.15
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_scout_compact_accent_6",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_scout_compact_accent_6",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.1,
+              0,
+              0.1
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 5000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_scout_compact_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_prop_ceremonial_heavy",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "仪式重型概念道具",
+      "description": "非功能游戏与影视展示道具；厚重层叠的连续外壳、金属环形端饰、徽章面板和可编辑信号透镜。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_ceremonial_heavy_trim",
+          "profile_sketch_id": "sketch_prop_ceremonial_heavy_trim"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_prop_ceremonial_heavy_body",
+          "sha256": "c4e97746797bc121bdbe554eba944b4b4f4370b9d3f44c0e87279ccf1643dd86",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_prop_ceremonial_heavy_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_prop_ceremonial_heavy_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.78,
+                  -0.68
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.5,
+                      -0.76
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      -0.42
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.95,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      0.42
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.5,
+                      0.76
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.78,
+                      0.68
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.96,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.78,
+                      -0.68
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.96,
+                    -0.76
+                  ],
+                  "max": [
+                    0.95,
+                    0.76
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 48,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_prop_ceremonial_heavy"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_prop_ceremonial_heavy_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+            "scale": 0.72,
+                "twist_degrees": 0.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_prop_ceremonial_heavy_1",
+                "position": -0.55,
+                "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+            "scale": 1.02,
+                "twist_degrees": 2.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_ceremonial_heavy_2",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+            "scale": 1.16,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_ceremonial_heavy_3",
+                "position": 0.55,
+                "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+            "scale": 1.05,
+                "twist_degrees": -2.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_ceremonial_heavy_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+            "scale": 0.78,
+                "twist_degrees": 0.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 48
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_prop_ceremonial_heavy"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_prop_ceremonial_heavy",
+        "units": "millimeter",
+        "seed": 402,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_ceremonial_heavy_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "c4e97746797bc121bdbe554eba944b4b4f4370b9d3f44c0e87279ccf1643dd86",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_prop_ceremonial_heavy_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.78,
+                    -0.68
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.5,
+                        -0.76
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        -0.42
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.95,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        0.42
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.5,
+                        0.76
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.78,
+                        0.68
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.96,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.78,
+                        -0.68
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.96,
+                      -0.76
+                    ],
+                    "max": [
+                      0.95,
+                      0.76
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 48,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_prop_ceremonial_heavy"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_prop_ceremonial_heavy_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "scale": 0.72,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_prop_ceremonial_heavy_1",
+                  "position": -0.55,
+                  "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "scale": 1.02,
+                  "twist_degrees": 2.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_ceremonial_heavy_2",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "scale": 1.16,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_ceremonial_heavy_3",
+                  "position": 0.55,
+                  "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "scale": 1.05,
+                  "twist_degrees": -2.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_ceremonial_heavy_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_prop_ceremonial_heavy_body",
+                  "scale": 0.78,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 48
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_ceremonial_heavy"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_prop_ceremonial_heavy_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "713e49a79afdaa52fb41335a7d9c99fa2ac0c6406f7f95a309c4b876448faa74",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_ceremonial_heavy_trim",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.75,
+                -0.22
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    -0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.82,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    0.22
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    -0.22
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.75,
+                  -0.3
+                ],
+                "max": [
+                  0.82,
+                  0.3
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 24,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_ceremonial_heavy"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_prop_ceremonial_heavy_sections",
+              "cross_section_scale": [
+                290,
+                280
+              ],
+              "axis_length": 1880,
+              "position": [
+                900,
+                190,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_prop_ceremonial_heavy_shell"
+            }
+          },
+          {
+            "operation_id": "op_stream_trim",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_ceremonial_heavy_trim",
+              "profile_scale": [
+                30,
+                15
+              ],
+              "path_points": [
+                [
+                  600,
+                  240,
+                  280
+                ],
+                [
+                  720,
+                  265,
+                  300
+                ],
+                [
+                  850,
+                  270,
+                  310
+                ],
+                [
+                  980,
+                  255,
+                  292
+                ],
+                [
+                  1110,
+                  230,
+                  255
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 3,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -112
+                ],
+                [
+                  78,
+                  -82
+                ],
+                [
+                  96,
+                  0
+                ],
+                [
+                  78,
+                  82
+                ],
+                [
+                  0,
+                  112
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_tail_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_tail_profile"
+            ],
+            "args": {
+              "position": [
+                1820,
+                190,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_decal_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                900,
+                465,
+                0
+              ],
+              "size": [
+                620,
+                70,
+                110
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_decal_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_decal_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                180.0,
+                4,
+                40.0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_ceremonial_heavy_decal"
+            }
+          },
+          {
+            "operation_id": "op_display_handle_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                760,
+                -190,
+                0
+              ],
+              "size": [
+                155,
+                275,
+                170
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_display_handle",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_display_handle_base"
+            ],
+            "args": {
+              "radius": 34,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                118,
+                -54,
+                0
+              ],
+              "size": [
+                340,
+                144,
+                296
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_brace_base"
+            ],
+            "args": {
+              "radius": 24,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1540,
+                170,
+                0
+              ],
+              "size": [
+                390,
+                202,
+                330
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_shroud_base"
+            ],
+            "args": {
+              "radius": 30,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                835,
+                145,
+                292
+              ],
+              "size": [
+                620,
+                118,
+                46
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_side_display_plate_base"
+            ],
+            "args": {
+              "radius": 10,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [760, 430, 0],
+              "size": [850, 110, 130],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine",
+            "op": "bevel_approx",
+            "inputs": ["op_upper_spine_base"],
+            "args": {
+              "radius": 20,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [820, -45, 0],
+              "size": [360, 90, 180],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge",
+            "op": "bevel_approx",
+            "inputs": ["op_grip_bridge_base"],
+            "args": {
+              "radius": 22,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_ceremonial_heavy_trim",
+              "profile_scale": [24, 12],
+              "path_points": [[350, 330, 300], [620, 366, 312], [900, 374, 316], [1180, 356, 310], [1500, 305, 292]],
+              "path_closed": false,
+              "path_twist_degrees": 2,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_ceremonial_heavy_trim",
+              "profile_scale": [18, 9],
+              "path_points": [[420, 155, 304], [680, 132, 314], [940, 126, 318], [1210, 142, 312], [1480, 178, 296]],
+              "path_closed": false,
+              "path_twist_degrees": -2,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_ceremonial_heavy_decal"
+            }
+          },
+          {
+            "operation_id": "op_mid_panel_seam",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_ceremonial_heavy_trim",
+              "profile_scale": [14, 7],
+              "path_points": [[430, 250, 326], [670, 272, 332], [930, 276, 334], [1190, 262, 330], [1410, 232, 320]],
+              "path_closed": false,
+              "path_twist_degrees": 1,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [1240, 220, 328],
+              "size": [26, 126, 26],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib",
+            "op": "bevel_approx",
+            "inputs": ["op_side_rib_base"],
+            "args": {
+              "radius": 5,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_array",
+            "op": "array",
+            "inputs": ["op_side_rib"],
+            "args": {
+              "axis": [1, 0, 0],
+              "count": 4,
+              "spacing": 68,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_ceremonial_heavy_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [220, 190, 130],
+              "size": [130, 145, 40],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier",
+            "op": "bevel_approx",
+            "inputs": ["op_rear_tier_base"],
+            "args": {
+              "radius": 9,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_ceremonial_heavy_glass"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_stream_trim",
+            "operation_id": "op_stream_trim",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_tail_revolve",
+            "operation_id": "op_tail_revolve",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_decal_panel",
+            "operation_id": "op_decal_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_display_handle",
+            "operation_id": "op_display_handle",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_brace",
+            "operation_id": "op_rear_brace",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_shroud",
+            "operation_id": "op_front_shroud",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_display_plate",
+            "operation_id": "op_side_display_plate",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_spine",
+            "operation_id": "op_upper_spine",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_grip_bridge",
+            "operation_id": "op_grip_bridge",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_flowline",
+            "operation_id": "op_upper_flowline",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_lower_flowline",
+            "operation_id": "op_lower_flowline",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_mid_panel_seam",
+            "operation_id": "op_mid_panel_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_rib_array",
+            "operation_id": "op_side_rib_array",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_tier",
+            "operation_id": "op_rear_tier",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_prop_ceremonial_heavy_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_prop_ceremonial_heavy_2",
+          "operation_id": "op_stream_trim",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_ceremonial_heavy_3",
+          "operation_id": "op_tail_revolve",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_ceremonial_heavy_4",
+          "operation_id": "op_decal_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_1",
+          "kind": "visual_mount",
+          "position": [
+            170,
+            160,
+            270
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_2",
+          "kind": "visual_mount",
+          "position": [
+            430,
+            250,
+            -285
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_3",
+          "kind": "visual_mount",
+          "position": [
+            700,
+            300,
+            300
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_4",
+          "kind": "visual_mount",
+          "position": [
+            950,
+            300,
+            -300
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_5",
+          "kind": "visual_mount",
+          "position": [
+            1210,
+            250,
+            285
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_ceremonial_heavy_accent_6",
+          "kind": "visual_mount",
+          "position": [
+            1480,
+            175,
+            -235
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          820,
+          185,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_ceremonial_heavy_shell",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_prop_ceremonial_heavy_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_prop_ceremonial_heavy_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_prop_ceremonial_heavy_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_1",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_2",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.25,
+              0,
+              0.15
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_3",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.22,
+              0,
+              -0.15
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_4",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.22,
+              0,
+              0.15
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_5",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_5",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.2,
+              0,
+              -0.12
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_ceremonial_heavy_accent_6",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_ceremonial_heavy_accent_6",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.16,
+              0,
+              0.08
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 5000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_ceremonial_heavy_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_prop_racing_streamlined",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "竞速流线概念道具",
+      "description": "非功能游戏与影视展示道具；尖锐收束的多截面主壳、连续速度线、端部旋转饰件和受控标识面板。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_prop_racing_streamlined_trim",
+          "profile_sketch_id": "sketch_prop_racing_streamlined_trim"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_prop_racing_streamlined_body",
+          "sha256": "c8433d935ef4cb569c87314ae540ab3a828c9a001f4bf47b9adb3d4227ca9490",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_prop_racing_streamlined_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_prop_racing_streamlined_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.96,
+                  -0.18
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.38,
+                      -0.55
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.45,
+                      -0.44
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.98,
+                      -0.1
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.98,
+                      0.1
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.45,
+                      0.44
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.38,
+                      0.55
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.96,
+                      0.18
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.96,
+                      -0.18
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.96,
+                    -0.55
+                  ],
+                  "max": [
+                    0.98,
+                    0.55
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 48,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_prop_racing_streamlined"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_prop_racing_streamlined_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                "scale": 0.25,
+                "twist_degrees": -12.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_prop_racing_streamlined_1",
+                "position": -0.55,
+                "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                "scale": 0.56,
+                "twist_degrees": -6.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_racing_streamlined_2",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                "scale": 0.92,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_racing_streamlined_3",
+                "position": 0.55,
+                "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                "scale": 0.48,
+                "twist_degrees": 7.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_prop_racing_streamlined_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                "scale": 0.25,
+                "twist_degrees": 14.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 48
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_prop_racing_streamlined"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_prop_racing_streamlined",
+        "units": "millimeter",
+        "seed": 403,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_prop_racing_streamlined_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "c8433d935ef4cb569c87314ae540ab3a828c9a001f4bf47b9adb3d4227ca9490",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_prop_racing_streamlined_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_prop_racing_streamlined_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.96,
+                    -0.18
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.38,
+                        -0.55
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.45,
+                        -0.44
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.98,
+                        -0.1
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.98,
+                        0.1
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.45,
+                        0.44
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.38,
+                        0.55
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.96,
+                        0.18
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.96,
+                        -0.18
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.96,
+                      -0.55
+                    ],
+                    "max": [
+                      0.98,
+                      0.55
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 48,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_prop_racing_streamlined"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_prop_racing_streamlined_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                  "scale": 0.25,
+                  "twist_degrees": -12.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_prop_racing_streamlined_1",
+                  "position": -0.55,
+                  "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                  "scale": 0.56,
+                  "twist_degrees": -6.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_racing_streamlined_2",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                  "scale": 0.92,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_racing_streamlined_3",
+                  "position": 0.55,
+                  "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                  "scale": 0.48,
+                  "twist_degrees": 7.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_prop_racing_streamlined_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_prop_racing_streamlined_body",
+                  "scale": 0.25,
+                  "twist_degrees": 14.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 48
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_racing_streamlined"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_prop_racing_streamlined_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "a9ba1eb3d4d4c3f79a9d08c9f165c6fb759ef2cc519cab8b1a803f7322f99f4f",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_prop_racing_streamlined_trim",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.75,
+                -0.22
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    -0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.82,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    0.3
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    0.22
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.75,
+                    -0.22
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.75,
+                  -0.3
+                ],
+                "max": [
+                  0.82,
+                  0.3
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 24,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_prop_racing_streamlined"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_prop_racing_streamlined_sections",
+              "cross_section_scale": [
+                210,
+                145
+              ],
+              "axis_length": 1940,
+              "position": [
+                950,
+                75,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_prop_racing_streamlined_shell"
+            }
+          },
+          {
+            "operation_id": "op_stream_trim",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_racing_streamlined_trim",
+              "profile_scale": [
+                22,
+                10
+              ],
+              "path_points": [
+                [
+                  760,
+                  112,
+                  140
+                ],
+                [
+                  860,
+                  130,
+                  150
+                ],
+                [
+                  970,
+                  135,
+                  155
+                ],
+                [
+                  1080,
+                  125,
+                  143
+                ],
+                [
+                  1190,
+                  105,
+                  120
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 8,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -84
+                ],
+                [
+                  62,
+                  -62
+                ],
+                [
+                  76,
+                  0
+                ],
+                [
+                  62,
+                  62
+                ],
+                [
+                  0,
+                  84
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_tail_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_tail_profile"
+            ],
+            "args": {
+              "position": [
+                1885,
+                75,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": false,
+              "cap_end": false,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_decal_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1050,
+                245,
+                0
+              ],
+              "size": [
+                720,
+                45,
+                66
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_decal_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_decal_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                180.0,
+                4,
+                28.0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_racing_streamlined_decal"
+            }
+          },
+          {
+            "operation_id": "op_display_handle_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                805,
+                -175,
+                0
+              ],
+              "size": [
+                100,
+                240,
+                125
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_display_handle",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_display_handle_base"
+            ],
+            "args": {
+              "radius": 22,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                102,
+                -38,
+                0
+              ],
+              "size": [
+                400,
+                88,
+                168
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_brace",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_brace_base"
+            ],
+            "args": {
+              "radius": 15,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1640,
+                62,
+                0
+              ],
+              "size": [
+                330,
+                126,
+                184
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_front_shroud",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_shroud_base"
+            ],
+            "args": {
+              "radius": 17,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                990,
+                58,
+                156
+              ],
+              "size": [
+                660,
+                66,
+                28
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_display_plate",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_side_display_plate_base"
+            ],
+            "args": {
+              "radius": 6,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [940, 225, 0],
+              "size": [880, 62, 72],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_spine",
+            "op": "bevel_approx",
+            "inputs": ["op_upper_spine_base"],
+            "args": {
+              "radius": 11,
+              "segments": 3,
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [825, -50, 0],
+              "size": [330, 60, 120],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_grip_bridge",
+            "op": "bevel_approx",
+            "inputs": ["op_grip_bridge_base"],
+            "args": {
+              "radius": 13,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_upper_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_racing_streamlined_trim",
+              "profile_scale": [16, 8],
+              "path_points": [[420, 136, 156], [690, 164, 164], [980, 172, 168], [1280, 158, 164], [1620, 118, 154]],
+              "path_closed": false,
+              "path_twist_degrees": 4,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_flowline",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_racing_streamlined_trim",
+              "profile_scale": [12, 6],
+              "path_points": [[500, 18, 158], [760, 2, 166], [1030, -2, 170], [1310, 10, 166], [1590, 42, 154]],
+              "path_closed": false,
+              "path_twist_degrees": -4,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_prop_racing_streamlined_decal"
+            }
+          },
+          {
+            "operation_id": "op_mid_panel_seam",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_prop_racing_streamlined_trim",
+              "profile_scale": [9, 4.5],
+              "path_points": [[470, 92, 178], [730, 106, 182], [1010, 110, 184], [1290, 102, 181], [1510, 82, 174]],
+              "path_closed": false,
+              "path_twist_degrees": 2,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [1350, 72, 178],
+              "size": [18, 78, 18],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib",
+            "op": "bevel_approx",
+            "inputs": ["op_side_rib_base"],
+            "args": {
+              "radius": 3,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_side_rib_array",
+            "op": "array",
+            "inputs": ["op_side_rib"],
+            "args": {
+              "axis": [1, 0, 0],
+              "count": 3,
+              "spacing": 82,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_prop_racing_streamlined_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [225, 78, 80],
+              "size": [145, 88, 30],
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          },
+          {
+            "operation_id": "op_rear_tier",
+            "op": "bevel_approx",
+            "inputs": ["op_rear_tier_base"],
+            "args": {
+              "radius": 6,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_prop_racing_streamlined_glass"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_stream_trim",
+            "operation_id": "op_stream_trim",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_tail_revolve",
+            "operation_id": "op_tail_revolve",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_decal_panel",
+            "operation_id": "op_decal_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_display_handle",
+            "operation_id": "op_display_handle",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_brace",
+            "operation_id": "op_rear_brace",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_shroud",
+            "operation_id": "op_front_shroud",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_display_plate",
+            "operation_id": "op_side_display_plate",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_spine",
+            "operation_id": "op_upper_spine",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_grip_bridge",
+            "operation_id": "op_grip_bridge",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_upper_flowline",
+            "operation_id": "op_upper_flowline",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_lower_flowline",
+            "operation_id": "op_lower_flowline",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_mid_panel_seam",
+            "operation_id": "op_mid_panel_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_side_rib_array",
+            "operation_id": "op_side_rib_array",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_tier",
+            "operation_id": "op_rear_tier",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_prop_racing_streamlined_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_prop_racing_streamlined_2",
+          "operation_id": "op_stream_trim",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_racing_streamlined_3",
+          "operation_id": "op_tail_revolve",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_prop_racing_streamlined_4",
+          "operation_id": "op_decal_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_1",
+          "kind": "visual_mount",
+          "position": [
+            210,
+            110,
+            165
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_2",
+          "kind": "visual_mount",
+          "position": [
+            450,
+            170,
+            -185
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_3",
+          "kind": "visual_mount",
+          "position": [
+            700,
+            190,
+            190
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_4",
+          "kind": "visual_mount",
+          "position": [
+            940,
+            170,
+            -180
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_5",
+          "kind": "visual_mount",
+          "position": [
+            1190,
+            115,
+            155
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_prop_racing_streamlined_accent_6",
+          "kind": "visual_mount",
+          "position": [
+            1420,
+            70,
+            -100
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          830,
+          95,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_prop_racing_streamlined_shell",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_prop_racing_streamlined_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_prop_racing_streamlined_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_prop_racing_streamlined_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_1",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.12,
+              0,
+              0.25
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_2",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.2,
+              0,
+              -0.2
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_3",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.18,
+              0,
+              0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_accent",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_4",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.16,
+              0,
+              -0.16
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_5",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_fin",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_5",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.14,
+              0,
+              0.12
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_prop_racing_streamlined_accent_6",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_prop_rib",
+          "parent_connector_id": "connector_prop_racing_streamlined_accent_6",
+          "child_connector_id": "connector_prop_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.1,
+              0,
+              -0.08
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_future_weapon_prop"
+      ],
+      "triangle_estimate": 5000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_prop_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_prop_racing_streamlined_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    }
+  ],
+  "root_recipe_ids": [
+    "recipe_prop_scout_compact",
+    "recipe_prop_ceremonial_heavy",
+    "recipe_prop_racing_streamlined"
+  ]
+}

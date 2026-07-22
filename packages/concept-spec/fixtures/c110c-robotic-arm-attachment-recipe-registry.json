@@ -1,0 +1,251 @@
+{
+  "schema_version": "EditableComponentRecipeRegistry@1",
+  "registry_id": "registry_c110c_robotic_arm_attachments_v1",
+  "policy_version": "ComponentRecipePolicy@1",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110c_arm_sensor_pod",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂传感器舱",
+      "description": "用于视觉概念装配的非功能传感器舱，包含倒角外壳与面板灯带。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110c_arm_sensor_pod",
+        "units": "millimeter",
+        "seed": 6110,
+        "triangle_budget": 1200,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_sensor_pod_shell_box",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [0, 0, 0],
+              "size": [220, 96, 150],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_c110c_sensor_shell"
+            }
+          },
+          {
+            "operation_id": "op_sensor_pod_shell",
+            "op": "bevel_approx",
+            "inputs": ["op_sensor_pod_shell_box"],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_c110c_sensor_shell"
+            }
+          },
+          {
+            "operation_id": "op_sensor_pod_signal",
+            "op": "surface_panel",
+            "inputs": ["op_sensor_pod_shell"],
+            "args": {
+              "axis": [0, 1, 0],
+              "size": [120, 8, 46],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_c110c_sensor_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {"output_id": "output_sensor_pod_shell", "operation_id": "op_sensor_pod_shell", "kind": "mesh", "part_role": "visual_detail"},
+          {"output_id": "output_sensor_pod_signal", "operation_id": "op_sensor_pod_signal", "kind": "mesh", "part_role": "visual_detail"}
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id": "feature_sensor_pod_shell", "operation_id": "op_sensor_pod_shell", "role": "visual_detail"},
+        {"feature_id": "feature_sensor_pod_signal", "operation_id": "op_sensor_pod_signal", "role": "visual_detail"}
+      ],
+      "connectors": [
+        {"connector_id": "connector_sensor_pod_mount", "kind": "visual_mount", "position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1]}
+      ],
+      "pivot": {"position": [0, 0, 0], "normal": [1, 0, 0], "up": [0, 0, 1]},
+      "root_local_transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
+      "material_zones": [
+        {"zone_id": "zone_c110c_sensor_shell", "role": "shell", "material_preset_id": "mat_graphite"},
+        {"zone_id": "zone_c110c_sensor_signal", "role": "signal", "material_preset_id": "mat_emissive_blue"}
+      ],
+      "surface_adornment_slots": [],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 1200,
+      "quality_status": "passed",
+      "source": {"source_kind": "forgecad_first_party", "source_id": "source_c110c_arm"},
+      "license": {"license_id": "ForgeCAD-Internal-Visual-Only", "redistributable": false},
+      "review_state": {"review_id": "review_c110c_sensor_pod_v1", "reviewed_at": "2026-07-21T00:00:00Z", "reviewer_kind": "forgecad_internal"},
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110d_arm_actuator_cover",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂执行器护盖",
+      "description": "用于关节外观分层的非功能执行器护盖，包含倒角壳体、轴承环和窄幅信号面板。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110d_arm_actuator_cover",
+        "units": "millimeter",
+        "seed": 6111,
+        "triangle_budget": 1800,
+        "parameters": [],
+        "operations": [
+          {"operation_id":"op_actuator_cover_shell_box","op":"box","inputs":[],"args":{"position":[0,0,0],"size":[250,120,180],"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_actuator_shell"}},
+          {"operation_id":"op_actuator_cover_shell","op":"bevel_approx","inputs":["op_actuator_cover_shell_box"],"args":{"radius":22,"segments":3,"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_actuator_shell"}},
+          {"operation_id":"op_actuator_cover_ring","op":"cylinder","inputs":[],"args":{"position":[0,0,0],"radius":78,"height":26,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_actuator_ring"}},
+          {"operation_id":"op_actuator_cover_signal","op":"surface_panel","inputs":["op_actuator_cover_shell"],"args":{"axis":[0,1,0],"size":[150,8,32],"position":[0,0,42],"part_role":"visual_detail","material_id":"mat_emissive_blue","zone_id":"zone_c110d_actuator_signal"}}
+        ],
+        "outputs": [
+          {"output_id":"output_actuator_cover_shell","operation_id":"op_actuator_cover_shell","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_actuator_cover_ring","operation_id":"op_actuator_cover_ring","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_actuator_cover_signal","operation_id":"op_actuator_cover_signal","kind":"mesh","part_role":"visual_detail"}
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id":"feature_actuator_cover_shell","operation_id":"op_actuator_cover_shell","role":"visual_detail"},
+        {"feature_id":"feature_actuator_cover_ring","operation_id":"op_actuator_cover_ring","role":"visual_detail"},
+        {"feature_id":"feature_actuator_cover_signal","operation_id":"op_actuator_cover_signal","role":"visual_detail"}
+      ],
+      "connectors": [{"connector_id":"connector_actuator_cover_mount","kind":"visual_mount","position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]}],
+      "pivot": {"position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]},
+      "root_local_transform": {"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones": [
+        {"zone_id":"zone_c110d_actuator_shell","role":"shell","material_preset_id":"mat_graphite"},
+        {"zone_id":"zone_c110d_actuator_ring","role":"trim","material_preset_id":"mat_aluminum"},
+        {"zone_id":"zone_c110d_actuator_signal","role":"signal","material_preset_id":"mat_emissive_blue"}
+      ],
+      "surface_adornment_slots": [],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 1800,
+      "quality_status": "passed",
+      "source": {"source_kind":"forgecad_first_party","source_id":"source_c110d_arm"},
+      "license": {"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
+      "review_state": {"review_id":"review_c110d_actuator_cover_v1","reviewed_at":"2026-07-21T00:00:00Z","reviewer_kind":"forgecad_internal"},
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110d_arm_cable_guide",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂线缆导向架",
+      "description": "用于机械臂线缆外观组织的非功能导向架，包含橡胶护条、铝制夹片和端部灯带。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110d_arm_cable_guide",
+        "units": "millimeter",
+        "seed": 6112,
+        "triangle_budget": 1600,
+        "parameters": [],
+        "operations": [
+          {"operation_id":"op_cable_guide_base","op":"box","inputs":[],"args":{"position":[0,0,0],"size":[240,54,46],"part_role":"visual_detail","material_id":"mat_rubber","zone_id":"zone_c110d_guide_rubber"}},
+          {"operation_id":"op_cable_guide_base_shell","op":"bevel_approx","inputs":["op_cable_guide_base"],"args":{"radius":10,"segments":3,"part_role":"visual_detail","material_id":"mat_rubber","zone_id":"zone_c110d_guide_rubber"}},
+          {"operation_id":"op_cable_guide_clip","op":"box","inputs":[],"args":{"position":[0,0,28],"size":[160,12,16],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_guide_clip"}},
+          {"operation_id":"op_cable_guide_signal","op":"capsule","inputs":[],"args":{"position":[76,0,34],"radius":6,"height":28,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_emissive_blue","zone_id":"zone_c110d_guide_signal"}}
+        ],
+        "outputs": [
+          {"output_id":"output_cable_guide_base","operation_id":"op_cable_guide_base_shell","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_cable_guide_clip","operation_id":"op_cable_guide_clip","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_cable_guide_signal","operation_id":"op_cable_guide_signal","kind":"mesh","part_role":"visual_detail"}
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id":"feature_cable_guide_base","operation_id":"op_cable_guide_base_shell","role":"visual_detail"},
+        {"feature_id":"feature_cable_guide_clip","operation_id":"op_cable_guide_clip","role":"visual_detail"},
+        {"feature_id":"feature_cable_guide_signal","operation_id":"op_cable_guide_signal","role":"visual_detail"}
+      ],
+      "connectors": [{"connector_id":"connector_cable_guide_mount","kind":"visual_mount","position":[0,0,0],"normal":[0,1,0],"up":[0,0,1]}],
+      "pivot": {"position":[0,0,0],"normal":[0,1,0],"up":[0,0,1]},
+      "root_local_transform": {"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones": [
+        {"zone_id":"zone_c110d_guide_rubber","role":"rubber","material_preset_id":"mat_rubber"},
+        {"zone_id":"zone_c110d_guide_clip","role":"trim","material_preset_id":"mat_aluminum"},
+        {"zone_id":"zone_c110d_guide_signal","role":"signal","material_preset_id":"mat_emissive_blue"}
+      ],
+      "surface_adornment_slots": [],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 1600,
+      "quality_status": "passed",
+      "source": {"source_kind":"forgecad_first_party","source_id":"source_c110d_arm"},
+      "license": {"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
+      "review_state": {"review_id":"review_c110d_cable_guide_v1","reviewed_at":"2026-07-21T00:00:00Z","reviewer_kind":"forgecad_internal"},
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110d_arm_wrist_tool_mount",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂腕部工具挂座",
+      "description": "用于腕部与虚构末端工具外观衔接的非功能挂座，包含环形座、护罩和装饰灯带。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110d_arm_wrist_tool_mount",
+        "units": "millimeter",
+        "seed": 6113,
+        "triangle_budget": 1900,
+        "parameters": [],
+        "operations": [
+          {"operation_id":"op_tool_mount_hub","op":"cylinder","inputs":[],"args":{"position":[0,0,0],"radius":86,"height":34,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_tool_mount_hub"}},
+          {"operation_id":"op_tool_mount_shell_box","op":"box","inputs":[],"args":{"position":[42,0,0],"size":[118,130,116],"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_tool_mount_shell"}},
+          {"operation_id":"op_tool_mount_shell","op":"bevel_approx","inputs":["op_tool_mount_shell_box"],"args":{"radius":16,"segments":3,"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_tool_mount_shell"}},
+          {"operation_id":"op_tool_mount_signal","op":"surface_panel","inputs":["op_tool_mount_shell"],"args":{"axis":[0,1,0],"size":[74,8,26],"position":[0,0,32],"part_role":"visual_detail","material_id":"mat_emissive_blue","zone_id":"zone_c110d_tool_mount_signal"}}
+        ],
+        "outputs": [
+          {"output_id":"output_tool_mount_hub","operation_id":"op_tool_mount_hub","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_tool_mount_shell","operation_id":"op_tool_mount_shell","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_tool_mount_signal","operation_id":"op_tool_mount_signal","kind":"mesh","part_role":"visual_detail"}
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id":"feature_tool_mount_hub","operation_id":"op_tool_mount_hub","role":"visual_detail"},
+        {"feature_id":"feature_tool_mount_shell","operation_id":"op_tool_mount_shell","role":"visual_detail"},
+        {"feature_id":"feature_tool_mount_signal","operation_id":"op_tool_mount_signal","role":"visual_detail"}
+      ],
+      "connectors": [{"connector_id":"connector_wrist_tool_mount","kind":"visual_mount","position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]}],
+      "pivot": {"position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]},
+      "root_local_transform": {"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones": [
+        {"zone_id":"zone_c110d_tool_mount_hub","role":"trim","material_preset_id":"mat_aluminum"},
+        {"zone_id":"zone_c110d_tool_mount_shell","role":"shell","material_preset_id":"mat_graphite"},
+        {"zone_id":"zone_c110d_tool_mount_signal","role":"signal","material_preset_id":"mat_emissive_blue"}
+      ],
+      "surface_adornment_slots": [],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 1900,
+      "quality_status": "passed",
+      "source": {"source_kind":"forgecad_first_party","source_id":"source_c110d_arm"},
+      "license": {"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
+      "review_state": {"review_id":"review_c110d_wrist_tool_mount_v1","reviewed_at":"2026-07-21T00:00:00Z","reviewer_kind":"forgecad_internal"},
+      "non_functional_only": true
+    }
+  ]
+}

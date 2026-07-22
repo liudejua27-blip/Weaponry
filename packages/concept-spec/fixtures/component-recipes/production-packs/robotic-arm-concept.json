@@ -1,0 +1,5514 @@
+{
+  "schema_version": "M108BProductionRecipeDomainPack@1",
+  "pack_id": "pack_robotic-arm-concept_production",
+  "domain_pack_id": "pack_robotic_arm_concept",
+  "root_recipe_ids": [
+    "recipe_arm_desktop_assistant",
+    "recipe_arm_gallery_industrial",
+    "recipe_arm_service_display"
+  ],
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "visual_detail",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_m108b_arm_accent",
+      "display_name": "概念机械臂信号饰件",
+      "description": "嵌入式、非功能的浅浮雕信号标记；用于面板读数而非独立球形装饰。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_arm_accent",
+        "units": "millimeter",
+        "seed": 303,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_accent_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -12
+                ],
+                [
+                  48,
+                  -10
+                ],
+                [
+                  62,
+                  -5
+                ],
+                [
+                  66,
+                  0
+                ],
+                [
+                  62,
+                  5
+                ],
+                [
+                  48,
+                  10
+                ],
+                [
+                  0,
+                  12
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_accent_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_accent_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_accent",
+            "operation_id": "op_accent_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_arm_accent_1",
+          "operation_id": "op_accent_revolve",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [],
+      "triangle_estimate": 500,
+      "review_state": {
+        "review_id": "review_m108b_arm_accent_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "visual_detail",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_m108b_arm_display_collar",
+      "display_name": "机械臂展示环套",
+      "description": "静态展示用的短行程环形关节护罩；以压缩的筒形轮廓覆盖连杆端部。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_arm_display_collar",
+        "units": "millimeter",
+        "seed": 304,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_collar_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+              0,
+              -64
+                ],
+                [
+                  118,
+                  -52
+                ],
+                [
+                  194,
+                  -48
+                ],
+                [
+                  238,
+                  -38
+                ],
+                [
+                  262,
+                  -24
+                ],
+                [
+                  274,
+                  -8
+                ],
+                [
+                  278,
+                  0
+                ],
+                [
+                  274,
+                  8
+                ],
+                [
+                  262,
+                  24
+                ],
+                [
+                  238,
+                  38
+                ],
+                [
+                  194,
+                  48
+                ],
+                [
+                  118,
+                  52
+                ],
+                [
+              0,
+              64
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_collar_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_collar_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 64,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_collar_inset",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+            "radius": 188,
+            "height": 112,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_inset"
+            }
+          },
+          {
+            "operation_id": "op_collar_cap_near",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                -116
+              ],
+            "radius": 202,
+            "height": 46,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_inset"
+            }
+          },
+          {
+            "operation_id": "op_collar_cap_far",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                116
+              ],
+            "radius": 202,
+            "height": 46,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_inset"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_collar",
+            "operation_id": "op_collar_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_collar_inset",
+            "operation_id": "op_collar_inset",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_collar_cap_near",
+            "operation_id": "op_collar_cap_near",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_collar_cap_far",
+            "operation_id": "op_collar_cap_far",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_display_collar_1",
+          "operation_id": "op_collar_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_collar_inset",
+          "operation_id": "op_collar_inset",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_collar_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint_inset",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        }
+      ],
+      "child_slots": [],
+      "triangle_estimate": 2000,
+      "review_state": {
+        "review_id": "review_m108b_arm_collar_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "visual_detail",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_m108b_arm_display_foot",
+      "display_name": "机械臂展示支脚",
+      "description": "静态陈列用的低矮圆角橡胶支脚；仅承担展示底座的视觉锚定。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_arm_display_foot",
+        "units": "millimeter",
+        "seed": 305,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_foot_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "size": [
+                310,
+                64,
+                280
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_rubber",
+              "zone_id": "zone_arm_rubber"
+            }
+          },
+          {
+            "operation_id": "op_foot_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_foot_base"
+            ],
+            "args": {
+              "radius": 20,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_rubber",
+              "zone_id": "zone_arm_rubber"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_foot",
+            "operation_id": "op_foot_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_display_foot_1",
+          "operation_id": "op_foot_finish",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_foot_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_rubber",
+          "role": "rubber",
+          "material_preset_id": "mat_rubber"
+        }
+      ],
+      "child_slots": [],
+      "triangle_estimate": 300,
+      "review_state": {
+        "review_id": "review_m108b_arm_foot_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "upper_link_form",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_arm_trim",
+          "profile_sketch_id": "sketch_arm_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_arm_presentation",
+          "sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_arm_presentation",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_arm_link_start",
+                "position": -0.9,
+                "profile_sketch_id": "sketch_arm_link_start",
+                "scale": 0.8,
+                "twist_degrees": -4.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_arm_link_middle",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_arm_link_middle",
+                "scale": 1.1,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_arm_link_end",
+                "position": 0.9,
+                "profile_sketch_id": "sketch_arm_link_end",
+                "scale": 0.72,
+                "twist_degrees": 4.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_arm_presentation"
+            }
+          }
+        }
+      ],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_arm_desktop_assistant",
+      "display_name": "桌面展示概念机械臂",
+      "description": "紧凑、静态、非功能的桌面概念展示资产。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_arm_desktop_assistant",
+        "units": "millimeter",
+        "seed": 413,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_arm_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_arm_presentation",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_arm_link_start",
+                  "position": -0.9,
+                  "profile_sketch_id": "sketch_arm_link_start",
+                  "scale": 0.8,
+                  "twist_degrees": -4.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_arm_link_middle",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_arm_link_middle",
+                  "scale": 1.1,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_arm_link_end",
+                  "position": 0.9,
+                  "profile_sketch_id": "sketch_arm_link_end",
+                  "scale": 0.72,
+                  "twist_degrees": 4.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_presentation"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_arm_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "249d7392354a9edee90e158626a100146a29643c48a5f7fc48d16c747ee785e1",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_arm_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 48,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -208
+                ],
+                [
+                  390,
+                  -202
+                ],
+                [
+                  450,
+                  -164
+                ],
+                [
+                  450,
+                  -92
+                ],
+                [
+                  388,
+                  -52
+                ],
+                [
+                  408,
+                  24
+                ],
+                [
+                  422,
+                  90
+                ],
+                [
+                  374,
+                  138
+                ],
+                [
+                  0,
+                  166
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_base_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                208,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 64,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                330,
+                215
+              ],
+              "axis_length": 1150,
+              "position": [
+                835,
+                795,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0.5
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_base_turntable",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                354,
+                0
+              ],
+              "radius": 284,
+              "height": 64,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_lower_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                835,
+                795,
+                0
+              ],
+              "size": [
+                680,
+                92,
+                164
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  430,
+                  585,
+                  164
+                ],
+                [
+                  830,
+                  800,
+                  172
+                ],
+                [
+                  1230,
+                  1015,
+                  156
+                ]
+              ],
+              "profile_scale": [
+                250,
+                154
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_upper_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                305,
+                195
+              ],
+              "axis_length": 970,
+              "position": [
+                1806,
+                1204,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0.28
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_upper_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1806,
+                1204,
+                0
+              ],
+              "size": [
+                610,
+                86,
+                146
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  1370,
+                  1085,
+                  150
+                ],
+                [
+                  1805,
+                  1204,
+                  158
+                ],
+                [
+                  2225,
+                  1328,
+                  144
+                ]
+              ],
+              "profile_scale": [
+                228,
+                144
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_lower",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  330,
+                  510,
+                  190
+                ],
+                [
+                  790,
+                  790,
+                  205
+                ],
+                [
+                  1340,
+                  1070,
+                  180
+                ]
+              ],
+              "profile_scale": [
+                30,
+                10
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_upper",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  1340,
+                  1070,
+                  180
+                ],
+                [
+                  1800,
+                  1230,
+                  170
+                ],
+                [
+                  2270,
+                  1340,
+                  120
+                ]
+              ],
+              "profile_scale": [
+                28,
+                9
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_return",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  340,
+                  504,
+                  -158
+                ],
+                [
+                  808,
+                  760,
+                  -176
+                ],
+                [
+                  1332,
+                  1060,
+                  -142
+                ],
+                [
+                  1804,
+                  1218,
+                  -138
+                ],
+                [
+                  2284,
+                  1334,
+                  -92
+                ]
+              ],
+              "profile_scale": [
+                20,
+                7
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2480,
+                1410,
+                0
+              ],
+              "size": [
+                690,
+                370,
+                500
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_base"
+            ],
+            "args": {
+              "radius": 72,
+              "segments": 3,
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_head_finish"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                250,
+                6,
+                136
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_signal"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2890,
+                1386,
+                0
+              ],
+              "size": [
+                340,
+                260,
+                340
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_tool_base"
+            ],
+            "args": {
+              "radius": 58,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_head_face_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2842,
+                1410,
+                0
+              ],
+              "size": [
+                178,
+                286,
+                392
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_face_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_face_base"
+            ],
+            "args": {
+              "radius": 42,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_wrist_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2180,
+                1322,
+                0
+              ],
+              "size": [
+                440,
+                300,
+                390
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_wrist_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_wrist_base"
+            ],
+            "args": {
+              "radius": 58,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base",
+            "operation_id": "op_base_revolve",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_lower_shell",
+            "operation_id": "op_lower_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_base_turntable",
+            "operation_id": "op_base_turntable",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_upper_shell",
+            "operation_id": "op_upper_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_cable_lower",
+            "operation_id": "op_trim_cable_lower",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_upper",
+            "operation_id": "op_trim_cable_upper",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_return",
+            "operation_id": "op_trim_cable_return",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head",
+            "operation_id": "op_head_finish",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_head_panel",
+            "operation_id": "op_head_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head_tool",
+            "operation_id": "op_head_tool_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head_face",
+            "operation_id": "op_head_face_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_wrist",
+            "operation_id": "op_wrist_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_desktop_assistant_1",
+          "operation_id": "op_base_profile",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_2",
+          "operation_id": "op_base_revolve",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_3",
+          "operation_id": "op_lower_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_4",
+          "operation_id": "op_upper_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_5",
+          "operation_id": "op_trim_cable_lower",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_6",
+          "operation_id": "op_trim_cable_upper",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_7",
+          "operation_id": "op_head_base",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_arm_desktop_assistant_8",
+          "operation_id": "op_head_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_desktop_assistant_collar_lower",
+          "kind": "visual_mount",
+          "position": [
+            330,
+            520,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_desktop_assistant_collar_upper",
+          "kind": "visual_mount",
+          "position": [
+            1340,
+            1070,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_desktop_assistant_foot_left",
+          "kind": "visual_mount",
+          "position": [
+            -330,
+            30,
+            -310
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_desktop_assistant_foot_right",
+          "kind": "visual_mount",
+          "position": [
+            330,
+            30,
+            310
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_desktop_assistant_accent_lower",
+          "kind": "visual_mount",
+          "position": [
+            80,
+            372,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_desktop_assistant_accent_head",
+          "kind": "visual_mount",
+          "position": [
+            2360,
+            1545,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_shell",
+          "role": "shell",
+          "material_preset_id": "mat_composite"
+        },
+        {
+          "zone_id": "zone_arm_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_arm_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_arm_desktop_assistant_collar_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_desktop_assistant_collar_lower",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_desktop_assistant_collar_upper",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_desktop_assistant_collar_upper",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_desktop_assistant_foot_left",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_desktop_assistant_foot_left",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_desktop_assistant_foot_right",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_desktop_assistant_foot_right",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_desktop_assistant_accent_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_desktop_assistant_accent_lower",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_desktop_assistant_accent_head",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_desktop_assistant_accent_head",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "triangle_estimate": 7000,
+      "review_state": {
+        "review_id": "review_m108b_arm_desktop_assistant_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "upper_link_form",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_arm_trim",
+          "profile_sketch_id": "sketch_arm_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_arm_presentation",
+          "sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_arm_presentation",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_arm_link_start",
+                "position": -0.9,
+                "profile_sketch_id": "sketch_arm_link_start",
+                "scale": 0.8,
+                "twist_degrees": -4.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_arm_link_middle",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_arm_link_middle",
+                "scale": 1.1,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_arm_link_end",
+                "position": 0.9,
+                "profile_sketch_id": "sketch_arm_link_end",
+                "scale": 0.72,
+                "twist_degrees": 4.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_arm_presentation"
+            }
+          }
+        }
+      ],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_arm_gallery_industrial",
+      "display_name": "展厅展示概念机械臂",
+      "description": "垂直比例更强的静态展厅概念展示资产。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_arm_gallery_industrial",
+        "units": "millimeter",
+        "seed": 414,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_arm_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_arm_presentation",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_arm_link_start",
+                  "position": -0.9,
+                  "profile_sketch_id": "sketch_arm_link_start",
+                  "scale": 0.8,
+                  "twist_degrees": -4.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_arm_link_middle",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_arm_link_middle",
+                  "scale": 1.1,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_arm_link_end",
+                  "position": 0.9,
+                  "profile_sketch_id": "sketch_arm_link_end",
+                  "scale": 0.72,
+                  "twist_degrees": 4.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_presentation"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_arm_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "249d7392354a9edee90e158626a100146a29643c48a5f7fc48d16c747ee785e1",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_arm_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 48,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -292
+                ],
+                [
+                  430,
+                  -284
+                ],
+                [
+                  518,
+                  -232
+                ],
+                [
+                  518,
+                  -150
+                ],
+                [
+                  432,
+                  -70
+                ],
+                [
+                  458,
+                  22
+                ],
+                [
+                  480,
+                  102
+                ],
+                [
+                  400,
+                  164
+                ],
+                [
+                  0,
+                  194
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_base_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                300,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 64,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                410,
+                260
+              ],
+              "axis_length": 1600,
+              "position": [
+                680,
+                1374,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                1.05
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_lower_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                680,
+                1374,
+                0
+              ],
+              "size": [
+                900,
+                104,
+                196
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [350, 720, 190],
+                [680, 1374, 198],
+                [1015, 2020, 180]
+              ],
+              "profile_scale": [300, 184],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_base_turntable",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                474,
+                0
+              ],
+              "radius": 328,
+              "height": 68,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_upper_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                335,
+                215
+              ],
+              "axis_length": 1250,
+              "position": [
+                1573,
+                2446,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0.65
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_upper_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1573,
+                2446,
+                0
+              ],
+              "size": [
+                760,
+                94,
+                170
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [1100, 2090, 176],
+                [1570, 2445, 184],
+                [2020, 2790, 168]
+              ],
+              "profile_scale": [268, 166],
+              "part_role": "upper_link_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_lower",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  282,
+                  680,
+                  225
+                ],
+                [
+                  660,
+                  1320,
+                  245
+                ],
+                [
+                  1076,
+                  2068,
+                  205
+                ]
+              ],
+              "profile_scale": [
+                32,
+                10
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_upper",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  1076,
+                  2068,
+                  205
+                ],
+                [
+                  1570,
+                  2445,
+                  190
+                ],
+                [
+                  2070,
+                  2824,
+                  135
+                ]
+              ],
+              "profile_scale": [
+                30,
+                9
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_return",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  294,
+                  676,
+                  -178
+                ],
+                [
+                  670,
+                  1308,
+                  -198
+                ],
+                [
+                  1086,
+                  2052,
+                  -162
+                ],
+                [
+                  1568,
+                  2428,
+                  -148
+                ],
+                [
+                  2082,
+                  2810,
+                  -102
+                ]
+              ],
+              "profile_scale": [
+                22,
+                7
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2440,
+                2910,
+                0
+              ],
+              "size": [
+                780,
+                420,
+                540
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_base"
+            ],
+            "args": {
+              "radius": 82,
+              "segments": 3,
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_head_finish"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                276,
+                6,
+                150
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_signal"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2888,
+                2874,
+                0
+              ],
+              "size": [
+                368,
+                278,
+                360
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_tool_base"
+            ],
+            "args": {
+              "radius": 62,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_wrist_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2025,
+                2700,
+                0
+              ],
+              "size": [
+                500,
+                332,
+                430
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_face_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2828,
+                2910,
+                0
+              ],
+              "size": [
+                192,
+                318,
+                426
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_face_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_face_base"
+            ],
+            "args": {
+              "radius": 46,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_wrist_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_wrist_base"
+            ],
+            "args": {
+              "radius": 66,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base",
+            "operation_id": "op_base_revolve",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_base_turntable",
+            "operation_id": "op_base_turntable",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_cable_lower",
+            "operation_id": "op_trim_cable_lower",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_upper",
+            "operation_id": "op_trim_cable_upper",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_return",
+            "operation_id": "op_trim_cable_return",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head",
+            "operation_id": "op_head_finish",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_head_panel",
+            "operation_id": "op_head_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head_tool",
+            "operation_id": "op_head_tool_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_lower_shell",
+            "operation_id": "op_lower_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_upper_shell",
+            "operation_id": "op_upper_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_head_face",
+            "operation_id": "op_head_face_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_wrist",
+            "operation_id": "op_wrist_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_gallery_industrial_1",
+          "operation_id": "op_base_profile",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_2",
+          "operation_id": "op_base_revolve",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_3",
+          "operation_id": "op_lower_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_4",
+          "operation_id": "op_upper_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_5",
+          "operation_id": "op_trim_cable_lower",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_6",
+          "operation_id": "op_trim_cable_upper",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_7",
+          "operation_id": "op_head_base",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_arm_gallery_industrial_8",
+          "operation_id": "op_head_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_gallery_industrial_collar_lower",
+          "kind": "visual_mount",
+          "position": [
+            282,
+            680,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_gallery_industrial_collar_upper",
+          "kind": "visual_mount",
+          "position": [
+            1076,
+            2068,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_gallery_industrial_foot_left",
+          "kind": "visual_mount",
+          "position": [
+            -360,
+            30,
+            -335
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_gallery_industrial_foot_right",
+          "kind": "visual_mount",
+          "position": [
+            360,
+            30,
+            335
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_gallery_industrial_accent_lower",
+          "kind": "visual_mount",
+          "position": [
+            90,
+            482,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_gallery_industrial_accent_head",
+          "kind": "visual_mount",
+          "position": [
+            2220,
+            3035,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_shell",
+          "role": "shell",
+          "material_preset_id": "mat_composite"
+        },
+        {
+          "zone_id": "zone_arm_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_arm_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_arm_gallery_industrial_collar_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_gallery_industrial_collar_lower",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_gallery_industrial_collar_upper",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_gallery_industrial_collar_upper",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_gallery_industrial_foot_left",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_gallery_industrial_foot_left",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_gallery_industrial_foot_right",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_gallery_industrial_foot_right",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_gallery_industrial_accent_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_gallery_industrial_accent_lower",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_gallery_industrial_accent_head",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_gallery_industrial_accent_head",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "triangle_estimate": 7000,
+      "review_state": {
+        "review_id": "review_m108b_arm_gallery_industrial_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "version": 1,
+      "component_role": "upper_link_form",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_arm_trim",
+          "profile_sketch_id": "sketch_arm_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_arm_presentation",
+          "sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_arm_presentation",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_arm_link_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_arm_link_start",
+                "position": -0.9,
+                "profile_sketch_id": "sketch_arm_link_start",
+                "scale": 0.8,
+                "twist_degrees": -4.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_arm_link_middle",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_arm_link_middle",
+                "scale": 1.1,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_arm_link_end",
+                "position": 0.9,
+                "profile_sketch_id": "sketch_arm_link_end",
+                "scale": 0.72,
+                "twist_degrees": 4.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_arm_presentation"
+            }
+          }
+        }
+      ],
+      "parameter_bindings": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_arm_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "non_functional_only": true,
+      "recipe_id": "recipe_arm_service_display",
+      "display_name": "服务展示概念机械臂",
+      "description": "流线更明显的静态服务展示概念资产。",
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_arm_service_display",
+        "units": "millimeter",
+        "seed": 415,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_arm_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "f85c939a6a631a6d67c14946f618cc4547e7e131502dfab711e2cbfe232491fa",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_arm_presentation",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_arm_link_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_arm_link_start",
+                  "position": -0.9,
+                  "profile_sketch_id": "sketch_arm_link_start",
+                  "scale": 0.8,
+                  "twist_degrees": -4.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_arm_link_middle",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_arm_link_middle",
+                  "scale": 1.1,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_arm_link_end",
+                  "position": 0.9,
+                  "profile_sketch_id": "sketch_arm_link_end",
+                  "scale": 0.72,
+                  "twist_degrees": 4.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_presentation"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_arm_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "249d7392354a9edee90e158626a100146a29643c48a5f7fc48d16c747ee785e1",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_arm_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 48,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_arm_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -232
+                ],
+                [
+                  410,
+                  -224
+                ],
+                [
+                  498,
+                  -176
+                ],
+                [
+                  498,
+                  -110
+                ],
+                [
+                  412,
+                  -50
+                ],
+                [
+                  440,
+                  20
+                ],
+                [
+                  456,
+                  92
+                ],
+                [
+                  382,
+                  146
+                ],
+                [
+                  0,
+                  176
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_base_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                232,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 64,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                390,
+                240
+              ],
+              "axis_length": 1550,
+              "position": [
+                1122,
+                639,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0.18
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_lower_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1122,
+                639,
+                0
+              ],
+              "size": [
+                880,
+                100,
+                188
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_lower_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [430, 500, 188],
+                [1122, 639, 196],
+                [1810, 770, 178]
+              ],
+              "profile_scale": [294, 180],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_base_turntable",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                394,
+                0
+              ],
+              "radius": 298,
+              "height": 64,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_upper_link",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_arm_sections",
+              "cross_section_scale": [
+                300,
+                195
+              ],
+              "axis_length": 1300,
+              "position": [
+                2501,
+                573,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                -0.32
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_shell"
+            }
+          },
+          {
+            "operation_id": "op_upper_guard",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2501,
+                573,
+                0
+              ],
+              "size": [
+                720,
+                90,
+                160
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_upper_shell",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [1930, 760, 172],
+                [2500, 570, 180],
+                [3090, 385, 164]
+              ],
+              "profile_scale": [256, 158],
+              "part_role": "upper_link_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_lower",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  360,
+                  500,
+                  205
+                ],
+                [
+                  1040,
+                  640,
+                  220
+                ],
+                [
+                  1884,
+                  778,
+                  185
+                ]
+              ],
+              "profile_scale": [
+                32,
+                10
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_upper",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  1884,
+                  778,
+                  185
+                ],
+                [
+                  2500,
+                  575,
+                  170
+                ],
+                [
+                  3118,
+                  368,
+                  120
+                ]
+              ],
+              "profile_scale": [
+                30,
+                9
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_cable_return",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_arm_trim",
+              "path_points": [
+                [
+                  374,
+                  496,
+                  -166
+                ],
+                [
+                  1048,
+                  626,
+                  -188
+                ],
+                [
+                  1894,
+                  760,
+                  -154
+                ],
+                [
+                  2508,
+                  562,
+                  -142
+                ],
+                [
+                  3132,
+                  352,
+                  -98
+                ]
+              ],
+              "profile_scale": [
+                22,
+                7
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3460,
+                450,
+                0
+              ],
+              "size": [
+                800,
+                430,
+                560
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_base"
+            ],
+            "args": {
+              "radius": 86,
+              "segments": 3,
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_arm_glass"
+            }
+          },
+          {
+            "operation_id": "op_head_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_head_finish"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                284,
+                6,
+                154
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_signal"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3910,
+                424,
+                0
+              ],
+              "size": [
+                390,
+                290,
+                372
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_head_tool_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_tool_base"
+            ],
+            "args": {
+              "radius": 64,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_trim"
+            }
+          },
+          {
+            "operation_id": "op_wrist_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3030,
+                520,
+                0
+              ],
+              "size": [
+                510,
+                340,
+                442
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_face_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3892,
+                450,
+                0
+              ],
+              "size": [
+                198,
+                324,
+                438
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_head_face_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_head_face_base"
+            ],
+            "args": {
+              "radius": 48,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          },
+          {
+            "operation_id": "op_wrist_finish",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_wrist_base"
+            ],
+            "args": {
+              "radius": 68,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base",
+            "operation_id": "op_base_revolve",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_base_turntable",
+            "operation_id": "op_base_turntable",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_cable_lower",
+            "operation_id": "op_trim_cable_lower",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_upper",
+            "operation_id": "op_trim_cable_upper",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_return",
+            "operation_id": "op_trim_cable_return",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head",
+            "operation_id": "op_head_finish",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_head_panel",
+            "operation_id": "op_head_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_head_tool",
+            "operation_id": "op_head_tool_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_lower_shell",
+            "operation_id": "op_lower_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_upper_shell",
+            "operation_id": "op_upper_shell",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_head_face",
+            "operation_id": "op_head_face_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_wrist",
+            "operation_id": "op_wrist_finish",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_arm_service_display_1",
+          "operation_id": "op_base_profile",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_service_display_2",
+          "operation_id": "op_base_revolve",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_arm_service_display_3",
+          "operation_id": "op_lower_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_service_display_4",
+          "operation_id": "op_upper_link",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_arm_service_display_5",
+          "operation_id": "op_trim_cable_lower",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_service_display_6",
+          "operation_id": "op_trim_cable_upper",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_arm_service_display_7",
+          "operation_id": "op_head_base",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_arm_service_display_8",
+          "operation_id": "op_head_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_arm_service_display_collar_lower",
+          "kind": "visual_mount",
+          "position": [
+            360,
+            500,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_service_display_collar_upper",
+          "kind": "visual_mount",
+          "position": [
+            1884,
+            778,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_service_display_foot_left",
+          "kind": "visual_mount",
+          "position": [
+            -350,
+            30,
+            -325
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_service_display_foot_right",
+          "kind": "visual_mount",
+          "position": [
+            350,
+            30,
+            325
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_service_display_accent_lower",
+          "kind": "visual_mount",
+          "position": [
+            100,
+            404,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_arm_service_display_accent_head",
+          "kind": "visual_mount",
+          "position": [
+            3260,
+            635,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_shell",
+          "role": "shell",
+          "material_preset_id": "mat_composite"
+        },
+        {
+          "zone_id": "zone_arm_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_arm_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_arm_service_display_collar_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_service_display_collar_lower",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_service_display_collar_upper",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_collar",
+          "parent_connector_id": "connector_arm_service_display_collar_upper",
+          "child_connector_id": "connector_arm_collar_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_service_display_foot_left",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_service_display_foot_left",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_service_display_foot_right",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_display_foot",
+          "parent_connector_id": "connector_arm_service_display_foot_right",
+          "child_connector_id": "connector_arm_foot_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_service_display_accent_lower",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_service_display_accent_lower",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_arm_service_display_accent_head",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_arm_accent",
+          "parent_connector_id": "connector_arm_service_display_accent_head",
+          "child_connector_id": "connector_arm_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "triangle_estimate": 7000,
+      "review_state": {
+        "review_id": "review_m108b_arm_service_display_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      }
+    }
+  ]
+}

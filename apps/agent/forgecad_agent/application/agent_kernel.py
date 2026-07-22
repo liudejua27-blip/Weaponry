@@ -857,8 +857,7 @@ class AgentKernelService:
     def cancel_turn(self, turn_id: str, idempotency_key: str) -> AgentTurn:
         with self._provider_cancellations_lock:
             cancel_event = self._provider_cancellations.get(turn_id)
-            if cancel_event is not None:
-                cancel_event.set()
+        response: Optional[AgentTurn] = None
         with SQLiteUnitOfWork(self.connection_factory) as unit:
             scope = f"POST /api/v1/agent/turns/{turn_id}/cancel"
             request_hash = _hash_json({"turn_id": turn_id, "action": "cancel"})
@@ -868,47 +867,48 @@ class AgentKernelService:
                     raise AgentKernelIdempotencyConflict(
                         "Idempotency-Key was reused with a different cancel request."
                     )
-                return AgentTurn.model_validate_json(existing.response_json)
-            turn = unit.agent_kernel.get_turn(turn_id)
-            if turn is None:
-                raise AgentKernelError("TURN_NOT_FOUND", "Agent turn was not found.", status_code=404)
-            if turn["status"] in {"completed", "failed", "cancelled"}:
-                response = self._turn(unit, turn_id)
+                response = AgentTurn.model_validate_json(existing.response_json)
+            else:
+                turn = unit.agent_kernel.get_turn(turn_id)
+                if turn is None:
+                    raise AgentKernelError("TURN_NOT_FOUND", "Agent turn was not found.", status_code=404)
+                if turn["status"] in {"completed", "failed", "cancelled"}:
+                    response = self._turn(unit, turn_id)
+                    created_at = _utc_now()
+                else:
+                    created_at = _utc_now()
+                    unit.agent_kernel.update_turn(turn_id=turn_id, status="cancelled", updated_at=created_at)
+                    unit.agent_kernel.update_thread(
+                        thread_id=str(turn["thread_id"]),
+                        status="idle",
+                        summary="本次请求已取消",
+                        last_turn_id=turn_id,
+                        updated_at=created_at,
+                    )
+                    self._add_item(
+                        unit,
+                        thread_id=str(turn["thread_id"]),
+                        turn_id=turn_id,
+                        item_type="assistant_message",
+                        status="cancelled",
+                        payload={"text": "本次请求已取消，当前项目没有新增永久修改。"},
+                        created_at=created_at,
+                    )
+                    response = self._turn(unit, turn_id)
                 unit.idempotency.add(
                     scope=scope,
                     key=idempotency_key,
                     request_hash=request_hash,
                     response_json=_canonical_json(response.model_dump(mode="json")),
-                    created_at=_utc_now(),
+                    created_at=created_at,
                 )
-                return response
-            now = _utc_now()
-            unit.agent_kernel.update_turn(turn_id=turn_id, status="cancelled", updated_at=now)
-            unit.agent_kernel.update_thread(
-                thread_id=str(turn["thread_id"]),
-                status="idle",
-                summary="本次请求已取消",
-                last_turn_id=turn_id,
-                updated_at=now,
-            )
-            self._add_item(
-                unit,
-                thread_id=str(turn["thread_id"]),
-                turn_id=turn_id,
-                item_type="assistant_message",
-                status="cancelled",
-                payload={"text": "本次请求已取消，当前项目没有新增永久修改。"},
-                created_at=now,
-            )
-            response = self._turn(unit, turn_id)
-            unit.idempotency.add(
-                scope=scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-                response_json=_canonical_json(response.model_dump(mode="json")),
-                created_at=now,
-            )
-            return response
+        # Commit the cancelled terminal fact before waking a Provider.  A
+        # zero-latency Provider cancellation callback can now only observe the
+        # durable cancelled state and cannot overwrite it with failed.
+        if cancel_event is not None:
+            cancel_event.set()
+        assert response is not None
+        return response
 
     def _record_provider_execution_trace(
         self,
@@ -1090,7 +1090,7 @@ class AgentKernelService:
                     "stage": "complete_concept_plan",
                     "domain_pack_id": plan.domain_pack_id,
                     "plan_id": plan.plan_id,
-                    "message": "已记录创意并生成三个完整外观方向，确认后再进入 ShapeProgram。",
+                    "message": "已记录创意并生成一个完整外观意图，正在进入正式生成与质量判断。",
                     "directions": plan_payload["directions"],
                     "spec": plan_payload["spec"],
                     "scope_decision": scope_decision.model_dump(mode="json"),
@@ -1100,8 +1100,8 @@ class AgentKernelService:
             (
                 "assistant_message",
                 {
-                    "text": "我已生成三个完整外观方向。请选择一个方向，确认后再生成可预览的 3D blockout。",
-                    "next_action": "select_concept_direction",
+                    "text": "我已生成一个完整外观意图，并将自行完成建模与质量判断。",
+                    "next_action": "await_single_result_decision",
                     "input_hash": hashlib.sha256(plan.brief.encode("utf-8")).hexdigest(),
                     "provider": plan.provider_id,
                     "plan_id": plan.plan_id,

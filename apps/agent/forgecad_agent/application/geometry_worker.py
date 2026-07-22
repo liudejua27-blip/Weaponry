@@ -22,13 +22,27 @@ from .shape_program_runtime import (
     UnsupportedRuntimeOperationError,
     assert_worker_executor_coverage,
 )
+from .surface_layer_pbr import (
+    normalize_surface_layer_lowering,
+    surface_layer_lowering_sha256,
+    surface_layer_material_id,
+    surface_layer_visual_texture_png_bytes,
+    surface_layer_visual_texture_set,
+)
 from .visual_intent import visual_intent_for_direction
 from .visual_texture_sets import (
+    GeometryArtifactProfileId,
     builtin_material_properties,
     builtin_visual_material_binding,
     builtin_visual_material_count,
     builtin_visual_texture_set_for_material_index,
     builtin_visual_texture_set_for_readback,
+    geometry_artifact_profile_manifest,
+    normalize_surface_adornment_program,
+    surface_adornment_material_id,
+    surface_adornment_program_sha256,
+    surface_adornment_visual_texture_png_bytes,
+    surface_adornment_visual_texture_set,
     studio_environment_manifest,
     visual_texture_png_bytes,
 )
@@ -53,6 +67,8 @@ class BoxPrimitive:
     cap_start: bool = True
     cap_end: bool = True
     radial_segments: int = 16
+    capsule_hemisphere_segments: int = 5
+    smooth_normals: bool = False
     loft_rings_mm: Tuple[Tuple[Tuple[float, float, float], ...], ...] = ()
     loft_profiles: Tuple[Tuple[Tuple[float, float], ...], ...] = ()
     loft_axis: str = "x"
@@ -69,6 +85,12 @@ class BoxPrimitive:
     profile_contract: Mapping[str, Any] | None = None
     loft_cross_section_scale: Tuple[float, float] = (0.0, 0.0)
     sweep_profile_scale: Tuple[float, float] = (0.0, 0.0)
+    # ShapeProgram's existing bounded ``args.rotation`` is a static mesh bake,
+    # never a glTF node transform.  Keeping the frame on the primitive lets
+    # G826 generate normals/tangents from the final vertices while preserving
+    # the single-mesh identity-node contract.
+    rotation_radians: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    rotation_origin_mm: Tuple[float, float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -116,6 +138,7 @@ class ShapeProgramGlbReadbackFacts:
     material_zone_faces: List[Dict[str, Any]]
     visual_texture_sets: List[Dict[str, Any]]
     visual_environment: Dict[str, Any]
+    artifact_profile: Dict[str, Any]
     feature_history: List[Dict[str, Any]]
 
 
@@ -338,14 +361,150 @@ def build_blockout(
     )
 
 
+def _normalize_surface_adornment_programs(
+    programs: Sequence[Mapping[str, object]],
+) -> tuple[dict[str, object], ...]:
+    """Accept only closed A005 texture-bake instructions in stable order."""
+
+    if len(programs) > 32:
+        raise ValueError("surface adornment program count exceeds the restricted geometry limit")
+    normalized = tuple(normalize_surface_adornment_program(item) for item in programs)
+    program_ids = [str(item["program_id"]) for item in normalized]
+    zone_ids = [str(item["target_zone_id"]) for item in normalized]
+    if len(program_ids) != len(set(program_ids)):
+        raise ValueError("surface adornment program ids must be unique")
+    if len(zone_ids) != len(set(zone_ids)):
+        raise ValueError("surface adornments may target each material zone at most once")
+    return tuple(sorted(
+        normalized,
+        key=lambda item: (str(item["program_id"]), surface_adornment_material_id(item)),
+    ))
+
+
+def _surface_adornments_by_zone(
+    boxes: Sequence[GeometryPrimitive],
+    surface_adornments: Sequence[Mapping[str, object]],
+) -> dict[str, Mapping[str, object]]:
+    """Bind a normalized A005 program only to an existing homogeneous zone.
+
+    The Rust-owned caller validates selection and Snapshot ownership before it
+    reaches restricted geometry.  This worker still refuses a stale/missing
+    zone or a base-material mismatch rather than guessing from role, colour or
+    primitive position.
+    """
+
+    if not surface_adornments:
+        return {}
+    material_indices_by_zone: dict[str, set[int]] = {}
+    for primitive in boxes:
+        if isinstance(primitive, BoxPrimitive):
+            zone_id = primitive.material_zone_id
+            if not isinstance(zone_id, str):
+                raise ValueError("surface adornment compilation requires stable material-zone provenance")
+            material_indices_by_zone.setdefault(zone_id, set()).add(
+                int(primitive.material_index)
+            )
+        else:
+            for triangle in primitive.triangles:
+                zone_id = triangle.get("material_zone_id")
+                material_id = triangle.get("material_id")
+                if not isinstance(zone_id, str) or not isinstance(material_id, str):
+                    raise ValueError("surface adornment CSG provenance is invalid")
+                material_indices_by_zone.setdefault(zone_id, set()).add(
+                    builtin_visual_material_binding(material_id)[0]
+                )
+    resolved: dict[str, Mapping[str, object]] = {}
+    for program in surface_adornments:
+        zone_id = str(program["target_zone_id"])
+        actual_indices = material_indices_by_zone.get(zone_id)
+        if not actual_indices:
+            raise ValueError("surface adornment target zone is not present in the compiled geometry")
+        expected_index, _ = builtin_visual_material_binding(str(program["base_material"]))
+        if actual_indices != {expected_index}:
+            raise ValueError("surface adornment base material does not match the target zone")
+        resolved[zone_id] = program
+    return resolved
+
+
+def _surface_layers_by_zone(
+    boxes: Sequence[GeometryPrimitive],
+    lowering: Mapping[str, object] | None,
+) -> dict[str, Mapping[str, object]]:
+    """Bind one sealed Design Surface to its exact existing material zone.
+
+    A retained surface layer is not a new material selector.  Its Rust
+    lowering carries the reviewed A005 base-material mapping, and this worker
+    proves that the selected zone exists and is homogeneous before replacing
+    the zone's visual-only PBR texture set.
+    """
+
+    if lowering is None:
+        return {}
+    normalized = normalize_surface_layer_lowering(lowering)
+    adornments = normalized["adornments"]
+    if not adornments:
+        raise ValueError("surface layer lowering requires a reviewed A005 binding")
+    zone_ids = {str(item["target_zone_id"]) for item in adornments}
+    base_materials = {str(item["base_material"]) for item in adornments}
+    if len(zone_ids) != 1 or len(base_materials) != 1:
+        raise ValueError("surface layer lowering must bind one exact material zone")
+    zone_id = next(iter(zone_ids))
+    expected_index, _ = builtin_visual_material_binding(next(iter(base_materials)))
+    material_indices_by_zone: dict[str, set[int]] = {}
+    for primitive in boxes:
+        if isinstance(primitive, BoxPrimitive):
+            if not isinstance(primitive.material_zone_id, str):
+                raise ValueError("surface layer compilation requires stable material-zone provenance")
+            material_indices_by_zone.setdefault(primitive.material_zone_id, set()).add(
+                int(primitive.material_index)
+            )
+        else:
+            for triangle in primitive.triangles:
+                triangle_zone = triangle.get("material_zone_id")
+                triangle_material = triangle.get("material_id")
+                if not isinstance(triangle_zone, str) or not isinstance(triangle_material, str):
+                    raise ValueError("surface layer CSG provenance is invalid")
+                material_indices_by_zone.setdefault(triangle_zone, set()).add(
+                    builtin_visual_material_binding(triangle_material)[0]
+                )
+    actual_indices = material_indices_by_zone.get(zone_id)
+    if not actual_indices:
+        raise ValueError("surface layer target zone is not present in the compiled geometry")
+    if actual_indices != {expected_index}:
+        raise ValueError("surface layer base material does not match the target zone")
+    return {zone_id: normalized}
+
+
 def compile_shape_program(
     program: Dict[str, Any],
     *,
+    artifact_profile_id: GeometryArtifactProfileId = "interactive_preview",
+    surface_adornment_programs: Sequence[Mapping[str, object]] = (),
+    surface_layer_lowering: Mapping[str, object] | None = None,
     cancel_check: Callable[[], bool] | None = None,
     csg_timeout_seconds: float = DEFAULT_CSG_TIMEOUT_SECONDS,
 ) -> GeometryCompileResult:
     """Compile once, then bind all trusted facts to the resulting GLB readback."""
+    artifact_profile = geometry_artifact_profile_manifest(artifact_profile_id)
+    surface_adornments = _normalize_surface_adornment_programs(surface_adornment_programs)
+    normalized_surface_layer = (
+        normalize_surface_layer_lowering(surface_layer_lowering)
+        if surface_layer_lowering is not None
+        else None
+    )
+    if normalized_surface_layer is not None:
+        if list(surface_adornments) != normalized_surface_layer["adornments"]:
+            raise ValueError("surface layer lowering must carry the exact Rust-lowered A005 adornment list")
+        # The retained five-channel bake supersedes (rather than stacks with)
+        # the intermediate A005 texture set.  The exact A005 list remains in
+        # the sealed lowering and GLB provenance below.
+        surface_adornments = ()
     program = assert_shape_program_runtime_compatible(program)
+    source_triangle_budget = int(program.get("triangle_budget", 0))
+    effective_triangle_budget = min(
+        source_triangle_budget * int(artifact_profile["triangle_budget_multiplier"]),
+        int(artifact_profile["max_triangle_count"]),
+    )
     profile_inputs = {
         item["input_id"]: item
         for item in program.get("profile_inputs", [])
@@ -370,6 +529,16 @@ def compile_shape_program(
         material_id = str(args.get("material_id", "")) or None
         material_zone_id = str(args.get("zone_id", "")) or None
         material = _material_index(material_id or "")
+        if op in {"mirror", "array", "radial_array", "union", "subtract"} and any(
+            _primitive_has_static_rotation(item)
+            for input_id in operation.get("inputs", [])
+            for item in resolved.get(str(input_id), [])
+        ):
+            raise _runtime_operation_error(
+                operation_id,
+                op,
+                "static rotation through mirror, array or CSG is not implemented",
+            )
         if op == "box":
             size = args.get("size")
             if not isinstance(size, list) or len(size) != 3 or any(float(value) <= 0 for value in size):
@@ -596,6 +765,8 @@ def compile_shape_program(
                 material,
                 "surface_panel",
                 material_id=material_id or base.material_id,
+                rotation_radians=base.rotation_radians,
+                rotation_origin_mm=base.rotation_origin_mm or base.center_mm,
             )
             resolved[operation_id] = [*source, panel]
         elif op in {"mirror", "array", "radial_array"}:
@@ -649,7 +820,7 @@ def compile_shape_program(
                 operation=str(op),
                 left_solids=[_primitive_csg_solid(item) for item in first],
                 right_solids=[_primitive_csg_solid(item) for item in second],
-                triangle_budget=int(program.get("triangle_budget", 0)),
+                triangle_budget=effective_triangle_budget,
                 cancel_check=cancel_check,
                 timeout_seconds=csg_timeout_seconds,
             )
@@ -662,6 +833,16 @@ def compile_shape_program(
             ]
         else:
             raise _runtime_operation_error(operation_id, op, "operation has no Worker implementation")
+        if op in {"box", "cylinder", "capsule", "wedge", "extrude", "revolve", "loft", "sweep"}:
+            resolved[operation_id] = _apply_static_operation_rotation(
+                resolved.get(operation_id, []), args, operation_id, op,
+            )
+        elif _operation_has_non_identity_rotation(args):
+            raise _runtime_operation_error(
+                operation_id,
+                op,
+                "rotation is only defined for static source geometry; derived transforms fail closed",
+            )
         csg_depth_by_id.setdefault(
             operation_id,
             max((csg_depth_by_id.get(str(input_id), 0) for input_id in operation.get("inputs", [])), default=0),
@@ -676,11 +857,16 @@ def compile_shape_program(
             else item
             for item in resolved.get(operation_id, [])
         ]
+        resolved[operation_id] = _apply_artifact_profile_to_primitives(
+            resolved.get(operation_id, []),
+            artifact_profile_id=artifact_profile_id,
+        )
         feature = _feature_node_readback(
             operation=operation,
             primitives=resolved.get(operation_id, []),
             input_hashes=[feature_hash_by_id[str(input_id)] for input_id in operation.get("inputs", [])],
             csg_depth=csg_depth_by_id[operation_id],
+            artifact_profile_sha256=str(artifact_profile["profile_sha256"]),
         )
         feature_hash_by_id[operation_id] = str(feature["result_sha256"])
         feature_history.append(feature)
@@ -688,14 +874,21 @@ def compile_shape_program(
     if not boxes:
         raise ValueError("ShapeProgram has no exportable geometry outputs")
     expected_triangles = sum(_primitive_triangle_count(item) for item in boxes)
-    triangle_budget = int(program.get("triangle_budget", 0))
-    if expected_triangles > triangle_budget:
+    if expected_triangles > effective_triangle_budget:
         raise _runtime_operation_error(
             "runtime_triangle_budget",
             "compile",
-            f"compiled triangle count {expected_triangles} exceeds budget {triangle_budget}",
+            f"compiled triangle count {expected_triangles} exceeds artifact budget {effective_triangle_budget}",
         )
-    glb, compiler_bounds = _build_glb(boxes, feature_history=feature_history)
+    adornments_by_zone = _surface_adornments_by_zone(boxes, surface_adornments)
+    surface_layers_by_zone = _surface_layers_by_zone(boxes, normalized_surface_layer)
+    glb, compiler_bounds = _build_glb(
+        boxes,
+        feature_history=feature_history,
+        artifact_profile_id=artifact_profile_id,
+        surface_adornments_by_zone=adornments_by_zone,
+        surface_layers_by_zone=surface_layers_by_zone,
+    )
     try:
         facts = read_shape_program_glb_facts(glb)
     except (ValueError, TypeError, KeyError, IndexError, struct.error, json.JSONDecodeError) as exc:
@@ -706,16 +899,20 @@ def compile_shape_program(
         raise GeometryCompileReadbackError("GLB readback triangle count does not match compiled geometry")
     if any(abs(float(left) - float(right)) > 0.01 for left, right in zip(compiler_bounds, facts.bounds_mm)):
         raise GeometryCompileReadbackError("GLB readback bounds do not match compiled geometry")
-    if facts.triangle_count > triangle_budget:
+    if facts.artifact_profile != artifact_profile:
+        raise GeometryCompileReadbackError("GLB artifact profile does not match the requested compile profile")
+    if facts.triangle_count > effective_triangle_budget:
         raise _runtime_operation_error(
             "runtime_triangle_budget",
             "compile",
-            f"GLB readback triangle count {facts.triangle_count} exceeds budget {triangle_budget}",
+            f"GLB readback triangle count {facts.triangle_count} exceeds artifact budget {effective_triangle_budget}",
         )
     operations = [item for item in program.get("operations", []) if isinstance(item, dict)]
     outputs = [item for item in program.get("outputs", []) if isinstance(item, dict)]
     readback = GeometryCompileReadback(
+        schema_version="GeometryCompileReadback@2",
         runtime_manifest_version=MANIFEST_SCHEMA_VERSION,
+        artifact_profile=facts.artifact_profile,
         program_id=str(program["program_id"]),
         shape_program_sha256=hashlib.sha256(_canonical_json(program).encode("utf-8")).hexdigest(),
         glb_sha256=hashlib.sha256(glb).hexdigest(),
@@ -745,8 +942,44 @@ def compile_shape_program(
 def build_glb_from_shape_program(program: Dict[str, Any]) -> Tuple[bytes, List[float], int]:
     """Compatibility tuple backed by the single compile/readback result."""
 
-    compiled = compile_shape_program(program)
+    compiled = compile_preview_shape_program(program)
     return compiled.glb_bytes, compiled.readback.bounds_mm, compiled.readback.triangle_count
+
+
+def compile_preview_shape_program(
+    program: Dict[str, Any],
+    *,
+    surface_adornment_programs: Sequence[Mapping[str, object]] = (),
+    cancel_check: Callable[[], bool] | None = None,
+    csg_timeout_seconds: float = DEFAULT_CSG_TIMEOUT_SECONDS,
+) -> GeometryCompileResult:
+    """Compile the responsive workbench derivative of one ShapeProgram."""
+
+    return compile_shape_program(
+        program,
+        artifact_profile_id="interactive_preview",
+        surface_adornment_programs=surface_adornment_programs,
+        cancel_check=cancel_check,
+        csg_timeout_seconds=csg_timeout_seconds,
+    )
+
+
+def compile_production_concept_shape_program(
+    program: Dict[str, Any],
+    *,
+    surface_adornment_programs: Sequence[Mapping[str, object]] = (),
+    cancel_check: Callable[[], bool] | None = None,
+    csg_timeout_seconds: float = DEFAULT_CSG_TIMEOUT_SECONDS,
+) -> GeometryCompileResult:
+    """Compile the on-demand production concept derivative of one ShapeProgram."""
+
+    return compile_shape_program(
+        program,
+        artifact_profile_id="production_concept",
+        surface_adornment_programs=surface_adornment_programs,
+        cancel_check=cancel_check,
+        csg_timeout_seconds=csg_timeout_seconds,
+    )
 
 
 def read_shape_program_glb(payload: bytes) -> Tuple[int, List[float]]:
@@ -799,6 +1032,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
     materials = document.get("materials", [])
     if not isinstance(materials, list):
         raise ValueError("GLB materials are invalid")
+    artifact_profile = _read_geometry_artifact_profile_facts(document)
     document_extras = document.get("extras", {})
     feature_history = document_extras.get("forgecad_feature_history") if isinstance(document_extras, dict) else None
     if feature_history is None:
@@ -1069,12 +1303,54 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
             material_id = extras.get("forgecad_material_id")
             if not isinstance(material_id, str) or not material_id.startswith("mat_"):
                 raise ValueError("GLB primitive material identity is invalid")
-            try:
-                expected_material_index, _texture_material_id = builtin_visual_material_binding(material_id)
-            except ValueError as exc:
-                raise ValueError("GLB primitive material identity is outside the reviewed visual catalog") from exc
-            if material_index != expected_material_index:
-                raise ValueError("GLB primitive material identity does not match its canonical texture material")
+            material_extras = materials[material_index].get("extras", {}) if isinstance(materials[material_index], dict) else {}
+            surface_layer = (
+                material_extras.get("forgecad_surface_layer_lowering")
+                if isinstance(material_extras, dict)
+                else None
+            )
+            adornment = (
+                material_extras.get("forgecad_surface_adornment")
+                if isinstance(material_extras, dict)
+                else None
+            )
+            if surface_layer is not None:
+                if adornment is not None:
+                    raise ValueError("GLB material cannot mix retained surface layers with A005 material rows")
+                normalized_layer = normalize_surface_layer_lowering(surface_layer)
+                expected_zone_id = str(normalized_layer["adornments"][0]["target_zone_id"])
+                expected_base_material_id = str(normalized_layer["adornments"][0]["base_material"])
+                if (
+                    material_id != surface_layer_material_id(normalized_layer)
+                    or material_zone_id != expected_zone_id
+                    or material_index < builtin_visual_material_count()
+                    or material_extras.get("forgecad_surface_layer_lowering_sha256")
+                    != surface_layer_lowering_sha256(normalized_layer)
+                    or material_extras.get("forgecad_surface_layer_retained_layers_sha256")
+                    != normalized_layer["retained_layers_sha256"]
+                    or material_extras.get("forgecad_base_material_id")
+                    != builtin_visual_material_binding(expected_base_material_id)[1]
+                ):
+                    raise ValueError("GLB retained surface layer primitive provenance is invalid")
+            elif adornment is None:
+                try:
+                    expected_material_index, _texture_material_id = builtin_visual_material_binding(material_id)
+                except ValueError as exc:
+                    raise ValueError("GLB primitive material identity is outside the reviewed visual catalog") from exc
+                if material_index != expected_material_index:
+                    raise ValueError("GLB primitive material identity does not match its canonical texture material")
+            else:
+                normalized_adornment = normalize_surface_adornment_program(adornment)
+                if (
+                    material_id != surface_adornment_material_id(normalized_adornment)
+                    or material_zone_id != normalized_adornment["target_zone_id"]
+                    or material_index < builtin_visual_material_count()
+                    or material_extras.get("forgecad_surface_adornment_sha256")
+                    != surface_adornment_program_sha256(normalized_adornment)
+                    or material_extras.get("forgecad_base_material_id")
+                    != builtin_visual_material_binding(str(normalized_adornment["base_material"]))[1]
+                ):
+                    raise ValueError("GLB surface adornment primitive provenance is invalid")
             surface_provenance.append(provenance_item)
             material_zone_faces.append({
                 "primitive_id": primitive_id,
@@ -1106,6 +1382,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         views=views,
         materials=materials,
         primitive_material_bindings=primitive_material_bindings,
+        artifact_profile_id=artifact_profile["artifact_profile_id"],
     )
     visual_environment = _read_visual_environment_facts(document)
     return ShapeProgramGlbReadbackFacts(
@@ -1121,6 +1398,7 @@ def read_shape_program_glb_facts(payload: bytes) -> ShapeProgramGlbReadbackFacts
         material_zone_faces=material_zone_faces,
         visual_texture_sets=visual_texture_sets,
         visual_environment=visual_environment,
+        artifact_profile=artifact_profile,
         feature_history=[dict(item) for item in feature_history],
     )
 
@@ -1132,6 +1410,7 @@ def _read_visual_pbr_facts(
     views: Sequence[Any],
     materials: Sequence[Any],
     primitive_material_bindings: Sequence[Tuple[int, str, str]],
+    artifact_profile_id: GeometryArtifactProfileId,
 ) -> List[Dict[str, Any]]:
     """Verify the exact embedded PBR payload consumed by GLB/quality/export.
 
@@ -1209,7 +1488,22 @@ def _read_visual_pbr_facts(
         if metadata.get("source") != "forgecad_builtin" or metadata.get("license") != "not_applicable":
             raise ValueError("GLB PBR image provenance is outside the built-in boundary")
         expected_metadata = expected_map.model_dump(mode="json")
-        if metadata != expected_metadata or payload != visual_texture_png_bytes(expected_map.texture_id):
+        expected_payload = (
+            surface_layer_visual_texture_png_bytes(
+                normalized_surface_layer,
+                artifact_profile_id=artifact_profile_id,
+                texture_role=role,
+            )
+            if normalized_surface_layer is not None
+            else surface_adornment_visual_texture_png_bytes(
+                normalized_adornment,
+                artifact_profile_id=artifact_profile_id,
+                texture_role=role,
+            )
+            if normalized_adornment is not None
+            else visual_texture_png_bytes(expected_map.texture_id)
+        )
+        if metadata != expected_metadata or payload != expected_payload:
             raise ValueError("GLB PBR image does not match the built-in texture truth")
         return {
             "texture_id": metadata.get("texture_id"),
@@ -1236,20 +1530,70 @@ def _read_visual_pbr_facts(
         extras = material.get("extras")
         texture_set_id = extras.get("forgecad_visual_texture_set_id") if isinstance(extras, dict) else None
         texture_material_id = extras.get("forgecad_texture_material_id") if isinstance(extras, dict) else None
-        try:
-            expected_texture_set = builtin_visual_texture_set_for_readback(
-                material_index,
-                texture_set_id if isinstance(texture_set_id, str) else "",
+        surface_layer = extras.get("forgecad_surface_layer_lowering") if isinstance(extras, dict) else None
+        adornment = extras.get("forgecad_surface_adornment") if isinstance(extras, dict) else None
+        normalized_adornment: dict[str, object] | None = None
+        normalized_surface_layer: dict[str, object] | None = None
+        if surface_layer is not None:
+            if adornment is not None:
+                raise ValueError("GLB material cannot mix retained surface layers with A005 material rows")
+            normalized_surface_layer = normalize_surface_layer_lowering(surface_layer)
+            expected_texture_set = surface_layer_visual_texture_set(
+                normalized_surface_layer,
+                artifact_profile_id=artifact_profile_id,
             )
-            expected_material_index, expected_texture_material_id = builtin_visual_material_binding(material_id)
-        except ValueError as exc:
-            raise ValueError("GLB material does not match the built-in VisualTextureSet identity") from exc
-        if (
-            expected_material_index != material_index
-            or texture_material_id != expected_texture_material_id
-            or texture_material_id != expected_texture_set.material_id
-        ):
-            raise ValueError("GLB material does not match the built-in VisualTextureSet identity")
+            base_index, base_texture_material_id = builtin_visual_material_binding(
+                str(normalized_surface_layer["adornments"][0]["base_material"])
+            )
+            expected_zone_id = str(normalized_surface_layer["adornments"][0]["target_zone_id"])
+            if (
+                material_index < builtin_visual_material_count()
+                or material_id != expected_texture_set.material_id
+                or texture_material_id != expected_texture_set.material_id
+                or texture_set_id != expected_texture_set.visual_texture_set_id
+                or extras.get("forgecad_base_material_id") != base_texture_material_id
+                or extras.get("forgecad_surface_layer_lowering_sha256")
+                != surface_layer_lowering_sha256(normalized_surface_layer)
+                or extras.get("forgecad_surface_layer_retained_layers_sha256")
+                != normalized_surface_layer["retained_layers_sha256"]
+                or set(zone_ids) != {expected_zone_id}
+            ):
+                raise ValueError("GLB material does not match the retained surface layer PBR truth")
+        elif adornment is None:
+            try:
+                expected_texture_set = builtin_visual_texture_set_for_readback(
+                    material_index,
+                    texture_set_id if isinstance(texture_set_id, str) else "",
+                )
+                expected_material_index, expected_texture_material_id = builtin_visual_material_binding(material_id)
+            except ValueError as exc:
+                raise ValueError("GLB material does not match the built-in VisualTextureSet identity") from exc
+            if (
+                expected_material_index != material_index
+                or texture_material_id != expected_texture_material_id
+                or texture_material_id != expected_texture_set.material_id
+            ):
+                raise ValueError("GLB material does not match the built-in VisualTextureSet identity")
+        else:
+            normalized_adornment = normalize_surface_adornment_program(adornment)
+            expected_texture_set = surface_adornment_visual_texture_set(
+                normalized_adornment,
+                artifact_profile_id=artifact_profile_id,
+            )
+            base_index, base_texture_material_id = builtin_visual_material_binding(
+                str(normalized_adornment["base_material"])
+            )
+            if (
+                material_index < builtin_visual_material_count()
+                or material_id != expected_texture_set.material_id
+                or texture_material_id != expected_texture_set.material_id
+                or texture_set_id != expected_texture_set.visual_texture_set_id
+                or extras.get("forgecad_base_material_id") != base_texture_material_id
+                or extras.get("forgecad_surface_adornment_sha256")
+                != surface_adornment_program_sha256(normalized_adornment)
+                or set(zone_ids) != {str(normalized_adornment["target_zone_id"])}
+            ):
+                raise ValueError("GLB material does not match the surface adornment PBR truth")
         if visual_texture_contract_version is None:
             visual_texture_contract_version = expected_texture_set.version
         elif expected_texture_set.version != visual_texture_contract_version:
@@ -1299,7 +1643,18 @@ def _read_visual_pbr_facts(
         allowed_extensions = {"KHR_materials_clearcoat", "KHR_materials_transmission", "KHR_materials_ior"}
         if any(key not in allowed_extensions for key in extensions):
             raise ValueError("GLB material uses an unsupported visual extension")
-        expected_properties = builtin_material_properties(material_index)
+        if normalized_surface_layer is not None:
+            base_index, _ = builtin_visual_material_binding(
+                str(normalized_surface_layer["adornments"][0]["base_material"])
+            )
+            expected_properties = builtin_material_properties(base_index)
+        elif normalized_adornment is None:
+            expected_properties = builtin_material_properties(material_index)
+        else:
+            base_index, _ = builtin_visual_material_binding(
+                str(normalized_adornment["base_material"])
+            )
+            expected_properties = builtin_material_properties(base_index)
         expected_base_factor = [1, 1, 1, float(expected_properties["alpha"])]
         normal_texture = material.get("normalTexture")
         occlusion_texture = material.get("occlusionTexture")
@@ -1317,10 +1672,31 @@ def _read_visual_pbr_facts(
         expected_clearcoat = float(expected_properties["clearcoat"])
         clearcoat = extensions.get("KHR_materials_clearcoat")
         if expected_clearcoat > 0:
+            clearcoat_roughness = (
+                clearcoat.get("clearcoatRoughnessTexture")
+                if isinstance(clearcoat, dict)
+                else None
+            )
+            clearcoat_normal = (
+                clearcoat.get("clearcoatNormalTexture")
+                if isinstance(clearcoat, dict)
+                else None
+            )
             if (
                 not isinstance(clearcoat, dict)
                 or not number_matches(clearcoat.get("clearcoatFactor"), expected_clearcoat)
-                or not number_matches(clearcoat.get("clearcoatRoughnessFactor"), 0.2)
+                or not number_matches(clearcoat.get("clearcoatRoughnessFactor"), 1)
+                or not isinstance(clearcoat_roughness, dict)
+                or set(clearcoat_roughness) != {"index"}
+                or clearcoat_roughness.get("index")
+                != refs["metallic_roughness"]
+                or not isinstance(clearcoat_normal, dict)
+                or set(clearcoat_normal) != {"index", "scale"}
+                or clearcoat_normal.get("index") != refs["normal"]
+                or not number_matches(
+                    clearcoat_normal.get("scale"),
+                    float(expected_properties["normal_scale"]),
+                )
             ):
                 raise ValueError("GLB clearcoat parameters do not match the built-in PBR truth")
         elif clearcoat is not None:
@@ -1358,6 +1734,29 @@ def _read_visual_pbr_facts(
             "maps": maps,
             "extensions": sorted(extensions),
             "texture_byte_size": sum(item["byte_size"] for item in maps),
+            **(
+                {
+                    "surface_adornment": normalized_adornment,
+                    "surface_adornment_sha256": surface_adornment_program_sha256(
+                        normalized_adornment
+                    ),
+                }
+                if normalized_adornment is not None
+                else {}
+            ),
+            **(
+                {
+                    "surface_layer_lowering": normalized_surface_layer,
+                    "surface_layer_lowering_sha256": surface_layer_lowering_sha256(
+                        normalized_surface_layer
+                    ),
+                    "surface_layer_retained_layers_sha256": normalized_surface_layer[
+                        "retained_layers_sha256"
+                    ],
+                }
+                if normalized_surface_layer is not None
+                else {}
+            ),
         })
     return results
 
@@ -1400,6 +1799,22 @@ def _read_visual_environment_facts(document: Mapping[str, Any]) -> Dict[str, Any
             "pmrem",
         )
     }
+
+
+def _read_geometry_artifact_profile_facts(
+    document: Mapping[str, Any],
+) -> Dict[str, Any]:
+    extras = document.get("extras")
+    profile = extras.get("forgecad_geometry_artifact_profile") if isinstance(extras, dict) else None
+    if not isinstance(profile, dict):
+        raise ValueError("GLB geometry artifact profile is missing")
+    profile_id = profile.get("artifact_profile_id")
+    if profile_id not in {"interactive_preview", "production_concept"}:
+        raise ValueError("GLB geometry artifact profile identity is invalid")
+    expected = geometry_artifact_profile_manifest(profile_id)
+    if profile != expected:
+        raise ValueError("GLB geometry artifact profile does not match the code-owned manifest")
+    return dict(profile)
 
 
 def _readback_primitive_topology(
@@ -2248,22 +2663,15 @@ def _showcase_connection_fairings(
                         path_points=(
                             relative_start,
                             tuple(
-                                relative_start[axis] * 0.64
-                                + relative_end[axis] * 0.36
-                                + (24.0 if axis == 1 else 0.0)
-                                for axis in range(3)
-                            ),
-                            tuple(
-                                relative_start[axis] * 0.28
-                                + relative_end[axis] * 0.72
-                                + (34.0 if axis == 1 else 0.0)
+                                (relative_start[axis] + relative_end[axis]) / 2
+                                + (8.0 if axis == 1 else 0.0)
                                 for axis in range(3)
                             ),
                             relative_end,
                         ),
-                        profile_scale=(30.0, 30.0),
-                        material=3,
-                        material_id="mat_aluminum",
+                        profile_scale=(18.0, 42.0),
+                        material=0,
+                        material_id="mat_primary",
                     )
                 )
             return fairings
@@ -2411,36 +2819,114 @@ def _showcase_connection_fairings(
 
 
 def _future_prop_showcase_details(primary: BoxPrimitive, detail_level: int) -> List[BoxPrimitive]:
-    """Non-functional prop shell language: dorsal plate and asymmetric side accents."""
+    """Non-functional compact prop language with layered side surfacing.
+
+    The fixed accents borrow hard-surface product-design cues without encoding
+    a real mechanism: one shallow side cassette, a bounded sweep highlight,
+    staggered visual vents and a small color badge.  They remain decorative
+    display geometry and do not imply a bore, action, magazine or performance.
+    """
 
     cx, cy, cz = primary.center_mm
     width, height, depth = _primitive_display_extent(primary)
     thickness = _detail_thickness(width, height, depth)
-    vent_radius = max(9.0, min(20.0, min(height, depth) * 0.045))
+    side_surface = cz + depth / 2 + thickness / 2 - 6.0
     details = [
-        _box("visual_panel_prop_dorsal", (cx + width * 0.08, cy + height / 2 + thickness / 2 - 8.0, cz), (width * 0.5, thickness, depth * 0.24), 3, material_id="mat_composite"),
-        _box("visual_groove_prop_side", (cx - width * 0.18, cy - height * 0.05, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.28, height * 0.22, thickness), 0, material_id="mat_rubber"),
+        _box(
+            "visual_panel_prop_dorsal",
+            (cx + width * 0.05, cy + height / 2 + thickness / 2 - 7.0, cz),
+            (width * 0.47, thickness, depth * 0.28),
+            3,
+            material_id="mat_composite",
+        ),
+        _box(
+            "visual_panel_prop_side",
+            (cx - width * 0.1, cy - height * 0.02, side_surface),
+            (width * 0.44, height * 0.34, thickness),
+            3,
+            material_id="mat_composite",
+        ),
+        _showcase_sweep_tube(
+            "visual_groove_prop_flowline",
+            (cx, cy, side_surface),
+            path_points=(
+                (-width * 0.34, height * 0.2, 0.0),
+                (-width * 0.18, height * 0.13, 0.0),
+                (0.0, height * 0.08, 0.0),
+                (width * 0.2, height * 0.12, 0.0),
+                (width * 0.33, height * 0.22, 0.0),
+            ),
+            profile_scale=(5.0, 7.0),
+            material=1,
+            material_id="mat_aluminum",
+        ),
         _box(
             "visual_guard_prop_rear",
             (
                 cx + width * 0.3,
                 cy + height * 0.02,
-                cz + depth / 2 + thickness / 2 - 8.0,
+                side_surface,
             ),
-            (width * 0.18, height * 0.2, thickness),
+            (width * 0.13, height * 0.22, thickness),
             1,
             material_id="mat_aluminum",
         ),
-        _box("visual_light_strip_prop_side", (cx - width * 0.28, cy + height * 0.14, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.2, max(12.0, height * 0.055), thickness), 6, material_id="mat_emissive_blue"),
-        _box("visual_cable_slot_prop_lower", (cx + width * 0.06, cy - height * 0.24, cz + depth / 2 + thickness / 2 - 8.0), (width * 0.34, max(12.0, height * 0.05), thickness), 0, material_id="mat_rubber"),
+        _box(
+            "visual_light_strip_prop_side",
+            (cx - width * 0.3, cy + height * 0.15, side_surface),
+            (width * 0.2, max(12.0, height * 0.045), thickness),
+            6,
+            material_id="mat_emissive_blue",
+        ),
+        _box(
+            "visual_cable_slot_prop_lower",
+            (cx + width * 0.03, cy - height * 0.25, side_surface),
+            (width * 0.3, max(12.0, height * 0.045), thickness),
+            0,
+            material_id="mat_rubber",
+        ),
     ]
-    for index, y_offset in enumerate((-vent_radius * 1.4, 0.0, vent_radius * 1.4), 1):
-        details.append(_cylinder(f"visual_vent_prop_{index}", (cx + width * 0.25, cy + y_offset, cz + depth / 2 + thickness / 2 - 8.0), vent_radius, thickness, 0, (0.0, 0.0, 1.0), material_id="mat_rubber"))
-    fastener_radius = max(8.0, min(16.0, min(width, depth) * 0.025))
-    for index, x_offset in enumerate((-width * 0.18, width * 0.2), 1):
-        details.append(_cylinder(f"visual_fastener_prop_{index}", (cx + x_offset, cy + height / 2 + thickness / 2 - 8.0, cz), fastener_radius, thickness, 1, (0.0, 1.0, 0.0), material_id="mat_aluminum"))
+    vent_size = (
+        max(44.0, width * 0.04),
+        max(14.0, height * 0.045),
+        thickness,
+    )
+    for index, (x_ratio, y_ratio) in enumerate(
+        ((0.19, -0.09), (0.245, -0.055), (0.3, -0.02), (0.355, 0.015)),
+        1,
+    ):
+        details.append(
+            _wedge(
+                f"visual_vent_prop_{index}",
+                (cx + width * x_ratio, cy + height * y_ratio, side_surface),
+                vent_size,
+                0,
+                material_id="mat_rubber",
+            )
+        )
+    fastener_radius = max(8.0, min(13.0, min(width, depth) * 0.022))
+    for index, x_offset in enumerate((-width * 0.2, width * 0.23), 1):
+        details.append(
+            _cylinder(
+                f"visual_fastener_prop_{index}",
+                (cx + x_offset, cy + height / 2 + thickness / 2 - 7.0, cz),
+                fastener_radius,
+                thickness,
+                1,
+                (0.0, 1.0, 0.0),
+                material_id="mat_aluminum",
+            )
+        )
     if detail_level >= 4:
-        details.append(_box("visual_panel_prop_lower", (cx + width * 0.22, cy - height / 2 - thickness / 2, cz), (width * 0.24, thickness, depth * 0.48), 2, material_id="mat_signal_red"))
+        details.append(
+            _box(
+                "visual_panel_prop_lower",
+                (cx + width * 0.26, cy - height * 0.24, side_surface),
+                (width * 0.1, max(14.0, height * 0.05), thickness),
+                2,
+                material_id="mat_signal_red",
+            )
+        )
     return details
 
 
@@ -3133,52 +3619,132 @@ def _variant_boxes_for_domain(pack_id: str, variant_id: str) -> List[BoxPrimitiv
             "compact_prop_a": [
                 _showcase_loft_shell(
                     "prop_core",
-                    (0, 590, 0),
-                    axis_length=1500,
-                    cross_section_scale=(250, 250),
+                    (0, 610, 0),
+                    axis_length=1320,
+                    cross_section_scale=(190, 175),
                     sections=(
-                        (-1.0, 0.58, 0.62),
-                        (-0.78, 0.86, 0.9),
-                        (-0.3, 1.0, 0.96),
-                        (0.35, 0.94, 0.9),
-                        (0.75, 0.82, 0.78),
-                        (1.0, 0.6, 0.65),
+                        (-1.0, 0.48, 0.58),
+                        (-0.82, 0.78, 0.84),
+                        (-0.45, 1.0, 0.96),
+                        (0.1, 0.98, 1.0),
+                        (0.55, 0.88, 0.92),
+                        (0.82, 0.72, 0.76),
+                        (1.0, 0.5, 0.58),
                     ),
                     material=0,
                     material_id="mat_primary",
                     profile_shape="hard_surface",
                 ),
-                _cylinder("prop_front_trim", (-780, 590, 0), 190, 120, 2, (1, 0, 0)),
                 _showcase_loft_shell(
-                    "prop_grip",
-                    (-160, 210, 0),
-                    axis_length=620,
-                    cross_section_scale=(130, 110),
+                    "prop_front_shroud",
+                    (-695, 610, 0),
+                    axis_length=260,
+                    cross_section_scale=(165, 155),
                     sections=(
-                        (-1.0, 0.62, 0.58),
-                        (-0.62, 0.88, 0.78),
-                        (0.0, 0.9, 0.96),
-                        (0.62, 0.76, 0.82),
-                        (1.0, 0.54, 0.62),
+                        (-1.0, 0.58, 0.62),
+                        (-0.55, 0.88, 0.92),
+                        (0.2, 1.0, 1.0),
+                        (1.0, 0.8, 0.86),
                     ),
+                    material=3,
+                    material_id="mat_composite",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
+                _cylinder(
+                    "prop_front_trim",
+                    (-835, 610, 0),
+                    125,
+                    70,
+                    1,
+                    (1, 0, 0),
+                    material_id="mat_aluminum",
+                ),
+                _cylinder(
+                    "prop_front_lens",
+                    (-876, 610, 0),
+                    88,
+                    16,
+                    5,
+                    (1, 0, 0),
+                    material_id="mat_dark_glass",
+                ),
+                _showcase_sweep_tube(
+                    "prop_grip",
+                    (-80, 320, 0),
+                    path_points=(
+                        (-50, 210, 0),
+                        (-30, 95, 0),
+                        (0, -50, 0),
+                        (55, -205, 0),
+                    ),
+                    profile_scale=(62, 48),
                     material=1,
                     material_id="mat_rubber",
-                    main_axis="y",
                 ),
-                _capsule("prop_rear_housing", (650, 610, 0), 205, 520, 0, (1, 0, 0)),
-                _box(
-                    "prop_sensor_housing",
-                    (70, 850, 0),
-                    (300, 96, 150),
-                    3,
+                _showcase_loft_shell(
+                    "prop_lower_fore_shell",
+                    (-330, 455, 0),
+                    axis_length=520,
+                    cross_section_scale=(88, 138),
+                    sections=(
+                        (-1.0, 0.45, 0.55),
+                        (-0.55, 0.9, 0.9),
+                        (0.35, 1.0, 1.0),
+                        (1.0, 0.5, 0.65),
+                    ),
+                    material=3,
                     material_id="mat_composite",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
+                _showcase_loft_shell(
+                    "prop_rear_housing",
+                    (610, 610, 0),
+                    axis_length=420,
+                    cross_section_scale=(170, 160),
+                    sections=(
+                        (-1.0, 1.0, 1.0),
+                        (-0.3, 0.92, 0.96),
+                        (0.5, 0.7, 0.76),
+                        (1.0, 0.4, 0.52),
+                    ),
+                    material=0,
+                    material_id="mat_primary",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
+                _showcase_loft_shell(
+                    "prop_sensor_housing",
+                    (20, 825, 0),
+                    axis_length=300,
+                    cross_section_scale=(70, 58),
+                    sections=(
+                        (-1.0, 0.55, 0.7),
+                        (-0.3, 1.0, 1.0),
+                        (0.6, 0.85, 0.92),
+                        (1.0, 0.55, 0.6),
+                    ),
+                    material=3,
+                    material_id="mat_composite",
+                    resample_count=16,
+                    profile_shape="hard_surface",
+                ),
+                _cylinder(
+                    "prop_sensor_glass",
+                    (-137, 825, 0),
+                    40,
+                    18,
+                    5,
+                    (1, 0, 0),
+                    material_id="mat_dark_glass",
                 ),
                 _box(
-                    "prop_sensor_glass",
-                    (-86, 850, 0),
-                    (20, 62, 96),
-                    5,
-                    material_id="mat_dark_glass",
+                    "prop_color_badge",
+                    (360, 515, 181),
+                    (110, 28, 18),
+                    2,
+                    material_id="mat_signal_red",
                 ),
             ],
             "compact_prop_b": [_capsule("prop_capsule_body", (0, 570, 0), 300, 1500, 0, (1, 0, 0)), _box("prop_side_housing", (100, 520, -390), (680, 260, 180), 1), _box("prop_grip", (-250, 170, 0), (300, 560, 280), 1), _wedge("prop_optic", (250, 840, 0), (360, 180, 220), 2), _box("prop_panel", (520, 590, 390), (380, 80, 220), 2)],
@@ -3451,7 +4017,50 @@ def _cylinder(
     *,
     material_id: str | None = None,
 ) -> BoxPrimitive:
-    return BoxPrimitive(role, center, (radius * 2, height, radius * 2), material, "cylinder", radius, height, axis, material_id=material_id)
+    return BoxPrimitive(
+        role,
+        center,
+        (radius * 2, height, radius * 2),
+        material,
+        "cylinder",
+        radius,
+        height,
+        axis,
+        radial_segments=RADIAL_PRIMITIVE_SEGMENTS,
+        material_id=material_id,
+    )
+
+
+def _apply_artifact_profile_to_primitives(
+    primitives: Sequence[GeometryPrimitive],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> List[GeometryPrimitive]:
+    profile = geometry_artifact_profile_manifest(artifact_profile_id)
+    result: List[GeometryPrimitive] = []
+    for primitive in primitives:
+        if isinstance(primitive, CsgMeshPrimitive):
+            result.append(primitive)
+            continue
+        updates: Dict[str, Any] = {}
+        if primitive.primitive_kind in {"cylinder", "capsule"}:
+            updates["radial_segments"] = int(profile["radial_segments"])
+        if primitive.primitive_kind == "capsule":
+            updates["capsule_hemisphere_segments"] = int(
+                profile["capsule_hemisphere_segments"]
+            )
+        if (
+            artifact_profile_id == "production_concept"
+            and primitive.primitive_kind in {"revolve", "revolve_profile"}
+        ):
+            updates["radial_segments"] = max(
+                int(primitive.radial_segments),
+                int(profile["radial_segments"]),
+            )
+        if primitive.primitive_kind in {"loft_profile", "sweep_profile"}:
+            updates["smooth_normals"] = bool(profile["smooth_loft_normals"])
+        result.append(replace(primitive, **updates) if updates else primitive)
+    return result
 
 
 def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
@@ -3462,9 +4071,11 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
     if primitive.primitive_kind == "wedge":
         return 8
     if primitive.primitive_kind == "cylinder":
-        return RADIAL_PRIMITIVE_SEGMENTS * 4
+        return primitive.radial_segments * 4
     if primitive.primitive_kind == "capsule":
-        return RADIAL_PRIMITIVE_SEGMENTS * (10 * 2 - 2)
+        return primitive.radial_segments * (
+            primitive.capsule_hemisphere_segments * 4 - 2
+        )
     if primitive.primitive_kind == "extrude":
         return 4 * len(primitive.profile_points) - 4
     if primitive.primitive_kind == "extrude_profile":
@@ -3472,8 +4083,14 @@ def _primitive_triangle_count(primitive: GeometryPrimitive) -> int:
         cap_triangles = len(_triangulate_profile_cap(list(primitive.profile_points), [list(hole) for hole in primitive.profile_holes]))
         return edge_count * 2 + cap_triangles * int(primitive.cap_start) + cap_triangles * int(primitive.cap_end)
     if primitive.primitive_kind == "revolve":
-        segments = 16 if abs(primitive.revolve_angle - math.pi * 2) < 1e-6 else 15
-        return 2 * segments * (len(primitive.profile_points) - 1)
+        segments = (
+            primitive.radial_segments
+            if abs(primitive.revolve_angle - math.pi * 2) < 1e-6
+            else max(1, primitive.radial_segments - 1)
+        )
+        return segments * _revolve_side_triangles_per_strip(
+            primitive.profile_points, False
+        )
     if primitive.primitive_kind == "revolve_profile":
         strips = primitive.radial_segments
         side = strips * _revolve_side_triangles_per_strip(primitive.profile_points, primitive.profile_closed)
@@ -4013,12 +4630,101 @@ def _material_ids_for_primitives(primitives: Sequence[GeometryPrimitive]) -> set
     return result
 
 
+def _operation_has_non_identity_rotation(args: Mapping[str, Any]) -> bool:
+    rotation = args.get("rotation", [0.0, 0.0, 0.0])
+    if not isinstance(rotation, list) or len(rotation) != 3:
+        return True
+    try:
+        return any(abs(float(value)) > 1e-12 for value in rotation)
+    except (TypeError, ValueError):
+        return True
+
+
+def _apply_static_operation_rotation(
+    primitives: Sequence[GeometryPrimitive],
+    args: Mapping[str, Any],
+    operation_id: str,
+    op: Any,
+) -> List[GeometryPrimitive]:
+    rotation = args.get("rotation", [0.0, 0.0, 0.0])
+    if not isinstance(rotation, list) or len(rotation) != 3:
+        raise _runtime_operation_error(operation_id, op, "rotation must be a three-number vector")
+    try:
+        radians = tuple(float(value) for value in rotation)
+    except (TypeError, ValueError) as exc:
+        raise _runtime_operation_error(operation_id, op, "rotation must be a three-number vector") from exc
+    if not all(math.isfinite(value) and abs(value) <= math.pi + 1e-9 for value in radians):
+        raise _runtime_operation_error(operation_id, op, "rotation must be finite and within one Euler turn")
+    return [
+        replace(item, rotation_radians=radians, rotation_origin_mm=item.center_mm)
+        if isinstance(item, BoxPrimitive) else item
+        for item in primitives
+    ]
+
+
+def _primitive_has_static_rotation(primitive: GeometryPrimitive) -> bool:
+    return isinstance(primitive, BoxPrimitive) and any(
+        abs(value) > 1e-12 for value in primitive.rotation_radians
+    )
+
+
+def _rotation_matrix_xyz(rotation: Tuple[float, float, float]) -> Tuple[Tuple[float, float, float], ...]:
+    rx, ry, rz = rotation
+    sx, cx = math.sin(rx), math.cos(rx)
+    sy, cy = math.sin(ry), math.cos(ry)
+    sz, cz = math.sin(rz), math.cos(rz)
+    return (
+        (cy * cz, cz * sx * sy - cx * sz, sx * sz + cx * cz * sy),
+        (cy * sz, cx * cz + sx * sy * sz, cx * sy * sz - cz * sx),
+        (-sy, cy * sx, cx * cy),
+    )
+
+
+def _apply_static_rotation_to_geometry(
+    primitive: BoxPrimitive,
+    positions: bytes,
+    normals: bytes,
+    lower: List[float],
+    upper: List[float],
+) -> Tuple[bytes, bytes, List[float], List[float]]:
+    if not _primitive_has_static_rotation(primitive):
+        return positions, normals, lower, upper
+    matrix = _rotation_matrix_xyz(primitive.rotation_radians)
+    origin = primitive.rotation_origin_mm or primitive.center_mm
+    origin_m = tuple(float(value) / 1000 for value in origin)
+    position_values = list(struct.unpack(f"<{len(positions) // 4}f", positions))
+    normal_values = list(struct.unpack(f"<{len(normals) // 4}f", normals))
+
+    def rotate(vector: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        return tuple(sum(matrix[row][column] * vector[column] for column in range(3)) for row in range(3))
+
+    for offset in range(0, len(position_values), 3):
+        relative = tuple(position_values[offset + axis] - origin_m[axis] for axis in range(3))
+        rotated = rotate(relative)
+        for axis in range(3):
+            position_values[offset + axis] = origin_m[axis] + rotated[axis]
+    for offset in range(0, len(normal_values), 3):
+        rotated = rotate(tuple(normal_values[offset + axis] for axis in range(3)))
+        length = math.sqrt(sum(value * value for value in rotated))
+        if length <= 1e-12 or not math.isfinite(length):
+            raise ValueError("STATIC_ROTATION_NORMAL_INVALID")
+        for axis in range(3):
+            normal_values[offset + axis] = rotated[axis] / length
+    return (
+        struct.pack(f"<{len(position_values)}f", *position_values),
+        struct.pack(f"<{len(normal_values)}f", *normal_values),
+        [min(position_values[axis::3]) for axis in range(3)],
+        [max(position_values[axis::3]) for axis in range(3)],
+    )
+
+
 def _feature_node_readback(
     *,
     operation: Mapping[str, Any],
     primitives: Sequence[GeometryPrimitive],
     input_hashes: Sequence[str],
     csg_depth: int,
+    artifact_profile_sha256: str,
 ) -> Dict[str, Any]:
     operation_id = str(operation["operation_id"])
     op = str(operation["op"])
@@ -4032,6 +4738,7 @@ def _feature_node_readback(
         "input_hashes": list(input_hashes),
         "parameters_sha256": parameters_sha256,
         "runtime_manifest_version": MANIFEST_SCHEMA_VERSION,
+        "artifact_profile_sha256": artifact_profile_sha256,
         "kernel_id": kernel_id,
         "kernel_version": kernel_version,
     }
@@ -4160,7 +4867,18 @@ def _glb_payloads_for_primitive(primitive: GeometryPrimitive) -> List[Dict[str, 
     if isinstance(primitive, CsgMeshPrimitive):
         return _csg_glb_payloads(primitive)
     positions, normals, uvs, indices, lower, upper = _primitive_geometry(primitive)
-    weighted_kinds = {"cylinder", "capsule", "revolve", "revolve_profile", "sweep_profile", "bevel_box"}
+    positions, normals, lower, upper = _apply_static_rotation_to_geometry(
+        primitive, positions, normals, lower, upper,
+    )
+    weighted_kinds = {
+        "cylinder",
+        "capsule",
+        "revolve",
+        "revolve_profile",
+        "sweep_profile",
+        "bevel_box",
+        *(["loft_profile"] if primitive.smooth_normals else []),
+    }
     if primitive.primitive_kind == "bevel_box":
         edge_finish = {
             "mode": "bevel_approximation",
@@ -4326,17 +5044,72 @@ def _build_glb(
     boxes: Sequence[GeometryPrimitive],
     *,
     feature_history: Sequence[Mapping[str, Any]],
+    artifact_profile_id: GeometryArtifactProfileId,
+    surface_adornments_by_zone: Mapping[str, Mapping[str, object]],
+    surface_layers_by_zone: Mapping[str, Mapping[str, object]],
 ) -> Tuple[bytes, List[float]]:
     binary = bytearray()
     views: List[Dict[str, Any]] = []
     accessors: List[Dict[str, Any]] = []
     primitives: List[Dict[str, Any]] = []
+    used_material_indices: set[int] = set()
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
+    sorted_surface_adornments = tuple(sorted(
+        surface_adornments_by_zone.values(),
+        key=lambda item: (str(item["program_id"]), surface_adornment_material_id(item)),
+    ))
+    adornment_index_by_zone = {
+        str(program["target_zone_id"]): builtin_visual_material_count() + index
+        for index, program in enumerate(sorted_surface_adornments)
+    }
+    sorted_surface_layers = tuple(sorted(
+        surface_layers_by_zone.values(),
+        key=lambda item: surface_layer_material_id(item),
+    ))
+    surface_layer_index_by_zone = {
+        str(layer["adornments"][0]["target_zone_id"]): (
+            builtin_visual_material_count() + len(sorted_surface_adornments) + index
+        )
+        for index, layer in enumerate(sorted_surface_layers)
+    }
     for box_index, box in enumerate(boxes):
         part_role = box.part_role
         part_instance_id = f"partface_{part_role}_{box_index:04d}"
         for payload_index, raw_payload in enumerate(_glb_payloads_for_primitive(box)):
+            zone_id = raw_payload.get("extras", {}).get("forgecad_material_zone_id")
+            adornment = (
+                surface_adornments_by_zone.get(zone_id)
+                if isinstance(zone_id, str)
+                else None
+            )
+            surface_layer = (
+                surface_layers_by_zone.get(zone_id)
+                if isinstance(zone_id, str)
+                else None
+            )
+            if surface_layer is not None:
+                raw_payload = dict(raw_payload)
+                raw_payload["material_index"] = surface_layer_index_by_zone[zone_id]
+                extras = dict(raw_payload["extras"])
+                base_material_id = str(surface_layer["adornments"][0]["base_material"])
+                extras["forgecad_base_material_id"] = extras["forgecad_material_id"]
+                if extras["forgecad_base_material_id"] != base_material_id:
+                    raise ValueError("surface layer target zone lost its exact base material")
+                extras["forgecad_material_id"] = surface_layer_material_id(surface_layer)
+                extras["forgecad_surface_layer_lowering"] = dict(surface_layer)
+                extras["forgecad_surface_layer_lowering_sha256"] = surface_layer_lowering_sha256(surface_layer)
+                extras["forgecad_surface_layer_retained_layers_sha256"] = surface_layer["retained_layers_sha256"]
+                raw_payload["extras"] = extras
+            elif adornment is not None:
+                raw_payload = dict(raw_payload)
+                raw_payload["material_index"] = adornment_index_by_zone[zone_id]
+                extras = dict(raw_payload["extras"])
+                extras["forgecad_base_material_id"] = extras["forgecad_material_id"]
+                extras["forgecad_material_id"] = surface_adornment_material_id(adornment)
+                extras["forgecad_surface_adornment"] = dict(adornment)
+                extras["forgecad_surface_adornment_sha256"] = surface_adornment_program_sha256(adornment)
+                raw_payload["extras"] = extras
             payload = _surface_complete_payload(
                 raw_payload,
                 part_instance_id=part_instance_id,
@@ -4377,8 +5150,16 @@ def _build_glb(
                 "mode": 4,
                 "extras": payload["extras"],
             })
-    visual_resources = _append_visual_pbr_resources(binary, views)
-    document = {
+            used_material_indices.add(int(payload["material_index"]))
+    visual_resources = _append_visual_pbr_resources(
+        binary,
+        views,
+        artifact_profile_id=artifact_profile_id,
+        used_material_indices=used_material_indices,
+        surface_adornments=sorted_surface_adornments,
+        surface_layers=sorted_surface_layers,
+    )
+    document: Dict[str, Any] = {
         "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram surface-complete/1"},
         "scene": 0,
         "scenes": [{"nodes": [0]}],
@@ -4387,15 +5168,19 @@ def _build_glb(
         "materials": visual_resources["materials"],
         "images": visual_resources["images"],
         "textures": visual_resources["textures"],
-        "extensionsUsed": visual_resources["extensions_used"],
         "buffers": [{"byteLength": len(binary)}],
         "bufferViews": views,
         "accessors": accessors,
         "extras": {
             "forgecad_feature_history": list(feature_history),
             "forgecad_visual_environment": studio_environment_manifest(),
+            "forgecad_geometry_artifact_profile": geometry_artifact_profile_manifest(
+                artifact_profile_id
+            ),
         },
     }
+    if visual_resources["extensions_used"]:
+        document["extensionsUsed"] = visual_resources["extensions_used"]
     json_chunk = json.dumps(document, separators=(",", ":")).encode("utf-8")
     json_chunk += b" " * ((4 - len(json_chunk) % 4) % 4)
     binary.extend(b"\x00" * ((4 - len(binary) % 4) % 4))
@@ -4410,7 +5195,15 @@ def _build_glb(
     return payload, [round((maximum[i] - minimum[i]) * 1000, 4) for i in range(3)]
 
 
-def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _append_visual_pbr_resources(
+    binary: bytearray,
+    views: List[Dict[str, Any]],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+    used_material_indices: set[int],
+    surface_adornments: Sequence[Mapping[str, object]],
+    surface_layers: Sequence[Mapping[str, object]],
+) -> Dict[str, Any]:
     """Embed complete visual-only PBR maps in the same GLB as geometry.
 
     Geometry emits a fixed, bounded material-index table.  A user-facing
@@ -4424,8 +5217,28 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
     materials: List[Dict[str, Any]] = []
     extensions_used: set[str] = set()
     for material_index in range(builtin_visual_material_count()):
-        texture_set = builtin_visual_texture_set_for_material_index(material_index)
         properties = builtin_material_properties(material_index)
+        if (
+            artifact_profile_id == "production_concept"
+            and material_index not in used_material_indices
+        ):
+            materials.append({
+                "name": f"MAT_UNUSED_{str(properties['material_id']).removeprefix('mat_')}",
+                "pbrMetallicRoughness": {
+                    "baseColorFactor": [1, 1, 1, 1],
+                    "metallicFactor": 0,
+                    "roughnessFactor": 1,
+                },
+                "extras": {
+                    "forgecad_visual_only": True,
+                    "forgecad_unused_material_placeholder": True,
+                },
+            })
+            continue
+        texture_set = builtin_visual_texture_set_for_material_index(
+            material_index,
+            artifact_profile_id=artifact_profile_id,
+        )
         texture_by_role: Dict[str, int] = {}
         for texture_map in texture_set.maps:
             payload = visual_texture_png_bytes(texture_map.texture_id)
@@ -4468,12 +5281,174 @@ def _append_visual_pbr_resources(binary: bytearray, views: List[Dict[str, Any]])
         if float(properties["clearcoat"]) > 0:
             extensions["KHR_materials_clearcoat"] = {
                 "clearcoatFactor": float(properties["clearcoat"]),
-                "clearcoatRoughnessFactor": 0.2,
+                "clearcoatRoughnessFactor": 1,
+                "clearcoatRoughnessTexture": {
+                    "index": texture_by_role["metallic_roughness"],
+                },
+                "clearcoatNormalTexture": {
+                    "index": texture_by_role["normal"],
+                    "scale": float(properties["normal_scale"]),
+                },
             }
         if float(properties["transmission"]) > 0:
             extensions["KHR_materials_transmission"] = {
                 "transmissionFactor": float(properties["transmission"]),
             }
+            extensions["KHR_materials_ior"] = {"ior": float(properties["ior"])}
+        if extensions:
+            material["extensions"] = extensions
+            extensions_used.update(extensions)
+        materials.append(material)
+    for adornment_index, adornment in enumerate(surface_adornments):
+        material_index = builtin_visual_material_count() + adornment_index
+        if material_index not in used_material_indices:
+            # The writer must never serialize speculative A005 material rows:
+            # only an actual primitive binding may append a dynamic texture set.
+            continue
+        texture_set = surface_adornment_visual_texture_set(
+            adornment,
+            artifact_profile_id=artifact_profile_id,
+        )
+        base_index, texture_base_material_id = builtin_visual_material_binding(
+            str(adornment["base_material"])
+        )
+        properties = builtin_material_properties(base_index)
+        texture_by_role: Dict[str, int] = {}
+        for texture_map in texture_set.maps:
+            payload = surface_adornment_visual_texture_png_bytes(
+                adornment,
+                artifact_profile_id=artifact_profile_id,
+                texture_role=texture_map.texture_role,
+            )
+            if hashlib.sha256(payload).hexdigest() != texture_map.sha256 or len(payload) != texture_map.byte_size:
+                raise ValueError("surface adornment texture bytes do not match their manifest")
+            view_index = _add_binary_view(binary, views, payload)
+            image_index = len(images)
+            images.append({
+                "name": texture_map.texture_id,
+                "bufferView": view_index,
+                "mimeType": texture_map.mime_type,
+                "extras": {"forgecad_visual_texture": texture_map.model_dump(mode="json")},
+            })
+            texture_index = len(textures)
+            textures.append({"name": texture_map.texture_id, "source": image_index})
+            texture_by_role[texture_map.texture_role] = texture_index
+        pbr: Dict[str, Any] = {
+            "baseColorFactor": [1, 1, 1, float(properties["alpha"])],
+            "metallicFactor": 1,
+            "roughnessFactor": 1,
+            "baseColorTexture": {"index": texture_by_role["base_color"]},
+            "metallicRoughnessTexture": {"index": texture_by_role["metallic_roughness"]},
+        }
+        material = {
+            "name": f"MAT_{texture_set.material_id.removeprefix('mat_')}",
+            "pbrMetallicRoughness": pbr,
+            "normalTexture": {"index": texture_by_role["normal"], "scale": float(properties["normal_scale"])},
+            "occlusionTexture": {"index": texture_by_role["occlusion"], "strength": 1},
+            "emissiveTexture": {"index": texture_by_role["emissive"]},
+            "emissiveFactor": [1, 1, 1],
+            "extras": {
+                "forgecad_visual_texture_set_id": texture_set.visual_texture_set_id,
+                "forgecad_texture_material_id": texture_set.material_id,
+                "forgecad_base_material_id": texture_base_material_id,
+                "forgecad_surface_adornment": dict(adornment),
+                "forgecad_surface_adornment_sha256": surface_adornment_program_sha256(adornment),
+                "forgecad_visual_only": True,
+            },
+        }
+        extensions: Dict[str, Any] = {}
+        if float(properties["clearcoat"]) > 0:
+            extensions["KHR_materials_clearcoat"] = {
+                "clearcoatFactor": float(properties["clearcoat"]),
+                "clearcoatRoughnessFactor": 1,
+                "clearcoatRoughnessTexture": {"index": texture_by_role["metallic_roughness"]},
+                "clearcoatNormalTexture": {
+                    "index": texture_by_role["normal"],
+                    "scale": float(properties["normal_scale"]),
+                },
+            }
+        if float(properties["transmission"]) > 0:
+            extensions["KHR_materials_transmission"] = {
+                "transmissionFactor": float(properties["transmission"]),
+            }
+            extensions["KHR_materials_ior"] = {"ior": float(properties["ior"])}
+        if extensions:
+            material["extensions"] = extensions
+            extensions_used.update(extensions)
+        materials.append(material)
+    for surface_layer_index, lowering in enumerate(surface_layers):
+        material_index = (
+            builtin_visual_material_count()
+            + len(surface_adornments)
+            + surface_layer_index
+        )
+        if material_index not in used_material_indices:
+            continue
+        normalized_layer = normalize_surface_layer_lowering(lowering)
+        texture_set = surface_layer_visual_texture_set(
+            normalized_layer,
+            artifact_profile_id=artifact_profile_id,
+        )
+        base_material_id = str(normalized_layer["adornments"][0]["base_material"])
+        base_index, texture_base_material_id = builtin_visual_material_binding(base_material_id)
+        properties = builtin_material_properties(base_index)
+        texture_by_role: Dict[str, int] = {}
+        for texture_map in texture_set.maps:
+            payload = surface_layer_visual_texture_png_bytes(
+                normalized_layer,
+                artifact_profile_id=artifact_profile_id,
+                texture_role=texture_map.texture_role,
+            )
+            if hashlib.sha256(payload).hexdigest() != texture_map.sha256 or len(payload) != texture_map.byte_size:
+                raise ValueError("surface layer texture bytes do not match their manifest")
+            view_index = _add_binary_view(binary, views, payload)
+            image_index = len(images)
+            images.append({
+                "name": texture_map.texture_id,
+                "bufferView": view_index,
+                "mimeType": texture_map.mime_type,
+                "extras": {"forgecad_visual_texture": texture_map.model_dump(mode="json")},
+            })
+            texture_index = len(textures)
+            textures.append({"name": texture_map.texture_id, "source": image_index})
+            texture_by_role[texture_map.texture_role] = texture_index
+        pbr: Dict[str, Any] = {
+            "baseColorFactor": [1, 1, 1, float(properties["alpha"])],
+            "metallicFactor": 1,
+            "roughnessFactor": 1,
+            "baseColorTexture": {"index": texture_by_role["base_color"]},
+            "metallicRoughnessTexture": {"index": texture_by_role["metallic_roughness"]},
+        }
+        material = {
+            "name": f"MAT_{texture_set.material_id.removeprefix('mat_')}",
+            "pbrMetallicRoughness": pbr,
+            "normalTexture": {"index": texture_by_role["normal"], "scale": float(properties["normal_scale"])},
+            "occlusionTexture": {"index": texture_by_role["occlusion"], "strength": 1},
+            "emissiveTexture": {"index": texture_by_role["emissive"]},
+            "emissiveFactor": [1, 1, 1],
+            "extras": {
+                "forgecad_visual_texture_set_id": texture_set.visual_texture_set_id,
+                "forgecad_texture_material_id": texture_set.material_id,
+                "forgecad_base_material_id": texture_base_material_id,
+                "forgecad_surface_layer_lowering": dict(normalized_layer),
+                "forgecad_surface_layer_lowering_sha256": surface_layer_lowering_sha256(normalized_layer),
+                "forgecad_surface_layer_retained_layers_sha256": normalized_layer["retained_layers_sha256"],
+                "forgecad_visual_only": True,
+            },
+        }
+        extensions: Dict[str, Any] = {}
+        if float(properties["clearcoat"]) > 0:
+            extensions["KHR_materials_clearcoat"] = {
+                "clearcoatFactor": float(properties["clearcoat"]),
+                "clearcoatRoughnessFactor": 1,
+                "clearcoatRoughnessTexture": {"index": texture_by_role["metallic_roughness"]},
+                "clearcoatNormalTexture": {
+                    "index": texture_by_role["normal"],
+                    "scale": float(properties["normal_scale"]),
+                },
+            }
+        if float(properties["transmission"]) > 0:
+            extensions["KHR_materials_transmission"] = {"transmissionFactor": float(properties["transmission"])}
             extensions["KHR_materials_ior"] = {"ior": float(properties["ior"])}
         if extensions:
             material["extensions"] = extensions
@@ -4541,6 +5516,11 @@ def _primitive_geometry(primitive: BoxPrimitive) -> Tuple[bytes, bytes, bytes, b
 
 
 def _sweep_geometry(sweep: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
+    # Keep the path in the source operation's local frame.  The loft emitted
+    # below retains ``sweep.center_mm`` and _loft_geometry applies that origin
+    # once while writing vertices.  Adding it here as well would translate a
+    # sweep twice, and a subsequent static rotation would no longer agree with
+    # the Rust-baked Recipe connector frame.
     path = list(sweep.sweep_path_mm)
     profile = list(sweep.profile_points)
     if len(path) < (3 if sweep.path_closed else 2) or len(profile) < 8:
@@ -4670,6 +5650,34 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
             raise ValueError("loft contains a zero-area face")
         return tuple(item / length for item in value)
 
+    smooth_normals: List[List[Tuple[float, float, float]]] = []
+    if loft.smooth_normals:
+        for ring_index, ring in enumerate(rings):
+            previous_ring = rings[max(0, ring_index - 1)]
+            following_ring = rings[min(len(rings) - 1, ring_index + 1)]
+            ring_normals: List[Tuple[float, float, float]] = []
+            for point_index, point in enumerate(ring):
+                previous_point = ring[(point_index - 1) % point_count]
+                following_point = ring[(point_index + 1) % point_count]
+                perimeter_tangent = vector(previous_point, following_point)
+                longitudinal_tangent = vector(
+                    previous_ring[point_index],
+                    following_ring[point_index],
+                )
+                candidate = cross(longitudinal_tangent, perimeter_tangent)
+                length = math.sqrt(sum(item * item for item in candidate))
+                if length <= 1e-12:
+                    candidate = vector(ring_centers[ring_index], point)
+                    length = math.sqrt(sum(item * item for item in candidate))
+                if length <= 1e-12:
+                    raise ValueError("loft contains a degenerate smooth-normal sample")
+                candidate = tuple(item / length for item in candidate)
+                outward = vector(ring_centers[ring_index], point)
+                if sum(candidate[axis] * outward[axis] for axis in range(3)) < 0:
+                    candidate = tuple(-item for item in candidate)
+                ring_normals.append(candidate)
+            smooth_normals.append(ring_normals)
+
     def append(point: Tuple[float, float, float], normal: Tuple[float, float, float], uv: Tuple[float, float]) -> int:
         positions.extend(tuple(center[index] + point[index] / 1000 for index in range(3)))
         normals.extend(normal)
@@ -4685,16 +5693,28 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
         for index in range(point_count):
             following = (index + 1) % point_count
             quad = [rings[span][index], rings[span + 1][index], rings[span + 1][following], rings[span][following]]
+            normal_refs = [
+                (span, index),
+                (span + 1, index),
+                (span + 1, following),
+                (span, following),
+            ]
             face_normal = normalized(cross(vector(quad[0], quad[1]), vector(quad[0], quad[2])))
             midpoint = tuple(sum(point[axis] for point in quad) / 4 for axis in range(3))
             outward = tuple(midpoint[axis] - centerline[axis] for axis in range(3))
             if sum(face_normal[axis] * outward[axis] for axis in range(3)) < 0:
                 quad = [quad[0], quad[3], quad[2], quad[1]]
+                normal_refs = [
+                    normal_refs[0],
+                    normal_refs[3],
+                    normal_refs[2],
+                    normal_refs[1],
+                ]
                 face_normal = tuple(-value for value in face_normal)
             current_u0, current_u1 = perimeter_repeats[span][index:index + 2]
             next_u0, next_u1 = perimeter_repeats[span + 1][index:index + 2]
             base = len(positions) // 3
-            for point, uv in zip(
+            for vertex_offset, (point, uv) in enumerate(zip(
                 quad,
                 (
                     (current_u0, v0),
@@ -4702,8 +5722,13 @@ def _loft_geometry(loft: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List
                     (next_u1, v1),
                     (current_u1, v0),
                 ),
-            ):
-                append(point, face_normal, uv)
+            )):
+                normal = (
+                    smooth_normals[normal_refs[vertex_offset][0]][normal_refs[vertex_offset][1]]
+                    if loft.smooth_normals
+                    else face_normal
+                )
+                append(point, normal, uv)
             indices.extend((base, base + 1, base + 2, base, base + 2, base + 3))
 
     axis_normal = {
@@ -4835,7 +5860,8 @@ def _bevel_box_geometry(bevel: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
 
 
 def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
-    segments = RADIAL_PRIMITIVE_SEGMENTS
+    segments = capsule.radial_segments
+    hemisphere_segments = capsule.capsule_hemisphere_segments
     cx, cy, cz = (value / 1000 for value in capsule.center_mm)
     radius = min(capsule.radius_mm / 1000, capsule.height_mm / 2000)
     half_straight = max(0.0, capsule.height_mm / 2000 - radius)
@@ -4855,11 +5881,11 @@ def _capsule_geometry(capsule: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
         return (local_x, local_y * sign, local_z * sign)
 
     profile: List[Tuple[float, float, Tuple[float, float]]] = []
-    for index in range(6):
-        theta = (math.pi / 2) * index / 5
+    for index in range(hemisphere_segments + 1):
+        theta = (math.pi / 2) * index / hemisphere_segments
         profile.append((half_straight + radius * math.cos(theta), radius * math.sin(theta), (math.sin(theta), math.cos(theta))))
-    for index in range(1, 6):
-        theta = (math.pi / 2) + (math.pi / 2) * index / 5
+    for index in range(1, hemisphere_segments + 1):
+        theta = (math.pi / 2) + (math.pi / 2) * index / hemisphere_segments
         profile.append((-half_straight + radius * math.cos(theta), radius * math.sin(theta), (math.sin(theta), math.cos(theta))))
 
     uv_unit = VISUAL_UV_REPEAT_MM / 1000
@@ -5203,7 +6229,7 @@ def _revolve_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
     points = list(revolve.profile_points)
     if len(points) < 3 or any(radius < 0 for radius, _ in points):
         raise ValueError("revolve requires a non-negative radius profile")
-    segments = 16
+    segments = revolve.radial_segments
     cx, cy, cz = (value / 1000 for value in revolve.center_mm)
     angle = revolve.revolve_angle
     positions: List[float] = []
@@ -5212,24 +6238,82 @@ def _revolve_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes
     indices: List[int] = []
     min_height = min(point[1] for point in points)
     height_span = max(max(point[1] for point in points) - min_height, 1e-9)
+
+    def profile_normal(index: int) -> Tuple[float, float]:
+        previous = points[index - 1] if index > 0 else points[index]
+        following = points[index + 1] if index + 1 < len(points) else points[index]
+        dr, dy = following[0] - previous[0], following[1] - previous[1]
+        length = math.sqrt(dr * dr + dy * dy)
+        return (dy / length, -dr / length) if length > 1e-9 else (0.0, 1.0)
+
+    def pole_normal(index: int) -> Tuple[float, float, float]:
+        """Return the stable axial normal for a shared endpoint pole.
+
+        A pole cannot retain the radial normal from every former ring vertex.
+        Its adjacent profile slope determines whether it is the lower or upper
+        cap of the visual surface; choosing that axial direction keeps the
+        shared normal outward for the fan triangles.
+        """
+
+        _radial, vertical = profile_normal(index)
+        return (0.0, 1.0 if vertical >= 0 else -1.0, 0.0)
+    # An axis point is a single geometric pole, not a ring of coincident
+    # vertices.  A repeated pole ring makes each adjacent quad emit one
+    # zero-area triangle and turns an otherwise closed full revolve into a
+    # topology failure at readback.  Keep non-axis vertices as before, but
+    # route every ring of an axis profile point to its one pole.
+    #
+    # This legacy inline-points path deliberately retains its existing
+    # partial-angle ring count.  The ProfileSketch contract path below owns
+    # partial-end seam/cap semantics.
+    vertex_indices: List[List[int]] = []
+    pole_indices: Dict[int, int] = {}
     for segment in range(segments):
         theta = angle * segment / segments
         cos_theta = math.cos(theta)
         sin_theta = math.sin(theta)
-        for radius, height in points:
+        ring_indices: List[int] = []
+        for point_index, (radius, height) in enumerate(points):
+            if radius <= 1e-9 and point_index in pole_indices:
+                ring_indices.append(pole_indices[point_index])
+                continue
             positions.extend((cx + radius * cos_theta / 1000, cy + height / 1000, cz + radius * sin_theta / 1000))
-            normal_length = math.sqrt(radius * radius + 1.0)
-            normals.extend((cos_theta * radius / normal_length, 1.0 / normal_length, sin_theta * radius / normal_length))
-            uvs.extend((segment / segments, (height - min_height) / height_span))
+            if radius <= 1e-9:
+                normals.extend(pole_normal(point_index))
+            else:
+                radial_normal, vertical_normal = profile_normal(point_index)
+                normals.extend((
+                    cos_theta * radial_normal,
+                    vertical_normal,
+                    sin_theta * radial_normal,
+                ))
+            # A pole has no circumferential direction. Pinning it to the seam
+            # keeps one vertex while preserving non-degenerate UV fan faces.
+            uvs.extend((0.0 if radius <= 1e-9 else segment / segments, (height - min_height) / height_span))
+            vertex_index = len(positions) // 3 - 1
+            ring_indices.append(vertex_index)
+            if radius <= 1e-9:
+                pole_indices[point_index] = vertex_index
+        vertex_indices.append(ring_indices)
     profile_count = len(points)
     for segment in range(segments):
         next_segment = (segment + 1) % segments if abs(angle - math.pi * 2) < 1e-6 else segment + 1
         if next_segment >= segments:
             break
         for point_index in range(profile_count - 1):
-            base = segment * profile_count + point_index
-            next_base = next_segment * profile_count + point_index
-            indices.extend((base, next_base, next_base + 1, base, next_base + 1, base + 1))
+            base = vertex_indices[segment][point_index]
+            next_base = vertex_indices[next_segment][point_index]
+            current_next = vertex_indices[segment][point_index + 1]
+            next_next = vertex_indices[next_segment][point_index + 1]
+            radius, next_radius = points[point_index][0], points[point_index + 1][0]
+            if radius <= 1e-9 and next_radius <= 1e-9:
+                continue
+            if radius <= 1e-9:
+                indices.extend((base, current_next, next_next))
+            elif next_radius <= 1e-9:
+                indices.extend((base, current_next, next_base))
+            else:
+                indices.extend((base, next_next, next_base, base, current_next, next_next))
     minimum = [min(positions[index::3]) for index in range(3)]
     maximum = [max(positions[index::3]) for index in range(3)]
     return (struct.pack(f"<{len(positions)}f", *positions), struct.pack(f"<{len(normals)}f", *normals), struct.pack(f"<{len(uvs)}f", *uvs), struct.pack(f"<{len(indices)}H", *indices), minimum, maximum)
@@ -5342,7 +6426,7 @@ def _revolve_contract_geometry(revolve: BoxPrimitive) -> Tuple[bytes, bytes, byt
 
 
 def _cylinder_geometry(cylinder: BoxPrimitive) -> Tuple[bytes, bytes, bytes, bytes, List[float], List[float]]:
-    segments = RADIAL_PRIMITIVE_SEGMENTS
+    segments = cylinder.radial_segments
     cx, cy, cz = (value / 1000 for value in cylinder.center_mm)
     radius = cylinder.radius_mm / 1000
     half_height = cylinder.height_mm / 2000

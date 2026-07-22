@@ -198,6 +198,48 @@ export type AgentComponent = {
   "updated_at": IsoDatetime
 }
 
+export type AgentSkillActivation = {
+  "schema_version": "AgentSkillActivation@1"
+  "activation_id": string
+  "skill_id": string
+  "skill_version": number
+  "skill_sha256": Sha256
+  "enabled": boolean
+  "updated_at": IsoDatetime
+}
+
+export type AgentSkillEvalReport = {
+  "schema_version": "AgentSkillEvalReport@1"
+  "report_id": string
+  "skill_id": string
+  "skill_version": number
+  "skill_sha256": Sha256
+  "status": "passed" | "failed"
+  "findings": Array<string>
+  "evaluated_at": IsoDatetime
+}
+
+export type AgentSkillManifest = {
+  "schema_version": "AgentSkillManifest@1"
+  "skill_id": string
+  "version": number
+  "display_name": string
+  "purpose": string
+  "allowed_domains": Array<"pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept">
+  "triggers": Array<string>
+  "product_tool_ids": Array<"forgecad.domain.inference.v1" | "forgecad.reference.research.v1" | "forgecad.style.recipe_selection.v1" | "forgecad.profile.author.v1" | "forgecad.profile.validate.v1" | "forgecad.shape.author.v1" | "forgecad.shape.validate.v1" | "forgecad.plan.complete_concept.v1" | "forgecad.geometry.build.v1" | "forgecad.geometry.compile_readback.v1" | "forgecad.render.concept.v1" | "forgecad.candidate.evaluate.v1" | "forgecad.preview.prepare.v1">
+  "g819_operations": Array<"box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel">
+  "recipe_ids": Array<string>
+  "material_preset_ids": Array<"mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red">
+  "reference_hashes": Array<Sha256>
+  "success_examples": Array<unknown>
+  "stop_examples": Array<unknown>
+  "author": unknown
+  "source": unknown
+  "license": unknown
+  "non_functional_only": true
+}
+
 export type AgentStructureSuggestionList = {
   "schema_version": "AgentStructureSuggestionList@1"
   "asset_version_id": string
@@ -215,6 +257,35 @@ export type AgentStructureSuggestionList = {
   "unavailable_message": string | null
 }
 
+export type ArmDesignIntent = {
+  "schema_version": "ArmDesignIntent@1"
+  "domain_pack_id": "pack_robotic_arm_concept"
+  "architecture": "serial_chain" | "parallel_link" | "scara" | "gantry" | "delta" | "cantilever"
+  "joint_language": "armored_bearing" | "exposed_ring" | "gimbal_shell" | "capsule_joint" | "bellows_joint"
+  "link_language": "closed_shell" | "twin_rail" | "open_truss" | "tapered_loft" | "tube_frame"
+  "base_language": "round_turntable" | "hex_platform" | "floating_pedestal" | "industrial_deck" | "compact_puck"
+  "wrist_language": "layered_wrist" | "gimbal_wrist" | "cylindrical_wrist" | "fork_wrist"
+  "end_effector_language": "parallel_gripper" | "adaptive_claw" | "precision_tool" | "sensor_probe" | "soft_pad_gripper"
+  "cable_language": "internal_routing" | "braided_external" | "armored_harness" | "minimal_cable"
+  "surface_language": Array<"panel_seams" | "flowline" | "chevron_relief" | "hex_microgrid" | "engraved_ribs" | "fastener_bands">
+  "material_palette": "graphite_blue" | "white_aluminum" | "industrial_yellow" | "warm_copper" | "monochrome_technical"
+  "detail_density": "light" | "medium" | "dense"
+  "pose": "neutral" | "grounded" | "elevated" | "extended" | "folded"
+  "proportion_profile": "compact" | "balanced" | "long_reach" | "heavy_base" | "slender"
+  "style_keywords": Array<string>
+  "source": "user_brief" | "reference_evidence" | "agent_inferred"
+  "visual_only": true
+}
+
+export type AssemblyDeltaProgram = {
+  "schema_version": "AssemblyDeltaProgram@1"
+  "domain_pack_id": "pack_robotic_arm_concept"
+  "base_asset_version_id": string
+  "summary": string
+  "visual_only": true
+  "operations": Array<AddReviewedRecipe | ReplaceReviewedRecipe | SetPartTransform | SetJointPose | SnapPartToConnector>
+}
+
 export type AssemblyGraph = {
   "schema_version": "AssemblyGraph@1"
   "graph_id": Id
@@ -222,14 +293,20 @@ export type AssemblyGraph = {
   "root_part_id": string
   "parts": Array<{
   "part_id": string
+  "recipe_instance_id"?: string
   "role": string
   "parent_part_id": string | null
   "geometry_source": "shape_program" | "module_asset" | "imported_reference"
+  "operation_id"?: string
+  "output_id"?: string
   "transform": Transform
   "connectors": Array<unknown>
+  "pivot"?: unknown
   "joints": Array<unknown>
   "material_zones": Array<string>
+  "material_zone_ids"?: Array<string>
   "editable_parameters": Array<string>
+  "editable_parameter_bindings"?: Array<EditableParameterBinding>
   "locked": boolean
   "provenance": "agent_generated" | "user_created" | "imported"
 }>
@@ -241,6 +318,8 @@ export type AssemblyGraph = {
   "to_connector_id": string
   "status": "connected" | "invalid"
 }>
+  "component_recipe_instances"?: Array<ComponentRecipeInstanceProvenance>
+  "surface_adornments"?: Array<SurfaceAdornmentProgram>
 }
 
 export type AgentBlockoutConceptPreview = {
@@ -258,6 +337,87 @@ export type AgentBlockoutConceptPreview = {
   "png_base64": string
   "sha256": string
   "byte_size": number
+}
+
+export type ComponentRecipeCandidate = {
+  "schema_version": "ComponentRecipeCandidate@1"
+  "candidate_id": string
+  "request_id": string
+  "project_id": string | null
+  "context_mode": "initial_candidate" | "active_asset_edit"
+  "base_asset_version_id": string | null
+  "snapshot_revision": number | null
+  "target_part_id": string | null
+  "recipe": ComponentRecipeRef
+  "instance_path": string
+  "changeset_id": string | null
+  "expanded_shape_program": ShapeProgram
+  "expanded_assembly_graph": AssemblyGraph
+  "component_recipe_instances": Array<ComponentRecipeInstanceProvenance>
+  "registry_sha256": Sha256
+  "candidate_sha256": Sha256
+  "status": "expanded" | "rejected"
+  "quality_profile": "interactive_preview" | "production_concept"
+  "non_functional_only": true
+}
+
+export type ComponentRecipeInstanceProvenance = {
+  "schema_version": "ComponentRecipeInstanceProvenance@1"
+  "instance_id": string
+  "instance_path": string
+  "recipe": ComponentRecipeRef
+  "registry_sha256": Sha256
+  "policy_version": "ComponentRecipePolicy@1"
+  "parent_instance_id": string | null
+  "parent_slot_id": string | null
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "source": {
+  "source_kind": "forgecad_first_party"
+  "source_id": string
+}
+  "license": {
+  "license_id": "ForgeCAD-Internal-Visual-Only"
+  "redistributable": false
+}
+  "review_state": {
+  "review_id": string
+  "reviewed_at": IsoDatetime
+  "reviewer_kind": "forgecad_internal"
+}
+  "quality_status": "passed"
+  "non_functional_only": true
+}
+
+export type ComponentRecipeInstantiationRequest = {
+  "schema_version": "ComponentRecipeInstantiationRequest@1"
+  "request_id": string
+  "project_id": string | null
+  "context_mode": "initial_candidate" | "active_asset_edit"
+  "base_asset_version_id": string | null
+  "snapshot_revision": number | null
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "recipe_registry_sha256": string
+  "recipe": ComponentRecipeRef
+  "target_part_id": string | null
+  "slot_bindings": Array<{
+  "slot_id": string
+  "child_recipe": ComponentRecipeRef
+}>
+  "parameter_values": Array<{
+  "parameter_id": string
+  "value": number
+}>
+  "material_zone_overrides": Array<{
+  "zone_id": string
+  "material_preset_id": string
+}>
+}
+
+export type ComponentRecipeRef = {
+  "schema_version": "ComponentRecipeRef@1"
+  "recipe_id": string
+  "version": number
+  "recipe_sha256": Sha256
 }
 
 export type ConceptExportManifest = {
@@ -408,6 +568,33 @@ export type DomainSemanticProportionRecipe = {
   "non_functional_only": true
 }
 
+export type EditableComponentRecipe = {
+  "schema_version": "EditableComponentRecipe@1"
+  "recipe_id": string
+  "version": number
+  "component_role": string
+  "display_name": string
+  "description": string
+  "profiles": unknown
+  "section_sets": unknown
+  "shape_program_template": ShapeProgram
+  "feature_template": Array<unknown>
+  "parameter_bindings": Array<EditableParameterBinding>
+  "connectors": Array<unknown>
+  "pivot": unknown
+  "root_local_transform": unknown
+  "material_zones": Array<unknown>
+  "surface_adornment_slots"?: Array<unknown>
+  "child_slots": Array<unknown>
+  "allowed_domains": Array<unknown>
+  "triangle_estimate": number
+  "quality_status": "passed"
+  "source": unknown
+  "license": unknown
+  "review_state": unknown
+  "non_functional_only": true
+}
+
 export type FormalModuleReview = {
   "schema_version": "FormalModuleReview@1"
   "review_id": string
@@ -465,9 +652,40 @@ export type FormalModuleReview = {
 }>
 }
 
+export type GeometryArtifactProfile = {
+  "schema_version": "GeometryArtifactProfile@1"
+  "artifact_profile_id": "interactive_preview"
+  "radial_segments": 24
+  "capsule_hemisphere_segments": 5
+  "smooth_loft_normals": false
+  "texture_width": 128
+  "texture_height": 128
+  "texture_mime_type": "image/png"
+  "texture_compression": "png_deflate"
+  "delivery": "interactive"
+  "triangle_budget_multiplier": 1
+  "max_triangle_count": 100000
+  "profile_sha256": "ee826ade78767c9cd557dc6c0812c5ac4b0ffe627c4325024b8ad25fef7b3fbf"
+} | {
+  "schema_version": "GeometryArtifactProfile@1"
+  "artifact_profile_id": "production_concept"
+  "radial_segments": 64
+  "capsule_hemisphere_segments": 14
+  "smooth_loft_normals": true
+  "texture_width": 1024
+  "texture_height": 1024
+  "texture_mime_type": "image/png"
+  "texture_compression": "png_deflate"
+  "delivery": "on_demand"
+  "triangle_budget_multiplier": 6
+  "max_triangle_count": 250000
+  "profile_sha256": "f7a6ed164cb44f1d1f7bf23938f4f1f8237e84d1b2518938c99147509bdf416a"
+}
+
 export type GeometryCompileReadback = {
-  "schema_version": "GeometryCompileReadback@1"
+  "schema_version": "GeometryCompileReadback@1" | "GeometryCompileReadback@2"
   "runtime_manifest_version": "ShapeProgramRuntimeManifest@1"
+  "artifact_profile"?: GeometryArtifactProfile
   "program_id": string
   "shape_program_sha256": Sha256
   "glb_sha256": Sha256
@@ -554,6 +772,17 @@ export type GeometryCompileReadback = {
 }>
   "extensions": Array<"KHR_materials_clearcoat" | "KHR_materials_transmission" | "KHR_materials_ior">
   "texture_byte_size": number
+  "surface_adornment"?: SurfaceAdornmentProgram
+  "surface_adornment_sha256"?: Sha256
+  "surface_layer_lowering"?: {
+  "schema_version": "SurfaceLayerLowering@1"
+  "source_program_sha256": Sha256
+  "adornments": Array<SurfaceAdornmentProgram>
+  "retained_layers": Record<string, unknown>
+  "retained_layers_sha256": Sha256
+}
+  "surface_layer_lowering_sha256"?: Sha256
+  "surface_layer_retained_layers_sha256"?: Sha256
 }>
   "visual_environment": {
   "schema_version": "ForgeCADVisualEnvironment@1"
@@ -829,6 +1058,13 @@ export type ModulePackManifest = {
 }>
 }
 
+export type ProductionComponentRecipeRegistry = {
+  "schema_version": "EditableComponentRecipeRegistry@1"
+  "registry_id": "registry_m108b_production_concept_v1"
+  "policy_version": "ComponentRecipePolicy@1"
+  "recipes": Array<EditableComponentRecipe>
+}
+
 export type ProfileSectionSet = {
   "schema_version": "ProfileSectionSet@1"
   "section_set_id": string
@@ -937,6 +1173,101 @@ export type ProviderExecutionTrace = {
   "message": string
 }
 
+export type ReferenceEvidenceCreateRequest = {
+  "schema_version": "ReferenceEvidenceCreateRequest@1"
+  "client_request_id": string
+  "project_id": string
+  "kind": "image" | "glb"
+  "file_name"?: string
+  "media_type"?: "image/png" | "image/jpeg" | "image/webp" | "model/gltf-binary"
+  "content_base64"?: string
+  "imported_asset_version_id"?: string
+  "source_statement": string
+  "license_statement": string
+  "missing_views": Array<string>
+  "user_notes": string
+  "domain_pack_id"?: "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+}
+
+export type ReferenceEvidence = {
+  "schema_version": "ReferenceEvidence@1"
+  "evidence_id": string
+  "project_id": string
+  "kind": "image" | "glb"
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "source_file_name": string
+  "source_media_type": "image/png" | "image/jpeg" | "image/webp" | "model/gltf-binary"
+  "source_object_sha256": Sha256
+  "source_imported_asset_version_id"?: string | null
+  "source_statement": string
+  "license_statement": string
+  "missing_views": Array<string>
+  "user_notes": string
+  "observations": {
+  "silhouette_summary": string
+  "proportion_ranges": Array<string>
+  "material_zone_observations": Array<string>
+  "visible_part_hypotheses": Array<{
+  "role": string
+  "confidence": "low" | "medium" | "high"
+  "visible_basis": string
+}>
+  "uncertainties": Array<string>
+  "image_surface_facts"?: Record<string, unknown> | null
+}
+  "created_at": IsoDatetime
+  "glb_inspection"?: Record<string, unknown> | null
+}
+
+export type ReferenceGuidedRebuildPlan = {
+  "schema_version": "ReferenceGuidedRebuildPlan@1"
+  "rebuild_plan_id": string
+  "project_id": string
+  "evidence_id": string
+  "base_asset_version_id"?: string | null
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "recipe_id": string
+  "recipe_registry_sha256": Sha256
+  "rebuild_summary": string
+  "intended_differences": Array<string>
+  "retained_evidence": Array<string>
+  "unresolved_uncertainties": Array<string>
+  "status": "draft" | "previewed" | "confirmed" | "rejected"
+  "preview_change_set_id"?: string | null
+  "confirmed_asset_version_id"?: string | null
+  "created_at": IsoDatetime
+  "updated_at": IsoDatetime
+}
+
+export type ReferenceGuidedRebuildPreviewRequest = {
+  "schema_version": "ReferenceGuidedRebuildPreviewRequest@1"
+  "client_request_id": string
+  "evidence_id": string
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "base_asset_version_id": string
+}
+
+export type ReferenceSurfaceAnalysis = {
+  "schema_version": "ReferenceSurfaceAnalysis@1"
+  "analysis_id": string
+  "rebuild_plan_id": string
+  "evidence_id": string
+  "source_object_sha256": Sha256
+  "domain_pack_id": "pack_robotic_arm_concept"
+  "target_root_recipe": ComponentRecipeRef
+  "c106_registry_sha256": Sha256
+  "surface_skill_id": "skill_first_party_surface_adornment"
+  "surface_skill_version": 2
+  "surface_skill_sha256": Sha256
+  "fidelity_ceiling": "single_image_visible_surface_only" | "multi_view_image_visible_surface_only" | "strict_glb_readback_visible_bounds_only"
+  "bindings": Array<unknown>
+  "retained_observation_kinds": Array<unknown>
+  "intentionally_changed": Array<"non_functional_recipe_interpretation" | "reviewed_recipe_component_substitution" | "material_preset_normalization" | "surface_adornment_normalization">
+  "unresolved": Array<"missing_views" | "hidden_structure" | "exact_dimensions" | "material_physics" | "functional_behavior">
+  "glb_readback_facts"?: unknown | null
+  "created_at": IsoDatetime
+}
+
 export type ResolvedSemanticProportionOptions = {
   "schema_version": "ResolvedSemanticProportionOptions@1"
   "asset_version_id": string
@@ -1028,8 +1359,95 @@ export type ShapeProgram = {
   "non_functional_only": true
 }
 
+export type SurfaceAdornmentProgram = {
+  "schema_version": "SurfaceAdornmentProgram@1"
+  "program_id": string
+  "target_part_id": string
+  "target_zone_id": string
+  "kind": "normal_relief" | "pattern" | "flowline" | "micro_surface"
+  "motif": "parallel_groove" | "chevron_relief" | "double_flowline" | "hex_microgrid"
+  "intensity": "subtle" | "balanced" | "pronounced"
+  "coverage": "full_zone" | "center_band" | "edge_band" | "symmetric_pair"
+  "seed": number
+  "base_material": "mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red"
+  "execution": "texture_bake"
+  "skill_id": string
+  "skill_version": number
+  "skill_sha256": Sha256
+  "generator": "a005_v1"
+  "non_functional_only": true
+}
+
+export type SurfaceLayerProgram = {
+  "schema_version": "SurfaceLayerProgram@1"
+  "program_id": string
+  "target_part_id": string
+  "target_zone_id": string
+  "target_part_role": "base_form" | "turntable" | "joint_housing" | "link_armor" | "cable_harness" | "end_effector_form" | "surface_trim"
+  "material_zone_id": string
+  "base_material": "mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red"
+  "vector_paths": Array<{
+  "path_id": string
+  "closed": boolean
+  "commands": Array<{
+  "kind": "move" | "line" | "quadratic" | "cubic"
+  "points": Array<Array<number>>
+}>
+}>
+  "decal_layers": Array<{
+  "decal_id": string
+  "motif": "chevron_mark" | "hex_badge" | "warning_stripe" | "panel_label"
+  "text_token": "none" | "A-01" | "SERVICE" | "CAUTION" | "01"
+  "color_token": "accent_blue" | "signal_red" | "graphite" | "aluminum"
+  "anchor_uv": Array<number>
+  "scale_milli": number
+  "opacity_milli": number
+}>
+  "normal_relief_layers": Array<{
+  "layer_id": string
+  "motif": "parallel_groove" | "chevron_relief"
+  "intensity": "subtle" | "balanced" | "pronounced"
+  "coverage": "full_zone" | "center_band" | "edge_band" | "symmetric_pair"
+  "seed": number
+}>
+  "roughness_masks": Array<{
+  "mask_id": string
+  "motif": "linear_brush" | "edge_wear" | "microgrid"
+  "coverage": "full_zone" | "center_band" | "edge_band" | "symmetric_pair"
+  "intensity_milli": number
+  "seed": number
+}>
+  "emissive_masks": Array<{
+  "mask_id": string
+  "motif": "double_flowline" | "dot_array" | "panel_indicator"
+  "color_token": "accent_blue" | "signal_red"
+  "coverage": "full_zone" | "center_band" | "edge_band" | "symmetric_pair"
+  "intensity_milli": number
+  "seed": number
+}>
+  "symmetry": {
+  "mode": "none" | "mirror_u" | "mirror_v" | "radial_2" | "radial_4"
+  "center_uv": Array<number>
+}
+  "uv_frame": {
+  "frame_id": string
+  "u_min": number
+  "u_max": number
+  "v_min": number
+  "v_max": number
+  "rotation_degrees": number
+}
+  "quality_profile": "interactive_preview" | "production_concept"
+  "execution": "lower_to_a005_and_retain"
+  "skill_id": string
+  "skill_version": number
+  "skill_sha256": Sha256
+  "generator": "surface_layer_v1"
+  "non_functional_only": true
+}
+
 export type VisualIntentMapping = {
-  "schema_version": "VisualIntentMapping@1"
+  "schema_version": "VisualIntentMapping@1" | "VisualIntentMapping@2"
   "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
   "source": "brief_lexicon_v1"
   "directions": Array<{

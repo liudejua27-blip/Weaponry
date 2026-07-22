@@ -1,0 +1,97 @@
+{
+  "schema_version": "ForgeCADAppServerProtocolManifest@1",
+  "protocol_version": "forgecad.app-server/1",
+  "jsonrpc_version": "2.0",
+  "state_owner": "python_compatibility_adapter",
+  "lifecycle": [
+    "initialize",
+    "initialized"
+  ],
+  "request_methods": [
+    "compat/http",
+    "compat/subscribe",
+    "compat/unsubscribe",
+    "thread/events/replay"
+  ],
+  "client_notifications": [
+    "initialized",
+    "notification/ack",
+    "request/cancel"
+  ],
+  "server_notifications": [
+    "compat/sse",
+    "stream/resyncRequired"
+  ],
+  "http_compatibility": {
+    "request_schema_version": "ForgeCADHttpCompatibilityRequest@1",
+    "response_schema_version": "ForgeCADHttpCompatibilityResponse@1",
+    "body_encodings": [
+      "empty",
+      "utf8",
+      "base64"
+    ],
+    "allowed_methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH"
+    ],
+    "route_policy_schema_version": "ForgeCADCompatibilityRouteAllowlist@1",
+    "route_policy": "explicit_method_and_segment_patterns",
+    "allowed_route_families": [
+      "health",
+      "k001_contract_fixture",
+      "agent_lifecycle_and_assets",
+      "active_design_and_core",
+      "read_only_binary_resources",
+      "legacy_compatibility"
+    ],
+    "recursive_prefix": "/api/v1/app-server",
+    "max_raw_body_bytes": 49283072
+  },
+  "read_only_resource_transport": {
+    "schema_version": "ForgeCADReadOnlyResourceCompatibility@1",
+    "scheme": "forgecad-resource",
+    "allowed_method": "GET",
+    "stateful": false,
+    "persistent_writer": false,
+    "uses_http_compatibility_path_and_header_policy": true,
+    "purpose": "WebView binary image, GLB, media, and user-initiated download delivery only"
+  },
+  "limits": {
+    "max_frame_bytes": 67108864,
+    "max_in_flight_requests": 32,
+    "default_event_queue": 128,
+    "max_event_queue": 4096
+  },
+  "canonical_fingerprint": {
+    "algorithm": "sha256",
+    "json": {
+      "ensure_ascii": false,
+      "allow_nan": false,
+      "sort_keys": true,
+      "separators": [
+        ",",
+        ":"
+      ]
+    },
+    "item_input": "complete persisted AgentItem DTO",
+    "turn_items_input": "ordered array of sequence and item_sha256"
+  },
+  "persistent_state_writers": [
+    "python_fastapi"
+  ],
+  "forbidden": [
+    "arbitrary_url",
+    "recursive_compatibility_route",
+    "authorization_header",
+    "cookie_header",
+    "provider_key",
+    "shell",
+    "arbitrary_filesystem",
+    "dynamic_tool_registration",
+    "generic_mcp",
+    "raw_reasoning_content",
+    "rust_python_dual_write"
+  ]
+}

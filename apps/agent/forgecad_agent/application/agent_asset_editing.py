@@ -7,9 +7,10 @@ import math
 import struct
 import uuid
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any, Mapping, Optional
+from typing import Any, Literal, Mapping, Optional
 
 from pydantic import ValidationError
 
@@ -43,19 +44,25 @@ from forgecad_agent.application.agent_models import (
 from forgecad_agent.application.material_catalog import material_preset_map
 from forgecad_agent.application.geometry_models import GeometryCompileReadback
 from forgecad_agent.application.geometry_worker import (
+    GeometryCompileResult,
     GeometryCompileReadbackError,
     build_glb_from_shape_program,
-    compile_shape_program,
+    compile_preview_shape_program,
+    compile_production_concept_shape_program,
     inspect_imported_glb,
 )
 from forgecad_agent.application.agent_rendering import AgentRenderError, ExplodedPartOffset, render_agent_views
 from forgecad_agent.application.domain_packs import list_domain_packs
 from forgecad_agent.application.shape_program import ShapeProgramValidationError, validate_shape_program
-from forgecad_agent.application.shape_program_runtime import UnsupportedRuntimeOperationError
+from forgecad_agent.application.shape_program_runtime import (
+    MANIFEST_SCHEMA_VERSION,
+    UnsupportedRuntimeOperationError,
+)
 from forgecad_agent.application.semantic_proportions import part_id_for_role_selector, recipes_for_domain, style_token_map
 from forgecad_agent.application.visual_texture_sets import (
     builtin_visual_material_binding,
     builtin_visual_texture_set_for_material_index,
+    geometry_artifact_profile_manifest,
 )
 from forgecad_agent.infrastructure.db.agent_repositories import (
     ActiveDesignSnapshotConflict,
@@ -77,6 +84,25 @@ class AgentAssetIdempotencyConflict(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class AgentAssetGlbArtifact:
+    payload: bytes
+    artifact_profile_id: Literal[
+        "external_reference",
+        "interactive_preview",
+        "production_concept",
+    ]
+    artifact_profile_sha256: Optional[str]
+    shape_program_sha256: Optional[str]
+    glb_sha256: str
+    triangle_count: int
+    bounds_mm: list[float]
+    compile_readback: Optional[GeometryCompileReadback]
+
+
+PRODUCTION_CONCEPT_COMPILER_CONTRACT = "ForgeCADProductionConceptCompiler@3"
+
+
 def _runtime_operation_rejected(exc: Exception) -> AgentAssetError:
     """Expose one stable API code for every refused ShapeProgram runtime path."""
 
@@ -95,10 +121,14 @@ def _geometry_readback_failed(exc: Exception) -> AgentAssetError:
 def _quality_request_hash(asset_version_id: str, expected_revision: Optional[int]) -> str:
     # The contract marker prevents an idempotency replay created by the former
     # estimate-based implementation from being mistaken for Q003 evidence.
+    profile = geometry_artifact_profile_manifest("production_concept")
     return _hash_json({
         "asset_version_id": asset_version_id,
         "expected_revision": expected_revision,
-        "quality_contract": "GeometryCompileReadback@1",
+        "quality_contract": "GeometryCompileReadback@2",
+        "artifact_profile_id": profile["artifact_profile_id"],
+        "artifact_profile_sha256": profile["profile_sha256"],
+        "compiler_contract": PRODUCTION_CONCEPT_COMPILER_CONTRACT,
     })
 
 
@@ -116,6 +146,12 @@ def _parse_stored_quality_report(payload: str) -> AgentAssetQualityReport:
 def _compile_readback_uses_current_visual_contract(readback: GeometryCompileReadback) -> bool:
     """Accept a saved report only when every texture set is the current manifest."""
 
+    if (
+        readback.schema_version != "GeometryCompileReadback@2"
+        or readback.artifact_profile is None
+        or readback.artifact_profile.artifact_profile_id != "production_concept"
+    ):
+        return False
     comparable_fields = (
         "texture_id",
         "texture_role",
@@ -135,7 +171,8 @@ def _compile_readback_uses_current_visual_contract(readback: GeometryCompileRead
                 texture_set.material_id
             )
             expected_set = builtin_visual_texture_set_for_material_index(
-                texture_set.material_index
+                texture_set.material_index,
+                artifact_profile_id=readback.artifact_profile.artifact_profile_id,
             )
         except ValueError:
             return False
@@ -220,6 +257,141 @@ class AgentAssetEditingService:
     ) -> None:
         self.connection_factory = connection_factory
         self.object_store = object_store
+
+    def _compile_internal_artifact(
+        self,
+        version: AgentAssetVersion,
+        *,
+        artifact_profile_id: Literal["interactive_preview", "production_concept"],
+    ) -> GeometryCompileResult:
+        if artifact_profile_id == "interactive_preview":
+            return compile_preview_shape_program(version.shape_program)
+
+        profile = geometry_artifact_profile_manifest("production_concept")
+        shape_program_sha256 = hashlib.sha256(
+            _canonical_json(version.shape_program).encode("utf-8")
+        ).hexdigest()
+        cache_identity = {
+            "schema_version": "ProductionConceptArtifactCacheKey@1",
+            "asset_version_id": version.asset_version_id,
+            "shape_program_sha256": shape_program_sha256,
+            "artifact_profile_sha256": profile["profile_sha256"],
+            "runtime_manifest_version": MANIFEST_SCHEMA_VERSION,
+            "compiler_contract": PRODUCTION_CONCEPT_COMPILER_CONTRACT,
+        }
+        cache_key = hashlib.sha256(
+            _canonical_json(cache_identity).encode("utf-8")
+        ).hexdigest()
+        cached = self._read_production_artifact_cache(
+            cache_key=cache_key,
+            cache_identity=cache_identity,
+        )
+        if cached is not None:
+            return cached
+
+        compiled = compile_production_concept_shape_program(version.shape_program)
+        if compiled.readback.shape_program_sha256 != shape_program_sha256:
+            raise GeometryCompileReadbackError(
+                "production concept ShapeProgram hash diverged from its cache identity"
+            )
+        self._write_production_artifact_cache(
+            cache_key=cache_key,
+            cache_identity=cache_identity,
+            compiled=compiled,
+        )
+        return compiled
+
+    def _read_production_artifact_cache(
+        self,
+        *,
+        cache_key: str,
+        cache_identity: Mapping[str, Any],
+    ) -> Optional[GeometryCompileResult]:
+        if self.object_store is None:
+            return None
+        index_path = self.object_store.resolve(
+            f"derived/production-concept/{cache_key}.json"
+        )
+        if not index_path.exists():
+            return None
+        try:
+            raw_entry = json.loads(index_path.read_text(encoding="utf-8"))
+            if not isinstance(raw_entry, dict):
+                raise ValueError("cache entry is not an object")
+            if raw_entry.get("schema_version") != "ProductionConceptArtifactCacheEntry@1":
+                raise ValueError("cache entry schema is unsupported")
+            if raw_entry.get("cache_identity") != dict(cache_identity):
+                raise ValueError("cache entry identity does not match the requested artifact")
+            readback = GeometryCompileReadback.model_validate(
+                raw_entry.get("compile_readback")
+            )
+            if (
+                readback.schema_version != "GeometryCompileReadback@2"
+                or readback.artifact_profile is None
+                or readback.artifact_profile.artifact_profile_id != "production_concept"
+                or readback.shape_program_sha256
+                != cache_identity["shape_program_sha256"]
+                or readback.artifact_profile.profile_sha256
+                != cache_identity["artifact_profile_sha256"]
+            ):
+                raise ValueError("cache readback does not match production concept identity")
+            object_path = raw_entry.get("object_path")
+            if not isinstance(object_path, str) or not object_path:
+                raise ValueError("cache object path is missing")
+            glb = self.object_store.read(
+                object_path,
+                expected_sha256=readback.glb_sha256,
+            )
+            if len(glb) != readback.glb_byte_size:
+                raise ValueError("cache GLB byte size does not match readback")
+            return GeometryCompileResult(glb_bytes=glb, readback=readback)
+        except (OSError, ValueError, ValidationError, ObjectStoreError) as exc:
+            raise AgentAssetError(
+                "PRODUCTION_ARTIFACT_CACHE_INVALID",
+                f"生产级概念工件缓存损坏或身份不一致：{exc}",
+                status_code=409,
+            ) from exc
+
+    def _write_production_artifact_cache(
+        self,
+        *,
+        cache_key: str,
+        cache_identity: Mapping[str, Any],
+        compiled: GeometryCompileResult,
+    ) -> None:
+        if self.object_store is None:
+            return
+        try:
+            stored = self.object_store.put(compiled.glb_bytes, extension=".glb")
+            if (
+                stored.sha256 != compiled.readback.glb_sha256
+                or stored.byte_size != compiled.readback.glb_byte_size
+            ):
+                raise ValueError("object store result does not match compile readback")
+            index_path = self.object_store.resolve(
+                f"derived/production-concept/{cache_key}.json"
+            )
+            index_path.parent.mkdir(parents=True, exist_ok=True)
+            entry = {
+                "schema_version": "ProductionConceptArtifactCacheEntry@1",
+                "cache_identity": dict(cache_identity),
+                "object_path": stored.relative_path,
+                "compile_readback": compiled.readback.model_dump(mode="json"),
+            }
+            temporary_path = index_path.with_name(
+                f"{index_path.name}.{uuid.uuid4().hex}.tmp"
+            )
+            temporary_path.write_text(
+                _canonical_json(entry),
+                encoding="utf-8",
+            )
+            temporary_path.replace(index_path)
+        except (OSError, ValueError, ObjectStoreError) as exc:
+            raise AgentAssetError(
+                "PRODUCTION_ARTIFACT_CACHE_WRITE_FAILED",
+                f"无法保存生产级概念工件缓存：{exc}",
+                status_code=503,
+            ) from exc
 
     def commit_blockout(
         self,
@@ -315,7 +487,7 @@ class AgentAssetEditingService:
             if part is None:
                 raise AgentAssetError("PART_NOT_FOUND", "找不到要调整的部件。", status_code=404)
             try:
-                compiled = compile_shape_program(version.shape_program)
+                compiled = compile_preview_shape_program(version.shape_program)
             except GeometryCompileReadbackError as exc:
                 raise _geometry_readback_failed(exc) from exc
             except (ShapeProgramValidationError, UnsupportedRuntimeOperationError, ValueError) as exc:
@@ -731,7 +903,10 @@ class AgentAssetEditingService:
                 checked_at=_utc_now(),
             ), expected_revision=expected_revision, idempotency_key=idempotency_key)
         try:
-            compiled = compile_shape_program(version.shape_program)
+            compiled = self._compile_internal_artifact(
+                version,
+                artifact_profile_id="production_concept",
+            )
         except GeometryCompileReadbackError as exc:
             return self._persist_quality_report(version, AgentAssetQualityReport(
                 quality_report_id=_new_id("quality"),
@@ -773,9 +948,29 @@ class AgentAssetEditingService:
                 )
             )
         triangle_count = compile_readback.triangle_count
-        budget = version.shape_program.get("triangle_budget", 100000)
-        if isinstance(budget, (int, float)) and triangle_count > budget:
-            findings.append(AgentAssetQualityFinding(check_id="triangle_budget", severity="error", message="预览三角形超过预算。"))
+        source_budget = version.shape_program.get("triangle_budget", 100000)
+        artifact_profile = compile_readback.artifact_profile
+        if artifact_profile is None:
+            raise AgentAssetError(
+                "GEOMETRY_PROFILE_MISSING",
+                "质量检查没有读取到生产级概念工件身份。",
+                status_code=409,
+            )
+        production_budget = (
+            min(
+                int(source_budget) * artifact_profile.triangle_budget_multiplier,
+                artifact_profile.max_triangle_count,
+            )
+            if isinstance(source_budget, (int, float))
+            and not isinstance(source_budget, bool)
+            else artifact_profile.max_triangle_count
+        )
+        if triangle_count > production_budget:
+            findings.append(AgentAssetQualityFinding(
+                check_id="triangle_budget",
+                severity="error",
+                message="生产级概念工件的三角形数量超过代码所有的质量预算。",
+            ))
         graph_parts = {item.get("part_id"): item for item in version.assembly_graph.get("parts", []) if isinstance(item, dict)}
         connections = version.assembly_graph.get("connections", [])
         for connection in connections if isinstance(connections, list) else []:
@@ -885,7 +1080,15 @@ class AgentAssetEditingService:
                 )
             return report
 
-    def export_glb(self, asset_version_id: str) -> AgentAssetExportResponse:
+    def get_glb_artifact(
+        self,
+        asset_version_id: str,
+        *,
+        artifact_profile_id: Literal[
+            "interactive_preview",
+            "production_concept",
+        ],
+    ) -> AgentAssetGlbArtifact:
         version = self._get_active_agent_version(asset_version_id, purpose="导出")
         imported = self._imported_glb_row(asset_version_id)
         if imported is not None:
@@ -896,29 +1099,61 @@ class AgentAssetEditingService:
                 inspection = inspect_imported_glb(glb)
             except (ObjectStoreError, ValueError) as exc:
                 raise AgentAssetError("EXTERNAL_GLB_UNAVAILABLE", str(exc), status_code=409) from exc
-            return AgentAssetExportResponse(
-                asset_version_id=version.asset_version_id,
-                glb_base64=base64.b64encode(glb).decode("ascii"),
+            return AgentAssetGlbArtifact(
+                payload=glb,
+                artifact_profile_id="external_reference",
+                artifact_profile_sha256=None,
+                shape_program_sha256=None,
+                glb_sha256=inspection.sha256,
                 triangle_count=inspection.triangle_count,
                 bounds_mm=inspection.bounds_mm,
-                readback_status="passed",
-                readback_triangle_count=inspection.triangle_count,
-                exported_at=_utc_now(),
+                compile_readback=None,
             )
         try:
-            compiled = compile_shape_program(version.shape_program)
+            compiled = self._compile_internal_artifact(
+                version,
+                artifact_profile_id=artifact_profile_id,
+            )
         except GeometryCompileReadbackError as exc:
             raise _geometry_readback_failed(exc) from exc
         except (ShapeProgramValidationError, UnsupportedRuntimeOperationError, ValueError) as exc:
             raise _runtime_operation_rejected(exc) from exc
         readback = compiled.readback
-        return AgentAssetExportResponse(
-            asset_version_id=version.asset_version_id,
-            glb_base64=base64.b64encode(compiled.glb_bytes).decode("ascii"),
+        if readback.artifact_profile is None:
+            raise AgentAssetError(
+                "GEOMETRY_PROFILE_MISSING",
+                "GLB 工件没有可回读的编译档身份。",
+                status_code=409,
+            )
+        return AgentAssetGlbArtifact(
+            payload=compiled.glb_bytes,
+            artifact_profile_id=readback.artifact_profile.artifact_profile_id,
+            artifact_profile_sha256=readback.artifact_profile.profile_sha256,
+            shape_program_sha256=readback.shape_program_sha256,
+            glb_sha256=readback.glb_sha256,
             triangle_count=readback.triangle_count,
             bounds_mm=readback.bounds_mm,
+            compile_readback=readback,
+        )
+
+    def export_glb(self, asset_version_id: str) -> AgentAssetExportResponse:
+        artifact = self.get_glb_artifact(
+            asset_version_id,
+            artifact_profile_id="production_concept",
+        )
+        return AgentAssetExportResponse(
+            schema_version="AgentAssetExport@2",
+            asset_version_id=asset_version_id,
+            glb_base64=base64.b64encode(artifact.payload).decode("ascii"),
+            artifact_profile_id=artifact.artifact_profile_id,
+            artifact_profile_sha256=artifact.artifact_profile_sha256,
+            shape_program_sha256=artifact.shape_program_sha256,
+            glb_sha256=artifact.glb_sha256,
+            glb_byte_size=len(artifact.payload),
+            triangle_count=artifact.triangle_count,
+            bounds_mm=artifact.bounds_mm,
             readback_status="passed",
-            readback_triangle_count=readback.triangle_count,
+            readback_triangle_count=artifact.triangle_count,
             exported_at=_utc_now(),
         )
 
@@ -930,10 +1165,12 @@ class AgentAssetEditingService:
         """
         version = self._get_active_agent_version(asset_version_id, purpose="渲染")
         try:
-            exported = self.export_glb(version.asset_version_id)
-            glb = base64.b64decode(exported.glb_base64, validate=True)
+            artifact = self.get_glb_artifact(
+                version.asset_version_id,
+                artifact_profile_id="production_concept",
+            )
             rendered = render_agent_views(
-                glb,
+                artifact.payload,
                 width=width,
                 height=height,
                 exploded_parts=_exploded_part_offsets(version),
@@ -1148,6 +1385,114 @@ class AgentAssetEditingService:
 
     def preview_change_set(self, change_set_id: str, idempotency_key: str) -> AgentAssetChangeSet:
         return self._preview_or_confirm(change_set_id, idempotency_key, confirm=False)
+
+    def preview_change_set_glb(
+        self,
+        change_set_id: str,
+    ) -> tuple[GeometryCompileResult, str]:
+        """Compile the active, previewed ChangeSet into an ephemeral PBR GLB.
+
+        The binary never enters the ChangeSet row, idempotency storage or event
+        payloads.  Validate the stored preview and ActiveDesignSnapshot before
+        and after compilation so a concurrent re-preview or head change cannot
+        return bytes for stale design state.
+        """
+        preview, stored_preview_json = self._validated_change_set_preview(change_set_id)
+        try:
+            compiled = compile_preview_shape_program(preview.shape_program)
+        except GeometryCompileReadbackError as exc:
+            raise _geometry_readback_failed(exc) from exc
+        except (ShapeProgramValidationError, UnsupportedRuntimeOperationError, ValueError) as exc:
+            raise _runtime_operation_rejected(exc) from exc
+
+        current_preview, current_preview_json = self._validated_change_set_preview(change_set_id)
+        if (
+            current_preview_json != stored_preview_json
+            or current_preview.shape_program != preview.shape_program
+        ):
+            raise AgentAssetError(
+                "ACTIVE_DESIGN_PREVIEW_STALE",
+                "预览内容已变化，请重新读取当前修改。",
+                status_code=409,
+            )
+        return compiled, current_preview.asset_version_id
+
+    def _validated_change_set_preview(
+        self,
+        change_set_id: str,
+    ) -> tuple[AgentAssetVersion, str]:
+        with SQLiteUnitOfWork(self.connection_factory) as unit:
+            row = unit.agent_assets.get_change_set(change_set_id)
+            if row is None:
+                raise AgentAssetError(
+                    "ASSET_CHANGE_SET_NOT_FOUND",
+                    "Agent 修改不存在。",
+                    status_code=404,
+                )
+            if row["status"] != "previewed" or not row["preview_json"]:
+                raise AgentAssetError(
+                    "ASSET_CHANGE_SET_NOT_PREVIEWED",
+                    "请先预览修改，再读取真实模型。",
+                    status_code=409,
+                )
+            project_id = str(row["project_id"])
+            base_asset_version_id = str(row["base_asset_version_id"])
+            base = unit.agent_assets.get_version(base_asset_version_id)
+            if base is None or base["status"] != "committed":
+                raise AgentAssetError(
+                    "ASSET_VERSION_STALE",
+                    "基础版本已经变化，请重新预览。",
+                    status_code=409,
+                )
+            head = unit.agent_assets.get_head(project_id)
+            if head is None or str(head["asset_version_id"]) != base_asset_version_id:
+                raise AgentAssetError(
+                    "ASSET_VERSION_STALE",
+                    "基础版本不是当前版本，请重新预览。",
+                    status_code=409,
+                )
+            snapshot = unit.active_designs.get_snapshot(project_id)
+            if snapshot is None or not hasattr(snapshot.active_design, "asset_version_id"):
+                raise AgentAssetError(
+                    "ACTIVE_DESIGN_NOT_AGENT",
+                    "当前项目没有可读取预览的活动 Agent 资产。",
+                    status_code=409,
+                )
+            if snapshot.active_design.asset_version_id != base_asset_version_id:
+                raise AgentAssetError(
+                    "ACTIVE_DESIGN_STALE",
+                    "活动设计版本已变化，请重新预览。",
+                    status_code=409,
+                )
+            if (
+                snapshot.preview is None
+                or snapshot.preview.change_set_id != change_set_id
+                or snapshot.preview.base_asset_version_id != base_asset_version_id
+            ):
+                raise AgentAssetError(
+                    "ACTIVE_DESIGN_PREVIEW_STALE",
+                    "当前活动预览与该修改不一致，请重新预览。",
+                    status_code=409,
+                )
+            stored_preview_json = str(row["preview_json"])
+            try:
+                preview = AgentAssetVersion.model_validate_json(stored_preview_json)
+            except ValidationError as exc:
+                raise AgentAssetError(
+                    "ASSET_CHANGE_SET_PREVIEW_INVALID",
+                    "保存的修改预览无法通过当前资产合同。",
+                    status_code=409,
+                ) from exc
+            if (
+                preview.project_id != project_id
+                or preview.asset_version_id != base_asset_version_id
+            ):
+                raise AgentAssetError(
+                    "ASSET_CHANGE_SET_PREVIEW_INVALID",
+                    "保存的修改预览与基础资产不一致。",
+                    status_code=409,
+                )
+            return preview, stored_preview_json
 
     def confirm_change_set(
         self,
@@ -1757,6 +2102,27 @@ def _validate_operations(
     if conflicts:
         raise AgentAssetError("PART_PROTECTED", f"锁定部件不能修改：{', '.join(conflicts)}")
     valid_materials = material_preset_map()
+    registered_material_domains = {
+        item.pack_id: item.domain for item in list_domain_packs()
+    }
+    reviewed_arm_recipes = {
+        "recipe_c106_arm_turntable",
+        "recipe_c106_arm_joint_housing",
+        "recipe_c106_arm_link_armor",
+        "recipe_c106_arm_cable_harness",
+        "recipe_c106_arm_gripper",
+        "recipe_c106_arm_surface_trim",
+        "recipe_c110c_arm_sensor_pod",
+        "recipe_c110d_arm_actuator_cover",
+        "recipe_c110d_arm_cable_guide",
+        "recipe_c110d_arm_wrist_tool_mount",
+    }
+    reviewed_arm_slots = {
+        "slot_arm_sensor_pod",
+        "slot_arm_guard_rail",
+        "slot_arm_tool_changer",
+        "slot_arm_camera_boom",
+    }
     for operation in operations:
         if operation.transform:
             for key, vector in operation.transform.items():
@@ -1766,9 +2132,29 @@ def _validate_operations(
                     raise AgentAssetError("PARAMETER_OUT_OF_RANGE", "部件比例必须在 0.1 到 10 之间。")
                 if key in {"position", "rotation"} and any(abs(float(value)) > 100000 for value in vector):
                     raise AgentAssetError("PARAMETER_OUT_OF_RANGE", "部件变换超出轻量概念范围。")
+        if operation.op in {"add_reviewed_recipe", "replace_reviewed_recipe"}:
+            if version.domain_pack_id != "pack_robotic_arm_concept":
+                raise AgentAssetError("ASSEMBLY_DELTA_DOMAIN_UNSUPPORTED", "Reviewed AssemblyDelta 目前只适用于机械臂概念资产。", status_code=409)
+            if operation.recipe_id not in reviewed_arm_recipes:
+                raise AgentAssetError("RECIPE_NOT_REVIEWED", "该机械臂部件配方尚未进入生产审核白名单。", status_code=409)
+        if operation.op == "add_reviewed_recipe" and operation.slot_id not in reviewed_arm_slots:
+            raise AgentAssetError("RECIPE_SLOT_NOT_REVIEWED", "该机械臂附件槽位尚未进入生产审核白名单。", status_code=409)
         if operation.op == "apply_material_preset":
             if operation.material_id not in valid_materials:
                 raise AgentAssetError("MATERIAL_NOT_FOUND", f"视觉材质不存在：{operation.material_id}")
+            material = valid_materials[operation.material_id]
+            material_domain = registered_material_domains.get(version.domain_pack_id)
+            if material_domain is None:
+                raise AgentAssetError(
+                    "DOMAIN_PACK_UNKNOWN",
+                    f"资产领域包未注册：{version.domain_pack_id}",
+                    status_code=409,
+                )
+            if material_domain not in material.allowed_domains:
+                raise AgentAssetError(
+                    "MATERIAL_DOMAIN_INCOMPATIBLE",
+                    f"视觉材质 {operation.material_id} 不适用于领域 {material_domain}。",
+                )
             target_part = next(item for item in version.parts if item.part_id == operation.part_id)
             if operation.material_zone_id is not None and operation.material_zone_id not in target_part.material_zone_ids:
                 raise AgentAssetError(
@@ -1848,6 +2234,14 @@ def _apply_operations(
     role_by_part = {item["part_id"]: item.get("role") for item in parts}
     suggestion_by_id = {item.suggestion_id: item for item in structure_suggestions or []}
     for operation in operations:
+        if operation.op in {"add_reviewed_recipe", "replace_reviewed_recipe"}:
+            # These operations require Rust Core's reviewed Recipe materializer
+            # and must never fall through as a silent Python no-op.
+            raise AgentAssetError(
+                "RUST_ASSEMBLY_DELTA_REQUIRED",
+                "Reviewed AssemblyDelta 配方修改必须由 Rust Core 预览；Python 仅执行受限几何。",
+                status_code=409,
+            )
         part = part_map[operation.part_id]
         graph_part = graph_parts.get(operation.part_id)
         role = role_by_part.get(operation.part_id)

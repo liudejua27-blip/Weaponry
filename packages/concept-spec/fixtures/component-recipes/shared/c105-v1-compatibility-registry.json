@@ -1,0 +1,6 @@
+{
+  "schema_version": "ComponentRecipeCompatibilitySource@1",
+  "source_registry_path": "../../editable-component-recipe-registry.json",
+  "strategy": "C105_v1_aggregate_is_semantically_frozen",
+  "note": "The eight C105 recipes remain byte-compatible with persisted ComponentRecipeRef and registry_sha256. M108B pack-local recipes may be added inline to their owning pack after an explicit registry-version migration."
+}

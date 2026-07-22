@@ -30,7 +30,10 @@ class DirectionVisualIntent(StrictApiModel):
 
 
 class VisualIntentMapping(StrictApiModel):
-    schema_version: Literal["VisualIntentMapping@1"] = "VisualIntentMapping@1"
+    # @1 is retained for persisted legacy plans that contain three review
+    # directions.  V003 emits @2 and binds one visual intent to the one complete
+    # synthesis allowed in the Turn.
+    schema_version: Literal["VisualIntentMapping@1", "VisualIntentMapping@2"] = "VisualIntentMapping@2"
     domain_pack_id: Literal[
         "pack_future_weapon_prop",
         "pack_vehicle_concept",
@@ -38,10 +41,13 @@ class VisualIntentMapping(StrictApiModel):
         "pack_robotic_arm_concept",
     ]
     source: Literal["brief_lexicon_v1"] = "brief_lexicon_v1"
-    directions: list[DirectionVisualIntent] = Field(min_length=3, max_length=3)
+    directions: list[DirectionVisualIntent] = Field(min_length=1, max_length=3)
 
     @model_validator(mode="after")
     def validate_directions(self) -> "VisualIntentMapping":
+        expected = 3 if self.schema_version == "VisualIntentMapping@1" else 1
+        if len(self.directions) != expected:
+            raise ValueError(f"{self.schema_version} requires exactly {expected} direction intent(s)")
         if len({item.direction_id for item in self.directions}) != len(self.directions):
             raise ValueError("visual intent direction ids must be unique")
         return self
@@ -66,14 +72,9 @@ def build_visual_intent_mapping(
     domain_pack_id: str,
     direction_ids: Sequence[str],
 ) -> VisualIntentMapping:
-    """Classify one safe brief into three bounded visual directions.
-
-    The first direction preserves the strongest user-visible visual category;
-    the other two are deterministic nearby alternatives.  All outputs remain
-    catalog-family indices, never primitive arguments or arbitrary code.
-    """
-    if len(direction_ids) != 3 or len(set(direction_ids)) != 3:
-        raise ValueError("visual intent mapping requires exactly three unique direction ids")
+    """Classify one safe brief into the single bounded V003 visual intent."""
+    if len(direction_ids) != 1 or len(set(direction_ids)) != 1:
+        raise ValueError("V003 visual intent mapping requires exactly one direction id")
     if domain_pack_id not in {
         "pack_future_weapon_prop",
         "pack_vehicle_concept",
@@ -102,7 +103,11 @@ def build_visual_intent_mapping(
                 variant_family_index=_family_index(silhouette, detail, color, pose),
             )
         )
-    return VisualIntentMapping(domain_pack_id=domain_pack_id, directions=items)
+    return VisualIntentMapping(
+        schema_version="VisualIntentMapping@2",
+        domain_pack_id=domain_pack_id,
+        directions=items,
+    )
 
 
 def visual_intent_for_direction(

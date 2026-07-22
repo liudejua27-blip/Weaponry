@@ -1,0 +1,118 @@
+{
+  "schema_version": "M108BProductionRecipeLock@1",
+  "registry_id": "registry_m108b_production_concept_v1",
+  "registry_sha256": "c249be91f3f17fa3121e71229807e226595149552b001288ecf1f6ba8c351386",
+  "pack_order": [
+    "pack_future-weapon-prop_production",
+    "pack_vehicle-concept_production",
+    "pack_aircraft-concept_production",
+    "pack_robotic-arm-concept_production"
+  ],
+  "recipe_order": [
+    "recipe_m108b_prop_accent",
+    "recipe_m108b_prop_fin",
+    "recipe_m108b_prop_rib",
+    "recipe_prop_scout_compact",
+    "recipe_prop_ceremonial_heavy",
+    "recipe_prop_racing_streamlined",
+    "recipe_m108b_vehicle_accent",
+    "recipe_m108b_vehicle_presentation_wheel",
+    "recipe_vehicle_compact_coupe",
+    "recipe_vehicle_utility_crossover",
+    "recipe_vehicle_track_concept",
+    "recipe_m108b_aircraft_accent",
+    "recipe_m108b_aircraft_visual_fin",
+    "recipe_aircraft_streamlined_personal",
+    "recipe_aircraft_explorer_tilt",
+    "recipe_aircraft_cargo_display",
+    "recipe_m108b_arm_accent",
+    "recipe_m108b_arm_display_collar",
+    "recipe_m108b_arm_display_foot",
+    "recipe_arm_desktop_assistant",
+    "recipe_arm_gallery_industrial",
+    "recipe_arm_service_display"
+  ],
+  "recipe_sha256": {
+    "recipe_m108b_prop_accent": "0553e7b8d58278d1f75241c2996d1fef64cea2cdfe21c5aba76fc2e61196a6b2",
+    "recipe_m108b_prop_fin": "68768ea10444f69f4d573d8310cc20f220bd4ce034ecf7888b1e9da52ac8747f",
+    "recipe_m108b_prop_rib": "c5decb5cd92af637e27952356666834ccb98386e481eab564708d2ea7eb43e28",
+    "recipe_prop_scout_compact": "88ac117b9d1599010fc1f9b04cbea0ef395137c8b989570c2b5a16e17b08a669",
+    "recipe_prop_ceremonial_heavy": "5e7199202a8f5174148369dffa6cc58f6a4ed08fd3b04d2d5d59b364b978bd42",
+    "recipe_prop_racing_streamlined": "2963da9abd3acce93a3c3c6de316919fe434da4a54990ba37ddf98916cf69f51",
+    "recipe_m108b_vehicle_accent": "b1dafff09fc61d4e3fba2a86c6406e491b82a1566aa8cd574575f338b1ff2747",
+    "recipe_m108b_vehicle_presentation_wheel": "88acdf1a8cd6cd2e7ce3b05675baeec47aeb4d84a4784c757746518a818d47ba",
+    "recipe_vehicle_compact_coupe": "f32455580ab935eab87390418d2692e816289a06b73a3aba69ddfcc85ac9a85a",
+    "recipe_vehicle_utility_crossover": "e4152beba9243f08ece7e10145b54c17da2235025125975dbca0ae0f80002b1d",
+    "recipe_vehicle_track_concept": "7e33b420ee9ba52fad99999b1e1a9c09c4902700b5b1a58e781060303d06acc3",
+    "recipe_m108b_aircraft_accent": "a15d7e267e2d59b25c73cceb51a815d2920696885cce43a1b73c3c1bd51b1e25",
+    "recipe_m108b_aircraft_visual_fin": "31fdfe10d65f04384cf2c0286a267090baea75a46c76bdf0ebadae5848d72b6a",
+    "recipe_aircraft_streamlined_personal": "e6cbbf6b04ad3dc7fca8e49dc07642f726238bbf43a9a5b73acb960c9af01db0",
+    "recipe_aircraft_explorer_tilt": "928a5bda0cdd7340a7472879e5b114b051f6016a80932d22cdab17c03316fc15",
+    "recipe_aircraft_cargo_display": "65785c40dd0ccba7562cbd9ef1265748bdd9ae9ae009a00ed0e1fc5319d8ea83",
+    "recipe_m108b_arm_accent": "5f1f87f3c307147138f1a67913380804709eadf529dd60a74a4e14f0774cecad",
+    "recipe_m108b_arm_display_collar": "15ee6312fcc49d2ede89def3d47c42670a0806b8a585960b4232efe3514334c5",
+    "recipe_m108b_arm_display_foot": "bc66b700478f263e766cc611299e9390bef98db9b61006879530c6e6eba3d40b",
+    "recipe_arm_desktop_assistant": "d5b7f23fb0daf5c75fc043c55aedd1f78e16ef6accb89053a24f9ec1a640b424",
+    "recipe_arm_gallery_industrial": "14b5209ab61aa6e5422c4a99d85117998e45e231a098ae9b9fb754d53e16c1ca",
+    "recipe_arm_service_display": "0a68a19afe169da610c57b70da834d66758c3a419dde51fb4d67175ccb201e09"
+  },
+  "root_recipe_sha256": {
+    "recipe_prop_scout_compact": "88ac117b9d1599010fc1f9b04cbea0ef395137c8b989570c2b5a16e17b08a669",
+    "recipe_prop_ceremonial_heavy": "5e7199202a8f5174148369dffa6cc58f6a4ed08fd3b04d2d5d59b364b978bd42",
+    "recipe_prop_racing_streamlined": "2963da9abd3acce93a3c3c6de316919fe434da4a54990ba37ddf98916cf69f51",
+    "recipe_vehicle_compact_coupe": "f32455580ab935eab87390418d2692e816289a06b73a3aba69ddfcc85ac9a85a",
+    "recipe_vehicle_utility_crossover": "e4152beba9243f08ece7e10145b54c17da2235025125975dbca0ae0f80002b1d",
+    "recipe_vehicle_track_concept": "7e33b420ee9ba52fad99999b1e1a9c09c4902700b5b1a58e781060303d06acc3",
+    "recipe_aircraft_streamlined_personal": "e6cbbf6b04ad3dc7fca8e49dc07642f726238bbf43a9a5b73acb960c9af01db0",
+    "recipe_aircraft_explorer_tilt": "928a5bda0cdd7340a7472879e5b114b051f6016a80932d22cdab17c03316fc15",
+    "recipe_aircraft_cargo_display": "65785c40dd0ccba7562cbd9ef1265748bdd9ae9ae009a00ed0e1fc5319d8ea83",
+    "recipe_arm_desktop_assistant": "d5b7f23fb0daf5c75fc043c55aedd1f78e16ef6accb89053a24f9ec1a640b424",
+    "recipe_arm_gallery_industrial": "14b5209ab61aa6e5422c4a99d85117998e45e231a098ae9b9fb754d53e16c1ca",
+    "recipe_arm_service_display": "0a68a19afe169da610c57b70da834d66758c3a419dde51fb4d67175ccb201e09"
+  },
+  "root_slot_range": [
+    6,
+    7
+  ],
+  "root_zone_range": [
+    4,
+    5
+  ],
+  "expected_root_count": 12,
+  "expected_parts_per_root_range": [
+    7,
+    8
+  ],
+  "expected_unique_zones_per_root_range": [
+    5,
+    7
+  ],
+  "expected_parts_by_root": {
+    "recipe_prop_scout_compact": 7,
+    "recipe_prop_ceremonial_heavy": 7,
+    "recipe_prop_racing_streamlined": 7,
+    "recipe_vehicle_compact_coupe": 7,
+    "recipe_vehicle_utility_crossover": 7,
+    "recipe_vehicle_track_concept": 7,
+    "recipe_aircraft_streamlined_personal": 8,
+    "recipe_aircraft_explorer_tilt": 8,
+    "recipe_aircraft_cargo_display": 8,
+    "recipe_arm_desktop_assistant": 7,
+    "recipe_arm_gallery_industrial": 7,
+    "recipe_arm_service_display": 7
+  },
+  "expected_unique_zones_by_root": {
+    "recipe_prop_scout_compact": 5,
+    "recipe_prop_ceremonial_heavy": 5,
+    "recipe_prop_racing_streamlined": 5,
+    "recipe_vehicle_compact_coupe": 7,
+    "recipe_vehicle_utility_crossover": 7,
+    "recipe_vehicle_track_concept": 7,
+    "recipe_aircraft_streamlined_personal": 6,
+    "recipe_aircraft_explorer_tilt": 6,
+    "recipe_aircraft_cargo_display": 6,
+    "recipe_arm_desktop_assistant": 7,
+    "recipe_arm_gallery_industrial": 7,
+    "recipe_arm_service_display": 7
+  }
+}

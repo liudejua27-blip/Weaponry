@@ -1,0 +1,4187 @@
+{
+  "schema_version": "EditableComponentRecipeRegistry@1",
+  "registry_id": "registry_c106_robotic_arm_concept_v1",
+  "policy_version": "ComponentRecipePolicy@1",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_turntable",
+      "version": 1,
+      "component_role": "turntable",
+      "display_name": "机械臂回转台",
+      "description": "非功能展示用回转台外壳，提供稳定的底座上部视觉分层。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_turntable",
+        "units": "millimeter",
+        "seed": 6101,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_turntable_profile",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [0, 8, 0],
+              "size": [610, 104, 610],
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_turntable"
+            }
+          },
+          {
+            "operation_id": "op_turntable_revolve",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_turntable_profile"
+            ],
+            "args": {
+              "radius": 28,
+              "segments": 3,
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_turntable"
+            }
+          },
+          {
+            "operation_id": "op_turntable_accent_ring",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                46,
+                0
+              ],
+              "radius": 292,
+              "height": 18,
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_turntable"
+            }
+          },
+          {
+            "operation_id": "op_turntable_accent_ring_stack",
+            "op": "array",
+            "inputs": [
+              "op_turntable_accent_ring"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "count": 3,
+              "spacing": 30,
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_turntable"
+            }
+          },
+          {
+            "operation_id": "op_turntable_blue_drum",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                108,
+                0
+              ],
+              "radius": 238,
+              "height": 88,
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_turntable_paint"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_turntable",
+            "operation_id": "op_turntable_revolve",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_turntable_accent_ring",
+            "operation_id": "op_turntable_accent_ring_stack",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_turntable_blue_drum",
+            "operation_id": "op_turntable_blue_drum",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_turntable_shell",
+          "operation_id": "op_turntable_revolve",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_turntable_accent_ring",
+          "operation_id": "op_turntable_accent_ring",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_turntable_blue_drum",
+          "operation_id": "op_turntable_blue_drum",
+          "role": "secondary_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_turntable_mount",
+          "kind": "shell_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_turntable",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_turntable_paint",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_turntable_shell",
+          "zone_id": "zone_arm_turntable",
+          "allowed_kinds": [
+            "normal_relief",
+            "micro_surface"
+          ],
+          "allowed_motifs": [
+            "parallel_groove",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "edge_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2600,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_turntable_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_joint_housing",
+      "version": 1,
+      "component_role": "joint_housing",
+      "display_name": "机械臂关节护罩",
+      "description": "肩、肘或腕部复用的非功能多层护罩，保留关节外观层级而不表达机械传动。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [
+        {
+          "schema_version": "EditableParameterBinding@1",
+          "parameter_id": "editparam_joint_housing_visual_fullness",
+          "path": "transform.scale.z",
+          "display_name": "护罩视觉饱满度",
+          "unit": "ratio",
+          "default": 1.0,
+          "min": 0.85,
+          "max": 1.15,
+          "step": 0.05
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_joint_housing",
+        "units": "millimeter",
+        "seed": 6102,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_joint_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -76
+                ],
+                [
+                  72,
+                  -74
+                ],
+                [
+                  120,
+                  -69
+                ],
+                [
+                  168,
+                  -60
+                ],
+                [
+                  210,
+                  -48
+                ],
+                [
+                  242,
+                  -28
+                ],
+                [
+                  258,
+                  0
+                ],
+                [
+                  242,
+                  28
+                ],
+                [
+                  210,
+                  48
+                ],
+                [
+                  168,
+                  60
+                ],
+                [
+                  120,
+                  69
+                ],
+                [
+                  72,
+                  74
+                ],
+                [
+                  0,
+                  76
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_joint_shell",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "size": [
+                430,
+                330,
+                178
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_shell"
+            }
+          },
+          {
+            "operation_id": "op_joint_bearing_box",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_joint_shell"
+            ],
+            "args": {
+              "radius": 44,
+              "segments": 3,
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_shell"
+            }
+          },
+          {
+            "operation_id": "op_joint_bearing_face",
+            "op": "surface_panel",
+            "inputs": [
+              "op_joint_bearing_box"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                290,
+                14,
+                112
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_joint_paint"
+            }
+          },
+          {
+            "operation_id": "op_joint_core",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radius": 148,
+              "height": 130,
+              "part_role": "secondary_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_joint_core"
+            }
+          },
+          {
+            "operation_id": "op_joint_outer_ring",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radius": 250,
+              "height": 48,
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_joint_shell"
+            }
+          },
+          {
+            "operation_id": "op_joint_blue_guard",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                52
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radius": 218,
+              "height": 34,
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_joint_paint"
+            }
+          },
+          {
+            "operation_id": "op_joint_hub_cap",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                84
+              ],
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "radius": 92,
+              "height": 30,
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_joint_core"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_joint_shell",
+            "operation_id": "op_joint_bearing_face",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_core",
+            "operation_id": "op_joint_core",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_outer_ring",
+            "operation_id": "op_joint_outer_ring",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_blue_guard",
+            "operation_id": "op_joint_blue_guard",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_hub_cap",
+            "operation_id": "op_joint_hub_cap",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_joint_shell",
+          "operation_id": "op_joint_bearing_face",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_joint_core",
+          "operation_id": "op_joint_core",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_joint_outer_ring",
+          "operation_id": "op_joint_outer_ring",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_joint_blue_guard",
+          "operation_id": "op_joint_blue_guard",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_joint_hub_cap",
+          "operation_id": "op_joint_hub_cap",
+          "role": "secondary_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_joint_mount",
+          "kind": "shell_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_joint_shell",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_joint_core",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_joint_paint",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_joint_shell",
+          "zone_id": "zone_arm_joint_shell",
+          "allowed_kinds": [
+            "normal_relief",
+            "pattern"
+          ],
+          "allowed_motifs": [
+            "chevron_relief",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "center_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2700,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_joint_housing_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_link_armor",
+      "version": 1,
+      "component_role": "link_armor",
+      "display_name": "机械臂连杆与装甲",
+      "description": "非功能展示用的连续连杆、护甲与侧向装饰壳。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [
+        {
+          "schema_version": "EditableParameterBinding@1",
+          "parameter_id": "editparam_link_armor_visual_fullness",
+          "path": "transform.scale.y",
+          "display_name": "装甲视觉饱满度",
+          "unit": "ratio",
+          "default": 1.0,
+          "min": 0.8,
+          "max": 1.2,
+          "step": 0.05
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_link_armor",
+        "units": "millimeter",
+        "seed": 6103,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_link_body",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [0, -18, 0],
+              "size": [920, 82, 76],
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_link_shell"
+            }
+          },
+          {
+            "operation_id": "op_link_inner_frame",
+            "op": "bevel_approx",
+            "inputs": ["op_link_body"],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "upper_link_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_link_shell"
+            }
+          },
+          {
+            "operation_id": "op_link_armor_plate_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                86
+              ],
+              "size": [
+                780,
+                190,
+                34
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_armor_plate",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_link_armor_plate_base"
+            ],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "upper_link_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_flowline_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_link_armor_plate"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                650,
+                12,
+                26
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_side_rail_a_seed",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                -24,
+                86,
+                0
+              ],
+              "size": [
+                740,
+                24,
+                92
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_link_rail"
+            }
+          },
+          {
+            "operation_id": "op_link_side_rail_a",
+            "op": "surface_panel",
+            "inputs": [
+              "op_link_side_rail_a_seed"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                560,
+                10,
+                92
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_link_rail"
+            }
+          },
+          {
+            "operation_id": "op_link_armor_right_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                -86
+              ],
+              "size": [
+                780,
+                190,
+                34
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_armor_right",
+            "op": "bevel_approx",
+            "inputs": ["op_link_armor_right_base"],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "upper_link_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_side_rail_b",
+            "op": "surface_panel",
+            "inputs": ["op_link_armor_right"],
+            "args": {
+              "axis": [0, -1, 0],
+              "size": [650, 12, 26],
+              "position": [0, 0, 0],
+              "part_role": "upper_link_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_link_armor"
+            }
+          },
+          {
+            "operation_id": "op_link_signal_strip_seed",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                66,
+                102,
+                0
+              ],
+              "size": [
+                470,
+                20,
+                58
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_link_signal"
+            }
+          },
+          {
+            "operation_id": "op_link_signal_strip",
+            "op": "surface_panel",
+            "inputs": [
+              "op_link_signal_strip_seed"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                360,
+                8,
+                22
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "upper_link_form",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_link_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_link_body",
+            "operation_id": "op_link_inner_frame",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_flowline_panel",
+            "operation_id": "op_link_flowline_panel",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_side_rail_a",
+            "operation_id": "op_link_side_rail_a",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_side_rail_b",
+            "operation_id": "op_link_side_rail_b",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_signal_strip",
+            "operation_id": "op_link_signal_strip",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_link_body",
+          "operation_id": "op_link_inner_frame",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_armor_plate",
+          "operation_id": "op_link_armor_plate",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_flowline_panel",
+          "operation_id": "op_link_flowline_panel",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_side_rail",
+          "operation_id": "op_link_side_rail_a",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_opposite_side_rail",
+          "operation_id": "op_link_side_rail_b",
+          "role": "upper_link_form"
+        },
+        {
+          "feature_id": "feature_link_signal_strip",
+          "operation_id": "op_link_signal_strip",
+          "role": "upper_link_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_link_mount",
+          "kind": "shell_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_link_shell",
+          "role": "shell",
+          "material_preset_id": "mat_composite"
+        },
+        {
+          "zone_id": "zone_arm_link_armor",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_arm_link_rail",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_link_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_link_shell",
+          "zone_id": "zone_arm_link_shell",
+          "allowed_kinds": [
+            "normal_relief",
+            "micro_surface"
+          ],
+          "allowed_motifs": [
+            "parallel_groove",
+            "chevron_relief",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "full_zone",
+            "center_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 4000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_link_armor_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_cable_harness",
+      "version": 1,
+      "component_role": "cable_harness",
+      "display_name": "机械臂线缆束",
+      "description": "非功能外观用线缆束，表示柔性表面层级而不表达电气或控制系统。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_cable_harness",
+        "units": "millimeter",
+        "seed": 6104,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_cable",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "ae10f9d2133f1c848ab8e6116500dda4f84a7625706df1781883a17c80a9813f",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_robotic_arm_link_tube",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.55,
+                -0.4
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.55,
+                    -0.4
+                  ]
+                },
+                {
+                  "kind": "quadratic",
+                  "control": [
+                    0.7,
+                    0.0
+                  ],
+                  "to": [
+                    0.55,
+                    0.4
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.55,
+                    0.4
+                  ]
+                },
+                {
+                  "kind": "quadratic",
+                  "control": [
+                    -0.7,
+                    0.0
+                  ],
+                  "to": [
+                    -0.55,
+                    -0.4
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.7,
+                  -0.4
+                ],
+                "max": [
+                  0.7,
+                  0.4
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_robotic_arm_link"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_cable_a",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "profile_input_id": "profileinput_cable",
+              "profile_scale": [
+                26,
+                22
+              ],
+              "path_points": [
+                [
+                  -760,
+                  -180,
+                  156
+                ],
+                [
+                  -360,
+                  130,
+                  200
+                ],
+                [
+                  120,
+                  180,
+                  144
+                ],
+                [
+                  620,
+                  -100,
+                  96
+                ]
+              ],
+              "path_twist_degrees": 8,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_rubber",
+              "zone_id": "zone_arm_cable"
+            }
+          },
+          {
+            "operation_id": "op_cable_b",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "profile_input_id": "profileinput_cable",
+              "profile_scale": [
+                19,
+                16
+              ],
+              "path_points": [
+                [
+                  -720,
+                  -120,
+                  -144
+                ],
+                [
+                  -260,
+                  60,
+                  -190
+                ],
+                [
+                  220,
+                  40,
+                  -165
+                ],
+                [
+                  690,
+                  -150,
+                  -110
+                ]
+              ],
+              "path_twist_degrees": -6,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_rubber",
+              "zone_id": "zone_arm_cable"
+            }
+          },
+          {
+            "operation_id": "op_cable_trim",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "profile_input_id": "profileinput_cable",
+              "profile_scale": [
+                14,
+                12
+              ],
+              "path_points": [
+                [
+                  -700,
+                  -50,
+                  0
+                ],
+                [
+                  -220,
+                  120,
+                  0
+                ],
+                [
+                  260,
+                  80,
+                  0
+                ],
+                [
+                  720,
+                  -100,
+                  0
+                ]
+              ],
+              "path_twist_degrees": 4,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_cable_signal"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_bridge_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                -36,
+                84,
+                8
+              ],
+              "size": [
+                104,
+                88,
+                438
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_cable"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_bridge",
+            "op": "surface_panel",
+            "inputs": ["op_cable_clamp_bridge_base"],
+            "args": {
+              "axis": [0, 1, 0],
+              "size": [70, 10, 344],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_cable_a",
+            "operation_id": "op_cable_a",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_b",
+            "operation_id": "op_cable_b",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_trim",
+            "operation_id": "op_cable_trim",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_clamp_bridge",
+            "operation_id": "op_cable_clamp_bridge",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_cable_bundle",
+          "operation_id": "op_cable_a",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_cable_signal",
+          "operation_id": "op_cable_trim",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_cable_clamp_bridge",
+          "operation_id": "op_cable_clamp_bridge",
+          "role": "visual_detail"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_cable_mount",
+          "kind": "trim_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_cable",
+          "role": "rubber",
+          "material_preset_id": "mat_rubber"
+        },
+        {
+          "zone_id": "zone_arm_cable_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_cable_surface",
+          "zone_id": "zone_arm_cable",
+          "allowed_kinds": [
+            "micro_surface"
+          ],
+          "allowed_motifs": [
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "full_zone"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2600,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_cable_harness_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_gripper",
+      "version": 1,
+      "component_role": "end_effector_form",
+      "display_name": "机械臂夹爪末端",
+      "description": "非功能概念夹爪外壳；只表达影视或游戏道具外观。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_gripper",
+        "units": "millimeter",
+        "seed": 6105,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_gripper_palm",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [0, 0, 0],
+              "size": [520, 260, 270],
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_palm_shell",
+            "op": "bevel_approx",
+            "inputs": ["op_gripper_palm"],
+            "args": {
+              "radius": 30,
+              "segments": 3,
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_palm_plate_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                146,
+                0
+              ],
+              "size": [
+                360,
+                28,
+                196
+              ],
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_palm_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_gripper_palm_plate_base"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                180,
+                8,
+                84
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "end_effector_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_gripper_paint"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_a_core",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [250, 156, 116],
+              "size": [352, 118, 104],
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_a",
+            "op": "bevel_approx",
+            "inputs": ["op_gripper_finger_a_core"],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_a_pad",
+            "op": "surface_panel",
+            "inputs": [
+              "op_gripper_finger_a"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                210,
+                10,
+                58
+              ],
+              "position": [
+                30,
+                0,
+                10
+              ],
+              "part_role": "end_effector_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_tip_a",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [576, 214, 122],
+              "size": [322, 96, 112],
+              "part_role": "end_effector_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_gripper_paint"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_b_core",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [250, -156, -116],
+              "size": [352, 118, 104],
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_b",
+            "op": "bevel_approx",
+            "inputs": ["op_gripper_finger_b_core"],
+            "args": {
+              "radius": 18,
+              "segments": 3,
+              "part_role": "end_effector_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_b_pad",
+            "op": "surface_panel",
+            "inputs": [
+              "op_gripper_finger_b"
+            ],
+            "args": {
+              "axis": [
+                0,
+                -1,
+                0
+              ],
+              "size": [
+                210,
+                10,
+                58
+              ],
+              "position": [
+                30,
+                0,
+                -10
+              ],
+              "part_role": "end_effector_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_gripper"
+            }
+          },
+          {
+            "operation_id": "op_gripper_finger_tip_b",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [576, -214, -122],
+              "size": [322, 96, 112],
+              "part_role": "end_effector_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_gripper_paint"
+            }
+          },
+          {
+            "operation_id": "op_gripper_wrist_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [0, -50],
+                [150, -48],
+                [190, -36],
+                [166, -24],
+                [194, -12],
+                [172, 0],
+                [194, 12],
+                [166, 24],
+                [190, 36],
+                [150, 48],
+                [0, 50]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_gripper_wrist_collar",
+            "op": "revolve",
+            "inputs": ["op_gripper_wrist_profile"],
+            "args": {
+              "position": [
+                -284,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                1.5707963267948966
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "part_role": "end_effector_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_gripper"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_gripper_palm",
+            "operation_id": "op_gripper_palm_shell",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_palm_panel",
+            "operation_id": "op_gripper_palm_panel",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_a",
+            "operation_id": "op_gripper_finger_a_pad",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_tip_a",
+            "operation_id": "op_gripper_finger_tip_a",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_b",
+            "operation_id": "op_gripper_finger_b_pad",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_tip_b",
+            "operation_id": "op_gripper_finger_tip_b",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_wrist_collar",
+            "operation_id": "op_gripper_wrist_collar",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_gripper_palm",
+          "operation_id": "op_gripper_palm_shell",
+          "role": "end_effector_form"
+        },
+        {
+          "feature_id": "feature_gripper_palm_panel",
+          "operation_id": "op_gripper_palm_panel",
+          "role": "end_effector_form"
+        },
+        {
+          "feature_id": "feature_gripper_finger_tips",
+          "operation_id": "op_gripper_finger_tip_a",
+          "role": "end_effector_form"
+        },
+        {
+          "feature_id": "feature_gripper_wrist_collar",
+          "operation_id": "op_gripper_wrist_collar",
+          "role": "end_effector_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_gripper_mount",
+          "kind": "shell_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_gripper",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_gripper_paint",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_gripper_shell",
+          "zone_id": "zone_arm_gripper",
+          "allowed_kinds": [
+            "normal_relief",
+            "pattern"
+          ],
+          "allowed_motifs": [
+            "chevron_relief",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "edge_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_gripper_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_surface_trim",
+      "version": 1,
+      "component_role": "surface_trim",
+      "display_name": "机械臂面板与信号饰件",
+      "description": "非功能面板、标签与发光 trim 的受限展示组件。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [
+        {
+          "schema_version": "EditableParameterBinding@1",
+          "parameter_id": "editparam_surface_trim_visual_span",
+          "path": "transform.scale.x",
+          "display_name": "饰条视觉延展比例",
+          "unit": "ratio",
+          "default": 1.0,
+          "min": 0.75,
+          "max": 1.25,
+          "step": 0.05
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_surface_trim",
+        "units": "millimeter",
+        "seed": 6106,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_trim_panel_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                240,
+                0,
+                0
+              ],
+              "size": [
+                480,
+                38,
+                220
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_surface_trim"
+            }
+          },
+          {
+            "operation_id": "op_trim_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_trim_panel_base"
+            ],
+            "args": {
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                340,
+                6,
+                128
+              ],
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_trim_panel_base",
+            "operation_id": "op_trim_panel_base",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_trim_panel",
+            "operation_id": "op_trim_panel",
+            "kind": "mesh",
+            "part_role": "trim"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_surface_panel",
+          "operation_id": "op_trim_panel",
+          "role": "trim"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_surface_trim_mount",
+          "kind": "trim_join",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_surface_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_arm_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_surface_trim",
+          "zone_id": "zone_arm_surface_trim",
+          "allowed_kinds": [
+            "normal_relief",
+            "pattern",
+            "flowline",
+            "micro_surface"
+          ],
+          "allowed_motifs": [
+            "parallel_groove",
+            "chevron_relief",
+            "double_flowline",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "full_zone",
+            "center_band",
+            "edge_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 800,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_surface_trim_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_desktop_assistant",
+      "version": 1,
+      "component_role": "base_form",
+      "display_name": "桌面助手机械臂",
+      "description": "紧凑、非功能的桌面机械臂概念装配根。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_desktop_assistant",
+        "units": "millimeter",
+        "seed": 6111,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -140
+                ],
+                [
+                  180,
+                  -132
+                ],
+                [
+                  330,
+                  -92
+                ],
+                [
+                  420,
+                  -32
+                ],
+                [
+                  438,
+                  0
+                ],
+                [
+                  420,
+                  32
+                ],
+                [
+                  330,
+                  92
+                ],
+                [
+                  180,
+                  132
+                ],
+                [
+                  0,
+                  140
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_base_shell",
+            "op": "revolve",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_base"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base_shell",
+            "operation_id": "op_base_shell",
+            "kind": "mesh",
+            "part_role": "base_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_base_shell",
+          "operation_id": "op_base_shell",
+          "role": "base_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_desktop_turntable",
+          "kind": "shell_join",
+          "position": [
+            0,
+            190,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_shoulder",
+          "kind": "shell_join",
+          "position": [
+            360,
+            520,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_lower_link",
+          "kind": "shell_join",
+          "position": [
+            980,
+            760,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_elbow",
+          "kind": "shell_join",
+          "position": [
+            1580,
+            1070,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_upper_link",
+          "kind": "shell_join",
+          "position": [
+            2140,
+            920,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_wrist",
+          "kind": "shell_join",
+          "position": [
+            2760,
+            720,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_cable",
+          "kind": "trim_join",
+          "position": [
+            1740,
+            880,
+            220
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_gripper",
+          "kind": "shell_join",
+          "position": [
+            3250,
+            620,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_desktop_trim",
+          "kind": "trim_join",
+          "position": [
+            240,
+            280,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_base",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_desktop_base",
+          "zone_id": "zone_arm_base",
+          "allowed_kinds": [
+            "pattern",
+            "flowline"
+          ],
+          "allowed_motifs": [
+            "hex_microgrid",
+            "double_flowline"
+          ],
+          "allowed_coverages": [
+            "center_band",
+            "edge_band"
+          ]
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_desktop_turntable",
+          "accepted_roles": [
+            "turntable"
+          ],
+          "child_recipe_id": "recipe_c106_arm_turntable",
+          "parent_connector_id": "connector_desktop_turntable",
+          "child_connector_id": "connector_turntable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_shoulder",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_desktop_shoulder",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_lower_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_desktop_lower_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_elbow",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_desktop_elbow",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_upper_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_desktop_upper_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_wrist",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_desktop_wrist",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_cable",
+          "accepted_roles": [
+            "cable_harness"
+          ],
+          "child_recipe_id": "recipe_c106_arm_cable_harness",
+          "parent_connector_id": "connector_desktop_cable",
+          "child_connector_id": "connector_cable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_gripper",
+          "accepted_roles": [
+            "end_effector_form"
+          ],
+          "child_recipe_id": "recipe_c106_arm_gripper",
+          "parent_connector_id": "connector_desktop_gripper",
+          "child_connector_id": "connector_gripper_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_desktop_trim",
+          "accepted_roles": [
+            "surface_trim"
+          ],
+          "child_recipe_id": "recipe_c106_arm_surface_trim",
+          "parent_connector_id": "connector_desktop_trim",
+          "child_connector_id": "connector_surface_trim_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2400,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_desktop_assistant_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_gallery_industrial",
+      "version": 1,
+      "component_role": "base_form",
+      "display_name": "展厅工业机械臂",
+      "description": "高姿态、非功能的工业风机械臂概念装配根。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_gallery_industrial",
+        "units": "millimeter",
+        "seed": 6112,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -156
+                ],
+                [
+                  210,
+                  -148
+                ],
+                [
+                  362,
+                  -110
+                ],
+                [
+                  458,
+                  -38
+                ],
+                [
+                  476,
+                  0
+                ],
+                [
+                  458,
+                  38
+                ],
+                [
+                  362,
+                  110
+                ],
+                [
+                  210,
+                  148
+                ],
+                [
+                  0,
+                  156
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_base_shell",
+            "op": "revolve",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_base"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base_shell",
+            "operation_id": "op_base_shell",
+            "kind": "mesh",
+            "part_role": "base_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_base_shell",
+          "operation_id": "op_base_shell",
+          "role": "base_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_gallery_turntable",
+          "kind": "shell_join",
+          "position": [
+            0,
+            220,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_shoulder",
+          "kind": "shell_join",
+          "position": [
+            420,
+            650,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_lower_link",
+          "kind": "shell_join",
+          "position": [
+            1080,
+            1080,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_elbow",
+          "kind": "shell_join",
+          "position": [
+            1700,
+            1520,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_upper_link",
+          "kind": "shell_join",
+          "position": [
+            2300,
+            1340,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_wrist",
+          "kind": "shell_join",
+          "position": [
+            2940,
+            1080,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_cable",
+          "kind": "trim_join",
+          "position": [
+            1870,
+            1260,
+            220
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_gripper",
+          "kind": "shell_join",
+          "position": [
+            3440,
+            920,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_gallery_trim",
+          "kind": "trim_join",
+          "position": [
+            240,
+            320,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_base",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_gallery_base",
+          "zone_id": "zone_arm_base",
+          "allowed_kinds": [
+            "normal_relief",
+            "pattern"
+          ],
+          "allowed_motifs": [
+            "parallel_groove",
+            "hex_microgrid"
+          ],
+          "allowed_coverages": [
+            "center_band",
+            "symmetric_pair"
+          ]
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_gallery_turntable",
+          "accepted_roles": [
+            "turntable"
+          ],
+          "child_recipe_id": "recipe_c106_arm_turntable",
+          "parent_connector_id": "connector_gallery_turntable",
+          "child_connector_id": "connector_turntable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_shoulder",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_gallery_shoulder",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_lower_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_gallery_lower_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_elbow",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_gallery_elbow",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_upper_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_gallery_upper_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_wrist",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_gallery_wrist",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_cable",
+          "accepted_roles": [
+            "cable_harness"
+          ],
+          "child_recipe_id": "recipe_c106_arm_cable_harness",
+          "parent_connector_id": "connector_gallery_cable",
+          "child_connector_id": "connector_cable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_gripper",
+          "accepted_roles": [
+            "end_effector_form"
+          ],
+          "child_recipe_id": "recipe_c106_arm_gripper",
+          "parent_connector_id": "connector_gallery_gripper",
+          "child_connector_id": "connector_gripper_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_gallery_trim",
+          "accepted_roles": [
+            "surface_trim"
+          ],
+          "child_recipe_id": "recipe_c106_arm_surface_trim",
+          "parent_connector_id": "connector_gallery_trim",
+          "child_connector_id": "connector_surface_trim_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2500,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_gallery_industrial_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c106_arm_service_display",
+      "version": 1,
+      "component_role": "base_form",
+      "display_name": "服务展示机械臂",
+      "description": "长臂、非功能的服务机械臂概念装配根。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c106_arm_service_display",
+        "units": "millimeter",
+        "seed": 6113,
+        "triangle_budget": 24000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_base_profile",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [0, 50, 0],
+              "size": [680, 220, 580],
+              "part_role": "base_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_base_shell",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_base_profile"
+            ],
+            "args": {
+              "radius": 48,
+              "segments": 3,
+              "part_role": "base_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_lower_box",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                -226,
+                0
+              ],
+              "size": [
+                1040,
+                210,
+                820
+              ],
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_base"
+            }
+          },
+          {
+            "operation_id": "op_plinth_lower",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_plinth_lower_box"
+            ],
+            "args": {
+              "radius": 48,
+              "segments": 2,
+              "part_role": "base_form",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_arm_base"
+            }
+          },
+          {
+            "operation_id": "op_plinth_upper_box",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                -84,
+                0
+              ],
+              "size": [
+                880,
+                94,
+                680
+              ],
+              "part_role": "base_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_upper",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_plinth_upper_box"
+            ],
+            "args": {
+              "radius": 34,
+              "segments": 2,
+              "part_role": "base_form",
+              "material_id": "mat_composite",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_blue_front_seed",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                -285,
+                -218,
+                416
+              ],
+              "size": [
+                150,
+                96,
+                24
+              ],
+              "part_role": "base_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_base_paint"
+            }
+          },
+          {
+            "operation_id": "op_plinth_blue_front",
+            "op": "array",
+            "inputs": [
+              "op_plinth_blue_front_seed"
+            ],
+            "args": {
+              "axis": [
+                1,
+                0,
+                0
+              ],
+              "count": 4,
+              "spacing": 190,
+              "part_role": "base_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_base_paint"
+            }
+          },
+          {
+            "operation_id": "op_plinth_fastener",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                -32,
+                0
+              ],
+              "radius": 24,
+              "height": 16,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_fastener_array",
+            "op": "radial_array",
+            "inputs": [
+              "op_plinth_fastener"
+            ],
+            "args": {
+              "axis": [0, 1, 0],
+              "count": 32,
+              "radius": 330,
+              "angle": 6.283185307179586,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_signal",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [
+                -250,
+                -214,
+                420
+              ],
+              "radius": 8,
+              "height": 38,
+              "axis": [0, 1, 0],
+              "part_role": "base_form",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_base_signal"
+            }
+          },
+          {
+            "operation_id": "op_plinth_signal_array",
+            "op": "array",
+            "inputs": ["op_plinth_signal"],
+            "args": {
+              "axis": [1, 0, 0],
+              "count": 24,
+              "spacing": 22,
+              "part_role": "base_form",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_arm_base_signal"
+            }
+          },
+          {
+            "operation_id": "op_plinth_service_panel_box",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                290,
+                -210,
+                416
+              ],
+              "size": [
+                198,
+                86,
+                26
+              ],
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_deck"
+            }
+          },
+          {
+            "operation_id": "op_plinth_service_panel",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_plinth_service_panel_box"
+            ],
+            "args": {
+              "radius": 6,
+              "segments": 2,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_deck"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_base_shell",
+            "operation_id": "op_base_shell",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_lower",
+            "operation_id": "op_plinth_lower",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_upper",
+            "operation_id": "op_plinth_upper",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_blue_front",
+            "operation_id": "op_plinth_blue_front",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_fastener_array",
+            "operation_id": "op_plinth_fastener_array",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_signal",
+            "operation_id": "op_plinth_signal_array",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_service_panel",
+            "operation_id": "op_plinth_service_panel",
+            "kind": "mesh",
+            "part_role": "base_form"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_base_shell",
+          "operation_id": "op_base_shell",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_plinth_lower",
+          "operation_id": "op_plinth_lower",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_plinth_upper",
+          "operation_id": "op_plinth_upper",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_plinth_fastener_array",
+          "operation_id": "op_plinth_fastener_array",
+          "role": "base_form"
+        },
+        {
+          "feature_id": "feature_plinth_service_panel",
+          "operation_id": "op_plinth_service_panel",
+          "role": "base_form"
+        }
+      ],
+      "connectors": [
+        {
+          "connector_id": "connector_service_turntable",
+          "kind": "shell_join",
+          "position": [
+            0,
+            220,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_shoulder",
+          "kind": "shell_join",
+          "position": [
+            160,
+            650,
+            0
+          ],
+          "normal": [
+            -0.5881716976750462,
+            0.8087360843031886,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_lower_link",
+          "kind": "shell_join",
+          "position": [
+            -250,
+            1120,
+            0
+          ],
+          "normal": [
+            -0.5881716976750462,
+            0.8087360843031886,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_elbow",
+          "kind": "shell_join",
+          "position": [
+            -620,
+            1570,
+            0
+          ],
+          "normal": [
+            -0.5881716976750462,
+            0.8087360843031886,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_upper_link",
+          "kind": "shell_join",
+          "position": [
+            -1040,
+            1260,
+            0
+          ],
+          "normal": [
+            -0.8,
+            -0.6,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_wrist",
+          "kind": "shell_join",
+          "position": [
+            -1480,
+            930,
+            0
+          ],
+          "normal": [
+            -0.8,
+            -0.6,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_cable",
+          "kind": "trim_join",
+          "position": [
+            -860,
+            1280,
+            220
+          ],
+          "normal": [
+            -0.8,
+            -0.6,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_gripper",
+          "kind": "shell_join",
+          "position": [
+            -1760,
+            650,
+            0
+          ],
+          "normal": [
+            -0.7,
+            -0.714142842854285,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_service_trim",
+          "kind": "trim_join",
+          "position": [
+            0,
+            360,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_arm_base",
+          "role": "shell",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_base_deck",
+          "role": "shell",
+          "material_preset_id": "mat_composite"
+        },
+        {
+          "zone_id": "zone_arm_base_paint",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_arm_base_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "surface_adornment_slots": [
+        {
+          "slot_id": "adornslot_service_base",
+          "zone_id": "zone_arm_base",
+          "allowed_kinds": [
+            "pattern",
+            "flowline"
+          ],
+          "allowed_motifs": [
+            "hex_microgrid",
+            "double_flowline"
+          ],
+          "allowed_coverages": [
+            "center_band",
+            "edge_band"
+          ]
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_service_turntable",
+          "accepted_roles": [
+            "turntable"
+          ],
+          "child_recipe_id": "recipe_c106_arm_turntable",
+          "parent_connector_id": "connector_service_turntable",
+          "child_connector_id": "connector_turntable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_shoulder",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_service_shoulder",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_lower_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_service_lower_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_elbow",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_service_elbow",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_upper_link",
+          "accepted_roles": [
+            "link_armor"
+          ],
+          "child_recipe_id": "recipe_c106_arm_link_armor",
+          "parent_connector_id": "connector_service_upper_link",
+          "child_connector_id": "connector_link_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_wrist",
+          "accepted_roles": [
+            "joint_housing"
+          ],
+          "child_recipe_id": "recipe_c106_arm_joint_housing",
+          "parent_connector_id": "connector_service_wrist",
+          "child_connector_id": "connector_joint_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_cable",
+          "accepted_roles": [
+            "cable_harness"
+          ],
+          "child_recipe_id": "recipe_c106_arm_cable_harness",
+          "parent_connector_id": "connector_service_cable",
+          "child_connector_id": "connector_cable_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_gripper",
+          "accepted_roles": [
+            "end_effector_form"
+          ],
+          "child_recipe_id": "recipe_c106_arm_gripper",
+          "parent_connector_id": "connector_service_gripper",
+          "child_connector_id": "connector_gripper_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_service_trim",
+          "accepted_roles": [
+            "surface_trim"
+          ],
+          "child_recipe_id": "recipe_c106_arm_surface_trim",
+          "parent_connector_id": "connector_service_trim",
+          "child_connector_id": "connector_surface_trim_mount",
+          "parent_local_transform": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_robotic_arm_concept"
+      ],
+      "triangle_estimate": 2500,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_c106_arm"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_c106_service_display_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    }
+  ]
+}

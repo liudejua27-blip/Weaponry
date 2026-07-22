@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { legacyLifecycleTestOracleEnvironment } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -19,18 +20,17 @@ async function main() {
   try {
     const agent = spawn(
       join(ROOT, '.venv', 'bin', 'python'),
-      ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
+      ['-m', 'uvicorn', 'wushen_agent.test_oracle:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)],
       {
         cwd: ROOT,
-        env: {
-          ...process.env,
+        env: legacyLifecycleTestOracleEnvironment(process.env, {
           WUSHEN_LIBRARY_ROOT: join(tempRoot, 'library'),
           WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'),
           WUSHEN_CORS_ORIGINS: viteBaseUrl,
           WUSHEN_LOCAL_WORKER_ENABLED: '0',
           FORGECAD_CONCEPT_WORKER_ENABLED: '1',
           FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules',
-        },
+        }),
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     )
@@ -52,7 +52,7 @@ async function main() {
     })
     await page.goto(`${viteBaseUrl}/#/cad`, { waitUntil: 'networkidle' })
     await page.waitForSelector('[data-testid="cad-workbench"]', { timeout: 20_000 })
-    const input = page.getByPlaceholder('描述你想设计的道具…')
+    const input = page.getByPlaceholder('描述你想设计的 3D 概念模型…')
     await input.waitFor({ timeout: 20_000 })
     await input.fill('设计一台能飞的无人机载具')
     await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
@@ -64,7 +64,11 @@ async function main() {
     }
     if (legacyBriefInterpretPosts !== 0) throw new Error('ambiguous input fell back to legacy Brief API')
     await clarification.getByRole('button', { name: '飞机与航空器', exact: true }).click()
-    await page.getByLabel('Agent 完整外观方向').waitFor({ timeout: 20_000 })
+    const result = page.getByLabel('当前临时结果')
+    await result.waitFor({ timeout: 20_000 })
+    if (await page.getByLabel('Agent 完整外观方向').count()) {
+      throw new Error('clarification completion restored the retired direction-selection surface')
+    }
     if (await page.getByLabel('需要确认设计类别').count() !== 0) throw new Error('clarification remained after choosing a domain')
     console.log(JSON.stringify({ ok: true, clarification: 'ambiguous', legacy_brief_posts: legacyBriefInterpretPosts }))
   } finally {

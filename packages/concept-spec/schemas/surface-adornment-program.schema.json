@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/surface-adornment-program.schema.json",
+  "title": "SurfaceAdornmentProgram",
+  "description": "A005 visual-only texture bake instruction. It is not a ShapeProgram operation.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "program_id", "target_part_id", "target_zone_id", "kind", "motif", "intensity", "coverage", "seed", "base_material", "execution", "skill_id", "skill_version", "skill_sha256", "generator", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "SurfaceAdornmentProgram@1" },
+    "program_id": { "type": "string", "pattern": "^adorn_[a-z0-9_\\-]+$" },
+    "target_part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$" },
+    "target_zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
+    "kind": { "enum": ["normal_relief", "pattern", "flowline", "micro_surface"] },
+    "motif": { "enum": ["parallel_groove", "chevron_relief", "double_flowline", "hex_microgrid"] },
+    "intensity": { "enum": ["subtle", "balanced", "pronounced"] },
+    "coverage": { "enum": ["full_zone", "center_band", "edge_band", "symmetric_pair"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "base_material": { "enum": ["mat_aluminum", "mat_automotive_paint", "mat_composite", "mat_dark_glass", "mat_emissive_blue", "mat_graphite", "mat_rubber", "mat_signal_red"] },
+    "execution": { "const": "texture_bake" },
+    "skill_id": { "type": "string", "pattern": "^skill_[a-z0-9_\\-]+$" },
+    "skill_version": { "type": "integer", "minimum": 1 },
+    "skill_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "generator": { "const": "a005_v1" },
+    "non_functional_only": { "const": true }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "normal_relief" } } }, "then": { "properties": { "motif": { "enum": ["parallel_groove", "chevron_relief"] } } } },
+    { "if": { "properties": { "kind": { "const": "pattern" } } }, "then": { "properties": { "motif": { "const": "hex_microgrid" } } } },
+    { "if": { "properties": { "kind": { "const": "flowline" } } }, "then": { "properties": { "motif": { "const": "double_flowline" } } } },
+    { "if": { "properties": { "kind": { "const": "micro_surface" } } }, "then": { "properties": { "motif": { "enum": ["hex_microgrid", "parallel_groove"] } } } }
+  ]
+}

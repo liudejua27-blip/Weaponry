@@ -137,12 +137,51 @@ def forgecad_product_tool_registry() -> ProductToolRegistry:
         ProductToolDefinition(
             tool_id="forgecad.geometry.build.v1",
             name="build_candidate_geometry",
-            description="Build one bounded candidate with the shipped Geometry Worker; never persists an asset version.",
+            description=(
+                "Build the single initial bounded candidate, or apply one parent-gate-authorized "
+                "code-owned same-intent repair patch; never expands a second direction or persists "
+                "an asset version."
+            ),
             input_schema=_closed(
                 {
                     "direction_id": {"type": "string", "pattern": "^direction_[a-z0-9_\\-]+$"},
                     "variant_id": {"type": ["string", "null"], "maxLength": 120},
                     "presentation_profile": {"enum": ["quick_sketch", "showcase"]},
+                    "repair": _closed(
+                        {
+                            "schema_version": {
+                                "const": "BoundedGeometryRepairPatch@1",
+                                "type": "string",
+                            },
+                            "parent_attempt_id": {
+                                "type": "string",
+                                "pattern": "^attempt_[a-z0-9_\\-]+$",
+                            },
+                            "parent_gate_report_id": {
+                                "type": "string",
+                                "pattern": "^gate_[a-z0-9_\\-]+$",
+                            },
+                            "gate_id": {
+                                "enum": [
+                                    "closed_manifold",
+                                    "surface_provenance_present",
+                                ]
+                            },
+                            "patch_id": {
+                                "enum": [
+                                    "seal_open_sweep_caps",
+                                    "restore_output_material_zones",
+                                ]
+                            },
+                        },
+                        [
+                            "schema_version",
+                            "parent_attempt_id",
+                            "parent_gate_report_id",
+                            "gate_id",
+                            "patch_id",
+                        ],
+                    ),
                 },
                 ["direction_id", "presentation_profile"],
             ),

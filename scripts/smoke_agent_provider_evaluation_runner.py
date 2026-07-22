@@ -82,25 +82,25 @@ def _reject(planner: SyntheticPlanner, authorization: ProviderEvaluationAuthoriz
 
 
 def main() -> int:
-    class KeychainResult:
-        returncode = 0
-        stdout = "test-keychain-secret\n"
+    runner_source = (Path(__file__).resolve().parents[1] / "scripts" / "run_agent_provider_evaluation.py").read_text(encoding="utf-8")
+    for forbidden in ("find-generic-password", "KEYCHAIN_ACCOUNT", "KEYCHAIN_SERVICE"):
+        _assert(forbidden not in runner_source, f"Python evaluation runner must not contain a Keychain secret-read path: {forbidden}")
 
     with tempfile.TemporaryDirectory() as temporary:
         metadata_path = Path(temporary) / "provider.json"
         metadata_path.write_text(json.dumps({"base_url": "https://api.deepseek.com", "model": "deepseek-v4-pro", "configured": True}), encoding="utf-8")
-        config = _macos_keychain_planner_config(
-            platform_name="darwin",
-            metadata_path=metadata_path,
-            command_runner=lambda *args, **kwargs: KeychainResult(),
-        )
-        _assert(config.base_url == "https://api.deepseek.com" and config.model == "deepseek-v4-pro" and config.api_key == "test-keychain-secret", "macOS Keychain configuration must remain in-memory and usable by the isolated evaluator")
         try:
-            _macos_keychain_planner_config(platform_name="linux", metadata_path=metadata_path, command_runner=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not read Keychain on another platform")))
+            _macos_keychain_planner_config(
+                platform_name="darwin",
+                metadata_path=metadata_path,
+            )
         except ProviderEvaluationError as exc:
-            _assert(exc.code == "E002_PROVIDER_UNCONFIGURED", "non-macOS Keychain selection must reject before credential access")
+            _assert(
+                exc.code == "E002_RUST_NATIVE_PROVIDER_REQUIRED",
+                "the retired Python Keychain bridge must reject before credential access",
+            )
         else:
-            raise AssertionError("non-macOS Keychain selection must reject")
+            raise AssertionError("the retired Python Keychain bridge must reject")
 
     full = SyntheticPlanner()
     report = _run(full)
@@ -140,11 +140,11 @@ def main() -> int:
     )
     _assert(absent_credentials.returncode == 2 and "E002_PROVIDER_UNCONFIGURED" in absent_credentials.stdout, "absent credentials must reject before network access")
 
-    absent_keychain = subprocess.run(
+    retired_keychain = subprocess.run(
         [sys.executable, "scripts/run_agent_provider_evaluation.py", "--confirm-live-provider", "--confirmed-budget-cny", "10", "--evaluation-run-id", "eval_no_keychain", "--operator-name", "test", "--approval-timestamp", "2026-07-14T00:00:00Z", "--provider-connection-preflight", "--provider-config-source", "macos-keychain"],
         cwd=Path(__file__).resolve().parents[1], env=empty_environment, capture_output=True, text=True, check=False,
     )
-    _assert(absent_keychain.returncode == 2 and "E002_PROVIDER_UNCONFIGURED" in absent_keychain.stdout, "absent macOS Keychain configuration must reject before network access")
+    _assert(retired_keychain.returncode == 2 and "E002_RUST_NATIVE_PROVIDER_REQUIRED" in retired_keychain.stdout, "the retired Python Keychain path must reject before network access")
 
     with tempfile.TemporaryDirectory() as temporary:
         ledger_dir = Path(temporary) / "ledger"

@@ -7,6 +7,7 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 from pydantic import Field, model_validator
 
 from .concept_models import StrictApiModel
+from .arm_design_intent import ArmDesignIntent
 from .domain_packs import DomainPackId
 from .geometry_models import GeometryCompileReadback
 from .mechanical_planner import MechanicalConceptPlan
@@ -550,6 +551,8 @@ class AgentAssetVersion(StrictApiModel):
 
 
 AgentAssetEditOp = Literal[
+    "add_reviewed_recipe",
+    "replace_reviewed_recipe",
     "set_part_transform",
     "set_part_parameter",
     "set_joint_pose",
@@ -571,6 +574,12 @@ class AgentPartEditOperation(StrictApiModel):
     material_id: Optional[str] = Field(default=None, pattern=r"^mat_[a-z0-9_\-]+$")
     material_zone_id: Optional[str] = Field(default=None, max_length=120, pattern=r"^zone_[a-z0-9_\-]+$")
     replacement_component_id: Optional[str] = Field(default=None, pattern=r"^agentcomp_[a-z0-9_\-]+$")
+    new_part_id: Optional[str] = Field(default=None, pattern=r"^part_[a-z0-9_\-]+$")
+    recipe_id: Optional[str] = Field(default=None, max_length=120, pattern=r"^recipe_[a-z0-9_\-]+$")
+    slot_id: Optional[str] = Field(default=None, max_length=120, pattern=r"^slot_[a-z0-9_\-]+$")
+    parent_connector_id: Optional[str] = Field(default=None, max_length=120)
+    child_connector_id: Optional[str] = Field(default=None, max_length=120)
+    pose: Optional[Dict[str, List[float]]] = None
     target_part_id: Optional[str] = Field(default=None, pattern=r"^part_[a-z0-9_\-]+$")
     target_connector_id: Optional[str] = Field(default=None, max_length=120)
     connector_id: Optional[str] = Field(default=None, max_length=120)
@@ -578,7 +587,13 @@ class AgentPartEditOperation(StrictApiModel):
 
     @model_validator(mode="after")
     def validate_operation(self) -> "AgentPartEditOperation":
-        if self.op == "set_part_transform":
+        if self.op == "add_reviewed_recipe":
+            if not all((self.new_part_id, self.recipe_id, self.slot_id, self.parent_connector_id, self.child_connector_id, self.transform)):
+                raise ValueError("add_reviewed_recipe requires a reviewed recipe, slot, connectors and transform")
+        elif self.op == "replace_reviewed_recipe":
+            if not self.recipe_id:
+                raise ValueError("replace_reviewed_recipe requires recipe_id")
+        elif self.op == "set_part_transform":
             if not self.transform or any(
                 key not in self.transform or len(self.transform[key]) != 3
                 for key in ("position", "rotation", "scale")
@@ -588,7 +603,7 @@ class AgentPartEditOperation(StrictApiModel):
             if not self.path or self.value is None:
                 raise ValueError("set_part_parameter requires path and value")
         elif self.op == "set_joint_pose":
-            if not self.transform or "rotation" not in self.transform:
+            if not ((self.transform and "rotation" in self.transform) or (self.pose and "rotation" in self.pose)):
                 raise ValueError("set_joint_pose requires a rotation vector")
         elif self.op == "apply_material_preset":
             if not self.material_id:
@@ -859,15 +874,56 @@ class AgentAssetQualityReport(StrictApiModel):
 
 
 class AgentAssetExportResponse(StrictApiModel):
-    schema_version: Literal["AgentAssetExport@1"] = "AgentAssetExport@1"
+    schema_version: Literal["AgentAssetExport@1", "AgentAssetExport@2"] = "AgentAssetExport@2"
     asset_version_id: str = Field(pattern=r"^assetver_[a-z0-9_\-]+$")
     format: Literal["glb"] = "glb"
     glb_base64: str = Field(min_length=1)
+    artifact_profile_id: Optional[
+        Literal["external_reference", "interactive_preview", "production_concept"]
+    ] = None
+    artifact_profile_sha256: Optional[str] = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
+    shape_program_sha256: Optional[str] = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
+    glb_sha256: Optional[str] = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    glb_byte_size: Optional[int] = Field(default=None, ge=20, le=64 * 1024 * 1024)
     triangle_count: int = Field(ge=0)
     bounds_mm: List[float] = Field(min_length=3, max_length=3)
     readback_status: Literal["passed"] = "passed"
     readback_triangle_count: int = Field(ge=0)
     exported_at: str
+
+    @model_validator(mode="after")
+    def validate_artifact_identity(self) -> "AgentAssetExportResponse":
+        if self.schema_version == "AgentAssetExport@1":
+            if any(
+                value is not None
+                for value in (
+                    self.artifact_profile_id,
+                    self.artifact_profile_sha256,
+                    self.shape_program_sha256,
+                    self.glb_sha256,
+                    self.glb_byte_size,
+                )
+            ):
+                raise ValueError("legacy export cannot claim derived artifact identity")
+            return self
+        if (
+            self.artifact_profile_id is None
+            or self.glb_sha256 is None
+            or self.glb_byte_size is None
+        ):
+            raise ValueError("current export requires GLB artifact identity")
+        if self.artifact_profile_id == "external_reference":
+            if self.artifact_profile_sha256 is not None or self.shape_program_sha256 is not None:
+                raise ValueError("external GLB reference cannot claim a ShapeProgram profile")
+        elif self.artifact_profile_sha256 is None or self.shape_program_sha256 is None:
+            raise ValueError("compiled export requires ShapeProgram and profile hashes")
+        return self
 
 
 class AgentAssetRenderView(StrictApiModel):

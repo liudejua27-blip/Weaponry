@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/component-recipe-instantiation-request.schema.json",
+  "title": "ComponentRecipeInstantiationRequest",
+  "description": "Request for a transient Recipe expansion. Active edits may later enter ChangeSet preview; initial candidates may later enter NativePreview. World transforms, executable payloads, URLs and paths are intentionally absent.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "request_id", "project_id", "context_mode", "base_asset_version_id", "snapshot_revision", "domain_pack_id", "recipe_registry_sha256", "recipe", "target_part_id", "slot_bindings", "parameter_values", "material_zone_overrides"],
+  "properties": {
+    "schema_version": { "const": "ComponentRecipeInstantiationRequest@1" },
+    "request_id": { "type": "string", "pattern": "^recipereq_[a-z0-9_\\-]+$" },
+    "project_id": { "type": ["string", "null"], "pattern": "^prj_[a-z0-9_\\-]+$" },
+    "context_mode": { "type": "string", "enum": ["initial_candidate", "active_asset_edit"] },
+    "base_asset_version_id": { "type": ["string", "null"], "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "snapshot_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "domain_pack_id": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "recipe_registry_sha256": { "description": "Exact reviewed registry identity. C106 robotic-arm roots require the embedded C106 hash; C105 requests must pin the frozen C105 registry hash.", "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "recipe": { "$ref": "component-recipe-ref.schema.json" },
+    "target_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
+    "slot_bindings": { "description": "Explicitly enables an optional slot's fixed, reviewed child Recipe. It does not select an arbitrary replacement; replacements use the C102 preview-confirm path.", "type": "array", "maxItems": 12, "uniqueItems": true, "items": { "type": "object", "additionalProperties": false, "required": ["slot_id", "child_recipe"], "properties": { "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_\\-]+$" }, "child_recipe": { "$ref": "component-recipe-ref.schema.json" } } } },
+    "parameter_values": { "type": "array", "maxItems": 16, "items": { "type": "object", "additionalProperties": false, "required": ["parameter_id", "value"], "properties": { "parameter_id": { "type": "string", "pattern": "^editparam_[a-z0-9_\\-]+$" }, "value": { "type": "number", "minimum": -10000, "maximum": 10000 } } } },
+    "material_zone_overrides": { "type": "array", "maxItems": 12, "items": { "type": "object", "additionalProperties": false, "required": ["zone_id", "material_preset_id"], "properties": { "zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" }, "material_preset_id": { "type": "string", "pattern": "^mat_[a-z0-9_\\-]+$" } } } }
+  },
+  "allOf": [
+    { "if": { "properties": { "context_mode": { "const": "initial_candidate" } }, "required": ["context_mode"] }, "then": { "properties": { "project_id": { "const": null }, "base_asset_version_id": { "const": null }, "snapshot_revision": { "const": null }, "target_part_id": { "const": null } } } },
+    { "if": { "properties": { "context_mode": { "const": "active_asset_edit" } }, "required": ["context_mode"] }, "then": { "properties": { "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" }, "base_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" }, "snapshot_revision": { "type": "integer", "minimum": 1 }, "target_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" } } } }
+  ]
+}

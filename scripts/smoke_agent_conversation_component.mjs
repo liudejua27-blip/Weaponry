@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -40,6 +40,28 @@ try {
   await writeFile(join(output, 'package.json'), '{"type":"module"}\n', 'utf8')
   const module = await import(pathToFileURL(join(output, 'features', 'cad-workbench', 'AgentConversation.smoke.js')).href)
   module.runAgentConversationSmoke()
+  const [conversationSource, conceptHookSource, panelSource] = await Promise.all([
+    readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'AgentConversation.tsx'), 'utf8'),
+    readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'useConceptWorkbench.ts'), 'utf8'),
+    readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'CadWorkbenchPanel.tsx'), 'utf8'),
+  ])
+  for (const [label, source] of [
+    ['AgentConversation', conversationSource],
+    ['useConceptWorkbench', conceptHookSource],
+    ['CadWorkbenchPanel', panelSource],
+  ]) {
+    for (const forbidden of ['准备展示组件', 'initializeCurrentProject', 'initializeConceptWorkbench']) {
+      if (source.includes(forbidden)) throw new Error(`${label} still exposes the legacy empty-project initializer: ${forbidden}`)
+    }
+  }
+  if (
+    !conversationSource.includes('data-testid="agent-empty-project"')
+    || !panelSource.includes('projectIsEmpty={projectIsEmpty}')
+    || !panelSource.includes("activeDesignSnapshot?.active_design.source === 'agent_asset'")
+    || !panelSource.includes('!projectHasActiveAgentSnapshot')
+  ) {
+    throw new Error('empty Project must render the direct Agent first-asset state')
+  }
   console.log('F002 AgentConversation component smoke passed')
 } finally {
   await rm(output, { recursive: true, force: true })

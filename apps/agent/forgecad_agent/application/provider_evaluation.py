@@ -229,7 +229,7 @@ def _plan_record(case: Mapping[str, Any], fixture_sha256: str, plan: MechanicalC
         "required_roles_present": required_roles.issubset(returned_roles),
         "non_functional_scope": scope_clean,
     }
-    passed = all(checks.values()) and len(plan.directions) == 3
+    passed = all(checks.values()) and len(plan.directions) == 1
     return _record(
         case_id=_case_id(case), fixture_sha256=fixture_sha256, domain_pack_id=plan.domain_pack_id,
         outcome_category="passed" if passed else "policy_scope_failed", structured_output_valid=True,

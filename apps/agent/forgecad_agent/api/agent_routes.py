@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated, List, Optional, Union
+from typing import Annotated, List, Mapping, Optional, Union
 
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -44,17 +44,65 @@ from forgecad_agent.application.provider_gateway import ProviderConnectionState
 from forgecad_agent.application.agent_action_loop import ProductToolRegistryManifest
 
 
+RUST_OWNED_AGENT_LIFECYCLE_CODE = "AGENT_LIFECYCLE_RUST_OWNED"
+RUST_OWNED_AGENT_LIFECYCLE_MESSAGE = (
+    "Agent Thread, Turn, Approval and Provider lifecycle is owned by the Rust app-server."
+)
+RUST_OWNED_PRODUCT_STATE_CODE = "PRODUCT_STATE_RUST_OWNED"
+RUST_OWNED_PRODUCT_STATE_MESSAGE = (
+    "Project, Agent lifecycle and product state are owned by the Rust ForgeCAD core; "
+    "this Python compatibility service cannot read them."
+)
+TEST_ONLY_LEGACY_AGENT_LIFECYCLE_ENV = "FORGECAD_TEST_ONLY_LEGACY_AGENT_LIFECYCLE"
+K001_PACKAGED_PROBE_ENV = "FORGECAD_K001_PACKAGED_PROBE"
+
+
+def legacy_lifecycle_compat_enabled(environment: Mapping[str, str]) -> bool:
+    """Permit the old writer only inside the explicit K001 packaged oracle."""
+
+    return (
+        environment.get(TEST_ONLY_LEGACY_AGENT_LIFECYCLE_ENV, "").strip() == "1"
+        and environment.get(K001_PACKAGED_PROBE_ENV, "").strip() == "1"
+    )
+
+
 def build_agent_router(
     service: AgentKernelService,
     material_texture_service: Optional[MaterialTextureService] = None,
+    *,
+    allow_test_only_legacy_lifecycle: bool = False,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1/agent", tags=["agent-kernel"])
+    if not allow_test_only_legacy_lifecycle:
+        # Register owner tombstones before the typed compatibility handlers so
+        # stale clients receive the migration error even when their old body is
+        # absent or malformed. The later handlers preserve the K001 oracle's
+        # OpenAPI shape but are unreachable in the production/default router.
+        for method, path in (
+            ("POST", "/threads"),
+            ("POST", "/provider:check"),
+            ("POST", "/provider-checks/{check_id}/cancel"),
+            ("GET", "/provider"),
+            ("POST", "/threads/{thread_id}/turns"),
+            ("POST", "/turns/{turn_id}/cancel"),
+            ("POST", "/threads/{thread_id}/approvals"),
+            ("POST", "/approvals/{approval_id}/resolve"),
+        ):
+            router.add_api_route(
+                path,
+                _rust_owned_lifecycle_response,
+                methods=[method],
+                response_model=None,
+                include_in_schema=False,
+            )
 
     @router.post("/threads", response_model=AgentThreadDetail, status_code=201)
     def create_thread(
         request: CreateAgentThreadRequest,
         idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
     ) -> Union[AgentThreadDetail, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         try:
             return service.create_thread(request, _require_idempotency_key(idempotency_key))
         except AgentKernelIdempotencyConflict as exc:
@@ -63,7 +111,9 @@ def build_agent_router(
             return _agent_error(exc)
 
     @router.get("/threads", response_model=AgentThreadListResponse)
-    def list_threads() -> AgentThreadListResponse:
+    def list_threads() -> Union[AgentThreadListResponse, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_product_state_response()
         return service.list_threads()
 
     @router.get("/domain-packs", response_model=List[DomainPackManifest])
@@ -117,16 +167,22 @@ def build_agent_router(
     @router.post("/provider:check", response_model=AgentProviderCheckResponse)
     def check_provider(
         check_id: Annotated[Optional[str], Header(alias="X-Provider-Check-Id")] = None,
-    ) -> AgentProviderCheckResponse:
+    ) -> Union[AgentProviderCheckResponse, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         return service.check_provider(check_id)
 
-    @router.post("/provider-checks/{check_id}/cancel")
-    def cancel_provider_check(check_id: str) -> dict[str, object]:
+    @router.post("/provider-checks/{check_id}/cancel", response_model=None)
+    def cancel_provider_check(check_id: str) -> Union[dict[str, object], JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         return {"check_id": check_id, "cancel_requested": service.cancel_provider_check(check_id)}
 
     @router.get("/provider", response_model=ProviderConnectionState)
-    def get_provider_connection_state() -> ProviderConnectionState:
-        """Read the process capability without making an external request."""
+    def get_provider_connection_state() -> Union[ProviderConnectionState, JSONResponse]:
+        """K001 test oracle only; production Provider state is owned by Rust."""
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         return service.provider_connection_state()
 
     @router.get("/product-tools", response_model=ProductToolRegistryManifest)
@@ -169,6 +225,8 @@ def build_agent_router(
 
     @router.get("/threads/{thread_id}", response_model=AgentThreadDetail)
     def get_thread(thread_id: str) -> Union[AgentThreadDetail, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_product_state_response()
         try:
             return service.get_thread(thread_id)
         except AgentKernelError as exc:
@@ -180,6 +238,8 @@ def build_agent_router(
         request: StartAgentTurnRequest,
         idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
     ) -> Union[AgentTurn, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         try:
             return service.start_turn(thread_id, request, _require_idempotency_key(idempotency_key))
         except AgentKernelIdempotencyConflict as exc:
@@ -192,6 +252,8 @@ def build_agent_router(
         turn_id: str,
         idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
     ) -> Union[AgentTurn, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         try:
             return service.cancel_turn(turn_id, _require_idempotency_key(idempotency_key))
         except AgentKernelIdempotencyConflict as exc:
@@ -205,6 +267,8 @@ def build_agent_router(
         request: CreateAgentApprovalRequest,
         idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
     ) -> Union[AgentApproval, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         try:
             return service.create_approval(thread_id, request, _require_idempotency_key(idempotency_key))
         except AgentKernelIdempotencyConflict as exc:
@@ -218,6 +282,8 @@ def build_agent_router(
         request: ResolveAgentApprovalRequest,
         idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
     ) -> Union[AgentApprovalResolution, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_lifecycle_response()
         try:
             return service.resolve_approval(
                 approval_id,
@@ -235,6 +301,8 @@ def build_agent_router(
         after: Annotated[int, Query(ge=0)] = 0,
         last_event_id: Annotated[Optional[str], Header(alias="Last-Event-ID")] = None,
     ) -> Union[StreamingResponse, JSONResponse]:
+        if not allow_test_only_legacy_lifecycle:
+            return _rust_owned_product_state_response()
         try:
             cursor = after
             if last_event_id and last_event_id.isdigit():
@@ -264,6 +332,22 @@ def _require_idempotency_key(value: Optional[str]) -> str:
     if not value:
         raise AgentKernelError("IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key is required.")
     return value
+
+
+def _rust_owned_lifecycle_response() -> JSONResponse:
+    return _error(
+        410,
+        RUST_OWNED_AGENT_LIFECYCLE_CODE,
+        RUST_OWNED_AGENT_LIFECYCLE_MESSAGE,
+    )
+
+
+def _rust_owned_product_state_response() -> JSONResponse:
+    return _error(
+        410,
+        RUST_OWNED_PRODUCT_STATE_CODE,
+        RUST_OWNED_PRODUCT_STATE_MESSAGE,
+    )
 
 
 def _agent_error(exc: AgentKernelError) -> JSONResponse:

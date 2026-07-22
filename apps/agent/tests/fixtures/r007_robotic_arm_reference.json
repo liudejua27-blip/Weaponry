@@ -1,0 +1,20 @@
+{
+  "schema_version": "R007RoboticArmReferenceFixture@1",
+  "source": {
+    "source_id": "reference_robotic_arm_mvp",
+    "cas_object_id": "cas_robotic_arm_reference_fixture",
+    "source_kind": "glb",
+    "source_statement": "用户授权用于 ForgeCAD 本机概念重建测试。",
+    "license_statement": "测试夹具；仅用于本地验证。",
+    "authorization": "user_authorized",
+    "declared_view": "iso",
+    "visible_features": ["base", "joint", "upper_link", "accent_light", "surface_pattern"],
+    "color_blocks": ["dark_metal", "blue_accent", "black_rubber"]
+  },
+  "expected": {
+    "domain_pack_id": "pack_robotic_arm_concept",
+    "recipes": ["recipe_robotic_arm_link", "recipe_robotic_arm_detail"],
+    "operations": ["sweep", "box"],
+    "reference_is_read_only": true
+  }
+}

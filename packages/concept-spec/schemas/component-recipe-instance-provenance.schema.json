@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/component-recipe-instance-provenance.schema.json",
+  "title": "ComponentRecipeInstanceProvenance",
+  "description": "Recipe instance facts persist once in AssemblyGraph. They preserve reviewed registry provenance; geometry expansion remains Rust-owned and does not include executable payloads.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "instance_id", "instance_path", "recipe", "registry_sha256", "policy_version", "parent_instance_id", "parent_slot_id", "domain_pack_id", "source", "license", "review_state", "quality_status", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "ComponentRecipeInstanceProvenance@1" },
+    "instance_id": { "type": "string", "pattern": "^recipeinst_[a-z0-9_\\-]+$" },
+    "instance_path": { "type": "string", "pattern": "^root(?:/[a-z][a-z0-9_\\-]{1,63}\\[[0-9]{1,3}\\]){0,6}$" },
+    "recipe": { "$ref": "component-recipe-ref.schema.json" },
+    "registry_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "policy_version": { "const": "ComponentRecipePolicy@1" },
+    "parent_instance_id": { "type": ["string", "null"], "pattern": "^recipeinst_[a-z0-9_\\-]+$" },
+    "parent_slot_id": { "type": ["string", "null"], "pattern": "^slot_[a-z0-9_\\-]+$" },
+    "domain_pack_id": { "type": "string", "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "source": { "type": "object", "additionalProperties": false, "required": ["source_kind", "source_id"], "properties": { "source_kind": { "const": "forgecad_first_party" }, "source_id": { "type": "string", "pattern": "^source_[a-z0-9_\\-]+$" } } },
+    "license": { "type": "object", "additionalProperties": false, "required": ["license_id", "redistributable"], "properties": { "license_id": { "const": "ForgeCAD-Internal-Visual-Only" }, "redistributable": { "const": false } } },
+    "review_state": { "type": "object", "additionalProperties": false, "required": ["review_id", "reviewed_at", "reviewer_kind"], "properties": { "review_id": { "type": "string", "pattern": "^review_[a-z0-9_\\-]+$" }, "reviewed_at": { "$ref": "common.schema.json#/$defs/iso_datetime" }, "reviewer_kind": { "const": "forgecad_internal" } } },
+    "quality_status": { "const": "passed" },
+    "non_functional_only": { "const": true }
+  }
+}

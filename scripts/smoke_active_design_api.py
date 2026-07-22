@@ -62,15 +62,25 @@ async def _request(
         receive,
         send,
     )
-    start = next(message for message in response_messages if message["type"] == "http.response.start")
+    start = next(
+        message
+        for message in response_messages
+        if message["type"] == "http.response.start"
+    )
     response_body = b"".join(
-        message.get("body", b"") for message in response_messages if message["type"] == "http.response.body"
+        message.get("body", b"")
+        for message in response_messages
+        if message["type"] == "http.response.body"
     )
     response_headers = {
         key.decode("latin-1").lower(): value.decode("latin-1")
         for key, value in start.get("headers", [])
     }
-    return int(start["status"]), response_headers, json.loads(response_body.decode("utf-8"))
+    return (
+        int(start["status"]),
+        response_headers,
+        json.loads(response_body.decode("utf-8")),
+    )
 
 
 def _seed_project(factory: Any, project_id: str) -> None:
@@ -100,7 +110,9 @@ def _seed_project(factory: Any, project_id: str) -> None:
         connection.close()
 
 
-def _seed_agent_head(factory: Any, project_id: str, asset_version_id: str, graph_id: str, part_id: str) -> None:
+def _seed_agent_head(
+    factory: Any, project_id: str, asset_version_id: str, graph_id: str, part_id: str
+) -> None:
     from forgecad_agent.infrastructure.db import SQLiteUnitOfWork
 
     graph = {
@@ -128,7 +140,9 @@ def _seed_agent_head(factory: Any, project_id: str, asset_version_id: str, graph
             material_bindings_json="{}",
             created_at=NOW,
         )
-        unit.agent_assets.set_head(project_id=project_id, asset_version_id=asset_version_id, updated_at=NOW)
+        unit.agent_assets.set_head(
+            project_id=project_id, asset_version_id=asset_version_id, updated_at=NOW
+        )
 
 
 def _seed_legacy_current(factory: Any, project_id: str) -> tuple[str, str]:
@@ -143,7 +157,14 @@ def _seed_legacy_current(factory: Any, project_id: str) -> tuple[str, str]:
               graph_json, graph_sha256, validation_status, created_at, updated_at
             ) VALUES (?, ?, NULL, 'node_root', 'ModuleGraph@1', ?, ?, 'valid', ?, ?)
             """,
-            (graph_id, project_id, '{"schema_version":"ModuleGraph@1"}', "1" * 64, NOW, NOW),
+            (
+                graph_id,
+                project_id,
+                '{"schema_version":"ModuleGraph@1"}',
+                "1" * 64,
+                NOW,
+                NOW,
+            ),
         )
         connection.execute(
             """
@@ -169,7 +190,12 @@ def _legacy_hash(factory: Any, project_id: str) -> str:
     connection = factory.connect()
     try:
         payload = {
-            table: [dict(row) for row in connection.execute(f"SELECT * FROM {table} WHERE project_id = ?", (project_id,))]
+            table: [
+                dict(row)
+                for row in connection.execute(
+                    f"SELECT * FROM {table} WHERE project_id = ?", (project_id,)
+                )
+            ]
             for table in ("projects", "project_versions", "module_graphs")
         }
     finally:
@@ -178,7 +204,11 @@ def _legacy_hash(factory: Any, project_id: str) -> str:
 
 
 def _error_code(response: dict[str, object]) -> str:
-    return str(((response.get("error") or {}) if isinstance(response, dict) else {}).get("code"))
+    return str(
+        ((response.get("error") or {}) if isinstance(response, dict) else {}).get(
+            "code"
+        )
+    )
 
 
 def main() -> int:
@@ -188,39 +218,91 @@ def main() -> int:
         os.environ["WUSHEN_MIGRATIONS_DIR"] = str(ROOT / "migrations")
         os.environ["WUSHEN_LOCAL_WORKER_ENABLED"] = "0"
         os.environ["FORGECAD_CONCEPT_WORKER_ENABLED"] = "0"
+        os.environ["FORGECAD_TEST_ONLY_LEGACY_AGENT_LIFECYCLE"] = "1"
+        os.environ["FORGECAD_TEST_ONLY_LEGACY_PRODUCT_CORE"] = "1"
+        os.environ["FORGECAD_K001_PACKAGED_PROBE"] = "1"
 
         from forgecad_agent.infrastructure.db import SQLiteConnectionFactory
-        from wushen_agent.main import create_app
+        from wushen_agent.main import create_test_only_legacy_product_core_app
 
-        app = create_app()
+        app = create_test_only_legacy_product_core_app()
         factory = SQLiteConnectionFactory(root / "library" / "library.db")
         _seed_project(factory, "prj_s003_agent")
         _seed_project(factory, "prj_s003_other")
         _seed_project(factory, "prj_s003_legacy")
-        _seed_agent_head(factory, "prj_s003_agent", "assetver_s003_agent", "mg_s003_agent", "part_s003_body")
-        _seed_agent_head(factory, "prj_s003_other", "assetver_s003_other", "mg_s003_other", "part_s003_other")
-        legacy_version_id, legacy_graph_id = _seed_legacy_current(factory, "prj_s003_legacy")
+        _seed_agent_head(
+            factory,
+            "prj_s003_agent",
+            "assetver_s003_agent",
+            "mg_s003_agent",
+            "part_s003_body",
+        )
+        _seed_agent_head(
+            factory,
+            "prj_s003_other",
+            "assetver_s003_other",
+            "mg_s003_other",
+            "part_s003_other",
+        )
+        legacy_version_id, legacy_graph_id = _seed_legacy_current(
+            factory, "prj_s003_legacy"
+        )
         legacy_before = _legacy_hash(factory, "prj_s003_legacy")
 
-        status, headers, snapshot = asyncio.run(_request(app, "GET", "/api/v1/projects/prj_s003_agent/active-design"))
+        status, headers, snapshot = asyncio.run(
+            _request(app, "GET", "/api/v1/projects/prj_s003_agent/active-design")
+        )
         assert status == 200 and headers["etag"] == 'W/"active-design-1"'
         assert snapshot["active_design"]["asset_version_id"] == "assetver_s003_agent"
-        status, headers, repeat = asyncio.run(_request(app, "GET", "/api/v1/projects/prj_s003_agent/active-design"))
-        assert status == 200 and headers["etag"] == 'W/"active-design-1"' and repeat == snapshot
+        status, headers, repeat = asyncio.run(
+            _request(app, "GET", "/api/v1/projects/prj_s003_agent/active-design")
+        )
+        assert (
+            status == 200
+            and headers["etag"] == 'W/"active-design-1"'
+            and repeat == snapshot
+        )
 
-        selection = {"client_request_id": "s003-select-1", "snapshot_revision": 1, "selected_part_id": "part_s003_body"}
+        selection = {
+            "client_request_id": "s003-select-1",
+            "snapshot_revision": 1,
+            "selected_part_id": "part_s003_body",
+        }
         selection_headers = {"Idempotency-Key": "s003-select-key"}
         status, headers, selected = asyncio.run(
-            _request(app, "POST", "/api/v1/projects/prj_s003_agent/active-design:select", payload=selection, headers=selection_headers)
+            _request(
+                app,
+                "POST",
+                "/api/v1/projects/prj_s003_agent/active-design:select",
+                payload=selection,
+                headers=selection_headers,
+            )
         )
         assert status == 200 and headers["etag"] == 'W/"active-design-2"'
-        assert selected["selected_part_id"] == "part_s003_body" and selected["revision"] == 2
-        status, headers, replay = asyncio.run(
-            _request(app, "POST", "/api/v1/projects/prj_s003_agent/active-design:select", payload=selection, headers=selection_headers)
+        assert (
+            selected["selected_part_id"] == "part_s003_body"
+            and selected["revision"] == 2
         )
-        assert status == 200 and headers["etag"] == 'W/"active-design-2"' and replay == selected
+        status, headers, replay = asyncio.run(
+            _request(
+                app,
+                "POST",
+                "/api/v1/projects/prj_s003_agent/active-design:select",
+                payload=selection,
+                headers=selection_headers,
+            )
+        )
+        assert (
+            status == 200
+            and headers["etag"] == 'W/"active-design-2"'
+            and replay == selected
+        )
 
-        stale_request = {"client_request_id": "s003-select-stale", "snapshot_revision": 1, "selected_part_id": None}
+        stale_request = {
+            "client_request_id": "s003-select-stale",
+            "snapshot_revision": 1,
+            "selected_part_id": None,
+        }
         status, _, error = asyncio.run(
             _request(
                 app,
@@ -232,19 +314,33 @@ def main() -> int:
         )
         assert status == 409 and _error_code(error) == "ACTIVE_DESIGN_STALE"
 
-        etag_request = {"client_request_id": "s003-select-etag", "selected_part_id": None}
+        etag_request = {
+            "client_request_id": "s003-select-etag",
+            "selected_part_id": None,
+        }
         status, headers, cleared = asyncio.run(
             _request(
                 app,
                 "POST",
                 "/api/v1/projects/prj_s003_agent/active-design:select",
                 payload=etag_request,
-                headers={"Idempotency-Key": "s003-etag-key", "If-Match": 'W/"active-design-2"'},
+                headers={
+                    "Idempotency-Key": "s003-etag-key",
+                    "If-Match": 'W/"active-design-2"',
+                },
             )
         )
-        assert status == 200 and headers["etag"] == 'W/"active-design-3"' and cleared["selected_part_id"] is None
+        assert (
+            status == 200
+            and headers["etag"] == 'W/"active-design-3"'
+            and cleared["selected_part_id"] is None
+        )
 
-        cross_project_request = {"client_request_id": "s003-cross-project", "snapshot_revision": 3, "selected_part_id": "part_s003_other"}
+        cross_project_request = {
+            "client_request_id": "s003-cross-project",
+            "snapshot_revision": 3,
+            "selected_part_id": "part_s003_other",
+        }
         status, _, error = asyncio.run(
             _request(
                 app,
@@ -256,7 +352,9 @@ def main() -> int:
         )
         assert status == 409 and _error_code(error) == "ACTIVE_DESIGN_INVALID"
 
-        status, headers, legacy = asyncio.run(_request(app, "GET", "/api/v1/projects/prj_s003_legacy/active-design"))
+        status, headers, legacy = asyncio.run(
+            _request(app, "GET", "/api/v1/projects/prj_s003_legacy/active-design")
+        )
         assert status == 200 and headers["etag"] == 'W/"active-design-1"'
         assert legacy["active_design"] == {
             "source": "legacy_concept_read_only",
@@ -269,13 +367,20 @@ def main() -> int:
                 app,
                 "POST",
                 "/api/v1/projects/prj_s003_legacy/active-design:select",
-                payload={"client_request_id": "s003-legacy-select", "snapshot_revision": 1, "selected_part_id": None},
+                payload={
+                    "client_request_id": "s003-legacy-select",
+                    "snapshot_revision": 1,
+                    "selected_part_id": None,
+                },
                 headers={"Idempotency-Key": "s003-legacy-select-key"},
             )
         )
         assert status == 409 and _error_code(error) == "ACTIVE_DESIGN_LEGACY_READ_ONLY"
 
-        conversion_request = {"client_request_id": "s003-convert", "snapshot_revision": 1}
+        conversion_request = {
+            "client_request_id": "s003-convert",
+            "snapshot_revision": 1,
+        }
         conversion_headers = {"Idempotency-Key": "s003-convert-key"}
         status, headers, conversion = asyncio.run(
             _request(
@@ -287,7 +392,10 @@ def main() -> int:
             )
         )
         assert status == 200 and headers["etag"] == 'W/"active-design-1"'
-        assert conversion["status"] == "ready_for_agent_rebuild" and conversion["source"] == legacy["active_design"]
+        assert (
+            conversion["status"] == "ready_for_agent_rebuild"
+            and conversion["source"] == legacy["active_design"]
+        )
         status, _, conversion_replay = asyncio.run(
             _request(
                 app,
@@ -305,7 +413,10 @@ def main() -> int:
                 app,
                 "POST",
                 "/api/v1/projects/prj_s003_agent/active-design:convert-legacy",
-                payload={"client_request_id": "s003-not-legacy", "snapshot_revision": 3},
+                payload={
+                    "client_request_id": "s003-not-legacy",
+                    "snapshot_revision": 3,
+                },
                 headers={"Idempotency-Key": "s003-not-legacy-key"},
             )
         )

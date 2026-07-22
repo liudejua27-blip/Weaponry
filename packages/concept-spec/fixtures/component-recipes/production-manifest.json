@@ -1,0 +1,14 @@
+{
+  "schema_version": "M108BProductionRecipePackManifest@1",
+  "aggregate_path": "../production-component-recipe-registry.json",
+  "registry_id": "registry_m108b_production_concept_v1",
+  "policy_version": "ComponentRecipePolicy@1",
+  "aggregate_strategy": "domain_owned_m108b_v1_exact",
+  "packs": [
+    {"pack_id":"pack_future-weapon-prop_production","domain_pack_id":"pack_future_weapon_prop","path":"production-packs/future-weapon-prop.json","order":0},
+    {"pack_id":"pack_vehicle-concept_production","domain_pack_id":"pack_vehicle_concept","path":"production-packs/vehicle-concept.json","order":1},
+    {"pack_id":"pack_aircraft-concept_production","domain_pack_id":"pack_aircraft_concept","path":"production-packs/aircraft-concept.json","order":2},
+    {"pack_id":"pack_robotic-arm-concept_production","domain_pack_id":"pack_robotic_arm_concept","path":"production-packs/robotic-arm-concept.json","order":3}
+  ],
+  "lock_path": "locks/m108b-production-v1.lock.json"
+}

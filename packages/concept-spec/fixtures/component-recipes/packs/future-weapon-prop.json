@@ -1,0 +1,7 @@
+{
+  "schema_version": "ComponentRecipePack@1",
+  "pack_id": "pack_future_weapon_prop_core",
+  "domain_pack_id": "pack_future_weapon_prop",
+  "recipe_source": "shared/c105-v1-compatibility-registry.json",
+  "recipe_ids": ["recipe_future_prop_shell", "recipe_future_prop_trim"]
+}

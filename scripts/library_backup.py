@@ -2,8 +2,10 @@
 """Create, verify, and restore a ForgeCAD Library backup.
 
 The backup is a directory containing one SQLite Backup API snapshot, every
-object referenced by that snapshot, and a hash manifest. Provider secret files,
-WAL/SHM files, trash, caches, and unreferenced object candidates are excluded.
+object referenced by that snapshot, and a hash manifest. Rust Core objects are
+enumerated only through the object-reference-to-object JOIN and are checked
+against their stored reference counts. Provider secret files, WAL/SHM files,
+trash, caches, and unreferenced object candidates are excluded.
 """
 
 from __future__ import annotations
@@ -27,6 +29,14 @@ OBJECT_TABLES = (
     ("concept_assets", "asset_id"),
     ("agent_imported_glbs", "import_id"),
 )
+CORE_OBJECTS_TABLE = "forgecad_core_objects"
+CORE_REFERENCES_TABLE = "forgecad_core_object_references"
+CORE_DELETION_JOURNAL_TABLE = "forgecad_core_object_deletion_journal"
+KNOWN_OBJECT_PATH_TABLES = {
+    *(table for table, _ in OBJECT_TABLES),
+    CORE_OBJECTS_TABLE,
+    CORE_DELETION_JOURNAL_TABLE,
+}
 COUNTED_TABLES = (
     "weapons",
     "weapon_versions",
@@ -57,7 +67,7 @@ def create_backup(library_root: Path, output: Path) -> dict[str, Any]:
     if not source_root.is_dir() or not source_database.is_file():
         raise LibraryBackupError(
             "SOURCE_LIBRARY_NOT_FOUND",
-            f"ForgeCAD Library database was not found under {source_root}.",
+            "ForgeCAD Library database was not found.",
         )
     output = output.expanduser().resolve()
     if _is_within(output, source_root):
@@ -74,37 +84,44 @@ def create_backup(library_root: Path, output: Path) -> dict[str, Any]:
         database_report = _inspect_database(snapshot_database)
         references = _object_references(snapshot_database)
         objects, logical_object_bytes = _collapse_references(references)
+        source_store = _scan_object_store(source_root)
 
         object_entries: list[dict[str, Any]] = []
-        for relative_path, expected in sorted(objects.items()):
-            source = _safe_object_file(source_root, relative_path)
-            _verify_file(
-                source,
-                expected_sha256=expected["sha256"],
-                expected_byte_size=expected["byte_size"],
-                label=relative_path,
-            )
-            target = staging / relative_path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-            _verify_file(
-                target,
-                expected_sha256=expected["sha256"],
-                expected_byte_size=expected["byte_size"],
-                label=relative_path,
-            )
+        for sha256, expected in sorted(objects.items()):
+            relative_paths = sorted(expected["paths"])
+            for relative_path in relative_paths:
+                source = _safe_object_file(source_root, relative_path)
+                _verify_file(
+                    source,
+                    expected_sha256=expected["sha256"],
+                    expected_byte_size=expected["byte_size"],
+                    label=relative_path,
+                )
+                target = staging / relative_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                _verify_file(
+                    target,
+                    expected_sha256=expected["sha256"],
+                    expected_byte_size=expected["byte_size"],
+                    label=relative_path,
+                )
             object_entries.append(
                 {
-                    "path": relative_path,
+                    "path": relative_paths[0],
+                    "paths": relative_paths,
                     "sha256": expected["sha256"],
                     "byte_size": expected["byte_size"],
                     "reference_count": expected["reference_count"],
                     "source_tables": sorted(expected["source_tables"]),
+                    "source_kinds": sorted(expected["source_kinds"]),
+                    "ref_count": expected["rust_ref_count"],
                 }
             )
 
-        source_store = _scan_object_store(source_root)
-        referenced_paths = set(objects)
+        referenced_paths = {
+            path for expected in objects.values() for path in expected["paths"]
+        }
         unreferenced_paths = source_store["paths"] - referenced_paths
         unreferenced_bytes = sum(
             source_store["sizes"][path] for path in unreferenced_paths
@@ -206,34 +223,41 @@ def verify_backup(backup_root: Path) -> dict[str, Any]:
         extra = sorted(set(manifest_objects) - set(expected_objects))
         raise LibraryBackupError(
             "BACKUP_OBJECT_SET_MISMATCH",
-            f"Backup object set mismatch; missing={missing[:5]}, extra={extra[:5]}.",
+            "Backup object set does not match the database references.",
         )
     stored_objects = _scan_object_store(root)
-    if stored_objects["paths"] != set(manifest_objects):
-        missing = sorted(set(manifest_objects) - stored_objects["paths"])
-        extra = sorted(stored_objects["paths"] - set(manifest_objects))
+    manifest_paths = {
+        path for entry in manifest_objects.values() for path in entry["paths"]
+    }
+    if stored_objects["paths"] != manifest_paths:
+        missing = sorted(manifest_paths - stored_objects["paths"])
+        extra = sorted(stored_objects["paths"] - manifest_paths)
         raise LibraryBackupError(
             "BACKUP_OBJECT_FILE_SET_MISMATCH",
-            f"Backup object files mismatch; missing={missing[:5]}, extra={extra[:5]}.",
+            "Backup object files do not exactly match the manifest.",
         )
-    for relative_path, entry in manifest_objects.items():
-        expected = expected_objects[relative_path]
+    for sha256, entry in manifest_objects.items():
+        expected = expected_objects[sha256]
         if (
             entry["sha256"] != expected["sha256"]
             or entry["byte_size"] != expected["byte_size"]
             or entry["reference_count"] != expected["reference_count"]
             or sorted(entry["source_tables"]) != sorted(expected["source_tables"])
+            or sorted(entry["source_kinds"]) != sorted(expected["source_kinds"])
+            or entry.get("ref_count") != expected["rust_ref_count"]
+            or entry["paths"] != sorted(expected["paths"])
         ):
             raise LibraryBackupError(
                 "BACKUP_OBJECT_METADATA_MISMATCH",
-                f"Object metadata does not match the database: {relative_path}.",
+                "Object metadata does not match the database references.",
             )
-        _verify_file(
-            _safe_object_file(root, relative_path),
-            expected_sha256=entry["sha256"],
-            expected_byte_size=entry["byte_size"],
-            label=relative_path,
-        )
+        for relative_path in entry["paths"]:
+            _verify_file(
+                _safe_object_file(root, relative_path),
+                expected_sha256=entry["sha256"],
+                expected_byte_size=entry["byte_size"],
+                label=relative_path,
+            )
 
     database_bytes = database.stat().st_size
     unique_object_bytes = sum(item["byte_size"] for item in manifest_objects.values())
@@ -283,10 +307,11 @@ def restore_backup(backup_root: Path, destination: Path) -> dict[str, Any]:
     try:
         shutil.copy2(root / DATABASE_NAME, staging / DATABASE_NAME)
         for entry in manifest["objects"]:
-            source = _safe_object_file(root, entry["path"])
-            target = staging / entry["path"]
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+            for relative_path in _manifest_entry_paths(entry):
+                source = _safe_object_file(root, relative_path)
+                target = staging / relative_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
         provenance = staging / "backups" / "manifests" / f"{manifest['backup_id']}.json"
         provenance.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(root / MANIFEST_NAME, provenance)
@@ -354,6 +379,12 @@ def _inspect_database(database: Path) -> dict[str, Any]:
                 )
             violations = connection.execute("PRAGMA foreign_key_check").fetchall()
             if violations:
+                violation_tables = {str(row[0]) for row in violations}
+                if CORE_REFERENCES_TABLE in violation_tables:
+                    raise LibraryBackupError(
+                        "CORE_REFERENCE_OBJECT_MISSING",
+                        "A Rust Core object reference points to a missing object.",
+                    )
                 raise LibraryBackupError(
                     "DATABASE_FOREIGN_KEY_FAILED",
                     f"SQLite foreign_key_check found {len(violations)} violation(s).",
@@ -402,7 +433,7 @@ def _object_references(database: Path) -> list[dict[str, Any]]:
         ) as connection:
             connection.row_factory = sqlite3.Row
             tables = _table_names(connection)
-            supported_tables = {table for table, _ in OBJECT_TABLES}
+            supported_tables = KNOWN_OBJECT_PATH_TABLES
             for table in tables:
                 columns = {
                     str(row["name"])
@@ -413,7 +444,7 @@ def _object_references(database: Path) -> list[dict[str, Any]]:
                 if "object_path" in columns and table not in supported_tables:
                     raise LibraryBackupError(
                         "UNSUPPORTED_OBJECT_REFERENCE_TABLE",
-                        f"Backup support is missing for object table {table}.",
+                        "Backup support is missing for a table containing object_path.",
                     )
             for table, id_column in OBJECT_TABLES:
                 if table not in tables:
@@ -440,6 +471,8 @@ def _object_references(database: Path) -> list[dict[str, Any]]:
                             "byte_size": byte_size,
                         }
                     )
+            if CORE_REFERENCES_TABLE in tables:
+                references.extend(_core_object_references(connection, tables))
     except sqlite3.Error as exc:
         raise LibraryBackupError(
             "OBJECT_REFERENCE_QUERY_FAILED",
@@ -448,20 +481,178 @@ def _object_references(database: Path) -> list[dict[str, Any]]:
     return references
 
 
+def _core_object_references(
+    connection: sqlite3.Connection, tables: set[str]
+) -> list[dict[str, Any]]:
+    if CORE_OBJECTS_TABLE not in tables:
+        raise LibraryBackupError(
+            "CORE_OBJECT_INDEX_MISSING",
+            "Rust Core object references exist without the object index.",
+        )
+    required_reference_columns = {
+        "reference_kind",
+        "owner_id",
+        "role",
+        "sha256",
+        "created_at",
+    }
+    required_object_columns = {
+        "sha256",
+        "object_path",
+        "extension",
+        "byte_size",
+        "ref_count",
+        "created_at",
+        "updated_at",
+    }
+    reference_columns = {
+        str(row["name"])
+        for row in connection.execute(
+            "SELECT name FROM pragma_table_info(?)", (CORE_REFERENCES_TABLE,)
+        ).fetchall()
+    }
+    object_columns = {
+        str(row["name"])
+        for row in connection.execute(
+            "SELECT name FROM pragma_table_info(?)", (CORE_OBJECTS_TABLE,)
+        ).fetchall()
+    }
+    if not required_reference_columns.issubset(reference_columns):
+        raise LibraryBackupError(
+            "CORE_SCHEMA_INVALID",
+            "Rust Core object reference schema is missing required columns.",
+        )
+    if not required_object_columns.issubset(object_columns):
+        raise LibraryBackupError(
+            "CORE_SCHEMA_INVALID",
+            "Rust Core object schema is missing required columns.",
+        )
+
+    missing_reference = connection.execute(
+        f"""
+        SELECT 1
+        FROM {CORE_REFERENCES_TABLE} AS r
+        LEFT JOIN {CORE_OBJECTS_TABLE} AS o ON o.sha256 = r.sha256
+        WHERE o.sha256 IS NULL
+        LIMIT 1
+        """
+    ).fetchone()
+    if missing_reference is not None:
+        raise LibraryBackupError(
+            "CORE_REFERENCE_OBJECT_MISSING",
+            "A Rust Core object reference points to a missing object.",
+        )
+
+    ref_count_rows = connection.execute(
+        f"""
+        SELECT o.sha256, o.ref_count, COUNT(r.sha256) AS actual_ref_count
+        FROM {CORE_OBJECTS_TABLE} AS o
+        LEFT JOIN {CORE_REFERENCES_TABLE} AS r ON r.sha256 = o.sha256
+        GROUP BY o.sha256, o.ref_count
+        """
+    ).fetchall()
+    for row in ref_count_rows:
+        try:
+            stored_ref_count = int(row["ref_count"])
+            actual_ref_count = int(row["actual_ref_count"])
+        except (TypeError, ValueError) as exc:
+            raise LibraryBackupError(
+                "CORE_SCHEMA_INVALID",
+                "Rust Core object ref_count is not an integer.",
+            ) from exc
+        if stored_ref_count < 0:
+            raise LibraryBackupError(
+                "CORE_SCHEMA_INVALID",
+                "Rust Core object ref_count is negative.",
+            )
+        if actual_ref_count == 0:
+            raise LibraryBackupError(
+                "CORE_ORPHAN_OBJECT",
+                "Rust Core contains an object with no references.",
+            )
+        if stored_ref_count != actual_ref_count:
+            raise LibraryBackupError(
+                "CORE_REF_COUNT_MISMATCH",
+                "Rust Core object ref_count does not match its references.",
+            )
+
+    rows = connection.execute(
+        f"""
+        SELECT
+          r.reference_kind,
+          r.owner_id,
+          r.role,
+          o.object_path,
+          o.sha256,
+          o.byte_size,
+          o.ref_count
+        FROM {CORE_REFERENCES_TABLE} AS r
+        JOIN {CORE_OBJECTS_TABLE} AS o ON o.sha256 = r.sha256
+        ORDER BY o.object_path, r.reference_kind, r.owner_id, r.role
+        """
+    ).fetchall()
+    references: list[dict[str, Any]] = []
+    for row in rows:
+        relative_path = _safe_object_relative_path(str(row["object_path"]))
+        sha256 = str(row["sha256"])
+        _validate_digest(sha256, relative_path)
+        _validate_content_addressed_path(relative_path, sha256)
+        try:
+            byte_size = int(row["byte_size"])
+            rust_ref_count = int(row["ref_count"])
+        except (TypeError, ValueError) as exc:
+            raise LibraryBackupError(
+                "CORE_SCHEMA_INVALID",
+                "Rust Core object size or ref_count is not an integer.",
+            ) from exc
+        if byte_size < 0 or rust_ref_count < 1:
+            raise LibraryBackupError(
+                "CORE_SCHEMA_INVALID",
+                "Rust Core object size or ref_count is out of range.",
+            )
+        references.append(
+            {
+                "table": CORE_REFERENCES_TABLE,
+                "reference_id": ":".join(
+                    (str(row["reference_kind"]), str(row["owner_id"]), str(row["role"]))
+                ),
+                "source_kind": str(row["reference_kind"]),
+                "path": relative_path,
+                "sha256": sha256,
+                "byte_size": byte_size,
+                "rust_ref_count": rust_ref_count,
+            }
+        )
+    return references
+
+
 def _collapse_references(
     references: Iterable[dict[str, Any]],
 ) -> tuple[dict[str, dict[str, Any]], int]:
     objects: dict[str, dict[str, Any]] = {}
+    paths: dict[str, str] = {}
     logical_bytes = 0
     for reference in references:
         logical_bytes += reference["byte_size"]
-        current = objects.get(reference["path"])
+        relative_path = reference["path"]
+        sha256 = reference["sha256"]
+        existing_hash = paths.get(relative_path)
+        if existing_hash is not None and existing_hash != sha256:
+            raise LibraryBackupError(
+                "OBJECT_REFERENCE_CONFLICT",
+                "One object path is referenced with conflicting content hashes.",
+            )
+        paths[relative_path] = sha256
+        current = objects.get(sha256)
         if current is None:
-            objects[reference["path"]] = {
-                "sha256": reference["sha256"],
+            objects[sha256] = {
+                "sha256": sha256,
                 "byte_size": reference["byte_size"],
                 "reference_count": 1,
+                "paths": {relative_path},
                 "source_tables": {reference["table"]},
+                "source_kinds": {reference.get("source_kind", "legacy")},
+                "rust_ref_count": reference.get("rust_ref_count"),
             }
             continue
         if (
@@ -470,15 +661,48 @@ def _collapse_references(
         ):
             raise LibraryBackupError(
                 "OBJECT_REFERENCE_CONFLICT",
-                f"Conflicting metadata references object {reference['path']}.",
+                "The same content hash has conflicting object metadata.",
             )
         current["reference_count"] += 1
+        current["paths"].add(relative_path)
         current["source_tables"].add(reference["table"])
+        current["source_kinds"].add(reference.get("source_kind", "legacy"))
+        rust_ref_count = reference.get("rust_ref_count")
+        if rust_ref_count is not None:
+            if (
+                current["rust_ref_count"] is not None
+                and current["rust_ref_count"] != rust_ref_count
+            ):
+                raise LibraryBackupError(
+                    "OBJECT_REFERENCE_CONFLICT",
+                    "The same content hash has conflicting Rust ref_count metadata.",
+                )
+            current["rust_ref_count"] = rust_ref_count
     return objects, logical_bytes
+
+
+def _manifest_entry_paths(item: dict[str, Any]) -> list[str]:
+    raw_paths = item.get("paths")
+    if raw_paths is None:
+        raw_paths = [item.get("path", "")]
+    if not isinstance(raw_paths, list) or not raw_paths or not all(
+        isinstance(path, str) for path in raw_paths
+    ):
+        raise LibraryBackupError(
+            "BACKUP_MANIFEST_INVALID", "Backup manifest object paths are invalid."
+        )
+    paths = [_safe_object_relative_path(path) for path in raw_paths]
+    if paths != sorted(set(paths)):
+        raise LibraryBackupError(
+            "BACKUP_MANIFEST_INVALID",
+            "Backup manifest object paths must be unique and sorted.",
+        )
+    return paths
 
 
 def _manifest_objects(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
+    seen_paths: set[str] = set()
     objects = manifest.get("objects")
     if not isinstance(objects, list):
         raise LibraryBackupError(
@@ -490,13 +714,21 @@ def _manifest_objects(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
                 "BACKUP_MANIFEST_INVALID", "Backup manifest object entry is invalid."
             )
         relative_path = _safe_object_relative_path(str(item.get("path", "")))
-        if relative_path in result:
+        paths = _manifest_entry_paths(item)
+        if relative_path not in paths:
             raise LibraryBackupError(
                 "BACKUP_MANIFEST_INVALID",
-                f"Backup manifest repeats object path {relative_path}.",
+                "Backup manifest primary object path is not in paths.",
             )
-        _validate_digest(str(item.get("sha256", "")), relative_path)
-        _validate_content_addressed_path(relative_path, str(item["sha256"]))
+        if any(path in seen_paths for path in paths):
+            raise LibraryBackupError(
+                "BACKUP_MANIFEST_INVALID",
+                "Backup manifest repeats an object path.",
+            )
+        sha256 = str(item.get("sha256", ""))
+        _validate_digest(sha256, relative_path)
+        for path in paths:
+            _validate_content_addressed_path(path, sha256)
         if not isinstance(item.get("byte_size"), int) or item["byte_size"] < 0:
             raise LibraryBackupError(
                 "BACKUP_MANIFEST_INVALID",
@@ -515,7 +747,30 @@ def _manifest_objects(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
                 "BACKUP_MANIFEST_INVALID",
                 f"Backup manifest source_tables is invalid for {relative_path}.",
             )
-        result[relative_path] = item
+        source_kinds = item.get("source_kinds", ["legacy"])
+        if not isinstance(source_kinds, list) or not all(
+            isinstance(kind, str) and kind for kind in source_kinds
+        ):
+            raise LibraryBackupError(
+                "BACKUP_MANIFEST_INVALID",
+                "Backup manifest source_kinds is invalid.",
+            )
+        if "ref_count" in item and item["ref_count"] is not None and (
+            not isinstance(item["ref_count"], int) or item["ref_count"] < 1
+        ):
+            raise LibraryBackupError(
+                "BACKUP_MANIFEST_INVALID",
+                "Backup manifest ref_count is invalid.",
+            )
+        item["paths"] = paths
+        item["source_kinds"] = sorted(source_kinds)
+        seen_paths.update(paths)
+        if sha256 in result:
+            raise LibraryBackupError(
+                "BACKUP_MANIFEST_INVALID",
+                "Backup manifest repeats a content hash.",
+            )
+        result[sha256] = item
     return result
 
 
@@ -538,18 +793,22 @@ def _verify_library_against_manifest(
             "Restored database object references do not match the backup manifest.",
         )
     stored_objects = _scan_object_store(library_root)
-    if stored_objects["paths"] != set(manifest_objects):
+    manifest_paths = {
+        path for entry in manifest_objects.values() for path in entry["paths"]
+    }
+    if stored_objects["paths"] != manifest_paths:
         raise LibraryBackupError(
             "RESTORED_OBJECT_FILE_SET_MISMATCH",
             "Restored object files do not exactly match the backup manifest.",
         )
-    for relative_path, entry in manifest_objects.items():
-        _verify_file(
-            _safe_object_file(library_root, relative_path),
-            expected_sha256=entry["sha256"],
-            expected_byte_size=entry["byte_size"],
-            label=relative_path,
-        )
+    for entry in manifest_objects.values():
+        for relative_path in entry["paths"]:
+            _verify_file(
+                _safe_object_file(library_root, relative_path),
+                expected_sha256=entry["sha256"],
+                expected_byte_size=entry["byte_size"],
+                label=relative_path,
+            )
     return {
         "integrity_check": report["integrity_check"],
         "foreign_key_violations": report["foreign_key_violations"],
@@ -607,7 +866,7 @@ def _scan_object_store(library_root: Path) -> dict[str, Any]:
     for path in object_root.rglob("*"):
         if path.is_symlink():
             raise LibraryBackupError(
-                "OBJECT_STORE_SYMLINK", f"Object store contains a symlink: {path}."
+                "OBJECT_STORE_SYMLINK", "Object store contains a symlink."
             )
         if not path.is_file():
             continue
@@ -632,7 +891,7 @@ def _safe_object_relative_path(value: str) -> str:
     ):
         raise LibraryBackupError(
             "OBJECT_PATH_INVALID",
-            f"Object path is not safely content-addressed: {value}.",
+            "Object path is not safely content-addressed.",
         )
     return path.as_posix()
 
@@ -646,23 +905,23 @@ def _safe_child_file(root: Path, relative_path: str) -> Path:
     path = Path(relative_path)
     if path.is_absolute() or ".." in path.parts:
         raise LibraryBackupError(
-            "BACKUP_PATH_INVALID", f"Backup path is unsafe: {relative_path}."
+            "BACKUP_PATH_INVALID", "Backup path is unsafe."
         )
     target = root / path
     try:
         target.resolve().relative_to(root.resolve())
     except ValueError as exc:
         raise LibraryBackupError(
-            "BACKUP_PATH_INVALID", f"Backup path escapes its root: {relative_path}."
+            "BACKUP_PATH_INVALID", "Backup path escapes its root."
         ) from exc
     if target.is_symlink():
         raise LibraryBackupError(
             "BACKUP_SYMLINK_DENIED",
-            f"Backup file cannot be a symlink: {relative_path}.",
+            "Backup file cannot be a symlink.",
         )
     if not target.is_file():
         raise LibraryBackupError(
-            "BACKUP_FILE_MISSING", f"Backup file is missing: {relative_path}."
+            "BACKUP_FILE_MISSING", "Backup file is missing."
         )
     return target
 
@@ -729,7 +988,7 @@ def _require_new_destination(destination: Path, *, code: str) -> None:
     if destination.exists() or destination.is_symlink():
         raise LibraryBackupError(
             code,
-            f"Destination already exists; refusing to overwrite: {destination}.",
+            "Destination already exists; refusing to overwrite.",
         )
 
 

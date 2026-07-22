@@ -14,7 +14,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 from typing import Sequence
 
@@ -38,50 +37,27 @@ from forgecad_agent.application.provider_evaluation import (
 )
 
 
-KEYCHAIN_SERVICE = "ForgeCAD Agent Provider"
-KEYCHAIN_ACCOUNT = "default"
-
-
 def _macos_keychain_planner_config(
     *,
     platform_name: str | None = None,
     metadata_path: Path | None = None,
-    command_runner=subprocess.run,
 ) -> MechanicalPlannerConfig:
-    """Read the same local Alpha configuration as the Tauri shell.
+    """Reject the retired Python-to-Keychain bridge before any secret read.
 
-    This is deliberately an opt-in path used only by the explicitly authorised
-    evaluator.  The Keychain secret remains in memory and never enters the
-    environment, the run ledger, or the redacted evaluation report.
+    K003 makes the Rust desktop owner the only process allowed to resolve a
+    ForgeCAD Provider credential.  The former bridge used a legacy ``default``
+    Keychain account and passed the resolved secret into Python; it no longer
+    matches the generation-bound Rust credential store and would violate that
+    ownership boundary.  The explicit argument remains temporarily so old
+    operator commands fail with an actionable, zero-network error instead of
+    silently falling back to a stale account.
     """
 
-    if (platform_name or sys.platform) != "darwin":
-        raise ProviderEvaluationError("E002_PROVIDER_UNCONFIGURED", "macOS Keychain Provider configuration is unavailable on this target.")
-    path = metadata_path or (Path.home() / "Library" / "Application Support" / "ForgeCAD" / "provider.json")
-    try:
-        metadata = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ProviderEvaluationError("E002_PROVIDER_UNCONFIGURED", "macOS Provider configuration is unavailable.") from exc
-    base_url = metadata.get("base_url") if isinstance(metadata, dict) else None
-    model = metadata.get("model") if isinstance(metadata, dict) else None
-    configured = metadata.get("configured") if isinstance(metadata, dict) else False
-    if not configured or not isinstance(base_url, str) or not base_url.startswith(("https://", "http://")) or not isinstance(model, str) or not (0 < len(model.strip()) <= 160):
-        raise ProviderEvaluationError("E002_PROVIDER_UNCONFIGURED", "macOS Provider configuration is incomplete.")
-    try:
-        result = command_runner(
-            ["/usr/bin/security", "find-generic-password", "-a", KEYCHAIN_ACCOUNT, "-s", KEYCHAIN_SERVICE, "-w"],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=5,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise ProviderEvaluationError("E002_PROVIDER_UNCONFIGURED", "macOS Provider secret is unavailable.") from exc
-    api_key = (result.stdout or "").strip() if result.returncode == 0 else ""
-    if not api_key or len(api_key) > 4096:
-        raise ProviderEvaluationError("E002_PROVIDER_UNCONFIGURED", "macOS Provider secret is unavailable.")
-    return MechanicalPlannerConfig(base_url=base_url.rstrip("/"), model=model.strip(), api_key=api_key)
+    del platform_name, metadata_path
+    raise ProviderEvaluationError(
+        "E002_RUST_NATIVE_PROVIDER_REQUIRED",
+        "macOS Keychain credentials are owned by the Rust desktop runtime; run the Rust-native Provider acceptance flow instead.",
+    )
 
 
 def _configured_evaluation_planner(contract: dict, *, provider_config_source: str = "environment") -> OpenAICompatibleMechanicalPlanner:

@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { legacyLifecycleTestOracleEnvironment } from './workbench_agent_blockout_test_helper.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const OUTPUT = join(ROOT, 'output', 'playwright', 'fgt003-performance.json')
@@ -37,7 +38,7 @@ async function main() {
     await mkdir(join(ROOT, 'output', 'playwright'), { recursive: true })
     const agent = spawn(join(ROOT, '.venv', 'bin', 'python'), ['-m', 'uvicorn', 'wushen_agent.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(agentPort)], {
       cwd: ROOT,
-      env: { ...process.env, WUSHEN_LIBRARY_ROOT: libraryRoot, WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'), WUSHEN_CORS_ORIGINS: viteBaseUrl, WUSHEN_LOCAL_WORKER_ENABLED: '0', FORGECAD_CONCEPT_WORKER_ENABLED: '1', FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules' },
+      env: legacyLifecycleTestOracleEnvironment(process.env, { WUSHEN_LIBRARY_ROOT: libraryRoot, WUSHEN_MIGRATIONS_DIR: join(ROOT, 'migrations'), WUSHEN_CORS_ORIGINS: viteBaseUrl, WUSHEN_LOCAL_WORKER_ENABLED: '0', FORGECAD_CONCEPT_WORKER_ENABLED: '1', FORGECAD_CONCEPT_PLANNER_PROVIDER: 'deterministic_rules' }),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     processes.push(agent)

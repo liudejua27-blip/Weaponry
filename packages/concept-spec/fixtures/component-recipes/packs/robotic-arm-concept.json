@@ -1,0 +1,7 @@
+{
+  "schema_version": "ComponentRecipePack@1",
+  "pack_id": "pack_robotic_arm_concept_core",
+  "domain_pack_id": "pack_robotic_arm_concept",
+  "recipe_source": "shared/c105-v1-compatibility-registry.json",
+  "recipe_ids": ["recipe_robotic_arm_link", "recipe_robotic_arm_detail"]
+}

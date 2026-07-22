@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import isfinite
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import Field, model_validator
 
@@ -155,6 +155,27 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
     maps: List[GeometryVisualTextureMapReadback] = Field(min_length=5, max_length=5)
     extensions: List[str] = Field(default_factory=list, max_length=8)
     texture_byte_size: int = Field(gt=0, le=20_000_000)
+    # A005 is visual-only provenance for an appended, actually-used material.
+    # Keeping the complete closed program in readback lets quality/export bind
+    # a texture set to the originating Skill without giving geometry any
+    # Project/Snapshot write authority.
+    surface_adornment: Optional[Dict[str, Any]] = None
+    surface_adornment_sha256: Optional[str] = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
+    # C107 retained Design Surface provenance.  This is emitted only when a
+    # sealed Rust ``SurfaceLayerLowering@1`` actually replaced a bound zone's
+    # texture set in the exact GLB being read back.
+    surface_layer_lowering: Optional[Dict[str, Any]] = None
+    surface_layer_lowering_sha256: Optional[str] = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
+    surface_layer_retained_layers_sha256: Optional[str] = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -246,6 +267,19 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
             raise ValueError("visual texture readback must contain every PBR map once")
         if self.texture_byte_size != sum(item.byte_size for item in self.maps):
             raise ValueError("visual texture byte budget does not match maps")
+        if (self.surface_adornment is None) != (self.surface_adornment_sha256 is None):
+            raise ValueError("surface adornment readback must include program and hash together")
+        surface_layer_values = (
+            self.surface_layer_lowering,
+            self.surface_layer_lowering_sha256,
+            self.surface_layer_retained_layers_sha256,
+        )
+        if any(value is not None for value in surface_layer_values) and any(
+            value is None for value in surface_layer_values
+        ):
+            raise ValueError("retained surface layer readback must include lowering and both hashes together")
+        if self.surface_adornment is not None and self.surface_layer_lowering is not None:
+            raise ValueError("visual texture readback cannot mix A005 and retained surface layer provenance")
         return self
 
 
@@ -308,11 +342,41 @@ class GeometryFeatureNodeReadback(StrictApiModel):
         return self
 
 
+class GeometryArtifactProfileReadback(StrictApiModel):
+    """Code-owned identity for a derived preview or production concept GLB."""
+
+    schema_version: Literal["GeometryArtifactProfile@1"] = "GeometryArtifactProfile@1"
+    artifact_profile_id: Literal["interactive_preview", "production_concept"]
+    radial_segments: Literal[24, 64]
+    capsule_hemisphere_segments: Literal[5, 14]
+    smooth_loft_normals: bool
+    texture_width: Literal[128, 1024]
+    texture_height: Literal[128, 1024]
+    texture_mime_type: Literal["image/png"]
+    texture_compression: Literal["png_deflate"]
+    delivery: Literal["interactive", "on_demand"]
+    triangle_budget_multiplier: Literal[1, 6]
+    max_triangle_count: Literal[100000, 250000]
+    profile_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def validate_profile(self) -> "GeometryArtifactProfileReadback":
+        # Lazy import avoids geometry_models -> visual_texture_sets ->
+        # agent_models -> geometry_models during module initialization.
+        from .visual_texture_sets import geometry_artifact_profile_manifest
+
+        expected = geometry_artifact_profile_manifest(self.artifact_profile_id)
+        if self.model_dump(mode="json") != expected:
+            raise ValueError("geometry artifact profile does not match the code-owned manifest")
+        return self
+
+
 class GeometryCompileReadback(StrictApiModel):
     """Immutable facts read from the exact GLB produced by one compilation."""
 
-    schema_version: Literal["GeometryCompileReadback@1"] = "GeometryCompileReadback@1"
+    schema_version: Literal["GeometryCompileReadback@1", "GeometryCompileReadback@2"] = "GeometryCompileReadback@2"
     runtime_manifest_version: Literal["ShapeProgramRuntimeManifest@1"] = "ShapeProgramRuntimeManifest@1"
+    artifact_profile: Optional[GeometryArtifactProfileReadback] = None
     program_id: str = Field(min_length=1, max_length=160)
     shape_program_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     glb_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -338,6 +402,11 @@ class GeometryCompileReadback(StrictApiModel):
 
     @model_validator(mode="after")
     def validate_readback(self) -> "GeometryCompileReadback":
+        if self.schema_version == "GeometryCompileReadback@2":
+            if self.artifact_profile is None:
+                raise ValueError("current compile readback requires an artifact profile")
+        elif self.artifact_profile is not None:
+            raise ValueError("legacy compile readback cannot claim an artifact profile")
         if any(not isfinite(value) or value <= 0 for value in self.bounds_mm):
             raise ValueError("compile readback bounds must be finite positive values")
         if len(self.operation_ids) != len(self.operation_names):

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/production-component-recipe-registry.schema.json",
+  "title": "ProductionComponentRecipeRegistry",
+  "description": "Internal, reviewed M108B fixture registry. It is intentionally separate from the persisted C105 v1 aggregate registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "policy_version", "recipes"],
+  "properties": {
+    "schema_version": {"const": "EditableComponentRecipeRegistry@1"},
+    "registry_id": {"const": "registry_m108b_production_concept_v1"},
+    "policy_version": {"const": "ComponentRecipePolicy@1"},
+    "recipes": {"type": "array", "minItems": 16, "items": {"$ref": "editable-component-recipe.schema.json"}}
+  }
+}

@@ -1,0 +1,1211 @@
+{
+  "schema_version": "K002ProductToolRegistryFixture@1",
+  "fixture_id": "k002_shared_a004_product_tool_registry",
+  "registry_schema_version": "ForgeCADProductToolRegistry@1",
+  "canonicalization": {
+    "algorithm": "sha256",
+    "encoding": "utf-8",
+    "ensure_ascii": false,
+    "json_separators": [
+      ",",
+      ":"
+    ],
+    "json_sort_keys": true,
+    "manifest_hash_scope": "public_manifest_without_derived_hashes"
+  },
+  "tools": [
+    {
+      "tool_id": "forgecad.domain.inference.v1",
+      "name": "infer_product_domain",
+      "description": "Infer one supported ForgeCAD concept domain without choosing an ambiguous default.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "brief": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        },
+        "required": [
+          "brief"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "status"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "36c2335632e1ac499f1db2437d9e6d792134aa0461340358ecdff5d99a8946da",
+      "output_schema_sha256": "4858caa173037cdc49183332e3542a94f1be5ec5a386861d3fd148b615b038f9"
+    },
+    {
+      "tool_id": "forgecad.reference.research.v1",
+      "name": "research_approved_references",
+      "description": "Search only bundled documentation or the reviewed local catalog; URLs and paths are forbidden.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "domain_pack_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "source_scope": {
+            "enum": [
+              "bundled_docs",
+              "approved_catalog"
+            ]
+          }
+        },
+        "required": [
+          "query",
+          "domain_pack_id",
+          "source_scope"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "source_scope",
+          "matches",
+          "network_call_made"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "251e933cd9ea7b630c9ba78cb45204a19af4612434eb44c8017d5c074870b5d0",
+      "output_schema_sha256": "c5ecd34bb7aebad4501ccdfde9eb4d8f1cad368e8e23cd14a0c4d9c9bbfee3c0"
+    },
+    {
+      "tool_id": "forgecad.style.recipe_selection.v1",
+      "name": "select_style_recipe",
+      "description": "Select a versioned Style Token and semantic proportion recipe for the bound domain.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "domain_pack_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "intent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "domain_pack_id",
+          "intent"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "style_token",
+          "recipe",
+          "fallback_used"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "d47a87b36d4b4fdbd7d84db35649b10aff0a05b07ed3dbf15415a18b1e55c7e2",
+      "output_schema_sha256": "b1ec14a13f3ad5976fb55fbe4e05f5d514cc360480e5cd4fb30d47d0bfefc899"
+    },
+    {
+      "tool_id": "forgecad.profile.author.v1",
+      "name": "author_profile_sketch",
+      "description": "Accept and normalize one bounded ProfileSketch@1 candidate; no file or SVG execution.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "profile_sketch": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile_sketch"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "profile_sketch",
+          "validated"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "c18b0316633302398a5a66b64525c85b6a6c410e28f625a4a8deecd35a1da6ec",
+      "output_schema_sha256": "70f0af7aa89ddf179f3f9f6108757a503a4ad97e63cbce6240dd4031c5c5ca3f"
+    },
+    {
+      "tool_id": "forgecad.profile.validate.v1",
+      "name": "validate_profile_sketch",
+      "description": "Validate one ProfileSketch@1 against the shipped Schema and semantic limits.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "profile_sketch": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile_sketch"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "profile_sketch",
+          "validated"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "c18b0316633302398a5a66b64525c85b6a6c410e28f625a4a8deecd35a1da6ec",
+      "output_schema_sha256": "70f0af7aa89ddf179f3f9f6108757a503a4ad97e63cbce6240dd4031c5c5ca3f"
+    },
+    {
+      "tool_id": "forgecad.shape.author.v1",
+      "name": "author_shape_program",
+      "description": "Accept one candidate ShapeProgram@1 through the G819 runtime manifest boundary.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "shape_program": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "shape_program"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "shape_program",
+          "validated"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "06edd48bb143ac0779a286911bb062547cee2ee13f1d0808938bdc386ba1be7f",
+      "output_schema_sha256": "8a426d5559980c293cd9a35c470c82e80e769a358895e21e293e73953d747bb0"
+    },
+    {
+      "tool_id": "forgecad.shape.validate.v1",
+      "name": "validate_shape_program",
+      "description": "Validate ShapeProgram@1; unknown or unimplemented G819 operations fail closed.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "shape_program": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "shape_program"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "shape_program",
+          "validated"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "06edd48bb143ac0779a286911bb062547cee2ee13f1d0808938bdc386ba1be7f",
+      "output_schema_sha256": "8a426d5559980c293cd9a35c470c82e80e769a358895e21e293e73953d747bb0"
+    },
+    {
+      "tool_id": "forgecad.plan.complete_concept.v1",
+      "name": "plan_complete_concept",
+      "description": "Register one schema-valid complete exterior concept plan for this bound brief and domain.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "additionalProperties": false,
+            "properties": {
+              "schema_version": {
+                "const": "MechanicalConceptPlan@1",
+                "default": "MechanicalConceptPlan@1",
+                "title": "Schema Version",
+                "type": "string"
+              },
+              "plan_id": {
+                "pattern": "^plan_[a-z0-9_\\-]+$",
+                "title": "Plan Id",
+                "type": "string"
+              },
+              "domain_pack_id": {
+                "pattern": "^pack_[a-z0-9_\\-]+$",
+                "title": "Domain Pack Id",
+                "type": "string"
+              },
+              "brief": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "title": "Brief",
+                "type": "string"
+              },
+              "generation_stage": {
+                "const": "blockout",
+                "default": "blockout",
+                "title": "Generation Stage",
+                "type": "string"
+              },
+              "spec": {
+                "additionalProperties": true,
+                "title": "Spec",
+                "type": "object"
+              },
+              "directions": {
+                "items": {
+                  "$ref": "#/$defs/ConceptDirection"
+                },
+                "maxItems": 1,
+                "minItems": 1,
+                "title": "Directions",
+                "type": "array"
+              },
+              "provider_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "title": "Provider Id",
+                "type": "string"
+              },
+              "model": {
+                "anyOf": [
+                  {
+                    "maxLength": 160,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Model"
+              },
+              "arm_design_intent": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ArmDesignIntent"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "assembly_delta": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AssemblyDeltaProgram"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "shape_program_ready": {
+                "default": false,
+                "title": "Shape Program Ready",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "plan_id",
+              "domain_pack_id",
+              "brief",
+              "spec",
+              "directions",
+              "provider_id"
+            ],
+            "title": "MechanicalConceptPlan",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "additionalProperties": false,
+        "$defs": {
+          "AddReviewedRecipeOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "add_reviewed_recipe",
+                "title": "Op",
+                "type": "string"
+              },
+              "operation_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Operation Id",
+                "type": "string"
+              },
+              "new_part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^part_[A-Za-z0-9_:-]+$",
+                "title": "New Part Id",
+                "type": "string"
+              },
+              "parent_part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Parent Part Id",
+                "type": "string"
+              },
+              "parent_connector_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Parent Connector Id",
+                "type": "string"
+              },
+              "child_connector_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Child Connector Id",
+                "type": "string"
+              },
+              "recipe_id": {
+                "enum": [
+                  "recipe_c106_arm_turntable",
+                  "recipe_c106_arm_joint_housing",
+                  "recipe_c106_arm_link_armor",
+                  "recipe_c106_arm_cable_harness",
+                  "recipe_c106_arm_gripper",
+                  "recipe_c106_arm_surface_trim",
+                  "recipe_c110c_arm_sensor_pod",
+                  "recipe_c110d_arm_actuator_cover",
+                  "recipe_c110d_arm_cable_guide",
+                  "recipe_c110d_arm_wrist_tool_mount"
+                ],
+                "title": "Recipe Id",
+                "type": "string"
+              },
+              "slot_id": {
+                "enum": [
+                  "slot_arm_sensor_pod",
+                  "slot_arm_guard_rail",
+                  "slot_arm_tool_changer",
+                  "slot_arm_camera_boom"
+                ],
+                "title": "Slot Id",
+                "type": "string"
+              },
+              "transform": {
+                "$ref": "#/$defs/AssemblyDeltaTransform"
+              }
+            },
+            "required": [
+              "op",
+              "operation_id",
+              "new_part_id",
+              "parent_part_id",
+              "parent_connector_id",
+              "child_connector_id",
+              "recipe_id",
+              "slot_id",
+              "transform"
+            ],
+            "title": "AddReviewedRecipeOperation",
+            "type": "object"
+          },
+          "ArmDesignIntent": {
+            "additionalProperties": false,
+            "description": "Bounded visual intent for composable robotic-arm generation.",
+            "properties": {
+              "schema_version": {
+                "const": "ArmDesignIntent@1",
+                "default": "ArmDesignIntent@1",
+                "title": "Schema Version",
+                "type": "string"
+              },
+              "domain_pack_id": {
+                "const": "pack_robotic_arm_concept",
+                "default": "pack_robotic_arm_concept",
+                "title": "Domain Pack Id",
+                "type": "string"
+              },
+              "architecture": {
+                "enum": [
+                  "serial_chain",
+                  "parallel_link",
+                  "scara",
+                  "gantry",
+                  "delta",
+                  "cantilever"
+                ],
+                "title": "Architecture",
+                "type": "string"
+              },
+              "joint_language": {
+                "enum": [
+                  "armored_bearing",
+                  "exposed_ring",
+                  "gimbal_shell",
+                  "capsule_joint",
+                  "bellows_joint"
+                ],
+                "title": "Joint Language",
+                "type": "string"
+              },
+              "link_language": {
+                "enum": [
+                  "closed_shell",
+                  "twin_rail",
+                  "open_truss",
+                  "tapered_loft",
+                  "tube_frame"
+                ],
+                "title": "Link Language",
+                "type": "string"
+              },
+              "base_language": {
+                "enum": [
+                  "round_turntable",
+                  "hex_platform",
+                  "floating_pedestal",
+                  "industrial_deck",
+                  "compact_puck"
+                ],
+                "title": "Base Language",
+                "type": "string"
+              },
+              "wrist_language": {
+                "enum": [
+                  "layered_wrist",
+                  "gimbal_wrist",
+                  "cylindrical_wrist",
+                  "fork_wrist"
+                ],
+                "title": "Wrist Language",
+                "type": "string"
+              },
+              "end_effector_language": {
+                "enum": [
+                  "parallel_gripper",
+                  "adaptive_claw",
+                  "precision_tool",
+                  "sensor_probe",
+                  "soft_pad_gripper"
+                ],
+                "title": "End Effector Language",
+                "type": "string"
+              },
+              "cable_language": {
+                "enum": [
+                  "internal_routing",
+                  "braided_external",
+                  "armored_harness",
+                  "minimal_cable"
+                ],
+                "title": "Cable Language",
+                "type": "string"
+              },
+              "surface_language": {
+                "items": {
+                  "enum": [
+                    "panel_seams",
+                    "flowline",
+                    "chevron_relief",
+                    "hex_microgrid",
+                    "engraved_ribs",
+                    "fastener_bands"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "minItems": 1,
+                "title": "Surface Language",
+                "type": "array"
+              },
+              "material_palette": {
+                "enum": [
+                  "graphite_blue",
+                  "white_aluminum",
+                  "industrial_yellow",
+                  "warm_copper",
+                  "monochrome_technical"
+                ],
+                "title": "Material Palette",
+                "type": "string"
+              },
+              "detail_density": {
+                "enum": [
+                  "light",
+                  "medium",
+                  "dense"
+                ],
+                "title": "Detail Density",
+                "type": "string"
+              },
+              "pose": {
+                "enum": [
+                  "neutral",
+                  "grounded",
+                  "elevated",
+                  "extended",
+                  "folded"
+                ],
+                "title": "Pose",
+                "type": "string"
+              },
+              "proportion_profile": {
+                "enum": [
+                  "compact",
+                  "balanced",
+                  "long_reach",
+                  "heavy_base",
+                  "slender"
+                ],
+                "title": "Proportion Profile",
+                "type": "string"
+              },
+              "style_keywords": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Style Keywords",
+                "type": "array"
+              },
+              "source": {
+                "default": "user_brief",
+                "enum": [
+                  "user_brief",
+                  "reference_evidence",
+                  "agent_inferred"
+                ],
+                "title": "Source",
+                "type": "string"
+              },
+              "visual_only": {
+                "const": true,
+                "default": true,
+                "title": "Visual Only",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "architecture",
+              "joint_language",
+              "link_language",
+              "base_language",
+              "wrist_language",
+              "end_effector_language",
+              "cable_language",
+              "surface_language",
+              "material_palette",
+              "detail_density",
+              "pose",
+              "proportion_profile"
+            ],
+            "title": "ArmDesignIntent",
+            "type": "object"
+          },
+          "AssemblyDeltaPose": {
+            "additionalProperties": false,
+            "properties": {
+              "rotation": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "title": "Rotation",
+                "type": "array"
+              },
+              "translation": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "title": "Translation",
+                "type": "array"
+              }
+            },
+            "required": [
+              "rotation",
+              "translation"
+            ],
+            "title": "AssemblyDeltaPose",
+            "type": "object"
+          },
+          "AssemblyDeltaProgram": {
+            "additionalProperties": false,
+            "properties": {
+              "schema_version": {
+                "const": "AssemblyDeltaProgram@1",
+                "default": "AssemblyDeltaProgram@1",
+                "title": "Schema Version",
+                "type": "string"
+              },
+              "domain_pack_id": {
+                "const": "pack_robotic_arm_concept",
+                "default": "pack_robotic_arm_concept",
+                "title": "Domain Pack Id",
+                "type": "string"
+              },
+              "base_asset_version_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Base Asset Version Id",
+                "type": "string"
+              },
+              "summary": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "title": "Summary",
+                "type": "string"
+              },
+              "operations": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AddReviewedRecipeOperation"
+                    },
+                    {
+                      "$ref": "#/$defs/ReplaceReviewedRecipeOperation"
+                    },
+                    {
+                      "$ref": "#/$defs/SetPartTransformOperation"
+                    },
+                    {
+                      "$ref": "#/$defs/SetJointPoseOperation"
+                    },
+                    {
+                      "$ref": "#/$defs/SnapPartToConnectorOperation"
+                    }
+                  ]
+                },
+                "maxItems": 8,
+                "minItems": 1,
+                "title": "Operations",
+                "type": "array"
+              },
+              "visual_only": {
+                "const": true,
+                "default": true,
+                "title": "Visual Only",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "base_asset_version_id",
+              "summary",
+              "operations"
+            ],
+            "title": "AssemblyDeltaProgram",
+            "type": "object"
+          },
+          "AssemblyDeltaTransform": {
+            "additionalProperties": false,
+            "properties": {
+              "position": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "title": "Position",
+                "type": "array"
+              },
+              "rotation": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "title": "Rotation",
+                "type": "array"
+              },
+              "scale": {
+                "default": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "title": "Scale",
+                "type": "array"
+              }
+            },
+            "required": [
+              "position",
+              "rotation"
+            ],
+            "title": "AssemblyDeltaTransform",
+            "type": "object"
+          },
+          "ConceptDirection": {
+            "additionalProperties": false,
+            "properties": {
+              "direction_id": {
+                "pattern": "^direction_[a-z0-9_\\-]+$",
+                "title": "Direction Id",
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 80,
+                "minLength": 1,
+                "title": "Title",
+                "type": "string"
+              },
+              "summary": {
+                "maxLength": 500,
+                "minLength": 1,
+                "title": "Summary",
+                "type": "string"
+              },
+              "silhouette": {
+                "enum": [
+                  "compact",
+                  "balanced",
+                  "extended",
+                  "organic",
+                  "industrial"
+                ],
+                "title": "Silhouette",
+                "type": "string"
+              },
+              "primary_part_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "minItems": 2,
+                "title": "Primary Part Roles",
+                "type": "array"
+              },
+              "material_direction": {
+                "maxLength": 160,
+                "minLength": 1,
+                "title": "Material Direction",
+                "type": "string"
+              }
+            },
+            "required": [
+              "direction_id",
+              "title",
+              "summary",
+              "silhouette",
+              "primary_part_roles",
+              "material_direction"
+            ],
+            "title": "ConceptDirection",
+            "type": "object"
+          },
+          "ReplaceReviewedRecipeOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "replace_reviewed_recipe",
+                "title": "Op",
+                "type": "string"
+              },
+              "operation_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Operation Id",
+                "type": "string"
+              },
+              "part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Part Id",
+                "type": "string"
+              },
+              "recipe_id": {
+                "enum": [
+                  "recipe_c106_arm_turntable",
+                  "recipe_c106_arm_joint_housing",
+                  "recipe_c106_arm_link_armor",
+                  "recipe_c106_arm_cable_harness",
+                  "recipe_c106_arm_gripper",
+                  "recipe_c106_arm_surface_trim",
+                  "recipe_c110c_arm_sensor_pod",
+                  "recipe_c110d_arm_actuator_cover",
+                  "recipe_c110d_arm_cable_guide",
+                  "recipe_c110d_arm_wrist_tool_mount"
+                ],
+                "title": "Recipe Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "operation_id",
+              "part_id",
+              "recipe_id"
+            ],
+            "title": "ReplaceReviewedRecipeOperation",
+            "type": "object"
+          },
+          "SetJointPoseOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "set_joint_pose",
+                "title": "Op",
+                "type": "string"
+              },
+              "operation_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Operation Id",
+                "type": "string"
+              },
+              "part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Part Id",
+                "type": "string"
+              },
+              "joint_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Joint Id",
+                "type": "string"
+              },
+              "pose": {
+                "$ref": "#/$defs/AssemblyDeltaPose"
+              }
+            },
+            "required": [
+              "op",
+              "operation_id",
+              "part_id",
+              "joint_id",
+              "pose"
+            ],
+            "title": "SetJointPoseOperation",
+            "type": "object"
+          },
+          "SetPartTransformOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "set_part_transform",
+                "title": "Op",
+                "type": "string"
+              },
+              "operation_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Operation Id",
+                "type": "string"
+              },
+              "part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Part Id",
+                "type": "string"
+              },
+              "transform": {
+                "$ref": "#/$defs/AssemblyDeltaTransform"
+              }
+            },
+            "required": [
+              "op",
+              "operation_id",
+              "part_id",
+              "transform"
+            ],
+            "title": "SetPartTransformOperation",
+            "type": "object"
+          },
+          "SnapPartToConnectorOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "snap_part_to_connector",
+                "title": "Op",
+                "type": "string"
+              },
+              "operation_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Operation Id",
+                "type": "string"
+              },
+              "part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Part Id",
+                "type": "string"
+              },
+              "target_part_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Target Part Id",
+                "type": "string"
+              },
+              "target_connector_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Target Connector Id",
+                "type": "string"
+              },
+              "connector_id": {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_:-]+$",
+                "title": "Connector Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "operation_id",
+              "part_id",
+              "target_part_id",
+              "target_connector_id",
+              "connector_id"
+            ],
+            "title": "SnapPartToConnectorOperation",
+            "type": "object"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "plan",
+          "accepted"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "486efc390e8e51a2147cf6e189c4bf2424d1193eaa10b488a2773afd6820dd53",
+      "output_schema_sha256": "680fb6a9db6a2b2c2ceaa72337e1bd5b90901c223ca51d4ecb02f5d219cf1101"
+    },
+    {
+      "tool_id": "forgecad.geometry.build.v1",
+      "name": "build_candidate_geometry",
+      "description": "Build the single initial bounded candidate, or apply one parent-gate-authorized code-owned same-intent repair patch; never expands a second direction or persists an asset version.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "direction_id": {
+            "type": "string",
+            "pattern": "^direction_[a-z0-9_\\-]+$"
+          },
+          "variant_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "presentation_profile": {
+            "enum": [
+              "quick_sketch",
+              "showcase"
+            ]
+          },
+          "repair": {
+            "type": "object",
+            "properties": {
+              "schema_version": {
+                "const": "BoundedGeometryRepairPatch@1",
+                "type": "string"
+              },
+              "parent_attempt_id": {
+                "type": "string",
+                "pattern": "^attempt_[a-z0-9_\\-]+$"
+              },
+              "parent_gate_report_id": {
+                "type": "string",
+                "pattern": "^gate_[a-z0-9_\\-]+$"
+              },
+              "gate_id": {
+                "enum": [
+                  "closed_manifold",
+                  "surface_provenance_present"
+                ]
+              },
+              "patch_id": {
+                "enum": [
+                  "seal_open_sweep_caps",
+                  "restore_output_material_zones"
+                ]
+              }
+            },
+            "required": [
+              "schema_version",
+              "parent_attempt_id",
+              "parent_gate_report_id",
+              "gate_id",
+              "patch_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "direction_id",
+          "presentation_profile"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "direction_id",
+          "topology_hash",
+          "triangle_count",
+          "bounds_mm",
+          "candidate_only"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "3f1df28ad9187cafb174157551fa73069833d97483dacf219a05c4088e6a0a2f",
+      "output_schema_sha256": "bfe343df9e7aefbf2dd0de8998239fac8299d7929bab306f9fcd1edbfb5d6bf4"
+    },
+    {
+      "tool_id": "forgecad.geometry.compile_readback.v1",
+      "name": "compile_readback_candidate",
+      "description": "Compile the candidate ShapeProgram and return facts read back from the actual GLB.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "triangle_count",
+          "bounds_mm",
+          "mesh_count",
+          "primitive_count",
+          "material_count",
+          "evidence_source"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "d746974fa9afd5e951f76f9af38954b0ad7f436f2120dc974da65e5ee39f856f",
+      "output_schema_sha256": "0174b9f9a227828a79dd8bf5661f81ac9398b6dcdd5395a6113ac94ae19a7db8"
+    },
+    {
+      "tool_id": "forgecad.render.concept.v1",
+      "name": "render_candidate_views",
+      "description": "Render four deterministic concept views from the compiled candidate GLB.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "view_ids",
+          "view_sha256",
+          "renderer_id"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "d746974fa9afd5e951f76f9af38954b0ad7f436f2120dc974da65e5ee39f856f",
+      "output_schema_sha256": "841547869d12018f914cca9afcf1876b89384dc2a344a429edb42ee1313e778f"
+    },
+    {
+      "tool_id": "forgecad.candidate.evaluate.v1",
+      "name": "evaluate_candidate",
+      "description": "Evaluate hard candidate evidence from actual readback and rendered views; no aesthetic truth claim.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "hard_gate_passed",
+          "checks",
+          "evidence_source"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "read_only",
+      "input_schema_sha256": "d746974fa9afd5e951f76f9af38954b0ad7f436f2120dc974da65e5ee39f856f",
+      "output_schema_sha256": "913210d8b4fbbf868f21280c1b8a8d6d933d1c2f94e5c1ec898f333e83ac56b7"
+    },
+    {
+      "tool_id": "forgecad.preview.prepare.v1",
+      "name": "prepare_candidate_preview",
+      "description": "Prepare an ephemeral best-candidate preview descriptor; confirmation remains a separate user action.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "preview_id",
+          "topology_hash",
+          "view_sha256",
+          "requires_user_confirmation",
+          "permanent_side_effects"
+        ],
+        "additionalProperties": true
+      },
+      "approval_policy": "candidate_only",
+      "input_schema_sha256": "d746974fa9afd5e951f76f9af38954b0ad7f436f2120dc974da65e5ee39f856f",
+      "output_schema_sha256": "1f442df67f97e374449034eeb4c58a58325c2ca54cce227c972984f12bb5e1ce"
+    }
+  ],
+  "manifest_sha256": "0c0982358f04316889cff6533941e7fac68b8b6af20aadf6033f8fc1fa82b724"
+}

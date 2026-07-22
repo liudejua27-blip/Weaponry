@@ -1,0 +1,22 @@
+[package]
+name = "forgecad-core"
+version = "0.1.0"
+description = "Rust-owned ForgeCAD product state, SQLite and content-addressed object core"
+edition = "2021"
+
+[lib]
+name = "forgecad_core"
+path = "src/lib.rs"
+
+[dependencies]
+base64 = "0.22"
+forgecad-app-server-protocol = { path = "../forgecad-app-server-protocol" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"

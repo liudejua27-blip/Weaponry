@@ -96,7 +96,7 @@ def main() -> int:
             RenderAgentBlockoutConceptPreviewRequest(
                 client_request_id="r006-no-write",
                 plan=plan,
-                direction_id=plan.directions[1].direction_id,
+                direction_id=plan.directions[0].direction_id,
                 variation_index=1,
             )
         )

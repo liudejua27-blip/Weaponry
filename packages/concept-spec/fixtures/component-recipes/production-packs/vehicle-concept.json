@@ -1,0 +1,5645 @@
+{
+  "schema_version": "M108BProductionRecipeDomainPack@1",
+  "pack_id": "pack_vehicle-concept_production",
+  "domain_pack_id": "pack_vehicle_concept",
+  "root_recipe_ids": [
+    "recipe_vehicle_compact_coupe",
+    "recipe_vehicle_utility_crossover",
+    "recipe_vehicle_track_concept"
+  ],
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_vehicle_accent",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "概念车辆信号饰件",
+      "description": "嵌入车身端部表皮的浅薄非功能视觉信号饰件。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_vehicle_accent",
+        "units": "millimeter",
+        "seed": 301,
+        "triangle_budget": 500,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_accent_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                -10
+              ],
+        "size": [
+          90,
+          32,
+          12
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_vehicle_signal"
+            }
+          },
+          {
+            "operation_id": "op_accent_recessed",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_accent_base"
+            ],
+            "args": {
+        "radius": 2,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_vehicle_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_accent",
+            "operation_id": "op_accent_recessed",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_accent",
+          "operation_id": "op_accent_recessed",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_vehicle_concept"
+      ],
+      "triangle_estimate": 200,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_vehicle_accent_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "概念展示轮组",
+      "description": "仅用于概念车辆外观比例和材质分区的非功能展示轮组。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_vehicle_presentation_wheel",
+        "units": "millimeter",
+        "seed": 308,
+        "triangle_budget": 3000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_wheel_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  280,
+                  -120
+                ],
+                [
+                  325,
+                  -112
+                ],
+                [
+                  360,
+                  -85
+                ],
+                [
+                  382,
+                  -45
+                ],
+                [
+                  390,
+                  0
+                ],
+                [
+                  382,
+                  45
+                ],
+                [
+                  360,
+                  85
+                ],
+                [
+                  325,
+                  112
+                ],
+                [
+                  280,
+                  120
+                ],
+                [
+                  235,
+                  112
+                ],
+                [
+                  200,
+                  85
+                ],
+                [
+                  178,
+                  45
+                ],
+                [
+                  170,
+                  0
+                ],
+                [
+                  178,
+                  -45
+                ],
+                [
+                  200,
+                  -85
+                ],
+                [
+                  235,
+                  -112
+                ],
+                [
+                  280,
+                  -120
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_wheel_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_wheel_profile"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radial_segments": 64,
+              "part_role": "visual_detail",
+              "material_id": "mat_rubber",
+              "zone_id": "zone_vehicle_wheel_rubber"
+            }
+          },
+          {
+            "operation_id": "op_wheel_hub",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radius": 150,
+              "height": 100,
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_trim"
+            }
+          },
+          {
+            "operation_id": "op_wheel_hub_cap",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                1.5707963267948966,
+                0,
+                0
+              ],
+              "radius": 64,
+              "height": 112,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_trim"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_wheel",
+            "operation_id": "op_wheel_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_hub",
+            "operation_id": "op_wheel_hub",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_hub_cap",
+            "operation_id": "op_wheel_hub_cap",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_wheel_revolve",
+          "operation_id": "op_wheel_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_wheel_hub",
+          "operation_id": "op_wheel_hub",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_wheel_hub_cap",
+          "operation_id": "op_wheel_hub_cap",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_wheel_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_wheel_rubber",
+          "role": "rubber",
+          "material_preset_id": "mat_rubber"
+        },
+        {
+          "zone_id": "zone_vehicle_trim",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_vehicle_concept"
+      ],
+      "triangle_estimate": 2600,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_vehicle_presentation_wheel_v2",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_vehicle_compact_coupe",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "紧凑双门概念车",
+      "description": "非工程概念车辆外观：低矮紧凑比例、连续曲面和独立玻璃舱。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_vehicle_trim",
+          "profile_sketch_id": "sketch_vehicle_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_vehicle_production",
+          "sha256": "37012df4ac7b727f226c45b56b74b062f077600634b6828a88dffedf56c9e542",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_vehicle_production",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_vehicle_compact_coupe_nose",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.3,
+                "twist_degrees": -5.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_vehicle_compact_coupe_shoulder_front",
+                "position": -0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.72,
+                "twist_degrees": -2.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_compact_coupe_mid",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 1.05,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_compact_coupe_shoulder_rear",
+                "position": 0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.76,
+                "twist_degrees": 2.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_compact_coupe_tail",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.25,
+                "twist_degrees": 5.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_vehicle_production"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_vehicle_compact_coupe",
+        "units": "millimeter",
+        "seed": 405,
+        "triangle_budget": 4000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_vehicle_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "37012df4ac7b727f226c45b56b74b062f077600634b6828a88dffedf56c9e542",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_vehicle_production",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_vehicle_compact_coupe_nose",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.3,
+                  "twist_degrees": -5.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_vehicle_compact_coupe_shoulder_front",
+                  "position": -0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.72,
+                  "twist_degrees": -2.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_compact_coupe_mid",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 1.05,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_compact_coupe_shoulder_rear",
+                  "position": 0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.76,
+                  "twist_degrees": 2.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_compact_coupe_tail",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.25,
+                  "twist_degrees": 5.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_production"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_vehicle_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "3780eb7bb96f3950743ec4f77f8487002224e1fd78ccfa06bc21f904ea08ecf7",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_vehicle_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_body_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                600,
+                1500
+              ],
+              "axis_length": 3800,
+              "continuity": "linear",
+              "position": [
+                1900,
+                540,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_canopy_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                270,
+                860
+              ],
+              "axis_length": 1650,
+              "continuity": "linear",
+              "position": [
+                2100,
+                900,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_vehicle_compact_coupe_glass"
+            }
+          },
+          {
+            "operation_id": "op_beltline_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                42,
+                24
+              ],
+              "path_points": [
+                [
+                  250,
+                  650,
+                  -770
+                ],
+                [
+                  1100,
+                  720,
+                  -820
+                ],
+                [
+                  2700,
+                  700,
+                  -820
+                ],
+                [
+                  3550,
+                  620,
+                  -770
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_roof_rail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                36,
+                18
+              ],
+              "path_points": [
+                [
+                  1320,
+                  800,
+                  -320
+                ],
+                [
+                  2050,
+                  850,
+                  -350
+                ],
+                [
+                  2780,
+                  790,
+                  -310
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_compact_coupe_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_panel_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                1900,
+                300,
+                -772
+              ],
+              "size": [
+                1700,
+                130,
+                36
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_panel",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_panel_base"
+            ],
+            "args": {
+              "radius": 4,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                48,
+                28
+              ],
+              "path_points": [
+                [
+                  390,
+                  330,
+                  -800
+                ],
+                [
+                  481,
+                  555,
+                  -800
+                ],
+                [
+                  800,
+                  740,
+                  -800
+                ],
+                [
+                  1119,
+                  555,
+                  -800
+                ],
+                [
+                  1210,
+                  330,
+                  -800
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_compact_coupe_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_front_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_compact_coupe_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                48,
+                28
+              ],
+              "path_points": [
+                [
+                  2590,
+                  330,
+                  -800
+                ],
+                [
+                  2681,
+                  555,
+                  -800
+                ],
+                [
+                  3000,
+                  740,
+                  -800
+                ],
+                [
+                  3319,
+                  555,
+                  -800
+                ],
+                [
+                  3410,
+                  330,
+                  -800
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_compact_coupe_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_rear_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_compact_coupe_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [800, 670, -760],
+              "size": [920, 170, 240],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [150, 80],
+              "path_points": [
+                [400, 360, -760],
+                [500, 590, -760],
+                [800, 780, -760],
+                [1100, 590, -760],
+                [1200, 360, -760]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_right",
+            "op": "mirror",
+            "inputs": ["op_front_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3000, 670, -760],
+              "size": [920, 170, 240],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [150, 80],
+              "path_points": [
+                [2600, 360, -760],
+                [2700, 590, -760],
+                [3000, 780, -760],
+                [3300, 590, -760],
+                [3400, 360, -760]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_right",
+            "op": "mirror",
+            "inputs": ["op_rear_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_compact_coupe_shell"
+            }
+          },
+          {
+            "operation_id": "op_panel_mirror",
+            "op": "mirror",
+            "inputs": [
+              "op_panel"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                220,
+                520,
+                0
+              ],
+              "size": [
+                60,
+                140,
+                780
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_fascia_base"
+            ],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3580,
+                540,
+                0
+              ],
+              "size": [
+                60,
+                120,
+                700
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_fascia_base"
+            ],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_compact_coupe_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_signal_decal",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [96, 615, 0],
+              "size": [24, 42, 820],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_vehicle_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_body",
+            "operation_id": "op_body_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_canopy",
+            "operation_id": "op_canopy_loft",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_beltline",
+            "operation_id": "op_beltline_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_roof_rail",
+            "operation_id": "op_roof_rail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_panel",
+            "operation_id": "op_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_signal_decal",
+            "operation_id": "op_signal_decal",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_arch_left",
+            "operation_id": "op_front_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_arch_right",
+            "operation_id": "op_front_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_left",
+            "operation_id": "op_rear_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_right",
+            "operation_id": "op_rear_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_fender_left",
+            "operation_id": "op_front_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_front_fender_right",
+            "operation_id": "op_front_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_left",
+            "operation_id": "op_rear_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_right",
+            "operation_id": "op_rear_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_panel_mirror",
+            "operation_id": "op_panel_mirror",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_fascia",
+            "operation_id": "op_front_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_fascia",
+            "operation_id": "op_rear_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_compact_coupe_1",
+          "operation_id": "op_body_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_2",
+          "operation_id": "op_canopy_loft",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_3",
+          "operation_id": "op_beltline_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_4",
+          "operation_id": "op_roof_rail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_5",
+          "operation_id": "op_panel_base",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_6",
+          "operation_id": "op_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_compact_coupe_7",
+          "operation_id": "op_signal_decal",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_arch_left",
+          "operation_id": "op_front_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_front_arch_right",
+          "operation_id": "op_front_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_left",
+          "operation_id": "op_rear_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_right",
+          "operation_id": "op_rear_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_panel_mirror",
+          "operation_id": "op_panel_mirror",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_fascia",
+          "operation_id": "op_front_fascia",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_rear_fascia",
+          "operation_id": "op_rear_fascia",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_compact_coupe_wheel_1",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            330,
+            -790
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_compact_coupe_wheel_2",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            330,
+            790
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_compact_coupe_wheel_3",
+          "kind": "visual_mount",
+          "position": [
+            3000,
+            330,
+            -790
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_compact_coupe_wheel_4",
+          "kind": "visual_mount",
+          "position": [
+            3000,
+            330,
+            790
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_compact_coupe_accent_1",
+        "kind": "trim_join",
+        "position": [
+          170,
+          590,
+          -520
+          ],
+          "normal": [
+            -1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_compact_coupe_accent_2",
+        "kind": "trim_join",
+        "position": [
+          3630,
+          600,
+          -450
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_compact_coupe_shell",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_vehicle_compact_coupe_body_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_vehicle_compact_coupe_brightwork",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_vehicle_compact_coupe_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_vehicle_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_vehicle_compact_coupe_wheel_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_compact_coupe_wheel_1",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_compact_coupe_wheel_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_compact_coupe_wheel_2",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_compact_coupe_wheel_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_compact_coupe_wheel_3",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_compact_coupe_wheel_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_compact_coupe_wheel_4",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_compact_coupe_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_compact_coupe_accent_1",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_compact_coupe_accent_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_compact_coupe_accent_2",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_vehicle_concept"
+      ],
+      "triangle_estimate": 16000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_vehicle_compact_coupe_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_vehicle_utility_crossover",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "跨界概念车",
+      "description": "非工程概念车辆外观：更高的舱体、厚重下部和连续车顶视觉轨迹。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_vehicle_trim",
+          "profile_sketch_id": "sketch_vehicle_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_vehicle_production",
+          "sha256": "966a7efec651d53ef49b3ee3aee55d675d2c76ff562cf7dfe819425dc51f78b5",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_vehicle_production",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_vehicle_utility_crossover_nose",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.42,
+                "twist_degrees": -3.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_vehicle_utility_crossover_shoulder_front",
+                "position": -0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.88,
+                "twist_degrees": -1.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_utility_crossover_mid",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 1.14,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_utility_crossover_shoulder_rear",
+                "position": 0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 1.0,
+                "twist_degrees": 1.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_utility_crossover_tail",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.42,
+                "twist_degrees": 3.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_vehicle_production"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_vehicle_utility_crossover",
+        "units": "millimeter",
+        "seed": 406,
+        "triangle_budget": 4000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_vehicle_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "966a7efec651d53ef49b3ee3aee55d675d2c76ff562cf7dfe819425dc51f78b5",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_vehicle_production",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_vehicle_utility_crossover_nose",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.42,
+                  "twist_degrees": -3.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_vehicle_utility_crossover_shoulder_front",
+                  "position": -0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.88,
+                  "twist_degrees": -1.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_utility_crossover_mid",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 1.14,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_utility_crossover_shoulder_rear",
+                  "position": 0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 1.0,
+                  "twist_degrees": 1.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_utility_crossover_tail",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.42,
+                  "twist_degrees": 3.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_production"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_vehicle_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "3780eb7bb96f3950743ec4f77f8487002224e1fd78ccfa06bc21f904ea08ecf7",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_vehicle_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_body_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                780,
+                1650
+              ],
+              "axis_length": 4560,
+              "continuity": "linear",
+              "position": [
+                2280,
+                650,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_canopy_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                410,
+                1150
+              ],
+              "axis_length": 2700,
+              "continuity": "linear",
+              "position": [
+                2420,
+                1120,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_vehicle_utility_crossover_glass"
+            }
+          },
+          {
+            "operation_id": "op_beltline_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                42,
+                24
+              ],
+              "path_points": [
+                [
+                  280,
+                  760,
+                  -900
+                ],
+                [
+                  1400,
+                  850,
+                  -950
+                ],
+                [
+                  3200,
+                  820,
+                  -950
+                ],
+                [
+                  4300,
+                  720,
+                  -900
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_roof_rail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                44,
+                22
+              ],
+              "path_points": [
+                [
+                  1120,
+                  1080,
+                  -470
+                ],
+                [
+                  2350,
+                  1160,
+                  -510
+                ],
+                [
+                  3600,
+                  1080,
+                  -470
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_utility_crossover_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_panel_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2280,
+                335,
+                -912
+              ],
+              "size": [
+                2050,
+                170,
+                42
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_panel",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_panel_base"
+            ],
+            "args": {
+              "radius": 4,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                56,
+                32
+              ],
+              "path_points": [
+                [
+                  360,
+                  370,
+                  -940
+                ],
+                [
+                  457,
+                  612,
+                  -940
+                ],
+                [
+                  800,
+                  810,
+                  -940
+                ],
+                [
+                  1143,
+                  612,
+                  -940
+                ],
+                [
+                  1240,
+                  370,
+                  -940
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_utility_crossover_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_front_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_utility_crossover_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                56,
+                32
+              ],
+              "path_points": [
+                [
+                  3320,
+                  370,
+                  -940
+                ],
+                [
+                  3417,
+                  612,
+                  -940
+                ],
+                [
+                  3760,
+                  810,
+                  -940
+                ],
+                [
+                  4103,
+                  612,
+                  -940
+                ],
+                [
+                  4200,
+                  370,
+                  -940
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_utility_crossover_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_rear_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_utility_crossover_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [800, 760, -900],
+              "size": [980, 210, 260],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [170, 90],
+              "path_points": [
+                [370, 400, -900],
+                [470, 650, -900],
+                [800, 850, -900],
+                [1130, 650, -900],
+                [1230, 400, -900]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_right",
+            "op": "mirror",
+            "inputs": ["op_front_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3760, 760, -900],
+              "size": [980, 210, 260],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [170, 90],
+              "path_points": [
+                [3330, 400, -900],
+                [3430, 650, -900],
+                [3760, 850, -900],
+                [4090, 650, -900],
+                [4190, 400, -900]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_right",
+            "op": "mirror",
+            "inputs": ["op_rear_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_utility_crossover_shell"
+            }
+          },
+          {
+            "operation_id": "op_panel_mirror",
+            "op": "mirror",
+            "inputs": [
+              "op_panel"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                250,
+                620,
+                0
+              ],
+              "size": [
+                70,
+                190,
+                1050
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_fascia_base"
+            ],
+            "args": {
+              "radius": 10,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                4310,
+                650,
+                0
+              ],
+              "size": [
+                70,
+                170,
+                980
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_fascia_base"
+            ],
+            "args": {
+              "radius": 10,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_utility_crossover_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_signal_decal",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [104, 760, 0],
+              "size": [28, 54, 1040],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_vehicle_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_body",
+            "operation_id": "op_body_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_canopy",
+            "operation_id": "op_canopy_loft",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_beltline",
+            "operation_id": "op_beltline_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_roof_rail",
+            "operation_id": "op_roof_rail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_panel",
+            "operation_id": "op_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_signal_decal",
+            "operation_id": "op_signal_decal",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_arch_left",
+            "operation_id": "op_front_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_arch_right",
+            "operation_id": "op_front_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_left",
+            "operation_id": "op_rear_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_right",
+            "operation_id": "op_rear_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_fender_left",
+            "operation_id": "op_front_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_front_fender_right",
+            "operation_id": "op_front_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_left",
+            "operation_id": "op_rear_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_right",
+            "operation_id": "op_rear_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_panel_mirror",
+            "operation_id": "op_panel_mirror",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_fascia",
+            "operation_id": "op_front_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_fascia",
+            "operation_id": "op_rear_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_utility_crossover_1",
+          "operation_id": "op_body_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_2",
+          "operation_id": "op_canopy_loft",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_3",
+          "operation_id": "op_beltline_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_4",
+          "operation_id": "op_roof_rail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_5",
+          "operation_id": "op_panel_base",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_6",
+          "operation_id": "op_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_utility_crossover_7",
+          "operation_id": "op_signal_decal",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_arch_left",
+          "operation_id": "op_front_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_front_arch_right",
+          "operation_id": "op_front_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_left",
+          "operation_id": "op_rear_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_right",
+          "operation_id": "op_rear_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_panel_mirror",
+          "operation_id": "op_panel_mirror",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_fascia",
+          "operation_id": "op_front_fascia",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_rear_fascia",
+          "operation_id": "op_rear_fascia",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_utility_crossover_wheel_1",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            370,
+            -930
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_utility_crossover_wheel_2",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            370,
+            930
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_utility_crossover_wheel_3",
+          "kind": "visual_mount",
+          "position": [
+            3760,
+            370,
+            -930
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_utility_crossover_wheel_4",
+          "kind": "visual_mount",
+          "position": [
+            3760,
+            370,
+            930
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_utility_crossover_accent_1",
+        "kind": "trim_join",
+        "position": [
+          180,
+          720,
+          -640
+          ],
+          "normal": [
+            -1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_utility_crossover_accent_2",
+        "kind": "trim_join",
+        "position": [
+          4380,
+          700,
+          -600
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_utility_crossover_shell",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_vehicle_utility_crossover_body_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_vehicle_utility_crossover_brightwork",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_vehicle_utility_crossover_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_vehicle_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_vehicle_utility_crossover_wheel_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_utility_crossover_wheel_1",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_utility_crossover_wheel_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_utility_crossover_wheel_2",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_utility_crossover_wheel_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_utility_crossover_wheel_3",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_utility_crossover_wheel_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_utility_crossover_wheel_4",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_utility_crossover_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_utility_crossover_accent_1",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_utility_crossover_accent_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_utility_crossover_accent_2",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_vehicle_concept"
+      ],
+      "triangle_estimate": 16000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_vehicle_utility_crossover_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_vehicle_track_concept",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "赛道概念车",
+      "description": "非工程概念车辆外观：长低楔形比例、紧凑座舱和高对比视觉饰条。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_vehicle_trim",
+          "profile_sketch_id": "sketch_vehicle_trim_ring"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_vehicle_production",
+          "sha256": "c41475de64e270ba4b98b10a52a2fa8e29ea811d735b73b56bad58cef35faaeb",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_vehicle_production",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_end",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.48,
+                  -0.32
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.312,
+                      -0.32
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      -0.32
+                    ],
+                    "to": [
+                      0.48,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.48,
+                      0.32
+                    ],
+                    "to": [
+                      0.0,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.32
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.32
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "max": [
+                    0.48,
+                    0.32
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_middle",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.88,
+                  -0.58
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.572,
+                      -0.58
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      -0.58
+                    ],
+                    "to": [
+                      0.88,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.88,
+                      0.58
+                    ],
+                    "to": [
+                      0.0,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      0.58
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.88,
+                      -0.58
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "max": [
+                    0.88,
+                    0.58
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              },
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_vehicle_production_start",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.55,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.3575,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      -0.38
+                    ],
+                    "to": [
+                      0.55,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "quadratic",
+                    "control": [
+                      0.55,
+                      0.38
+                    ],
+                    "to": [
+                      0.0,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.55,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "max": [
+                    0.55,
+                    0.38
+                  ]
+                },
+                "symmetry": "vertical",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "g822_shell_recipe"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_vehicle_track_concept_nose",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.25,
+                "twist_degrees": -7.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_vehicle_track_concept_shoulder_front",
+                "position": -0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.62,
+                "twist_degrees": -3.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_track_concept_mid",
+                "position": 0.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 1.0,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_track_concept_shoulder_rear",
+                "position": 0.58,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.68,
+                "twist_degrees": 3.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_vehicle_track_concept_tail",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_vehicle_production_end",
+                "scale": 0.25,
+                "twist_degrees": 7.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "vertical",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_vehicle_production"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_vehicle_track_concept",
+        "units": "millimeter",
+        "seed": 407,
+        "triangle_budget": 4000,
+        "parameters": [],
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_vehicle_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "c41475de64e270ba4b98b10a52a2fa8e29ea811d735b73b56bad58cef35faaeb",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_vehicle_production",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_end",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.48,
+                    -0.32
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.312,
+                        -0.32
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        -0.32
+                      ],
+                      "to": [
+                        0.48,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.48,
+                        0.32
+                      ],
+                      "to": [
+                        0.0,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.32
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.32
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.48,
+                      -0.32
+                    ],
+                    "max": [
+                      0.48,
+                      0.32
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_middle",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.88,
+                    -0.58
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.572,
+                        -0.58
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        -0.58
+                      ],
+                      "to": [
+                        0.88,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.88,
+                        0.58
+                      ],
+                      "to": [
+                        0.0,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        0.58
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.88,
+                        -0.58
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.88,
+                      -0.58
+                    ],
+                    "max": [
+                      0.88,
+                      0.58
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                },
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_vehicle_production_start",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.55,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.3575,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        -0.38
+                      ],
+                      "to": [
+                        0.55,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "quadratic",
+                      "control": [
+                        0.55,
+                        0.38
+                      ],
+                      "to": [
+                        0.0,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.55,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.55,
+                      -0.38
+                    ],
+                    "max": [
+                      0.55,
+                      0.38
+                    ]
+                  },
+                  "symmetry": "vertical",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "g822_shell_recipe"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_vehicle_track_concept_nose",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.25,
+                  "twist_degrees": -7.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_vehicle_track_concept_shoulder_front",
+                  "position": -0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.62,
+                  "twist_degrees": -3.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_track_concept_mid",
+                  "position": 0.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 1.0,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_track_concept_shoulder_rear",
+                  "position": 0.58,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.68,
+                  "twist_degrees": 3.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_vehicle_track_concept_tail",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_vehicle_production_end",
+                  "scale": 0.25,
+                  "twist_degrees": 7.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "vertical",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_production"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_vehicle_trim",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "3780eb7bb96f3950743ec4f77f8487002224e1fd78ccfa06bc21f904ea08ecf7",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_vehicle_trim_ring",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.5,
+                0.0
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    -0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.5,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.0,
+                    0.5
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.35,
+                    0.35
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.5,
+                    0.0
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.5,
+                  -0.5
+                ],
+                "max": [
+                  0.5,
+                  0.5
+                ]
+              },
+              "symmetry": "radial",
+              "continuity_hint": "linear",
+              "resample_count": 16,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_vehicle_trim"
+              }
+            }
+          }
+        ],
+        "operations": [
+          {
+            "operation_id": "op_body_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                500,
+                1750
+              ],
+              "axis_length": 4200,
+              "continuity": "linear",
+              "position": [
+                2100,
+                470,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_canopy_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_vehicle_sections",
+              "cross_section_scale": [
+                210,
+                900
+              ],
+              "axis_length": 1500,
+              "continuity": "linear",
+              "position": [
+                2450,
+                760,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_vehicle_track_concept_glass"
+            }
+          },
+          {
+            "operation_id": "op_beltline_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                42,
+                24
+              ],
+              "path_points": [
+                [
+                  250,
+                  570,
+                  -830
+                ],
+                [
+                  1200,
+                  640,
+                  -880
+                ],
+                [
+                  3000,
+                  620,
+                  -880
+                ],
+                [
+                  4000,
+                  540,
+                  -830
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_roof_rail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                34,
+                16
+              ],
+              "path_points": [
+                [
+                  1700,
+                  670,
+                  -390
+                ],
+                [
+                  2450,
+                  720,
+                  -420
+                ],
+                [
+                  3100,
+                  660,
+                  -390
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_track_concept_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_panel_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2100,
+                250,
+                -842
+              ],
+              "size": [
+                1950,
+                105,
+                34
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_panel",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_panel_base"
+            ],
+            "args": {
+              "radius": 4,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                52,
+                30
+              ],
+              "path_points": [
+                [
+                  400,
+                  300,
+                  -870
+                ],
+                [
+                  488,
+                  520,
+                  -870
+                ],
+                [
+                  800,
+                  700,
+                  -870
+                ],
+                [
+                  1112,
+                  520,
+                  -870
+                ],
+                [
+                  1200,
+                  300,
+                  -870
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_track_concept_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_front_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_track_concept_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_left",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [
+                52,
+                30
+              ],
+              "path_points": [
+                [
+                  3000,
+                  300,
+                  -870
+                ],
+                [
+                  3088,
+                  520,
+                  -870
+                ],
+                [
+                  3400,
+                  700,
+                  -870
+                ],
+                [
+                  3712,
+                  520,
+                  -870
+                ],
+                [
+                  3800,
+                  300,
+                  -870
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_track_concept_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_rear_arch_right",
+            "op": "mirror",
+            "inputs": [
+              "op_rear_arch_left"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_vehicle_track_concept_brightwork"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [800, 600, -830],
+              "size": [940, 150, 250],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [150, 75],
+              "path_points": [
+                [410, 330, -830],
+                [500, 555, -830],
+                [800, 735, -830],
+                [1100, 555, -830],
+                [1190, 330, -830]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_front_fender_right",
+            "op": "mirror",
+            "inputs": ["op_front_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3400, 600, -830],
+              "size": [940, 150, 250],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_vehicle_trim",
+              "profile_scale": [150, 75],
+              "path_points": [
+                [3010, 330, -830],
+                [3100, 555, -830],
+                [3400, 735, -830],
+                [3700, 555, -830],
+                [3790, 330, -830]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [0, 0, 0],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_rear_fender_right",
+            "op": "mirror",
+            "inputs": ["op_rear_fender"],
+            "args": {
+              "axis": [0, 0, 1],
+              "part_role": "secondary_form",
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_vehicle_track_concept_shell"
+            }
+          },
+          {
+            "operation_id": "op_panel_mirror",
+            "op": "mirror",
+            "inputs": [
+              "op_panel"
+            ],
+            "args": {
+              "axis": [
+                0,
+                0,
+                1
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                220,
+                450,
+                0
+              ],
+              "size": [
+                60,
+                110,
+                900
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_front_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_front_fascia_base"
+            ],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3980,
+                460,
+                0
+              ],
+              "size": [
+                60,
+                100,
+                820
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_rear_fascia",
+            "op": "bevel_approx",
+            "inputs": [
+              "op_rear_fascia_base"
+            ],
+            "args": {
+              "radius": 8,
+              "segments": 3,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_vehicle_track_concept_body_trim"
+            }
+          },
+          {
+            "operation_id": "op_signal_decal",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [82, 540, 0],
+              "size": [22, 38, 900],
+              "part_role": "visual_detail",
+              "material_id": "mat_emissive_blue",
+              "zone_id": "zone_vehicle_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_body",
+            "operation_id": "op_body_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_canopy",
+            "operation_id": "op_canopy_loft",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_beltline",
+            "operation_id": "op_beltline_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_roof_rail",
+            "operation_id": "op_roof_rail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_panel",
+            "operation_id": "op_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_signal_decal",
+            "operation_id": "op_signal_decal",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_arch_left",
+            "operation_id": "op_front_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_arch_right",
+            "operation_id": "op_front_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_left",
+            "operation_id": "op_rear_arch_left",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_rear_arch_right",
+            "operation_id": "op_rear_arch_right",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_front_fender_left",
+            "operation_id": "op_front_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_front_fender_right",
+            "operation_id": "op_front_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_left",
+            "operation_id": "op_rear_fender",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_rear_fender_right",
+            "operation_id": "op_rear_fender_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_panel_mirror",
+            "operation_id": "op_panel_mirror",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_front_fascia",
+            "operation_id": "op_front_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_rear_fascia",
+            "operation_id": "op_rear_fascia",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_vehicle_track_concept_1",
+          "operation_id": "op_body_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_2",
+          "operation_id": "op_canopy_loft",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_3",
+          "operation_id": "op_beltline_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_4",
+          "operation_id": "op_roof_rail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_5",
+          "operation_id": "op_panel_base",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_6",
+          "operation_id": "op_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_vehicle_track_concept_7",
+          "operation_id": "op_signal_decal",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_arch_left",
+          "operation_id": "op_front_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_front_arch_right",
+          "operation_id": "op_front_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_left",
+          "operation_id": "op_rear_arch_left",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_rear_arch_right",
+          "operation_id": "op_rear_arch_right",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_panel_mirror",
+          "operation_id": "op_panel_mirror",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_front_fascia",
+          "operation_id": "op_front_fascia",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_rear_fascia",
+          "operation_id": "op_rear_fascia",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_vehicle_track_concept_wheel_1",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            300,
+            -860
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_track_concept_wheel_2",
+          "kind": "visual_mount",
+          "position": [
+            800,
+            300,
+            860
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_track_concept_wheel_3",
+          "kind": "visual_mount",
+          "position": [
+            3400,
+            300,
+            -860
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_vehicle_track_concept_wheel_4",
+          "kind": "visual_mount",
+          "position": [
+            3400,
+            300,
+            860
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_track_concept_accent_1",
+        "kind": "trim_join",
+        "position": [
+          160,
+          540,
+          -620
+          ],
+          "normal": [
+            -1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+      {
+        "connector_id": "connector_vehicle_track_concept_accent_2",
+        "kind": "trim_join",
+        "position": [
+          4040,
+          530,
+          -580
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_vehicle_track_concept_shell",
+          "role": "shell",
+          "material_preset_id": "mat_automotive_paint"
+        },
+        {
+          "zone_id": "zone_vehicle_track_concept_body_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_vehicle_track_concept_brightwork",
+          "role": "trim",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_vehicle_track_concept_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_vehicle_signal",
+          "role": "signal",
+          "material_preset_id": "mat_emissive_blue"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_vehicle_track_concept_wheel_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_track_concept_wheel_1",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_track_concept_wheel_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_track_concept_wheel_2",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_track_concept_wheel_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_track_concept_wheel_3",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_track_concept_wheel_4",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_presentation_wheel",
+          "parent_connector_id": "connector_vehicle_track_concept_wheel_4",
+          "child_connector_id": "connector_vehicle_wheel_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_track_concept_accent_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_track_concept_accent_1",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_vehicle_track_concept_accent_2",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_vehicle_accent",
+          "parent_connector_id": "connector_vehicle_track_concept_accent_2",
+          "child_connector_id": "connector_vehicle_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_vehicle_concept"
+      ],
+      "triangle_estimate": 16000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_vehicle_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_vehicle_track_concept_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    }
+  ]
+}

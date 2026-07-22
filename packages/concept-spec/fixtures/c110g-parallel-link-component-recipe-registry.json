@@ -1,0 +1,115 @@
+{
+  "schema_version": "EditableComponentRecipeRegistry@1",
+  "registry_id": "registry_c110g_parallel_link_robotic_arm_v1",
+  "policy_version": "ComponentRecipePolicy@1",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110g_parallel_link_root",
+      "version": 1,
+      "component_role": "base_form",
+      "display_name": "并联导轨机械臂底座",
+      "description": "面向概念展示的双导轨并联机械臂底座，不表达真实运动学或承载能力。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110g_parallel_link_root",
+        "units": "millimeter",
+        "seed": 6170,
+        "triangle_budget": 18000,
+        "parameters": [],
+        "operations": [
+          {"operation_id":"op_parallel_root_deck_box","op":"box","inputs":[],"args":{"position":[0,0,0],"size":[620,420,84],"part_role":"base_form","material_id":"mat_graphite","zone_id":"zone_c110g_root_shell"}},
+          {"operation_id":"op_parallel_root_deck","op":"bevel_approx","inputs":["op_parallel_root_deck_box"],"args":{"radius":18,"segments":3,"part_role":"base_form","material_id":"mat_graphite","zone_id":"zone_c110g_root_shell"}},
+          {"operation_id":"op_parallel_root_signal","op":"surface_panel","inputs":["op_parallel_root_deck"],"args":{"axis":[0,1,0],"size":[360,10,30],"position":[0,0,24],"part_role":"base_form","material_id":"mat_emissive_blue","zone_id":"zone_c110g_root_signal"}}
+        ],
+        "outputs": [{"output_id":"output_parallel_root_deck","operation_id":"op_parallel_root_deck","kind":"mesh","part_role":"base_form"}],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id":"feature_parallel_root_deck","operation_id":"op_parallel_root_deck","role":"base_form"},
+        {"feature_id":"feature_parallel_root_signal","operation_id":"op_parallel_root_signal","role":"base_form"}
+      ],
+      "connectors": [
+        {"connector_id":"connector_parallel_rail_left","kind":"visual_mount","position":[-170,0,64],"normal":[0,0,1],"up":[0,1,0]},
+        {"connector_id":"connector_parallel_rail_right","kind":"visual_mount","position":[170,0,64],"normal":[0,0,1],"up":[0,1,0]},
+        {"connector_id":"connector_parallel_carriage","kind":"visual_mount","position":[0,0,96],"normal":[0,0,1],"up":[0,1,0]},
+        {"connector_id":"connector_parallel_tool","kind":"visual_mount","position":[0,0,132],"normal":[0,0,1],"up":[0,1,0]}
+      ],
+      "pivot":{"position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]},
+      "root_local_transform":{"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones":[
+        {"zone_id":"zone_c110g_root_shell","role":"shell","material_preset_id":"mat_graphite"},
+        {"zone_id":"zone_c110g_root_signal","role":"signal","material_preset_id":"mat_emissive_blue"}
+      ],
+      "surface_adornment_slots":[],
+      "child_slots":[
+        {"slot_id":"slot_parallel_rail_left","accepted_roles":["parallel_rail"],"child_recipe_id":"recipe_c110g_parallel_rail","parent_connector_id":"connector_parallel_rail_left","child_connector_id":"connector_parallel_rail_mount","required":true},
+        {"slot_id":"slot_parallel_rail_right","accepted_roles":["parallel_rail"],"child_recipe_id":"recipe_c110g_parallel_rail","parent_connector_id":"connector_parallel_rail_right","child_connector_id":"connector_parallel_rail_mount","required":true,"parent_local_transform":{"position":[0,0,0],"rotation":[0,0,3.141592653589793],"scale":[1,1,1]}},
+        {"slot_id":"slot_parallel_carriage","accepted_roles":["parallel_carriage"],"child_recipe_id":"recipe_c110g_parallel_carriage","parent_connector_id":"connector_parallel_carriage","child_connector_id":"connector_parallel_carriage_mount","required":true},
+        {"slot_id":"slot_parallel_link","accepted_roles":["link_armor"],"child_recipe_id":"recipe_c110g_parallel_link","parent_connector_id":"connector_parallel_carriage","child_connector_id":"connector_parallel_link_mount","required":true},
+        {"slot_id":"slot_parallel_tool","accepted_roles":["end_effector_form"],"child_recipe_id":"recipe_c110g_parallel_end_effector","parent_connector_id":"connector_parallel_tool","child_connector_id":"connector_parallel_tool_mount","required":true}
+      ],
+      "allowed_domains":["pack_robotic_arm_concept"],
+      "triangle_estimate":18000,
+      "quality_status":"passed",
+      "source":{"source_kind":"forgecad_first_party","source_id":"source_c110g_parallel_link"},
+      "license":{"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
+      "review_state":{"review_id":"review_c110g_parallel_root_v1","reviewed_at":"2026-07-22T00:00:00Z","reviewer_kind":"forgecad_internal"},
+      "non_functional_only":true
+    },
+    {
+      "schema_version":"EditableComponentRecipe@1",
+      "recipe_id":"recipe_c110g_parallel_rail",
+      "version":1,
+      "component_role":"parallel_rail",
+      "display_name":"并联机械臂导轨",
+      "description":"双轨视觉结构件，使用护罩、灯带和导轨槽表现并联风格。",
+      "profiles":[],"section_sets":[],"parameter_bindings":[],
+      "shape_program_template":{
+        "schema_version":"ShapeProgram@1","program_id":"shape_c110g_parallel_rail","units":"millimeter","seed":6171,"triangle_budget":9000,"parameters":[],
+        "operations":[
+          {"operation_id":"op_parallel_rail_body_box","op":"box","inputs":[],"args":{"position":[0,0,180],"size":[92,520,78],"part_role":"parallel_rail","material_id":"mat_graphite","zone_id":"zone_c110g_rail_shell"}},
+          {"operation_id":"op_parallel_rail_body","op":"bevel_approx","inputs":["op_parallel_rail_body_box"],"args":{"radius":18,"segments":3,"part_role":"parallel_rail","material_id":"mat_graphite","zone_id":"zone_c110g_rail_shell"}},
+          {"operation_id":"op_parallel_rail_signal","op":"surface_panel","inputs":["op_parallel_rail_body"],"args":{"axis":[0,1,0],"size":[46,8,18],"position":[0,0,0],"part_role":"parallel_rail","material_id":"mat_emissive_blue","zone_id":"zone_c110g_rail_signal"}}
+        ],
+        "outputs":[{"output_id":"output_parallel_rail_body","operation_id":"op_parallel_rail_body","kind":"mesh","part_role":"parallel_rail"}],"non_functional_only":true
+      },
+      "feature_template":[{"feature_id":"feature_parallel_rail_body","operation_id":"op_parallel_rail_body","role":"parallel_rail"},{"feature_id":"feature_parallel_rail_signal","operation_id":"op_parallel_rail_signal","role":"parallel_rail"}],
+      "connectors":[{"connector_id":"connector_parallel_rail_mount","kind":"visual_mount","position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]}],
+      "pivot":{"position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]},"root_local_transform":{"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones":[{"zone_id":"zone_c110g_rail_shell","role":"shell","material_preset_id":"mat_graphite"},{"zone_id":"zone_c110g_rail_signal","role":"signal","material_preset_id":"mat_emissive_blue"}],
+      "surface_adornment_slots":[],"child_slots":[],"allowed_domains":["pack_robotic_arm_concept"],"triangle_estimate":9000,"quality_status":"passed","source":{"source_kind":"forgecad_first_party","source_id":"source_c110g_parallel_link"},"license":{"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},"review_state":{"review_id":"review_c110g_parallel_rail_v1","reviewed_at":"2026-07-22T00:00:00Z","reviewer_kind":"forgecad_internal"},"non_functional_only":true
+    },
+    {
+      "schema_version":"EditableComponentRecipe@1","recipe_id":"recipe_c110g_parallel_carriage","version":1,"component_role":"parallel_carriage","display_name":"并联滑台","description":"用于并联连杆视觉组合的非功能滑台与圆形关节座。","profiles":[],"section_sets":[],"parameter_bindings":[],
+      "shape_program_template":{"schema_version":"ShapeProgram@1","program_id":"shape_c110g_parallel_carriage","units":"millimeter","seed":6172,"triangle_budget":11000,"parameters":[],"operations":[
+        {"operation_id":"op_parallel_carriage_box","op":"box","inputs":[],"args":{"position":[0,0,310],"size":[300,180,76],"part_role":"parallel_carriage","material_id":"mat_automotive_paint","zone_id":"zone_c110g_carriage_shell"}},
+          {"operation_id":"op_parallel_carriage_shell","op":"bevel_approx","inputs":["op_parallel_carriage_box"],"args":{"radius":18,"segments":3,"part_role":"parallel_carriage","material_id":"mat_automotive_paint","zone_id":"zone_c110g_carriage_shell"}},
+        {"operation_id":"op_parallel_carriage_ring","op":"cylinder","inputs":[],"args":{"position":[0,0,360],"radius":72,"height":28,"axis":[0,0,1],"part_role":"parallel_carriage","material_id":"mat_aluminum","zone_id":"zone_c110g_carriage_ring"}}
+      ],"outputs":[{"output_id":"output_parallel_carriage_shell","operation_id":"op_parallel_carriage_shell","kind":"mesh","part_role":"parallel_carriage"}],"non_functional_only":true},
+      "feature_template":[{"feature_id":"feature_parallel_carriage_shell","operation_id":"op_parallel_carriage_shell","role":"parallel_carriage"},{"feature_id":"feature_parallel_carriage_ring","operation_id":"op_parallel_carriage_ring","role":"parallel_carriage"}],"connectors":[{"connector_id":"connector_parallel_carriage_mount","kind":"visual_mount","position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]}],"pivot":{"position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]},"root_local_transform":{"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},"material_zones":[{"zone_id":"zone_c110g_carriage_shell","role":"shell","material_preset_id":"mat_automotive_paint"},{"zone_id":"zone_c110g_carriage_ring","role":"trim","material_preset_id":"mat_aluminum"}],"surface_adornment_slots":[],"child_slots":[],"allowed_domains":["pack_robotic_arm_concept"],"triangle_estimate":11000,"quality_status":"passed","source":{"source_kind":"forgecad_first_party","source_id":"source_c110g_parallel_link"},"license":{"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},"review_state":{"review_id":"review_c110g_parallel_carriage_v1","reviewed_at":"2026-07-22T00:00:00Z","reviewer_kind":"forgecad_internal"},"non_functional_only":true
+    },
+    {
+      "schema_version":"EditableComponentRecipe@1","recipe_id":"recipe_c110g_parallel_link","version":1,"component_role":"link_armor","display_name":"并联双连杆护甲","description":"用于双连杆并联机械臂的非功能流线护甲与表面灯带。","profiles":[],"section_sets":[],"parameter_bindings":[],
+      "shape_program_template":{"schema_version":"ShapeProgram@1","program_id":"shape_c110g_parallel_link","units":"millimeter","seed":6173,"triangle_budget":13000,"parameters":[],"operations":[
+        {"operation_id":"op_parallel_link_body_box","op":"box","inputs":[],"args":{"position":[0,0,520],"size":[110,420,68],"part_role":"link_armor","material_id":"mat_automotive_paint","zone_id":"zone_c110g_link_shell"}},
+          {"operation_id":"op_parallel_link_body","op":"bevel_approx","inputs":["op_parallel_link_body_box"],"args":{"radius":16,"segments":3,"part_role":"link_armor","material_id":"mat_automotive_paint","zone_id":"zone_c110g_link_shell"}},
+        {"operation_id":"op_parallel_link_flowline","op":"surface_panel","inputs":["op_parallel_link_body"],"args":{"axis":[0,1,0],"size":[58,10,22],"position":[0,0,8],"part_role":"link_armor","material_id":"mat_emissive_blue","zone_id":"zone_c110g_link_signal"}}
+      ],"outputs":[{"output_id":"output_parallel_link_body","operation_id":"op_parallel_link_body","kind":"mesh","part_role":"link_armor"}],"non_functional_only":true},
+      "feature_template":[{"feature_id":"feature_parallel_link_body","operation_id":"op_parallel_link_body","role":"link_armor"},{"feature_id":"feature_parallel_link_flowline","operation_id":"op_parallel_link_flowline","role":"link_armor"}],"connectors":[{"connector_id":"connector_parallel_link_mount","kind":"visual_mount","position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]}],"pivot":{"position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]},"root_local_transform":{"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},"material_zones":[{"zone_id":"zone_c110g_link_shell","role":"shell","material_preset_id":"mat_automotive_paint"},{"zone_id":"zone_c110g_link_signal","role":"signal","material_preset_id":"mat_emissive_blue"}],"surface_adornment_slots":[],"child_slots":[],"allowed_domains":["pack_robotic_arm_concept"],"triangle_estimate":13000,"quality_status":"passed","source":{"source_kind":"forgecad_first_party","source_id":"source_c110g_parallel_link"},"license":{"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},"review_state":{"review_id":"review_c110g_parallel_link_v1","reviewed_at":"2026-07-22T00:00:00Z","reviewer_kind":"forgecad_internal"},"non_functional_only":true
+    },
+    {
+      "schema_version":"EditableComponentRecipe@1","recipe_id":"recipe_c110g_parallel_end_effector","version":1,"component_role":"end_effector_form","display_name":"并联末端工具座","description":"用于概念展示的非功能末端工具座，保留环形座、护罩与信号面板。","profiles":[],"section_sets":[],"parameter_bindings":[],
+      "shape_program_template":{"schema_version":"ShapeProgram@1","program_id":"shape_c110g_parallel_end_effector","units":"millimeter","seed":6174,"triangle_budget":10000,"parameters":[],"operations":[
+        {"operation_id":"op_parallel_tool_hub","op":"cylinder","inputs":[],"args":{"position":[0,0,640],"radius":82,"height":34,"axis":[0,0,1],"part_role":"end_effector_form","material_id":"mat_aluminum","zone_id":"zone_c110g_tool_ring"}},
+        {"operation_id":"op_parallel_tool_shell_box","op":"box","inputs":[],"args":{"position":[0,0,700],"size":[150,120,100],"part_role":"end_effector_form","material_id":"mat_graphite","zone_id":"zone_c110g_tool_shell"}},
+        {"operation_id":"op_parallel_tool_shell","op":"bevel_approx","inputs":["op_parallel_tool_shell_box"],"args":{"radius":18,"segments":3,"part_role":"end_effector_form","material_id":"mat_graphite","zone_id":"zone_c110g_tool_shell"}},
+        {"operation_id":"op_parallel_tool_signal","op":"surface_panel","inputs":["op_parallel_tool_shell"],"args":{"axis":[0,1,0],"size":[82,8,24],"position":[0,0,38],"part_role":"end_effector_form","material_id":"mat_emissive_blue","zone_id":"zone_c110g_tool_signal"}}
+      ],"outputs":[{"output_id":"output_parallel_tool_hub","operation_id":"op_parallel_tool_hub","kind":"mesh","part_role":"end_effector_form"}],"non_functional_only":true},
+      "feature_template":[{"feature_id":"feature_parallel_tool_hub","operation_id":"op_parallel_tool_hub","role":"end_effector_form"},{"feature_id":"feature_parallel_tool_shell","operation_id":"op_parallel_tool_shell","role":"end_effector_form"},{"feature_id":"feature_parallel_tool_signal","operation_id":"op_parallel_tool_signal","role":"end_effector_form"}],"connectors":[{"connector_id":"connector_parallel_tool_mount","kind":"visual_mount","position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]}],"pivot":{"position":[0,0,0],"normal":[0,0,1],"up":[0,1,0]},"root_local_transform":{"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},"material_zones":[{"zone_id":"zone_c110g_tool_ring","role":"trim","material_preset_id":"mat_aluminum"},{"zone_id":"zone_c110g_tool_shell","role":"shell","material_preset_id":"mat_graphite"},{"zone_id":"zone_c110g_tool_signal","role":"signal","material_preset_id":"mat_emissive_blue"}],"surface_adornment_slots":[],"child_slots":[],"allowed_domains":["pack_robotic_arm_concept"],"triangle_estimate":10000,"quality_status":"passed","source":{"source_kind":"forgecad_first_party","source_id":"source_c110g_parallel_link"},"license":{"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},"review_state":{"review_id":"review_c110g_parallel_end_effector_v1","reviewed_at":"2026-07-22T00:00:00Z","reviewer_kind":"forgecad_internal"},"non_functional_only":true
+    }
+  ]
+}

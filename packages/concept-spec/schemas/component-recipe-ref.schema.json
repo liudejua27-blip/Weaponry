@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/component-recipe-ref.schema.json",
+  "title": "ComponentRecipeRef",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "recipe_id", "version", "recipe_sha256"],
+  "properties": {
+    "schema_version": { "const": "ComponentRecipeRef@1" },
+    "recipe_id": { "type": "string", "pattern": "^recipe_[a-z0-9_\\-]+$" },
+    "version": { "type": "integer", "minimum": 1, "maximum": 9999 },
+    "recipe_sha256": { "$ref": "common.schema.json#/$defs/sha256" }
+  }
+}

@@ -82,7 +82,7 @@ def test_kernel_sends_prior_conversation_and_records_deepseek_usage(tmp_path):
     context = planner.contexts[-1]
     assert context is not None
     assert any(message["content"] == "设计一辆冰原探索车，完整外观。" for message in context.messages)
-    assert any("我已生成三个完整外观方向" in message["content"] for message in context.messages)
+    assert any("我已生成一个完整外观意图" in message["content"] for message in context.messages)
     assert second.usage["prompt_cache_hit_tokens"] == 90
     assert second.usage["prompt_cache_miss_tokens"] == 30
     assert second.usage["usage_status"] == "reported"

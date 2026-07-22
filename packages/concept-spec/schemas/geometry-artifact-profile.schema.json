@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/geometry-artifact-profile.schema.json",
+  "title": "GeometryArtifactProfile",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "artifact_profile_id",
+        "radial_segments",
+        "capsule_hemisphere_segments",
+        "smooth_loft_normals",
+        "texture_width",
+        "texture_height",
+        "texture_mime_type",
+        "texture_compression",
+        "delivery",
+        "triangle_budget_multiplier",
+        "max_triangle_count",
+        "profile_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "GeometryArtifactProfile@1" },
+        "artifact_profile_id": { "const": "interactive_preview" },
+        "radial_segments": { "const": 24 },
+        "capsule_hemisphere_segments": { "const": 5 },
+        "smooth_loft_normals": { "const": false },
+        "texture_width": { "const": 128 },
+        "texture_height": { "const": 128 },
+        "texture_mime_type": { "const": "image/png" },
+        "texture_compression": { "const": "png_deflate" },
+        "delivery": { "const": "interactive" },
+        "triangle_budget_multiplier": { "const": 1 },
+        "max_triangle_count": { "const": 100000 },
+        "profile_sha256": {
+          "const": "ee826ade78767c9cd557dc6c0812c5ac4b0ffe627c4325024b8ad25fef7b3fbf"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "artifact_profile_id",
+        "radial_segments",
+        "capsule_hemisphere_segments",
+        "smooth_loft_normals",
+        "texture_width",
+        "texture_height",
+        "texture_mime_type",
+        "texture_compression",
+        "delivery",
+        "triangle_budget_multiplier",
+        "max_triangle_count",
+        "profile_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "GeometryArtifactProfile@1" },
+        "artifact_profile_id": { "const": "production_concept" },
+        "radial_segments": { "const": 64 },
+        "capsule_hemisphere_segments": { "const": 14 },
+        "smooth_loft_normals": { "const": true },
+        "texture_width": { "const": 1024 },
+        "texture_height": { "const": 1024 },
+        "texture_mime_type": { "const": "image/png" },
+        "texture_compression": { "const": "png_deflate" },
+        "delivery": { "const": "on_demand" },
+        "triangle_budget_multiplier": { "const": 6 },
+        "max_triangle_count": { "const": 250000 },
+        "profile_sha256": {
+          "const": "f7a6ed164cb44f1d1f7bf23938f4f1f8237e84d1b2518938c99147509bdf416a"
+        }
+      }
+    }
+  ]
+}

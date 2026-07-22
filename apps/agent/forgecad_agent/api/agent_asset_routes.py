@@ -59,6 +59,74 @@ def build_agent_asset_router(service: AgentAssetEditingService) -> APIRouter:
             return _agent_error(exc)
 
     @router.get(
+        "/asset-versions/{asset_version_id}:preview.glb",
+        response_class=Response,
+        response_model=None,
+        responses={
+            200: {
+                "description": "Binary interactive-preview GLB for the active Agent asset.",
+                "content": {"model/gltf-binary": {}},
+                "headers": {
+                    "ETag": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Artifact-Profile": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Artifact-Profile-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Shape-Program-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-GLB-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-GLB-Byte-Size": {"schema": {"type": "integer"}},
+                    "X-ForgeCAD-Triangle-Count": {"schema": {"type": "integer"}},
+                },
+            }
+        },
+    )
+    def load_asset_preview_glb(
+        asset_version_id: str,
+    ) -> Union[Response, JSONResponse]:
+        try:
+            artifact = service.get_glb_artifact(
+                asset_version_id,
+                artifact_profile_id="interactive_preview",
+            )
+            return _glb_artifact_response(artifact)
+        except AgentAssetError as exc:
+            return _agent_error(exc)
+
+    @router.get(
+        "/asset-versions/{asset_version_id}:model.glb",
+        response_class=Response,
+        response_model=None,
+        responses={
+            200: {
+                "description": "Binary production-concept GLB for quality review or download.",
+                "content": {"model/gltf-binary": {}},
+                "headers": {
+                    "Content-Disposition": {"schema": {"type": "string"}},
+                    "ETag": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Artifact-Profile": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Artifact-Profile-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Shape-Program-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-GLB-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-GLB-Byte-Size": {"schema": {"type": "integer"}},
+                    "X-ForgeCAD-Triangle-Count": {"schema": {"type": "integer"}},
+                },
+            }
+        },
+    )
+    def download_asset_model_glb(
+        asset_version_id: str,
+    ) -> Union[Response, JSONResponse]:
+        try:
+            artifact = service.get_glb_artifact(
+                asset_version_id,
+                artifact_profile_id="production_concept",
+            )
+            return _glb_artifact_response(
+                artifact,
+                filename=f"{asset_version_id}.glb",
+            )
+        except AgentAssetError as exc:
+            return _agent_error(exc)
+
+    @router.get(
         "/asset-versions/{asset_version_id}:render-package",
         response_class=Response,
         response_model=None,
@@ -229,6 +297,41 @@ def build_agent_asset_router(service: AgentAssetEditingService) -> APIRouter:
         except AgentAssetError as exc:
             return _agent_error(exc)
 
+    @router.get(
+        "/change-sets/{change_set_id}:preview.glb",
+        response_class=Response,
+        response_model=None,
+        responses={
+            200: {
+                "description": "Ephemeral PBR GLB compiled from the active previewed AgentAsset ChangeSet.",
+                "content": {"model/gltf-binary": {}},
+                "headers": {
+                    "X-ForgeCAD-Preview-GLB-SHA256": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Base-Asset-Version-ID": {"schema": {"type": "string"}},
+                    "X-ForgeCAD-Preview-Triangle-Count": {"schema": {"type": "integer"}},
+                },
+            }
+        },
+    )
+    def download_change_set_preview_glb(
+        change_set_id: str,
+    ) -> Union[Response, JSONResponse]:
+        try:
+            compiled, base_asset_version_id = service.preview_change_set_glb(change_set_id)
+            return Response(
+                content=compiled.glb_bytes,
+                media_type="model/gltf-binary",
+                headers={
+                    "Cache-Control": "no-store",
+                    "Content-Disposition": f'inline; filename="{change_set_id}-preview.glb"',
+                    "X-ForgeCAD-Preview-GLB-SHA256": compiled.readback.glb_sha256,
+                    "X-ForgeCAD-Base-Asset-Version-ID": base_asset_version_id,
+                    "X-ForgeCAD-Preview-Triangle-Count": str(compiled.readback.triangle_count),
+                },
+            )
+        except AgentAssetError as exc:
+            return _agent_error(exc)
+
     @router.post("/change-sets/{change_set_id}:confirm", response_model=AgentAssetChangeSetConfirmResponse)
     def confirm_change_set(
         change_set_id: str,
@@ -276,6 +379,36 @@ def _resolve_active_design_revision(if_match: Optional[str]) -> int:
 
 def _agent_error(exc: AgentAssetError) -> JSONResponse:
     return _error(exc.status_code, exc.code, str(exc))
+
+
+def _glb_artifact_response(artifact: object, *, filename: Optional[str] = None) -> Response:
+    headers = {
+        "Cache-Control": "no-store",
+        "ETag": f'"{getattr(artifact, "glb_sha256")}"',
+        "X-ForgeCAD-Artifact-Profile": str(
+            getattr(artifact, "artifact_profile_id")
+        ),
+        "X-ForgeCAD-GLB-SHA256": str(getattr(artifact, "glb_sha256")),
+        "X-ForgeCAD-Triangle-Count": str(getattr(artifact, "triangle_count")),
+        "X-ForgeCAD-GLB-Byte-Size": str(len(getattr(artifact, "payload"))),
+    }
+    artifact_profile_sha256 = getattr(artifact, "artifact_profile_sha256")
+    shape_program_sha256 = getattr(artifact, "shape_program_sha256")
+    if artifact_profile_sha256 is not None:
+        headers["X-ForgeCAD-Artifact-Profile-SHA256"] = str(
+            artifact_profile_sha256
+        )
+    if shape_program_sha256 is not None:
+        headers["X-ForgeCAD-Shape-Program-SHA256"] = str(
+            shape_program_sha256
+        )
+    if filename is not None:
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return Response(
+        content=getattr(artifact, "payload"),
+        media_type="model/gltf-binary",
+        headers=headers,
+    )
 
 
 def _error(status_code: int, code: str, message: str) -> JSONResponse:

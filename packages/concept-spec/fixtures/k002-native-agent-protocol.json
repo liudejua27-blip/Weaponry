@@ -1,0 +1,248 @@
+{
+  "schema_version": "K002NativeAgentProtocolFixture@1",
+  "protocol_version": "forgecad.app-server/1",
+  "ownership": {
+    "schema_version": "ForgeCADMigrationOwnership@1",
+    "agent_lifecycle": "rust_app_server",
+    "lifecycle_persistence": "python_compatibility_adapter",
+    "product_core": "python_compatibility_adapter"
+  },
+  "request_methods": [
+    "thread/create",
+    "thread/list",
+    "thread/read",
+    "thread/archive",
+    "turn/start",
+    "turn/read",
+    "turn/cancel",
+    "item/list",
+    "item/read",
+    "approval/create",
+    "approval/read",
+    "approval/resolve",
+    "provider/preflight",
+    "provider/check",
+    "provider/cancel",
+    "product-tools/list",
+    "product-tools/execute",
+    "lifecycle-persistence/execute",
+    "migration/ownership/read"
+  ],
+  "native_notifications": [
+    "thread/created",
+    "thread/updated",
+    "thread/archived",
+    "turn/started",
+    "item/updated",
+    "approval/created",
+    "approval/resolved",
+    "turn/completed",
+    "turn/failed",
+    "turn/cancelled"
+  ],
+  "examples": {
+    "thread_command": {
+      "schema_version": "AgentThreadCommand@1",
+      "command_id": "command_thread_k002_1",
+      "command": {
+        "operation": "create",
+        "request": {
+          "client_request_id": "client_thread_k002_1",
+          "project_id": "project_k002_1",
+          "title": "未来机械概念",
+          "provider_id": "deepseek"
+        }
+      }
+    },
+    "turn_command": {
+      "schema_version": "AgentTurnCommand@1",
+      "command_id": "command_turn_k002_1",
+      "command": {
+        "operation": "start",
+        "thread_id": "thread_k002_1",
+        "request": {
+          "client_request_id": "client_turn_k002_1",
+          "message": "生成一个完整、精细、非功能性的未来机械概念外观"
+        }
+      }
+    },
+    "item_command": {
+      "schema_version": "AgentItemCommand@1",
+      "command_id": "command_item_k002_1",
+      "command": {
+        "operation": "list",
+        "thread_id": "thread_k002_1",
+        "turn_id": "turn_k002_1",
+        "after_sequence": 0,
+        "limit": 100
+      }
+    },
+    "approval_command": {
+      "schema_version": "AgentApprovalCommand@1",
+      "command_id": "command_approval_k002_1",
+      "command": {
+        "operation": "resolve",
+        "thread_id": "thread_k002_1",
+        "turn_id": "turn_k002_1",
+        "approval_id": "approval_k002_1",
+        "request": {
+          "client_request_id": "client_approval_k002_1",
+          "decision": "approved",
+          "note": "确认当前候选"
+        }
+      }
+    },
+    "provider_preflight_command": {
+      "schema_version": "ProviderPreflightCommand@1",
+      "execution_id": "provider_preflight_k002_1",
+      "requested_provider_id": "deepseek"
+    },
+    "provider_preflight_result": {
+      "schema_version": "ProviderPreflightResult@1",
+      "execution_id": "provider_preflight_k002_1",
+      "status": "ready",
+      "provider_id": "deepseek",
+      "configured": true,
+      "network_call_made": false
+    },
+    "provider_check_command": {
+      "schema_version": "ProviderCheckCommand@1",
+      "execution_id": "provider_check_k002_1",
+      "provider_id": "deepseek",
+      "timeout_ms": 30000,
+      "cancellation_id": "provider_cancel_k002_1",
+      "cancellation_token": "provider_cancel_token_k002_1"
+    },
+    "provider_check_result": {
+      "schema_version": "ProviderCheckResult@1",
+      "execution_id": "provider_check_k002_1",
+      "provider_id": "deepseek",
+      "status": "ready",
+      "network_call_made": true,
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 1,
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 8
+      }
+    },
+    "provider_cancel_command": {
+      "schema_version": "ProviderCancelCommand@1",
+      "execution_id": "provider_check_k002_1",
+      "cancellation_id": "provider_cancel_k002_1",
+      "cancellation_token": "provider_cancel_token_k002_1"
+    },
+    "provider_cancel_result": {
+      "schema_version": "ProviderCancelResult@1",
+      "execution_id": "provider_check_k002_1",
+      "cancellation_id": "provider_cancel_k002_1",
+      "accepted": true,
+      "already_terminal": false
+    },
+    "product_tool_request": {
+      "schema_version": "ProductToolExecutionRequest@1",
+      "execution_id": "product_tool_execution_k002_1",
+      "turn_id": "turn_k002_1",
+      "call_id": "call_k002_1",
+      "tool_id": "forgecad.geometry.compile_readback.v1",
+      "tool_name": "compile_readback_candidate",
+      "registry_schema_version": "ForgeCADProductToolRegistry@1",
+      "idempotency_key": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "validated_arguments": {
+        "schema_id": "forgecad.geometry.compile_readback.v1:input",
+        "schema_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "value": {
+          "path": {
+            "points": [[0, 0, 0], [1, 0, 0]],
+            "closed": false
+          },
+          "quality_profile": "interactive_preview"
+        }
+      },
+      "approval_policy": "candidate_only",
+      "cancellation_id": "product_tool_cancel_k002_1",
+      "cancellation_token": "product_tool_cancel_token_k002_1"
+    },
+    "product_tool_result": {
+      "schema_version": "ProductToolExecutionResult@1",
+      "execution_id": "product_tool_execution_k002_1",
+      "turn_id": "turn_k002_1",
+      "call_id": "call_k002_1",
+      "tool_id": "forgecad.geometry.compile_readback.v1",
+      "cancellation_id": "product_tool_cancel_k002_1",
+      "status": "completed",
+      "validated_output": {
+        "schema_id": "forgecad.geometry.compile_readback.v1:output",
+        "schema_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "value": {
+          "evidence_source": "glb_readback",
+          "permanent_side_effects": 0
+        }
+      },
+      "duration_ms": 25,
+      "permanent_side_effects": 0
+    },
+    "persistence_command": {
+      "schema_version": "LifecyclePersistenceCommand@1",
+      "command_id": "persistence_create_turn_k002_1",
+      "idempotency_key": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "expected_revision": "db-cas:thread_k002_1:0",
+      "command": {
+        "operation": "create_turn",
+        "thread_id": "thread_k002_1",
+        "turn": {
+          "turn_id": "turn_k002_1",
+          "thread_id": "thread_k002_1",
+          "request_text": "生成一个完整、精细、非功能性的未来机械概念外观",
+          "status": "running",
+          "usage": {},
+          "created_at": "2026-07-17T00:00:00Z",
+          "updated_at": "2026-07-17T00:00:01Z",
+          "items": [],
+          "approvals": []
+        }
+      }
+    },
+    "persistence_result": {
+      "schema_version": "LifecyclePersistenceResult@1",
+      "command_id": "persistence_create_turn_k002_1",
+      "revision": "db-cas:thread_k002_1:1",
+      "replayed": false,
+      "result": {
+        "outcome": "applied",
+        "thread_id": "thread_k002_1",
+        "turn_id": "turn_k002_1"
+      }
+    },
+    "native_notification": {
+      "schema_version": "NativeAgentNotification@1",
+      "notification_id": "notification_k002_1",
+      "cursor": "fc1_7b22736368656d615f76657273696f6e223a22466f726765434144417070536572766572437572736f724031222c227468726561645f6964223a227468726561645f6b3030325f31222c227475726e5f6964223a227475726e5f6b3030325f31222c22736f757263655f73657175656e6365223a312c227068617365223a226974656d222c226974656d5f6964223a226974656d5f6b3030325f31227d",
+      "sequence": 1,
+      "thread_id": "thread_k002_1",
+      "turn_id": "turn_k002_1",
+      "item_id": "item_k002_1",
+      "payload": {
+        "event": "item_updated",
+        "item": {
+          "item_id": "item_k002_1",
+          "thread_id": "thread_k002_1",
+          "turn_id": "turn_k002_1",
+          "sequence": 1,
+          "item_type": "tool_result",
+          "status": "completed",
+          "payload": {
+            "tool_id": "forgecad.geometry.compile_readback.v1",
+            "status": "completed"
+          },
+          "created_at": "2026-07-17T00:00:02Z"
+        }
+      }
+    }
+  },
+  "k001_compatibility": {
+    "legacy_state_owner": "python_compatibility_adapter",
+    "persistent_state_writers": ["python_fastapi"],
+    "canonical_turn_items_sha256": "2981eddeaf38faafc9147211181c44e353666ef790210a12be184530174ebb3e"
+  }
+}

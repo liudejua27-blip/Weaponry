@@ -62,7 +62,7 @@ def _require_score(value: object, field: str) -> int:
 
 def _validate_current_review_texture_sets(texture_sets: object, *, fixture_id: str) -> None:
     if not isinstance(texture_sets, list) or len(texture_sets) < 5:
-        raise BenchmarkValidationError(f"{fixture_id} 必须包含至少 5 套当前 v3 视觉材质 readback")
+        raise BenchmarkValidationError(f"{fixture_id} 必须包含至少 5 套生产级 v4 视觉材质 readback")
     material_indices: set[int] = set()
     texture_set_ids: set[str] = set()
     texture_material_ids: set[str] = set()
@@ -75,8 +75,8 @@ def _validate_current_review_texture_sets(texture_sets: object, *, fixture_id: s
             raise BenchmarkValidationError(f"{field}.material_index 必须是非负整数")
         texture_set_id = _require_string(texture_set.get("visual_texture_set_id"), f"{field}.visual_texture_set_id")
         texture_material_id = _require_string(texture_set.get("texture_material_id"), f"{field}.texture_material_id")
-        if not texture_set_id.endswith("_builtin_v3"):
-            raise BenchmarkValidationError(f"{field} 不是当前 builtin v3 视觉材质")
+        if not texture_set_id.endswith("_builtin_v4"):
+            raise BenchmarkValidationError(f"{field} 不是当前 production builtin v4 视觉材质")
         material_indices.add(material_index)
         texture_set_ids.add(texture_set_id)
         texture_material_ids.add(texture_material_id)
@@ -90,10 +90,10 @@ def _validate_current_review_texture_sets(texture_sets: object, *, fixture_id: s
                 raise BenchmarkValidationError(f"{map_field} 必须是对象")
             texture_id = _require_string(texture_map.get("texture_id"), f"{map_field}.texture_id")
             texture_role = _require_string(texture_map.get("texture_role"), f"{map_field}.texture_role")
-            if "_v3_" not in texture_id:
-                raise BenchmarkValidationError(f"{map_field} 不是当前 v3 纹理 readback")
-            if texture_map.get("width") != 128 or texture_map.get("height") != 128:
-                raise BenchmarkValidationError(f"{map_field} 必须是当前 128x128 嵌入纹理")
+            if "_v4_" not in texture_id:
+                raise BenchmarkValidationError(f"{map_field} 不是当前 production v4 纹理 readback")
+            if texture_map.get("width") != 512 or texture_map.get("height") != 512:
+                raise BenchmarkValidationError(f"{map_field} 必须是当前 512x512 生产级嵌入纹理")
             map_roles.add(texture_role)
         if map_roles != PBR_TEXTURE_ROLES:
             raise BenchmarkValidationError(f"{field} 的五通道 PBR map role 不完整或重复")
@@ -142,10 +142,13 @@ def _validate_fixture_payload(*, kit_dir: Path, fixture: Mapping[str, Any], fixt
     except Exception as error:
         raise BenchmarkValidationError(f"{fixture_id} 不是可回读的 ForgeCAD GLB") from error
     _validate_current_review_texture_sets(readback.visual_texture_sets, fixture_id=fixture_id)
+    if readback.artifact_profile.get("artifact_profile_id") != "production_concept":
+        raise BenchmarkValidationError(f"{fixture_id} 不是生产级概念工件")
     readback_facts = {
         "triangle_count": readback.triangle_count,
         "material_zone_count": len(readback.material_zone_faces),
         "visual_texture_set_count": len(readback.visual_texture_sets),
+        "artifact_profile": readback.artifact_profile,
         "visual_environment": asdict(readback)["visual_environment"],
     }
     for field, value in readback_facts.items():
@@ -289,23 +292,23 @@ def _self_test() -> None:
         _validate_current_review_texture_sets(current_texture_sets, fixture_id=fixture_ids[0])
         invalid_texture_sets = json.loads(json.dumps(current_texture_sets))
         invalid_texture_sets[0]["visual_texture_set_id"] = invalid_texture_sets[0]["visual_texture_set_id"].replace(
-            "_builtin_v3", "_builtin_v2"
+            "_builtin_v4", "_builtin_v2"
         )
         try:
             _validate_current_review_texture_sets(invalid_texture_sets, fixture_id=fixture_ids[0])
         except BenchmarkValidationError as error:
-            if "builtin v3" not in str(error):
+            if "builtin v4" not in str(error):
                 raise
         else:
             raise AssertionError("historical v2 visual texture truth was accepted for M108 review")
         invalid_texture_sets = json.loads(json.dumps(current_texture_sets))
         invalid_texture_sets[0]["maps"][0]["texture_id"] = invalid_texture_sets[0]["maps"][0]["texture_id"].replace(
-            "_v3_", "_v2_"
+            "_v4_", "_v2_"
         )
         try:
             _validate_current_review_texture_sets(invalid_texture_sets, fixture_id=fixture_ids[0])
         except BenchmarkValidationError as error:
-            if "v3 纹理" not in str(error):
+            if "v4 纹理" not in str(error):
                 raise
         else:
             raise AssertionError("historical v2 texture map truth was accepted for M108 review")
@@ -314,7 +317,7 @@ def _self_test() -> None:
         try:
             _validate_current_review_texture_sets(invalid_texture_sets, fixture_id=fixture_ids[0])
         except BenchmarkValidationError as error:
-            if "128x128" not in str(error):
+            if "512x512" not in str(error):
                 raise
         else:
             raise AssertionError("non-current embedded texture dimensions were accepted for M108 review")
@@ -459,7 +462,7 @@ def main() -> int:
         if args.kit or args.responses:
             parser.error("--self-test cannot be combined with --kit or --responses")
         _self_test()
-        print("M108 visual score validator smoke passed: four unique domain GLBs, current v3 five-channel PBR readback, reviewer declarations and per-domain median thresholds are enforced")
+        print("M108 visual score validator smoke passed: four unique production-concept domain GLBs, current v4 five-channel PBR readback, reviewer declarations and per-domain median thresholds are enforced")
         return 0
     if not args.kit or not args.responses:
         parser.error("--kit and --responses are required unless --self-test is used")

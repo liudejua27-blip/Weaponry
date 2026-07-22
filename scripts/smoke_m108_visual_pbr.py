@@ -27,6 +27,7 @@ from forgecad_agent.application.geometry_models import (  # noqa: E402
 )
 from forgecad_agent.application.geometry_worker import (  # noqa: E402
     build_blockout,
+    compile_production_concept_shape_program,
     list_blockout_variants,
     read_shape_program_glb_facts,
 )
@@ -64,7 +65,18 @@ LEGACY_V2_TEXTURE_AGGREGATE_SHA256 = "045f788cce7bdb8a83cfa8bbdfec0e554a2914e463
 def _schema_validator() -> Draft202012Validator:
     schema = json.loads((SCHEMA_DIR / "geometry-compile-readback.schema.json").read_text(encoding="utf-8"))
     common = json.loads((SCHEMA_DIR / "common.schema.json").read_text(encoding="utf-8"))
-    resolver = RefResolver.from_schema(schema, store={common["$id"]: common})
+    artifact_profile = json.loads(
+        (SCHEMA_DIR / "geometry-artifact-profile.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    resolver = RefResolver.from_schema(
+        schema,
+        store={
+            common["$id"]: common,
+            artifact_profile["$id"]: artifact_profile,
+        },
+    )
     return Draft202012Validator(schema, resolver=resolver)
 
 
@@ -824,6 +836,64 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
         str(item["extras"]["forgecad_part_role"]): str(item["extras"]["forgecad_material_id"])
         for item in primitives
     }
+    if plan.domain_pack_id == "pack_future_weapon_prop" and result.variant_id == "compact_prop_a":
+        assert result.triangle_count == 1956
+        assert result.bounds_mm == [1704.0, 800.7334, 365.0]
+        assert {
+            "prop_core",
+            "prop_front_shroud",
+            "prop_front_trim",
+            "prop_front_lens",
+            "prop_grip",
+            "prop_lower_fore_shell",
+            "prop_rear_housing",
+            "prop_sensor_housing",
+            "prop_sensor_glass",
+            "prop_color_badge",
+            "visual_panel_prop_side",
+            "visual_groove_prop_flowline",
+            "visual_vent_prop_1",
+            "visual_vent_prop_2",
+            "visual_vent_prop_3",
+            "visual_vent_prop_4",
+        } <= set(material_by_role)
+        assert {
+            material_by_role["prop_front_shroud"],
+            material_by_role["prop_lower_fore_shell"],
+            material_by_role["prop_sensor_housing"],
+            material_by_role["visual_panel_prop_side"],
+        } == {"mat_composite"}
+        assert material_by_role["prop_front_trim"] == "mat_aluminum"
+        assert {
+            material_by_role["prop_front_lens"],
+            material_by_role["prop_sensor_glass"],
+        } == {"mat_dark_glass"}
+        assert material_by_role["prop_grip"] == "mat_rubber"
+        assert material_by_role["prop_color_badge"] == "mat_signal_red"
+        assert readback_triangles_by_role["prop_core"] == 332
+        assert readback_triangles_by_role["prop_grip"] == 60
+        assert {
+            readback_triangles_by_role[role]
+            for role in (
+                "prop_front_shroud",
+                "prop_lower_fore_shell",
+                "prop_rear_housing",
+                "prop_sensor_housing",
+            )
+        } == {124}
+        assert readback_triangles_by_role["visual_groove_prop_flowline"] == 76
+        assert {
+            readback_triangles_by_role[f"visual_vent_prop_{index}"]
+            for index in range(1, 5)
+        } == {8}
+    if plan.domain_pack_id == "pack_aircraft_concept" and result.variant_id == "vertical_takeoff_a":
+        pylon_roles = {
+            f"visual_guard_aircraft_rotor_pylon_{position}"
+            for position in ("front_left", "front_right", "rear_left", "rear_right")
+        }
+        assert pylon_roles <= set(material_by_role)
+        assert {material_by_role[role] for role in pylon_roles} == {"mat_primary"}
+        assert {readback_triangles_by_role[role] for role in pylon_roles} == {44}
     connection_tokens = (
         "_mount_collar",
         "_side_bridge_",
@@ -876,7 +946,25 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     assert automotive_index == 7 and automotive_index != aluminum_index
     assert automotive_material["extras"]["forgecad_visual_texture_set_id"] != aluminum_material["extras"]["forgecad_visual_texture_set_id"]
     assert automotive_material["pbrMetallicRoughness"]["baseColorTexture"]["index"] != aluminum_material["pbrMetallicRoughness"]["baseColorTexture"]["index"]
-    assert automotive_material["extensions"]["KHR_materials_clearcoat"]["clearcoatFactor"] == 0.86
+    automotive_clearcoat = automotive_material["extensions"][
+        "KHR_materials_clearcoat"
+    ]
+    assert automotive_clearcoat["clearcoatFactor"] == 0.86
+    assert automotive_clearcoat["clearcoatRoughnessFactor"] == 1
+    assert (
+        automotive_clearcoat["clearcoatRoughnessTexture"]["index"]
+        == automotive_material["pbrMetallicRoughness"][
+            "metallicRoughnessTexture"
+        ]["index"]
+    )
+    assert (
+        automotive_clearcoat["clearcoatNormalTexture"]["index"]
+        == automotive_material["normalTexture"]["index"]
+    )
+    assert (
+        automotive_clearcoat["clearcoatNormalTexture"]["scale"]
+        == automotive_material["normalTexture"]["scale"]
+    )
     assert "KHR_materials_clearcoat" not in aluminum_material.get("extensions", {})
     assert automotive_material["extras"]["forgecad_visual_texture_set_id"].endswith("_builtin_v3")
     assert all(
@@ -910,6 +998,9 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     )
     matched_aliases = 0
     for role, material_id in material_by_role.items():
+        if role.startswith("visual_guard_aircraft_rotor_pylon_"):
+            assert material_id == "mat_primary"
+            continue
         for tokens, expected_material_id in semantic_aliases:
             if any(token in role.lower() for token in tokens):
                 assert material_id == expected_material_id, (role, material_id, expected_material_id)
@@ -1203,10 +1294,39 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
             "clearcoat parameters do not match",
         )
 
+        wrong_clearcoat_texture = copy.deepcopy(document)
+        clearcoat = wrong_clearcoat_texture["materials"][clearcoat_index][
+            "extensions"
+        ]["KHR_materials_clearcoat"]
+        clearcoat["clearcoatRoughnessTexture"]["index"] = int(
+            clearcoat["clearcoatRoughnessTexture"]["index"]
+        ) + 1
+        _expect_rejected(
+            _glb_payload(wrong_clearcoat_texture, bytearray(binary)),
+            "clearcoat parameters do not match",
+        )
+
+        wrong_clearcoat_normal_scale = copy.deepcopy(document)
+        clearcoat = wrong_clearcoat_normal_scale["materials"][
+            clearcoat_index
+        ]["extensions"]["KHR_materials_clearcoat"]
+        clearcoat["clearcoatNormalTexture"]["scale"] = float(
+            clearcoat["clearcoatNormalTexture"]["scale"]
+        ) + 0.01
+        _expect_rejected(
+            _glb_payload(wrong_clearcoat_normal_scale, bytearray(binary)),
+            "clearcoat parameters do not match",
+        )
+
     return legacy_readback_indices
 
 
-def _build_showcase_assets() -> list[tuple[str, bytes]]:
+def _build_showcase_assets(
+    *,
+    artifact_profile_id: str = "interactive_preview",
+) -> list[tuple[str, bytes]]:
+    if artifact_profile_id not in {"interactive_preview", "production_concept"}:
+        raise ValueError(f"unsupported showcase artifact profile: {artifact_profile_id}")
     planner = DeterministicMechanicalPlanner()
     assets: list[tuple[str, bytes]] = []
     for brief in BRIEFS:
@@ -1221,7 +1341,14 @@ def _build_showcase_assets() -> list[tuple[str, bytes]]:
             candidates = [item for item in list_blockout_variants(pack.pack_id) if item.endswith(f"_{variant_id}")]
             assert len(candidates) == 4, (pack.pack_id, variant_id, candidates)
             result = build_blockout(plan, plan.directions[0].direction_id, variant_id=candidates[0], presentation_profile="showcase")
-            assets.append((f"{pack.pack_id}:{candidates[0]}", result.glb_bytes))
+            glb_bytes = (
+                result.glb_bytes
+                if artifact_profile_id == "interactive_preview"
+                else compile_production_concept_shape_program(
+                    result.shape_program
+                ).glb_bytes
+            )
+            assets.append((f"{pack.pack_id}:{candidates[0]}", glb_bytes))
     return assets
 
 
@@ -1242,7 +1369,9 @@ def main() -> int:
         # receives raw bytes for one representative asset in each domain.
         fixtures = [
             {"fixture_id": fixture_id, "glb_base64": base64.b64encode(glb_bytes).decode("ascii")}
-            for fixture_id, glb_bytes in assets[::3]
+            for fixture_id, glb_bytes in _build_showcase_assets(
+                artifact_profile_id="production_concept"
+            )[::3]
         ]
         assert len(fixtures) == 4
         print(json.dumps(fixtures, separators=(",", ":")))

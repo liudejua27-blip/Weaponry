@@ -94,7 +94,16 @@ def _legacy_v1_glb(payload: bytes) -> bytes:
     """Rewrite one current compiler GLB to the immutable pre-v2 texture bytes."""
 
     document, binary = _glb_parts(payload)
-    for material_index, texture_set in enumerate(legacy_builtin_visual_texture_sets()):
+    used_material_indices = sorted(
+        {
+            int(primitive["material"])
+            for mesh in document["meshes"]
+            for primitive in mesh["primitives"]
+        }
+    )
+    legacy_texture_sets = legacy_builtin_visual_texture_sets()
+    for material_index in used_material_indices:
+        texture_set = legacy_texture_sets[material_index]
         material = document["materials"][material_index]
         material["extras"]["forgecad_visual_texture_set_id"] = texture_set.visual_texture_set_id
         for texture_map in texture_set.maps:
@@ -192,7 +201,9 @@ def main() -> int:
 
         for suffix, message, pack in CASES:
             assets, version = _make_asset(factory, suffix, message, pack)
-            compiled = geometry_worker.compile_shape_program(version.shape_program)
+            compiled = geometry_worker.compile_production_concept_shape_program(
+                version.shape_program
+            )
             revision = _revision(factory, version.project_id)
             report = assets.quality(
                 version.asset_version_id,
@@ -213,10 +224,18 @@ def main() -> int:
             # A process restart must replay the immutable report before compiling.
             restarted = AgentAssetEditingService(factory)
             original_compile = __import__(
-                "forgecad_agent.application.agent_asset_editing", fromlist=["compile_shape_program"]
-            ).compile_shape_program
-            editing_module = __import__("forgecad_agent.application.agent_asset_editing", fromlist=["compile_shape_program"])
-            editing_module.compile_shape_program = lambda _program: (_ for _ in ()).throw(AssertionError("replay recompiled geometry"))
+                "forgecad_agent.application.agent_asset_editing",
+                fromlist=["compile_production_concept_shape_program"],
+            ).compile_production_concept_shape_program
+            editing_module = __import__(
+                "forgecad_agent.application.agent_asset_editing",
+                fromlist=["compile_production_concept_shape_program"],
+            )
+            editing_module.compile_production_concept_shape_program = (
+                lambda _program: (_ for _ in ()).throw(
+                    AssertionError("replay recompiled production geometry")
+                )
+            )
             try:
                 assert restarted.quality(
                     version.asset_version_id,
@@ -224,13 +243,17 @@ def main() -> int:
                     idempotency_key=f"q003-quality-{suffix}",
                 ) == report
             finally:
-                editing_module.compile_shape_program = original_compile
+                editing_module.compile_production_concept_shape_program = original_compile
             versions.append((assets, version, report))
 
         # A real pre-v2 readback remains parseable for history, but it must not
         # survive restart as passed evidence for today's v2 compiler/export.
         assets, version, current = versions[0]
-        current_compiled = geometry_worker.compile_shape_program(version.shape_program)
+        current_compiled = (
+            geometry_worker.compile_production_concept_shape_program(
+                version.shape_program
+            )
+        )
         legacy_glb = _legacy_v1_glb(current_compiled.glb_bytes)
         legacy_facts = geometry_worker.read_shape_program_glb_facts(legacy_glb)
         legacy_glb_sha256 = hashlib.sha256(legacy_glb).hexdigest()

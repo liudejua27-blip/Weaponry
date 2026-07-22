@@ -66,7 +66,8 @@ def main() -> int:
         validator.validate(first_mapping.model_dump(mode="json"))
         validator.validate(second_mapping.model_dump(mode="json"))
         assert first_mapping.domain_pack_id == second_mapping.domain_pack_id == pack_id
-        assert len(first_mapping.directions) == len(second_mapping.directions) == 3
+        assert first_mapping.schema_version == second_mapping.schema_version == "VisualIntentMapping@2"
+        assert len(first_mapping.directions) == len(second_mapping.directions) == 1
         assert first_mapping.directions[0].variant_family_index != second_mapping.directions[0].variant_family_index
         assert first.directions[0].silhouette == first_mapping.directions[0].silhouette
         assert second.directions[0].silhouette == second_mapping.directions[0].silhouette

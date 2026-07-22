@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/assembly-delta-program.schema.json",
+  "title": "AssemblyDeltaProgram",
+  "description": "Bounded visual-only edits to an existing robotic-arm asset; never executable geometry or engineering data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "domain_pack_id", "base_asset_version_id", "summary", "operations", "visual_only"],
+  "properties": {
+    "schema_version": { "const": "AssemblyDeltaProgram@1" },
+    "domain_pack_id": { "const": "pack_robotic_arm_concept" },
+    "base_asset_version_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "visual_only": { "const": true },
+    "operations": {
+      "type": "array", "minItems": 1, "maxItems": 8,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/add_reviewed_recipe" },
+          { "$ref": "#/$defs/replace_reviewed_recipe" },
+          { "$ref": "#/$defs/set_part_transform" },
+          { "$ref": "#/$defs/set_joint_pose" },
+          { "$ref": "#/$defs/snap_part_to_connector" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[A-Za-z0-9_:-]+$" },
+    "transform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+        "rotation": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+        "scale": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number", "exclusiveMinimum": 0 } }
+      }
+    },
+    "pose": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rotation", "translation"],
+      "properties": {
+        "rotation": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+        "translation": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } }
+      }
+    },
+    "add_reviewed_recipe": {
+      "type": "object", "additionalProperties": false,
+      "required": ["op", "operation_id", "new_part_id", "parent_part_id", "parent_connector_id", "child_connector_id", "recipe_id", "slot_id", "transform"],
+      "properties": {
+        "op": { "const": "add_reviewed_recipe" }, "operation_id": { "$ref": "#/$defs/id" }, "new_part_id": { "$ref": "#/$defs/id" }, "parent_part_id": { "$ref": "#/$defs/id" }, "parent_connector_id": { "$ref": "#/$defs/id" }, "child_connector_id": { "$ref": "#/$defs/id" }, "recipe_id": { "type": "string", "enum": ["recipe_c106_arm_turntable", "recipe_c106_arm_joint_housing", "recipe_c106_arm_link_armor", "recipe_c106_arm_cable_harness", "recipe_c106_arm_gripper", "recipe_c106_arm_surface_trim", "recipe_c110c_arm_sensor_pod", "recipe_c110d_arm_actuator_cover", "recipe_c110d_arm_cable_guide", "recipe_c110d_arm_wrist_tool_mount", "recipe_c110g_parallel_rail", "recipe_c110g_parallel_carriage", "recipe_c110g_parallel_link", "recipe_c110g_parallel_end_effector"] }, "slot_id": { "type": "string", "enum": ["slot_arm_sensor_pod", "slot_arm_guard_rail", "slot_arm_tool_changer", "slot_arm_camera_boom", "slot_c110g_parallel_rail", "slot_c110g_parallel_carriage", "slot_c110g_parallel_link", "slot_c110g_parallel_tool"] }, "transform": { "$ref": "#/$defs/transform" }
+      }
+    },
+    "replace_reviewed_recipe": {
+      "type": "object", "additionalProperties": false,
+      "required": ["op", "operation_id", "part_id", "recipe_id"],
+      "properties": { "op": { "const": "replace_reviewed_recipe" }, "operation_id": { "$ref": "#/$defs/id" }, "part_id": { "$ref": "#/$defs/id" }, "recipe_id": { "type": "string", "enum": ["recipe_c106_arm_turntable", "recipe_c106_arm_joint_housing", "recipe_c106_arm_link_armor", "recipe_c106_arm_cable_harness", "recipe_c106_arm_gripper", "recipe_c106_arm_surface_trim", "recipe_c110c_arm_sensor_pod", "recipe_c110d_arm_actuator_cover", "recipe_c110d_arm_cable_guide", "recipe_c110d_arm_wrist_tool_mount", "recipe_c110g_parallel_rail", "recipe_c110g_parallel_carriage", "recipe_c110g_parallel_link", "recipe_c110g_parallel_end_effector"] } }
+    },
+    "set_part_transform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["op", "operation_id", "part_id", "transform"],
+      "properties": { "op": { "const": "set_part_transform" }, "operation_id": { "$ref": "#/$defs/id" }, "part_id": { "$ref": "#/$defs/id" }, "transform": { "$ref": "#/$defs/transform" } }
+    },
+    "set_joint_pose": {
+      "type": "object", "additionalProperties": false,
+      "required": ["op", "operation_id", "part_id", "joint_id", "pose"],
+      "properties": { "op": { "const": "set_joint_pose" }, "operation_id": { "$ref": "#/$defs/id" }, "part_id": { "$ref": "#/$defs/id" }, "joint_id": { "$ref": "#/$defs/id" }, "pose": { "$ref": "#/$defs/pose" } }
+    },
+    "snap_part_to_connector": {
+      "type": "object", "additionalProperties": false,
+      "required": ["op", "operation_id", "part_id", "target_part_id", "target_connector_id", "connector_id"],
+      "properties": { "op": { "const": "snap_part_to_connector" }, "operation_id": { "$ref": "#/$defs/id" }, "part_id": { "$ref": "#/$defs/id" }, "target_part_id": { "$ref": "#/$defs/id" }, "target_connector_id": { "$ref": "#/$defs/id" }, "connector_id": { "$ref": "#/$defs/id" } }
+    }
+  }
+}

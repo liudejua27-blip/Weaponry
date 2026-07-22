@@ -15,10 +15,19 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "agent-asset-version.schema.json": "e3104726287d904b10a9aa239d7f9b248e91d80d9b7a7716cc0909739f02f801",
   "agent-component-compatibility.schema.json": "ad79bd9dfbb9b7bfd8a98d225d9f7aa1a1e5dec19462679766adfb65b7786e40",
   "agent-component.schema.json": "af210593ce284882f1f21fd4fc9aecee06734581be4c21423132ffc9a8b5e909",
+  "agent-skill-activation.schema.json": "bbe7456f57150564ecf85c67d636b646e0e06990c526c8f3cc37723cdd0746e9",
+  "agent-skill-eval-report.schema.json": "33f4bff52ab4406c62bffb7ff8d0e101e0989f7f350ef617840d46fdfeb87f6f",
+  "agent-skill-manifest.schema.json": "ae55828cb3bd9cf4f8d0633fb9e7799df0f48c0f42d48508e4d00034f15c6bf3",
   "agent-structure-suggestion.schema.json": "33fe0fc96901378c48916e415ad2606401ed6d20cca171c73e25b35cba6bff91",
-  "assembly-graph.schema.json": "cb0639f2f324ed637460e03fd60dc1c5aac0102ffed9c5ae4f9ec9961f29600e",
+  "arm-design-intent.schema.json": "6fe730de845a5f3887da4e354ea9cbfeba9a932332483ea8f06047f2bcff4ce2",
+  "assembly-delta-program.schema.json": "c513fa47ca80ccbec3737bc81bb9b5608c528254f00ba8a1d7908e9f58e61256",
+  "assembly-graph.schema.json": "627ce9eeaaefcf7e6553d86b38a2d55a2cd7723fb47954dd8da4df2c43721bd2",
   "blockout-concept-preview.schema.json": "c25ce1ba16ac21a51baabae4d2bb81e39a5b845c336068cb20ce342380ae33e8",
   "common.schema.json": "7edf00bfe2cd3cc6afff5228b84f7c1986465310c81dd9ff1e9f379efd255d36",
+  "component-recipe-candidate.schema.json": "c238e90e1b3255c3dea18ddbcec94ee72ad5984196bc5c792b86befc665219e3",
+  "component-recipe-instance-provenance.schema.json": "f3a974629caaae99ffa1c84691f5609aec49a174d649577292feff43d900745a",
+  "component-recipe-instantiation-request.schema.json": "bd9ff1b3d98b5b2d1e54633934549a4a91c20be08ed231066bc0ae3eecaf5311",
+  "component-recipe-ref.schema.json": "918a801d572e6e4c40d4969369586127cffecbdf58504877335ebb9d391d1dca",
   "concept-export-manifest.schema.json": "cdc78963c4f8fc04a7a6a18387899611bd8f91bb2d94f77c6c58d67030112b44",
   "concept-scope-decision.schema.json": "3d5f57bd206adc34b1812e50a52170775879872dd9feae8925f2f2d351eabe5d",
   "design-change-set.schema.json": "167a0417615eafcfb16a01a5aa04e3156827b7521ec6b8b32011a959343936fb",
@@ -26,8 +35,10 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
+  "editable-component-recipe.schema.json": "dc78c0b7302462082b427d48e8d1a567c00bd46e9551bd413ff64dab6294cce3",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
-  "geometry-compile-readback.schema.json": "9708bb63d8dc12b630b1f754c815d4c21d9fa96fad1ddca96e6029ff7b110ee0",
+  "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
+  "geometry-compile-readback.schema.json": "966fd54133fad48f96fa29c48d27fd7de97408c825afb55e92e8a0007939e20e",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
   "material-texture-object.schema.json": "5818946a17dfa9dd19b13133aa3afab6717604f7b8258e17332d341271bfc1d2",
@@ -37,13 +48,21 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
+  "production-component-recipe-registry.schema.json": "526c7096a5f867a160fc8a5dac9e012f25482cac22d5bbaf4fbb0eb45fe6917b",
   "profile-section-set.schema.json": "5baf4fdb7f1788f6237e57f0222a655043057041b639ba85b46388836c0d750f",
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
   "provider-connection-state.schema.json": "b3e683f4d2ec694fe1a8b35c3662c7123883eb68da25459194d22031fdcb2c8a",
   "provider-execution-trace.schema.json": "be119b3631dd5588b6f2cdeea2c44211ea4ad8a8434745a6a178a19806f08b6c",
+  "reference-evidence-create-request.schema.json": "183a39aaff745ff97e9262bfa11a437da97c93e453c8a338224c4c5ec1cf6c2b",
+  "reference-evidence.schema.json": "c5476bd3a0a436ca037383831445724026033f89f6ad817ec8a0ab999a734a04",
+  "reference-guided-rebuild-plan.schema.json": "d6aca3453f8043b52642cf0174db8721c7a30676dedce75316e87f9a4fd7eb85",
+  "reference-guided-rebuild-preview-request.schema.json": "bf8f359c36febbffcfbb1fdaf2b0efb47d835214c7a5b6e3887fa70931bac787",
+  "reference-surface-analysis.schema.json": "a55516503d79441ac81a14a7b723f3732d9fd18930d1f67526243db014eb5794",
   "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
-  "shape-program.schema.json": "112b6e5c33333ce5c9cd5a31a4e908c47b31313de2a6c3fae986ea5876a8c72e",
-  "visual-intent-mapping.schema.json": "e610720b36ad0a22e4815f067d4ae416d12e2f64fee0780e4c43fa5716fcc57c",
+  "shape-program.schema.json": "3bdf00dd393942b22a192a5c856f9745375fcedbdfda28656463f3d50bf85722",
+  "surface-adornment-program.schema.json": "c91ceb6919e11bc5cc6114a36e26b833e32906dfc84f00e19ec3499833446e83",
+  "surface-layer-program.schema.json": "be291936de86b757f3be98ec7773d5ed379f82a7708c633ebb8eb9e8574e162b",
+  "visual-intent-mapping.schema.json": "5f5360234126188da3448f7507eb46c2e7575dbbaee9ff1f6b1b27c3aa8ca04f",
   "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
@@ -1492,6 +1511,359 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "AgentComponent",
     "type": "object"
   },
+  "agent-skill-activation.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-skill-activation.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "activation_id": {
+        "pattern": "^skillact_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "schema_version": {
+        "const": "AgentSkillActivation@1"
+      },
+      "skill_id": {
+        "pattern": "^skill_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "skill_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "skill_version": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      }
+    },
+    "required": [
+      "schema_version",
+      "activation_id",
+      "skill_id",
+      "skill_version",
+      "skill_sha256",
+      "enabled",
+      "updated_at"
+    ],
+    "title": "AgentSkillActivation",
+    "type": "object"
+  },
+  "agent-skill-eval-report.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/agent-skill-eval-report.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "evaluated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "findings": {
+        "items": {
+          "maxLength": 300,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 32,
+        "type": "array"
+      },
+      "report_id": {
+        "pattern": "^skilleval_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "AgentSkillEvalReport@1"
+      },
+      "skill_id": {
+        "pattern": "^skill_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "skill_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "skill_version": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "status": {
+        "enum": [
+          "passed",
+          "failed"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "report_id",
+      "skill_id",
+      "skill_version",
+      "skill_sha256",
+      "status",
+      "findings",
+      "evaluated_at"
+    ],
+    "title": "AgentSkillEvalReport",
+    "type": "object"
+  },
+  "agent-skill-manifest.schema.json": {
+    "$defs": {
+      "example": {
+        "additionalProperties": false,
+        "properties": {
+          "brief": {
+            "maxLength": 600,
+            "minLength": 1,
+            "type": "string"
+          },
+          "example_id": {
+            "pattern": "^skillex_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "expected_outcome": {
+            "maxLength": 600,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "example_id",
+          "brief",
+          "expected_outcome"
+        ],
+        "type": "object"
+      },
+      "license": {
+        "additionalProperties": false,
+        "properties": {
+          "license_id": {
+            "enum": [
+              "ForgeCAD-Internal-Visual-Only",
+              "self_declared_original"
+            ],
+            "type": "string"
+          },
+          "redistributable": {
+            "const": false
+          }
+        },
+        "required": [
+          "license_id",
+          "redistributable"
+        ],
+        "type": "object"
+      },
+      "provenance": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^(author|source)_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "forgecad_user",
+              "forgecad_first_party"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Immutable, visual-only ForgeCAD Product Skill contract. It is data, never executable code.",
+    "properties": {
+      "allowed_domains": {
+        "items": {
+          "enum": [
+            "pack_future_weapon_prop",
+            "pack_vehicle_concept",
+            "pack_aircraft_concept",
+            "pack_robotic_arm_concept"
+          ]
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "author": {
+        "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/provenance"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "g819_operations": {
+        "items": {
+          "enum": [
+            "box",
+            "cylinder",
+            "capsule",
+            "wedge",
+            "profile",
+            "extrude",
+            "revolve",
+            "loft",
+            "sweep",
+            "mirror",
+            "array",
+            "radial_array",
+            "union",
+            "subtract",
+            "bevel_approx",
+            "surface_panel"
+          ],
+          "type": "string"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "license": {
+        "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/license"
+      },
+      "material_preset_ids": {
+        "items": {
+          "enum": [
+            "mat_aluminum",
+            "mat_automotive_paint",
+            "mat_composite",
+            "mat_dark_glass",
+            "mat_emissive_blue",
+            "mat_graphite",
+            "mat_rubber",
+            "mat_signal_red"
+          ]
+        },
+        "maxItems": 12,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "product_tool_ids": {
+        "items": {
+          "enum": [
+            "forgecad.domain.inference.v1",
+            "forgecad.reference.research.v1",
+            "forgecad.style.recipe_selection.v1",
+            "forgecad.profile.author.v1",
+            "forgecad.profile.validate.v1",
+            "forgecad.shape.author.v1",
+            "forgecad.shape.validate.v1",
+            "forgecad.plan.complete_concept.v1",
+            "forgecad.geometry.build.v1",
+            "forgecad.geometry.compile_readback.v1",
+            "forgecad.render.concept.v1",
+            "forgecad.candidate.evaluate.v1",
+            "forgecad.preview.prepare.v1"
+          ]
+        },
+        "maxItems": 13,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "purpose": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "recipe_ids": {
+        "items": {
+          "pattern": "^recipe_[a-z0-9_\\-]+$",
+          "type": "string"
+        },
+        "maxItems": 24,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "reference_hashes": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "maxItems": 32,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "schema_version": {
+        "const": "AgentSkillManifest@1"
+      },
+      "skill_id": {
+        "pattern": "^skill_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "source": {
+        "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/provenance"
+      },
+      "stop_examples": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/example"
+        },
+        "maxItems": 20,
+        "minItems": 3,
+        "type": "array"
+      },
+      "success_examples": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/agent-skill-manifest.schema.json#/$defs/example"
+        },
+        "maxItems": 20,
+        "minItems": 3,
+        "type": "array"
+      },
+      "triggers": {
+        "items": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "version": {
+        "maximum": 9999,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "skill_id",
+      "version",
+      "display_name",
+      "purpose",
+      "allowed_domains",
+      "triggers",
+      "product_tool_ids",
+      "g819_operations",
+      "recipe_ids",
+      "material_preset_ids",
+      "reference_hashes",
+      "success_examples",
+      "stop_examples",
+      "author",
+      "source",
+      "license",
+      "non_functional_only"
+    ],
+    "title": "AgentSkillManifest",
+    "type": "object"
+  },
   "agent-structure-suggestion.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/agent-structure-suggestion.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1593,6 +1965,497 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "AgentStructureSuggestionList",
     "type": "object"
   },
+  "arm-design-intent.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/arm-design-intent.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Bounded visual intent lowered by Rust to reviewed robotic-arm recipes; never executable geometry or engineering data.",
+    "properties": {
+      "architecture": {
+        "enum": [
+          "serial_chain",
+          "parallel_link",
+          "scara",
+          "gantry",
+          "delta",
+          "cantilever"
+        ]
+      },
+      "base_language": {
+        "enum": [
+          "round_turntable",
+          "hex_platform",
+          "floating_pedestal",
+          "industrial_deck",
+          "compact_puck"
+        ]
+      },
+      "cable_language": {
+        "enum": [
+          "internal_routing",
+          "braided_external",
+          "armored_harness",
+          "minimal_cable"
+        ]
+      },
+      "detail_density": {
+        "enum": [
+          "light",
+          "medium",
+          "dense"
+        ]
+      },
+      "domain_pack_id": {
+        "const": "pack_robotic_arm_concept"
+      },
+      "end_effector_language": {
+        "enum": [
+          "parallel_gripper",
+          "adaptive_claw",
+          "precision_tool",
+          "sensor_probe",
+          "soft_pad_gripper"
+        ]
+      },
+      "joint_language": {
+        "enum": [
+          "armored_bearing",
+          "exposed_ring",
+          "gimbal_shell",
+          "capsule_joint",
+          "bellows_joint"
+        ]
+      },
+      "link_language": {
+        "enum": [
+          "closed_shell",
+          "twin_rail",
+          "open_truss",
+          "tapered_loft",
+          "tube_frame"
+        ]
+      },
+      "material_palette": {
+        "enum": [
+          "graphite_blue",
+          "white_aluminum",
+          "industrial_yellow",
+          "warm_copper",
+          "monochrome_technical"
+        ]
+      },
+      "pose": {
+        "enum": [
+          "neutral",
+          "grounded",
+          "elevated",
+          "extended",
+          "folded"
+        ]
+      },
+      "proportion_profile": {
+        "enum": [
+          "compact",
+          "balanced",
+          "long_reach",
+          "heavy_base",
+          "slender"
+        ]
+      },
+      "schema_version": {
+        "const": "ArmDesignIntent@1"
+      },
+      "source": {
+        "enum": [
+          "user_brief",
+          "reference_evidence",
+          "agent_inferred"
+        ]
+      },
+      "style_keywords": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "surface_language": {
+        "items": {
+          "enum": [
+            "panel_seams",
+            "flowline",
+            "chevron_relief",
+            "hex_microgrid",
+            "engraved_ribs",
+            "fastener_bands"
+          ]
+        },
+        "maxItems": 6,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "visual_only": {
+        "const": true
+      },
+      "wrist_language": {
+        "enum": [
+          "layered_wrist",
+          "gimbal_wrist",
+          "cylindrical_wrist",
+          "fork_wrist"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "domain_pack_id",
+      "architecture",
+      "joint_language",
+      "link_language",
+      "base_language",
+      "wrist_language",
+      "end_effector_language",
+      "cable_language",
+      "surface_language",
+      "material_palette",
+      "detail_density",
+      "pose",
+      "proportion_profile",
+      "style_keywords",
+      "source",
+      "visual_only"
+    ],
+    "title": "ArmDesignIntent",
+    "type": "object"
+  },
+  "assembly-delta-program.schema.json": {
+    "$defs": {
+      "add_reviewed_recipe": {
+        "additionalProperties": false,
+        "properties": {
+          "child_connector_id": {
+            "$ref": "#/$defs/id"
+          },
+          "new_part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "op": {
+            "const": "add_reviewed_recipe"
+          },
+          "operation_id": {
+            "$ref": "#/$defs/id"
+          },
+          "parent_connector_id": {
+            "$ref": "#/$defs/id"
+          },
+          "parent_part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "recipe_id": {
+            "enum": [
+              "recipe_c106_arm_turntable",
+              "recipe_c106_arm_joint_housing",
+              "recipe_c106_arm_link_armor",
+              "recipe_c106_arm_cable_harness",
+              "recipe_c106_arm_gripper",
+              "recipe_c106_arm_surface_trim",
+              "recipe_c110c_arm_sensor_pod",
+              "recipe_c110d_arm_actuator_cover",
+              "recipe_c110d_arm_cable_guide",
+              "recipe_c110d_arm_wrist_tool_mount",
+              "recipe_c110g_parallel_rail",
+              "recipe_c110g_parallel_carriage",
+              "recipe_c110g_parallel_link",
+              "recipe_c110g_parallel_end_effector"
+            ],
+            "type": "string"
+          },
+          "slot_id": {
+            "enum": [
+              "slot_arm_sensor_pod",
+              "slot_arm_guard_rail",
+              "slot_arm_tool_changer",
+              "slot_arm_camera_boom",
+              "slot_c110g_parallel_rail",
+              "slot_c110g_parallel_carriage",
+              "slot_c110g_parallel_link",
+              "slot_c110g_parallel_tool"
+            ],
+            "type": "string"
+          },
+          "transform": {
+            "$ref": "#/$defs/transform"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "new_part_id",
+          "parent_part_id",
+          "parent_connector_id",
+          "child_connector_id",
+          "recipe_id",
+          "slot_id",
+          "transform"
+        ],
+        "type": "object"
+      },
+      "id": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_:-]+$",
+        "type": "string"
+      },
+      "pose": {
+        "additionalProperties": false,
+        "properties": {
+          "rotation": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "translation": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "rotation",
+          "translation"
+        ],
+        "type": "object"
+      },
+      "replace_reviewed_recipe": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "replace_reviewed_recipe"
+          },
+          "operation_id": {
+            "$ref": "#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "recipe_id": {
+            "enum": [
+              "recipe_c106_arm_turntable",
+              "recipe_c106_arm_joint_housing",
+              "recipe_c106_arm_link_armor",
+              "recipe_c106_arm_cable_harness",
+              "recipe_c106_arm_gripper",
+              "recipe_c106_arm_surface_trim",
+              "recipe_c110c_arm_sensor_pod",
+              "recipe_c110d_arm_actuator_cover",
+              "recipe_c110d_arm_cable_guide",
+              "recipe_c110d_arm_wrist_tool_mount",
+              "recipe_c110g_parallel_rail",
+              "recipe_c110g_parallel_carriage",
+              "recipe_c110g_parallel_link",
+              "recipe_c110g_parallel_end_effector"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "part_id",
+          "recipe_id"
+        ],
+        "type": "object"
+      },
+      "set_joint_pose": {
+        "additionalProperties": false,
+        "properties": {
+          "joint_id": {
+            "$ref": "#/$defs/id"
+          },
+          "op": {
+            "const": "set_joint_pose"
+          },
+          "operation_id": {
+            "$ref": "#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "pose": {
+            "$ref": "#/$defs/pose"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "part_id",
+          "joint_id",
+          "pose"
+        ],
+        "type": "object"
+      },
+      "set_part_transform": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "set_part_transform"
+          },
+          "operation_id": {
+            "$ref": "#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "transform": {
+            "$ref": "#/$defs/transform"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "part_id",
+          "transform"
+        ],
+        "type": "object"
+      },
+      "snap_part_to_connector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "$ref": "#/$defs/id"
+          },
+          "op": {
+            "const": "snap_part_to_connector"
+          },
+          "operation_id": {
+            "$ref": "#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "#/$defs/id"
+          },
+          "target_connector_id": {
+            "$ref": "#/$defs/id"
+          },
+          "target_part_id": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "part_id",
+          "target_part_id",
+          "target_connector_id",
+          "connector_id"
+        ],
+        "type": "object"
+      },
+      "transform": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "rotation": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "scale": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rotation",
+          "scale"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/assembly-delta-program.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Bounded visual-only edits to an existing robotic-arm asset; never executable geometry or engineering data.",
+    "properties": {
+      "base_asset_version_id": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "const": "pack_robotic_arm_concept"
+      },
+      "operations": {
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/add_reviewed_recipe"
+            },
+            {
+              "$ref": "#/$defs/replace_reviewed_recipe"
+            },
+            {
+              "$ref": "#/$defs/set_part_transform"
+            },
+            {
+              "$ref": "#/$defs/set_joint_pose"
+            },
+            {
+              "$ref": "#/$defs/snap_part_to_connector"
+            }
+          ]
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "AssemblyDeltaProgram@1"
+      },
+      "summary": {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "visual_only": {
+        "const": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "domain_pack_id",
+      "base_asset_version_id",
+      "summary",
+      "operations",
+      "visual_only"
+    ],
+    "title": "AssemblyDeltaProgram",
+    "type": "object"
+  },
   "assembly-graph.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/assembly-graph.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1614,6 +2477,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           },
           "position": {
             "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "up": {
+            "$ref": "common.schema.json#/$defs/vec3",
+            "description": "Optional local up vector retained for recipe-backed connector roll. Legacy connectors may omit it."
           }
         },
         "required": [
@@ -1621,6 +2488,26 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "kind",
           "position",
           "normal"
+        ],
+        "type": "object"
+      },
+      "frame": {
+        "additionalProperties": false,
+        "properties": {
+          "normal": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "position": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "up": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          }
+        },
+        "required": [
+          "position",
+          "normal",
+          "up"
         ],
         "type": "object"
       },
@@ -1667,6 +2554,14 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       }
     },
     "properties": {
+      "component_recipe_instances": {
+        "description": "Optional backward-compatible recipe provenance. New recipe-backed assets persist it here; legacy graphs omit it and are treated as empty.",
+        "items": {
+          "$ref": "component-recipe-instance-provenance.schema.json"
+        },
+        "maxItems": 128,
+        "type": "array"
+      },
       "concept_id": {
         "$ref": "common.schema.json#/$defs/id"
       },
@@ -1727,6 +2622,14 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               },
               "type": "array"
             },
+            "editable_parameter_bindings": {
+              "description": "Optional exact frozen G808 bindings for recipe-backed parts.",
+              "items": {
+                "$ref": "common.schema.json#/$defs/editable_parameter_binding"
+              },
+              "maxItems": 16,
+              "type": "array"
+            },
             "editable_parameters": {
               "items": {
                 "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
@@ -1751,12 +2654,30 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "locked": {
               "type": "boolean"
             },
+            "material_zone_ids": {
+              "description": "Optional stable alias preserved by recipe-backed candidate bridges.",
+              "items": {
+                "pattern": "^zone_[a-z0-9_\\-]+$",
+                "type": "string"
+              },
+              "type": "array"
+            },
             "material_zones": {
               "items": {
                 "pattern": "^zone_[a-z0-9_\\-]+$",
                 "type": "string"
               },
               "type": "array"
+            },
+            "operation_id": {
+              "description": "Optional exact ShapeProgram operation source for recipe-backed parts.",
+              "pattern": "^op_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "output_id": {
+              "description": "Optional exact ShapeProgram output source for recipe-backed parts.",
+              "pattern": "^output_[a-z0-9_\\-]+$",
+              "type": "string"
             },
             "parent_part_id": {
               "pattern": "^part_[a-z0-9_\\-]+$",
@@ -1769,12 +2690,21 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "pattern": "^part_[a-z0-9_\\-]+$",
               "type": "string"
             },
+            "pivot": {
+              "$ref": "#/definitions/frame",
+              "description": "Optional local orthonormal pivot frame. Recipe-backed parts always persist it; legacy graphs may omit it."
+            },
             "provenance": {
               "enum": [
                 "agent_generated",
                 "user_created",
                 "imported"
               ],
+              "type": "string"
+            },
+            "recipe_instance_id": {
+              "description": "Optional durable ComponentRecipeInstanceProvenance identity. Recipe-backed parts persist it even when C102 maps their root to a stable project part_id.",
+              "pattern": "^recipeinst_[a-z0-9_\\-]+$",
               "type": "string"
             },
             "role": {
@@ -1809,6 +2739,14 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       },
       "schema_version": {
         "const": "AssemblyGraph@1"
+      },
+      "surface_adornments": {
+        "description": "Optional A005 visual-only texture bake programs. The immutable program includes Skill version/hash and exact Part/Material Zone provenance; legacy graphs omit it and are treated as empty.",
+        "items": {
+          "$ref": "surface-adornment-program.schema.json"
+        },
+        "maxItems": 8,
+        "type": "array"
       }
     },
     "required": [
@@ -2067,6 +3005,580 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "$id": "https://forgecad.local/schemas/concept/common.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "ForgeCAD Concept Common Definitions"
+  },
+  "component-recipe-candidate.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/component-recipe-candidate.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "context_mode": {
+              "const": "initial_candidate"
+            }
+          },
+          "required": [
+            "context_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "base_asset_version_id": {
+              "const": null
+            },
+            "changeset_id": {
+              "const": null
+            },
+            "project_id": {
+              "const": null
+            },
+            "snapshot_revision": {
+              "const": null
+            },
+            "target_part_id": {
+              "const": null
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "context_mode": {
+              "const": "active_asset_edit"
+            }
+          },
+          "required": [
+            "context_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "base_asset_version_id": {
+              "pattern": "^assetver_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "project_id": {
+              "pattern": "^prj_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "snapshot_revision": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "target_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "description": "Immutable evidence for a transient recipe expansion; it is not a second asset version chain. Active edits may later seal a ChangeSet and initial candidates may later create a NativePreview after GLB/readback.",
+    "properties": {
+      "base_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "candidate_id": {
+        "pattern": "^recipecandidate_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "candidate_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "changeset_id": {
+        "pattern": "^assetcs_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "component_recipe_instances": {
+        "items": {
+          "$ref": "component-recipe-instance-provenance.schema.json"
+        },
+        "maxItems": 128,
+        "minItems": 1,
+        "type": "array"
+      },
+      "context_mode": {
+        "enum": [
+          "initial_candidate",
+          "active_asset_edit"
+        ],
+        "type": "string"
+      },
+      "expanded_assembly_graph": {
+        "$ref": "assembly-graph.schema.json"
+      },
+      "expanded_shape_program": {
+        "$ref": "shape-program.schema.json"
+      },
+      "instance_path": {
+        "pattern": "^root(?:/[a-z][a-z0-9_\\-]{1,63}\\[[0-9]{1,3}\\]){0,6}$",
+        "type": "string"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "project_id": {
+        "pattern": "^prj_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "quality_profile": {
+        "description": "Code-owned artifact quality profile used when the expanded ShapeProgram budget is derived. Existing production golden candidates remain production_concept.",
+        "enum": [
+          "interactive_preview",
+          "production_concept"
+        ],
+        "type": "string"
+      },
+      "recipe": {
+        "$ref": "component-recipe-ref.schema.json"
+      },
+      "registry_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "request_id": {
+        "pattern": "^recipereq_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ComponentRecipeCandidate@1"
+      },
+      "snapshot_revision": {
+        "minimum": 1,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "status": {
+        "description": "expanded proves Rust-only Recipe expansion; preview readiness requires later RestrictedGeometry GLB/readback and ChangeSet sealing evidence.",
+        "enum": [
+          "expanded",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "target_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "candidate_id",
+      "request_id",
+      "project_id",
+      "context_mode",
+      "base_asset_version_id",
+      "snapshot_revision",
+      "target_part_id",
+      "recipe",
+      "instance_path",
+      "changeset_id",
+      "expanded_shape_program",
+      "expanded_assembly_graph",
+      "component_recipe_instances",
+      "registry_sha256",
+      "candidate_sha256",
+      "status",
+      "quality_profile",
+      "non_functional_only"
+    ],
+    "title": "ComponentRecipeCandidate",
+    "type": "object"
+  },
+  "component-recipe-instance-provenance.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/component-recipe-instance-provenance.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Recipe instance facts persist once in AssemblyGraph. They preserve reviewed registry provenance; geometry expansion remains Rust-owned and does not include executable payloads.",
+    "properties": {
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "instance_id": {
+        "pattern": "^recipeinst_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "instance_path": {
+        "pattern": "^root(?:/[a-z][a-z0-9_\\-]{1,63}\\[[0-9]{1,3}\\]){0,6}$",
+        "type": "string"
+      },
+      "license": {
+        "additionalProperties": false,
+        "properties": {
+          "license_id": {
+            "const": "ForgeCAD-Internal-Visual-Only"
+          },
+          "redistributable": {
+            "const": false
+          }
+        },
+        "required": [
+          "license_id",
+          "redistributable"
+        ],
+        "type": "object"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "parent_instance_id": {
+        "pattern": "^recipeinst_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "parent_slot_id": {
+        "pattern": "^slot_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "policy_version": {
+        "const": "ComponentRecipePolicy@1"
+      },
+      "quality_status": {
+        "const": "passed"
+      },
+      "recipe": {
+        "$ref": "component-recipe-ref.schema.json"
+      },
+      "registry_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "review_state": {
+        "additionalProperties": false,
+        "properties": {
+          "review_id": {
+            "pattern": "^review_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "$ref": "common.schema.json#/$defs/iso_datetime"
+          },
+          "reviewer_kind": {
+            "const": "forgecad_internal"
+          }
+        },
+        "required": [
+          "review_id",
+          "reviewed_at",
+          "reviewer_kind"
+        ],
+        "type": "object"
+      },
+      "schema_version": {
+        "const": "ComponentRecipeInstanceProvenance@1"
+      },
+      "source": {
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "pattern": "^source_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "source_kind": {
+            "const": "forgecad_first_party"
+          }
+        },
+        "required": [
+          "source_kind",
+          "source_id"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "schema_version",
+      "instance_id",
+      "instance_path",
+      "recipe",
+      "registry_sha256",
+      "policy_version",
+      "parent_instance_id",
+      "parent_slot_id",
+      "domain_pack_id",
+      "source",
+      "license",
+      "review_state",
+      "quality_status",
+      "non_functional_only"
+    ],
+    "title": "ComponentRecipeInstanceProvenance",
+    "type": "object"
+  },
+  "component-recipe-instantiation-request.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/component-recipe-instantiation-request.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "context_mode": {
+              "const": "initial_candidate"
+            }
+          },
+          "required": [
+            "context_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "base_asset_version_id": {
+              "const": null
+            },
+            "project_id": {
+              "const": null
+            },
+            "snapshot_revision": {
+              "const": null
+            },
+            "target_part_id": {
+              "const": null
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "context_mode": {
+              "const": "active_asset_edit"
+            }
+          },
+          "required": [
+            "context_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "base_asset_version_id": {
+              "pattern": "^assetver_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "project_id": {
+              "pattern": "^prj_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "snapshot_revision": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "target_part_id": {
+              "pattern": "^part_[a-z0-9_\\-]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "description": "Request for a transient Recipe expansion. Active edits may later enter ChangeSet preview; initial candidates may later enter NativePreview. World transforms, executable payloads, URLs and paths are intentionally absent.",
+    "properties": {
+      "base_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "context_mode": {
+        "enum": [
+          "initial_candidate",
+          "active_asset_edit"
+        ],
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "material_zone_overrides": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "material_preset_id": {
+              "pattern": "^mat_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "zone_id": {
+              "pattern": "^zone_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "zone_id",
+            "material_preset_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "parameter_values": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "parameter_id": {
+              "pattern": "^editparam_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "value": {
+              "maximum": 10000,
+              "minimum": -10000,
+              "type": "number"
+            }
+          },
+          "required": [
+            "parameter_id",
+            "value"
+          ],
+          "type": "object"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
+      "project_id": {
+        "pattern": "^prj_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "recipe": {
+        "$ref": "component-recipe-ref.schema.json"
+      },
+      "recipe_registry_sha256": {
+        "description": "Exact reviewed registry identity. C106 robotic-arm roots require the embedded C106 hash; C105 requests must pin the frozen C105 registry hash.",
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "request_id": {
+        "pattern": "^recipereq_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ComponentRecipeInstantiationRequest@1"
+      },
+      "slot_bindings": {
+        "description": "Explicitly enables an optional slot's fixed, reviewed child Recipe. It does not select an arbitrary replacement; replacements use the C102 preview-confirm path.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "child_recipe": {
+              "$ref": "component-recipe-ref.schema.json"
+            },
+            "slot_id": {
+              "pattern": "^slot_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "slot_id",
+            "child_recipe"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "snapshot_revision": {
+        "minimum": 1,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "target_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "request_id",
+      "project_id",
+      "context_mode",
+      "base_asset_version_id",
+      "snapshot_revision",
+      "domain_pack_id",
+      "recipe_registry_sha256",
+      "recipe",
+      "target_part_id",
+      "slot_bindings",
+      "parameter_values",
+      "material_zone_overrides"
+    ],
+    "title": "ComponentRecipeInstantiationRequest",
+    "type": "object"
+  },
+  "component-recipe-ref.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/component-recipe-ref.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "recipe_id": {
+        "pattern": "^recipe_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "recipe_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "ComponentRecipeRef@1"
+      },
+      "version": {
+        "maximum": 9999,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "recipe_id",
+      "version",
+      "recipe_sha256"
+    ],
+    "title": "ComponentRecipeRef",
+    "type": "object"
   },
   "concept-export-manifest.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/concept-export-manifest.schema.json",
@@ -2993,6 +4505,559 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "DomainSemanticProportionRecipe",
     "type": "object"
   },
+  "editable-component-recipe.schema.json": {
+    "$defs": {
+      "child_slot": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_roles": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "child_connector_id": {
+            "pattern": "^connector_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "child_recipe_id": {
+            "pattern": "^recipe_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "parent_connector_id": {
+            "pattern": "^connector_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "parent_local_transform": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/local_transform"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "slot_id": {
+            "pattern": "^slot_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_id",
+          "accepted_roles",
+          "child_recipe_id",
+          "parent_connector_id",
+          "child_connector_id",
+          "parent_local_transform",
+          "required"
+        ],
+        "type": "object"
+      },
+      "connector": {
+        "additionalProperties": false,
+        "properties": {
+          "connector_id": {
+            "pattern": "^connector_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "visual_mount",
+              "shell_join",
+              "trim_join",
+              "display_support"
+            ],
+            "type": "string"
+          },
+          "normal": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/vec3_unit",
+            "description": "Unit normal; must be orthogonal to up at runtime."
+          },
+          "position": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/point_mm"
+          },
+          "up": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/vec3_unit",
+            "description": "Unit up; normal cross up forms the right-handed tangent."
+          }
+        },
+        "required": [
+          "connector_id",
+          "kind",
+          "position",
+          "normal",
+          "up"
+        ],
+        "type": "object"
+      },
+      "domain": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ],
+        "type": "string"
+      },
+      "frame": {
+        "additionalProperties": false,
+        "properties": {
+          "normal": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/vec3_unit",
+            "description": "Unit normal; must be orthogonal to up at runtime."
+          },
+          "position": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/point_mm"
+          },
+          "up": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/vec3_unit",
+            "description": "Unit up; normal cross up forms the right-handed tangent."
+          }
+        },
+        "required": [
+          "position",
+          "normal",
+          "up"
+        ],
+        "type": "object"
+      },
+      "geometry_feature": {
+        "additionalProperties": false,
+        "properties": {
+          "feature_id": {
+            "pattern": "^feature_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "operation_id": {
+            "pattern": "^op_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "primary_form",
+              "secondary_form",
+              "cabin_form",
+              "base_form",
+              "upper_link_form",
+              "end_effector_form",
+              "trim",
+              "visual_detail"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "feature_id",
+          "operation_id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "license": {
+        "additionalProperties": false,
+        "properties": {
+          "license_id": {
+            "const": "ForgeCAD-Internal-Visual-Only"
+          },
+          "redistributable": {
+            "const": false
+          }
+        },
+        "required": [
+          "license_id",
+          "redistributable"
+        ],
+        "type": "object"
+      },
+      "local_transform": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/point_mm"
+          },
+          "rotation": {
+            "description": "Euler XYZ radians, intentionally separate from connector unit vectors.",
+            "items": {
+              "maximum": 3.141592653589793,
+              "minimum": -3.141592653589793,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "scale": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 4,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rotation",
+          "scale"
+        ],
+        "type": "object"
+      },
+      "material_zone": {
+        "additionalProperties": false,
+        "properties": {
+          "material_preset_id": {
+            "pattern": "^mat_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "shell",
+              "trim",
+              "glass",
+              "rubber",
+              "signal",
+              "decal"
+            ],
+            "type": "string"
+          },
+          "zone_id": {
+            "pattern": "^zone_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "role",
+          "material_preset_id"
+        ],
+        "type": "object"
+      },
+      "point_mm": {
+        "items": {
+          "maximum": 10000,
+          "minimum": -10000,
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      },
+      "profile_refs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "profile_input_id": {
+              "pattern": "^profileinput_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "profile_sketch_id": {
+              "pattern": "^sketch_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "profile_input_id",
+            "profile_sketch_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "review": {
+        "additionalProperties": false,
+        "properties": {
+          "review_id": {
+            "pattern": "^review_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "$ref": "common.schema.json#/$defs/iso_datetime"
+          },
+          "reviewer_kind": {
+            "const": "forgecad_internal"
+          }
+        },
+        "required": [
+          "review_id",
+          "reviewed_at",
+          "reviewer_kind"
+        ],
+        "type": "object"
+      },
+      "section_set_refs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "canonical_payload": {
+              "$ref": "profile-section-set.schema.json"
+            },
+            "section_set_id": {
+              "pattern": "^sectionset_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            }
+          },
+          "required": [
+            "section_set_id",
+            "sha256",
+            "canonical_payload"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "source": {
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "pattern": "^source_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "source_kind": {
+            "enum": [
+              "forgecad_first_party"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_kind",
+          "source_id"
+        ],
+        "type": "object"
+      },
+      "surface_adornment_slot": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_coverages": {
+            "items": {
+              "enum": [
+                "full_zone",
+                "center_band",
+                "edge_band",
+                "symmetric_pair"
+              ]
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "allowed_kinds": {
+            "items": {
+              "enum": [
+                "normal_relief",
+                "pattern",
+                "flowline",
+                "micro_surface"
+              ]
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "allowed_motifs": {
+            "items": {
+              "enum": [
+                "parallel_groove",
+                "chevron_relief",
+                "double_flowline",
+                "hex_microgrid"
+              ]
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "slot_id": {
+            "pattern": "^adornslot_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "zone_id": {
+            "pattern": "^zone_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_id",
+          "zone_id",
+          "allowed_kinds",
+          "allowed_motifs",
+          "allowed_coverages"
+        ],
+        "type": "object"
+      },
+      "vec3_unit": {
+        "items": {
+          "maximum": 1,
+          "minimum": -1,
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Reviewed, non-executable visual component recipe. Runtime validates frame orthonormality, child graph acyclicity, budgets and referenced content hashes before expansion.",
+    "properties": {
+      "allowed_domains": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/domain"
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "child_slots": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/child_slot"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "component_role": {
+        "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
+        "type": "string"
+      },
+      "connectors": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/connector"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array"
+      },
+      "description": {
+        "maxLength": 400,
+        "minLength": 1,
+        "type": "string"
+      },
+      "display_name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      },
+      "feature_template": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/geometry_feature"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "license": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/license"
+      },
+      "material_zones": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/material_zone"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "parameter_bindings": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/editable_parameter_binding"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "pivot": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/frame"
+      },
+      "profiles": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/profile_refs"
+      },
+      "quality_status": {
+        "const": "passed"
+      },
+      "recipe_id": {
+        "pattern": "^recipe_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "review_state": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/review"
+      },
+      "root_local_transform": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/local_transform"
+      },
+      "schema_version": {
+        "const": "EditableComponentRecipe@1"
+      },
+      "section_sets": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/section_set_refs"
+      },
+      "shape_program_template": {
+        "$ref": "shape-program.schema.json"
+      },
+      "source": {
+        "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/source"
+      },
+      "surface_adornment_slots": {
+        "items": {
+          "$ref": "https://forgecad.local/schemas/concept/editable-component-recipe.schema.json#/$defs/surface_adornment_slot"
+        },
+        "maxItems": 8,
+        "type": "array"
+      },
+      "triangle_estimate": {
+        "description": "Reviewed upper bound for the expanded recipe output; runtime validates actual readback triangles do not exceed it.",
+        "maximum": 100000,
+        "minimum": 100,
+        "type": "integer"
+      },
+      "version": {
+        "maximum": 9999,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "recipe_id",
+      "version",
+      "component_role",
+      "display_name",
+      "description",
+      "profiles",
+      "section_sets",
+      "shape_program_template",
+      "feature_template",
+      "parameter_bindings",
+      "connectors",
+      "pivot",
+      "root_local_transform",
+      "material_zones",
+      "child_slots",
+      "allowed_domains",
+      "triangle_estimate",
+      "quality_status",
+      "source",
+      "license",
+      "review_state",
+      "non_functional_only"
+    ],
+    "title": "EditableComponentRecipe",
+    "type": "object"
+  },
   "formal-module-review.schema.json": {
     "$id": "https://forgecad.local/schemas/formal-module-review.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3287,11 +5352,179 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "FormalModuleReview",
     "type": "object"
   },
+  "geometry-artifact-profile.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/geometry-artifact-profile.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_profile_id": {
+            "const": "interactive_preview"
+          },
+          "capsule_hemisphere_segments": {
+            "const": 5
+          },
+          "delivery": {
+            "const": "interactive"
+          },
+          "max_triangle_count": {
+            "const": 100000
+          },
+          "profile_sha256": {
+            "const": "ee826ade78767c9cd557dc6c0812c5ac4b0ffe627c4325024b8ad25fef7b3fbf"
+          },
+          "radial_segments": {
+            "const": 24
+          },
+          "schema_version": {
+            "const": "GeometryArtifactProfile@1"
+          },
+          "smooth_loft_normals": {
+            "const": false
+          },
+          "texture_compression": {
+            "const": "png_deflate"
+          },
+          "texture_height": {
+            "const": 128
+          },
+          "texture_mime_type": {
+            "const": "image/png"
+          },
+          "texture_width": {
+            "const": 128
+          },
+          "triangle_budget_multiplier": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schema_version",
+          "artifact_profile_id",
+          "radial_segments",
+          "capsule_hemisphere_segments",
+          "smooth_loft_normals",
+          "texture_width",
+          "texture_height",
+          "texture_mime_type",
+          "texture_compression",
+          "delivery",
+          "triangle_budget_multiplier",
+          "max_triangle_count",
+          "profile_sha256"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_profile_id": {
+            "const": "production_concept"
+          },
+          "capsule_hemisphere_segments": {
+            "const": 14
+          },
+          "delivery": {
+            "const": "on_demand"
+          },
+          "max_triangle_count": {
+            "const": 250000
+          },
+          "profile_sha256": {
+            "const": "f7a6ed164cb44f1d1f7bf23938f4f1f8237e84d1b2518938c99147509bdf416a"
+          },
+          "radial_segments": {
+            "const": 64
+          },
+          "schema_version": {
+            "const": "GeometryArtifactProfile@1"
+          },
+          "smooth_loft_normals": {
+            "const": true
+          },
+          "texture_compression": {
+            "const": "png_deflate"
+          },
+          "texture_height": {
+            "const": 1024
+          },
+          "texture_mime_type": {
+            "const": "image/png"
+          },
+          "texture_width": {
+            "const": 1024
+          },
+          "triangle_budget_multiplier": {
+            "const": 6
+          }
+        },
+        "required": [
+          "schema_version",
+          "artifact_profile_id",
+          "radial_segments",
+          "capsule_hemisphere_segments",
+          "smooth_loft_normals",
+          "texture_width",
+          "texture_height",
+          "texture_mime_type",
+          "texture_compression",
+          "delivery",
+          "triangle_budget_multiplier",
+          "max_triangle_count",
+          "profile_sha256"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "GeometryArtifactProfile"
+  },
   "geometry-compile-readback.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/geometry-compile-readback.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "schema_version": {
+              "const": "GeometryCompileReadback@2"
+            }
+          },
+          "required": [
+            "schema_version"
+          ]
+        },
+        "then": {
+          "required": [
+            "artifact_profile"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "schema_version": {
+              "const": "GeometryCompileReadback@1"
+            }
+          },
+          "required": [
+            "schema_version"
+          ]
+        },
+        "then": {
+          "not": {
+            "required": [
+              "artifact_profile"
+            ]
+          }
+        }
+      }
+    ],
     "properties": {
+      "artifact_profile": {
+        "$ref": "geometry-artifact-profile.schema.json"
+      },
       "bounds_mm": {
         "$ref": "common.schema.json#/$defs/vec3"
       },
@@ -3582,7 +5815,11 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "const": "ShapeProgramRuntimeManifest@1"
       },
       "schema_version": {
-        "const": "GeometryCompileReadback@1"
+        "enum": [
+          "GeometryCompileReadback@1",
+          "GeometryCompileReadback@2"
+        ],
+        "type": "string"
       },
       "shape_program_sha256": {
         "$ref": "common.schema.json#/$defs/sha256"
@@ -4079,6 +6316,50 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             },
             "schema_version": {
               "const": "VisualTextureSet@1"
+            },
+            "surface_adornment": {
+              "$ref": "surface-adornment-program.schema.json"
+            },
+            "surface_adornment_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "surface_layer_lowering": {
+              "additionalProperties": false,
+              "properties": {
+                "adornments": {
+                  "items": {
+                    "$ref": "surface-adornment-program.schema.json"
+                  },
+                  "maxItems": 8,
+                  "type": "array"
+                },
+                "retained_layers": {
+                  "type": "object"
+                },
+                "retained_layers_sha256": {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                },
+                "schema_version": {
+                  "const": "SurfaceLayerLowering@1"
+                },
+                "source_program_sha256": {
+                  "$ref": "common.schema.json#/$defs/sha256"
+                }
+              },
+              "required": [
+                "schema_version",
+                "source_program_sha256",
+                "adornments",
+                "retained_layers",
+                "retained_layers_sha256"
+              ],
+              "type": "object"
+            },
+            "surface_layer_lowering_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "surface_layer_retained_layers_sha256": {
+              "$ref": "common.schema.json#/$defs/sha256"
             },
             "texture_byte_size": {
               "maximum": 20000000,
@@ -5491,6 +7772,38 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ModulePackManifest",
     "type": "object"
   },
+  "production-component-recipe-registry.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/production-component-recipe-registry.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Internal, reviewed M108B fixture registry. It is intentionally separate from the persisted C105 v1 aggregate registry.",
+    "properties": {
+      "policy_version": {
+        "const": "ComponentRecipePolicy@1"
+      },
+      "recipes": {
+        "items": {
+          "$ref": "editable-component-recipe.schema.json"
+        },
+        "minItems": 16,
+        "type": "array"
+      },
+      "registry_id": {
+        "const": "registry_m108b_production_concept_v1"
+      },
+      "schema_version": {
+        "const": "EditableComponentRecipeRegistry@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "registry_id",
+      "policy_version",
+      "recipes"
+    ],
+    "title": "ProductionComponentRecipeRegistry",
+    "type": "object"
+  },
   "profile-section-set.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/profile-section-set.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6231,6 +8544,1039 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ProviderExecutionTrace",
     "type": "object"
   },
+  "reference-evidence-create-request.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/reference-evidence-create-request.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "image"
+            }
+          }
+        },
+        "then": {
+          "not": {
+            "required": [
+              "imported_asset_version_id"
+            ]
+          },
+          "required": [
+            "file_name",
+            "media_type",
+            "content_base64",
+            "domain_pack_id"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "glb"
+            }
+          }
+        },
+        "then": {
+          "oneOf": [
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "file_name"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "media_type"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "content_base64"
+                    ]
+                  }
+                ]
+              },
+              "required": [
+                "imported_asset_version_id"
+              ]
+            },
+            {
+              "not": {
+                "required": [
+                  "imported_asset_version_id"
+                ]
+              },
+              "properties": {
+                "media_type": {
+                  "const": "model/gltf-binary"
+                }
+              },
+              "required": [
+                "file_name",
+                "media_type",
+                "content_base64",
+                "domain_pack_id"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "description": "R007 user-authorized reference intake. Image and GLB bytes are supplied directly as bounded raw content_base64 and sealed read-only into CAS; GLB may alternatively name a pre-existing same-project read-only import. Neither path edits or executes the reference object.",
+    "properties": {
+      "client_request_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "content_base64": {
+        "maxLength": 44739244,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ]
+      },
+      "file_name": {
+        "maxLength": 180,
+        "minLength": 1,
+        "type": "string"
+      },
+      "imported_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "kind": {
+        "enum": [
+          "image",
+          "glb"
+        ]
+      },
+      "license_statement": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "media_type": {
+        "enum": [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "model/gltf-binary"
+        ]
+      },
+      "missing_views": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 6,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "project_id": {
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ReferenceEvidenceCreateRequest@1"
+      },
+      "source_statement": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "user_notes": {
+        "maxLength": 1200,
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "client_request_id",
+      "project_id",
+      "kind",
+      "source_statement",
+      "license_statement",
+      "missing_views",
+      "user_notes"
+    ],
+    "title": "ReferenceEvidenceCreateRequest",
+    "type": "object"
+  },
+  "reference-evidence.schema.json": {
+    "$defs": {
+      "observations": {
+        "additionalProperties": false,
+        "properties": {
+          "material_zone_observations": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "proportion_ranges": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "type": "array"
+          },
+          "silhouette_summary": {
+            "maxLength": 600,
+            "minLength": 1,
+            "type": "string"
+          },
+          "uncertainties": {
+            "items": {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array"
+          },
+          "visible_part_hypotheses": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "role": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "visible_basis": {
+                  "maxLength": 320,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "confidence",
+                "visible_basis"
+              ],
+              "type": "object"
+            },
+            "maxItems": 16,
+            "type": "array"
+          }
+        },
+        "required": [
+          "silhouette_summary",
+          "proportion_ranges",
+          "material_zone_observations",
+          "visible_part_hypotheses",
+          "uncertainties"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/reference-evidence.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "image"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "glb_inspection": {
+              "const": null
+            },
+            "observations": {
+              "properties": {
+                "image_surface_facts": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "image_surface_facts"
+              ]
+            },
+            "source_imported_asset_version_id": {
+              "const": null
+            },
+            "source_media_type": {
+              "enum": [
+                "image/png",
+                "image/jpeg",
+                "image/webp"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "glb"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "observations": {
+              "properties": {
+                "image_surface_facts": {
+                  "const": null
+                }
+              }
+            },
+            "source_media_type": {
+              "const": "model/gltf-binary"
+            }
+          },
+          "required": [
+            "glb_inspection"
+          ]
+        }
+      }
+    ],
+    "description": "Immutable R007 evidence. Observations are server-derived visible-language evidence, never recovered hidden structure or engineering facts.",
+    "properties": {
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ]
+      },
+      "evidence_id": {
+        "pattern": "^refevid_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "glb_inspection": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds_mm": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "byte_size": {
+            "minimum": 20,
+            "type": "integer"
+          },
+          "material_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mesh_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "node_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "primitive_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "triangle_count": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "byte_size",
+          "triangle_count",
+          "bounds_mm",
+          "mesh_count",
+          "primitive_count",
+          "material_count",
+          "node_count"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "image",
+          "glb"
+        ]
+      },
+      "license_statement": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "missing_views": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 6,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "observations": {
+        "additionalProperties": false,
+        "properties": {
+          "image_surface_facts": {
+            "additionalProperties": false,
+            "properties": {
+              "aspect_ratio_milli": {
+                "maximum": 64000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "brightness": {
+                "enum": [
+                  "dark",
+                  "balanced",
+                  "bright"
+                ]
+              },
+              "dominant_color_buckets": {
+                "items": {
+                  "enum": [
+                    "black",
+                    "gray",
+                    "white",
+                    "blue",
+                    "cyan",
+                    "red",
+                    "yellow",
+                    "green",
+                    "violet"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "edge_density": {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "foreground_bbox_normalized": {
+                "items": {
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "foreground_confidence": {
+                "enum": [
+                  "low",
+                  "medium"
+                ]
+              },
+              "height": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "width": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "width",
+              "height",
+              "aspect_ratio_milli",
+              "dominant_color_buckets",
+              "brightness",
+              "edge_density",
+              "foreground_bbox_normalized",
+              "foreground_confidence"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "material_zone_observations": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "proportion_ranges": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "type": "array"
+          },
+          "silhouette_summary": {
+            "maxLength": 600,
+            "minLength": 1,
+            "type": "string"
+          },
+          "uncertainties": {
+            "items": {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array"
+          },
+          "visible_part_hypotheses": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "role": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "visible_basis": {
+                  "maxLength": 320,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "confidence",
+                "visible_basis"
+              ],
+              "type": "object"
+            },
+            "maxItems": 16,
+            "type": "array"
+          }
+        },
+        "required": [
+          "silhouette_summary",
+          "proportion_ranges",
+          "material_zone_observations",
+          "visible_part_hypotheses",
+          "uncertainties"
+        ],
+        "type": "object"
+      },
+      "project_id": {
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ReferenceEvidence@1"
+      },
+      "source_file_name": {
+        "maxLength": 180,
+        "minLength": 1,
+        "type": "string"
+      },
+      "source_imported_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "source_media_type": {
+        "enum": [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "model/gltf-binary"
+        ]
+      },
+      "source_object_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "source_statement": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "user_notes": {
+        "maxLength": 1200,
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "evidence_id",
+      "project_id",
+      "kind",
+      "domain_pack_id",
+      "source_file_name",
+      "source_media_type",
+      "source_object_sha256",
+      "source_statement",
+      "license_statement",
+      "missing_views",
+      "user_notes",
+      "observations",
+      "created_at"
+    ],
+    "title": "ReferenceEvidence",
+    "type": "object"
+  },
+  "reference-guided-rebuild-plan.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/reference-guided-rebuild-plan.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Immutable-identity R007 rebuild intent. It links only to the normal ChangeSet preview/confirm lifecycle and never edits an imported GLB.",
+    "properties": {
+      "base_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "confirmed_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ]
+      },
+      "evidence_id": {
+        "pattern": "^refevid_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "intended_differences": {
+        "items": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "minItems": 1,
+        "type": "array"
+      },
+      "preview_change_set_id": {
+        "pattern": "^changeset_[a-z0-9_\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "project_id": {
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "rebuild_plan_id": {
+        "pattern": "^rebuildplan_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "rebuild_summary": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "recipe_id": {
+        "pattern": "^recipe_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "recipe_registry_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "retained_evidence": {
+        "items": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "minItems": 1,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "ReferenceGuidedRebuildPlan@1"
+      },
+      "status": {
+        "enum": [
+          "draft",
+          "previewed",
+          "confirmed",
+          "rejected"
+        ]
+      },
+      "unresolved_uncertainties": {
+        "items": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "minItems": 1,
+        "type": "array"
+      },
+      "updated_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      }
+    },
+    "required": [
+      "schema_version",
+      "rebuild_plan_id",
+      "project_id",
+      "evidence_id",
+      "domain_pack_id",
+      "recipe_id",
+      "recipe_registry_sha256",
+      "rebuild_summary",
+      "intended_differences",
+      "retained_evidence",
+      "unresolved_uncertainties",
+      "status",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "ReferenceGuidedRebuildPlan",
+    "type": "object"
+  },
+  "reference-guided-rebuild-preview-request.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/reference-guided-rebuild-preview-request.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "R007 request to prepare a normal ChangeSet preview from same-project read-only reference evidence. It requires an active editable ForgeCAD base and never edits, executes, or adopts the referenced image or GLB.",
+    "properties": {
+      "base_asset_version_id": {
+        "pattern": "^assetver_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "client_request_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "domain_pack_id": {
+        "enum": [
+          "pack_future_weapon_prop",
+          "pack_vehicle_concept",
+          "pack_aircraft_concept",
+          "pack_robotic_arm_concept"
+        ]
+      },
+      "evidence_id": {
+        "pattern": "^refevid_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ReferenceGuidedRebuildPreviewRequest@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "client_request_id",
+      "evidence_id",
+      "domain_pack_id",
+      "base_asset_version_id"
+    ],
+    "title": "ReferenceGuidedRebuildPreviewRequest",
+    "type": "object"
+  },
+  "reference-surface-analysis.schema.json": {
+    "$defs": {
+      "binding": {
+        "additionalProperties": false,
+        "properties": {
+          "binding_id": {
+            "pattern": "^refsrfbind_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "observation_index": {
+            "maximum": 15,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "observation_kind": {
+            "$ref": "reference-surface-analysis.schema.json#/$defs/observation_kind"
+          },
+          "target_material_zone_id": {
+            "pattern": "^zone_arm_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "target_part_role": {
+            "enum": [
+              "base_form",
+              "turntable",
+              "joint_housing",
+              "link_armor",
+              "cable_harness",
+              "end_effector_form",
+              "surface_trim"
+            ]
+          },
+          "target_part_slot_id": {
+            "pattern": "^slot_[a-z0-9_\\-]+$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_recipe": {
+            "$ref": "component-recipe-ref.schema.json"
+          },
+          "target_surface_slot_id": {
+            "pattern": "^adornslot_[a-z0-9_\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "binding_id",
+          "observation_kind",
+          "observation_index",
+          "target_recipe",
+          "target_part_role",
+          "target_material_zone_id",
+          "target_surface_slot_id"
+        ],
+        "type": "object"
+      },
+      "glb_readback_facts": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds_mm": {
+            "$ref": "common.schema.json#/$defs/vec3"
+          },
+          "material_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mesh_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "node_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "primitive_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "triangle_count": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "triangle_count",
+          "bounds_mm",
+          "mesh_count",
+          "primitive_count",
+          "material_count",
+          "node_count"
+        ],
+        "type": "object"
+      },
+      "observation_kind": {
+        "enum": [
+          "silhouette",
+          "proportion",
+          "visible_part",
+          "material_zone"
+        ]
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/reference-surface-analysis.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "R007B's sealed visible-evidence mapping to one reviewed C106 robotic-arm design surface. It never embeds source pixels, source GLB topology, URLs, paths, hidden structure, engineering dimensions or functional facts.",
+    "properties": {
+      "analysis_id": {
+        "pattern": "^refsrfanalysis_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "bindings": {
+        "items": {
+          "$ref": "reference-surface-analysis.schema.json#/$defs/binding"
+        },
+        "maxItems": 16,
+        "minItems": 3,
+        "type": "array"
+      },
+      "c106_registry_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "created_at": {
+        "$ref": "common.schema.json#/$defs/iso_datetime"
+      },
+      "domain_pack_id": {
+        "const": "pack_robotic_arm_concept"
+      },
+      "evidence_id": {
+        "pattern": "^refevid_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "fidelity_ceiling": {
+        "enum": [
+          "single_image_visible_surface_only",
+          "multi_view_image_visible_surface_only",
+          "strict_glb_readback_visible_bounds_only"
+        ]
+      },
+      "glb_readback_facts": {
+        "anyOf": [
+          {
+            "$ref": "reference-surface-analysis.schema.json#/$defs/glb_readback_facts"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "intentionally_changed": {
+        "items": {
+          "enum": [
+            "non_functional_recipe_interpretation",
+            "reviewed_recipe_component_substitution",
+            "material_preset_normalization",
+            "surface_adornment_normalization"
+          ]
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "rebuild_plan_id": {
+        "pattern": "^rebuildplan_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "retained_observation_kinds": {
+        "items": {
+          "$ref": "reference-surface-analysis.schema.json#/$defs/observation_kind"
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "schema_version": {
+        "const": "ReferenceSurfaceAnalysis@1"
+      },
+      "source_object_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "surface_skill_id": {
+        "const": "skill_first_party_surface_adornment"
+      },
+      "surface_skill_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "surface_skill_version": {
+        "const": 2
+      },
+      "target_root_recipe": {
+        "$ref": "component-recipe-ref.schema.json"
+      },
+      "unresolved": {
+        "items": {
+          "enum": [
+            "missing_views",
+            "hidden_structure",
+            "exact_dimensions",
+            "material_physics",
+            "functional_behavior"
+          ]
+        },
+        "maxItems": 5,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "analysis_id",
+      "rebuild_plan_id",
+      "evidence_id",
+      "source_object_sha256",
+      "domain_pack_id",
+      "target_root_recipe",
+      "c106_registry_sha256",
+      "surface_skill_id",
+      "surface_skill_version",
+      "surface_skill_sha256",
+      "fidelity_ceiling",
+      "bindings",
+      "retained_observation_kinds",
+      "intentionally_changed",
+      "unresolved",
+      "created_at"
+    ],
+    "title": "ReferenceSurfaceAnalysis",
+    "type": "object"
+  },
   "resolved-semantic-proportion-options.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/resolved-semantic-proportion-options.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6644,7 +9990,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           ],
           "type": "object"
         },
-        "maxItems": 32,
+        "maxItems": 96,
         "minItems": 1,
         "type": "array"
       },
@@ -6760,10 +10106,739 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ShapeProgram",
     "type": "object"
   },
+  "surface-adornment-program.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/surface-adornment-program.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "normal_relief"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "motif": {
+              "enum": [
+                "parallel_groove",
+                "chevron_relief"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "pattern"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "motif": {
+              "const": "hex_microgrid"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "flowline"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "motif": {
+              "const": "double_flowline"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "micro_surface"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "motif": {
+              "enum": [
+                "hex_microgrid",
+                "parallel_groove"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "description": "A005 visual-only texture bake instruction. It is not a ShapeProgram operation.",
+    "properties": {
+      "base_material": {
+        "enum": [
+          "mat_aluminum",
+          "mat_automotive_paint",
+          "mat_composite",
+          "mat_dark_glass",
+          "mat_emissive_blue",
+          "mat_graphite",
+          "mat_rubber",
+          "mat_signal_red"
+        ]
+      },
+      "coverage": {
+        "enum": [
+          "full_zone",
+          "center_band",
+          "edge_band",
+          "symmetric_pair"
+        ]
+      },
+      "execution": {
+        "const": "texture_bake"
+      },
+      "generator": {
+        "const": "a005_v1"
+      },
+      "intensity": {
+        "enum": [
+          "subtle",
+          "balanced",
+          "pronounced"
+        ]
+      },
+      "kind": {
+        "enum": [
+          "normal_relief",
+          "pattern",
+          "flowline",
+          "micro_surface"
+        ]
+      },
+      "motif": {
+        "enum": [
+          "parallel_groove",
+          "chevron_relief",
+          "double_flowline",
+          "hex_microgrid"
+        ]
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "program_id": {
+        "pattern": "^adorn_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "SurfaceAdornmentProgram@1"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "skill_id": {
+        "pattern": "^skill_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "skill_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "skill_version": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "target_part_id": {
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "target_zone_id": {
+        "pattern": "^zone_[a-z0-9_\\-]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "target_part_id",
+      "target_zone_id",
+      "kind",
+      "motif",
+      "intensity",
+      "coverage",
+      "seed",
+      "base_material",
+      "execution",
+      "skill_id",
+      "skill_version",
+      "skill_sha256",
+      "generator",
+      "non_functional_only"
+    ],
+    "title": "SurfaceAdornmentProgram",
+    "type": "object"
+  },
+  "surface-layer-program.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/surface-layer-program.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "A bounded 2D Design Surface language. It carries normalized vector paths, built-in decal and PBR mask tokens, symmetry and UV framing. It never embeds SVG strings, scripts, URLs, file paths, geometry operations or executable content. Exact normal-relief semantics lower to A005 and retained layers are compiled by the reviewed deterministic five-channel PBR path.",
+    "properties": {
+      "base_material": {
+        "enum": [
+          "mat_aluminum",
+          "mat_automotive_paint",
+          "mat_composite",
+          "mat_dark_glass",
+          "mat_emissive_blue",
+          "mat_graphite",
+          "mat_rubber",
+          "mat_signal_red"
+        ]
+      },
+      "decal_layers": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "anchor_uv": {
+              "items": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "color_token": {
+              "enum": [
+                "accent_blue",
+                "signal_red",
+                "graphite",
+                "aluminum"
+              ]
+            },
+            "decal_id": {
+              "pattern": "^decal_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "motif": {
+              "enum": [
+                "chevron_mark",
+                "hex_badge",
+                "warning_stripe",
+                "panel_label"
+              ]
+            },
+            "opacity_milli": {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "scale_milli": {
+              "maximum": 500,
+              "minimum": 50,
+              "type": "integer"
+            },
+            "text_token": {
+              "enum": [
+                "none",
+                "A-01",
+                "SERVICE",
+                "CAUTION",
+                "01"
+              ]
+            }
+          },
+          "required": [
+            "decal_id",
+            "motif",
+            "text_token",
+            "color_token",
+            "anchor_uv",
+            "scale_milli",
+            "opacity_milli"
+          ],
+          "type": "object"
+        },
+        "maxItems": 4,
+        "minItems": 0,
+        "type": "array"
+      },
+      "emissive_masks": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "color_token": {
+              "enum": [
+                "accent_blue",
+                "signal_red"
+              ]
+            },
+            "coverage": {
+              "enum": [
+                "full_zone",
+                "center_band",
+                "edge_band",
+                "symmetric_pair"
+              ]
+            },
+            "intensity_milli": {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "mask_id": {
+              "pattern": "^emissive_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "motif": {
+              "enum": [
+                "double_flowline",
+                "dot_array",
+                "panel_indicator"
+              ]
+            },
+            "seed": {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mask_id",
+            "motif",
+            "color_token",
+            "coverage",
+            "intensity_milli",
+            "seed"
+          ],
+          "type": "object"
+        },
+        "maxItems": 2,
+        "minItems": 0,
+        "type": "array"
+      },
+      "execution": {
+        "const": "lower_to_a005_and_retain"
+      },
+      "generator": {
+        "const": "surface_layer_v1"
+      },
+      "material_zone_id": {
+        "pattern": "^zone_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "non_functional_only": {
+        "const": true
+      },
+      "normal_relief_layers": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "coverage": {
+              "enum": [
+                "full_zone",
+                "center_band",
+                "edge_band",
+                "symmetric_pair"
+              ]
+            },
+            "intensity": {
+              "enum": [
+                "subtle",
+                "balanced",
+                "pronounced"
+              ]
+            },
+            "layer_id": {
+              "pattern": "^relief_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "motif": {
+              "enum": [
+                "parallel_groove",
+                "chevron_relief"
+              ]
+            },
+            "seed": {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "layer_id",
+            "motif",
+            "intensity",
+            "coverage",
+            "seed"
+          ],
+          "type": "object"
+        },
+        "maxItems": 4,
+        "minItems": 0,
+        "type": "array"
+      },
+      "program_id": {
+        "pattern": "^surface_layer_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "quality_profile": {
+        "enum": [
+          "interactive_preview",
+          "production_concept"
+        ]
+      },
+      "roughness_masks": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "coverage": {
+              "enum": [
+                "full_zone",
+                "center_band",
+                "edge_band",
+                "symmetric_pair"
+              ]
+            },
+            "intensity_milli": {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "mask_id": {
+              "pattern": "^rough_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "motif": {
+              "enum": [
+                "linear_brush",
+                "edge_wear",
+                "microgrid"
+              ]
+            },
+            "seed": {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mask_id",
+            "motif",
+            "coverage",
+            "intensity_milli",
+            "seed"
+          ],
+          "type": "object"
+        },
+        "maxItems": 2,
+        "minItems": 0,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "SurfaceLayerProgram@1"
+      },
+      "skill_id": {
+        "pattern": "^skill_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "skill_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "skill_version": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "symmetry": {
+        "additionalProperties": false,
+        "properties": {
+          "center_uv": {
+            "items": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "none",
+              "mirror_u",
+              "mirror_v",
+              "radial_2",
+              "radial_4"
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "center_uv"
+        ],
+        "type": "object"
+      },
+      "target_part_id": {
+        "description": "Compatibility mapping to the current stable AssemblyGraph part.",
+        "pattern": "^part_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "target_part_role": {
+        "enum": [
+          "base_form",
+          "turntable",
+          "joint_housing",
+          "link_armor",
+          "cable_harness",
+          "end_effector_form",
+          "surface_trim"
+        ]
+      },
+      "target_zone_id": {
+        "description": "Compatibility mapping to the current stable Material Zone.",
+        "pattern": "^zone_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "uv_frame": {
+        "additionalProperties": false,
+        "properties": {
+          "frame_id": {
+            "pattern": "^uvframe_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "rotation_degrees": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "u_max": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "u_min": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "v_max": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "v_min": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "frame_id",
+          "u_min",
+          "u_max",
+          "v_min",
+          "v_max",
+          "rotation_degrees"
+        ],
+        "type": "object"
+      },
+      "vector_paths": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "closed": {
+              "type": "boolean"
+            },
+            "commands": {
+              "items": {
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "move",
+                            "line"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "points": {
+                          "maxItems": 1,
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "quadratic"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "points": {
+                          "maxItems": 2,
+                          "minItems": 2
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "cubic"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "points": {
+                          "maxItems": 3,
+                          "minItems": 3
+                        }
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "move",
+                      "line",
+                      "quadratic",
+                      "cubic"
+                    ]
+                  },
+                  "points": {
+                    "items": {
+                      "items": {
+                        "maximum": 1,
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "type": "array"
+                    },
+                    "maxItems": 3,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "points"
+                ],
+                "type": "object"
+              },
+              "maxItems": 32,
+              "minItems": 2,
+              "type": "array"
+            },
+            "path_id": {
+              "pattern": "^path_[a-z0-9_\\-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path_id",
+            "closed",
+            "commands"
+          ],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "minItems": 0,
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "target_part_id",
+      "target_zone_id",
+      "target_part_role",
+      "material_zone_id",
+      "base_material",
+      "vector_paths",
+      "decal_layers",
+      "normal_relief_layers",
+      "roughness_masks",
+      "emissive_masks",
+      "symmetry",
+      "uv_frame",
+      "quality_profile",
+      "execution",
+      "skill_id",
+      "skill_version",
+      "skill_sha256",
+      "generator",
+      "non_functional_only"
+    ],
+    "title": "SurfaceLayerProgram",
+    "type": "object"
+  },
   "visual-intent-mapping.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/visual-intent-mapping.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "schema_version": {
+              "const": "VisualIntentMapping@1"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "directions": {
+              "maxItems": 3,
+              "minItems": 3
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "schema_version": {
+              "const": "VisualIntentMapping@2"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "directions": {
+              "maxItems": 1,
+              "minItems": 1
+            }
+          }
+        }
+      }
+    ],
     "properties": {
       "directions": {
         "items": {
@@ -6826,7 +10901,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "type": "object"
         },
         "maxItems": 3,
-        "minItems": 3,
+        "minItems": 1,
         "type": "array",
         "uniqueItems": true
       },
@@ -6840,7 +10915,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "type": "string"
       },
       "schema_version": {
-        "const": "VisualIntentMapping@1"
+        "enum": [
+          "VisualIntentMapping@1",
+          "VisualIntentMapping@2"
+        ]
       },
       "source": {
         "const": "brief_lexicon_v1"

@@ -3,5 +3,10 @@
   "identifier": "main-window",
   "description": "Main Wushen Forge desktop window permissions.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:deny-emit",
+    "core:event:deny-emit-to"
+  ]
 }

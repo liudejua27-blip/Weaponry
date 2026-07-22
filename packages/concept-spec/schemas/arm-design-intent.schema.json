@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/arm-design-intent.schema.json",
+  "title": "ArmDesignIntent",
+  "description": "Bounded visual intent lowered by Rust to reviewed robotic-arm recipes; never executable geometry or engineering data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "domain_pack_id", "architecture", "joint_language", "link_language", "base_language", "wrist_language", "end_effector_language", "cable_language", "surface_language", "material_palette", "detail_density", "pose", "proportion_profile", "style_keywords", "source", "visual_only"],
+  "properties": {
+    "schema_version": { "const": "ArmDesignIntent@1" },
+    "domain_pack_id": { "const": "pack_robotic_arm_concept" },
+    "architecture": { "enum": ["serial_chain", "parallel_link", "scara", "gantry", "delta", "cantilever"] },
+    "joint_language": { "enum": ["armored_bearing", "exposed_ring", "gimbal_shell", "capsule_joint", "bellows_joint"] },
+    "link_language": { "enum": ["closed_shell", "twin_rail", "open_truss", "tapered_loft", "tube_frame"] },
+    "base_language": { "enum": ["round_turntable", "hex_platform", "floating_pedestal", "industrial_deck", "compact_puck"] },
+    "wrist_language": { "enum": ["layered_wrist", "gimbal_wrist", "cylindrical_wrist", "fork_wrist"] },
+    "end_effector_language": { "enum": ["parallel_gripper", "adaptive_claw", "precision_tool", "sensor_probe", "soft_pad_gripper"] },
+    "cable_language": { "enum": ["internal_routing", "braided_external", "armored_harness", "minimal_cable"] },
+    "surface_language": { "type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": { "enum": ["panel_seams", "flowline", "chevron_relief", "hex_microgrid", "engraved_ribs", "fastener_bands"] } },
+    "material_palette": { "enum": ["graphite_blue", "white_aluminum", "industrial_yellow", "warm_copper", "monochrome_technical"] },
+    "detail_density": { "enum": ["light", "medium", "dense"] },
+    "pose": { "enum": ["neutral", "grounded", "elevated", "extended", "folded"] },
+    "proportion_profile": { "enum": ["compact", "balanced", "long_reach", "heavy_base", "slender"] },
+    "style_keywords": { "type": "array", "maxItems": 12, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+    "source": { "enum": ["user_brief", "reference_evidence", "agent_inferred"] },
+    "visual_only": { "const": true }
+  }
+}

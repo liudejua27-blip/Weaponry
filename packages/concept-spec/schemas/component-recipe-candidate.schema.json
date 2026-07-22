@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/component-recipe-candidate.schema.json",
+  "title": "ComponentRecipeCandidate",
+  "description": "Immutable evidence for a transient recipe expansion; it is not a second asset version chain. Active edits may later seal a ChangeSet and initial candidates may later create a NativePreview after GLB/readback.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "request_id", "project_id", "context_mode", "base_asset_version_id", "snapshot_revision", "target_part_id", "recipe", "instance_path", "changeset_id", "expanded_shape_program", "expanded_assembly_graph", "component_recipe_instances", "registry_sha256", "candidate_sha256", "status", "quality_profile", "non_functional_only"],
+  "properties": {
+    "schema_version": { "const": "ComponentRecipeCandidate@1" },
+    "candidate_id": { "type": "string", "pattern": "^recipecandidate_[a-z0-9_\\-]+$" },
+    "request_id": { "type": "string", "pattern": "^recipereq_[a-z0-9_\\-]+$" },
+    "project_id": { "type": ["string", "null"], "pattern": "^prj_[a-z0-9_\\-]+$" },
+    "context_mode": { "type": "string", "enum": ["initial_candidate", "active_asset_edit"] },
+    "base_asset_version_id": { "type": ["string", "null"], "pattern": "^assetver_[a-z0-9_\\-]+$" },
+    "snapshot_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "target_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" },
+    "recipe": { "$ref": "component-recipe-ref.schema.json" },
+    "instance_path": { "type": "string", "pattern": "^root(?:/[a-z][a-z0-9_\\-]{1,63}\\[[0-9]{1,3}\\]){0,6}$" },
+    "changeset_id": { "type": ["string", "null"], "pattern": "^assetcs_[a-z0-9_\\-]+$" },
+    "expanded_shape_program": { "$ref": "shape-program.schema.json" },
+    "expanded_assembly_graph": { "$ref": "assembly-graph.schema.json" },
+    "component_recipe_instances": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "component-recipe-instance-provenance.schema.json" } },
+    "registry_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "candidate_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "status": { "type": "string", "enum": ["expanded", "rejected"], "description": "expanded proves Rust-only Recipe expansion; preview readiness requires later RestrictedGeometry GLB/readback and ChangeSet sealing evidence." },
+    "quality_profile": { "type": "string", "enum": ["interactive_preview", "production_concept"], "description": "Code-owned artifact quality profile used when the expanded ShapeProgram budget is derived. Existing production golden candidates remain production_concept." },
+    "non_functional_only": { "const": true }
+  },
+  "allOf": [
+    { "if": { "properties": { "context_mode": { "const": "initial_candidate" } }, "required": ["context_mode"] }, "then": { "properties": { "project_id": { "const": null }, "base_asset_version_id": { "const": null }, "snapshot_revision": { "const": null }, "target_part_id": { "const": null }, "changeset_id": { "const": null } } } },
+    { "if": { "properties": { "context_mode": { "const": "active_asset_edit" } }, "required": ["context_mode"] }, "then": { "properties": { "project_id": { "type": "string", "pattern": "^prj_[a-z0-9_\\-]+$" }, "base_asset_version_id": { "type": "string", "pattern": "^assetver_[a-z0-9_\\-]+$" }, "snapshot_revision": { "type": "integer", "minimum": 1 }, "target_part_id": { "type": ["string", "null"], "pattern": "^part_[a-z0-9_\\-]+$" } } } }
+  ]
+}

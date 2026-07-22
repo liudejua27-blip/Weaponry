@@ -66,6 +66,19 @@ def create_local_api(settings: LocalApiSettings) -> FastAPI:
         # allowed to send If-Match and read the returned ETag; otherwise a
         # local Vite/Tauri origin silently loses the Snapshot revision even
         # though the server itself emitted it.
-        expose_headers=["ETag", "Content-Disposition", "X-ForgeCAD-Render-Set-SHA256"],
+        expose_headers=[
+            "ETag",
+            "Content-Disposition",
+            "X-ForgeCAD-Render-Set-SHA256",
+            "X-ForgeCAD-Preview-GLB-SHA256",
+            "X-ForgeCAD-Base-Asset-Version-ID",
+            "X-ForgeCAD-Preview-Triangle-Count",
+            "X-ForgeCAD-Artifact-Profile",
+            "X-ForgeCAD-Artifact-Profile-SHA256",
+            "X-ForgeCAD-Shape-Program-SHA256",
+            "X-ForgeCAD-GLB-SHA256",
+            "X-ForgeCAD-GLB-Byte-Size",
+            "X-ForgeCAD-Triangle-Count",
+        ],
     )
     return app

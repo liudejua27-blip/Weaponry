@@ -194,7 +194,25 @@ def main() -> int:
         assert aluminum["extras"]["forgecad_texture_material_id"] == "mat_aluminum"
         assert automotive["extras"]["forgecad_texture_material_id"] == "mat_automotive_paint"
         assert "KHR_materials_clearcoat" not in aluminum.get("extensions", {})
-        assert automotive["extensions"]["KHR_materials_clearcoat"]["clearcoatFactor"] == 0.86
+        automotive_clearcoat = automotive["extensions"][
+            "KHR_materials_clearcoat"
+        ]
+        assert automotive_clearcoat["clearcoatFactor"] == 0.86
+        assert automotive_clearcoat["clearcoatRoughnessFactor"] == 1
+        assert (
+            automotive_clearcoat["clearcoatRoughnessTexture"]["index"]
+            == automotive["pbrMetallicRoughness"][
+                "metallicRoughnessTexture"
+            ]["index"]
+        )
+        assert (
+            automotive_clearcoat["clearcoatNormalTexture"]["index"]
+            == automotive["normalTexture"]["index"]
+        )
+        assert (
+            automotive_clearcoat["clearcoatNormalTexture"]["scale"]
+            == automotive["normalTexture"]["scale"]
+        )
         aluminum_base = aluminum["pbrMetallicRoughness"]["baseColorTexture"]["index"]
         automotive_base = automotive["pbrMetallicRoughness"]["baseColorTexture"]["index"]
         assert aluminum_base != automotive_base
@@ -264,8 +282,8 @@ def main() -> int:
 
     prop_ops = selected_operations["pack_future_weapon_prop"]
     assert prop_ops["prop_core"]["op"] == "loft"
-    assert prop_ops["prop_core"]["args"]["axis_length"] == 1500
-    assert prop_ops["prop_core"]["args"]["cross_section_scale"] == [250, 250]
+    assert prop_ops["prop_core"]["args"]["axis_length"] == 1320
+    assert prop_ops["prop_core"]["args"]["cross_section_scale"] == [190, 175]
     prop_profile_inputs = variant_profile_inputs(
         "pack_future_weapon_prop",
         "compact_prop_a",
@@ -279,25 +297,87 @@ def main() -> int:
         and len(profile["segments"]) == 8
         for profile in prop_core_contract["profiles"]
     )
-    assert prop_ops["prop_grip"]["op"] == "loft"
-    assert prop_ops["prop_grip"]["args"]["axis_length"] == 620
-    assert prop_ops["prop_grip"]["args"]["cross_section_scale"] == [130, 110]
-    assert prop_ops["prop_rear_housing"]["op"] == "capsule"
+    assert len(prop_core_contract["sections"]) == 7
+    assert prop_ops["prop_front_shroud"]["op"] == "loft"
+    assert prop_ops["prop_front_shroud"]["args"]["axis_length"] == 260
+    assert prop_ops["prop_front_shroud"]["args"]["cross_section_scale"] == [165, 155]
+    assert prop_ops["prop_front_trim"]["op"] == "cylinder"
+    assert prop_ops["prop_front_trim"]["args"]["material_id"] == "mat_aluminum"
+    assert prop_ops["prop_front_trim"]["args"]["radius"] == 125
+    assert prop_ops["prop_front_lens"]["op"] == "cylinder"
+    assert prop_ops["prop_front_lens"]["args"]["material_id"] == "mat_dark_glass"
+    assert prop_ops["prop_front_lens"]["args"]["radius"] == 88
+    assert prop_ops["prop_grip"]["op"] == "sweep"
+    assert prop_ops["prop_grip"]["args"]["profile_scale"] == [62, 48]
+    assert prop_ops["prop_grip"]["args"]["path_points"] == [
+        [-50, 210, 0],
+        [-30, 95, 0],
+        [0, -50, 0],
+        [55, -205, 0],
+    ]
+    assert prop_ops["prop_lower_fore_shell"]["op"] == "loft"
+    assert prop_ops["prop_lower_fore_shell"]["args"]["axis_length"] == 520
+    assert prop_ops["prop_lower_fore_shell"]["args"]["cross_section_scale"] == [88, 138]
+    assert prop_ops["prop_rear_housing"]["op"] == "loft"
+    assert prop_ops["prop_rear_housing"]["args"]["axis_length"] == 420
+    assert prop_ops["prop_rear_housing"]["args"]["cross_section_scale"] == [170, 160]
     assert "prop_sight" not in prop_ops
-    assert prop_ops["prop_sensor_housing"]["op"] == "box"
+    assert prop_ops["prop_sensor_housing"]["op"] == "loft"
+    assert prop_ops["prop_sensor_housing"]["args"]["axis_length"] == 300
     assert prop_ops["prop_sensor_housing"]["args"]["material_id"] == "mat_composite"
-    assert prop_ops["prop_sensor_glass"]["op"] == "box"
+    assert prop_ops["prop_sensor_glass"]["op"] == "cylinder"
     assert prop_ops["prop_sensor_glass"]["args"]["material_id"] == "mat_dark_glass"
+    assert prop_ops["prop_color_badge"]["op"] == "box"
+    assert prop_ops["prop_color_badge"]["args"]["material_id"] == "mat_signal_red"
+    assert prop_ops["prop_color_badge"]["args"]["size"] == [110, 28, 18]
     assert "prop_status_light" not in prop_ops
     assert prop_ops["visual_guard_prop_rear"]["op"] == "box"
-    assert prop_ops["visual_guard_prop_rear"]["args"]["size"] == [270.0, 100.0, 24.0]
+    assert prop_ops["visual_guard_prop_rear"]["args"]["size"] == [171.6, 83.6, 21.0]
     assert prop_ops["visual_guard_prop_mount_collar"]["op"] == "cylinder"
+    assert prop_ops["visual_groove_prop_flowline"]["op"] == "sweep"
+    assert prop_ops["visual_groove_prop_flowline"]["args"]["profile_scale"] == [5.0, 7.0]
+    assert len(prop_ops["visual_groove_prop_flowline"]["args"]["path_points"]) == 5
+    prop_vent_roles = [
+        role for role in prop_ops if role.startswith("visual_vent_prop_")
+    ]
+    assert prop_vent_roles == [
+        "visual_vent_prop_1",
+        "visual_vent_prop_2",
+        "visual_vent_prop_3",
+        "visual_vent_prop_4",
+    ]
+    assert all(prop_ops[role]["op"] == "wedge" for role in prop_vent_roles)
+    assert all(
+        prop_ops[left]["args"]["position"][0]
+        < prop_ops[right]["args"]["position"][0]
+        and prop_ops[left]["args"]["position"][1]
+        < prop_ops[right]["args"]["position"][1]
+        for left, right in zip(prop_vent_roles, prop_vent_roles[1:])
+    )
     assert 0 < _axis_overlap(
         selected_bounds["pack_future_weapon_prop"],
         "visual_panel_prop_dorsal",
         "prop_core",
         1,
     ) <= 0.0081
+    assert 0 < _axis_overlap(
+        selected_bounds["pack_future_weapon_prop"],
+        "visual_panel_prop_side",
+        "prop_core",
+        2,
+    ) <= 0.0061
+    for layered_role, axis in (
+        ("prop_front_shroud", 0),
+        ("prop_lower_fore_shell", 1),
+        ("prop_rear_housing", 0),
+        ("prop_sensor_housing", 1),
+    ):
+        assert _axis_overlap(
+            selected_bounds["pack_future_weapon_prop"],
+            layered_role,
+            "prop_core",
+            axis,
+        ) > 0
     _assert_aabb_overlap_and_exposure(
         selected_bounds["pack_future_weapon_prop"],
         "visual_guard_prop_mount_collar",
@@ -442,8 +522,18 @@ def main() -> int:
         wing_role = f"lift_wing_{'left' if position.endswith('left') else 'right'}"
         rotor_role = f"lift_rotor_{position}"
         assert aircraft_ops[bridge_role]["op"] == "sweep"
-        assert aircraft_ops[bridge_role]["args"]["profile_scale"] == [30.0, 30.0]
-        assert len(aircraft_ops[bridge_role]["args"]["path_points"]) == 4
+        assert aircraft_ops[bridge_role]["args"]["profile_scale"] == [18.0, 42.0]
+        assert aircraft_ops[bridge_role]["args"]["material_id"] == "mat_primary"
+        path_points = aircraft_ops[bridge_role]["args"]["path_points"]
+        assert len(path_points) == 3
+        _assert_vector_close(
+            path_points[1],
+            tuple(
+                (path_points[0][axis] + path_points[2][axis]) / 2
+                + (8.0 if axis == 1 else 0.0)
+                for axis in range(3)
+            ),
+        )
         _assert_aabb_overlap_and_exposure(
             selected_bounds["pack_aircraft_concept"],
             bridge_role,

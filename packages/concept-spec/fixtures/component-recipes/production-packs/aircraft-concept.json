@@ -1,0 +1,4740 @@
+{
+  "schema_version": "M108BProductionRecipeDomainPack@1",
+  "pack_id": "pack_aircraft-concept_production",
+  "domain_pack_id": "pack_aircraft_concept",
+  "recipes": [
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_aircraft_accent",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "航空概念嵌入式识别饰条",
+      "description": "仅用于非功能概念展示航空器的浅薄贴合识别饰条与表面节奏；不表达飞行、载荷或性能含义。",
+      "profiles": [],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_aircraft_accent",
+        "units": "millimeter",
+        "seed": 302,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_accent_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "size": [
+                164,
+                28,
+                54
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_signal"
+            }
+          },
+          {
+            "operation_id": "op_accent_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_accent_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                136,
+                6,
+                36
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_signal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_accent",
+            "operation_id": "op_accent_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_aircraft_accent_1",
+          "operation_id": "op_accent_panel",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_accent_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_signal",
+          "role": "signal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_aircraft_concept"
+      ],
+      "triangle_estimate": 3200,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_m108b_aircraft_accent_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_m108b_aircraft_visual_fin",
+      "version": 1,
+      "component_role": "trim",
+      "display_name": "航空概念贴壳翼面饰片",
+      "description": "仅用于非功能概念展示航空器的薄翼面饰片与展陈表面节奏；不包含飞行、载荷或性能含义。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_m108b_aircraft_fin",
+          "profile_sketch_id": "sketch_m108b_aircraft_fin"
+        }
+      ],
+      "section_sets": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_m108b_aircraft_visual_fin",
+        "units": "millimeter",
+        "seed": 303,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_visual_fin_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_m108b_aircraft_fin",
+              "profile_scale": [
+                96,
+                32
+              ],
+              "path_points": [
+                [
+                  -300,
+                  0,
+                  0
+                ],
+                [
+                  -100,
+                  20,
+                  6
+                ],
+                [
+                  120,
+                  20,
+                  0
+                ],
+                [
+                  320,
+                  0,
+                  0
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 1,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_trim"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_visual_fin_sweep",
+            "operation_id": "op_visual_fin_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          }
+        ],
+        "non_functional_only": true,
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_m108b_aircraft_fin",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "ddfdbbadb4ffad6ba0a290348f1f605c263dd8e28e517e97a2c5b5812300ed3e",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_m108b_aircraft_fin",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.82,
+                -0.14
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.32,
+                    -0.26
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.92,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.32,
+                    0.26
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.82,
+                    0.14
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.82,
+                    -0.14
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.82,
+                  -0.26
+                ],
+                "max": [
+                  0.92,
+                  0.26
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 96,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_m108b_aircraft_visual_fin"
+              }
+            }
+          }
+        ]
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_m108b_aircraft_visual_fin_1",
+          "operation_id": "op_visual_fin_sweep",
+          "role": "trim"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_visual_fin_mount",
+          "kind": "visual_mount",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        }
+      ],
+      "child_slots": [],
+      "allowed_domains": [
+        "pack_aircraft_concept"
+      ],
+      "triangle_estimate": 1600,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_aircraft_visual_fin_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_aircraft_streamlined_personal",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "流线个人概念展示航空器",
+      "description": "非功能概念展示外观：多截面流线机身、玻璃座舱、展陈翼面与检查纹带；不提供飞行、适航或性能结论。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_aircraft_streamlined_personal_tail",
+          "profile_sketch_id": "sketch_aircraft_streamlined_personal_tail"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_aircraft_streamlined_personal_body",
+          "sha256": "5f5ea6e7cf969642304eb4332cbbc40ebbdaa75e6b0b73a8a460a52f9cbb41c1",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_aircraft_streamlined_personal_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.92,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      -0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.96,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.92,
+                    -0.74
+                  ],
+                  "max": [
+                    0.96,
+                    0.74
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_aircraft_streamlined_personal"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_aircraft_streamlined_personal_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "scale": 0.25,
+                "twist_degrees": -10.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_aircraft_streamlined_personal_1",
+                "position": -0.6,
+                "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "scale": 0.62,
+                "twist_degrees": -5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_streamlined_personal_2",
+                "position": -0.1,
+                "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "scale": 0.94,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_streamlined_personal_3",
+                "position": 0.45,
+                "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "scale": 0.6,
+                "twist_degrees": 5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_streamlined_personal_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                "scale": 0.25,
+                "twist_degrees": 10.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_aircraft_streamlined_personal"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_aircraft_streamlined_personal_production",
+        "units": "millimeter",
+        "seed": 409,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_streamlined_personal_sections",
+              "cross_section_scale": [
+                780,
+                540
+              ],
+              "axis_length": 5600,
+              "position": [
+                2800.0,
+                0,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_shell"
+            }
+          },
+          {
+            "operation_id": "op_wing_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  -760,
+                  -110
+                ],
+                [
+                  120,
+                  -1250
+                ],
+                [
+                  1200,
+                  -930
+                ],
+                [
+                  720,
+                  0
+                ],
+                [
+                  1200,
+                  930
+                ],
+                [
+                  120,
+                  1250
+                ],
+                [
+                  -760,
+                  110
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_wing_extrude",
+            "op": "extrude",
+            "inputs": [
+              "op_wing_profile"
+            ],
+            "args": {
+              "position": [
+                2800,
+                380,
+                0
+              ],
+              "height": 88,
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_left",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3000,
+                360,
+                -1850
+              ],
+              "size": [
+                1900,
+                160,
+                1500
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_right",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3000,
+                360,
+                1850
+              ],
+              "size": [
+                1900,
+                160,
+                1500
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_left",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3200, 350, -2420],
+              "radius": 160,
+              "height": 620,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_right",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3200, 350, 2420],
+              "radius": 160,
+              "height": 620,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3500, 375, 0],
+              "size": [1000, 55, 200],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail",
+            "op": "bevel_approx",
+            "inputs": ["op_spine_detail_base"],
+            "args": {
+              "radius": 20,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_stabilizer",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [4800, 480, 0],
+              "size": [850, 920, 110],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_tailplane",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [4700, 270, 0],
+              "size": [900, 90, 2100],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [2350, 650, 0],
+              "size": [90, 34, 700],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame",
+            "op": "bevel_approx",
+            "inputs": ["op_canopy_frame_base"],
+            "args": {
+              "radius": 14,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3150, 450, -2350],
+              "size": [1400, 24, 60],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam",
+            "op": "bevel_approx",
+            "inputs": ["op_shoulder_seam_base"],
+            "args": {
+              "radius": 10,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_left",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [3515, 350, -2420],
+              "radius": 174,
+              "height": 52,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_right",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [3515, 350, 2420],
+              "radius": 174,
+              "height": 52,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_glass_canopy",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_streamlined_personal_sections",
+              "cross_section_scale": [
+                510,
+                320
+              ],
+              "axis_length": 2700,
+              "position": [
+                2475,
+                470,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_aircraft_streamlined_personal_glass"
+            }
+          },
+          {
+            "operation_id": "op_tail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_aircraft_streamlined_personal_tail",
+              "profile_scale": [
+                170,
+                58
+              ],
+              "path_points": [
+                [
+                  -320,
+                  0,
+                  0
+                ],
+                [
+                  -80,
+                  300,
+                  0
+                ],
+                [
+                  190,
+                  460,
+                  0
+                ],
+                [
+                  480,
+                  140,
+                  0
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                4380,
+                110,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_collar_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -210
+                ],
+                [
+                  180,
+                  -150
+                ],
+                [
+                  220,
+                  0
+                ],
+                [
+                  180,
+                  150
+                ],
+                [
+                  0,
+                  210
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_collar_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_collar_profile"
+            ],
+            "args": {
+              "position": [
+                4368.0,
+                120,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_streamlined_personal_trim"
+            }
+          },
+          {
+            "operation_id": "op_inspection_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                2800.0,
+                -20,
+                496.8
+              ],
+              "size": [
+                1792.0,
+                20,
+                55
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_streamlined_personal_decal"
+            }
+          },
+          {
+            "operation_id": "op_inspection_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_inspection_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                1120.0,
+                6,
+                42
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_streamlined_personal_decal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_op_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_left",
+            "operation_id": "op_wing_shoulder_left",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_right",
+            "operation_id": "op_wing_shoulder_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_left",
+            "operation_id": "op_wingtip_nacelle_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_right",
+            "operation_id": "op_wingtip_nacelle_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_spine_detail",
+            "operation_id": "op_spine_detail",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_tail_stabilizer",
+            "operation_id": "op_tail_stabilizer",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_tailplane",
+            "operation_id": "op_tailplane",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_canopy_frame",
+            "operation_id": "op_canopy_frame",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_shoulder_seam",
+            "operation_id": "op_shoulder_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_left",
+            "operation_id": "op_nacelle_cap_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_right",
+            "operation_id": "op_nacelle_cap_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_glass_canopy",
+            "operation_id": "op_glass_canopy",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_op_tail_sweep",
+            "operation_id": "op_tail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_collar_revolve",
+            "operation_id": "op_collar_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_inspection_panel",
+            "operation_id": "op_inspection_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true,
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_aircraft_streamlined_personal_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "5f5ea6e7cf969642304eb4332cbbc40ebbdaa75e6b0b73a8a460a52f9cbb41c1",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_aircraft_streamlined_personal_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.92,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        -0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.96,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.92,
+                      -0.74
+                    ],
+                    "max": [
+                      0.96,
+                      0.74
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_aircraft_streamlined_personal"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_aircraft_streamlined_personal_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "scale": 0.25,
+                  "twist_degrees": -10.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_aircraft_streamlined_personal_1",
+                  "position": -0.6,
+                  "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "scale": 0.62,
+                  "twist_degrees": -5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_streamlined_personal_2",
+                  "position": -0.1,
+                  "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "scale": 0.94,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_streamlined_personal_3",
+                  "position": 0.45,
+                  "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "scale": 0.6,
+                  "twist_degrees": 5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_streamlined_personal_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_aircraft_streamlined_personal_body",
+                  "scale": 0.25,
+                  "twist_degrees": 10.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_streamlined_personal"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_aircraft_streamlined_personal_tail",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "450738ec98f703da75e2bafd5a9b920cf4218198f6e4fc360e0fb612a89b2e94",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_aircraft_streamlined_personal_tail",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.9,
+                -0.12
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.9,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    0.12
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    -0.12
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.9,
+                  -0.24
+                ],
+                "max": [
+                  0.9,
+                  0.24
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 32,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_streamlined_personal"
+              }
+            }
+          }
+        ]
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_2",
+          "operation_id": "op_wing_shoulder_left",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_3",
+          "operation_id": "op_glass_canopy",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_4",
+          "operation_id": "op_tail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_5",
+          "operation_id": "op_collar_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_6",
+          "operation_id": "op_inspection_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_7",
+          "operation_id": "op_wing_shoulder_right",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_8",
+          "operation_id": "op_wingtip_nacelle_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_9",
+          "operation_id": "op_wingtip_nacelle_right",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_10",
+          "operation_id": "op_spine_detail",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_11",
+          "operation_id": "op_tail_stabilizer",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_12",
+          "operation_id": "op_tailplane",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_13",
+          "operation_id": "op_canopy_frame",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_14",
+          "operation_id": "op_shoulder_seam",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_15",
+          "operation_id": "op_nacelle_cap_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_streamlined_personal_16",
+          "operation_id": "op_nacelle_cap_right",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_1",
+          "kind": "visual_mount",
+          "position": [
+            1400.0,
+            0,
+            624.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_2",
+          "kind": "visual_mount",
+          "position": [
+            2016.0,
+            0,
+            -663.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_3",
+          "kind": "visual_mount",
+          "position": [
+            2912.0,
+            100,
+            702.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_4",
+          "kind": "visual_mount",
+          "position": [
+            3472.0,
+            0,
+            -702.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_5",
+          "kind": "visual_mount",
+          "position": [
+            4144.0,
+            120,
+            546.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_6",
+          "kind": "visual_mount",
+          "position": [
+            4648.0,
+            0,
+            -546.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_streamlined_personal_detail_7",
+          "kind": "visual_mount",
+          "position": [
+            2632.0,
+            513.0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          2800.0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_streamlined_personal_shell",
+          "role": "shell",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_aircraft_streamlined_personal_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_aircraft_streamlined_personal_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_aircraft_streamlined_personal_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_1",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_2",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_3",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_4",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_4",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_5",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_5",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_6",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_6",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_streamlined_personal_detail_7",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_streamlined_personal_detail_7",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_aircraft_concept"
+      ],
+      "triangle_estimate": 22000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_aircraft_streamlined_personal_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_aircraft_explorer_tilt",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "探索倾转概念展示航空器",
+      "description": "非功能概念展示外观：宽肩连续曲面、观察玻璃罩、分层翼片与环形端饰；不提供飞行、适航或性能结论。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_aircraft_explorer_tilt_tail",
+          "profile_sketch_id": "sketch_aircraft_explorer_tilt_tail"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_aircraft_explorer_tilt_body",
+          "sha256": "40b3a1d05c428f325330b50d479e0e43e8fcf84ba3035d350f55c68a910d07e3",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_aircraft_explorer_tilt_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.92,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      -0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.96,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.92,
+                    -0.74
+                  ],
+                  "max": [
+                    0.96,
+                    0.74
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_aircraft_explorer_tilt"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_aircraft_explorer_tilt_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "scale": 0.52,
+                "twist_degrees": -10.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_aircraft_explorer_tilt_1",
+                "position": -0.6,
+                "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "scale": 0.92,
+                "twist_degrees": -5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_explorer_tilt_2",
+                "position": -0.1,
+                "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "scale": 1.08,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_explorer_tilt_3",
+                "position": 0.45,
+                "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "scale": 0.94,
+                "twist_degrees": 5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_explorer_tilt_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                "scale": 0.42,
+                "twist_degrees": 10.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_aircraft_explorer_tilt"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_aircraft_explorer_tilt_production",
+        "units": "millimeter",
+        "seed": 410,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_explorer_tilt_sections",
+              "cross_section_scale": [
+                980,
+                690
+              ],
+              "axis_length": 6400,
+              "position": [
+                3200.0,
+                0,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_shell"
+            }
+          },
+          {
+            "operation_id": "op_wing_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  -1180,
+                  -140
+                ],
+                [
+                  240,
+                  -1850
+                ],
+                [
+                  1450,
+                  -1420
+                ],
+                [
+                  950,
+                  0
+                ],
+                [
+                  1450,
+                  1420
+                ],
+                [
+                  240,
+                  1850
+                ],
+                [
+                  -1180,
+                  140
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_wing_extrude",
+            "op": "extrude",
+            "inputs": [
+              "op_wing_profile"
+            ],
+            "args": {
+              "position": [
+                3240,
+                430,
+                0
+              ],
+              "height": 104,
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_left",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3350,
+                430,
+                -2400
+              ],
+              "size": [
+                2500,
+                185,
+                1920
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_right",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3350,
+                430,
+                2400
+              ],
+              "size": [
+                2500,
+                185,
+                1920
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_left",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3600, 420, -3180],
+              "radius": 190,
+              "height": 800,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_right",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3600, 420, 3180],
+              "radius": 190,
+              "height": 800,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3800, 445, 0],
+              "size": [1400, 60, 240],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail",
+            "op": "bevel_approx",
+            "inputs": ["op_spine_detail_base"],
+            "args": {
+              "radius": 24,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_stabilizer",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [5300, 600, 0],
+              "size": [960, 1100, 130],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_tailplane",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [5250, 300, 0],
+              "size": [1150, 100, 2800],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [2500, 760, 0],
+              "size": [90, 36, 860],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame",
+            "op": "bevel_approx",
+            "inputs": ["op_canopy_frame_base"],
+            "args": {
+              "radius": 15,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3500, 540, -3000],
+              "size": [1800, 24, 70],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam",
+            "op": "bevel_approx",
+            "inputs": ["op_shoulder_seam_base"],
+            "args": {
+              "radius": 11,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_left",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [4035, 420, -3180],
+              "radius": 205,
+              "height": 58,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_right",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [4035, 420, 3180],
+              "radius": 205,
+              "height": 58,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_glass_canopy",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_explorer_tilt_sections",
+              "cross_section_scale": [
+                620,
+                360
+              ],
+              "axis_length": 2100,
+              "position": [
+                2650,
+                565,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_aircraft_explorer_tilt_glass"
+            }
+          },
+          {
+            "operation_id": "op_tail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_aircraft_explorer_tilt_tail",
+              "profile_scale": [
+                215,
+                70
+              ],
+              "path_points": [
+                [
+                  -460,
+                  0,
+                  0
+                ],
+                [
+                  -120,
+                  420,
+                  0
+                ],
+                [
+                  260,
+                  620,
+                  0
+                ],
+                [
+                  720,
+                  180,
+                  0
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                4960,
+                125,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_collar_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -210
+                ],
+                [
+                  180,
+                  -150
+                ],
+                [
+                  220,
+                  0
+                ],
+                [
+                  180,
+                  150
+                ],
+                [
+                  0,
+                  210
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_collar_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_collar_profile"
+            ],
+            "args": {
+              "position": [
+                4992.0,
+                120,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_explorer_tilt_trim"
+            }
+          },
+          {
+            "operation_id": "op_inspection_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3200.0,
+                -20,
+                634.8
+              ],
+              "size": [
+                2048.0,
+                20,
+                55
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_explorer_tilt_decal"
+            }
+          },
+          {
+            "operation_id": "op_inspection_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_inspection_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                1280.0,
+                6,
+                42
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_explorer_tilt_decal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_op_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_left",
+            "operation_id": "op_wing_shoulder_left",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_right",
+            "operation_id": "op_wing_shoulder_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_left",
+            "operation_id": "op_wingtip_nacelle_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_right",
+            "operation_id": "op_wingtip_nacelle_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_spine_detail",
+            "operation_id": "op_spine_detail",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_tail_stabilizer",
+            "operation_id": "op_tail_stabilizer",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_tailplane",
+            "operation_id": "op_tailplane",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_canopy_frame",
+            "operation_id": "op_canopy_frame",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_shoulder_seam",
+            "operation_id": "op_shoulder_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_left",
+            "operation_id": "op_nacelle_cap_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_right",
+            "operation_id": "op_nacelle_cap_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_glass_canopy",
+            "operation_id": "op_glass_canopy",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_op_tail_sweep",
+            "operation_id": "op_tail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_collar_revolve",
+            "operation_id": "op_collar_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_inspection_panel",
+            "operation_id": "op_inspection_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true,
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_aircraft_explorer_tilt_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "40b3a1d05c428f325330b50d479e0e43e8fcf84ba3035d350f55c68a910d07e3",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_aircraft_explorer_tilt_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.92,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        -0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.96,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.92,
+                      -0.74
+                    ],
+                    "max": [
+                      0.96,
+                      0.74
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_aircraft_explorer_tilt"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_aircraft_explorer_tilt_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "scale": 0.52,
+                  "twist_degrees": -10.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_aircraft_explorer_tilt_1",
+                  "position": -0.6,
+                  "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "scale": 0.92,
+                  "twist_degrees": -5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_explorer_tilt_2",
+                  "position": -0.1,
+                  "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "scale": 1.08,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_explorer_tilt_3",
+                  "position": 0.45,
+                  "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "scale": 0.94,
+                  "twist_degrees": 5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_explorer_tilt_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_aircraft_explorer_tilt_body",
+                  "scale": 0.42,
+                  "twist_degrees": 10.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_explorer_tilt"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_aircraft_explorer_tilt_tail",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "04866d2fb32294d6f3d7f9c8f26fef43926dfe23e9d32a3889b00672477d2a5c",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_aircraft_explorer_tilt_tail",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.9,
+                -0.12
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.9,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    0.12
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    -0.12
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.9,
+                  -0.24
+                ],
+                "max": [
+                  0.9,
+                  0.24
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 32,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_explorer_tilt"
+              }
+            }
+          }
+        ]
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_2",
+          "operation_id": "op_wing_shoulder_left",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_3",
+          "operation_id": "op_glass_canopy",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_4",
+          "operation_id": "op_tail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_5",
+          "operation_id": "op_collar_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_6",
+          "operation_id": "op_inspection_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_7",
+          "operation_id": "op_wing_shoulder_right",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_8",
+          "operation_id": "op_wingtip_nacelle_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_9",
+          "operation_id": "op_wingtip_nacelle_right",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_10",
+          "operation_id": "op_spine_detail",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_11",
+          "operation_id": "op_tail_stabilizer",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_12",
+          "operation_id": "op_tailplane",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_13",
+          "operation_id": "op_canopy_frame",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_14",
+          "operation_id": "op_shoulder_seam",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_15",
+          "operation_id": "op_nacelle_cap_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_explorer_tilt_16",
+          "operation_id": "op_nacelle_cap_right",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_1",
+          "kind": "visual_mount",
+          "position": [
+            1600.0,
+            0,
+            784.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_2",
+          "kind": "visual_mount",
+          "position": [
+            2304.0,
+            0,
+            -833.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_3",
+          "kind": "visual_mount",
+          "position": [
+            3328.0,
+            100,
+            882.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_4",
+          "kind": "visual_mount",
+          "position": [
+            3968.0,
+            0,
+            -882.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_5",
+          "kind": "visual_mount",
+          "position": [
+            4736.0,
+            120,
+            686.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_6",
+          "kind": "visual_mount",
+          "position": [
+            5312.0,
+            0,
+            -686.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_explorer_tilt_detail_7",
+          "kind": "visual_mount",
+          "position": [
+            3008.0,
+            655.5,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          3200.0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_explorer_tilt_shell",
+          "role": "shell",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_aircraft_explorer_tilt_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_aircraft_explorer_tilt_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_aircraft_explorer_tilt_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_1",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_2",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_3",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_4",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_4",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_5",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_5",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_6",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_6",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_explorer_tilt_detail_7",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_explorer_tilt_detail_7",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_aircraft_concept"
+      ],
+      "triangle_estimate": 22000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_aircraft_explorer_tilt_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_aircraft_cargo_display",
+      "version": 1,
+      "component_role": "primary_form",
+      "display_name": "载运主题概念展示航空器",
+      "description": "非功能概念展示外观：高容积连续外壳、前部玻璃罩、展陈翼片和识别面板；不提供飞行、载荷、适航或性能结论。",
+      "profiles": [
+        {
+          "profile_input_id": "profileinput_aircraft_cargo_display_tail",
+          "profile_sketch_id": "sketch_aircraft_cargo_display_tail"
+        }
+      ],
+      "section_sets": [
+        {
+          "section_set_id": "sectionset_aircraft_cargo_display_body",
+          "sha256": "5f707ed50827cd432bbebdd0cd53e0fd104ada35d73fcd81a805ea47f42109cf",
+          "canonical_payload": {
+            "schema_version": "ProfileSectionSet@1",
+            "section_set_id": "sectionset_aircraft_cargo_display_body",
+            "version": 1,
+            "main_axis": "x",
+            "profiles": [
+              {
+                "schema_version": "ProfileSketch@1",
+                "sketch_id": "sketch_aircraft_cargo_display_body",
+                "version": 1,
+                "plane": "cross_section",
+                "closed": true,
+                "winding": "counter_clockwise",
+                "start": [
+                  -0.92,
+                  -0.38
+                ],
+                "segments": [
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      -0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      -0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      -0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.96,
+                      0.0
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.88,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      0.38,
+                      0.74
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.48,
+                      0.72
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      0.38
+                    ]
+                  },
+                  {
+                    "kind": "line",
+                    "to": [
+                      -0.92,
+                      -0.38
+                    ]
+                  }
+                ],
+                "holes": [],
+                "normalized_bounds": {
+                  "min": [
+                    -0.92,
+                    -0.74
+                  ],
+                  "max": [
+                    0.96,
+                    0.74
+                  ]
+                },
+                "symmetry": "horizontal",
+                "continuity_hint": "tangent",
+                "resample_count": 256,
+                "provenance": {
+                  "source": "component_recipe",
+                  "source_ref": "recipe_aircraft_cargo_display"
+                }
+              }
+            ],
+            "sections": [
+              {
+                "section_id": "section_aircraft_cargo_display_0",
+                "position": -1.0,
+                "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                "scale": 0.66,
+                "twist_degrees": -10.0,
+                "cap_policy": "start"
+              },
+              {
+                "section_id": "section_aircraft_cargo_display_1",
+                "position": -0.6,
+                "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                "scale": 1.02,
+                "twist_degrees": -5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_cargo_display_2",
+                "position": -0.1,
+                "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                "scale": 1.22,
+                "twist_degrees": 0.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_cargo_display_3",
+                "position": 0.45,
+                "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                "scale": 1.16,
+                "twist_degrees": 5.0,
+                "cap_policy": "none"
+              },
+              {
+                "section_id": "section_aircraft_cargo_display_4",
+                "position": 1.0,
+                "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                "scale": 0.64,
+                "twist_degrees": 10.0,
+                "cap_policy": "end"
+              }
+            ],
+            "resample_policy": {
+              "mode": "uniform_count",
+              "count": 256
+            },
+            "symmetry": "horizontal",
+            "provenance": {
+              "source": "component_recipe",
+              "source_ref": "recipe_aircraft_cargo_display"
+            }
+          }
+        }
+      ],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_recipe_aircraft_cargo_display_production",
+        "units": "millimeter",
+        "seed": 411,
+        "triangle_budget": 22000,
+        "parameters": [],
+        "operations": [
+          {
+            "operation_id": "op_main_loft",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_cargo_display_sections",
+              "cross_section_scale": [
+                1120,
+                820
+              ],
+              "axis_length": 7100,
+              "position": [
+                3550.0,
+                0,
+                0
+              ],
+              "part_role": "primary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_shell"
+            }
+          },
+          {
+            "operation_id": "op_wing_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  -1470,
+                  -165
+                ],
+                [
+                  -140,
+                  -2100
+                ],
+                [
+                  1300,
+                  -1970
+                ],
+                [
+                  940,
+                  0
+                ],
+                [
+                  1300,
+                  1970
+                ],
+                [
+                  -140,
+                  2100
+                ],
+                [
+                  -1470,
+                  165
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_wing_extrude",
+            "op": "extrude",
+            "inputs": [
+              "op_wing_profile"
+            ],
+            "args": {
+              "position": [
+                3650,
+                500,
+                0
+              ],
+              "height": 120,
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_left",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3700,
+                500,
+                -3000
+              ],
+              "size": [
+                2800,
+                200,
+                2520
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_wing_shoulder_right",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [
+                3700,
+                500,
+                3000
+              ],
+              "size": [
+                2800,
+                200,
+                2520
+              ],
+              "part_role": "secondary_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_left",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3900, 500, -4050],
+              "radius": 220,
+              "height": 950,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_wingtip_nacelle_right",
+            "op": "capsule",
+            "inputs": [],
+            "args": {
+              "position": [3900, 500, 4050],
+              "radius": 220,
+              "height": 950,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [4200, 515, 0],
+              "size": [1800, 70, 280],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_spine_detail",
+            "op": "bevel_approx",
+            "inputs": ["op_spine_detail_base"],
+            "args": {
+              "radius": 28,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_tail_stabilizer",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [5950, 700, 0],
+              "size": [1100, 1350, 160],
+              "part_role": "trim",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_tailplane",
+            "op": "wedge",
+            "inputs": [],
+            "args": {
+              "position": [5900, 340, 0],
+              "size": [1300, 110, 3400],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [2850, 940, 0],
+              "size": [105, 40, 1080],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_canopy_frame",
+            "op": "bevel_approx",
+            "inputs": ["op_canopy_frame_base"],
+            "args": {
+              "radius": 17,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [3900, 615, -3800],
+              "size": [2100, 28, 80],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_shoulder_seam",
+            "op": "bevel_approx",
+            "inputs": ["op_shoulder_seam_base"],
+            "args": {
+              "radius": 13,
+              "segments": 2,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_left",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [4400, 500, -4050],
+              "radius": 235,
+              "height": 64,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_nacelle_cap_right",
+            "op": "cylinder",
+            "inputs": [],
+            "args": {
+              "position": [4400, 500, 4050],
+              "radius": 235,
+              "height": 64,
+              "axis": [1, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_glass_canopy",
+            "op": "loft",
+            "inputs": [],
+            "args": {
+              "section_set_input_id": "profileinput_aircraft_cargo_display_sections",
+              "cross_section_scale": [
+                820,
+                480
+              ],
+              "axis_length": 3300,
+              "position": [
+                3150,
+                650,
+                0
+              ],
+              "part_role": "cabin_form",
+              "material_id": "mat_dark_glass",
+              "zone_id": "zone_aircraft_cargo_display_glass"
+            }
+          },
+          {
+            "operation_id": "op_tail_sweep",
+            "op": "sweep",
+            "inputs": [],
+            "args": {
+              "profile_input_id": "profileinput_aircraft_cargo_display_tail",
+              "profile_scale": [
+                250,
+                78
+              ],
+              "path_points": [
+                [
+                  -580,
+                  0,
+                  0
+                ],
+                [
+                  -160,
+                  360,
+                  0
+                ],
+                [
+                  310,
+                  540,
+                  0
+                ],
+                [
+                  860,
+                  170,
+                  0
+                ]
+              ],
+              "path_closed": false,
+              "path_twist_degrees": 0,
+              "cap_start": true,
+              "cap_end": true,
+              "position": [
+                5560,
+                135,
+                0
+              ],
+              "part_role": "trim",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_collar_profile",
+            "op": "profile",
+            "inputs": [],
+            "args": {
+              "points": [
+                [
+                  0,
+                  -210
+                ],
+                [
+                  180,
+                  -150
+                ],
+                [
+                  220,
+                  0
+                ],
+                [
+                  180,
+                  150
+                ],
+                [
+                  0,
+                  210
+                ]
+              ]
+            }
+          },
+          {
+            "operation_id": "op_collar_revolve",
+            "op": "revolve",
+            "inputs": [
+              "op_collar_profile"
+            ],
+            "args": {
+              "position": [
+                5538.0,
+                120,
+                0
+              ],
+              "angle": 6.283185307179586,
+              "radial_segments": 48,
+              "cap_start": true,
+              "cap_end": true,
+              "part_role": "visual_detail",
+              "material_id": "mat_graphite",
+              "zone_id": "zone_aircraft_cargo_display_trim"
+            }
+          },
+          {
+            "operation_id": "op_inspection_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [
+                3550.0,
+                -20,
+                754.4
+              ],
+              "size": [
+                2272.0,
+                20,
+                55
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_cargo_display_decal"
+            }
+          },
+          {
+            "operation_id": "op_inspection_panel",
+            "op": "surface_panel",
+            "inputs": [
+              "op_inspection_base"
+            ],
+            "args": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "axis": [
+                0,
+                1,
+                0
+              ],
+              "size": [
+                1420.0,
+                6,
+                42
+              ],
+              "part_role": "visual_detail",
+              "material_id": "mat_signal_red",
+              "zone_id": "zone_aircraft_cargo_display_decal"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "output_id": "output_op_main_loft",
+            "operation_id": "op_main_loft",
+            "kind": "mesh",
+            "part_role": "primary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_left",
+            "operation_id": "op_wing_shoulder_left",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wing_shoulder_right",
+            "operation_id": "op_wing_shoulder_right",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_left",
+            "operation_id": "op_wingtip_nacelle_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_wingtip_nacelle_right",
+            "operation_id": "op_wingtip_nacelle_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_spine_detail",
+            "operation_id": "op_spine_detail",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_tail_stabilizer",
+            "operation_id": "op_tail_stabilizer",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_tailplane",
+            "operation_id": "op_tailplane",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_canopy_frame",
+            "operation_id": "op_canopy_frame",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_shoulder_seam",
+            "operation_id": "op_shoulder_seam",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_left",
+            "operation_id": "op_nacelle_cap_left",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_nacelle_cap_right",
+            "operation_id": "op_nacelle_cap_right",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_glass_canopy",
+            "operation_id": "op_glass_canopy",
+            "kind": "mesh",
+            "part_role": "cabin_form"
+          },
+          {
+            "output_id": "output_op_tail_sweep",
+            "operation_id": "op_tail_sweep",
+            "kind": "mesh",
+            "part_role": "trim"
+          },
+          {
+            "output_id": "output_op_collar_revolve",
+            "operation_id": "op_collar_revolve",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_op_inspection_panel",
+            "operation_id": "op_inspection_panel",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          }
+        ],
+        "non_functional_only": true,
+        "profile_inputs": [
+          {
+            "input_id": "profileinput_aircraft_cargo_display_sections",
+            "input_kind": "profile_section_set",
+            "contract_version": "ProfileSectionSet@1",
+            "input_sha256": "5f707ed50827cd432bbebdd0cd53e0fd104ada35d73fcd81a805ea47f42109cf",
+            "canonical_payload": {
+              "schema_version": "ProfileSectionSet@1",
+              "section_set_id": "sectionset_aircraft_cargo_display_body",
+              "version": 1,
+              "main_axis": "x",
+              "profiles": [
+                {
+                  "schema_version": "ProfileSketch@1",
+                  "sketch_id": "sketch_aircraft_cargo_display_body",
+                  "version": 1,
+                  "plane": "cross_section",
+                  "closed": true,
+                  "winding": "counter_clockwise",
+                  "start": [
+                    -0.92,
+                    -0.38
+                  ],
+                  "segments": [
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        -0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        -0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        -0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.96,
+                        0.0
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.88,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        0.38,
+                        0.74
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.48,
+                        0.72
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        0.38
+                      ]
+                    },
+                    {
+                      "kind": "line",
+                      "to": [
+                        -0.92,
+                        -0.38
+                      ]
+                    }
+                  ],
+                  "holes": [],
+                  "normalized_bounds": {
+                    "min": [
+                      -0.92,
+                      -0.74
+                    ],
+                    "max": [
+                      0.96,
+                      0.74
+                    ]
+                  },
+                  "symmetry": "horizontal",
+                  "continuity_hint": "tangent",
+                  "resample_count": 256,
+                  "provenance": {
+                    "source": "component_recipe",
+                    "source_ref": "recipe_aircraft_cargo_display"
+                  }
+                }
+              ],
+              "sections": [
+                {
+                  "section_id": "section_aircraft_cargo_display_0",
+                  "position": -1.0,
+                  "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                  "scale": 0.66,
+                  "twist_degrees": -10.0,
+                  "cap_policy": "start"
+                },
+                {
+                  "section_id": "section_aircraft_cargo_display_1",
+                  "position": -0.6,
+                  "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                  "scale": 1.02,
+                  "twist_degrees": -5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_cargo_display_2",
+                  "position": -0.1,
+                  "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                  "scale": 1.22,
+                  "twist_degrees": 0.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_cargo_display_3",
+                  "position": 0.45,
+                  "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                  "scale": 1.16,
+                  "twist_degrees": 5.0,
+                  "cap_policy": "none"
+                },
+                {
+                  "section_id": "section_aircraft_cargo_display_4",
+                  "position": 1.0,
+                  "profile_sketch_id": "sketch_aircraft_cargo_display_body",
+                  "scale": 0.64,
+                  "twist_degrees": 10.0,
+                  "cap_policy": "end"
+                }
+              ],
+              "resample_policy": {
+                "mode": "uniform_count",
+                "count": 256
+              },
+              "symmetry": "horizontal",
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_cargo_display"
+              }
+            }
+          },
+          {
+            "input_id": "profileinput_aircraft_cargo_display_tail",
+            "input_kind": "profile_sketch",
+            "contract_version": "ProfileSketch@1",
+            "input_sha256": "9e7d8bfa9fed7fc89015f8d03f442dabee81948cfb550a342066e3d2edf7d64c",
+            "canonical_payload": {
+              "schema_version": "ProfileSketch@1",
+              "sketch_id": "sketch_aircraft_cargo_display_tail",
+              "version": 1,
+              "plane": "cross_section",
+              "closed": true,
+              "winding": "counter_clockwise",
+              "start": [
+                -0.9,
+                -0.12
+              ],
+              "segments": [
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    -0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.9,
+                    0.0
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    0.35,
+                    0.24
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    0.12
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "to": [
+                    -0.9,
+                    -0.12
+                  ]
+                }
+              ],
+              "holes": [],
+              "normalized_bounds": {
+                "min": [
+                  -0.9,
+                  -0.24
+                ],
+                "max": [
+                  0.9,
+                  0.24
+                ]
+              },
+              "symmetry": "horizontal",
+              "continuity_hint": "tangent",
+              "resample_count": 32,
+              "provenance": {
+                "source": "component_recipe",
+                "source_ref": "recipe_aircraft_cargo_display"
+              }
+            }
+          }
+        ]
+      },
+      "feature_template": [
+        {
+          "feature_id": "feature_aircraft_cargo_display_1",
+          "operation_id": "op_main_loft",
+          "role": "primary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_2",
+          "operation_id": "op_wing_shoulder_left",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_3",
+          "operation_id": "op_glass_canopy",
+          "role": "cabin_form"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_4",
+          "operation_id": "op_tail_sweep",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_5",
+          "operation_id": "op_collar_revolve",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_6",
+          "operation_id": "op_inspection_panel",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_7",
+          "operation_id": "op_wing_shoulder_right",
+          "role": "secondary_form"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_8",
+          "operation_id": "op_wingtip_nacelle_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_9",
+          "operation_id": "op_wingtip_nacelle_right",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_10",
+          "operation_id": "op_spine_detail",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_11",
+          "operation_id": "op_tail_stabilizer",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_12",
+          "operation_id": "op_tailplane",
+          "role": "trim"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_13",
+          "operation_id": "op_canopy_frame",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_14",
+          "operation_id": "op_shoulder_seam",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_15",
+          "operation_id": "op_nacelle_cap_left",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_aircraft_cargo_display_16",
+          "operation_id": "op_nacelle_cap_right",
+          "role": "visual_detail"
+        }
+      ],
+      "parameter_bindings": [],
+      "connectors": [
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_1",
+          "kind": "visual_mount",
+          "position": [
+            1775.0,
+            0,
+            896.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_2",
+          "kind": "visual_mount",
+          "position": [
+            2556.0,
+            0,
+            -952.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_3",
+          "kind": "visual_mount",
+          "position": [
+            3692.0,
+            100,
+            1008.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_4",
+          "kind": "visual_mount",
+          "position": [
+            4402.0,
+            0,
+            -1008.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_5",
+          "kind": "visual_mount",
+          "position": [
+            5254.0,
+            120,
+            784.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_6",
+          "kind": "visual_mount",
+          "position": [
+            5893.0,
+            0,
+            -784.0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "connector_id": "connector_aircraft_cargo_display_detail_7",
+          "kind": "visual_mount",
+          "position": [
+            3337.0,
+            779.0,
+            0
+          ],
+          "normal": [
+            1,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "pivot": {
+        "position": [
+          3550.0,
+          0,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      "root_local_transform": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "material_zones": [
+        {
+          "zone_id": "zone_aircraft_cargo_display_shell",
+          "role": "shell",
+          "material_preset_id": "mat_aluminum"
+        },
+        {
+          "zone_id": "zone_aircraft_cargo_display_trim",
+          "role": "trim",
+          "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_aircraft_cargo_display_glass",
+          "role": "glass",
+          "material_preset_id": "mat_dark_glass"
+        },
+        {
+          "zone_id": "zone_aircraft_cargo_display_decal",
+          "role": "decal",
+          "material_preset_id": "mat_signal_red"
+        }
+      ],
+      "child_slots": [
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_1",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_1",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_2",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_2",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_3",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_3",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_4",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_4",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_5",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_5",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_6",
+          "accepted_roles": [
+            "trim"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_visual_fin",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_6",
+          "child_connector_id": "connector_aircraft_visual_fin_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.18,
+              0,
+              -0.18
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        },
+        {
+          "slot_id": "slot_aircraft_cargo_display_detail_7",
+          "accepted_roles": [
+            "visual_detail"
+          ],
+          "child_recipe_id": "recipe_m108b_aircraft_accent",
+          "parent_connector_id": "connector_aircraft_cargo_display_detail_7",
+          "child_connector_id": "connector_aircraft_accent_mount",
+          "parent_local_transform": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          "required": true
+        }
+      ],
+      "allowed_domains": [
+        "pack_aircraft_concept"
+      ],
+      "triangle_estimate": 22000,
+      "quality_status": "passed",
+      "source": {
+        "source_kind": "forgecad_first_party",
+        "source_id": "source_m108b_aircraft_visual"
+      },
+      "license": {
+        "license_id": "ForgeCAD-Internal-Visual-Only",
+        "redistributable": false
+      },
+      "review_state": {
+        "review_id": "review_m108b_aircraft_cargo_display_v1",
+        "reviewed_at": "2026-07-18T00:00:00Z",
+        "reviewer_kind": "forgecad_internal"
+      },
+      "non_functional_only": true
+    }
+  ],
+  "root_recipe_ids": [
+    "recipe_aircraft_streamlined_personal",
+    "recipe_aircraft_explorer_tilt",
+    "recipe_aircraft_cargo_display"
+  ]
+}
