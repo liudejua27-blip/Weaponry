@@ -383,9 +383,12 @@ async function main() {
         assert((await packageResponse).ok, 'agent concept render package request must succeed')
         const packageArtifact = await packageDownload
         assert(packageArtifact.suggestedFilename().endsWith('-concept-views.zip'), 'concept package must download a bounded ZIP')
+        await packageArtifact.path()
         const glbDownload = page.waitForEvent('download')
         await exportDrawer.getByRole('button', { name: '下载 3D 模型 (GLB)', exact: true }).click()
-        assert((await glbDownload).suggestedFilename().endsWith('.glb'), 'Agent drawer must download a GLB directly')
+        const glbArtifact = await glbDownload
+        assert(glbArtifact.suggestedFilename().endsWith('.glb'), 'Agent drawer must download a GLB directly')
+        await glbArtifact.path()
         const beforeReloadCanvas = await page.locator('.weapon-viewport canvas').count()
         await page.reload({ waitUntil: 'networkidle' })
         await page.getByLabel('分件候选').waitFor({ timeout: TIMEOUT_MS })
@@ -561,16 +564,34 @@ async function startIsolatedRuntime(id) {
 
 async function stopIsolatedRuntime(runtime) {
   if (!runtime) return
-  const cleanup = [
-    runtime.context && withinTimeout(runtime.context.close(), 5_000, 'browser context close'),
-    runtime.browser && withinTimeout(runtime.browser.close(), 5_000, 'browser close'),
-    ...runtime.processes.reverse().map(stopProcess),
-  ].filter(Boolean)
-  const settled = await Promise.allSettled(cleanup)
-  const failures = settled.filter((entry) => entry.status === 'rejected')
+  const failures = []
+  // Playwright owns the context as a browser child. Closing both concurrently
+  // races the context teardown against the browser transport, which can leave
+  // browser.close() waiting even though every scenario assertion completed.
+  // Close the ownership chain in order. System Chrome can terminate and drop
+  // the Playwright transport without resolving close(); only accept that
+  // bounded timeout when the public connection state proves it is gone.
+  for (const cleanup of [
+    runtime.context && (() => withinTimeout(runtime.context.close(), 5_000, 'browser context close')),
+    runtime.browser && (async () => {
+      try {
+        await withinTimeout(runtime.browser.close(), 5_000, 'browser close')
+      } catch (error) {
+        if (runtime.browser.isConnected()) throw error
+      }
+    }),
+  ].filter(Boolean)) {
+    try {
+      await cleanup()
+    } catch (error) {
+      failures.push(error)
+    }
+  }
+  const processCleanup = await Promise.allSettled(runtime.processes.reverse().map(stopProcess))
+  failures.push(...processCleanup.filter((entry) => entry.status === 'rejected').map((entry) => entry.reason))
   await withinTimeout(rm(runtime.tempRoot, { recursive: true, force: true }), 5_000, 'temporary library cleanup')
   if (failures.length > 0) {
-    throw new Error(`runtime cleanup failed: ${failures.map((entry) => String(entry.reason)).join('; ').slice(0, 2000)}`)
+    throw new Error(`runtime cleanup failed: ${failures.map((failure) => String(failure)).join('; ').slice(0, 2000)}`)
   }
 }
 
@@ -686,7 +707,21 @@ async function ensureCompatibilitySeedAgentAsset(page, baseUrl, projectId, label
   }, `${seed}-commit`)
   assert(typeof committedVersion.asset_version_id === 'string', `${label} compatibility seed commit must return an Agent asset`)
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByLabel('分件候选').getByText(/可编辑资产 v\d+/, { exact: false }).waitFor({ timeout: TIMEOUT_MS })
+  try {
+    await page.getByLabel('分件候选').getByText(/可编辑资产 v\d+/, { exact: false }).waitFor({ timeout: TIMEOUT_MS })
+  } catch (error) {
+    const workbench = page.getByTestId('cad-workbench')
+    const pageProjectId = await workbench.getAttribute('data-qa-project-id').catch(() => null)
+    const pageAssetVersionId = await workbench.getAttribute('data-qa-active-asset-version-id').catch(() => null)
+    const snapshot = await requestStatus(baseUrl, `/api/v1/projects/${projectId}/active-design`)
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; `
+      + `reload diagnostic page_project=${pageProjectId ?? 'missing'} expected_project=${projectId} `
+      + `page_asset=${pageAssetVersionId ?? 'missing'} committed_asset=${committedVersion.asset_version_id} `
+      + `snapshot_status=${snapshot.status} snapshot_asset=${snapshot.body?.active_design?.asset_version_id ?? 'missing'} `
+      + `candidate_count=${await page.getByLabel('分件候选').count()}`,
+    )
+  }
   const committed = await jsonRequest(baseUrl, `/api/v1/projects/${projectId}/active-design`)
   assert(committed.active_design?.source === 'agent_asset', `${label} compatibility seed must activate an Agent asset`)
   assert(committed.active_design?.asset_version_id === committedVersion.asset_version_id, `${label} Snapshot must bind the explicit compatibility seed version`)

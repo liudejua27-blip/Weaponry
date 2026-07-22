@@ -795,3 +795,7 @@ npm run desktop:r3-concept-workbench-smoke
 预取修复后的 Rust 全套测试进一步暴露 C106 集成测试仍锁定 Material Zone 修复前的旧计数。只读 `c106_robotic_arm_recipe_dump` 已确认三个审阅根配方的确定性合同：desktop/gallery 各 21 个唯一材质区、service 26 个，service ShapeProgram 为 55 个输出；集成断言已逐根更新为这些精确值，没有改用宽松范围，也没有放宽 Recipe、ShapeProgram 或生产质量 Gate。
 
 同一远端 backend job 的 C105 生命周期会编译 `wushen-forge-desktop` 兼容桥，但该 Ubuntu job 原先未安装 Tauri/GTK 系统依赖，因缺少 `glib-2.0.pc` 在测试开始前失败。ForgeCAD Core workflow 现复用既有 Tauri Preflight 的 Linux 宿主依赖清单；C105 四领域生命周期测试本身仍完整保留并保持 `--offline`，不得将宿主缺包误报为产品测试失败或通过删除测试规避。
+
+最终 macOS 五层聚合继续发现一个真实 F026 首次重启回归：自动创建首个 Agent-first 项目时没有写入新版工作台选择 Schema，下一次页面加载会把该项目误判为 pre-F026 legacy 选择并清空本机 active project；Rust Project、Snapshot 和资产均未丢失，但 UI 不再打开它，T002 后四个写入/材质/质量/导出场景因此级联超时。首次创建路径现先持久化 F026 选择 Schema，再由既有 `loadProject` 保存 active project；T002 失败诊断也会同时记录页面 project/asset、服务端 Snapshot 和组件卡数量，以区分 UI 选择丢失与后端数据丢失。
+
+修复首次选择后，T002 的 14 个业务场景均完成；最重的质量/ZIP/GLB 导出场景还暴露 Playwright 在下载事件触发后立即关闭系统 Chrome 的回收竞态。Gate 现等待 ZIP 与 GLB 下载真实完成，按 BrowserContext→Browser→Vite/Agent 所有权顺序回收；若 `browser.close()` 的确认 Promise 超时，只有公开连接状态已断开才可继续，否则仍以 `RUNTIME_CLEANUP_TIMEOUT` 失败。完整 `desktop:t002-workbench-e2e-scenarios` 已通过 14/14，覆盖浏览器、单 renderer、材质 ChangeSet、质量、导出与重启恢复，未遗留 headless Chrome 或测试服务。

@@ -210,6 +210,11 @@ export function useConceptWorkbench() {
         assumptions: ['虚构未来概念、游戏资产、影视道具与非功能性展示模型；不用于真实制造或使用。'],
       })
       const projects = (await forgeApi.listConceptProjects()).items ?? []
+      // This project was created by the current Agent-first workbench, so its
+      // selection is already on the F026 schema. Persist the marker before
+      // loadProject stores the active id; otherwise the first reload mistakes
+      // the new project for a pre-F026 legacy selection and clears it.
+      localStorage.setItem(WORKBENCH_SELECTION_SCHEMA_KEY, AGENT_FIRST_WORKBENCH_SELECTION_SCHEMA)
       await loadProject(
         created.project_id,
         undefined,
