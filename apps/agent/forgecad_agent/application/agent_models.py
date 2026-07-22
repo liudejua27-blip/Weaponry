@@ -6,8 +6,8 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import Field, model_validator
 
+from .arm_design_intent import ArmDesignIntent as ArmDesignIntent
 from .concept_models import StrictApiModel
-from .arm_design_intent import ArmDesignIntent
 from .domain_packs import DomainPackId
 from .geometry_models import GeometryCompileReadback
 from .mechanical_planner import MechanicalConceptPlan
