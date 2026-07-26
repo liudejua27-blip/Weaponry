@@ -4,6 +4,7 @@ export type AgentBlockoutGlbKind =
   | 'compiled_agent_pbr'
   | 'compiled_agent_preview_pbr'
   | 'compiled_agent_production_pbr'
+  | 'neural_visual_candidate_pbr'
   | 'external_reference'
 export type AgentBlockoutGlbPayload = string | ArrayBuffer
 

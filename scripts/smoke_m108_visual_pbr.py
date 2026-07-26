@@ -777,7 +777,7 @@ def _assert_asset(result, plan, validator: Draft202012Validator) -> set[int]:
     readback = result.compile_readback
     validator.validate(readback.model_dump(mode="json"))
     assert readback.glb_byte_size <= 2_000_000
-    assert readback.visual_environment.environment_id == "env_forgecad_room_studio_v1"
+    assert readback.visual_environment.environment_id == "env_forgecad_room_studio_v2"
     assert readback.visual_environment.color_workflow == "linear_srgb"
     assert readback.visual_environment.tone_mapping == "aces_filmic"
     assert readback.visual_environment.contact_shadows is True

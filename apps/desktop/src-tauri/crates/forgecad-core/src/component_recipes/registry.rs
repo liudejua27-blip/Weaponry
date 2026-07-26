@@ -44,6 +44,14 @@ const EMBEDDED_C110G_PARALLEL_LINK_REGISTRY: &str = include_str!(concat!(
     "/../../../../../packages/concept-spec/fixtures/c110g-parallel-link-component-recipe-registry.json"
 ));
 
+// C111A is the first visual-fidelity golden pack.  It is deliberately
+// independent from C106 so existing persisted recipe refs remain byte-stable
+// while the arm silhouette, layered joints and surface vocabulary evolve.
+const EMBEDDED_C111_GOLDEN_SURFACE_ROBOTIC_ARM_REGISTRY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../../../packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-component-recipe-registry.json"
+));
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RegistryDocument {
@@ -94,6 +102,13 @@ impl RecipeRegistry {
     /// remain distinguishable from the C106 serial-chain golden.
     pub fn from_embedded_c110g_parallel_link() -> CoreResult<Self> {
         Self::from_json(EMBEDDED_C110G_PARALLEL_LINK_REGISTRY)
+    }
+
+    /// C111A visual-fidelity golden arm catalog.  Selection remains explicit
+    /// so it cannot rewrite C106/C110 persisted lineages or silently become a
+    /// universal default before its fixed-view evidence is accepted.
+    pub fn from_embedded_c111_golden_surface_robotic_arm() -> CoreResult<Self> {
+        Self::from_json(EMBEDDED_C111_GOLDEN_SURFACE_ROBOTIC_ARM_REGISTRY)
     }
 
     pub fn from_json(value: &str) -> CoreResult<Self> {

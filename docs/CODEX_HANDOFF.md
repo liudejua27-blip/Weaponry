@@ -1,13 +1,212 @@
 # ForgeCAD Codex 当前交接
 
-快照日期：2026-07-22
+快照日期：2026-07-25
 用途：后续 Codex 开始任务前的第一份上下文
+
+# 2026-07-26：PV003 DeepSeek typed visual authoring
+
+- Rust Core 新增 `ForgeVisualProgramRevision@1`、`ForgeVisualProgramInspection@1` 和 `ForgeVisualPatch@1`；草稿 author 从 revision 1 开始，patch 必须精确匹配 revision/source hash，成功后保留 parent hash 和 changed domains。只允许 10 类显式 operation/最多 32 项，未知字段、任意代码/路径/URL、过期请求、保持锁违反、语义 no-op 和非法 ShapeProgram 均 fail closed，且不更新执行内 revision。
+- K002 Product Tool registry 由 13 扩展为 16，新增 `inspect_forge_visual_program`、`author_forge_visual_program`、`patch_forge_visual_program`。三者只在 Rust native executor 执行；旧 13 个 A004 兼容工具仍与临时 Python registry 精确对齐，K002 smoke 不再错误要求 Python 拥有新视觉工具。manifest hash 为 `bca8fa0b5216d72077ed4db1726f1c1424ffded52670bfcacc00566d95e4508e`。
+- DeepSeek Action Loop 已有 author→inspect→patch 的确定性 Provider 合同测试，首次结构错误只允许一次固定恢复；patch 错误会要求先 full inspect 再以精确 revision/hash 重试。两个不同 Brief fixture 证明几何宽度、材质、surface ID 和 program hash 真实不同。
+- `npm run agent:pv003-visual-authoring-gate` 已通过：Core PV001/PV003 9/9、app-server PV003 5/5、registry 8/8、K002 manifest 和 generated schemas/OpenAPI 均通过。未通过的仍是 PV004/PV005 边界：新草稿尚未接入固定 build ledger、真实 GLB/八视图收敛、确认版本、三轮语言修改或重启/资产包。下一原子任务是 PV004。
+
+## 2026-07-26：PV004 七阶段/八视图动态闭环（已实现）
+
+- `visual_convergence.rs` 新增 Rust-owned `DesignBuildLedger@1`、`VisualConvergenceInput@1` 和 `VisualConvergenceReport@1`，七阶段必须按顺序完整并以 SHA-256 连续绑定 program revision 到 production GLB。八视图必须是 `iso/front/back/left/right/top/gripper_iso/gripper_front`，共用同一 GLB 和 renderer；三层 detail 必须均有 bound 项、critical unresolved=0、修复不超过两次。
+- `agent:pv004-visual-convergence-core-gate` 已通过 Core 3 个正反合同测试、C111 黄金 lineage 集成测试、真实 RestrictedGeometryExecutor 双档重编译与 contracts drift。实际结果仍为 preview 49,392 triangles、production 124,376 triangles/152 primitives，24 readback-verified/3 noncritical unresolved/0 critical，且 `formal_eligible=false`、`human_benchmark_evidence=false`。
+- PV004 后续接线已完成：`NativeProductToolExecutor` 将当前动态 revision 直接 lowering 为 production `RestrictedGeometryInput@1` 并选择 `convergence_eight`；桌面 bridge 与 Python restricted worker 对 exact 8-view set 分别验证，编译 cache 明确排除纯 render profile。Rust 为每次 build 生成七阶段 ledger，evaluation 将真实 readback、PBR、surface provenance、三层 detail 和八视图汇总为 `VisualConvergenceReport@1`；只在 passed 时准备唯一未保存 preview。
+- 失败收敛不会落盘或继续 preview。Action Loop 将失败 report 折叠回原 build tool result，Provider 必须 inspect 当前 revision 并提交 1–8 个 typed local operations；Rust 清除旧 geometry/readback/views/gates 后重新完整构建，最多两次，第三次返回 `VISUAL_REPAIR_LIMIT_REACHED`。自动内部步骤也纳入统一 Product Tool 预算，修复了此前自动调用未累计总预算的问题。
+- `npm run agent:pv004-visual-convergence-core-gate` 已通过：Core PV004 4/4、app-server 动态/修复/ActionLoop 5/5、desktop bridge exact eight views 1/1、Python opaque artifact 八视图 1/1、C111 真实 49,392/124,376-triangle 双档回归与 generated contracts。PV004 现为已实现，PV005 ready。没有运行真实 DeepSeek 联网视觉生成，也没有产生 Snapshot/确认版本、三轮语言修改或真人 4/5 证据。
+
+# 2026-07-26：PV002 iteration 70 sealed 黄金程序
+
+- 当前 C111 development program 为 10 Parts、9 connections、198 operations、96 outputs、47 个 part-scoped material bindings、6 个 A005 programs 和 27 项细节；ForgeVisualProgram SHA-256 `e8971a0ed490169db06d895f88a1ee9c20bc9d6577f4760ed34a4822595a746e`，ShapeProgram SHA-256 `5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d`。
+- 同一 `RestrictedGeometryExecutor` 真实生成 49,392-triangle preview 和 124,376-triangle/152-primitive/1K 五通道 PBR production，production GLB SHA-256 `af2bda0ff7c180970ef6eb1750ba3d6e88c062cfd16db8d28313c8914b66d037`，0 Provider。八视图位于 `output/playwright/c111a-iteration-70/`，明确只作 development visual evidence，不是 M108B 真人门。
+- 三层基座和回转罩由共享、hash-pinned 的纵向硬边八边形截面 Loft 生成，形成底部封闭装甲、外扩缓冲唇与逐级收肩；`macro_layered_base_enclosure` 因真实 GLB 和固定视图可见而收敛为 `readback_verified/partial`，但局部服务面板仍比参考简单。
+- 两端蓝色 Loft collar 已加宽并与圆形 guard 重叠，连杆不再直接终止于关节盘。iteration 70 又缩短六段 Loft 甲片，让真实暗色内壳形成双侧稳定凹槽；中央浅石墨/复合嵌条提供第二层分缝，穿透式黑色薄板方案保持撤回。
+- Inventory 为 24 verified / 3 unresolved / 0 critical unresolved，程序进入 `sealed/sealed_critical_details_complete`，`blocks_single_result_display=false`。这只关闭 PV002 细节清单与真实 GLB bridge；`formal_eligible=false`、`human_benchmark_evidence=false`，且 iteration 70 尚未替换 iteration 47 的 release packaged 生命周期证据。
+
+# 2026-07-26：PV001 程序化视觉程序合同与默认路径
+
+- 用户取消神经 Image-to-3D/FAL 作为默认路线。ADR-0019 现在定义第一阶段主链：DeepSeek 编写受控三维视觉程序，Rust 校验、降级、版本化并执行，Surface Compiler 完成细节/PBR，Three.js 只负责工作台，GLB 是交付真值。ADR-0018 和 N001–N004 保留为 `experimental/default-off` 历史基础设施，N005–N009 已被 PV002–PV007 取代。
+- `forgecad-core::forge_visual_program` 已新增严格 `ForgeVisualProgram@1` 与 `ForgeVisualProgramLowering@1`：绑定 Token、Part、ShapeProgram、AssemblyGraph、Material Zone、Surface program、三层 Detail Inventory 和双档 Profile；悬空引用、重复输出、未覆盖面区、伪细节绑定、未知字段和 sealed critical unresolved 均拒绝，合法程序产生稳定 semantic hash。
+- F026 默认工作台不再导入 `VisualGenerationCard`/`useVisualGeneration`，不显示 FAL Key，不接受 `neural_visual_candidate_pbr`；新 Brief 和后续语言编辑回到既有 Rust-owned Agent/ChangeSet 路径。Provider adapter 文件暂不删除，以免覆盖当前脏工作区的既有研究代码。
+- PV001 最终 Gate 已通过：Rust focused 6/6、生成合同漂移检查、desktop typecheck/build、F026 smoke、docs walkthrough、repository integrity、安全范围、secret file 扫描、Python compile 和 `git diff --check`。Vite 仅报告既有的大 chunk/dynamic import 警告。下一原子任务是 PV002：把 C111 机械臂黄金资产的真实 ShapeProgram/AssemblyGraph/Material Zone/A005/Detail Inventory 封装为 sealed fixture 并以同一受限执行器编译双档 GLB；DeepSeek typed author/patch 属于后续 PV003。
+
+# 2026-07-26：PV002 C111 真实程序桥（进行中，拒绝伪 sealed）
+
+- PV001 的单一 detail binding 被真实 C111 暴露为过窄：合法关节/连杆实例会复用 zone id，一个细节也常需多个输出。合同已修正为 `bindings[]`，每项使用 `part_id + kind + target_id` 精确验证；unresolved 可以保留已有部分绑定，但 sealed critical unresolved 仍拒绝。
+- `c111_visual_fixture.rs` 从真实 Recipe expansion 生成 10 Parts、96 outputs、47 part-scoped material bindings、6 A005 surface programs、27 details 的 sealed development program；当前 program hash、ShapeProgram 和双档 GLB 以本文件顶部 iteration 70 检查点为准，lowering 与真实 ShapeProgram/AssemblyGraph 完全一致。
+- `agent:pv002-c111-forge-visual-gate` 已按 iteration 70 通过：C111 Core 全套 6/6 通过；同一 RestrictedGeometryExecutor 生成 49,392-triangle preview 和 124,376-triangle/152-primitive/1K PBR production；production hash、8 个 fixed-view hash、surface/environment lineage、24/3/0 inventory 和 0 Provider 均匹配；contracts 生成/漂移也通过。
+- PV002 已完成，但不证明目标图级质量。下一任务是 PV003 DeepSeek typed author/patch；C111A 仍需重跑 packaged confirm/export/restart，PV005 仍需三次语言修改，M108B 真人门仍未完成。
+
+# 2026-07-26：N001–N004 远程神经路线（已由 ADR-0019 取代为默认路线）
+
+## N001 视觉优先神经 3D 合同
+
+- 用户将第一款软件收口为 Forge Studio：文字/授权图片→概念参考→远程神经 PBR GLB→Rust 回读/八视角→唯一结果→语言修改→导出。商城、游戏和复杂 CAD 暂停。ADR-0018 supersede ADR-0017 的“ShapeProgram 必须是所有新资产主生成路线”部分，但保留 Rust-first、Surface Compiler 和程序化路线作为辅助/后续可编辑能力。
+- `forgecad-core::neural_visual_generation` 已冻结 `VisualDesignBrief@1`、`ConceptReferenceArtifact@1`、`Neural3DGenerationRequest@1`、`NeuralVisualGenerationJob@1`、`NeuralVisualArtifact@1`、`ForgeAssetPackage@1`。远程图片必须确认权利和远程处理；任务严格顺序且 fail closed；正式候选必须有 GLB/PBR/hash/八视角；资产包严格为六个 canonical member。
+- focused Rust Gate：`script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-core neural_visual_generation --offline -- --nocapture`，当前 5 passed / 0 failed。首次直接执行因非登录 PATH 找不到 cargo，改用仓库强制 wrapper 后通过。
+- N001 不包含网络调用或真实视觉结果。下一原子任务是 N002：Rust app-server 的可替换 `NeuralVisualProviderPort`、确定性 fake Pixal/TRELLIS、submit/poll/cancel/timeout/idempotency/restart/late-result Gate。不得在 N002 发起付费网络。
+
+## [历史] N002 可替换远程 Provider 端口
+
+- `forgecad-app-server::neural_visual_provider` 已增加 `NeuralVisualProviderPort`、bounded receipt/status/artifact handle、`NeuralVisualCoordinator` 和恢复记录。端口不接触 SQLite、Snapshot、版本、Provider Key 或任意 payload。
+- 同一 idempotency key + 同一 request semantic hash 精确 replay；漂移请求冲突。Project/Turn scope 不一致 fail closed；取消和超时后 coordinator 不再调用 poll，因此即使 Provider 忽略取消也不能注入迟到 ready。
+- Provider ready 只推进到 `pbr_refining + AwaitingRustAcceptance`，N005/N006 完成前没有 preview/version 路径。focused Gate 4/4 通过。
+- 下一任务为 N003；N002 没有网络调用，不证明 Pixal3D/TRELLIS 可用。
+
+## [历史] N003 概念参考合同（部分实现）
+
+- Core 新增 `ConceptImageGenerationRequest@1`：只允许一个 1024×1024 PNG、单主体、干净背景，并把 transient prompt 与 Brief、Project、Turn、首个授权 evidence hash 和幂等键绑定。
+- app-server 新增 `ConceptImageProviderPort` 与 accepted-output 边界。具体适配器必须先下载、限制 32 MiB、验证 PNG/尺寸/安全结果并计算 object SHA-256，Rust 才生成 `ConceptReferenceArtifact@1`；Provider URL、Key 和原始 JSON 不进入合同。
+- Core 5/5、concept port 2/2。Fal Flux 2 官方 queue submit/status/result 适合作为首选概念图适配器，并明确要求 GUI 使用服务端代理保护 Key；当前没有安装依赖或配置 FAL_KEY。
+- 官方 Pixal3D/TRELLIS Hugging Face Space 只是 ZeroGPU/Gradio 接口，TRELLIS agents contract 明确需要 HF token；官方 Pixal3D Space 还存在 proxy/临时不可用迹象。因此不能把公共 Demo 当稳定产品后端。真实 N003/N004 需要 secure Fal/HF credential 或自有 GPU endpoint。
+
+## [历史] N003/N004 真实 Fal 协议路径（仍无付费证据）
+
+- `visual_provider_adapters.rs` 已实现真实 Fal Flux 2 queue submit/status/result/cancel、禁重定向 rustls HTTPS、响应流 byte cap、凭据 header redaction、allowlisted media download、单图 safety 检查、1024 PNG 完整解码与 Rust CAS 原子 reference。视觉凭据是仓库外 0600 secret file，只在显式 submit/poll/cancel 时读取；应用启动和配置 metadata 查询不会访问 Keychain。desktop focused tests 7/7。
+- Tauri 新增 visual provider metadata/save/clear 和 concept submit/poll/cancel 命令。当前仍没有设置真实 Fal Key、没有真实付费概念图，也没有上传/远程处理确认 UI；N003 继续 partial。
+- `neural_3d_provider_adapter.rs` 已实现 Fal Hunyuan3D v3.1 Pro Image-to-3D：从 CAS 读取 exact concept PNG，以 data URI 提交，快速/标准/收藏档分别请求 100k/250k/500k faces、`Normal` 和 PBR，下载 allowlisted `model/gltf-binary`，结构回读后写 `raw_neural_visual_glb` CAS 候选。Core readback 上限为 256 MiB/150 万三角形，并记录实际 UV0/tangent/PBR texture bindings；Provider ready 仍不创建版本。adapter focused tests 2/2、workspace cargo check 通过。
+- 首后端从“等待 Pixal3D 公共 Demo”调整为有公开稳定 API 合同的 Hunyuan3D v3.1 Pro。Pixal3D/TRELLIS.2 保持可替换质量对照，不能把公共 Gradio/ZeroGPU 当 SLA。
+- 下一步仍是完成 N003/N004 的真实付费调用、远端删除/费用证据和真实 PBR GLB readback；未获得该证据前 N005 不开始。
+
+# 2026-07-26：文字视觉生成桌面闭环骨架（仍无付费证据）
+
+- `VisualBriefDirector` 通过 DeepSeek required tool call 只接收外观字段；Rust 生成并校验 Brief/Request 的 ID、intent hash、backend、单图合同和幂等键。3 个 focused tests 覆盖正常结构、畸形输出 fail closed 和图片权利/远程同意。
+- Tauri `generate_visual_asset` 串联 director→Fal Flux 2→CAS PNG→Hunyuan3D v3.1 Pro→CAS GLB→结构 readback，概念图/神经阶段分别有 5/15 分钟上限，支持显式取消和安全阶段事件；它只返回未保存候选，不创建 Snapshot/版本。
+- F026 主输入已可启动该文字路径，缺少 FAL 配置时只显示 prompt-free 私密文件配置且不发送描述；返回 GLB 以 `neural_visual_candidate_pbr` 在同一 Three.js renderer 显示。desktop typecheck/build 通过。当前没有真实 FAL Key 或网络调用，因此不是可见 MVP 成功证据；N005/N006、语言修改和资产包仍未完成。
+- 图片入口现已使用独立 `/fal-ai/flux-2/edit`：用户先保存 R007 只读证据并明确勾选远程处理，Rust 再从 CAS 读回、完整解码、核对 SHA 和 8 MiB 上限，以 data URI 传给 edit endpoint。工作台把 exact evidence ID/hash/media type/权利/远程同意绑定到下一次生成；项目切换会清除该临时绑定。focused adapter 增至 8/8，F004/F026/typecheck/build 通过。尚未用真实 Fal Key 付费验证。
+- 远程任务不再只存在内存：SQLite 0042 与 `VisualRemoteJobRecord@1` 在 concept/neural queue 返回 receipt 后立即封存 Project/Turn/lineage、Provider job ID 和 prompt SHA，不保存完整 prompt、Key、URL 或原始响应。新进程可在 F026 显示“继续/取消”，单调 concept→neural→terminal 转移和 scope/lineage 漂移拒绝由 Core 2/2 测试证明；concept port 3/3、desktop typecheck/build/F004/F026 通过。这是可恢复工程边界，不是真实视觉质量证据。
+- 新增 `desktop:n004-visual-provider-gate`：桌面级测试从数据库中已持久化的 concept receipt 恢复，以脚本化但严格匹配 Fal HTTPS 协议的响应贯通 1024 PNG 下载、Hunyuan PBR GLB submit/status/result/download、Rust readback、raw CAS 与 Completed 封存；断言完成后没有可恢复残留任务，媒体下载不携带 Provider Authorization，credential 不进入 debug。该 Gate 证明本地编排/恢复，不替代真实付费调用和人工视觉验收。
+- 新增 `desktop:n004-live-acceptance`：默认 dry-run 明确证明零网络、零 credential read、不启动应用；只有完整确认参数才由已构建 Rust 桌面进程执行 DeepSeek→Flux→Hunyuan→CAS/readback→Completed。报告只允许 hashes、结构/PBR facts 和固定错误码，Python runner 要求 base-color/normal/roughness/metallic、全 primitive UV0，并拒绝 Prompt、响应、URL、Key、PNG/GLB Base64。当前因本机未配置 Fal Key 尚未执行 live，不得登记为真实 Provider 证据。
+
+# 2026-07-25：C111A iteration 47 专属腕部 Recipe 与连续 Sweep 三指
+
+- C111 registry 由 7 项增至 8 项 first-party/visual-only Recipe；新增 `recipe_c111_arm_wrist_housing`，只替换 root 的 wrist slot，肩/肘继续使用原关节 Recipe。腕部外环由复用关节的 148 mm 降为专属 86 mm，并保持独立 shell/core/ring/cap/paint/signal Material Zone、connector、pivot 和 GLB provenance。该 Recipe 没有 A005 slot，因此没有扩大 v3 Skill grant。
+- 三组可见指身由倒角盒输出改为受限 Sweep：共享一个审阅过的封闭圆角截面，但各自使用独立曲线路径、twist 和稳定输出；旧盒体仍只作为 surface-panel 输入，不再充当可见指身。第一次 Sweep 以 `SHAPE_PROGRAM_SWEEP_CURVATURE_RADIUS` fail closed，最终缩小截面后通过，没有放宽曲率合同。
+- exact root 保持 10 Parts、9 connections、96 outputs，operations 增至 194。真实双档为 36,860 preview / 130,244 production triangles、155 primitives，ShapeProgram SHA-256 `085c6c94ff50f5a2525ab504335ab0ad4c24b7700df3ba3019d3aed1ae3479ce`，初始 production GLB SHA-256 `e3023bf3e4621dcbcd1f19ab3efa87d2779fb547af0c93cc841fbb1837917496`。资产/readback 位于 `output/c111a-golden-surface-iteration-47-final/`，八张固定视图位于 `output/playwright/c111a-iteration-47-*.png`。
+- release `.app` 完成唯一结果→V1→A005 V2→Snapshot revision 4→34,415,628-byte GLB 导出→新进程恢复；最终 SHA-256 `3dcc08bb2cf05cd783d7339caab72cc666cc888cf925394dbe3a6f85d9e63a90`，130,244 triangles，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `aceefec999ac50f9c218d3dc86cdd6328fc998094f24a96fccfa6cd57d1dfc23` / `642364899fa3fe06c03184a378a1a95b2d9f666a038962617bc905666f8e8ca6`。
+- 固定视图证明 wrist 相对肩肘显著缩小，蓝色指身连续性改善；近景仍显示腕盘占比偏大、盒体指尖和稀疏铰链层级，底座、接缝/Decal/磨损和粗糙度分层也未关闭。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；`formal_eligible=false`、`human_benchmark_evidence=false`，C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 46 紧凑三指末端与真实腕环 packaged 闭环
+
+- exact root 保持 10 Parts、9 connections、191 operations、96 outputs。夹爪 palm Loft 由 228 mm 缩短为 142 mm，三组近端/远端指段收短并增加弯折，主/远端 knuckle 改为深色 composite；96-output 硬上限内移除两个冗余腕部圆柱和一块重复掌甲，换入真实 Revolve wrist collar、第二指接触垫和第三指面板。尝试对子 Recipe 实例施加 `0.72` scale 被 Rust 以 `COMPONENT_RECIPE_TEMPLATE_SCALE_UNSUPPORTED` 拒绝后恢复为单位尺度，没有扩展合同或绕过校验。
+- 真实双档为 36,560 preview / 130,016 production triangles、155 primitives，ShapeProgram SHA-256 `b6660560517d100d0b7d6dd7c3d955b15ea53a9ee224ee6349471fdc5590bfa8`，初始 production GLB SHA-256 `a6cf12a909ce47c2f4046d7a1ac93c79e03c9f0a4262c0db9c9f192a04892237`。资产/readback 位于 `output/c111a-golden-surface-iteration-46-final/`，八张固定视图位于 `output/playwright/c111a-iteration-46-*.png`。
+- release `.app` 完成唯一结果→V1→`zone_arm_base_paint` A005 V2→Snapshot revision 4→34,369,952-byte GLB 导出→新进程恢复；最终 SHA-256 `00b6062d39adf19e0f8c281467c9ba9d177b5f55a7bfc25b0e467c93ec9f8504`，130,016 triangles，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `3fcae8fc838cd56d6b41cbdb8a481bce96555580a5eb5c8b6400d015575ba4f3` / `d00631d1230dcfe6a2286ebe41fbe6324f2cc2d87b75248b7d010f139f6e3ed0`。
+- 固定近景确认手掌更短、三指分段和三块接触面更可读，但共享腕关节仍压倒夹爪比例，手指仍是倒角盒语言，腕掌嵌合、接缝/Decal/磨损和粗糙度层级仍明显低于目标图。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；`formal_eligible=false`、`human_benchmark_evidence=false`，C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 45 底座/关节比例收敛与 Material Zone 输出回归
+
+- exact root 保持 10 Parts、9 connections、191 operations、96 outputs。底座两层 extrusion 高度降低，正面 guard/signal/belt 回贴外壳；关节 profile、bearing/core/ring/guard 半径收小并输出成对 guard。真实双档为 36,232 preview / 129,720 production triangles、153 primitives，ShapeProgram SHA-256 `cf4aeed77e7e0bb107505ee9491fa252113d0314356564d0916a2d271dd37ebb`，初始 production GLB SHA-256 `e8a16b0780ac3be03d3f8bfc092bff18ea5be4bc180ff9e6f93438bd08c06a80`。
+- 第一次 packaged 运行以 `MVP_ARM_BOUNDARY_RECIPE_PREVIEW_GRAPH_INVALID` fail closed：视觉调整让已声明的 `zone_arm_base_deck` 与 `zone_arm_joint_ring` 没有真实输出。最终恢复两区输出，并增加 `c111_every_declared_material_zone_has_a_rendered_output` 回归；没有删除 Material Zone、放宽 graph 合同或绕过 packaged 边界。对 Extrude 直接加 `bevel_approx`、把 primitives 降到 135 的中间尝试也分别被几何白名单和质量硬门拒绝，均未进入最终资产。
+- release `.app` packaged 生命周期重新通过唯一结果→V1→`zone_arm_base_paint` A005 V2→Snapshot revision 4→34,182,648-byte GLB 导出→新进程恢复；最终 SHA-256 `a7b16f2c5634acb84064c7637ed53227d17cb7806cbcf06bdc5aff557122bdd4`，129,720 triangles，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `8863f98c87e83333fd992ff9c9b95cc2bc32c9fa29c998b9f41727b7912be9e8` / `48e9fd01bde55ceae245163fb8c5c54cc5a2d0dc7b2151efcb7b03e2fd9e51d9`。
+- 八张固定视图位于 `output/playwright/c111a-iteration-45-*.png`，production GLB/readback 位于 `output/c111a-golden-surface-iteration-45-final4/`。底座更矮、正面细节不再漂浮，ISO 视图中的关节圆盘占比下降；但正视图仍有过亮轴承面，底座仍是阶梯块，夹爪仍偏盒体，接缝/凹槽、Decal、磨损和粗糙度层级不足。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；`formal_eligible=false`、`human_benchmark_evidence=false`，C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 44 臂甲显露、三指壳重构与 packaged slot 真值修复
+
+- exact root 保持 10 Parts、9 connections、191 operations、96 outputs。长平板臂甲输出已改为真实 transition collar，使连续 Loft 外壳可见；底座轮廓收紧并分离 deck/panel/paint 材质语义；三指近端和远端改为加厚、旋转、倒角近似壳体，并把第三远端指节纳入输出。ShapeProgram SHA-256 为 `bbfe17b13b6c79fa26b28f3b809433e37f5dc80dd06eecc8bbcd03a37d0bbe3a`。
+- 真实双档为 36,376 preview / 130,344 production triangles、153 primitives，初始 production GLB SHA-256 `0150b3befb3d384ea2e0bb47626adb092d3babb39ceb90e364e9183935f313da`。资产 Gate、C111 Core 4/4、app-server 路由 1/1 和 packaged probe 回归 4/4 通过。
+- packaged 首次正确暴露底座 A005 zone 迁移后的合同缺口：旧 probe 错误取 Part 第一个 Material Zone，被 Rust 以 `SURFACE_ADORNMENT_RECIPE_SLOT_DENIED` fail-closed；第二次证明顶层导出投影不含 Recipe slot。最终 probe 改为从权威 `assembly_graph.parts.surface_adornment_slots` 选择获授权 zone，并测试合法选择与非法请求拒绝，没有放宽 Skill 或质量合同。
+- release `.app` packaged 生命周期通过唯一结果→V1→`zone_arm_base_paint` A005 V2→Snapshot revision 4→34,305,608-byte GLB 导出→新进程恢复；最终 SHA-256 `d04f6d9dac2fb439f7ebba8622528fecbf3acd3c0d1d22a9b9fafe9b209d4e67`，130,344 triangles，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `a10945db47ed1c4d035fde30b21def2b1363968d229cca1e2f2aa13eb8915bd0` / `4ef04dec6fa8e72d66297e4973ba1c87ad3d5c6320b1e4feb183425060a2fbdd`。
+- 固定视图位于 `output/playwright/c111a-iteration-44-*.png`，夹爪近景位于 `output/playwright/c111a-iteration-44-gripper-*.png`。臂甲和三指构造比 iteration 43 更清楚，但当前仍明显低于目标图：底座仍像均匀层叠块，关节仍偏同心圆盘，臂甲分段、腕部层级、接缝/凹槽和 PBR 粗糙度可读性仍不足。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 43 连续臂甲与 packaged 重启恢复
+
+- exact root 保持 10 Parts、9 connections、191 operations、96 outputs；离散 pod 链已替换为双侧连续 Loft 臂甲，底座与 A005 base flowline 统一为 graphite Material Zone 谱系，腕掌和指节比例进一步收敛。ShapeProgram SHA-256 为 `db1cccadd3e96adc87eac3d1573373b78e4d5d22c6b2d06b0964400be953403e`。
+- 真实双档为 38,176 preview / 131,504 production triangles、153 primitives，初始 production GLB SHA-256 `f5ed50146f84a6c5d060c0a983985bdeeb60abb70bcbf9bb0a55fc6c97e0e7e4`。资产 Gate 与 C111 Core/app-server focused tests 通过；Material Zone 不一致曾被 Rust fail-closed 拒绝，修正源 Recipe/A005 谱系后才通过，没有放宽合同。
+- release `.app` packaged 生命周期重新通过唯一结果→V1→A005 V2→Snapshot revision 4→34,499,712-byte GLB 导出→新进程恢复；最终 SHA-256 `fe43a7aee5aa5f2832118df6c32aa53fcb262b5919a39b55f5dd5c555a503f64`，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `a25ecdb3f8f5b710516569e37f982882329371fa60f70494472d4ff5c86b3e62` / `a409f5036385559258b3842a212c7f9e905284251eb2beda458b82d6b5b3619a`。
+- 固定视图位于 `output/playwright/c111a-iteration-43-*.png`。连续臂甲消除了 pod 链，但当前形体仍偏平整单块，底座仍高且层叠，夹爪仍有杆状指端，PBR 仍偏亮且层次不足。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 39 分段 Loft、预算硬门与完整 Material Zone
+
+- exact root 扩展为 10 Parts、9 connections、191 operations、96 outputs。底座壳体已连通，连杆使用分段 Loft 护甲并增加 guard/cap，腕掌与夹爪增加护环、远端壳和真实 rubber contact 网格；ShapeProgram SHA-256 为 `16071be785afd221f44bf2146ea671fd294d8f7ab16bd096b9d49f7c525c8298`。
+- 第 36 轮 174,532 triangles 被 Rust 150k production 硬门拒绝；降低纯装饰紧固件重复密度后，第 38 轮又因声明 `zone_arm_gripper_contact` 却没有输出网格被语义图硬门拒绝。约束均未放宽。第 39 轮真实双档为 50,688 preview / 149,744 production triangles、153 primitives，初始 GLB SHA-256 `0ed67cfcfc710dde6b8ddba36b674fd539cab8da88a76c9003d4ef445d0b76e1`。
+- release `.app` packaged 生命周期通过唯一结果→V1→A005 V2→Snapshot revision 4→37,685,068-byte GLB 导出→新进程恢复；最终 SHA-256 `f5fc827eb3f221cb18303112cea74fc6f2ba2bff48f8d9512a57f0dff0a6d881`，0 外网、0 凭据读取。protocol/resume 报告 SHA-256 为 `b55960146930074486a3fb5fd8c48abda5a8452a3bf080719c829ac144bfc4b2` / `110cff014361d87981cb14f69bf23077642928c5b253a70b107a93fe0753a975`。
+- 固定视图位于 `output/playwright/c111a-iteration-39-*.png`。视觉仍明显低于目标图：甲片不连续、底座层叠偏重、夹爪暴露圆柱杆件、PBR 过平。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved；C111A 不结束，C112 不启动。
+
+# 2026-07-25：C111A iteration 31 嵌入装甲、臂甲覆盖和参考证据恢复
+
+- iteration 29 的八向底座 guard 视觉检查暴露 transform 只移动、不旋转 primitive，结果形成散落挂件；该方案未被保留。iteration 31 改为三块明确贴合正面的 bevel 装甲，并保留更长的 650 mm 双侧臂甲、158 mm × 84 mm 端部 collar、纤细三指链和蓝/银/黑腕部层级。
+- exact root 现在为 10 Parts、9 connections、154 operations、96 outputs；真实双档为 24,772 preview triangles 与 123,316 production triangles / 159 primitives。ShapeProgram SHA-256 `eff1a67992ad6fb70291f8ad990ddb49a5ae401d1310a1cb418ce532f81143e8`，初始 production GLB SHA-256 `591be11fd2c0b01e89fdd0fd50cf63fcc0ec2b9af430e72dd2a3cf156ddb022f`，固定六视图和夹爪近景位于 `output/playwright/c111a-iteration-31-*.png`。
+- release `.app` packaged 生命周期重新通过：唯一结果→V1→A005 V2→ActiveDesignSnapshot revision 4→production export→新进程恢复。最终导出为 33,053,680 bytes、123,316 triangles、SHA-256 `842cbf0e794d58b961490f5051444ffd726746dc5694a53c936a159c67e48904`，0 外网、0 凭据读取；protocol/resume 报告 SHA-256 为 `8a632274aa869937db98b9fcae26c8d5ec701f1d0bf298a1453ce933a70e89c4` / `f92a8ce3f6e3a89e120c7c1681d92a6f9a44cf00c52d51894abc13b284eda6b8`。
+- 授权目标截图在 `/Users/liuchongjiang/Desktop/image/` 重新找到。仓库不保存图片或绝对路径，只在 Inventory 冻结原文件名与 SHA-256 `5773758b27b74a4e13d2022cce1d7f761ae7b5c3d8c1753d3576c07230ea5e05`；Gate 从错误的 `reference_source_unavailable=true` 修正为外部 digest verified。
+- 视觉事实仍未达门：嵌入面板和腕部材质层级有改善，但底座侧甲、臂段包覆、连续 transition shell、夹爪铰链、全局接缝系统和 PBR 粗糙度可读性仍不足。Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved，C111A 继续 `in_progress`，C112 不启动。
+
+# 2026-07-25：C111A iteration 28 形体重构与新方案冻结
+
+- iteration 28 将底座堆叠盒体替换为受限八边轮廓 Extrude，将三处关节盒体替换为受限 Revolve 包覆，并深化连杆过渡、腕掌比例和三指末端；exact root 现在为 10 Parts、9 connections、153 operations、96 outputs。
+- 真实双档为 27,284 preview triangles 与 143,972 production triangles / 166 primitives；ShapeProgram SHA-256 `13dea6d4be0a7ab0eb9fcc9a415b82d059c1017c3e3202bdffd5bcafe1169afa`，初始 production GLB SHA-256 `0e4536dffd4b2d1062156f1a29405b9f2bea8da9f8f2d00518e6b9563da41f50`。固定六视图和夹爪近景位于 `output/playwright/c111a-iteration-28-*.png`。
+- release `.app` packaged 生命周期重新通过：唯一结果→V1→A005 V2→ActiveDesignSnapshot revision 4→production export→新进程恢复。最终导出为 36,663,372 bytes、143,972 triangles、SHA-256 `45c21feca3d80672478159cb25c18a2799c8fc31dfb8ec878692e9805958da29`，0 外网、0 凭据读取；protocol/resume 报告 SHA-256 为 `ca44edd4a956a57afd64b889df3cfc375618d38e26f1b7c9a6b20172cc1d7503` / `71d998a040f22a600a45e1e82495f0dfac8e436799de76d3464bfe50d2939418`。
+- 视觉事实未被包装 Gate 掩盖：新结果仍明显是程序化低模，底座装甲嵌合、臂段分层、腕掌结构、夹爪指节、接缝/凹槽和 PBR 可读性不足；Inventory 保持 17 verified / 10 unresolved / 7 critical unresolved，C111A 仍 `in_progress`，C112 继续 blocked。
+- [ADR-0017](ADR/0017-codex-design-workspace-visual-convergence.md) 已冻结 Codex 式 DesignWorkspace、MechanicalMorphologyProgram、VisualDetailInventory、固定构建阶段、确定性优先视觉 Gate 和最多两次原位修复；只借鉴 img2threejs commit `c9077d5e` 的视觉收敛方法，不引入其 TypeScript/`THREE.Group` 运行时。
+
+## 2026-07-25：C111A iteration 26 消除夹爪截面真值分叉并复跑 packaged 生命周期
+
+- 六视图复核 iteration 25 时发现，夹爪 Recipe 的 `section_sets` 已声明 0.78 末端截面，但实际 ShapeProgram 内嵌 `profile_inputs` 仍为 0.82；iteration 26 将两者统一为同一 canonical payload 和 SHA-256 `36c6229ae4bab94a7d299917404796a9164d8271508502ebbd73acae571b57ab`。C111 Core 4/4 和 Rust Product Tool focused test 通过。
+- iteration 26 工程 Gate 为 10 Parts、9 connections、161 operations、96 outputs、27,396 preview triangles、141,060 production triangles、172 primitives；ShapeProgram SHA-256 `e8586447a6820103ebed4092d64789624ead98a4fb2a1d80ca8bf318c96af607`，初始 production GLB SHA-256 `ec29e5536ae539eb4b0ec70bb644a77cd8d6f124f5971bd3028c4f17af3dea03`。六视图和夹爪近景位于 `output/playwright/c111a-iteration-26-*.png`。
+- release `.app` 重新构建并通过 `desktop:c111a-packaged-smoke`：唯一结果→V1→A005 V2→Snapshot revision 4→导出→第二进程恢复。最终导出 36,179,216 bytes、141,060 triangles、SHA-256 `5d15e0c2902e9acb65434252219eb8c92d4f70ae2a70e37b38c2fa2d51d9be0e`，0 外网、0 凭据读取；protocol/resume 报告 SHA-256 为 `14eb5ab35526b388c9123755fafa7d73bc386a28aa3790d75bf3ca8d440961af` / `519a98914ddfcd8c774aec405822743cb9f00c04478f77df089d17e0c0d317af`。
+- 视觉结论没有升级：夹爪转接、叠箱式底座、装甲分段、接缝/凹槽和 PBR 层次仍明显低于目标图。Inventory 保持 17 verified / 10 unresolved、7 critical unresolved，`blocks_single_result_display=true`、`formal_eligible=false`、`human_benchmark_evidence=false`；不得开始 C112 或声称目标图级完成。
+
+## 2026-07-25：C111A 正式 Product Tool/A005/导出/恢复工程闭环通过
+
+- C111 exact root 现在展开为 10 Parts、9 connections、161 operations、96 outputs。两个从未进入 outputs 的服务面板操作，以及夹爪/底座三个没有渲染网格的 Material Zone 已删除；服务面板在 VisualDetailInventory 中降为 unresolved，Rust Recipe graph 的“每个声明 zone 必须有真实输出”检查没有放宽。双档仍为 27,396 / 141,060 triangles，ShapeProgram SHA-256 为 `957130f1d2113259efbee20788f173db7f3d7d3d2ac57a37c3b9a8d4b8dc32ee`，初始 production GLB SHA-256 为 `fbb32c5c3a6f1c9a75beaf596e9a3aaa1509be98039a3cb0136161a29a2b62c6`。
+- Rust Product Tool 仅在 exact `serial_chain + dense + showcase + golden_surface` 意图下选择 C111；C106/C110E 其他结构自由度保持原路径。`NativePreviewArtifact` 现在携带并校验受审 A005 程序，preview 档转换、V1 确认和后续重编译不再丢失表面谱系。
+- `npm run desktop:c111a-packaged-smoke` 使用真实 release `.app` 完成唯一结果→确认 V1→同底座 zone 的 A005 流线精确替换→确认 V2→ActiveDesignSnapshot revision 4→production export→终止 app/sidecar→新进程恢复。最终导出为 36,174,512 bytes、141,060 triangles、SHA-256 `a9d87a9ef8f398c0100261fb29ead5c2842e85e65d82aa5678ebbf8698f42c9e`；五项既有表面程序保留，新程序 `adorn_1998ea222401c2268a5f00ad` 替换原底座流线，总数按“一 Part/Zone 一活动程序”保持 6。报告 SHA-256 分别为 `171b592d61402052d30fcd7cfa6de9a5dd0796857f5a25485ee25db3b146cdc2` 与 `f65a47df2fada92fc0d6a7fdf071eada30cc28ebf22a67c74698674d82b997a4`。
+- 当前 release app 主二进制 SHA-256 为 `3ab9b5760bde4344ba33295959b8a1c0bced941a2522bfde06d947ac7fba7294`，sidecar 为 `24babb30c4a7f71abebb670d708e558e5b759d976ff281dba9e904f30efda11e`。本轮使用离线确定性 Provider，记录 1 个内部请求、6 个 Product Tool 调用、0 外网、0 凭据读取。
+- 这只关闭 C111A 的工程生命周期子目标。Inventory 现为 17 verified / 10 unresolved，7 项 critical 视觉问题仍阻止正式展示；`formal_eligible=false`、`human_benchmark_evidence=false`，M108B 继续 blocked，C112 不得开始。
+
+## 2026-07-25：ADR-0017 合并 Codex 式设计工作区与 img2threejs 视觉收敛方法
+
+- 新增 ADR-0017，冻结 ForgeCAD 的唯一目标产品模型：DeepSeek 在 Rust-owned `DesignWorkspace@1` 中修改 typed Morphology/Profile/Section/Shape/Assembly/Surface sources，Rust 校验和降低，RestrictedGeometryExecutor 编译，GLB/readback/render 证明结果；用户仍只使用自然语言并只看到一个结果。
+- GitHub connector 核验 `hoainho/img2threejs` commit `c9077d5ecce834f6802d6742b4a5b2c682d6279d`。只采用 `detailInventory`、固定 build passes、确定性优先视觉检查、多角度退化检查和有界修复思想；不安装其 Skill/runtime，不执行任意 TypeScript，不以 `THREE.Group` 替代 ShapeProgram/GLB/Snapshot。上游 Apache-2.0 当前只是方法参考，不进入 SBOM。
+- C111A 退出条件增加冻结的开发 `VisualDetailInventory`：每个 macro/meso/micro critical 项必须映射实际 Recipe/Shape operation/Material Zone/A005 program 并由 readback/render 证明。通用能力按 C112 Operator/Pattern→C113 Workspace→C114 Morphology→C115 Profile/Section→A006 typed tool loop→Q004 visual convergence→E004 unseen Brief 顺序保持 blocked。
+- 本轮是方案/文档任务，没有新增运行时用户能力，USER_GUIDE 与能力矩阵不应宣称自由生成已经完成。下一实现任务仍为 C111A，不得跳过它并行铺开汽车、飞机或通用语言。
+
+## 2026-07-25：C111A 机械臂黄金表面开发资产进入第 21 轮真实双档 Gate
+
+- 新增独立 `registry_c111_golden_surface_robotic_arm_v1`，不改写 C106/C110 已持久化 Recipe 谱系。第 21 轮 root 展开为 10 Parts、9 connections、160 operations、96 outputs；双轨连杆骨架/横撑、短型关节壳、显式轴向副环、三指空间夹爪、双肩 Revolve 腕环和底座周向防护件成为代码所有结构词汇，同时保持既有 ShapeProgram 96-output 上限。Rust focused tests 固定 registry 隔离、域拒绝、结构词汇、material-zone 一致性与 A005 v3 exact grant。
+- 第 21 轮缩小掌壳，将汽车漆护甲并入 palm surface-panel 输出，同时让石墨腕套筒与此前未输出的 Revolve 腕环都进入 GLB；腕环截面经过第 18–20 轮由齿片状收敛为八点双肩。首次对同一 gripper zone 叠加两个 A005 程序被编译器拒绝，最终将六边微网格绑定到独立 `zone_arm_gripper_paint` Slot，保留石墨壳人字浮雕和“一表面区一程序”约束。Rust dump 生成 6 项 `SurfaceAdornmentProgram@1`，`agent:c111a-golden-surface-gate` 真实通过 `RestrictedGeometryExecutor`：preview 27,020 triangles，production 140,684 triangles/173 primitives，1K 五通道 PBR，0 Provider，最终 ShapeProgram SHA-256 `34202af3f27dc7c0611a552ad90713c774585c19f6c4461642b2e40afdbfb6d2`。
+- 本轮先后修正了悬空超长线缆、过大的夹爪和关节比例。一次腕部 Revolve 简化触发 `SURFACE_UV_DEGENERATE`，Worker 正确 fail-closed；最终保留历史受限 Revolve 词汇，并用稳定圆柱腕壳作为可见输出，未绕过 UV/tangent Gate。
+- 最终开发 GLB/readback 位于 `output/c111a-golden-surface-iteration-10/`，同一 Three.js renderer 的 `iso/front/back/left/right/top` 截图位于 `output/playwright/c111a-iteration-10-*.png`。这些是未提交的生成证据，不应加入 Git。
+- 第 21 轮六视图位于 `output/playwright/c111a-iteration-21-{iso,front,back,left,right,top}.png`，末端近景位于 `output/playwright/c111a-iteration-21-gripper-{iso,front}.png`；同一 renderer 证明三指、双肩腕环、人字浮雕和掌甲微网格进入单一 GLB，但也暴露掌壳仍偏盒体、指节/远端过渡不足。C111A 尚未接入正式 Product Tool、ActiveDesignSnapshot、ChangeSet confirm、导出与重启恢复；因此状态是 `in_progress`，M108B 仍 blocked；不得以自动 Gate 或 Codex 代理目测替代三位独立真人 `4/5`。
+
+## 2026-07-25：C111A 第 22 轮 Loft 掌壳与冻结 VisualDetailInventory
+
+- `recipe_c111_arm_gripper` 的 palm 改为 `ProfileSketch@1` + 三个共享 `SectionSet@1` + 受限 Loft，64 点截面重采样将真实 preview 控制在 27,324 triangles；production 为 140,988 triangles / 172 primitives。ShapeProgram SHA-256 为 `6c3dedee8d197dbe10c5680a63a93450428a3aace6929ca93e340d04eef020e7`，production GLB SHA-256 为 `a438408748c86a65dc16cadb91081fbc2809d50801eff65a9847771aed2d2755`。
+- `packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json` 冻结 5 项 macro、11 项 meso、11 项 micro 开发细节，并逐项绑定当前 Recipe、operation suffix、Material Zone、A005 program 和第 22 轮固定视图。`agent:c111a-golden-surface-gate` 现在会验证 inventory 与 Rust dump、production GLB hash/triangles/primitives、六视图/两张夹爪近景摘要一致；14 项为 `readback_verified`，13 项 `unresolved`。
+- 11 项 critical unresolved 仍阻止唯一结果展示：底座像叠箱、关节像平盘、装甲/连杆转接突兀、线缆和大夹具悬空、腕掌过渡弱、指节像套筒、指尖过薄、接缝不清晰、PBR 金属高光过白。警示 Decal 和局部磨损缺失。原用户参考文件已不在原路径，fixture 明确记录 unavailable 并拒绝伪造 hash；需要重新提供同一参考文件后才能冻结 reference digest。C111A 仍未满足 Product Tool 生命周期和三位真人 4/5。
+
+## 2026-07-25：C111A 第 23 轮线缆固定与夹爪材质层级
+
+- 在保持 160 operations / 96 outputs、27,324 preview triangles 和 140,988 production triangles 不变的条件下，将 cable connector 与三条 Sweep 路径收向连杆内侧，缩小 clamp bridge 并贴近导轨；三指近端与楔形远端加厚，接触 panel 从 aluminum/trim 改为 rubber/contact，腕环与三个 knuckle 从 aluminum 改为 graphite。ShapeProgram SHA-256 为 `e8eb0c2156b09c9e9845e694ffff550c42c3cdc5a3081374c4502d266d23a4f8`，production GLB SHA-256 为 `033a21f8a51f0168794a676cbbe78dae6f7ad1090a7d72db5cac51699e3c8251`。
+- 第 23 轮六视图位于 `output/playwright/c111a-iteration-23-{iso,front,back,left,right,top}.png`，末端近景位于 `output/playwright/c111a-iteration-23-gripper-{iso,front}.png`。视觉检查确认最显眼的悬空线缆/大夹具缺陷已消除，因此 inventory 中两项改为 `readback_verified/partial`；它没有证明端点已经完全嵌合。
+- Inventory 当前为 16 项 readback verified、11 项 unresolved、9 项 critical unresolved。夹爪仍是直筒/套筒加楔形尖端，底座、平盘关节、装甲转接、接缝和 PBR 分层仍明显低于目标参考；因此继续 `blocks_single_result_display=true`。浏览器只有 favicon 404 与 Three.js `PCFSoftShadowMap` deprecated 警告，不影响 GLB 加载或截图证据。
+
+## 2026-07-25：C111A 第 24 轮实体三指远端与关节材质层级
+
+- 三个 gripper tip 从薄 wedge 改为受限 box→bevel 实体端段，关节 outer/secondary ring 从 aluminum 改为 composite 并加深轴向层级；aluminum hub cap 与 blue signal core 保留为小面积亮部。新增 3 项 operation 后总量为 163，outputs 仍为 96。
+- 初始 preview 27,444 triangles 被 27,400 上限正确拒绝；没有提高预算，把三个近端 finger bevel 从 3 段降为 2 段后得到 27,396-triangle preview 与 141,060-triangle/172-primitive production。ShapeProgram SHA-256 为 `37b4b1ffffcdda6745c7a84a0b64fab7f470b380eb156c9502bb48d337ebc845`，production GLB SHA-256 为 `c87e1f72d7f5c5f42a9398bb2c7f1949b8c9f64dfe5fd93db4aab38eaaa31f69`。
+- 第 24 轮六视图位于 `output/playwright/c111a-iteration-24-{iso,front,back,left,right,top}.png`，末端近景位于 `output/playwright/c111a-iteration-24-gripper-{iso,front}.png`。正视近景证明三指与实体圆角端段可读，整机视图证明深色外环/铝盖/蓝芯层级，因此这两项改为 `readback_verified/partial`。Inventory 当前 18 项 verified、9 项 unresolved、7 项 critical unresolved；夹爪转接和整机目标图差距仍未关闭。
+
+## 2026-07-24：Rust 自动唯一结果链与 macOS 稳定身份屏障
+
+- 初始机械臂生成现在只让 Provider 完成一次 `ArmDesignIntent@1` 创意计划；Rust 在该计划被归一化并绑定 reviewed root Recipe 后，固定执行 `build_candidate_geometry → compile_readback_candidate → render_candidate_views → evaluate_candidate → prepare_candidate_preview`。完整 Turn 因而是 1 次 Provider request、6 次 Product Tool call，不再依赖模型记住五个后续编排步骤，也不生成多个模型比较。
+- `npm run desktop:c110g-packaged-smoke` 已用当前 release bundle 重新通过：当前协议升级为 `ForgeCADC110GPackagedProtocolProof@2`，避免与旧 8/7 编排证据混淆。唯一 `parallel_link` production preview 为 576 triangles；同资产 reviewed Recipe 增量确认后 production export 为 640 triangles、5,374,220 bytes、SHA-256 `8fb9eb88705f248d42cf3e0484ef0b796bc1e9a23710ff7eb93c5a48502d1ed8`；第二个新进程恢复同一 `assetver_ac1cfa982f672a668d903dbc`、Snapshot revision 4、GLB hash/bytes/triangles。报告的 `external_network_calls=0`、`credential_reads=0`。
+- 频繁 Keychain 密码框的根因不是用户密码被修改，而是当前 `.app` 为 ad-hoc/linker-signed、无 TeamIdentifier 且严格 bundle 验证失败；每次重建的 CDHash/指定要求都会变化，macOS 因而可能把它视为新请求者。普通启动仍只读 metadata，secret read 为 0。新增 `desktop:macos-stable-identity-check` 与 `desktop:macos-stable-identity-require`；所有 live DeepSeek acceptance 在稳定签名缺失时会于启动应用前返回 `LIVE_STABLE_APP_IDENTITY_REQUIRED`。同一前置条件也已下沉到 Rust `MacOsKeychainBackend` 的 read/write/delete，使用 Security.framework 在任何 Keychain API 前验证 Apple anchor、Team OU、`local.wushen.forge` 和严格签名；ad-hoc UI 即使点击保存/测试也不会触发密码框。当前源码 bundle 已覆盖 `/Applications/CAD 工作台.app`，两者主二进制 SHA-256 同为 `41ab0d89cb5fc08a84ec0c94ba32e611fafe2b9dc46ee13da0815f4b4b362b55`，解决 Dock 打开旧版本的问题。当前开发机 `security find-identity -p codesigning -v` 为 0 个有效身份，因此最终 live 验收等待一次本机 Apple Development 身份配置；在此之前不得反复请求用户授权。
+
+## 2026-07-23：C110D 真实 DeepSeek 连续增量与恢复闭环通过
+
+- 脱敏实时验收报告为 `output/deepseek-delta-acceptance-20260723-template-two-deltas-final.json`、`-second.json`、`-resume.json`。第一和第二份分别记录一次真实 DeepSeek 网络调用、Rust-bound preview GLB、explicit confirm 与一次版本写入；第二次的 base 是第一次的新 asset version。第三份由全新桌面进程恢复第二次最终版本，导出 `production_concept` GLB（110,368 triangles）且 `network_calls=0`。
+- 为保持 Rust-first 几何所有权，Provider 不再提交完整几何 delta；它只能选择 `next_reviewed_attachment`。Rust 从当前 `ActiveDesignSnapshot` 的 `ready_operations` 取得受审模板并展开完整 `AssemblyDeltaProgram@1`，再走既有 ChangeSet preview→confirm 链；Python 仍只执行 capability-gated 受限几何编译。
+- 此次真实验收先被 `GEOMETRY_WORKER_VALUEERROR` 拒绝，根因是 wrist gripper Recipe 的 `surface_panel` 横向偏移越过受限 worker 的 base-width containment 合同。将其回到局部安全范围后，直接 worker compile 和最终三份验收报告都通过；这是 fail-closed 几何门正常工作的证据，不能靠 UI 隐藏。
+- C110D 至此证明一条已确认 serial-chain 机械臂的两步受审附件续作，不证明自由 GLB 创作、任意部件/风格/拓扑、parallel-link 的真实 Provider 选择，或 M108B 图片级视觉质量。下一优先级应是 artifact handle/缓存以消除重复 production 编译，再建立独立架构族和 M108B 正式视觉 kit。
 
 ## 2026-07-22：C110G 源码已重建并安装到 CAD 工作台
 
 - `/Applications/CAD 工作台.app` 已由当前源码覆盖更新；桌面 Rust 二进制与构建产物、安装包 SHA-256 均为 `eaba60b05de1afc81f1c10c88a15d01ee6778f8a06c7129a81b7094791edc0ad`，sidecar 构建产物与安装包 SHA-256 均为 `ed6ae6a2ff8b545db93553e6e33704298ca66258e0d3f55633b7d394f7707154`。
-- 本次构建包含 C110G 独立并联 Recipe/Connector、Rust Core AssemblyDelta allowlist、派生节点旋转 fail-closed 修复和 domain-role output binding 修复。`npm run desktop:c110g-packaged-smoke` 已通过，证据见 `output/c110g-packaged-golden-path/packaged-protocol-proof.json` 与 `packaged-resume-proof.json`：初始 production preview 576 triangles；同一资产追加 `recipe_c110g_parallel_link` 后确认版本为 `assetver_ac1cfa982f672a668d903dbc`，production export 640 triangles、5,289,468 bytes、SHA-256 `343e1b6343e79da70194cf321e81c42117508342f8f07bc4361c71170ead9cda`，Snapshot revision 4，第二进程恢复同一版本/GLB/字节数/三角形数。
-- 该 packaged 证据使用 `offline_deterministic` Provider（8 internal subrequests、7 Product Tool calls、0 network、0 credential reads），证明的是 Rust supervisor + Python restricted worker 的真实生命周期、唯一结果、同资产增量、GLB readback、confirm、导出和恢复；不证明真实 DeepSeek 已选择 parallel-link，也不证明任意架构、运动学或 M108B 图片级视觉门。
+- 本次构建包含 C110G 独立并联 Recipe/Connector、Rust Core AssemblyDelta allowlist、派生节点旋转 fail-closed 修复和 domain-role output binding 修复。该历史 packaged 证据已由上方 2026-07-24 当前 bundle 复验取代；当前真实 hash/bytes 和 Provider/Tool 计数以上方章节为准。
+- 该 packaged 证据使用 `offline_deterministic` Provider，证明的是 Rust supervisor + Python restricted worker 的真实生命周期、唯一结果、同资产增量、GLB readback、confirm、导出和恢复；不证明真实 DeepSeek 已选择 parallel-link，也不证明任意架构、运动学或 M108B 图片级视觉门。
 
 ## 2026-07-22：C110G packaged 黄金路径通过
 

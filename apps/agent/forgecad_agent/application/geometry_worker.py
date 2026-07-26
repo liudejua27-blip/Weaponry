@@ -1775,7 +1775,10 @@ def _read_visual_environment_facts(document: Mapping[str, Any]) -> Dict[str, Any
     environment = extras.get("forgecad_visual_environment") if isinstance(extras, dict) else None
     if not isinstance(environment, dict):
         raise ValueError("GLB visual environment is missing")
-    expected = studio_environment_manifest()
+    environment_id = environment.get("environment_id")
+    if not isinstance(environment_id, str):
+        raise ValueError("GLB visual environment id is missing")
+    expected = studio_environment_manifest(environment_id)
     if environment != expected:
         raise ValueError("GLB visual environment does not match the fixed studio profile")
     # The raw GLB keeps the full renderer recipe so it can be audited against

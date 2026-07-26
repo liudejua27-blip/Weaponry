@@ -624,11 +624,14 @@ def assert_candidate(candidate: Mapping[str, Any]) -> tuple[str, Mapping[str, An
         zone_ids.update(material_zones)
     if Counter(roles) != REQUIRED_ROLES:
         fail("C106_REQUIRED_ROLES_INVALID", f"{recipe_id}:{dict(Counter(roles))}")
-    # The MVP visual-quality increment keeps the same ten semantic Parts but
-    # gives their blue paint, metal trim, rubber channels and signal accents
-    # explicit immutable Material Zones instead of flattening them into one
-    # grey zone per Part.  The service plinth owns three additional zones.
-    if len(zone_ids) > 19:
+    # C108 keeps the same ten semantic Parts while assigning explicit zones to
+    # the nested joint, link, cable and end-effector surfaces.  The
+    # service-display root owns five additional plinth/accent zones.  Pin exact
+    # counts so a new visual layer cannot silently drift the reviewed contract.
+    expected_zone_count = (
+        26 if recipe_id == "recipe_c106_arm_service_display" else 21
+    )
+    if len(zone_ids) != expected_zone_count:
         fail("C106_ZONE_COUNT_INVALID", f"{recipe_id}:{len(zone_ids)}")
     if sum(len(item) for item in connectors_by_part.values()) < 18:
         fail("C106_CONNECTOR_COUNT_INVALID", recipe_id)
@@ -677,10 +680,10 @@ def assert_readback(
         fail("C106_GLB_READBACK_HASH_DRIFT")
     triangles = int(readback.get("triangle_count", 0))
     recipe_id = str(mapping(candidate.get("recipe"), "C106_RECIPE_INVALID").get("recipe_id"))
-    # C107 keeps the ShapeProgram at the existing 48-output cap.  The focused
-    # service-display derivative alone expands root-local maintenance hardware
-    # into 32 radial fasteners and 24 compact signal pods.  Its two compact
-    # siblings intentionally retain their smaller real geometry budget, so a
+    # C108 expands the reviewed service-display program to 55 outputs.  The
+    # focused derivative alone expands root-local maintenance hardware into 32
+    # radial fasteners and 24 compact signal pods.  Its two compact siblings
+    # intentionally retain their smaller real geometry budget, so a
     # service-only minimum must not reject those independently reviewed roots.
     triangle_min, triangle_max = (
         (80_000, 150_000)
@@ -690,11 +693,15 @@ def assert_readback(
     if not triangle_min <= triangles <= triangle_max:
         fail("C106_TRIANGLE_BUDGET_INVALID", str(triangles))
     primitives = int(readback.get("primitive_count", 0))
-    # The bounded 48-output contract intentionally expands two root-local
-    # visual arrays into 32 top-deck fasteners and 24 front signal pods.  This
-    # keeps production-visible hardware detail without broadening the
-    # ShapeProgram operation set or output count.
-    if not 10 <= primitives <= 128:
+    # The bounded 55-output service contract intentionally expands root-local
+    # visual arrays into repeated fasteners, maintenance panels and signal
+    # pods.  This keeps production-visible hardware detail without broadening
+    # the ShapeProgram operation allowlist.
+    # Arrays expand to individual GLB primitives.  The current 55-output
+    # service recipe resolves to 130 bounded primitives while remaining below
+    # the worker's production budget; keep headroom only for the reviewed
+    # grouped arrays rather than rejecting the current Rust-owned fixture.
+    if not 10 <= primitives <= 144:
         fail("C106_PRIMITIVE_BUDGET_INVALID", str(primitives))
     if any(int(readback.get(field, 0)) != primitives for field in ("uv0_primitive_count", "normal_primitive_count", "tangent_primitive_count")):
         fail("C106_VERTEX_FACTS_INVALID")

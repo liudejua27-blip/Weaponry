@@ -1,13 +1,15 @@
 # ForgeCAD 零基础用户指南
 
-版本：2026-07-20
+版本：2026-07-23
 状态：本机 Alpha 当前功能说明
 
 ForgeCAD 当前软件仍是轻量通用机械概念 3D Agent 的本机 Alpha。F026 已把旧三方向 UI 收敛为 Codex 式单结果工作台；V003 现在会让 Rust Agent 每个 Turn 只完成一次完整合成，并且只在真实编译/readback、四视图同源、Brief、比例、部件 role、五通道 PBR、Recipe 可编辑性和来源 Gate 全部通过后显示一个正式结果。交互反馈继续使用 `interactive_preview`；当前机械臂黄金路径的正式结果、质量、展示、下载和导出使用 1024×1024 五通道 PBR 的 `production_concept`。这不等于软件已经正式发布，也不等于模型外观已通过 M108B 独立真人 `4/5`。
 
+2026-07-26 起，默认路线按 ADR-0019 回到程序化视觉生成：DeepSeek 通过严格 typed 工具编写和修改三维视觉程序，Rust 校验并降级到 ShapeProgram、AssemblyGraph、材质区和表面程序。工作台不再要求 FAL API Key，也没有默认远程神经 Image-to-3D 入口；打开、创建、修改和导出不会因此产生 FAL 费用。当前执行内草稿已接入 production GLB 编译、PBR readback、精确八视图、最多两次 typed 局部修复和唯一未保存 preview；失败不会生成结果或资产版本。但真实 DeepSeek 联网生成、preview→confirm、三轮自然语言修改、重启/资产包和收藏级视觉验收仍未完成，所以普通用户还不能把这条开发链当作已经交付的自由生成产品。
+
 每次明确领域的 Agent Turn 现在会在服务端通过受限产品工具完成一个候选的构建、真实 GLB 回读、四视图渲染和 13 项硬门检查。失败时不会展示或保存模型；只有两个可确定性修复的表面问题能在同一设计意图下最多原位修复两次。通过后界面只显示一个未保存结果，用户选择“确认保存”才创建资产版本；“换一个思路”应开启新 Turn，而不是让用户在三个方向中筛选。
 
-对机械臂领域，C106–C108 已提供一条可验证的黄金路径。Agent 会根据当前 Style Token 从 3 个已审阅风格配方中内部确定性选择 1 个，每 Turn 仍只合成一个模型。当前 service-display 基准会生成底座、回转台、三个关节护罩、两段连杆装甲、线缆束、夹爪和表面 trim 共 10 个可回读部件/9 个连接；packaged `production_concept` 为 101,248 triangles、120 primitives 和 1024×1024 五通道 PBR。A005 可在确认 V1 后创建带流线修饰的不可变 V2，并经 Snapshot/CAS、导出和重启恢复。当前一次完整双编译流程仍较慢，画面也未达到目标参考图；这是特定机械臂基准的工程闭环，不是所有提示的外观质量保证。
+对机械臂领域，C106–C108 已提供一条可验证的黄金路径。Agent 会根据当前 Style Token 从 3 个已审阅风格配方中内部确定性选择 1 个，每 Turn 仍只合成一个模型。当前 service-display 基准会生成底座、回转台、三个关节护罩、两段连杆装甲、线缆束、夹爪和表面 trim 共 10 个可回读部件/9 个连接；packaged `production_concept` 为 101,248 triangles、120 primitives 和 1024×1024 五通道 PBR。A005 可在确认 V1 后创建带流线修饰的不可变 V2，并经 Snapshot/CAS、导出和重启恢复。确认后，当前 Agent 还能在同一机械臂上完成受审的连续附件续作：真实模型服务只选择一个已审续作意图，Rust 决定唯一 Recipe、连接器和几何操作，预览并确认后形成新的不可变版本；目前已验证 wrist tool mount 和 wrist gripper 两步连续编辑。它不是自由零件库、任意拓扑或任意风格的保证。当前一次完整双编译流程仍较慢，画面也未达到目标参考图；这是特定机械臂基准的工程闭环，不是所有提示的外观质量保证。
 
 C107/M109A 已把当前源码中的 service-display 工件分成同源双档：交互预览为 18,324 triangles、128×128 五通道 PBR，按需展示/导出为 99,092 triangles、109 primitives、8 套材质和 1024×1024 五通道 PBR。表面抽屉使用 SVG 预览受限流线、图案和粗糙度/法线/发光意图；确认后，Rust 密封的 `SurfaceLayerProgram@1` 才会由受限 Python 编译器绑定到真实 Material Zone，五通道贴图及 hash 从最终 GLB 回读。部件选择、两点测量和剖切使用同一个 3D renderer。真实截图仍未达到目标图级装甲嵌合、关节机械层级和微表面细节，不能把 99k/1K 视为视觉验收。
 
@@ -47,7 +49,9 @@ script/build_and_run.sh --verify
 5. 等待界面确认 metadata、Keychain、Agent 重启和本地 capability 均已就绪；
 6. 使用“测试连接（会联网）”执行一次真实 Provider 检查。
 
-macOS Tauri 运行时把 API Key 保存到系统 Keychain。普通打开工作台只读取不含密钥的 Provider metadata，Keychain 读取次数为 0，也不应要求输入 macOS 登录密码；用户主动点击一次“测试连接”时只读取一个短生命周期凭据快照，一次真实 Turn 也只读取一个快照，并在 preflight、预算检查和后续工具请求间复用，Turn 成功、失败或取消后立即释放。当前 V4 Agent Turn 显式使用思考模式和 Agent 级 `max` 强度；界面只显示步骤与最终结果，不显示或保存隐藏推理。保存/清除配置仍会按需访问 Keychain。仅写入 metadata 或 Keychain 不代表已经连接；只有新 Agent 进程的 capability 为 `ready` 时，界面才允许真实连接测试。测试或普通模型请求期间可以选择“取消本次模型请求”。取消、鉴权失败、余额不足、限流、服务错误、超时、空内容、非法 JSON 或 Schema 不符都不会创建计划、资产版本或导出，也不会静默改用离线结果冒充成功。当前本机 Alpha 是 ad-hoc 重建包，二进制变化后 macOS 可能把它视为新的请求者并再次显示钥匙串授权；这是应用身份授权，不表示登录密码已被 ForgeCAD 修改。不要把密钥写进项目文件、终端命令、截图或聊天记录。浏览器开发预览不提供 Keychain，开发者应按 [开发与调试](DEVELOPMENT.md) 使用本机 secret file。
+macOS Tauri 运行时把 API Key 保存到系统 Keychain。普通打开工作台只读取不含密钥的 Provider metadata，Keychain 读取次数为 0，也不应要求输入 macOS 登录密码；用户主动点击一次“测试连接”时只读取一个短生命周期凭据快照，一次真实 Turn 也只读取一个快照，并在 preflight、预算检查和后续工具请求间复用，Turn 成功、失败或取消后立即释放。当前 V4 Agent Turn 显式使用思考模式和 Agent 级 `max` 强度；界面只显示步骤与最终结果，不显示或保存隐藏推理。保存/清除配置仍会按需访问 Keychain。仅写入 metadata 或 Keychain 不代表已经连接；只有新 Agent 进程的 capability 为 `ready` 时，界面才允许真实连接测试。测试或普通模型请求期间可以选择“取消本次模型请求”。取消、鉴权失败、余额不足、限流、服务错误、超时、空内容、非法 JSON 或 Schema 不符都不会创建计划、资产版本或导出，也不会静默改用离线结果冒充成功。
+
+开发构建在执行任何 live acceptance 前必须先通过 `npm run desktop:macos-stable-identity-require`。当前 ad-hoc 重建包没有稳定证书、TeamIdentifier 和指定要求，二进制变化后 macOS 可能把它视为新的请求者并再次显示钥匙串授权；这属于应用身份授权，不表示登录密码已被 ForgeCAD 修改。验收启动器会在不读取 Keychain 的前提下提前拒绝这种包，错误为 `LIVE_STABLE_APP_IDENTITY_REQUIRED`；Rust Keychain backend 也会在任何 secret read/write/delete 前做同一稳定身份检查，因此 ad-hoc 包点击保存或测试只会返回稳定身份错误，不会再弹系统密码框。最终阶段配置稳定的本机 Apple Development 签名后，只进行一次“保存并连接/测试连接”授权；不要为临时 ad-hoc 构建选择“始终允许”，也不要扩大 Keychain 项的应用访问范围。不要把密钥写进项目文件、终端命令、截图或聊天记录。浏览器开发预览不提供 Keychain，开发者应按 [开发与调试](DEVELOPMENT.md) 使用本机 secret file。
 
 未配置大模型时仍可查看、编辑和导出已经保存的设计，但不能把 legacy 离线 Planner 的输出当作 V003 正式生成结果。仓库中的 `offline_deterministic` 只用于 Rust 合同和开发回归；它证明生命周期与 Gate，不代表面向用户的模型质量或真实联网生成。
 

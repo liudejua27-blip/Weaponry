@@ -724,6 +724,7 @@ impl ProviderClient for DeepSeekProviderClient {
                     ephemeral_reasoning: None,
                 }],
                 tools: Vec::new(),
+                require_tool_call: false,
                 max_output_tokens: 8,
             },
             cancellation,
@@ -876,6 +877,7 @@ fn build_http_request(
         || request.messages.is_empty()
         || request.messages.len() > MAX_MESSAGES
         || request.tools.len() > MAX_TOOLS
+        || (request.require_tool_call && request.tools.is_empty())
         || !(1..=MAX_OUTPUT_TOKENS).contains(&request.max_output_tokens)
     {
         return Err(local_schema_error(
@@ -945,7 +947,17 @@ fn build_http_request(
     // otherwise compatible endpoints.
     if !tools.is_empty() {
         body_value.insert("tools".into(), Value::Array(tools));
-        body_value.insert("tool_choice".into(), Value::String("auto".into()));
+        body_value.insert(
+            "tool_choice".into(),
+            Value::String(
+                if request.require_tool_call {
+                    "required"
+                } else {
+                    "auto"
+                }
+                .into(),
+            ),
+        );
     }
     let body_value = Value::Object(body_value);
     let body = serde_json::to_vec(&body_value)
@@ -1801,6 +1813,7 @@ mod tests {
                     }),
                 })
                 .collect(),
+            require_tool_call: false,
             max_output_tokens: 512,
         }
     }
@@ -1936,6 +1949,7 @@ mod tests {
             );
             assert_eq!(body["thinking"], json!({"type": "enabled"}));
             assert_eq!(body["reasoning_effort"], "max");
+            assert_eq!(body["tool_choice"], "auto");
             let encoded = String::from_utf8(captured.body().to_vec()).unwrap();
             assert!(!encoded.contains("base_url"));
             assert!(!encoded.contains("api_key"));
@@ -1943,6 +1957,30 @@ mod tests {
             assert!(!encoded.contains("database"));
             assert!(!encoded.contains("file_path"));
             assert!(!encoded.contains("unit-test-credential-material"));
+        });
+    }
+
+    #[test]
+    fn required_visual_direction_tool_call_is_explicit_in_provider_body() {
+        block_on(async {
+            let transport = Arc::new(FakeHttpTransport::new(vec![
+                sse_script(&tool_call_stream()),
+            ]));
+            let client = DeepSeekProviderClient::new(
+                source(Some(credentials())),
+                transport.clone(),
+                config(),
+            )
+            .unwrap();
+            let mut required = request(1);
+            required.require_tool_call = true;
+            client
+                .stream(required, CancellationToken::new(), Box::new(|_| {}))
+                .await
+                .unwrap();
+            let requests = transport.requests.lock().unwrap();
+            let body: Value = serde_json::from_slice(requests[0].body()).unwrap();
+            assert_eq!(body["tool_choice"], "required");
         });
     }
 

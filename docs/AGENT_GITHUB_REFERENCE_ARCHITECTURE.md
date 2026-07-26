@@ -26,6 +26,7 @@
 | [glTF Transform](https://github.com/donmccurdy/glTF-Transform) | Node/Web glTF 2.0 读写、优化和可复现变换，MIT | 导出后的 prune/dedup/压缩评估 | 在几何生成前引入第二权威模型 | 导出管线候选 |
 | [Khronos glTF](https://github.com/KhronosGroup/glTF) | glTF 2.0 定义 metallic-roughness、normal/occlusion/emissive；Khronos 扩展提供 clearcoat 与 KTX2/BasisU | 视觉材质互操作、汽车漆涂层、GPU 纹理压缩和 readback 合同 | 把格式/扩展支持冒充纹理已生效或真实材料 | 高真实度材质合同参考 |
 | [Khronos glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) | 对 glTF 2.0/GLB、引用、buffer、image 和 extension 输出 JSON 报告 | Agent GLB 与导入 GLB 的标准合规门 | 只验证格式就声称模型质量通过 | 验证门候选 |
+| [img2threejs](https://github.com/img2threejs/img2threejs) commit `ffe0ace9cfcb8686fd8473371ccbf0ffc2e906e0` | Apache-2.0 的 Agent Skill；以结构化雕刻规格、detail inventory、固定 build passes、参考/渲染比较、多角度检查和有界修复生成程序化 Three.js `THREE.Group`；GLB/稳定产品状态不是其当前交付真值 | 采用“AI 编写视觉程序”、三层细节清单、确定性优先 Gate、阶段化收敛、单比较图和停止策略，并映射到 ForgeVisualProgram/R007/C111/A005/V003 | 不安装为产品运行时，不执行其任意 TypeScript，不以 `THREE.Group` 取代 Rust/ShapeProgram/GLB/Snapshot，不以单图推断隐藏结构 | 高价值方法参考；ADR-0019，当前无依赖 |
 
 观察事实来自各项目当前默认分支；“借鉴/不套用/决策”是 ForgeCAD 的产品推断，不是上游项目承诺。
 

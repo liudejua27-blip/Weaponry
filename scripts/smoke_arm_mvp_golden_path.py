@@ -28,9 +28,9 @@ RESUME_SCHEMA = "ForgeCADArmMvpPackagedResumeProof@1"
 WEBVIEW_SCHEMA = "ForgeCADArmWebViewQa@1"
 EXPECTED_PROVIDER = {
     "source_kind": "offline_deterministic",
-    "internal_subrequests": 8,
-    "action_loop_steps": 8,
-    "product_tool_calls": 7,
+    "internal_subrequests": 1,
+    "action_loop_steps": 1,
+    "product_tool_calls": 6,
     "external_network_calls": 0,
     "credential_reads": 0,
 }

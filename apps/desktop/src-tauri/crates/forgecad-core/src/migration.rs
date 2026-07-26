@@ -217,6 +217,7 @@ const CORE_MIGRATIONS: &[Migration] = &[
         "reference_evidence_class",
         "0041_reference_evidence_class.sql"
     ),
+    legacy_migration!("0042", "visual_remote_jobs", "0042_visual_remote_jobs.sql"),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -448,6 +449,7 @@ mod tests {
         assert!(versions.contains("0039"));
         assert!(versions.contains("0040"));
         assert!(versions.contains("0041"));
+        assert!(versions.contains("0042"));
         for table in [
             "projects",
             "agent_asset_versions",
@@ -468,6 +470,7 @@ mod tests {
             "reference_guided_rebuild_plans",
             "reference_surface_analyses",
             "reference_rebuild_result_lineage",
+            "visual_remote_jobs",
         ] {
             let exists: bool = connection
                 .query_row(

@@ -214,7 +214,19 @@ pub fn inspect_external_glb(bytes: &[u8]) -> CoreResult<ImportedGlbInspection> {
 }
 
 fn inspect_external_glb_inner(bytes: &[u8]) -> Result<ImportedGlbInspection, &'static str> {
-    let (document, binary) = parse_glb_chunks(bytes)?;
+    inspect_embedded_glb_with_limits(bytes, MAX_IMPORTED_GLB_BYTES, MAX_IMPORTED_GLB_TRIANGLES)
+        .map(|(inspection, _)| inspection)
+}
+
+pub(crate) fn inspect_embedded_glb_with_limits(
+    bytes: &[u8],
+    max_bytes: usize,
+    max_triangles: u64,
+) -> Result<(ImportedGlbInspection, Value), &'static str> {
+    if max_bytes < 20 || max_triangles == 0 {
+        return Err("inspection limits are invalid");
+    }
+    let (document, binary) = parse_glb_chunks(bytes, max_bytes)?;
     if document
         .get("asset")
         .and_then(|asset| asset.get("version"))
@@ -348,8 +360,8 @@ fn inspect_external_glb_inner(bytes: &[u8]) -> Result<ImportedGlbInspection, &'s
                 .ok_or("primitive count overflow")?;
         }
     }
-    if triangle_count == 0 || triangle_count > MAX_IMPORTED_GLB_TRIANGLES {
-        return Err("triangle count is outside the 250000 limit");
+    if triangle_count == 0 || triangle_count > max_triangles {
+        return Err("triangle count is outside the configured limit");
     }
     let bounds_mm = std::array::from_fn(|axis| {
         let value = (maximum[axis] - minimum[axis]) * 1000.0;
@@ -371,12 +383,22 @@ fn inspect_external_glb_inner(bytes: &[u8]) -> Result<ImportedGlbInspection, &'s
             .and_then(Value::as_array)
             .map_or(0, |items| items.len() as u64),
     };
-    inspection.validate().map_err(|_| "inspection is invalid")?;
-    Ok(inspection)
+    if inspection.byte_size < 20
+        || inspection.byte_size > max_bytes as u64
+        || inspection.mesh_count == 0
+        || inspection.primitive_count == 0
+        || inspection
+            .bounds_mm
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+    {
+        return Err("inspection is invalid");
+    }
+    Ok((inspection, document))
 }
 
-fn parse_glb_chunks(bytes: &[u8]) -> Result<(Value, Vec<u8>), &'static str> {
-    if bytes.len() < 20 || bytes.len() > MAX_IMPORTED_GLB_BYTES || bytes.get(..4) != Some(b"glTF") {
+fn parse_glb_chunks(bytes: &[u8], max_bytes: usize) -> Result<(Value, Vec<u8>), &'static str> {
+    if bytes.len() < 20 || bytes.len() > max_bytes || bytes.get(..4) != Some(b"glTF") {
         return Err("container size or magic is invalid");
     }
     if read_u32(bytes, 4)? != 2 || read_u32(bytes, 8)? as usize != bytes.len() {

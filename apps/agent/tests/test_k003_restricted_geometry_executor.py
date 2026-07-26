@@ -693,6 +693,34 @@ def test_compile_readback_then_render_uses_only_opaque_ephemeral_handle() -> Non
         assert png.startswith(b"\x89PNG\r\n\x1a\n")
         assert hashlib.sha256(png).hexdigest() == rendered["render_view_sha256"][view_id]
 
+    convergence_request = copy.deepcopy(render_request)
+    convergence_request.update(
+        execution_id="exec_render_convergence",
+        idempotency_key="idem_render_convergence",
+        cancellation_id="cancel_render_convergence",
+        cancellation_token="cancel_token_render_convergence",
+    )
+    convergence_request["render"]["view_profile"] = "convergence_eight"
+    convergence_response = client.post(
+        execute_path,
+        headers=_headers(),
+        json_payload=convergence_request,
+    )
+    assert convergence_response.status_code == 200, convergence_response.json()
+    convergence = convergence_response.json()
+    assert set(convergence["render_views"]) == {
+        "iso",
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "gripper_iso",
+        "gripper_front",
+    }
+    assert convergence["render_view_sha256"]["gripper_iso"] != convergence["render_view_sha256"]["iso"]
+    assert convergence["render_view_sha256"]["gripper_front"] != convergence["render_view_sha256"]["front"]
+
 
 def test_rust_shape_program_seal_controls_cross_language_float_identity() -> None:
     program = json.loads(json.dumps(VALID_PROGRAM))

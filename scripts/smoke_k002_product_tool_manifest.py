@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""K002 shared Product Tool Registry manifest smoke.
+"""K002/PV003 shared Product Tool Registry manifest smoke.
 
 The committed fixture is the language-neutral contract consumed by the Rust
-Agent runtime and the temporary Python product-tool executor.  Its source is
-the existing A004 code-owned registry; this smoke prevents either side from
-silently maintaining a second list or a second JSON Schema.
+Agent runtime.  The thirteen legacy A004 tools remain mirrored by the temporary
+Python executor, while PV003's three ForgeVisualProgram tools are Rust-owned
+only.  This smoke checks both boundaries without making Python authoritative
+for the new visual authoring contract.
 """
 
 from __future__ import annotations
@@ -71,6 +72,12 @@ FORBIDDEN_CONTRACT_KEYS = {
 }
 TOOL_ID_PATTERN = re.compile(r"^forgecad\.[a-z0-9_.\-]+\.v1$")
 TOOL_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
+RUST_ONLY_VISUAL_TOOL_NAMES = {
+    "inspect_forge_visual_program",
+    "author_forge_visual_program",
+    "patch_forge_visual_program",
+}
+EXPECTED_TOOL_COUNT = 16
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -193,8 +200,8 @@ def _assert_a004_compatibility(fixture: Mapping[str, Any]) -> None:
     tools = fixture["tools"]
     names = [tool["name"] for tool in tools]
     ids = [tool["tool_id"] for tool in tools]
-    assert len(names) == len(set(names)) == 13
-    assert len(ids) == len(set(ids)) == 13
+    assert len(names) == len(set(names)) == EXPECTED_TOOL_COUNT
+    assert len(ids) == len(set(ids)) == EXPECTED_TOOL_COUNT
     assert names[-len(expected_names) :] == expected_names, (
         "A004 Product Tool execution order drifted from the shared registry"
     )
@@ -203,23 +210,35 @@ def _assert_a004_compatibility(fixture: Mapping[str, Any]) -> None:
     assert all(TOOL_ID_PATTERN.fullmatch(tool_id) for tool_id in a004_ids)
 
 
+def _assert_python_compatibility(
+    fixture: Mapping[str, Any], public_manifest: Mapping[str, Any]
+) -> None:
+    """Keep legacy A004 Python tools exact while PV003 remains Rust-owned."""
+
+    fixture_by_name = {tool["name"]: tool for tool in fixture["tools"]}
+    python_tools = public_manifest["tools"]
+    python_names = {tool["name"] for tool in python_tools}
+    fixture_names = set(fixture_by_name)
+    assert fixture_names - python_names == RUST_ONLY_VISUAL_TOOL_NAMES
+    assert python_names - fixture_names == set()
+    for python_tool in python_tools:
+        fixture_tool = fixture_by_name[python_tool["name"]]
+        assert {
+            key: fixture_tool[key] for key in PUBLIC_TOOL_KEYS
+        } == python_tool, f"Python A004 contract drifted for {python_tool['name']}"
+
+
 def _verify() -> dict[str, Any]:
     public_manifest = _public_manifest()
     fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    expected_fixture = _build_fixture(public_manifest)
 
     assert set(fixture) == FIXTURE_KEYS, (
         f"fixture record is not closed: {sorted(set(fixture) ^ FIXTURE_KEYS)}"
     )
-    assert fixture == expected_fixture, (
-        "K002 Product Tool fixture drifted from the A004 code-owned registry; "
-        "review the contract change and regenerate explicitly"
-    )
     assert fixture["canonicalization"] == CANONICALIZATION
-    assert len(fixture["tools"]) == 13
+    assert len(fixture["tools"]) == EXPECTED_TOOL_COUNT
 
     public_projection = _public_projection(fixture)
-    assert public_projection == public_manifest
     assert _sha256(public_projection) == fixture["manifest_sha256"]
     assert all(
         tool["approval_policy"] != "user_confirmation_required"
@@ -228,6 +247,7 @@ def _verify() -> dict[str, Any]:
 
     _assert_schema_contracts(fixture["tools"])
     _assert_no_provider_or_reasoning_fields(fixture)
+    _assert_python_compatibility(fixture, public_manifest)
     _assert_a004_compatibility(fixture)
     return fixture
 
@@ -237,12 +257,35 @@ def main() -> int:
     parser.add_argument(
         "--write-fixture",
         action="store_true",
-        help="Regenerate the reviewed fixture from the current A004 registry.",
+        help="Refresh legacy Python-owned records while preserving reviewed Rust-only tools.",
     )
     args = parser.parse_args()
 
     if args.write_fixture:
-        fixture = _build_fixture(_public_manifest())
+        current = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        python_manifest = _public_manifest()
+        python_by_name = {tool["name"]: tool for tool in python_manifest["tools"]}
+        merged_tools = []
+        for raw_tool in current["tools"]:
+            public_tool = python_by_name.get(raw_tool["name"])
+            if public_tool is None:
+                public_tool = {key: raw_tool[key] for key in PUBLIC_TOOL_KEYS}
+            tool = dict(public_tool)
+            tool["input_schema_sha256"] = _sha256(tool["input_schema"])
+            tool["output_schema_sha256"] = _sha256(tool["output_schema"])
+            merged_tools.append(tool)
+        public_projection = {
+            "schema_version": current["registry_schema_version"],
+            "tools": [
+                {key: tool[key] for key in PUBLIC_TOOL_KEYS}
+                for tool in merged_tools
+            ],
+        }
+        fixture = {
+            **current,
+            "tools": merged_tools,
+            "manifest_sha256": _sha256(public_projection),
+        }
         FIXTURE_PATH.write_text(
             json.dumps(fixture, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",

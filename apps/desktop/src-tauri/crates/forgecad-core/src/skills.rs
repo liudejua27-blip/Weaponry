@@ -10,7 +10,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    component_recipes::RecipeSurfaceAdornmentSlot, semantic_sha256, CoreError, CoreResult,
+    component_recipes::{ExpandedComponentCandidate, RecipeRegistry, RecipeSurfaceAdornmentSlot},
+    semantic_sha256, CoreError, CoreResult,
 };
 
 const DOMAINS: &[&str] = &[
@@ -65,6 +66,18 @@ const C106_ARM_RECIPE_IDS: &[&str] = &[
     "recipe_c106_arm_cable_harness",
     "recipe_c106_arm_gripper",
     "recipe_c106_arm_surface_trim",
+];
+// C111A is a separate immutable visual-fidelity lineage.  It receives A005
+// permission only through manifest v3; neither the legacy v1 manifest nor the
+// C106 v2 manifest may gain these IDs retroactively.
+const C111_GOLDEN_SURFACE_RECIPE_IDS: &[&str] = &[
+    "recipe_c111_arm_golden_surface",
+    "recipe_c111_arm_turntable",
+    "recipe_c111_arm_joint_housing",
+    "recipe_c111_arm_link_armor",
+    "recipe_c111_arm_cable_harness",
+    "recipe_c111_arm_gripper",
+    "recipe_c111_arm_surface_trim",
 ];
 const C105_SURFACE_RECIPE_IDS: &[&str] = &[
     "recipe_future_prop_shell",
@@ -315,6 +328,20 @@ pub fn builtin_surface_adornment_manifest_v2() -> AgentSkillManifest {
     manifest
 }
 
+/// A005 v3 explicitly grants only the isolated C111A golden-surface Recipe
+/// catalog.  Existing activations remain hash-pinned to v1/v2 and therefore
+/// cannot acquire this new visual vocabulary by runtime upgrade.
+pub fn builtin_surface_adornment_manifest_v3() -> AgentSkillManifest {
+    let mut manifest = builtin_surface_adornment_manifest_v2();
+    manifest.version = 3;
+    manifest.recipe_ids.extend(
+        C111_GOLDEN_SURFACE_RECIPE_IDS
+            .iter()
+            .map(|value| (*value).to_string()),
+    );
+    manifest
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct AgentSkillActivation {
@@ -487,7 +514,9 @@ impl SurfaceAdornmentProgram {
         slots: &[RecipeSurfaceAdornmentSlot],
     ) -> CoreResult<()> {
         self.validate()?;
-        if !C106_ARM_RECIPE_IDS.contains(&recipe_id) {
+        if !C106_ARM_RECIPE_IDS.contains(&recipe_id)
+            && !C111_GOLDEN_SURFACE_RECIPE_IDS.contains(&recipe_id)
+        {
             return Ok(());
         }
         if slots.iter().any(|slot| {
@@ -506,6 +535,166 @@ impl SurfaceAdornmentProgram {
             "C106 surface appearance must match a reviewed Recipe material-zone slot.",
         ))
     }
+}
+
+/// Build the exact six A005 programs reviewed with the immutable C111A golden
+/// robotic-arm registry. This helper is shared by the read-only artifact dump
+/// and the Rust Product Tool adapter so both paths bind the same part roles,
+/// material zones, Skill hash and deterministic seeds.
+pub fn c111_golden_surface_adornment_programs(
+    candidate: &ExpandedComponentCandidate,
+    registry: &RecipeRegistry,
+) -> CoreResult<Vec<SurfaceAdornmentProgram>> {
+    if candidate.recipe.recipe_id != "recipe_c111_arm_golden_surface"
+        || registry.registry_id() != "registry_c111_golden_surface_robotic_arm_v1"
+        || candidate.registry_sha256 != registry.registry_sha256()
+    {
+        return Err(invalid(
+            "C111_GOLDEN_SURFACE_LINEAGE_INVALID",
+            "C111A surface programs require the exact reviewed golden robotic-arm lineage.",
+        ));
+    }
+
+    let part_id_for_role = |role: &str| -> CoreResult<String> {
+        candidate.expanded_assembly_graph["parts"]
+            .as_array()
+            .and_then(|parts| {
+                parts
+                    .iter()
+                    .find(|part| part["role"] == role)
+                    .and_then(|part| part["part_id"].as_str())
+            })
+            .map(str::to_string)
+            .ok_or_else(|| {
+                invalid(
+                    "C111_GOLDEN_SURFACE_PART_MISSING",
+                    "C111A surface program target role is absent from the reviewed AssemblyGraph.",
+                )
+            })
+    };
+
+    let skill = builtin_surface_adornment_manifest_v3();
+    skill.validate()?;
+    let skill_sha256 = skill.canonical_sha256()?;
+    let specs = [
+        (
+            "adorn_c111_base_flowline",
+            "base_form",
+            "recipe_c111_arm_golden_surface",
+            "zone_arm_base_paint",
+            "flowline",
+            "double_flowline",
+            "balanced",
+            "edge_band",
+            "mat_automotive_paint",
+            11101,
+        ),
+        (
+            "adorn_c111_joint_microgrid",
+            "joint_housing",
+            "recipe_c111_arm_joint_housing",
+            "zone_arm_joint_shell",
+            "pattern",
+            "hex_microgrid",
+            "balanced",
+            "symmetric_pair",
+            "mat_graphite",
+            11102,
+        ),
+        (
+            "adorn_c111_link_groove",
+            "link_armor",
+            "recipe_c111_arm_link_armor",
+            "zone_arm_link_shell",
+            "normal_relief",
+            "parallel_groove",
+            "balanced",
+            "center_band",
+            "mat_composite",
+            11103,
+        ),
+        (
+            "adorn_c111_link_flowline",
+            "link_armor",
+            "recipe_c111_arm_link_armor",
+            "zone_arm_link_armor",
+            "flowline",
+            "double_flowline",
+            "balanced",
+            "center_band",
+            "mat_automotive_paint",
+            11105,
+        ),
+        (
+            "adorn_c111_gripper_chevron",
+            "end_effector_form",
+            "recipe_c111_arm_gripper",
+            "zone_arm_gripper",
+            "normal_relief",
+            "chevron_relief",
+            "balanced",
+            "edge_band",
+            "mat_graphite",
+            11104,
+        ),
+        (
+            "adorn_c111_gripper_microgrid",
+            "end_effector_form",
+            "recipe_c111_arm_gripper",
+            "zone_arm_gripper_paint",
+            "pattern",
+            "hex_microgrid",
+            "balanced",
+            "symmetric_pair",
+            "mat_automotive_paint",
+            11106,
+        ),
+    ];
+
+    specs
+        .into_iter()
+        .map(
+            |(
+                program_id,
+                part_role,
+                recipe_id,
+                target_zone_id,
+                kind,
+                motif,
+                intensity,
+                coverage,
+                base_material,
+                seed,
+            )| {
+                let recipe = registry.recipe(recipe_id).ok_or_else(|| {
+                    invalid(
+                        "C111_GOLDEN_SURFACE_RECIPE_MISSING",
+                        "C111A surface program references a Recipe outside the reviewed registry.",
+                    )
+                })?;
+                let program = SurfaceAdornmentProgram {
+                    schema_version: "SurfaceAdornmentProgram@1".into(),
+                    program_id: program_id.into(),
+                    target_part_id: part_id_for_role(part_role)?,
+                    target_zone_id: target_zone_id.into(),
+                    kind: kind.into(),
+                    motif: motif.into(),
+                    intensity: intensity.into(),
+                    coverage: coverage.into(),
+                    seed,
+                    base_material: base_material.into(),
+                    execution: "texture_bake".into(),
+                    skill_id: skill.skill_id.clone(),
+                    skill_version: skill.version,
+                    skill_sha256: skill_sha256.clone(),
+                    generator: "a005_v1".into(),
+                    non_functional_only: true,
+                };
+                program.validate_recipe_surface_slot(recipe_id, &recipe.surface_adornment_slots)?;
+                Ok(program)
+            },
+        )
+        .collect()
 }
 
 pub(crate) fn valid_prefixed_id(value: &str, prefix: &str) -> bool {
@@ -684,6 +873,30 @@ mod tests {
         assert_ne!(
             legacy.canonical_sha256().unwrap(),
             current.canonical_sha256().unwrap()
+        );
+    }
+
+    #[test]
+    fn builtin_surface_adornment_v3_is_an_explicit_hash_separated_c111_grant() {
+        let c106 = builtin_surface_adornment_manifest_v2();
+        let golden = builtin_surface_adornment_manifest_v3();
+        assert_eq!(c106.version, 2);
+        assert!(C111_GOLDEN_SURFACE_RECIPE_IDS
+            .iter()
+            .all(|recipe_id| !c106.recipe_ids.iter().any(|id| id == recipe_id)));
+        assert_eq!(golden.version, 3);
+        assert_eq!(
+            golden.recipe_ids.len(),
+            C105_SURFACE_RECIPE_IDS.len()
+                + C106_ARM_RECIPE_IDS.len()
+                + C111_GOLDEN_SURFACE_RECIPE_IDS.len()
+        );
+        assert!(C111_GOLDEN_SURFACE_RECIPE_IDS
+            .iter()
+            .all(|recipe_id| golden.recipe_ids.iter().any(|id| id == recipe_id)));
+        assert_ne!(
+            c106.canonical_sha256().unwrap(),
+            golden.canonical_sha256().unwrap()
         );
     }
 

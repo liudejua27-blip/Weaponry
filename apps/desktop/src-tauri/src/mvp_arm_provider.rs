@@ -248,7 +248,8 @@ fn arm_plan(brief: String) -> serde_json::Value {
     // architecture without pretending that the local Provider is DeepSeek.
     // The switch is opt-in and still emits the same bounded ArmDesignIntent
     // that the real Provider contract requires.
-    if env::var(ARCHITECTURE_FLAG).as_deref() == Ok("parallel_link") {
+    let requested_family = env::var(ARCHITECTURE_FLAG).ok();
+    if requested_family.as_deref() == Some("parallel_link") {
         plan["arm_design_intent"] = json!({
             "schema_version": "ArmDesignIntent@1",
             "domain_pack_id": "pack_robotic_arm_concept",
@@ -265,6 +266,26 @@ fn arm_plan(brief: String) -> serde_json::Value {
             "pose": "grounded",
             "proportion_profile": "balanced",
             "style_keywords": ["parallel", "industrial"],
+            "source": "user_brief",
+            "visual_only": true
+        });
+    } else if requested_family.as_deref() == Some("golden_surface") {
+        plan["arm_design_intent"] = json!({
+            "schema_version": "ArmDesignIntent@1",
+            "domain_pack_id": "pack_robotic_arm_concept",
+            "architecture": "serial_chain",
+            "joint_language": "armored_bearing",
+            "link_language": "closed_shell",
+            "base_language": "round_turntable",
+            "wrist_language": "layered_wrist",
+            "end_effector_language": "adaptive_claw",
+            "cable_language": "armored_harness",
+            "surface_language": ["panel_seams", "flowline"],
+            "material_palette": "graphite_blue",
+            "detail_density": "dense",
+            "pose": "grounded",
+            "proportion_profile": "balanced",
+            "style_keywords": ["golden_surface", "mechanical"],
             "source": "user_brief",
             "visual_only": true
         });
@@ -336,6 +357,7 @@ mod tests {
             context_digest: "a".repeat(64),
             messages,
             tools: Vec::new(),
+            require_tool_call: false,
             max_output_tokens: 128,
         }
     }

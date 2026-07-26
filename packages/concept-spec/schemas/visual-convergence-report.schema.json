@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/visual-convergence-report.schema.json",
+  "title": "VisualConvergenceReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_sha256", "source_program_sha256", "source_revision", "glb_sha256", "passed", "completed_stage_count", "fixed_view_count", "repair_attempt_count", "failure_codes"],
+  "properties": {
+    "schema_version": { "const": "VisualConvergenceReport@1" },
+    "report_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "source_program_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "source_revision": { "type": "integer", "minimum": 1 },
+    "glb_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "passed": { "type": "boolean" },
+    "completed_stage_count": { "type": "integer", "minimum": 0, "maximum": 7 },
+    "fixed_view_count": { "type": "integer", "minimum": 0, "maximum": 8 },
+    "repair_attempt_count": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "failure_codes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z0-9_]+$" }
+    }
+  }
+}

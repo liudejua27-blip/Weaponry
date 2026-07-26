@@ -23,7 +23,7 @@ use crate::{
 pub const ASSEMBLY_DELTA_PROGRAM_SCHEMA_VERSION: &str = "AssemblyDeltaProgram@1";
 pub const ASSEMBLY_DELTA_LOWERING_SCHEMA_VERSION: &str = "AssemblyDeltaLowering@1";
 
-const REVIEWED_ARM_RECIPES: [&str; 14] = [
+const REVIEWED_ARM_RECIPES: [&str; 15] = [
     "recipe_c106_arm_turntable",
     "recipe_c106_arm_joint_housing",
     "recipe_c106_arm_link_armor",
@@ -34,6 +34,7 @@ const REVIEWED_ARM_RECIPES: [&str; 14] = [
     "recipe_c110d_arm_actuator_cover",
     "recipe_c110d_arm_cable_guide",
     "recipe_c110d_arm_wrist_tool_mount",
+    "recipe_c110d_arm_wrist_gripper",
     "recipe_c110g_parallel_rail",
     "recipe_c110g_parallel_carriage",
     "recipe_c110g_parallel_link",
@@ -43,10 +44,11 @@ const REVIEWED_ARM_RECIPES: [&str; 14] = [
 /// These are visual attachment affordances.  They are deliberately separate
 /// from the required C106 root slots so an edit cannot silently replace the
 /// structural arm just because a user asked for another accessory.
-const REVIEWED_ARM_ATTACHMENT_SLOTS: [&str; 8] = [
+const REVIEWED_ARM_ATTACHMENT_SLOTS: [&str; 9] = [
     "slot_arm_sensor_pod",
     "slot_arm_guard_rail",
     "slot_arm_tool_changer",
+    "slot_arm_end_effector",
     "slot_arm_camera_boom",
     "slot_c110g_parallel_rail",
     "slot_c110g_parallel_carriage",
@@ -822,6 +824,7 @@ fn attachment_registry_for_recipe(recipe_id: &str) -> CoreResult<RecipeRegistry>
             | "recipe_c110d_arm_actuator_cover"
             | "recipe_c110d_arm_cable_guide"
             | "recipe_c110d_arm_wrist_tool_mount"
+            | "recipe_c110d_arm_wrist_gripper"
     ) {
         RecipeRegistry::from_embedded_c110c_robotic_arm_attachments()
     } else if matches!(

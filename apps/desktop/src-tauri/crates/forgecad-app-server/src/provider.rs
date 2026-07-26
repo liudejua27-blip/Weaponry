@@ -117,6 +117,8 @@ pub struct ProviderRequest {
     pub context_digest: String,
     pub messages: Vec<ProviderMessage>,
     pub tools: Vec<ProviderToolDefinition>,
+    /// Requires the Provider to return a reviewed tool call instead of prose.
+    pub require_tool_call: bool,
     pub max_output_tokens: u64,
 }
 
@@ -129,6 +131,7 @@ impl fmt::Debug for ProviderRequest {
             .field("context_digest", &self.context_digest)
             .field("message_count", &self.messages.len())
             .field("tool_count", &self.tools.len())
+            .field("require_tool_call", &self.require_tool_call)
             .field("max_output_tokens", &self.max_output_tokens)
             .finish()
     }
@@ -625,6 +628,7 @@ pub struct SafeProviderRequestRecord {
     pub message_count: usize,
     pub prior_reasoning_count: usize,
     pub tool_names: Vec<String>,
+    pub require_tool_call: bool,
     pub max_output_tokens: u64,
 }
 
@@ -749,6 +753,7 @@ impl ProviderClient for FakeDeepSeekClient {
                         .filter(|message| message.ephemeral_reasoning.is_some())
                         .count(),
                     tool_names: request.tools.into_iter().map(|tool| tool.name).collect(),
+                    require_tool_call: request.require_tool_call,
                     max_output_tokens: request.max_output_tokens,
                 });
             let scripted = inner
@@ -862,6 +867,7 @@ mod tests {
                             ephemeral_reasoning: None,
                         }],
                         tools: Vec::new(),
+                        require_tool_call: false,
                         max_output_tokens: 256,
                     },
                     CancellationToken::new(),
@@ -987,6 +993,7 @@ mod tests {
             context_digest: "a".repeat(64),
             messages: vec![message.clone()],
             tools: Vec::new(),
+            require_tool_call: false,
             max_output_tokens: 8,
         };
         let response = ProviderResponse {

@@ -36,6 +36,8 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
   "editable-component-recipe.schema.json": "dc78c0b7302462082b427d48e8d1a567c00bd46e9551bd413ff64dab6294cce3",
+  "forge-visual-patch.schema.json": "32223a0dd855a2ba6a67bf4120fc9bf6232ed30a83c4db7eec0346de43ffae64",
+  "forge-visual-program.schema.json": "bd1f449bae103a38bd2e4c7187ba27a30d4719010e19a12fd02899b8fae164e1",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
   "geometry-compile-readback.schema.json": "f88c32e4888a5cc923cc11786920790d16d52a816883b57b4ab6572407073bd9",
@@ -62,6 +64,8 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "shape-program.schema.json": "3bdf00dd393942b22a192a5c856f9745375fcedbdfda28656463f3d50bf85722",
   "surface-adornment-program.schema.json": "c91ceb6919e11bc5cc6114a36e26b833e32906dfc84f00e19ec3499833446e83",
   "surface-layer-program.schema.json": "be291936de86b757f3be98ec7773d5ed379f82a7708c633ebb8eb9e8574e162b",
+  "visual-convergence-input.schema.json": "9089c4c934b31554d488322b796edda55c78e6cff5f14e9e5aa665ee39508745",
+  "visual-convergence-report.schema.json": "af6ace5ebc351abc20cc9282cf82da368b3c818e9aa1ed6d7f53926e13a2b392",
   "visual-intent-mapping.schema.json": "5f5360234126188da3448f7507eb46c2e7575dbbaee9ff1f6b1b27c3aa8ca04f",
   "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
@@ -5056,6 +5060,725 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "non_functional_only"
     ],
     "title": "EditableComponentRecipe",
+    "type": "object"
+  },
+  "forge-visual-patch.schema.json": {
+    "$defs": {
+      "design_token": {
+        "additionalProperties": false,
+        "properties": {
+          "token_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "value": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token_id",
+          "value"
+        ],
+        "type": "object"
+      },
+      "detail_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "geometry_output",
+              "material_zone",
+              "surface_program"
+            ]
+          },
+          "part_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "target_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "kind",
+          "part_id",
+          "target_id"
+        ],
+        "type": "object"
+      },
+      "detail_item": {
+        "additionalProperties": false,
+        "properties": {
+          "bindings": {
+            "items": {
+              "$ref": "#/$defs/detail_binding"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "critical": {
+            "type": "boolean"
+          },
+          "description": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "detail_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "level": {
+            "enum": [
+              "macro",
+              "meso",
+              "micro"
+            ]
+          },
+          "status": {
+            "enum": [
+              "bound",
+              "unresolved"
+            ]
+          }
+        },
+        "required": [
+          "detail_id",
+          "level",
+          "description",
+          "critical",
+          "status",
+          "bindings"
+        ],
+        "type": "object"
+      },
+      "material_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "material_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "material_zone_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "part_id",
+          "material_zone_id",
+          "material_id"
+        ],
+        "type": "object"
+      },
+      "part": {
+        "additionalProperties": false,
+        "properties": {
+          "geometry_output_ids": {
+            "items": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "material_zone_ids": {
+            "items": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "parent_part_id": {
+            "oneOf": [
+              {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "part_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "role": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "part_id",
+          "role",
+          "parent_part_id",
+          "geometry_output_ids",
+          "material_zone_ids"
+        ],
+        "type": "object"
+      },
+      "remove_design_token": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "remove_design_token"
+          },
+          "token_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "op",
+          "token_id"
+        ],
+        "type": "object"
+      },
+      "replace_assembly_graph": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly_graph": {
+            "$ref": "assembly-graph.schema.json"
+          },
+          "op": {
+            "const": "replace_assembly_graph"
+          }
+        },
+        "required": [
+          "op",
+          "assembly_graph"
+        ],
+        "type": "object"
+      },
+      "replace_detail_inventory": {
+        "additionalProperties": false,
+        "properties": {
+          "detail_inventory": {
+            "items": {
+              "$ref": "#/$defs/detail_item"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "type": "array"
+          },
+          "op": {
+            "const": "replace_detail_inventory"
+          }
+        },
+        "required": [
+          "op",
+          "detail_inventory"
+        ],
+        "type": "object"
+      },
+      "replace_geometry_graph": {
+        "additionalProperties": false,
+        "properties": {
+          "geometry_graph": {
+            "$ref": "shape-program.schema.json"
+          },
+          "op": {
+            "const": "replace_geometry_graph"
+          }
+        },
+        "required": [
+          "op",
+          "geometry_graph"
+        ],
+        "type": "object"
+      },
+      "replace_material_graph": {
+        "additionalProperties": false,
+        "properties": {
+          "material_graph": {
+            "items": {
+              "$ref": "#/$defs/material_binding"
+            },
+            "maxItems": 2048,
+            "minItems": 1,
+            "type": "array"
+          },
+          "op": {
+            "const": "replace_material_graph"
+          }
+        },
+        "required": [
+          "op",
+          "material_graph"
+        ],
+        "type": "object"
+      },
+      "replace_parts": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "replace_parts"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/$defs/part"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "op",
+          "parts"
+        ],
+        "type": "object"
+      },
+      "replace_surface_graph": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "replace_surface_graph"
+          },
+          "surface_graph": {
+            "items": {
+              "$ref": "#/$defs/surface_binding"
+            },
+            "maxItems": 2048,
+            "type": "array"
+          }
+        },
+        "required": [
+          "op",
+          "surface_graph"
+        ],
+        "type": "object"
+      },
+      "set_export_profile": {
+        "additionalProperties": false,
+        "properties": {
+          "export_profile": {
+            "enum": [
+              "interactive_preview",
+              "production_concept"
+            ]
+          },
+          "op": {
+            "const": "set_export_profile"
+          }
+        },
+        "required": [
+          "op",
+          "export_profile"
+        ],
+        "type": "object"
+      },
+      "set_title": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "set_title"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "title"
+        ],
+        "type": "object"
+      },
+      "surface_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "material_zone_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "part_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "surface_program_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "surface_program_id",
+          "part_id",
+          "material_zone_id"
+        ],
+        "type": "object"
+      },
+      "upsert_design_token": {
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "const": "upsert_design_token"
+          },
+          "token": {
+            "$ref": "#/$defs/design_token"
+          }
+        },
+        "required": [
+          "op",
+          "token"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-patch.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Revision and source-hash bound edits to one Rust-owned ForgeVisualProgram draft. Operations address typed source domains rather than arbitrary JSON paths.",
+    "properties": {
+      "expected_revision": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "expected_source_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "operations": {
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/set_title"
+            },
+            {
+              "$ref": "#/$defs/upsert_design_token"
+            },
+            {
+              "$ref": "#/$defs/remove_design_token"
+            },
+            {
+              "$ref": "#/$defs/replace_parts"
+            },
+            {
+              "$ref": "#/$defs/replace_geometry_graph"
+            },
+            {
+              "$ref": "#/$defs/replace_assembly_graph"
+            },
+            {
+              "$ref": "#/$defs/replace_material_graph"
+            },
+            {
+              "$ref": "#/$defs/replace_surface_graph"
+            },
+            {
+              "$ref": "#/$defs/replace_detail_inventory"
+            },
+            {
+              "$ref": "#/$defs/set_export_profile"
+            }
+          ]
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "patch_id": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "preserve_geometry": {
+        "type": "boolean"
+      },
+      "preserve_material_surface": {
+        "type": "boolean"
+      },
+      "schema_version": {
+        "const": "ForgeVisualPatch@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "patch_id",
+      "expected_revision",
+      "expected_source_sha256",
+      "preserve_geometry",
+      "preserve_material_surface",
+      "operations"
+    ],
+    "title": "ForgeVisualPatch",
+    "type": "object"
+  },
+  "forge-visual-program.schema.json": {
+    "$defs": {
+      "id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_.:-]+$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-program.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-validated visual design source binding existing ShapeProgram, AssemblyGraph, Material Zones, surface programs and visible-detail evidence.",
+    "properties": {
+      "assembly_graph": {
+        "properties": {
+          "schema_version": {
+            "const": "AssemblyGraph@1"
+          }
+        },
+        "required": [
+          "schema_version"
+        ],
+        "type": "object"
+      },
+      "design_tokens": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "token_id": {
+              "$ref": "#/$defs/id"
+            },
+            "value": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "token_id",
+            "value"
+          ],
+          "type": "object"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "detail_inventory": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "bindings": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "geometry_output",
+                      "material_zone",
+                      "surface_program"
+                    ]
+                  },
+                  "part_id": {
+                    "$ref": "#/$defs/id"
+                  },
+                  "target_id": {
+                    "$ref": "#/$defs/id"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "part_id",
+                  "target_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 128,
+              "type": "array"
+            },
+            "critical": {
+              "type": "boolean"
+            },
+            "description": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "detail_id": {
+              "$ref": "#/$defs/id"
+            },
+            "level": {
+              "enum": [
+                "macro",
+                "meso",
+                "micro"
+              ]
+            },
+            "status": {
+              "enum": [
+                "bound",
+                "unresolved"
+              ]
+            }
+          },
+          "required": [
+            "detail_id",
+            "level",
+            "description",
+            "critical",
+            "status",
+            "bindings"
+          ],
+          "type": "object"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "domain_pack_id": {
+        "$ref": "#/$defs/id"
+      },
+      "export_profile": {
+        "enum": [
+          "interactive_preview",
+          "production_concept"
+        ]
+      },
+      "geometry_graph": {
+        "properties": {
+          "schema_version": {
+            "const": "ShapeProgram@1"
+          }
+        },
+        "required": [
+          "schema_version",
+          "operations",
+          "outputs"
+        ],
+        "type": "object"
+      },
+      "material_graph": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "material_id": {
+              "$ref": "#/$defs/id"
+            },
+            "material_zone_id": {
+              "$ref": "#/$defs/id"
+            },
+            "part_id": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "part_id",
+            "material_zone_id",
+            "material_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 2048,
+        "minItems": 1,
+        "type": "array"
+      },
+      "parts": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "geometry_output_ids": {
+              "items": {
+                "$ref": "#/$defs/id"
+              },
+              "maxItems": 256,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "material_zone_ids": {
+              "items": {
+                "$ref": "#/$defs/id"
+              },
+              "maxItems": 64,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "parent_part_id": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "part_id": {
+              "$ref": "#/$defs/id"
+            },
+            "role": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "part_id",
+            "role",
+            "parent_part_id",
+            "geometry_output_ids",
+            "material_zone_ids"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "program_id": {
+        "$ref": "#/$defs/id"
+      },
+      "schema_version": {
+        "const": "ForgeVisualProgram@1"
+      },
+      "stage": {
+        "enum": [
+          "draft",
+          "sealed"
+        ]
+      },
+      "surface_graph": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "material_zone_id": {
+              "$ref": "#/$defs/id"
+            },
+            "part_id": {
+              "$ref": "#/$defs/id"
+            },
+            "surface_program_id": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "surface_program_id",
+            "part_id",
+            "material_zone_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 2048,
+        "type": "array"
+      },
+      "title": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "visual_only": {
+        "const": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "domain_pack_id",
+      "title",
+      "stage",
+      "visual_only",
+      "design_tokens",
+      "parts",
+      "geometry_graph",
+      "assembly_graph",
+      "material_graph",
+      "surface_graph",
+      "detail_inventory",
+      "export_profile"
+    ],
+    "title": "ForgeVisualProgram",
     "type": "object"
   },
   "formal-module-review.schema.json": {
@@ -10832,6 +11555,441 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "non_functional_only"
     ],
     "title": "SurfaceLayerProgram",
+    "type": "object"
+  },
+  "visual-convergence-input.schema.json": {
+    "$defs": {
+      "detail_coverage": {
+        "additionalProperties": false,
+        "properties": {
+          "critical_unresolved": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "macro_bound": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "meso_bound": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "micro_bound": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "macro_bound",
+          "meso_bound",
+          "micro_bound",
+          "critical_unresolved"
+        ],
+        "type": "object"
+      },
+      "ledger": {
+        "additionalProperties": false,
+        "properties": {
+          "passes": {
+            "items": false,
+            "maxItems": 7,
+            "minItems": 7,
+            "prefixItems": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "silhouette"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "structure"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "form"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "material"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "surface"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "lighting"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/pass"
+                  },
+                  {
+                    "properties": {
+                      "stage": {
+                        "const": "optimization"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "DesignBuildLedger@1"
+          },
+          "source_program_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "source_revision": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "source_program_sha256",
+          "source_revision",
+          "passes"
+        ],
+        "type": "object"
+      },
+      "pass": {
+        "additionalProperties": false,
+        "properties": {
+          "completed": {
+            "const": true
+          },
+          "input_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "output_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "stage": {
+            "$ref": "#/$defs/stage"
+          }
+        },
+        "required": [
+          "stage",
+          "input_sha256",
+          "output_sha256",
+          "completed"
+        ],
+        "type": "object"
+      },
+      "readback": {
+        "additionalProperties": false,
+        "properties": {
+          "closed_manifold": {
+            "type": "boolean"
+          },
+          "glb_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "material_zone_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pbr_channels_complete": {
+            "type": "boolean"
+          },
+          "primitive_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shape_program_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "surface_provenance_present": {
+            "type": "boolean"
+          },
+          "triangle_count": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "glb_sha256",
+          "shape_program_sha256",
+          "triangle_count",
+          "primitive_count",
+          "material_zone_count",
+          "closed_manifold",
+          "surface_provenance_present",
+          "pbr_channels_complete"
+        ],
+        "type": "object"
+      },
+      "repair": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_domains": {
+            "items": {
+              "enum": [
+                "title",
+                "design_tokens",
+                "parts",
+                "geometry",
+                "assembly",
+                "material",
+                "surface",
+                "detail_inventory",
+                "export_profile"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "parent_program_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "repair_number": {
+            "maximum": 2,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "result_program_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "same_intent": {
+            "const": true
+          }
+        },
+        "required": [
+          "repair_number",
+          "parent_program_sha256",
+          "result_program_sha256",
+          "changed_domains",
+          "same_intent"
+        ],
+        "type": "object"
+      },
+      "sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "stage": {
+        "enum": [
+          "silhouette",
+          "structure",
+          "form",
+          "material",
+          "surface",
+          "lighting",
+          "optimization"
+        ],
+        "type": "string"
+      },
+      "view": {
+        "additionalProperties": false,
+        "properties": {
+          "glb_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "image_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "readback_passed": {
+            "type": "boolean"
+          },
+          "renderer_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "back",
+              "left",
+              "right",
+              "top",
+              "gripper_iso",
+              "gripper_front"
+            ]
+          }
+        },
+        "required": [
+          "view_id",
+          "glb_sha256",
+          "renderer_id",
+          "image_sha256",
+          "readback_passed"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/visual-convergence-input.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "detail_coverage": {
+        "$ref": "#/$defs/detail_coverage"
+      },
+      "fixed_views": {
+        "items": {
+          "$ref": "#/$defs/view"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "type": "array"
+      },
+      "ledger": {
+        "$ref": "#/$defs/ledger"
+      },
+      "readback": {
+        "$ref": "#/$defs/readback"
+      },
+      "repairs": {
+        "items": {
+          "$ref": "#/$defs/repair"
+        },
+        "maxItems": 2,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "VisualConvergenceInput@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "ledger",
+      "readback",
+      "fixed_views",
+      "detail_coverage",
+      "repairs"
+    ],
+    "title": "VisualConvergenceInput",
+    "type": "object"
+  },
+  "visual-convergence-report.schema.json": {
+    "$id": "https://forgecad.local/schemas/visual-convergence-report.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "completed_stage_count": {
+        "maximum": 7,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "failure_codes": {
+        "items": {
+          "pattern": "^[A-Z0-9_]+$",
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "fixed_view_count": {
+        "maximum": 8,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "glb_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "passed": {
+        "type": "boolean"
+      },
+      "repair_attempt_count": {
+        "maximum": 2,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "report_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualConvergenceReport@1"
+      },
+      "source_program_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "source_revision": {
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "report_sha256",
+      "source_program_sha256",
+      "source_revision",
+      "glb_sha256",
+      "passed",
+      "completed_stage_count",
+      "fixed_view_count",
+      "repair_attempt_count",
+      "failure_codes"
+    ],
+    "title": "VisualConvergenceReport",
     "type": "object"
   },
   "visual-intent-mapping.schema.json": {

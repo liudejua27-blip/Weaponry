@@ -5,7 +5,9 @@
 
 ## 1. 产品定义
 
-ForgeCAD 是面向零基础用户的本地优先通用机械概念 3D Agent。用户连接一个大模型 API，通过唯一工作台完成：
+目标面向用户产品名为 **Forge Studio**：零基础用户用自然语言或授权图片生成精致 PBR GLB，并继续用自然语言修改和导出。仓库和内部兼容标识当前仍使用 ForgeCAD。ADR-0019 将“AI 编写受控三维视觉程序、Rust 安全编译”为第一阶段默认路线：ShapeProgram、AssemblyGraph、Recipe、Material Zone 和 Design Surface Compiler 共同构成主生成能力；远程图像/神经 3D adapter 保留为默认关闭的实验基础设施，不是 MVP 前置条件。
+
+当前 ForgeCAD Alpha 用户通过唯一工作台完成：
 
 ```text
 创意交流 → 单次完整合成 → 硬门与有界原位修复 → 单一结果 → 3D blockout → 自动分件
@@ -144,12 +146,15 @@ Rust ForgeCAD app-server
 ├── Context Builder
 ├── Provider Gateway
 │   ├── DeepSeek Adapter / preflight / stream / cancel
+│   ├── Concept Image Provider Port（实验、默认关闭；历史 N003）
+│   ├── Neural Visual Provider Port（实验、默认关闭；历史 N002–N004）
 │   └── error taxonomy / usage / redacted trace
 ├── Agent Orchestrator
-│   ├── Planner
-│   ├── Candidate Builder
-│   ├── Candidate Evaluator
-│   └── Best-result Selector
+│   ├── Visual Brief / typed ForgeVisualProgram authoring（目标；PV003）
+│   ├── ForgeVisualProgram validator + lowering（PV001 最小合同）
+│   ├── Programmatic fixture/compiler/readback（目标；PV002）
+│   ├── Build ledger / bounded repair / eight views（目标；PV004）
+│   └── Single-result decision
 ├── Product Skill Registry
 ├── Tool Registry + Runtime Policy
 ├── Domain Pack Registry
@@ -161,6 +166,11 @@ Rust ForgeCAD app-server
 │   ├── ShapeProgram / GLB / thumbnail
 │   ├── MaterialPreset / texture
 │   └── ChangeSet / QualityReport / Export
+├── Programmatic Visual Coordinator（目标；PV002–PV006）
+│   ├── ForgeVisualProgram / Detail Inventory / semantic hash
+│   ├── Shape + Assembly + Material + Surface lowering
+│   ├── GLB/PBR readback + fixed eight views
+│   └── one programmatic preview → confirm
 └── RestrictedGeometryExecutor Port
           │ versioned request; no DB path, Provider Key or Snapshot write
           ▼
@@ -271,6 +281,25 @@ skills/<skill_id>/<version>/
 ```
 
 `tool-policy.json` 是严格交集：Skill 声明工具、全局 Tool Registry、G819 runtime manifest 和当前用户授权四者同时允许才可调用。不能照搬某些开发 Agent 中“allowed tools 只是免确认但不限制其他工具”的语义。用户可通过引导式编辑器创建“家用电器外观”“复古工业语言”“紧凑桌面设备”等专属 Skill，但发布前必须通过 Schema、无任意代码/URL/路径、示例、失败样例和零副作用 dry-run；失败 Skill 保持禁用。
+
+### 5.8 Codex 式 DesignWorkspace 与视觉收敛
+
+目标 Agent 不只是选择一个完整 Recipe，而是在 Rust-owned `DesignWorkspace@1` 中读取和修改 typed design sources：
+
+```text
+brief/reference
+→ MechanicalMorphologyProgram
+→ ProfileSketch/ProfileSectionSet
+→ Shape/Assembly sources
+→ Material Zone/SurfaceAdornmentProgram
+→ compile/readback/render
+→ VisualConvergenceReport
+→ 修改同一 workspace
+```
+
+Workspace revision 是未保存草稿，不是第二条 AssetVersion 链。每次 `DesignWorkspacePatch@1` 必须绑定预期 revision、typed AST 操作、预算和幂等键；编译、截图和比较图按 source hash 派生。只有 V003 硬门通过且用户确认，Rust 才把密封 source、ShapeProgram、AssemblyGraph、Surface Program 和 readback 原子提升为不可变资产版本并更新 `ActiveDesignSnapshot`。
+
+视觉收敛采用 [ADR-0017](ADR/0017-codex-design-workspace-visual-convergence.md) 的确定性优先方法：`VisualDetailInventory@1` 中每个关键细节都必须映射到真实 morphology/operation/Material Zone/A005 输出；固定构建阶段逐步通过合同、编译、多视图、材质和表面 Gate；视觉模型只在 hard gates 通过后判断难以确定化的外观差异。该自动判断用于开发和有界修复，不能替代 M108B 三位独立真人评分。
 
 ## 6. 核心领域合同
 
@@ -470,6 +499,14 @@ split_part / merge_parts
 
 检查不是 DFM、结构、空气动力学或安全认证。
 
+### 6.9 DesignWorkspace、Morphology 与视觉收敛合同
+
+`DesignWorkspace@1` 是当前 Turn 的可恢复设计草稿；`DesignWorkspacePatch@1` 是带 revision/CAS 的 typed source 修改；`MechanicalMorphologyProgram@1` 表达 scaffold、连接、topology family、负空间、壳层、材料区和表面意图，并由 Rust 降低为现有 `ShapeProgram@1`、`AssemblyGraph@1` 和 A005 合同。它们不接受任意网格、代码、URL 或路径。
+
+`VisualDetailInventory@1` 将 macro/meso/micro 细节绑定到实际输出并记录 `planned | lowered | readback_verified | unresolved`；critical unresolved 项阻止唯一结果展示。`DesignBuildLedger@1` 记录同一 workspace 的 silhouette、structure、form、material、surface、lighting 和 optimization 阶段，不创建中间资产版本。`VisualConvergenceReport@1` 依次消费来源/合同、真实 GLB readback、多视图结构、PBR/Material Zone 和受控渲染证据；任一 hard gate 失败时不得由 VLM 覆盖。
+
+这些是 ADR-0017 的目标合同，当前 C111A 只允许以冻结 fixture 先验证细节清单和固定视图方法；在对应 C112–Q004 原子任务完成前，USER_GUIDE 不得宣称 Agent 已经可以自由编写通用三维设计程序。
+
 ## 7. 首批四领域包
 
 ### 7.1 Future Weapon Prop
@@ -547,7 +584,23 @@ Brief / reference evidence
 
 资产层级分为 `preview`、`editable`、`export` 三档，但都从同一 ShapeProgram/AssemblyGraph 重建，不保存三套互相漂移的网格。preview 优先反馈速度；editable 保留选择与材质区；export 才执行完整 validate/inspect、纹理压缩和未引用资源清理。
 
-DeepSeek 不是 3D 生成或纹理服务。若以后引入外部图像/3D 重建 Provider，只能作为可选、可替换、用户授权的插件输入，输出仍先进入只读参考和许可证检查，再由 ForgeCAD 重建为新的受限资产；不能直接替换 AgentAssetVersion 真值。
+DeepSeek 不是网格生成或纹理服务。它负责把模糊意图展开成严格 typed `ForgeVisualProgram@1`，并在 Rust 返回结构化错误时进行有界修复；Rust 负责引用完整性、操作白名单、预算、hash、GLB/PBR readback、八视角、质量、版本和导出。`ForgeVisualProgram@1` 是设计源信封，不是第二条资产版本链：lowering 后仍由 `ShapeProgram@1`、`AssemblyGraph@1`、Material Zone、Surface program、`AgentAssetVersion@1` 和 `ActiveDesignSnapshot@1` 分别承担既有真值。
+
+程序化视觉主链为：
+
+```text
+Natural-language brief / authorized reference evidence
+→ DeepSeek typed ForgeVisualProgram
+→ Rust validate + semantic lowering
+→ Restricted Shape/Assembly/Material/Surface compilation
+→ real GLB/PBR readback + fixed eight-view review
+→ at most two in-place repairs of the same intent
+→ one transient result → user confirm
+→ procedural_shape_program AgentAssetVersion
+→ ForgeAssetPackage
+```
+
+该链当前只有 PV001 的最小 Rust 合同/lowering 和既有 V003/ShapeProgram/Surface/GLB 基础；PV002 的机械臂真实 fixture/双档编译、PV003 的 DeepSeek typed authoring、PV004 的阶段化构建与八视角收敛、PV005 的三轮语言修改/恢复/资产包、PV006 的 20 条盲测和 PV007 的逐领域扩展尚未完成，因此不得宣称自由生成或收藏级 MVP 闭环。历史 N001–N004 Provider 代码为 `experimental/default-off`，默认工作台不读取 FAL Key，也不会发起付费视觉请求。
 
 ### 9.2 建模语法路由
 

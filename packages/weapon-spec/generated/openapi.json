@@ -10164,6 +10164,18 @@
             "title": "Brief",
             "type": "string"
           },
+          "continuation_template_id": {
+            "anyOf": [
+              {
+                "const": "next_reviewed_attachment",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Template Id"
+          },
           "directions": {
             "items": {
               "$ref": "#/components/schemas/ConceptDirection"

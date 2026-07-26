@@ -11,7 +11,7 @@
 | ForgeCAD 内置 Skill | 产品内 Agent | 是，作为版本化策略 | 把自然语言意图路由到受限 CAD 工具 |
 | 外部扩展 | 专业团队 | P0 否 | 未来 DCC、团队审批或云存储适配 |
 
-用户首次启动只配置大模型 Provider，不选择 Skill、Mode、Agent、MCP、几何内核或 pipeline。
+用户首次启动只配置大模型 Provider，不选择 Skill、Mode、Agent、MCP、几何内核或 pipeline。ADR-0019 的默认程序化视觉路线不要求 FAL、神经 3D 服务或本地 GPU；这些历史 adapter 维持默认关闭。
 
 ## 2. 后续 Codex 的插件/Skill 选用表
 

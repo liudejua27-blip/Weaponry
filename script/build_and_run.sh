@@ -308,7 +308,7 @@ preview = report.get("preview", {})
 a005 = report.get("a005", {})
 active = report.get("active_design", {})
 export = report.get("export", {})
-assert report.get("schema_version") == "ForgeCADArmMvpPackagedProtocolProof@3", report
+assert report.get("schema_version") == "ForgeCADArmMvpPackagedProtocolProof@4", report
 assert report.get("status") == "pass", report
 assert all(report.get(key) for key in ("project_id", "thread_id", "turn_id", "v1_asset_version_id")), report
 assert report.get("root_recipe_id") == "recipe_c106_arm_service_display", report
@@ -340,9 +340,9 @@ assert 80000 <= export.get("triangle_count", 0) <= 150000, report
 assert export.get("x_forgecad_glb_sha256") == export.get("glb_sha256"), report
 assert provider == {
     "source_kind": "offline_deterministic",
-    "internal_subrequests": 8,
-    "action_loop_steps": 8,
-    "product_tool_calls": 7,
+    "internal_subrequests": 1,
+    "action_loop_steps": 1,
+    "product_tool_calls": 6,
     "external_network_calls": 0,
     "credential_reads": 0,
 }, report
@@ -389,7 +389,7 @@ resume = json.load(open(sys.argv[2], encoding="utf-8"))
 v3 = phase1["c110c"]["v3_asset_version_id"]
 v4 = phase1["c110d"]["v4_asset_version_id"]
 export = phase1["export"]
-assert resume.get("schema_version") == "ForgeCADArmMvpPackagedResumeProof@3", resume
+assert resume.get("schema_version") == "ForgeCADArmMvpPackagedResumeProof@4", resume
 assert resume.get("status") == "pass", resume
 assert resume.get("project_id") == phase1.get("project_id"), resume
 assert resume.get("expected_asset_version_id") == v4, resume

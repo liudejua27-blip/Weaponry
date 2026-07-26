@@ -8,6 +8,7 @@ use std::{
 use crate::skills::MATERIAL_PRESET_IDS;
 use crate::{
     builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2,
+    builtin_surface_adornment_manifest_v3,
     external_glb::{build_external_asset_version, safe_import_file_name},
     migration::open_connection,
     read_ownership_marker, ActiveDesign, ActiveDesignSnapshot, AgentAssetChangeSet,
@@ -28,8 +29,8 @@ use crate::{
     RecipeSlotBinding, RecipeSurfaceAdornmentSlot, ReferenceEvidence, ReferenceEvidenceKind,
     ReferenceGuidedRebuildPlan, ReferenceGuidedRebuildPlanStatus, ReferenceSurfaceAnalysis,
     RegisterMaterialTextureRequest, RenderPreset, SkillEvalStatus, SnapshotEtag, StoredObject,
-    SurfaceAdornmentProgram, WriterLease, EXTERNAL_GLB_REFERENCE_ROLE,
-    REFERENCE_EVIDENCE_SCHEMA_VERSION, REFERENCE_EVIDENCE_SOURCE_ROLE,
+    SurfaceAdornmentProgram, VisualRemoteJobRecord, VisualRemoteJobState, WriterLease,
+    EXTERNAL_GLB_REFERENCE_ROLE, REFERENCE_EVIDENCE_SCHEMA_VERSION, REFERENCE_EVIDENCE_SOURCE_ROLE,
     REFERENCE_GUIDED_REBUILD_PLAN_SCHEMA_VERSION,
 };
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
@@ -59,6 +60,7 @@ const C110C_ARM_RECIPES: &[&str] = &[
     "recipe_c110d_arm_actuator_cover",
     "recipe_c110d_arm_cable_guide",
     "recipe_c110d_arm_wrist_tool_mount",
+    "recipe_c110d_arm_wrist_gripper",
     "recipe_c110g_parallel_rail",
     "recipe_c110g_parallel_carriage",
     "recipe_c110g_parallel_link",
@@ -68,6 +70,7 @@ const C110C_ARM_ATTACHMENT_SLOTS: &[&str] = &[
     "slot_arm_sensor_pod",
     "slot_arm_guard_rail",
     "slot_arm_tool_changer",
+    "slot_arm_end_effector",
     "slot_arm_camera_boom",
     "slot_c110g_parallel_rail",
     "slot_c110g_parallel_carriage",
@@ -1907,6 +1910,99 @@ impl CoreRepository {
             )
             .optional()
             .map_err(Into::into)
+    }
+
+    /// Persists the prompt-free recovery truth immediately after a remote
+    /// queue accepts work. Stage transitions are monotonic so a late Provider
+    /// result cannot reopen or rebind a terminal Project/Turn job.
+    pub fn put_visual_remote_job(
+        &self,
+        record: &VisualRemoteJobRecord,
+    ) -> CoreResult<VisualRemoteJobRecord> {
+        record.validate()?;
+        self.write(|transaction| {
+            let existing = visual_remote_job_from_connection(transaction, &record.client_request_id)?;
+            if let Some(previous) = &existing {
+                validate_visual_remote_transition(previous, record)?;
+                transaction.execute(
+                    "UPDATE visual_remote_jobs SET stage=?, record_json=?, updated_at=? WHERE client_request_id=?",
+                    params![
+                        visual_remote_stage(&record.state),
+                        json_text(record)?,
+                        record.updated_at,
+                        record.client_request_id,
+                    ],
+                )?;
+            } else {
+                let project_active: bool = transaction.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM projects WHERE project_id=? AND status='active')",
+                    [&record.project_id],
+                    |row| row.get(0),
+                )?;
+                if !project_active {
+                    return Err(CoreError::conflict(
+                        "VISUAL_REMOTE_PROJECT_INACTIVE",
+                        "A new remote visual generation requires one active Rust-owned Project.",
+                    ));
+                }
+                transaction.execute(
+                    "INSERT INTO visual_remote_jobs(client_request_id, project_id, turn_id, stage, record_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    params![
+                        record.client_request_id,
+                        record.project_id,
+                        record.turn_id,
+                        visual_remote_stage(&record.state),
+                        json_text(record)?,
+                        record.created_at,
+                        record.updated_at,
+                    ],
+                )?;
+            }
+            visual_remote_job_from_connection(transaction, &record.client_request_id)?.ok_or_else(|| {
+                CoreError::conflict(
+                    "VISUAL_REMOTE_JOB_READBACK_INCOMPLETE",
+                    "Remote visual job did not read back inside its Rust transaction.",
+                )
+            })
+        })
+    }
+
+    pub fn visual_remote_job(
+        &self,
+        client_request_id: &str,
+    ) -> CoreResult<Option<VisualRemoteJobRecord>> {
+        let connection = open_connection(self.db_path())?;
+        visual_remote_job_from_connection(&connection, client_request_id)
+    }
+
+    pub fn recoverable_visual_remote_jobs(
+        &self,
+        project_id: Option<&str>,
+    ) -> CoreResult<Vec<VisualRemoteJobRecord>> {
+        let connection = open_connection(self.db_path())?;
+        let mut records = Vec::new();
+        if let Some(project_id) = project_id {
+            let mut statement = connection.prepare(
+                "SELECT client_request_id FROM visual_remote_jobs WHERE project_id=? AND stage IN ('concept_submitted','neural_submitted') ORDER BY updated_at, client_request_id",
+            )?;
+            let ids = statement
+                .query_map([project_id], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            for id in ids {
+                records.push(require_visual_remote_job(&connection, &id)?);
+            }
+        } else {
+            let mut statement = connection.prepare(
+                "SELECT client_request_id FROM visual_remote_jobs WHERE stage IN ('concept_submitted','neural_submitted') ORDER BY updated_at, client_request_id",
+            )?;
+            let ids = statement
+                .query_map([], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            for id in ids {
+                records.push(require_visual_remote_job(&connection, &id)?);
+            }
+        }
+        Ok(records)
     }
 
     pub fn snapshot(&self, project_id: &str) -> CoreResult<Option<ActiveDesignSnapshot>> {
@@ -4205,11 +4301,12 @@ impl CoreRepository {
         &self,
         timestamp: &str,
     ) -> CoreResult<AgentSkillManifest> {
-        // Preserve the immutable C105-only v1 before publishing the explicit
-        // C105+C106 v2. Fresh and upgraded repositories therefore seal the
-        // same version/hash chain without granting old activations new rights.
+        // Preserve immutable v1 and v2 before publishing the explicit C111A
+        // v3 grant. Fresh and upgraded repositories therefore seal the same
+        // version/hash chain without granting old activations new rights.
         self.create_skill_draft(&builtin_surface_adornment_manifest(), timestamp)?;
-        self.create_skill_draft(&builtin_surface_adornment_manifest_v2(), timestamp)
+        self.create_skill_draft(&builtin_surface_adornment_manifest_v2(), timestamp)?;
+        self.create_skill_draft(&builtin_surface_adornment_manifest_v3(), timestamp)
     }
 
     /// Validates a visual-only adornment against the sealed, currently enabled
@@ -4469,9 +4566,9 @@ impl CoreRepository {
     fn validate_skill_manifest_policy(&self, manifest: &AgentSkillManifest) -> CoreResult<()> {
         manifest.validate()?;
         // Product tools and G819 operations are independently checked by the
-        // manifest's code-owned allow-lists.  Recipes are a separate C105
-        // namespace and must exist in its reviewed registry; material IDs are
-        // separately constrained to the M101/M102/M108A catalog above.
+        // manifest's code-owned allow-lists. Recipes must exist in the exact
+        // reviewed C105/C106/C111A registries; material IDs are separately
+        // constrained to the M101/M102/M108A catalog above.
         let recipes = RecipeRegistry::from_embedded()?;
         // Keep historical C105 manifests independent from the newer pack.
         // The C106 registry is loaded only when a manifest explicitly names
@@ -4482,6 +4579,18 @@ impl CoreRepository {
             .any(|recipe_id| recipes.recipe(recipe_id).is_none())
             .then(RecipeRegistry::from_embedded_c106_robotic_arm)
             .transpose()?;
+        let c111_recipes = manifest
+            .recipe_ids
+            .iter()
+            .any(|recipe_id| {
+                recipes.recipe(recipe_id).is_none()
+                    && c106_recipes
+                        .as_ref()
+                        .and_then(|registry| registry.recipe(recipe_id))
+                        .is_none()
+            })
+            .then(RecipeRegistry::from_embedded_c111_golden_surface_robotic_arm)
+            .transpose()?;
         for recipe_id in &manifest.recipe_ids {
             let recipe = recipes
                 .recipe(recipe_id)
@@ -4490,10 +4599,15 @@ impl CoreRepository {
                         .as_ref()
                         .and_then(|registry| registry.recipe(recipe_id))
                 })
+                .or_else(|| {
+                    c111_recipes
+                        .as_ref()
+                        .and_then(|registry| registry.recipe(recipe_id))
+                })
                 .ok_or_else(|| {
                     CoreError::invalid_data(
                         "SKILL_RECIPE_POLICY_INVALID",
-                        "Skill names a Recipe outside the reviewed C105/C106 registries.",
+                        "Skill names a Recipe outside the reviewed C105/C106/C111A registries.",
                     )
                 })?;
             if !recipe.allowed_domains.iter().any(|domain| {
@@ -4653,6 +4767,129 @@ impl CoreRepository {
         transaction.commit()?;
         Ok(result)
     }
+}
+
+fn visual_remote_stage(state: &VisualRemoteJobState) -> &'static str {
+    match state {
+        VisualRemoteJobState::ConceptSubmitted { .. } => "concept_submitted",
+        VisualRemoteJobState::NeuralSubmitted { .. } => "neural_submitted",
+        VisualRemoteJobState::Completed { .. } => "completed",
+        VisualRemoteJobState::Failed { .. } => "failed",
+        VisualRemoteJobState::Cancelled { .. } => "cancelled",
+    }
+}
+
+fn visual_remote_job_from_connection(
+    connection: &Connection,
+    client_request_id: &str,
+) -> CoreResult<Option<VisualRemoteJobRecord>> {
+    let row: Option<(String, String, String, String, String, String)> = connection
+        .query_row(
+            "SELECT project_id, turn_id, stage, record_json, created_at, updated_at FROM visual_remote_jobs WHERE client_request_id=?",
+            [client_request_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+        )
+        .optional()?;
+    let Some((project_id, turn_id, stage, record_json, created_at, updated_at)) = row else {
+        return Ok(None);
+    };
+    let record: VisualRemoteJobRecord = serde_json::from_str(&record_json).map_err(|_| {
+        CoreError::invalid_data(
+            "VISUAL_REMOTE_JOB_RECORD_INVALID",
+            "Persisted remote visual job cannot be decoded by the current Rust contract.",
+        )
+    })?;
+    record.validate()?;
+    if record.client_request_id != client_request_id
+        || record.project_id != project_id
+        || record.turn_id != turn_id
+        || visual_remote_stage(&record.state) != stage
+        || record.created_at != created_at
+        || record.updated_at != updated_at
+    {
+        return Err(CoreError::conflict(
+            "VISUAL_REMOTE_JOB_ROW_DRIFT",
+            "Remote visual job columns do not match their sealed Rust record.",
+        ));
+    }
+    Ok(Some(record))
+}
+
+fn require_visual_remote_job(
+    connection: &Connection,
+    client_request_id: &str,
+) -> CoreResult<VisualRemoteJobRecord> {
+    visual_remote_job_from_connection(connection, client_request_id)?
+        .ok_or_else(|| CoreError::not_found("visual remote job"))
+}
+
+fn validate_visual_remote_transition(
+    previous: &VisualRemoteJobRecord,
+    next: &VisualRemoteJobRecord,
+) -> CoreResult<()> {
+    if previous.client_request_id != next.client_request_id
+        || previous.project_id != next.project_id
+        || previous.turn_id != next.turn_id
+        || previous.created_at != next.created_at
+    {
+        return Err(CoreError::conflict(
+            "VISUAL_REMOTE_JOB_IDENTITY_DRIFT",
+            "A remote visual job cannot change its client, Project, Turn or creation identity.",
+        ));
+    }
+    let allowed = match (&previous.state, &next.state) {
+        (
+            VisualRemoteJobState::ConceptSubmitted { binding: left },
+            VisualRemoteJobState::ConceptSubmitted { binding: right },
+        ) => left == right,
+        (
+            VisualRemoteJobState::NeuralSubmitted { binding: left },
+            VisualRemoteJobState::NeuralSubmitted { binding: right },
+        ) => left == right,
+        (
+            VisualRemoteJobState::ConceptSubmitted { binding: concept },
+            VisualRemoteJobState::NeuralSubmitted { binding: neural },
+        ) => {
+            concept.brief == neural.brief
+                && concept.reference_id == neural.concept_reference.reference_id
+                && concept.provider_job_id == neural.concept_reference.provider_job_id
+        }
+        (
+            VisualRemoteJobState::ConceptSubmitted { .. }
+            | VisualRemoteJobState::NeuralSubmitted { .. },
+            VisualRemoteJobState::Failed { .. } | VisualRemoteJobState::Cancelled { .. },
+        ) => true,
+        (
+            VisualRemoteJobState::NeuralSubmitted { binding: left },
+            VisualRemoteJobState::Completed { binding: right, .. },
+        ) => left == right,
+        (
+            VisualRemoteJobState::Completed {
+                binding: left_binding,
+                inspection: left_inspection,
+            },
+            VisualRemoteJobState::Completed {
+                binding: right_binding,
+                inspection: right_inspection,
+            },
+        ) => left_binding == right_binding && left_inspection == right_inspection,
+        (
+            VisualRemoteJobState::Failed { code: left },
+            VisualRemoteJobState::Failed { code: right },
+        )
+        | (
+            VisualRemoteJobState::Cancelled { code: left },
+            VisualRemoteJobState::Cancelled { code: right },
+        ) => left == right,
+        _ => false,
+    };
+    if !allowed {
+        return Err(CoreError::conflict(
+            "VISUAL_REMOTE_JOB_TRANSITION_INVALID",
+            "Remote visual jobs advance once from concept to neural to a terminal state.",
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

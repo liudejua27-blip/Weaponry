@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_BINARY = ROOT / "apps/desktop/src-tauri/target/release/bundle/macos/CAD 工作台.app/Contents/MacOS/wushen-forge-desktop"
 SIDECAR_BINARY = ROOT / "apps/desktop/src-tauri/target/release/bundle/macos/CAD 工作台.app/Contents/MacOS/wushen-agent"
 OUTPUT_ROOT = ROOT / "output/c110g-packaged-golden-path"
-SCHEMA = "ForgeCADC110GPackagedProtocolProof@1"
-RESUME_SCHEMA = "ForgeCADC110GPackagedResumeProof@1"
+SCHEMA = "ForgeCADC110GPackagedProtocolProof@2"
+RESUME_SCHEMA = "ForgeCADC110GPackagedResumeProof@2"
 ROOT_RECIPE = "recipe_c110g_parallel_link_root"
 
 
@@ -142,9 +142,9 @@ def validate_phase(report_value: dict[str, Any]) -> dict[str, Any]:
         report_value.get("provider")
         == {
             "source_kind": "offline_deterministic",
-            "internal_subrequests": 8,
-            "action_loop_steps": 8,
-            "product_tool_calls": 7,
+            "internal_subrequests": 1,
+            "action_loop_steps": 1,
+            "product_tool_calls": 6,
             "external_network_calls": 0,
             "credential_reads": 0,
         },

@@ -26,6 +26,8 @@
 | 目标系统架构 | [DESIGN](DESIGN.md) | GitHub 参考项目自身架构 |
 | 目标 3D 机械设计操作流程 | [MECHANICAL_DESIGN_OPERATIONS](MECHANICAL_DESIGN_OPERATIONS.md) | 当前 USER_GUIDE、HTML/SVG demo、聊天建议 |
 | Design Surface Compiler 分层、编译边界与实施顺序 | [ADR-0016](ADR/0016-design-surface-compiler.md) | HTML/CSS 折面 demo、单次概念图、旧多候选方案 |
+| Codex 式三维设计工作区、形态语言与视觉收敛编译 | [DESIGN](DESIGN.md)、[ADR-0017](ADR/0017-codex-design-workspace-visual-convergence.md) | 任意 Three.js/JavaScript 生成器、固定整机目录、聊天中的视觉建议 |
+| Forge Studio 程序化视觉 MVP、ForgeVisualProgram 与实施顺序 | [ADR-0019](ADR/0019-programmatic-visual-program-mvp.md)、[CODEX_EXECUTION_PLAN](CODEX_EXECUTION_PLAN.md) | ADR-0018 历史远程主链、Provider 营销页、任意 Agent JavaScript、尚未通过回读的演示结果 |
 | Project/Version/Selection/Quality/Export 真值 | [AUTHORITATIVE_STATE](AUTHORITATIVE_STATE.md) | 前端 localStorage、旧 Concept hook |
 | 当前桌面 app-server 协议与 Agent HTTP compatibility API | [API](API.md)、[ADR-0014](ADR/0014-rust-first-codex-app-server.md) | legacy API、生成类型文件、仅有目标架构的旧说明 |
 | 真实 Provider 四领域评测合同 | [AGENT_PROVIDER_EVALUATION](AGENT_PROVIDER_EVALUATION.md) | legacy R4/Weapon 评测、离线 smoke |

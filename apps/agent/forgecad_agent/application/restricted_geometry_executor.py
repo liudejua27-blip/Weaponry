@@ -135,6 +135,7 @@ class RestrictedGeometryExplodedPart(RestrictedGeometryApiModel):
 class RestrictedGeometryRenderOptions(RestrictedGeometryApiModel):
     width: int = Field(default=640, ge=64, le=2048)
     height: int = Field(default=640, ge=64, le=2048)
+    view_profile: Literal["workbench_four", "convergence_eight"] = "workbench_four"
     exploded_parts: list[RestrictedGeometryExplodedPart] = Field(
         default_factory=list,
         max_length=512,
@@ -1119,8 +1120,24 @@ def _validate_render_result_payload(
             status_code=503,
         )
     base_view_ids = {"iso", "front", "side", "top"}
+    convergence_view_ids = {
+        "iso",
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "gripper_iso",
+        "gripper_front",
+    }
     actual_view_ids = set(render_views)
-    if actual_view_ids not in (base_view_ids, base_view_ids | {"exploded_iso"}):
+    expected_view_ids = (
+        convergence_view_ids
+        if render.view_profile == "convergence_eight"
+        else base_view_ids
+    )
+    allowed_view_ids = (expected_view_ids, expected_view_ids | {"exploded_iso"})
+    if actual_view_ids not in allowed_view_ids:
         raise RestrictedGeometryBoundaryError(
             "GEOMETRY_EXECUTOR_RESULT_INVALID",
             "The render result did not contain the exact restricted view set.",
@@ -1416,6 +1433,7 @@ def _execute_worker_payload(
             width=int(render["width"]),
             height=int(render["height"]),
             exploded_parts=exploded_parts,
+            view_profile=str(render.get("view_profile", "workbench_four")),
         )
         if cancel_check():
             raise InterruptedError("cancelled")

@@ -16,5 +16,8 @@
 - [ADR-0014：Rust-first ForgeCAD app-server 与受限几何执行器](0014-rust-first-codex-app-server.md)（K001 协议/传输已落地，K002/K003 所有权迁移待完成；取代长期保留 FastAPI 状态所有权的目标结论）
 - [ADR-0015：拆分生产概念工件管线与生产级视觉验收](0015-split-production-artifact-and-visual-acceptance.md)（取代 ADR-0014 中“完整 M108 退出后才开始 K001”的依赖结论）
 - [ADR-0016：ForgeCAD Design Surface Compiler](0016-design-surface-compiler.md)（将平面设计升级为轮廓/截面/材质区/表面细节语言，并取代多完整候选评比策略）
+- [ADR-0017：Codex 式三维设计工作区与视觉收敛编译](0017-codex-design-workspace-visual-convergence.md)（在 Rust-first/Design Surface Compiler 上增加可迭代设计工作区、形态语言、细节清单和确定性优先的视觉收敛方法）
+- [ADR-0018：视觉优先的远程神经 3D MVP](0018-visual-first-neural-3d-mvp.md)（已由 ADR-0019 取代其默认主生成路线；历史 Provider 工程证据保留）
+- [ADR-0019：AI 编写三维视觉程序的默认 MVP](0019-programmatic-visual-program-mvp.md)（以 ForgeVisualProgram、Rust 安全降低、程序化几何/表面编译和连续语言修改取代必需的远程神经 3D）
 
 Accepted ADR 的修改应通过新增 superseding ADR 完成，不直接抹掉历史决策。

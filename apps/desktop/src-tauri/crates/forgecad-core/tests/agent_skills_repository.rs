@@ -1,10 +1,11 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use forgecad_core::{
-    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2, AgentAssetVersion,
-    AgentSkillActivation, AgentSkillEvalReport, AgentSkillManifest, AssetStage, AssetVersionStatus,
-    CoreRepository, Project, ProjectStatus, SkillEvalStatus, SkillExample, SkillLicense,
-    SkillProvenance, SurfaceAdornmentProgram,
+    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2,
+    builtin_surface_adornment_manifest_v3, AgentAssetVersion, AgentSkillActivation,
+    AgentSkillEvalReport, AgentSkillManifest, AssetStage, AssetVersionStatus, CoreRepository,
+    Project, ProjectStatus, SkillEvalStatus, SkillExample, SkillLicense, SkillProvenance,
+    SurfaceAdornmentProgram,
 };
 use rusqlite::Connection;
 use serde_json::json;
@@ -344,8 +345,10 @@ fn immutable_version_eval_activation_disable_and_restart_are_separate() {
 fn first_party_starter_is_a_draft_and_never_auto_enables() {
     let fixture = Fixture::new();
     let legacy = builtin_surface_adornment_manifest();
-    let builtin = builtin_surface_adornment_manifest_v2();
+    let c106 = builtin_surface_adornment_manifest_v2();
+    let builtin = builtin_surface_adornment_manifest_v3();
     fixture.repository.dry_run_skill(&legacy).unwrap();
+    fixture.repository.dry_run_skill(&c106).unwrap();
     fixture.repository.dry_run_skill(&builtin).unwrap();
     assert_eq!(
         fixture
@@ -363,7 +366,7 @@ fn first_party_starter_is_a_draft_and_never_auto_enables() {
             .repository
             .skill_manifests(&builtin.skill_id)
             .unwrap(),
-        vec![legacy, builtin.clone()]
+        vec![legacy, c106, builtin.clone()]
     );
     assert!(fixture
         .repository
@@ -378,7 +381,7 @@ fn first_party_starter_is_a_draft_and_never_auto_enables() {
 }
 
 #[test]
-fn c106_requires_v2_manifest_activation_and_survives_restart_by_exact_hash() {
+fn c106_and_c111_require_v3_manifest_activation_and_survive_restart_by_exact_hash() {
     let fixture = Fixture::new();
     fixture
         .repository
@@ -405,7 +408,7 @@ fn c106_requires_v2_manifest_activation_and_survives_restart_by_exact_hash() {
         .repository
         .ensure_builtin_surface_adornment_skill("2026-07-18T10:00:01Z")
         .unwrap();
-    assert_eq!(current, builtin_surface_adornment_manifest_v2());
+    assert_eq!(current, builtin_surface_adornment_manifest_v3());
 
     fixture
         .repository
@@ -450,7 +453,7 @@ fn c106_requires_v2_manifest_activation_and_survives_restart_by_exact_hash() {
     )
     .unwrap();
     let active = restarted.active_skill(&current.skill_id).unwrap().unwrap();
-    assert_eq!(active.skill_version, 2);
+    assert_eq!(active.skill_version, 3);
     assert_eq!(active.skill_sha256, expected_hash);
     restarted
         .validate_surface_adornment_program(&version.asset_version_id, &program)

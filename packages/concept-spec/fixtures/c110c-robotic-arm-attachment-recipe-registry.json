@@ -246,6 +246,65 @@
       "license": {"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
       "review_state": {"review_id":"review_c110d_wrist_tool_mount_v1","reviewed_at":"2026-07-21T00:00:00Z","reviewer_kind":"forgecad_internal"},
       "non_functional_only": true
+    },
+    {
+      "schema_version": "EditableComponentRecipe@1",
+      "recipe_id": "recipe_c110d_arm_wrist_gripper",
+      "version": 1,
+      "component_role": "visual_detail",
+      "display_name": "机械臂多指末端执行器",
+      "description": "连接在腕部工具挂座上的非功能多指末端执行器，包含掌部护甲、三组指节和信号灯带。",
+      "profiles": [],
+      "section_sets": [],
+      "parameter_bindings": [],
+      "shape_program_template": {
+        "schema_version": "ShapeProgram@1",
+        "program_id": "shape_c110d_arm_wrist_gripper",
+        "units": "millimeter",
+        "seed": 6114,
+        "triangle_budget": 2600,
+        "parameters": [],
+        "operations": [
+          {"operation_id":"op_wrist_gripper_hub","op":"cylinder","inputs":[],"args":{"position":[0,0,0],"radius":68,"height":46,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_gripper_hub"}},
+          {"operation_id":"op_wrist_gripper_palm_box","op":"box","inputs":[],"args":{"position":[76,0,0],"size":[126,164,116],"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_gripper_palm"}},
+          {"operation_id":"op_wrist_gripper_palm","op":"bevel_approx","inputs":["op_wrist_gripper_palm_box"],"args":{"radius":18,"segments":3,"part_role":"visual_detail","material_id":"mat_graphite","zone_id":"zone_c110d_gripper_palm"}},
+          {"operation_id":"op_wrist_gripper_finger_upper","op":"capsule","inputs":[],"args":{"position":[154,0,42],"radius":18,"height":126,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_gripper_finger"}},
+          {"operation_id":"op_wrist_gripper_finger_lower","op":"capsule","inputs":[],"args":{"position":[154,56,-42],"radius":16,"height":112,"axis":[1,0,0],"part_role":"visual_detail","material_id":"mat_aluminum","zone_id":"zone_c110d_gripper_finger"}},
+          {"operation_id":"op_wrist_gripper_signal","op":"surface_panel","inputs":["op_wrist_gripper_palm"],"args":{"axis":[0,1,0],"size":[82,8,24],"position":[0,0,38],"part_role":"visual_detail","material_id":"mat_emissive_blue","zone_id":"zone_c110d_gripper_signal"}}
+        ],
+        "outputs": [
+          {"output_id":"output_wrist_gripper_hub","operation_id":"op_wrist_gripper_hub","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_wrist_gripper_palm","operation_id":"op_wrist_gripper_palm","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_wrist_gripper_finger_upper","operation_id":"op_wrist_gripper_finger_upper","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_wrist_gripper_finger_lower","operation_id":"op_wrist_gripper_finger_lower","kind":"mesh","part_role":"visual_detail"},
+          {"output_id":"output_wrist_gripper_signal","operation_id":"op_wrist_gripper_signal","kind":"mesh","part_role":"visual_detail"}
+        ],
+        "non_functional_only": true
+      },
+      "feature_template": [
+        {"feature_id":"feature_wrist_gripper_hub","operation_id":"op_wrist_gripper_hub","role":"visual_detail"},
+        {"feature_id":"feature_wrist_gripper_palm","operation_id":"op_wrist_gripper_palm","role":"visual_detail"},
+        {"feature_id":"feature_wrist_gripper_fingers","operation_id":"op_wrist_gripper_finger_upper","role":"visual_detail"},
+        {"feature_id":"feature_wrist_gripper_signal","operation_id":"op_wrist_gripper_signal","role":"visual_detail"}
+      ],
+      "connectors": [{"connector_id":"connector_wrist_gripper_mount","kind":"visual_mount","position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]}],
+      "pivot": {"position":[0,0,0],"normal":[1,0,0],"up":[0,0,1]},
+      "root_local_transform": {"position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1]},
+      "material_zones": [
+        {"zone_id":"zone_c110d_gripper_hub","role":"trim","material_preset_id":"mat_aluminum"},
+        {"zone_id":"zone_c110d_gripper_palm","role":"shell","material_preset_id":"mat_graphite"},
+        {"zone_id":"zone_c110d_gripper_finger","role":"mechanical","material_preset_id":"mat_aluminum"},
+        {"zone_id":"zone_c110d_gripper_signal","role":"signal","material_preset_id":"mat_emissive_blue"}
+      ],
+      "surface_adornment_slots": [],
+      "child_slots": [],
+      "allowed_domains": ["pack_robotic_arm_concept"],
+      "triangle_estimate": 2600,
+      "quality_status": "passed",
+      "source": {"source_kind":"forgecad_first_party","source_id":"source_c110d_arm"},
+      "license": {"license_id":"ForgeCAD-Internal-Visual-Only","redistributable":false},
+      "review_state": {"review_id":"review_c110d_wrist_gripper_v1","reviewed_at":"2026-07-23T00:00:00Z","reviewer_kind":"forgecad_internal"},
+      "non_functional_only": true
     }
   ]
 }

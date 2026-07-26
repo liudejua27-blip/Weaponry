@@ -15,7 +15,8 @@ from typing import Any, NoReturn
 
 
 SCHEMA_VERSION = "ForgeCADArmMvpPackagedFlowEvidence@1"
-PACKAGED_PROTOCOL_SCHEMA_VERSION = "ForgeCADArmMvpPackagedProtocolProof@3"
+PACKAGED_PROTOCOL_SCHEMA_VERSION_V3 = "ForgeCADArmMvpPackagedProtocolProof@3"
+PACKAGED_PROTOCOL_SCHEMA_VERSION_V4 = "ForgeCADArmMvpPackagedProtocolProof@4"
 GOLDEN_BRIEF = "流线三关节维护机械臂，固定基座、双连杆、旋转腕部和夹爪"
 SERVICE_ROOT = "recipe_c106_arm_service_display"
 
@@ -56,8 +57,20 @@ def same(value: object, expected: str, *, code: str) -> str:
 
 def validate_evidence(value: object) -> dict[str, Any]:
     evidence = object_at(value, code="ARM_PACKAGED_EVIDENCE_OBJECT_INVALID")
-    if evidence.get("schema_version") == PACKAGED_PROTOCOL_SCHEMA_VERSION:
-        return validate_packaged_protocol_v3(evidence)
+    if evidence.get("schema_version") == PACKAGED_PROTOCOL_SCHEMA_VERSION_V3:
+        return validate_packaged_protocol(
+            evidence,
+            schema_version=PACKAGED_PROTOCOL_SCHEMA_VERSION_V3,
+            internal_subrequests=8,
+            product_tool_calls=7,
+        )
+    if evidence.get("schema_version") == PACKAGED_PROTOCOL_SCHEMA_VERSION_V4:
+        return validate_packaged_protocol(
+            evidence,
+            schema_version=PACKAGED_PROTOCOL_SCHEMA_VERSION_V4,
+            internal_subrequests=1,
+            product_tool_calls=6,
+        )
     if evidence.get("schema_version") != SCHEMA_VERSION or evidence.get("status") != "pass":
         fail("ARM_PACKAGED_EVIDENCE_SCHEMA_INVALID")
     same(evidence.get("brief"), GOLDEN_BRIEF, code="ARM_PACKAGED_BRIEF_MISMATCH")
@@ -135,7 +148,13 @@ def validate_evidence(value: object) -> dict[str, Any]:
     }
 
 
-def validate_packaged_protocol_v3(evidence: dict[str, Any]) -> dict[str, Any]:
+def validate_packaged_protocol(
+    evidence: dict[str, Any],
+    *,
+    schema_version: str,
+    internal_subrequests: int,
+    product_tool_calls: int,
+) -> dict[str, Any]:
     """Validate the current Rust-owned four-version packaged golden path."""
     if evidence.get("status") != "pass":
         fail("ARM_PACKAGED_PROTOCOL_STATUS_INVALID")
@@ -176,16 +195,16 @@ def validate_packaged_protocol_v3(evidence: dict[str, Any]) -> dict[str, Any]:
     provider = object_at(evidence.get("provider"), code="ARM_PACKAGED_PROVIDER_MISSING")
     expected_provider = {
         "source_kind": "offline_deterministic",
-        "internal_subrequests": 8,
-        "action_loop_steps": 8,
-        "product_tool_calls": 7,
+        "internal_subrequests": internal_subrequests,
+        "action_loop_steps": internal_subrequests,
+        "product_tool_calls": product_tool_calls,
         "external_network_calls": 0,
         "credential_reads": 0,
     }
     if provider != expected_provider:
         fail("ARM_PACKAGED_PROVIDER_POLICY_INVALID")
     return {
-        "schema_version": PACKAGED_PROTOCOL_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "project_id": project_id,
         "turn_id": turn_id,
         "preview_id": preview_id,

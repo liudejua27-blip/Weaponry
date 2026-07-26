@@ -28,9 +28,10 @@ const PROBE_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_PROBE";
 const OUTPUT_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_PROBE_OUTPUT";
 const RESUME_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_RESUME";
 const RESUME_INPUT_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_RESUME_INPUT";
+const ARM_FAMILY_FLAG: &str = "FORGECAD_MVP_ARM_ARCHITECTURE";
 pub(crate) const PROBE_ENDPOINT: &str = "http://127.0.0.1:1";
 const BRIEF: &str = "流线三关节维护机械臂，固定基座、双连杆、旋转腕部和夹爪";
-const SCHEMA_VERSION: &str = "ForgeCADArmMvpPackagedProtocolProof@3";
+const SCHEMA_VERSION: &str = "ForgeCADArmMvpPackagedProtocolProof@4";
 // C108 separates the lightweight interactive preview from the reviewed
 // production readback envelope. Keep both preview delivery and export bound
 // to that production contract rather than the obsolete 14,392-triangle
@@ -38,6 +39,11 @@ const SCHEMA_VERSION: &str = "ForgeCADArmMvpPackagedProtocolProof@3";
 const C106_PRODUCTION_TRIANGLE_MIN: u64 = 80_000;
 const C106_PRODUCTION_TRIANGLE_MAX: u64 = 150_000;
 const EXPECTED_ROOT_RECIPE_ID: &str = "recipe_c106_arm_service_display";
+const C111_GOLDEN_ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
+
+fn c111_golden_surface_enabled() -> bool {
+    env::var(ARM_FAMILY_FLAG).as_deref() == Ok("golden_surface")
+}
 
 #[derive(Serialize)]
 struct ProbeReport {
@@ -76,6 +82,7 @@ struct A005Evidence {
     part_id: String,
     material_zone_id: String,
     surface_adornment_count: u64,
+    surface_adornment_program_ids: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -158,7 +165,7 @@ pub(crate) fn run_if_enabled(bridge: AppServerBridge) {
             .spawn(move || {
                 let report = match catch_unwind(AssertUnwindSafe(|| run_resume(bridge, &input))) {
                     Ok(result) => result.unwrap_or_else(|failure| ResumeReport {
-                        schema_version: "ForgeCADArmMvpPackagedResumeProof@3",
+                        schema_version: "ForgeCADArmMvpPackagedResumeProof@4",
                         status: "fail",
                         project_id: failure.project_id,
                         expected_asset_version_id: None,
@@ -167,7 +174,7 @@ pub(crate) fn run_if_enabled(bridge: AppServerBridge) {
                         error_code: Some(failure.code),
                     }),
                     Err(_) => ResumeReport {
-                        schema_version: "ForgeCADArmMvpPackagedResumeProof@3",
+                        schema_version: "ForgeCADArmMvpPackagedResumeProof@4",
                         status: "fail",
                         project_id: None,
                         expected_asset_version_id: None,
@@ -381,8 +388,11 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
             .get("product_tool_calls")
             .and_then(Value::as_u64)
             .unwrap_or_default();
-        if provider_requests != 8
-            || product_tool_calls != 7
+        // One Provider request supplies the creative ArmDesignIntent plan.
+        // Rust owns the remaining fixed V003 synthesis chain, so the complete
+        // turn contains the plan plus five automatic Product Tool calls.
+        if provider_requests != 1
+            || product_tool_calls != 6
             || usage.get("network_call_made").and_then(Value::as_bool) != Some(false)
         {
             return Err(ProbeFailure::with_ids(
@@ -497,7 +507,12 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                     Some(turn_id.clone()),
                 )
             })?;
-        if root_recipe_id != EXPECTED_ROOT_RECIPE_ID {
+        let expected_root_recipe_id = if c111_golden_surface_enabled() {
+            C111_GOLDEN_ROOT_RECIPE_ID
+        } else {
+            EXPECTED_ROOT_RECIPE_ID
+        };
+        if root_recipe_id != expected_root_recipe_id {
             return Err(ProbeFailure::with_ids(
                 "MVP_ARM_ROOT_RECIPE_INVALID",
                 Some(project_id.clone()),
@@ -505,7 +520,19 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                 Some(turn_id.clone()),
             ));
         }
-        let (part_id, material_zone_id) = first_part_zone(&confirmed).ok_or_else(|| {
+        let a005_coverage = if c111_golden_surface_enabled() {
+            "edge_band"
+        } else {
+            "center_band"
+        };
+        let (part_id, material_zone_id) =
+            first_part_adornment_zone(
+                &confirmed,
+                "flowline",
+                "double_flowline",
+                a005_coverage,
+            )
+            .ok_or_else(|| {
             ProbeFailure::with_ids(
                 "MVP_ARM_A005_TARGET_MISSING",
                 Some(project_id.clone()),
@@ -544,7 +571,7 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                 "kind": "flowline",
                 "motif": "double_flowline",
                 "intensity": "subtle",
-                "coverage": "center_band"
+                "coverage": a005_coverage
             })),
             &[201],
         )
@@ -617,11 +644,19 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                 Some(turn_id.clone()),
             ));
         }
-        let surface_adornment_count = v2
+        let mut surface_adornment_program_ids = v2
             .pointer("/assembly_graph/surface_adornments")
             .and_then(Value::as_array)
-            .map(|items| items.len() as u64)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.get("program_id").and_then(Value::as_str))
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
+        surface_adornment_program_ids.sort();
+        let surface_adornment_count = surface_adornment_program_ids.len() as u64;
         if surface_adornment_count < 1 {
             return Err(ProbeFailure::with_ids(
                 "MVP_ARM_A005_PROVENANCE_MISSING",
@@ -629,6 +664,197 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                 Some(thread_id.clone()),
                 Some(turn_id.clone()),
             ));
+        }
+        if c111_golden_surface_enabled() {
+            let active_design = compat_json(
+                &bridge,
+                AllowedHttpMethod::Get,
+                &format!("/api/v1/projects/{project_id}/active-design"),
+                None,
+                None,
+                None,
+                &[200],
+            )
+            .await
+            .map_err(|code| {
+                ProbeFailure::with_ids(
+                    code,
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                )
+            })?;
+            let active_asset_version_id = active_design
+                .pointer("/active_design/asset_version_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    ProbeFailure::with_ids(
+                        "MVP_ARM_C111A_ACTIVE_DESIGN_MISSING",
+                        Some(project_id.clone()),
+                        Some(thread_id.clone()),
+                        Some(turn_id.clone()),
+                    )
+                })?;
+            let snapshot_revision = active_design
+                .get("revision")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| {
+                    ProbeFailure::with_ids(
+                        "MVP_ARM_C111A_SNAPSHOT_REVISION_MISSING",
+                        Some(project_id.clone()),
+                        Some(thread_id.clone()),
+                        Some(turn_id.clone()),
+                    )
+                })?;
+            if active_asset_version_id != v2_asset_version_id {
+                return Err(ProbeFailure::with_ids(
+                    "MVP_ARM_C111A_ACTIVE_DESIGN_DRIFT",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                ));
+            }
+            let export = compat_json(
+                &bridge,
+                AllowedHttpMethod::Post,
+                &format!("/api/v1/agent/asset-versions/{v2_asset_version_id}:export"),
+                Some("mvp_arm_c111a_export"),
+                None,
+                None,
+                &[200],
+            )
+            .await
+            .map_err(|code| {
+                ProbeFailure::with_ids(
+                    code,
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                )
+            })?;
+            let export_sha = required_id(&export, "glb_sha256").ok_or_else(|| {
+                ProbeFailure::with_ids(
+                    "MVP_ARM_C111A_EXPORT_SHA_MISSING",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                )
+            })?;
+            let export_bytes = export
+                .get("glb_base64")
+                .and_then(Value::as_str)
+                .and_then(|value| BASE64_STANDARD.decode(value).ok())
+                .ok_or_else(|| {
+                    ProbeFailure::with_ids(
+                        "MVP_ARM_C111A_EXPORT_BYTES_MISSING",
+                        Some(project_id.clone()),
+                        Some(thread_id.clone()),
+                        Some(turn_id.clone()),
+                    )
+                })?;
+            let export_byte_size = export
+                .get("glb_byte_size")
+                .and_then(Value::as_u64)
+                .unwrap_or_default();
+            let export_triangle_count = export
+                .get("triangle_count")
+                .and_then(Value::as_u64)
+                .unwrap_or_default();
+            if export.get("asset_version_id").and_then(Value::as_str)
+                != Some(v2_asset_version_id.as_str())
+                || export.get("artifact_profile_id").and_then(Value::as_str)
+                    != Some("production_concept")
+                || export.get("readback_status").and_then(Value::as_str) != Some("passed")
+                || sha256_hex(&export_bytes) != export_sha
+                || export_bytes.len() as u64 != export_byte_size
+                || !within_c106_production_triangle_budget(export_triangle_count)
+            {
+                return Err(ProbeFailure::with_ids(
+                    "MVP_ARM_C111A_EXPORT_READBACK_INVALID",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                ));
+            }
+            let (model_response, model_bytes) = compat_binary(
+                &bridge,
+                &format!("/api/v1/agent/asset-versions/{v2_asset_version_id}:model.glb"),
+                None,
+            )
+            .await
+            .map_err(|code| {
+                ProbeFailure::with_ids(
+                    code,
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                )
+            })?;
+            let export_header_sha =
+                header_value(&model_response, "X-ForgeCAD-GLB-SHA256").ok_or_else(|| {
+                    ProbeFailure::with_ids(
+                        "MVP_ARM_C111A_EXPORT_HEADER_MISSING",
+                        Some(project_id.clone()),
+                        Some(thread_id.clone()),
+                        Some(turn_id.clone()),
+                    )
+                })?;
+            if model_bytes != export_bytes || export_header_sha != export_sha {
+                return Err(ProbeFailure::with_ids(
+                    "MVP_ARM_C111A_EXPORT_HEADER_DRIFT",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                ));
+            }
+            return Ok(ProbeReport {
+                schema_version: SCHEMA_VERSION,
+                status: "pass",
+                brief: BRIEF,
+                project_id: Some(project_id),
+                thread_id: Some(thread_id),
+                turn_id: Some(turn_id),
+                preview: Some(PreviewEvidence {
+                    preview_id,
+                    artifact_profile_id: "production_concept".into(),
+                    glb_sha256: expected_sha,
+                    triangle_count,
+                }),
+                root_recipe_id: Some(root_recipe_id),
+                v1_asset_version_id: Some(v1_asset_version_id.clone()),
+                a005: Some(A005Evidence {
+                    change_set_id,
+                    parent_asset_version_id: v1_asset_version_id,
+                    v2_asset_version_id: v2_asset_version_id.clone(),
+                    part_id,
+                    material_zone_id,
+                    surface_adornment_count,
+                    surface_adornment_program_ids,
+                }),
+                c110c: None,
+                c110d: None,
+                active_design: Some(ActiveDesignEvidence {
+                    asset_version_id: active_asset_version_id,
+                    snapshot_revision,
+                }),
+                export: Some(ExportEvidence {
+                    asset_version_id: v2_asset_version_id,
+                    glb_sha256: export_sha,
+                    glb_byte_size: export_byte_size,
+                    triangle_count: export_triangle_count,
+                    x_forgecad_glb_sha256: export_header_sha,
+                }),
+                provider: ProviderEvidence {
+                    source_kind: "offline_deterministic",
+                    internal_subrequests: provider_requests,
+                    action_loop_steps: provider_requests,
+                    product_tool_calls,
+                    external_network_calls: 0,
+                    credential_reads: 0,
+                },
+                error_code: None,
+            });
         }
         // AgentAssetVersion.parts is the compact asset inventory. Connector
         // geometry belongs to the AssemblyGraph contract, so select the
@@ -966,6 +1192,7 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
                 part_id,
                 material_zone_id,
                 surface_adornment_count,
+                surface_adornment_program_ids,
             }),
             c110c: Some(C110CEvidence {
                 change_set_id: c110c_change_set_id,
@@ -1012,15 +1239,39 @@ fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
     })
 }
 
-fn first_part_zone(version: &Value) -> Option<(String, String)> {
-    version.get("parts")?.as_array()?.iter().find_map(|part| {
+fn first_part_adornment_zone(
+    version: &Value,
+    kind: &str,
+    motif: &str,
+    coverage: &str,
+) -> Option<(String, String)> {
+    let parts = version
+        .pointer("/assembly_graph/parts")
+        .or_else(|| version.get("parts"))?
+        .as_array()?;
+    parts.iter().find_map(|part| {
         let part_id = part.get("part_id")?.as_str()?;
-        let zone_id = part
-            .get("material_zone_ids")?
+        let material_zones = part.get("material_zone_ids")?.as_array()?;
+        part.get("surface_adornment_slots")?
             .as_array()?
-            .first()?
-            .as_str()?;
-        Some((part_id.to_string(), zone_id.to_string()))
+            .iter()
+            .find_map(|slot| {
+                let zone_id = slot.get("zone_id")?.as_str()?;
+                let allows = |field: &str, expected: &str| {
+                    slot.get(field)
+                        .and_then(Value::as_array)
+                        .is_some_and(|values| {
+                            values.iter().any(|value| value.as_str() == Some(expected))
+                        })
+                };
+                (material_zones
+                    .iter()
+                    .any(|value| value.as_str() == Some(zone_id))
+                    && allows("allowed_kinds", kind)
+                    && allows("allowed_motifs", motif)
+                    && allows("allowed_coverages", coverage))
+                .then(|| (part_id.to_string(), zone_id.to_string()))
+            })
     })
 }
 
@@ -1033,6 +1284,7 @@ fn run_resume(bridge: AppServerBridge, input: &PathBuf) -> Result<ResumeReport, 
         .ok_or_else(|| ProbeFailure::new("MVP_ARM_RESUME_PROJECT_MISSING"))?;
     let expected_asset_version_id = checkpoint
         .pointer("/c110d/v4_asset_version_id")
+        .or_else(|| checkpoint.pointer("/a005/v2_asset_version_id"))
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| {
@@ -1169,7 +1421,7 @@ fn run_resume(bridge: AppServerBridge, input: &PathBuf) -> Result<ResumeReport, 
             ));
         }
         Ok(ResumeReport {
-            schema_version: "ForgeCADArmMvpPackagedResumeProof@3",
+            schema_version: "ForgeCADArmMvpPackagedResumeProof@4",
             status: "pass",
             project_id: Some(project_id),
             expected_asset_version_id: Some(expected_asset_version_id.clone()),
@@ -1385,4 +1637,55 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::first_part_adornment_zone;
+    use serde_json::json;
+
+    #[test]
+    fn packaged_probe_selects_the_reviewed_adornment_slot_not_the_first_material_zone() {
+        let version = json!({
+            "parts": [{"part_id": "part_projection", "material_zone_ids": ["zone_wrong"]}],
+            "assembly_graph": {
+                "parts": [{
+                    "part_id": "part_base",
+                    "material_zone_ids": ["zone_arm_base", "zone_arm_base_paint"],
+                    "surface_adornment_slots": [{
+                        "zone_id": "zone_arm_base_paint",
+                        "allowed_kinds": ["pattern", "flowline"],
+                        "allowed_motifs": ["hex_microgrid", "double_flowline"],
+                        "allowed_coverages": ["center_band", "edge_band"]
+                    }]
+                }]
+            }
+        });
+
+        assert_eq!(
+            first_part_adornment_zone(&version, "flowline", "double_flowline", "edge_band"),
+            Some(("part_base".into(), "zone_arm_base_paint".into()))
+        );
+    }
+
+    #[test]
+    fn packaged_probe_fails_closed_when_no_slot_grants_the_requested_program() {
+        let version = json!({
+            "parts": [{
+                "part_id": "part_base",
+                "material_zone_ids": ["zone_arm_base_paint"],
+                "surface_adornment_slots": [{
+                    "zone_id": "zone_arm_base_paint",
+                    "allowed_kinds": ["pattern"],
+                    "allowed_motifs": ["hex_microgrid"],
+                    "allowed_coverages": ["center_band"]
+                }]
+            }]
+        });
+
+        assert_eq!(
+            first_part_adornment_zone(&version, "flowline", "double_flowline", "edge_band"),
+            None
+        );
+    }
 }

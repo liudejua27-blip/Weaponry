@@ -18,6 +18,7 @@ from run_deepseek_mvp_acceptance import (
     _validate_live,
     _validate_report,
 )
+from macos_stable_app_identity import evaluate_identity_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,34 @@ def main() -> int:
     source = (ROOT / "scripts" / "run_deepseek_mvp_acceptance.py").read_text(encoding="utf-8")
     for forbidden in ("find-generic-password", "security find", 'get("FORGECAD_AGENT_API_KEY")'):
         _assert(forbidden not in source, f"launcher must not read credentials: {forbidden}")
+    _assert(
+        source.index("inspect_stable_app_identity(APP_BUNDLE)")
+        < source.index("desktop_pid = _start("),
+        "live launcher must reject unstable app identity before app launch",
+    )
+    adhoc = evaluate_identity_text(
+        display=(
+            "Identifier=wushen_forge_desktop-volatile\n"
+            "Signature=adhoc\n"
+            "TeamIdentifier=not set\n"
+        ),
+        requirement="",
+        strict_bundle_valid=False,
+    )
+    _assert(not adhoc.ready, "ad-hoc rebuild must never be allowed to read Provider Keychain")
+    signed = evaluate_identity_text(
+        display=(
+            "Identifier=local.wushen.forge\n"
+            "Signature=Developer ID Application: Example\n"
+            "TeamIdentifier=ABCDE12345\n"
+        ),
+        requirement=(
+            'designated => anchor apple generic and identifier "local.wushen.forge" '
+            'and certificate leaf[subject.OU] = ABCDE12345'
+        ),
+        strict_bundle_valid=True,
+    )
+    _assert(signed.ready, "stable certificate/team/bundle requirement should be accepted")
 
     _reject([], "LIVE_CONFIRMATION_REQUIRED")
     _reject(["--confirm-live-provider"], "LIVE_CONFIRMATION_REQUIRED")
@@ -110,7 +139,7 @@ def main() -> int:
         "error_code": "LIVE_TURN_NOT_EPHEMERAL_COMPLETION",
     }
     try:
-        _validate_report(failed_report, "live_acceptance_20260719")
+        _validate_report(failed_report, "live_acceptance_20260719", None)
     except AcceptanceError as error:
         _assert(str(error) == "LIVE_RUST_PROBE_FAILED", "failed reports must preserve safe diagnostics")
     else:
@@ -128,15 +157,12 @@ def main() -> int:
     rejected_phase_code = json.loads(json.dumps(failed_report))
     rejected_phase_code["live_turn"]["error_code"] = "PROVIDER_LOOKS_SAFE_BUT_IS_NOT_REVIEWED"
     try:
-        _validate_report(rejected_phase_code, "live_acceptance_20260719")
+        _validate_report(rejected_phase_code, "live_acceptance_20260719", None)
     except AcceptanceError as error:
         _assert(str(error) == "LIVE_REPORT_REDACTION_INVALID", "unknown phase code must fail closed")
     else:
         raise AssertionError("unknown phase code unexpectedly accepted")
-    _assert(
-        "report = _read_report(output)\n                _validate_report(report, run_id)" in source,
-        "launcher must preserve a failed Rust report before validation",
-    )
+    _assert("report = _read_report(output)" in source, "launcher must preserve a failed Rust report before validation")
     print("Rust-native DeepSeek MVP acceptance launcher smoke passed (no network calls)")
     return 0
 

@@ -20,15 +20,22 @@ use forgecad_app_server_protocol::{
     PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION, PRODUCT_TOOL_REGISTRY_SCHEMA_VERSION,
 };
 use forgecad_core::{
-    evaluate_native_v003_gate_profile_v2, lower_assembly_delta, normalize_persisted_shape_program,
-    ComponentRecipeInstanceProvenance, ComponentRecipeRef, GenerationAttemptKind,
-    GenerationGateReport, GenerationPreview, NativeGateEvidenceSource, NativeGenerationGateBinding,
-    NativeGenerationGateEvidence, RecipeExpander, RecipeExpansionPolicy,
-    RecipeInstantiationRequest, RecipeRegistry, RecipeValidator, RepairAttempt,
-    SingleGenerationAttempt, SingleResultDecision, SurfaceAdornmentProgram, SurfaceLayerLowering,
-    SurfaceLayerProgram, VerificationOutcome, MAX_SAME_INTENT_REPAIR_ATTEMPTS,
-    NATIVE_GENERATION_GATE_EVIDENCE_SCHEMA_VERSION, REPAIR_ATTEMPT_SCHEMA_VERSION,
-    SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION,
+    c111_golden_surface_adornment_programs, evaluate_native_v003_gate_profile_v2,
+    lower_assembly_delta, lower_forge_visual_program, normalize_persisted_shape_program,
+    ComponentRecipeInstanceProvenance, ComponentRecipeRef, DesignBuildLedger,
+    ForgeVisualInspectionView, ForgeVisualProgramRevision, GenerationAttemptKind,
+    GenerationGateCheck, GenerationGateReport, GenerationPreview, NativeGateEvidenceSource,
+    NativeGenerationGateBinding, NativeGenerationGateEvidence, RecipeExpander,
+    RecipeExpansionPolicy, RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
+    RepairAttempt, SingleGenerationAttempt, SingleResultDecision, SurfaceAdornmentProgram,
+    SurfaceLayerLowering, SurfaceLayerProgram, VerificationOutcome, VisualBuildPass,
+    VisualBuildStage, VisualConvergenceInput, VisualConvergenceReport, VisualDetailCoverage,
+    VisualDetailLevel, VisualDetailStatus, VisualFixedViewEvidence, VisualGlbReadbackEvidence,
+    VisualRepairEvidence, DESIGN_BUILD_LEDGER_SCHEMA_VERSION,
+    GENERATION_GATE_REPORT_SCHEMA_VERSION, MAX_SAME_INTENT_REPAIR_ATTEMPTS,
+    MAX_VISUAL_REPAIR_ATTEMPTS, NATIVE_GENERATION_GATE_EVIDENCE_SCHEMA_VERSION,
+    REPAIR_ATTEMPT_SCHEMA_VERSION, SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION,
+    VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -56,7 +63,17 @@ const MAX_GLTF_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SHAPE_PROGRAM_TRIANGLE_BUDGET: u32 = 100_000;
 const MAX_VIEW_BYTES: usize = 16 * 1024 * 1024;
 const MAX_PREVIEW_ARTIFACT_BYTES_HARD: usize = 512 * 1024 * 1024;
-const REQUIRED_VIEWS: [&str; 4] = ["front", "iso", "side", "top"];
+const WORKBENCH_REQUIRED_VIEWS: [&str; 4] = ["front", "iso", "side", "top"];
+const CONVERGENCE_REQUIRED_VIEWS: [&str; 8] = [
+    "iso",
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "gripper_iso",
+    "gripper_front",
+];
 const BOUNDED_REPAIR_PATCH_SCHEMA_VERSION: &str = "BoundedGeometryRepairPatch@1";
 const G819_OPERATIONS: [&str; 16] = [
     "box",
@@ -253,7 +270,28 @@ pub struct RestrictedGeometryInput {
     /// second authoring language or select a different A005 program list.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surface_layer_input: Option<RestrictedSurfaceLayerInput>,
+    /// Selects deterministic audit views only. It never changes geometry or
+    /// the workbench's single WebGL renderer.
+    #[serde(default)]
+    pub render_view_profile: RestrictedRenderViewProfile,
     pub quality_profile: RestrictedQualityProfile,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RestrictedRenderViewProfile {
+    #[default]
+    WorkbenchFour,
+    ConvergenceEight,
+}
+
+impl RestrictedRenderViewProfile {
+    fn required_views(self) -> BTreeSet<&'static str> {
+        match self {
+            Self::WorkbenchFour => WORKBENCH_REQUIRED_VIEWS.into_iter().collect(),
+            Self::ConvergenceEight => CONVERGENCE_REQUIRED_VIEWS.into_iter().collect(),
+        }
+    }
 }
 
 /// Exact Rust-owned retained-surface payload for the RestrictedGeometryPort.
@@ -512,6 +550,8 @@ pub struct NativePreviewArtifact {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub formal_provenance: Option<NativeSingleResultProvenance>,
     pub shape_program: Value,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub surface_adornment_programs: Vec<SurfaceAdornmentProgram>,
     pub assembly: NativePreviewAssemblyFacts,
     pub recipe_assembly_graph: Option<Value>,
     pub recipe_component_instances: Option<Value>,
@@ -560,23 +600,43 @@ impl NativePreviewArtifact {
                 "Native preview ShapeProgram identity does not match readback.",
             ));
         }
-        let required = REQUIRED_VIEWS.into_iter().collect::<BTreeSet<_>>();
-        if self
+        if self.surface_adornment_programs.len() > 8 {
+            return Err(preview_port_error(
+                "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                "Native preview carries more than eight reviewed surface adornments.",
+            ));
+        }
+        let mut adornment_targets = BTreeSet::new();
+        for program in &self.surface_adornment_programs {
+            program.validate().map_err(|error| {
+                preview_port_error("NATIVE_PREVIEW_ARTIFACT_INVALID", error.to_string())
+            })?;
+            if !adornment_targets.insert((
+                program.target_part_id.clone(),
+                program.target_zone_id.clone(),
+            )) {
+                return Err(preview_port_error(
+                    "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                    "Native preview carries duplicate surface adornment targets.",
+                ));
+            }
+        }
+        let actual = self
             .views
             .keys()
             .map(String::as_str)
-            .collect::<BTreeSet<_>>()
-            != required
-            || self
-                .view_sha256
-                .keys()
-                .map(String::as_str)
-                .collect::<BTreeSet<_>>()
-                != required
-        {
+            .collect::<BTreeSet<_>>();
+        let hashes = self
+            .view_sha256
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let workbench = RestrictedRenderViewProfile::WorkbenchFour.required_views();
+        let convergence = RestrictedRenderViewProfile::ConvergenceEight.required_views();
+        if actual != hashes || (actual != workbench && actual != convergence) {
             return Err(preview_port_error(
                 "NATIVE_PREVIEW_ARTIFACT_INVALID",
-                "Native preview must contain exactly four views and hashes.",
+                "Native preview must contain one exact code-owned view profile and hashes.",
             ));
         }
         for (view_id, bytes) in &self.views {
@@ -658,6 +718,12 @@ impl NativePreviewArtifact {
         self.glb_bytes.len()
             + self.views.values().map(Vec::len).sum::<usize>()
             + canonical_json(&self.shape_program).len()
+            + self
+                .surface_adornment_programs
+                .iter()
+                .filter_map(|value| serde_json::to_value(value).ok())
+                .map(|value| canonical_json(&value).len())
+                .sum::<usize>()
             + self
                 .formal_provenance
                 .as_ref()
@@ -815,6 +881,11 @@ fn build_native_preview_artifact(
         turn_id: turn_id.to_string(),
         formal_provenance,
         shape_program: expanded.shape_program.clone(),
+        surface_adornment_programs: state
+            .recipe_expansion
+            .as_ref()
+            .map(|value| value.geometry_input.surface_adornment_programs.clone())
+            .unwrap_or_default(),
         assembly: preview_assembly_from_shape_program(&expanded.shape_program)?,
         recipe_assembly_graph: state
             .recipe_expansion
@@ -1009,6 +1080,7 @@ pub enum RecipePreviewOutputContract {
     C105OneToOne,
     C106ArmSemanticComponents,
     C110GParallelLinkComponents,
+    C111GoldenSurfaceComponents,
 }
 
 pub fn recipe_preview_shape_program_role<'a>(
@@ -1016,14 +1088,26 @@ pub fn recipe_preview_shape_program_role<'a>(
     component_role: &'a str,
 ) -> &'a str {
     match (contract, component_role) {
-        (RecipePreviewOutputContract::C106ArmSemanticComponents, "link_armor") => "upper_link_form",
-        (RecipePreviewOutputContract::C106ArmSemanticComponents, "joint_housing" | "turntable") => {
-            "secondary_form"
-        }
-        (RecipePreviewOutputContract::C106ArmSemanticComponents, "cable_harness") => {
-            "visual_detail"
-        }
-        (RecipePreviewOutputContract::C106ArmSemanticComponents, "surface_trim") => "trim",
+        (
+            RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents,
+            "link_armor",
+        ) => "upper_link_form",
+        (
+            RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents,
+            "joint_housing" | "turntable",
+        ) => "secondary_form",
+        (
+            RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents,
+            "cable_harness",
+        ) => "visual_detail",
+        (
+            RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents,
+            "surface_trim",
+        ) => "trim",
         _ => component_role,
     }
 }
@@ -1161,6 +1245,122 @@ pub fn recipe_preview_output_contract(
             ));
         }
         return Ok(RecipePreviewOutputContract::C110GParallelLinkComponents);
+    }
+
+    let c111_registry =
+        RecipeRegistry::from_embedded_c111_golden_surface_robotic_arm().map_err(|error| {
+            preview_port_error(
+                "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                format!("The reviewed C111A registry is unavailable: {error}"),
+            )
+        })?;
+    let c111_registry_sha256 = c111_registry.registry_sha256();
+    const C111_RECIPE_IDS: [&str; 8] = [
+        "recipe_c111_arm_golden_surface",
+        "recipe_c111_arm_turntable",
+        "recipe_c111_arm_joint_housing",
+        "recipe_c111_arm_wrist_housing",
+        "recipe_c111_arm_link_armor",
+        "recipe_c111_arm_cable_harness",
+        "recipe_c111_arm_gripper",
+        "recipe_c111_arm_surface_trim",
+    ];
+    let has_c111_marker = typed.iter().any(|instance| {
+        instance.registry_sha256 == c111_registry_sha256
+            || C111_RECIPE_IDS.contains(&instance.recipe.recipe_id.as_str())
+            || instance.recipe.recipe_id.starts_with("recipe_c111_arm_")
+    });
+    if has_c111_marker {
+        let mut instance_ids = BTreeSet::new();
+        let mut instance_paths = BTreeSet::new();
+        let mut recipe_counts = BTreeMap::<&str, usize>::new();
+        let mut root_recipe_ids = Vec::new();
+        for instance in &typed {
+            let recipe_id = instance.recipe.recipe_id.as_str();
+            let reviewed_recipe = c111_registry.recipe(recipe_id).ok_or_else(|| {
+                preview_port_error(
+                    "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                    "C111A provenance names a Recipe outside the exact reviewed allow-list.",
+                )
+            })?;
+            let reviewed_recipe_sha256 =
+                RecipeValidator::recipe_sha256(reviewed_recipe).map_err(|error| {
+                    preview_port_error(
+                        "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                        format!("The reviewed C111A Recipe identity is unavailable: {error}"),
+                    )
+                })?;
+            let source_valid = instance.source.get("source_kind").and_then(Value::as_str)
+                == Some("forgecad_first_party")
+                && instance.source.get("source_id").and_then(Value::as_str)
+                    == Some("source_c111_arm");
+            let license_valid = instance.license.get("license_id").and_then(Value::as_str)
+                == Some("ForgeCAD-Internal-Visual-Only")
+                && instance
+                    .license
+                    .get("redistributable")
+                    .and_then(Value::as_bool)
+                    == Some(false);
+            let review_valid = instance
+                .review_state
+                .get("reviewer_kind")
+                .and_then(Value::as_str)
+                == Some("forgecad_internal");
+            if instance.schema_version != "ComponentRecipeInstanceProvenance@1"
+                || instance.policy_version != "ComponentRecipePolicy@1"
+                || instance.registry_sha256 != c111_registry_sha256
+                || instance.domain_pack_id != "pack_robotic_arm_concept"
+                || !C111_RECIPE_IDS.contains(&recipe_id)
+                || instance.recipe.version != reviewed_recipe.version
+                || instance.recipe.recipe_sha256 != reviewed_recipe_sha256
+                || !source_valid
+                || !license_valid
+                || !review_valid
+                || instance.quality_status != "passed"
+                || !instance.non_functional_only
+                || !instance_ids.insert(instance.instance_id.as_str())
+                || !instance_paths.insert(instance.instance_path.as_str())
+            {
+                return Err(preview_port_error(
+                    "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                    "C111A provenance is mixed, stale, unreviewed, or outside its visual-only registry contract.",
+                ));
+            }
+            *recipe_counts.entry(recipe_id).or_default() += 1;
+            if instance.instance_path == "root"
+                || instance.parent_instance_id.is_none()
+                || instance.parent_slot_id.is_none()
+            {
+                if instance.instance_path != "root"
+                    || instance.parent_instance_id.is_some()
+                    || instance.parent_slot_id.is_some()
+                {
+                    return Err(preview_port_error(
+                        "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                        "C111A provenance has an ambiguous root or orphan component.",
+                    ));
+                }
+                root_recipe_ids.push(recipe_id);
+            }
+        }
+        if typed.len() != 10
+            || root_recipe_ids != vec!["recipe_c111_arm_golden_surface"]
+            || recipe_counts.get("recipe_c111_arm_golden_surface") != Some(&1)
+            || recipe_counts.get("recipe_c111_arm_turntable") != Some(&1)
+            || recipe_counts.get("recipe_c111_arm_joint_housing") != Some(&2)
+            || recipe_counts.get("recipe_c111_arm_wrist_housing") != Some(&1)
+            || recipe_counts.get("recipe_c111_arm_link_armor") != Some(&2)
+            || recipe_counts.get("recipe_c111_arm_cable_harness") != Some(&1)
+            || recipe_counts.get("recipe_c111_arm_gripper") != Some(&1)
+            || recipe_counts.get("recipe_c111_arm_surface_trim") != Some(&1)
+            || recipe_counts.len() != 8
+        {
+            return Err(preview_port_error(
+                "NATIVE_PREVIEW_ARTIFACT_INVALID",
+                "C111A provenance does not contain exactly one reviewed ten-component golden assembly.",
+            ));
+        }
+        return Ok(RecipePreviewOutputContract::C111GoldenSurfaceComponents);
     }
 
     let registry = RecipeRegistry::from_embedded_c106_robotic_arm().map_err(|error| {
@@ -1328,8 +1528,11 @@ fn validate_recipe_preview_evidence(
             )
         })?;
     let output_contract = recipe_preview_output_contract(instances)?;
-    let c106_arm_semantic_components =
-        output_contract == RecipePreviewOutputContract::C106ArmSemanticComponents;
+    let c106_arm_semantic_components = matches!(
+        output_contract,
+        RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents
+    );
     let instances = instances.as_array().ok_or_else(|| {
         preview_port_error(
             "NATIVE_PREVIEW_ARTIFACT_INVALID",
@@ -1669,7 +1872,7 @@ impl RestrictedGeometryOutput {
             .keys()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
-        let required = REQUIRED_VIEWS.into_iter().collect::<BTreeSet<_>>();
+        let required = input.render_view_profile.required_views();
         if view_names != required || hash_names != required {
             return Err(restricted_output_error(
                 "Restricted geometry output must contain exactly four deterministic views.",
@@ -1947,6 +2150,7 @@ const C106_ARM_RECIPE_IDS: [&str; 9] = [
     "recipe_c106_arm_surface_trim",
 ];
 const C110G_PARALLEL_ROOT_RECIPE_ID: &str = "recipe_c110g_parallel_link_root";
+const C111_GOLDEN_ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
 
 /// A mechanical-arm Style Token selects one reviewed C106 root *before* the
 /// single Recipe expansion.  This is deliberately a catalog lookup, not a
@@ -1996,6 +2200,7 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
                 section_set: None,
                 surface_adornment_programs: Vec::new(),
                 surface_layer_input: None,
+                render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
                 quality_profile,
             };
             input
@@ -2014,6 +2219,7 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
         // C105 remains the catalog for every existing domain.  C106 is a
         // separate immutable mechanical-arm production catalog so persisted
         // C105 identities never drift as the arm golden path becomes richer.
+        let mut is_c111_golden = false;
         let (registry, root_recipe_id) = if request.domain_pack_id == "pack_robotic_arm_concept" {
             let architecture = request
                 .plan
@@ -2021,6 +2227,23 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
                 .and_then(Value::as_object)
                 .and_then(|intent| intent.get("architecture"))
                 .and_then(Value::as_str);
+            let detail_density = request
+                .plan
+                .get("arm_design_intent")
+                .and_then(Value::as_object)
+                .and_then(|intent| intent.get("detail_density"))
+                .and_then(Value::as_str);
+            let requests_golden_surface = request
+                .plan
+                .get("arm_design_intent")
+                .and_then(Value::as_object)
+                .and_then(|intent| intent.get("style_keywords"))
+                .and_then(Value::as_array)
+                .is_some_and(|keywords| {
+                    keywords.iter().any(|keyword| {
+                        matches!(keyword.as_str(), Some("golden_surface" | "golden surface"))
+                    })
+                });
             if architecture == Some("parallel_link") {
                 (
                     RecipeRegistry::from_embedded_c110g_parallel_link().map_err(|error| {
@@ -2030,6 +2253,23 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
                         )
                     })?,
                     C110G_PARALLEL_ROOT_RECIPE_ID.to_string(),
+                )
+            } else if architecture == Some("serial_chain")
+                && detail_density == Some("dense")
+                && request.presentation_profile == "showcase"
+                && requests_golden_surface
+            {
+                is_c111_golden = true;
+                (
+                    RecipeRegistry::from_embedded_c111_golden_surface_robotic_arm().map_err(
+                        |error| {
+                            ReviewedCatalogError::new(
+                                "REVIEWED_RECIPE_REGISTRY_INVALID",
+                                error.to_string(),
+                            )
+                        },
+                    )?,
+                    C111_GOLDEN_ROOT_RECIPE_ID.to_string(),
                 )
             } else {
                 (
@@ -2087,13 +2327,17 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
             &RecipeInstantiationRequest {
                 schema_version: "ComponentRecipeInstantiationRequest@1".into(),
                 context_mode: "initial_candidate".into(),
-                request_id: format!(
-                    "recipereq_{}",
-                    stable_seed(&format!(
-                        "{}:{}",
-                        request.domain_pack_id, request.direction_id
-                    ))
-                ),
+                request_id: if is_c111_golden {
+                    "recipereq_c111_golden_surface".into()
+                } else {
+                    format!(
+                        "recipereq_{}",
+                        stable_seed(&format!(
+                            "{}:{}",
+                            request.domain_pack_id, request.direction_id
+                        ))
+                    )
+                },
                 project_id: None,
                 base_asset_version_id: None,
                 snapshot_revision: None,
@@ -2111,10 +2355,14 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
             ReviewedCatalogError::new("REVIEWED_RECIPE_EXPANSION_FAILED", error.to_string())
         })?;
         let mut shape_program = candidate.expanded_shape_program.clone();
-        shape_program["triangle_budget"] = json!(quality_profile
-            .max_triangle_count
-            .min(MAX_SHAPE_PROGRAM_TRIANGLE_BUDGET));
-        let arm_geometry_binding = if request.domain_pack_id == "pack_robotic_arm_concept" {
+        if !is_c111_golden {
+            shape_program["triangle_budget"] = json!(quality_profile
+                .max_triangle_count
+                .min(MAX_SHAPE_PROGRAM_TRIANGLE_BUDGET));
+        }
+        let arm_geometry_binding = if request.domain_pack_id == "pack_robotic_arm_concept"
+            && !is_c111_golden
+        {
             request
                 .plan
                 .get("arm_design_intent")
@@ -2132,18 +2380,22 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
         } else {
             None
         };
-        let semantic_proportion_binding = request
-            .style_recipe
-            .as_ref()
-            .map(|style_recipe| {
-                apply_semantic_proportion_recipe(
-                    &mut shape_program,
-                    &mut candidate.expanded_assembly_graph,
-                    style_recipe,
-                    &request.domain_pack_id,
-                )
-            })
-            .transpose()?;
+        let semantic_proportion_binding = if is_c111_golden {
+            None
+        } else {
+            request
+                .style_recipe
+                .as_ref()
+                .map(|style_recipe| {
+                    apply_semantic_proportion_recipe(
+                        &mut shape_program,
+                        &mut candidate.expanded_assembly_graph,
+                        style_recipe,
+                        &request.domain_pack_id,
+                    )
+                })
+                .transpose()?
+        };
         let shape_program = normalize_persisted_shape_program(&shape_program)
             .map_err(|error| ReviewedCatalogError::new(error.code(), error.to_string()))?;
         let expanded_shape_program_sha256 = sha256_hex(canonical_json(&shape_program).as_bytes());
@@ -2161,13 +2413,21 @@ impl ReviewedShapeProgramCatalog for RecipeBackedReviewedShapeProgramCatalog {
             RecipeExpander::candidate_sha256(&candidate).map_err(|error| {
                 ReviewedCatalogError::new("REVIEWED_RECIPE_HASH_INVALID", error.to_string())
             })?;
+        let surface_adornment_programs = if is_c111_golden {
+            c111_golden_surface_adornment_programs(&candidate, &registry).map_err(|error| {
+                ReviewedCatalogError::new("REVIEWED_SURFACE_ADORNMENT_INVALID", error.to_string())
+            })?
+        } else {
+            Vec::new()
+        };
         let input = RestrictedGeometryInput {
             schema_version: RESTRICTED_GEOMETRY_INPUT_SCHEMA_VERSION.into(),
             shape_program,
             profile_sketch: None,
             section_set: None,
-            surface_adornment_programs: Vec::new(),
+            surface_adornment_programs,
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile,
         };
         input
@@ -2263,6 +2523,7 @@ impl ReviewedShapeProgramCatalog for EmbeddedReviewedShapeProgramCatalog {
             section_set: None,
             surface_adornment_programs: Vec::new(),
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile,
         };
         input
@@ -2644,11 +2905,11 @@ impl NativeProductToolExecutor {
         config.validate()?;
         // Construction also proves the immutable fixture and its exact hash
         // remain valid; no second registry is accepted from the worker.
-        if registry.definitions().count() != 13 {
+        if registry.definitions().count() != 16 {
             return Err(port_error(
                 "NATIVE_PRODUCT_TOOL_REGISTRY_INVALID",
                 ProductToolPortErrorKind::InvalidResponse,
-                "Native Product Tool executor requires the exact thirteen-tool registry.",
+                "Native Product Tool executor requires the exact sixteen-tool registry.",
                 false,
             ));
         }
@@ -3458,6 +3719,9 @@ impl NativeProductToolExecutor {
             "author_shape_program" | "validate_shape_program" => {
                 author_shape_program(arguments, state)?
             }
+            "inspect_forge_visual_program" => inspect_forge_visual_program(arguments, state)?,
+            "author_forge_visual_program" => author_forge_visual_program(arguments, state)?,
+            "patch_forge_visual_program" => patch_forge_visual_program(arguments, state)?,
             "plan_complete_concept" => plan_complete_concept(arguments, state)?,
             "build_candidate_geometry" => {
                 self.build_candidate_geometry(arguments, state, run_cancellation)
@@ -3483,6 +3747,17 @@ impl NativeProductToolExecutor {
         state: &mut NativeToolState,
         run_cancellation: CancellationToken,
     ) -> Result<Value, NativeToolFailure> {
+        if state.forge_visual_program.is_some() {
+            if arguments.get("repair").is_some() {
+                return Err(NativeToolFailure::conflict(
+                    "FORGE_VISUAL_REPAIR_REQUIRES_TYPED_PATCH",
+                    "ForgeVisualProgram repairs must use patch_forge_visual_program, never the legacy geometry repair envelope.",
+                ));
+            }
+            return self
+                .build_forge_visual_program(arguments, state, run_cancellation)
+                .await;
+        }
         if arguments.get("repair").is_some() {
             return self
                 .repair_candidate_geometry(arguments, state, run_cancellation)
@@ -3506,13 +3781,51 @@ impl NativeProductToolExecutor {
                 "A bound concept plan is required before geometry build.",
             )
         })?;
-        let direction_id = string_argument(arguments, "direction_id")?;
+        let requested_direction_id = string_argument(arguments, "direction_id")?;
+        // `direction_auto` is only emitted by Rust's initial V003 completion
+        // chain.  Resolve it from the already normalized, Rust-owned plan so
+        // a Provider response can never drift between planning and geometry.
+        // A plan with zero or multiple directions fails closed rather than
+        // silently selecting a different result.
+        let direction_id = if requested_direction_id == "direction_auto" {
+            let directions = plan
+                .get("directions")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    NativeToolFailure::conflict(
+                        "ACTION_LOOP_DIRECTION_CONFLICT",
+                        "Rust-owned automatic geometry requires exactly one bound concept direction.",
+                    )
+                })?;
+            match directions.as_slice() {
+                [direction] => direction
+                    .get("direction_id")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        NativeToolFailure::conflict(
+                            "ACTION_LOOP_DIRECTION_CONFLICT",
+                            "Rust-owned automatic geometry requires one stable direction identity.",
+                        )
+                    })?
+                    .to_string(),
+                _ => {
+                    return Err(NativeToolFailure::conflict(
+                        "ACTION_LOOP_DIRECTION_CONFLICT",
+                        "Rust-owned automatic geometry requires exactly one bound concept direction.",
+                    ));
+                }
+            }
+        } else {
+            requested_direction_id.to_string()
+        };
         let direction_exists = plan
             .get("directions")
             .and_then(Value::as_array)
             .is_some_and(|directions| {
                 directions.iter().any(|direction| {
-                    direction.get("direction_id").and_then(Value::as_str) == Some(direction_id)
+                    direction.get("direction_id").and_then(Value::as_str)
+                        == Some(direction_id.as_str())
                 })
             });
         if !direction_exists {
@@ -3534,7 +3847,7 @@ impl NativeProductToolExecutor {
         let presentation_profile = string_argument(arguments, "presentation_profile")?.to_string();
         let catalog_request = ReviewedCatalogRequest {
             domain_pack_id: domain_pack_id.clone(),
-            direction_id: direction_id.to_string(),
+            direction_id: direction_id.clone(),
             variant_id: arguments
                 .get("variant_id")
                 .and_then(Value::as_str)
@@ -3566,7 +3879,7 @@ impl NativeProductToolExecutor {
             .validate(&expanded)
             .map_err(native_failure_from_geometry)?;
         let output = json!({
-            "direction_id": direction_id,
+            "direction_id": direction_id.clone(),
             "topology_hash": geometry.topology_hash,
             "triangle_count": geometry.readback.triangle_count,
             "bounds_mm": geometry.readback.bounds_mm,
@@ -3578,7 +3891,7 @@ impl NativeProductToolExecutor {
         state.build = Some(output.clone());
         state.evaluation = None;
         state.initial_build_identity = Some(InitialBuildIdentity {
-            direction_id: direction_id.to_string(),
+            direction_id: direction_id,
             variant_id: arguments
                 .get("variant_id")
                 .and_then(Value::as_str)
@@ -3595,6 +3908,150 @@ impl NativeProductToolExecutor {
                 .map(|value| sha256_hex(canonical_json(value).as_bytes())),
             domain_pack_id,
         });
+        Ok(output)
+    }
+
+    async fn build_forge_visual_program(
+        &self,
+        arguments: &BTreeMap<String, Value>,
+        state: &mut NativeToolState,
+        run_cancellation: CancellationToken,
+    ) -> Result<Value, NativeToolFailure> {
+        if state.preview.is_some() || state.build.is_some() {
+            return Err(NativeToolFailure::conflict(
+                "SINGLE_GENERATION_FULL_BUILD_ALREADY_USED",
+                "One visual-program revision may enter the complete build pipeline only once.",
+            ));
+        }
+        if string_argument(arguments, "direction_id")? != "direction_visual_program"
+            || string_argument(arguments, "presentation_profile")? != "showcase"
+            || arguments
+                .get("variant_id")
+                .is_some_and(|value| !value.is_null())
+        {
+            return Err(NativeToolFailure::schema(
+                "FORGE_VISUAL_BUILD_SELECTOR_INVALID",
+                "Visual-program build requires the reserved single-result selector and production showcase profile.",
+            ));
+        }
+        let revision = state
+            .forge_visual_program
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| {
+                NativeToolFailure::conflict(
+                    "FORGE_VISUAL_PROGRAM_REQUIRED",
+                    "A validated ForgeVisualProgram revision is required before build.",
+                )
+            })?;
+        revision
+            .validate()
+            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+        if !supported_domain(&revision.program.domain_pack_id) {
+            return Err(NativeToolFailure::unsupported(
+                "FORGE_VISUAL_PROGRAM_DOMAIN_UNSUPPORTED",
+                "ForgeVisualProgram domain is not enabled for the visual MVP.",
+            ));
+        }
+        if state.domain_inference.as_ref().is_some_and(|inference| {
+            inference.get("status").and_then(Value::as_str) != Some("recognized")
+        }) {
+            return Err(NativeToolFailure::conflict(
+                "ACTION_LOOP_DOMAIN_UNRESOLVED",
+                "Ambiguous or unsupported domain inference must be resolved before visual-program build.",
+            ));
+        }
+        if state
+            .domain_pack_id
+            .as_deref()
+            .is_some_and(|domain| domain != revision.program.domain_pack_id)
+        {
+            return Err(NativeToolFailure::conflict(
+                "FORGE_VISUAL_PROGRAM_DOMAIN_CONFLICT",
+                "ForgeVisualProgram domain conflicts with the Rust-bound user brief domain.",
+            ));
+        }
+        let program_value = serde_json::to_value(&revision.program).map_err(|_| {
+            NativeToolFailure::schema(
+                "FORGE_VISUAL_PROGRAM_INVALID",
+                "ForgeVisualProgram could not be lowered for restricted compilation.",
+            )
+        })?;
+        let lowering = lower_forge_visual_program(&program_value)
+            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+        if lowering.source_program_sha256 != revision.source_program_sha256 {
+            return Err(NativeToolFailure::conflict(
+                "FORGE_VISUAL_PROGRAM_LINEAGE_MISMATCH",
+                "The current visual-program revision no longer matches its lowering.",
+            ));
+        }
+        let quality_profile = RestrictedQualityProfile::for_presentation("showcase")?;
+        let expanded = RestrictedGeometryInput {
+            schema_version: RESTRICTED_GEOMETRY_INPUT_SCHEMA_VERSION.into(),
+            shape_program: lowering.shape_program.clone(),
+            profile_sketch: None,
+            section_set: None,
+            // PV003 carries stable surface-program identities. Resolving those
+            // identities to reviewed A005 bytecode is a separate explicit
+            // library boundary; no arbitrary model-authored program crosses
+            // into Python here.
+            surface_adornment_programs: Vec::new(),
+            surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::ConvergenceEight,
+            quality_profile,
+        };
+        expanded.validate().map_err(native_failure_from_geometry)?;
+        let work = self
+            .geometry
+            .build_compile_render(expanded.clone(), run_cancellation.clone());
+        let geometry = race_cancellation(work, run_cancellation)
+            .await
+            .map_err(|()| NativeToolFailure::cancelled())?
+            .map_err(native_failure_from_geometry)?;
+        geometry
+            .validate(&expanded)
+            .map_err(native_failure_from_geometry)?;
+
+        let ledger = visual_build_ledger(&revision, &geometry)?;
+        let output = json!({
+            "direction_id": "direction_visual_program",
+            "topology_hash": geometry.topology_hash,
+            "triangle_count": geometry.readback.triangle_count,
+            "bounds_mm": geometry.readback.bounds_mm,
+            "candidate_only": true,
+            "visual_program_revision": revision.revision,
+            "visual_program_source_sha256": revision.source_program_sha256,
+            "design_build_ledger": ledger
+        });
+        let domain_pack_id = revision.program.domain_pack_id.clone();
+        let title = revision.program.title.clone();
+        let primary_part_roles = revision
+            .program
+            .parts
+            .iter()
+            .map(|part| part.role.clone())
+            .collect::<Vec<_>>();
+        let plan_id = format!("plan_visual_{}", &revision.source_program_sha256[..24]);
+        state.plan = Some(json!({
+            "plan_id": plan_id,
+            "brief": state.brief.clone().unwrap_or_else(|| title.clone()),
+            "domain_pack_id": domain_pack_id,
+            "directions": [{
+                "direction_id": "direction_visual_program",
+                "title": title,
+                "summary": "Rust-lowered ForgeVisualProgram single result",
+                "silhouette": "program_bound",
+                "primary_part_roles": primary_part_roles,
+                "material_direction": "program_bound"
+            }]
+        }));
+        state.domain_pack_id = Some(domain_pack_id);
+        state.expanded_geometry = Some(expanded);
+        state.recipe_expansion = None;
+        state.geometry = Some(geometry);
+        state.visual_build_ledger = Some(ledger);
+        state.build = Some(output.clone());
+        state.evaluation = None;
         Ok(output)
     }
 
@@ -4434,6 +4891,17 @@ struct NativeToolState {
     style_recipe: Option<Value>,
     profile_sketch: Option<Value>,
     shape_program: Option<Value>,
+    /// PV003 candidate source. It is revision/hash bound and remains
+    /// execution-local until PV005 promotes a preview through ChangeSet.
+    forge_visual_program: Option<ForgeVisualProgramRevision>,
+    /// Exact seven-stage PV004 lineage for the current visual-program build.
+    visual_build_ledger: Option<DesignBuildLedger>,
+    /// Deterministic eight-view/readback convergence result for the current
+    /// candidate. It is execution-local evidence, never a user asset version.
+    visual_convergence_report: Option<VisualConvergenceReport>,
+    /// Same-brief, same-domain typed source repairs performed only after a
+    /// concrete failed visual convergence report.
+    visual_repairs: Vec<VisualRepairEvidence>,
     plan: Option<Value>,
     geometry_strategy: GeometryStrategy,
     expanded_geometry: Option<RestrictedGeometryInput>,
@@ -4921,6 +5389,178 @@ fn author_shape_program(
     Ok(json!({"shape_program": program, "validated": true}))
 }
 
+fn inspect_forge_visual_program(
+    arguments: &BTreeMap<String, Value>,
+    state: &NativeToolState,
+) -> Result<Value, NativeToolFailure> {
+    let view = match string_argument(arguments, "view")? {
+        "summary" => ForgeVisualInspectionView::Summary,
+        "full" => ForgeVisualInspectionView::Full,
+        _ => {
+            return Err(NativeToolFailure::schema(
+                "FORGE_VISUAL_PROGRAM_INSPECTION_VIEW_INVALID",
+                "ForgeVisualProgram inspection view must be summary or full.",
+            ))
+        }
+    };
+    let revision = state.forge_visual_program.as_ref().ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "FORGE_VISUAL_PROGRAM_REQUIRED",
+            "No ForgeVisualProgram draft exists in this execution.",
+        )
+    })?;
+    let inspection = revision
+        .inspect(view)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    serde_json::to_value(inspection).map_err(|_| {
+        NativeToolFailure::schema(
+            "FORGE_VISUAL_PROGRAM_INSPECTION_SERIALIZATION_FAILED",
+            "ForgeVisualProgram inspection could not be serialized.",
+        )
+    })
+}
+
+fn author_forge_visual_program(
+    arguments: &BTreeMap<String, Value>,
+    state: &mut NativeToolState,
+) -> Result<Value, NativeToolFailure> {
+    if state.forge_visual_program.is_some() {
+        return Err(NativeToolFailure::conflict(
+            "FORGE_VISUAL_PROGRAM_ALREADY_AUTHORED",
+            "This execution already owns a ForgeVisualProgram draft; use a typed patch.",
+        ));
+    }
+    let program = arguments.get("program").ok_or_else(|| {
+        NativeToolFailure::schema(
+            "FORGE_VISUAL_PROGRAM_MISSING",
+            "ForgeVisualProgram authoring requires one program object.",
+        )
+    })?;
+    let revision = ForgeVisualProgramRevision::author(program)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    let output = revision
+        .inspect(ForgeVisualInspectionView::Summary)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    state.forge_visual_program = Some(revision);
+    serde_json::to_value(output).map_err(|_| {
+        NativeToolFailure::schema(
+            "FORGE_VISUAL_PROGRAM_AUTHOR_RESULT_INVALID",
+            "Authored ForgeVisualProgram result could not be serialized.",
+        )
+    })
+}
+
+fn patch_forge_visual_program(
+    arguments: &BTreeMap<String, Value>,
+    state: &mut NativeToolState,
+) -> Result<Value, NativeToolFailure> {
+    if state.preview.is_some() {
+        return Err(NativeToolFailure::conflict(
+            "FORGE_VISUAL_PREVIEW_ALREADY_PREPARED",
+            "A prepared visual result cannot be repaired inside the completed Turn.",
+        ));
+    }
+    let current = state.forge_visual_program.as_ref().ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "FORGE_VISUAL_PROGRAM_REQUIRED",
+            "A ForgeVisualProgram draft must be authored before it can be patched.",
+        )
+    })?;
+    let patch = arguments.get("patch").ok_or_else(|| {
+        NativeToolFailure::schema(
+            "FORGE_VISUAL_PATCH_MISSING",
+            "ForgeVisualProgram patching requires one ForgeVisualPatch object.",
+        )
+    })?;
+    let post_build_repair = state.build.is_some() || state.evaluation.is_some();
+    if post_build_repair {
+        let report = state.visual_convergence_report.as_ref().ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "VISUAL_REPAIR_EVALUATION_REQUIRED",
+                "A typed local repair is allowed only after concrete visual convergence evidence.",
+            )
+        })?;
+        if report.passed {
+            return Err(NativeToolFailure::conflict(
+                "VISUAL_REPAIR_NOT_REQUIRED",
+                "A passed visual result cannot consume a repair attempt.",
+            ));
+        }
+        if state.visual_repairs.len() >= usize::from(MAX_VISUAL_REPAIR_ATTEMPTS) {
+            return Err(NativeToolFailure::conflict(
+                "VISUAL_REPAIR_LIMIT_REACHED",
+                "One visual-program Turn permits at most two same-intent local repairs.",
+            ));
+        }
+        let operation_count = patch
+            .get("operations")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+        if operation_count == 0 || operation_count > 8 {
+            return Err(NativeToolFailure::schema(
+                "VISUAL_REPAIR_PATCH_NOT_LOCAL",
+                "A convergence repair must contain one to eight typed local operations.",
+            ));
+        }
+    }
+    let next = current
+        .apply_patch(patch)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    if post_build_repair {
+        const LOCAL_REPAIR_DOMAINS: [&str; 8] = [
+            "design_tokens",
+            "parts",
+            "geometry",
+            "assembly",
+            "material",
+            "surface",
+            "detail_inventory",
+            "export_profile",
+        ];
+        if next.changed_domains.is_empty()
+            || next
+                .changed_domains
+                .iter()
+                .any(|domain| !LOCAL_REPAIR_DOMAINS.contains(&domain.as_str()))
+        {
+            return Err(NativeToolFailure::schema(
+                "VISUAL_REPAIR_PATCH_NOT_LOCAL",
+                "A convergence repair may change only bounded visual source domains, not identity or title.",
+            ));
+        }
+        state.visual_repairs.push(VisualRepairEvidence {
+            repair_number: (state.visual_repairs.len() + 1) as u8,
+            parent_program_sha256: current.source_program_sha256.clone(),
+            result_program_sha256: next.source_program_sha256.clone(),
+            changed_domains: next.changed_domains.clone(),
+            same_intent: true,
+        });
+        // The failed candidate remains only in trace/item evidence. The next
+        // build must compile the patched revision from scratch and cannot
+        // reuse stale readback, views, quality, or preview state.
+        state.expanded_geometry = None;
+        state.geometry = None;
+        state.build = None;
+        state.evaluation = None;
+        state.generation_attempt = None;
+        state.generation_gate_report = None;
+        state.visual_build_ledger = None;
+        state.visual_convergence_report = None;
+        state.initial_build_identity = None;
+    }
+    let output = next
+        .inspect(ForgeVisualInspectionView::Summary)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    state.forge_visual_program = Some(next);
+    serde_json::to_value(output).map_err(|_| {
+        NativeToolFailure::schema(
+            "FORGE_VISUAL_PATCH_RESULT_INVALID",
+            "Patched ForgeVisualProgram result could not be serialized.",
+        )
+    })
+}
+
 fn plan_complete_concept(
     arguments: &BTreeMap<String, Value>,
     state: &mut NativeToolState,
@@ -4990,6 +5630,17 @@ fn plan_complete_concept(
     // state or the restricted geometry boundary.
     plan.remove("provider_id");
     plan.remove("model");
+    if let Some(template_id) = plan
+        .remove("continuation_template_id")
+        .and_then(|value| value.as_str().map(str::to_string))
+    {
+        let delta = rust_owned_continuation_template_delta(
+            state.active_snapshot.as_ref(),
+            plan_domain.as_str(),
+            &template_id,
+        )?;
+        plan.insert("assembly_delta".into(), delta);
+    }
     // `shape_program_ready` is the existing, schema-owned reviewed-plan
     // switch for the exceptional authored route.  Its absence is normalized
     // to the C105 component-recipe default; merely having called
@@ -5059,7 +5710,15 @@ fn plan_complete_concept(
                 GenerationSourceKind::DeepseekNetworkAttempted
             )
         });
-        if requires_provider_intent && !plan.get("arm_design_intent").is_some_and(Value::is_object)
+        // A continuation has already been bound to a confirmed Rust-owned
+        // arm asset and is restricted to reviewed visual AssemblyDelta
+        // operations.  It must not be forced to invent a second initial
+        // ArmDesignIntent just to add, replace, pose, or snap a reviewed part.
+        let is_assembly_delta_continuation =
+            plan.get("assembly_delta").is_some_and(Value::is_object);
+        if requires_provider_intent
+            && !is_assembly_delta_continuation
+            && !plan.get("arm_design_intent").is_some_and(Value::is_object)
         {
             return Err(NativeToolFailure::schema(
                 "ARM_DESIGN_INTENT_REQUIRED",
@@ -5118,6 +5777,89 @@ fn plan_complete_concept(
     Ok(json!({"plan": normalized, "accepted": true}))
 }
 
+/// Expand the only Provider-visible continuation selector from Rust-owned
+/// snapshot facts. The Provider selects a reviewed visual intent, never IDs,
+/// transforms or a serialised ShapeProgram. This is the first constrained
+/// Visual Delta Compiler route: the operation still crosses the normal
+/// AssemblyDelta → ChangeSet → preview/confirm boundary below.
+fn rust_owned_continuation_template_delta(
+    snapshot: Option<&Value>,
+    plan_domain: &str,
+    template_id: &str,
+) -> Result<Value, NativeToolFailure> {
+    if plan_domain != "pack_robotic_arm_concept" {
+        return Err(NativeToolFailure::unsupported(
+            "ASSEMBLY_DELTA_DOMAIN_UNSUPPORTED",
+            "Rust continuation templates are currently reviewed for robotic arms only.",
+        ));
+    }
+    if template_id != "next_reviewed_attachment" {
+        return Err(NativeToolFailure::schema(
+            "CONTINUATION_TEMPLATE_UNSUPPORTED",
+            "Continuation template is outside the reviewed Rust-owned catalog.",
+        ));
+    }
+    let snapshot = snapshot.ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "ASSEMBLY_DELTA_NOT_ALLOWED_ON_INITIAL_SYNTHESIS",
+            "A Rust-owned active Agent asset is required for a continuation template.",
+        )
+    })?;
+    let active_asset_version_id = snapshot
+        .pointer("/active_design/asset_version_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "ASSEMBLY_DELTA_NOT_ALLOWED_ON_INITIAL_SYNTHESIS",
+                "Continuation template requires an active Rust Agent asset version.",
+            )
+        })?;
+    let context = snapshot
+        .get("agent_edit_context")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "CONTINUATION_TEMPLATE_CONTEXT_MISSING",
+                "The active asset has no reviewed continuation template.",
+            )
+        })?;
+    if context.get("schema_version").and_then(Value::as_str)
+        != Some("ForgeCADArmContinuationEditContext@1")
+        || context.get("base_asset_version_id").and_then(Value::as_str)
+            != Some(active_asset_version_id)
+    {
+        return Err(NativeToolFailure::conflict(
+            "CONTINUATION_TEMPLATE_CONTEXT_STALE",
+            "Continuation template is not bound to the active immutable asset.",
+        ));
+    }
+    let operations = context
+        .get("ready_operations")
+        .and_then(Value::as_array)
+        .filter(|operations| operations.len() == 1)
+        .ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "CONTINUATION_TEMPLATE_CONTEXT_INVALID",
+                "Continuation template must expose exactly one reviewed operation.",
+            )
+        })?;
+    let operation = operations[0].as_object().ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "CONTINUATION_TEMPLATE_CONTEXT_INVALID",
+            "Continuation template operation must be a Rust-owned object.",
+        )
+    })?;
+    Ok(json!({
+        "schema_version": "AssemblyDeltaProgram@1",
+        "domain_pack_id": plan_domain,
+        "base_asset_version_id": active_asset_version_id,
+        "summary": "Apply the next Rust-reviewed visual robotic-arm attachment.",
+        "operations": [operation],
+        "visual_only": true,
+    }))
+}
+
 fn compile_readback_candidate(state: &NativeToolState) -> Result<Value, NativeToolFailure> {
     let geometry = state.geometry.as_ref().ok_or_else(|| {
         NativeToolFailure::conflict(
@@ -5156,7 +5898,91 @@ fn render_candidate_views(state: &NativeToolState) -> Result<Value, NativeToolFa
     }))
 }
 
+fn visual_build_ledger(
+    revision: &ForgeVisualProgramRevision,
+    geometry: &RestrictedGeometryOutput,
+) -> Result<DesignBuildLedger, NativeToolFailure> {
+    revision
+        .validate()
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    let program = &revision.program;
+    let stage_evidence = [
+        json!({
+            "stage": "silhouette",
+            "design_tokens": &program.design_tokens,
+            "part_roles": program.parts.iter().map(|part| &part.role).collect::<Vec<_>>(),
+            "macro_detail_ids": program.detail_inventory.iter().filter(|item| item.level == VisualDetailLevel::Macro).map(|item| &item.detail_id).collect::<Vec<_>>(),
+        }),
+        json!({
+            "stage": "structure",
+            "assembly_graph": &program.assembly_graph,
+            "parts": &program.parts,
+        }),
+        json!({
+            "stage": "form",
+            "geometry_graph": &program.geometry_graph,
+            "shape_program_sha256": &geometry.readback.shape_program_sha256,
+            "topology_hash": &geometry.topology_hash,
+        }),
+        json!({
+            "stage": "material",
+            "material_graph": &program.material_graph,
+            "material_zone_count": geometry.readback.material_zone_count,
+        }),
+        json!({
+            "stage": "surface",
+            "surface_graph": &program.surface_graph,
+            "surface_provenance_present": geometry.readback.surface_provenance_present,
+            "visual_texture_set_count": geometry.readback.visual_texture_set_count,
+            "visual_texture_map_count": geometry.readback.visual_texture_map_count,
+        }),
+        json!({
+            "stage": "lighting",
+            "renderer_id": &geometry.renderer_id,
+            "view_ids": geometry.views.keys().collect::<Vec<_>>(),
+            "view_sha256": &geometry.view_sha256,
+        }),
+    ];
+    let mut input_sha256 = revision.source_program_sha256.clone();
+    let mut passes = Vec::with_capacity(VisualBuildStage::ORDERED.len());
+    for (stage, evidence) in VisualBuildStage::ORDERED
+        .into_iter()
+        .take(stage_evidence.len())
+        .zip(stage_evidence)
+    {
+        let output_sha256 = sha256_hex(
+            canonical_json(&json!({
+                "input_sha256": &input_sha256,
+                "evidence": evidence,
+            }))
+            .as_bytes(),
+        );
+        passes.push(VisualBuildPass {
+            stage,
+            input_sha256,
+            output_sha256: output_sha256.clone(),
+            completed: true,
+        });
+        input_sha256 = output_sha256;
+    }
+    passes.push(VisualBuildPass {
+        stage: VisualBuildStage::Optimization,
+        input_sha256,
+        output_sha256: geometry.glb_sha256.clone(),
+        completed: true,
+    });
+    Ok(DesignBuildLedger {
+        schema_version: DESIGN_BUILD_LEDGER_SCHEMA_VERSION.into(),
+        source_program_sha256: revision.source_program_sha256.clone(),
+        source_revision: revision.revision,
+        passes,
+    })
+}
+
 fn evaluate_candidate(state: &mut NativeToolState) -> Result<Value, NativeToolFailure> {
+    if state.forge_visual_program.is_some() {
+        return evaluate_forge_visual_candidate(state);
+    }
     let geometry = state.geometry.as_ref().ok_or_else(|| {
         NativeToolFailure::conflict(
             "ACTION_LOOP_COMPILE_READBACK_REQUIRED",
@@ -5168,7 +5994,7 @@ fn evaluate_candidate(state: &mut NativeToolState) -> Result<Value, NativeToolFa
         .keys()
         .map(String::as_str)
         .collect::<BTreeSet<_>>()
-        == REQUIRED_VIEWS.into_iter().collect::<BTreeSet<_>>();
+        == RestrictedRenderViewProfile::WorkbenchFour.required_views();
     let maybe_attempt = state.project_id.as_deref().map(|project_id| {
         if let Some(existing) = state.generation_attempt.as_ref() {
             return existing.clone();
@@ -5233,6 +6059,229 @@ fn evaluate_candidate(state: &mut NativeToolState) -> Result<Value, NativeToolFa
     });
     state.generation_attempt = maybe_attempt;
     state.generation_gate_report = report;
+    state.evaluation = Some(payload.clone());
+    Ok(payload)
+}
+
+fn evaluate_forge_visual_candidate(
+    state: &mut NativeToolState,
+) -> Result<Value, NativeToolFailure> {
+    let geometry = state.geometry.as_ref().cloned().ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "ACTION_LOOP_COMPILE_READBACK_REQUIRED",
+            "Actual restricted geometry readback is required before visual convergence.",
+        )
+    })?;
+    let revision = state
+        .forge_visual_program
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "FORGE_VISUAL_PROGRAM_REQUIRED",
+                "Visual convergence requires the exact authored program revision.",
+            )
+        })?;
+    let ledger = state.visual_build_ledger.as_ref().cloned().ok_or_else(|| {
+        NativeToolFailure::conflict(
+            "VISUAL_BUILD_LEDGER_REQUIRED",
+            "Visual convergence requires the exact seven-stage build ledger.",
+        )
+    })?;
+    let detail_coverage = VisualDetailCoverage {
+        macro_bound: revision
+            .program
+            .detail_inventory
+            .iter()
+            .filter(|item| {
+                item.level == VisualDetailLevel::Macro && item.status == VisualDetailStatus::Bound
+            })
+            .count() as u32,
+        meso_bound: revision
+            .program
+            .detail_inventory
+            .iter()
+            .filter(|item| {
+                item.level == VisualDetailLevel::Meso && item.status == VisualDetailStatus::Bound
+            })
+            .count() as u32,
+        micro_bound: revision
+            .program
+            .detail_inventory
+            .iter()
+            .filter(|item| {
+                item.level == VisualDetailLevel::Micro && item.status == VisualDetailStatus::Bound
+            })
+            .count() as u32,
+        critical_unresolved: revision
+            .program
+            .detail_inventory
+            .iter()
+            .filter(|item| item.critical && item.status == VisualDetailStatus::Unresolved)
+            .count() as u32,
+    };
+    let fixed_views = geometry
+        .views
+        .iter()
+        .map(|(view_id, bytes)| VisualFixedViewEvidence {
+            view_id: view_id.clone(),
+            glb_sha256: geometry.glb_sha256.clone(),
+            renderer_id: geometry.renderer_id.clone(),
+            image_sha256: geometry
+                .view_sha256
+                .get(view_id)
+                .cloned()
+                .unwrap_or_default(),
+            readback_passed: geometry.view_sha256.get(view_id) == Some(&sha256_hex(bytes)),
+        })
+        .collect::<Vec<_>>();
+    let convergence_input = VisualConvergenceInput {
+        schema_version: VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION.into(),
+        ledger,
+        readback: VisualGlbReadbackEvidence {
+            glb_sha256: geometry.glb_sha256.clone(),
+            shape_program_sha256: geometry.readback.shape_program_sha256.clone(),
+            triangle_count: u64::from(geometry.readback.triangle_count),
+            primitive_count: u64::from(geometry.readback.primitive_count),
+            material_zone_count: u64::from(geometry.readback.material_zone_count),
+            closed_manifold: geometry.readback.closed_manifold,
+            surface_provenance_present: geometry.readback.surface_provenance_present,
+            pbr_channels_complete: geometry.readback.visual_texture_provenance_verified
+                && geometry.readback.visual_texture_set_count > 0
+                && geometry.readback.visual_texture_map_count
+                    >= geometry.readback.visual_texture_set_count.saturating_mul(5),
+        },
+        fixed_views,
+        detail_coverage,
+        repairs: state.visual_repairs.clone(),
+    };
+    let convergence_report = convergence_input.evaluate().map_err(|error| {
+        NativeToolFailure::new(
+            ProductToolFailureCategory::Execution,
+            error.code(),
+            error.to_string(),
+        )
+    })?;
+
+    let maybe_attempt = state.project_id.as_deref().map(|project_id| {
+        let domain_pack_id = revision.program.domain_pack_id.clone();
+        SingleGenerationAttempt {
+            schema_version: SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION.into(),
+            attempt_id: format!(
+                "attempt_{}",
+                &sha256_hex(
+                    format!(
+                        "{}:{project_id}:{}:{}",
+                        state.turn_id, revision.source_program_sha256, geometry.glb_sha256
+                    )
+                    .as_bytes()
+                )[..24]
+            ),
+            turn_id: state.turn_id.clone(),
+            project_id: project_id.to_string(),
+            attempt_kind: GenerationAttemptKind::Initial,
+            parent_attempt_id: None,
+            brief_sha256: sha256_hex(state.brief.as_deref().unwrap_or_default().as_bytes()),
+            domain_pack_sha256: sha256_hex(domain_pack_id.as_bytes()),
+            domain_pack_id,
+            core_recipe_or_profile_sha256: revision.source_program_sha256.clone(),
+            runtime_manifest_sha256: sha256_hex(
+                geometry.readback.runtime_manifest_version.as_bytes(),
+            ),
+            shape_program_sha256: geometry.readback.shape_program_sha256.clone(),
+            recipe_provenance_sha256: None,
+        }
+    });
+    let generation_report = maybe_attempt
+        .as_ref()
+        .map(|attempt| {
+            let render_source = sha256_hex(
+                canonical_json(&json!({
+                    "renderer_id": &geometry.renderer_id,
+                    "glb_sha256": &geometry.glb_sha256,
+                    "views": &geometry.view_sha256,
+                    "convergence_report_sha256": &convergence_report.report_sha256,
+                }))
+                .as_bytes(),
+            );
+            let mut checks = vec![GenerationGateCheck {
+                gate_id: "pv004_visual_convergence".into(),
+                outcome: if convergence_report.passed {
+                    VerificationOutcome::Pass
+                } else {
+                    VerificationOutcome::Fail
+                },
+                // Post-build typed visual repair is not yet wired to this
+                // runtime path, so a failure must stop instead of pretending
+                // an authorized repair exists.
+                repairable: false,
+                summary: if convergence_report.passed {
+                    "Seven build stages, production GLB/PBR readback, detail coverage, and the exact eight views converged.".into()
+                } else {
+                    format!(
+                        "Visual convergence failed: {}.",
+                        convergence_report.failure_codes.join(",")
+                    )
+                },
+            }];
+            checks.push(GenerationGateCheck {
+                gate_id: "generation_source_bound".into(),
+                outcome: if state.generation_source.is_some() {
+                    VerificationOutcome::Pass
+                } else {
+                    VerificationOutcome::Undetermined
+                },
+                repairable: false,
+                summary: if state.generation_source.is_some() {
+                    "Rust bound the trusted generation source to this execution.".into()
+                } else {
+                    "No trusted generation source was bound to this execution.".into()
+                },
+            });
+            let report = GenerationGateReport {
+                schema_version: GENERATION_GATE_REPORT_SCHEMA_VERSION.into(),
+                gate_report_id: format!(
+                    "gate_{}",
+                    &sha256_hex(
+                        format!(
+                            "{}:{}",
+                            attempt.attempt_id, convergence_report.report_sha256
+                        )
+                        .as_bytes()
+                    )[..24]
+                ),
+                attempt_id: attempt.attempt_id.clone(),
+                glb_sha256: geometry.glb_sha256.clone(),
+                compile_readback_id: format!("readback_{}", &geometry.glb_sha256[..24]),
+                render_fingerprint: format!("render_{}", &render_source[..24]),
+                gate_profile_version: "pv004_visual_convergence_v1".into(),
+                checks,
+                summary: "Rust-owned PV004 visual-program convergence evaluation.".into(),
+            };
+            report.validate().map_err(|error| {
+                NativeToolFailure::new(
+                    ProductToolFailureCategory::Execution,
+                    error.code(),
+                    error.to_string(),
+                )
+            })?;
+            Ok(report)
+        })
+        .transpose()?;
+    let hard_gate_passed = convergence_report.passed
+        && generation_report
+            .as_ref()
+            .is_none_or(GenerationGateReport::is_passed);
+    let payload = json!({
+        "hard_gate_passed": hard_gate_passed,
+        "checks": generation_report.as_ref().map(|report| &report.checks),
+        "generation_gate_report": generation_report,
+        "visual_convergence_report": convergence_report,
+        "evidence_source": "pv004_visual_convergence_v1"
+    });
+    state.generation_attempt = maybe_attempt;
+    state.generation_gate_report = generation_report;
+    state.visual_convergence_report = Some(convergence_report);
     state.evaluation = Some(payload.clone());
     Ok(payload)
 }
@@ -5384,21 +6433,63 @@ fn evaluate_native_v003_gate(
         (Some(_), Some(_), Some(_)) => VerificationOutcome::Fail,
         _ => VerificationOutcome::Undetermined,
     };
+    let c111_golden_surface_bound = state.recipe_expansion.as_ref().is_some_and(|expansion| {
+        expansion.expanded_shape_program_sha256.as_deref()
+            == Some(geometry.readback.shape_program_sha256.as_str())
+            && expansion
+                .component_recipe_instances
+                .as_ref()
+                .and_then(Value::as_array)
+                .is_some_and(|instances| {
+                    instances.iter().any(|instance| {
+                        instance
+                            .pointer("/recipe/recipe_id")
+                            .and_then(Value::as_str)
+                            == Some(C111_GOLDEN_ROOT_RECIPE_ID)
+                            && instance
+                                .get("parent_instance_id")
+                                .is_some_and(Value::is_null)
+                    })
+                })
+            && expansion.geometry_input.surface_adornment_programs.len() == 6
+            && expansion
+                .geometry_input
+                .surface_adornment_programs
+                .iter()
+                .all(|program| program.skill_version == 3)
+            && plan
+                .pointer("/arm_design_intent/style_keywords")
+                .and_then(Value::as_array)
+                .is_some_and(|keywords| {
+                    keywords
+                        .iter()
+                        .any(|keyword| keyword.as_str() == Some("golden_surface"))
+                })
+    });
     let semantic_outcome = state
         .recipe_expansion
         .as_ref()
         .and_then(|value| value.semantic_proportion_binding.as_ref())
-        .map_or(VerificationOutcome::Undetermined, |binding| {
-            if binding.shape_program_sha256 == geometry.readback.shape_program_sha256
-                && state.style_recipe.as_ref().is_some_and(|style| {
-                    binding.style_recipe_sha256 == sha256_hex(canonical_json(style).as_bytes())
-                })
-            {
-                VerificationOutcome::Pass
-            } else {
-                VerificationOutcome::Fail
-            }
-        });
+        .map_or_else(
+            || {
+                if c111_golden_surface_bound {
+                    VerificationOutcome::Pass
+                } else {
+                    VerificationOutcome::Undetermined
+                }
+            },
+            |binding| {
+                if binding.shape_program_sha256 == geometry.readback.shape_program_sha256
+                    && state.style_recipe.as_ref().is_some_and(|style| {
+                        binding.style_recipe_sha256 == sha256_hex(canonical_json(style).as_bytes())
+                    })
+                {
+                    VerificationOutcome::Pass
+                } else {
+                    VerificationOutcome::Fail
+                }
+            },
+        );
     let role_outcome = match (
         state
             .recipe_expansion
@@ -5464,7 +6555,7 @@ fn evaluate_native_v003_gate(
         native_gate_evidence("surface_provenance_present", if geometry.readback.surface_provenance_present { VerificationOutcome::Pass } else { VerificationOutcome::Fail }, NativeGateEvidenceSource::RestrictedGeometryGlbReadback, &compile_source, "Compiler readback verified surface provenance."),
         native_gate_evidence("glb_hash_verified", if geometry.glb_sha256 == sha256_hex(&geometry.glb_bytes) { VerificationOutcome::Pass } else { VerificationOutcome::Fail }, NativeGateEvidenceSource::RestrictedGeometryGlbReadback, &compile_source, "Returned GLB bytes match the compiler-bound SHA-256."),
         native_gate_evidence("brief_coverage", brief_outcome, NativeGateEvidenceSource::BriefCoverageResolver, &brief_source, "Reviewed plan preserves the exact bounded user brief and selected exterior coverage fields."),
-        native_gate_evidence("semantic_proportion_bound", semantic_outcome, NativeGateEvidenceSource::SemanticProportionResolver, &semantic_source, "Reviewed Style Token proportion adjustment is bound to the compiled Recipe ShapeProgram."),
+        native_gate_evidence("semantic_proportion_bound", semantic_outcome, NativeGateEvidenceSource::SemanticProportionResolver, &semantic_source, "Reviewed Style Token adjustment or exact C111A golden-surface selection is bound to the compiled Recipe ShapeProgram."),
         native_gate_evidence("domain_role_coverage", role_outcome, NativeGateEvidenceSource::DomainRoleResolver, &role_source, "Every persistent Recipe AssemblyGraph part is bound to an exact ShapeProgram operation/output/role triple and a same-domain Recipe instance."),
         native_gate_evidence("material_texture_provenance", material_outcome, NativeGateEvidenceSource::ProductionMaterialReadback, &material_source, "Production compiler readback binds material zones to complete built-in PBR texture sets."),
         native_gate_evidence("editability_evidence", editability_outcome, NativeGateEvidenceSource::RecipeAssemblyReadback, &editability_source, "Recipe assembly graph, instance provenance, candidate and exact compiled ShapeProgram are bound together."),
@@ -7236,7 +8327,9 @@ mod tests {
         let glb_bytes = b"glTF ForgeCAD bounded native fixture bytes".to_vec();
         let glb_sha256 = sha256_hex(&glb_bytes);
         let glb_byte_size = glb_bytes.len() as u64;
-        let views = REQUIRED_VIEWS
+        let views = input
+            .render_view_profile
+            .required_views()
             .into_iter()
             .map(|name| {
                 (
@@ -7338,6 +8431,28 @@ mod tests {
             Box::pin(async move {
                 let mut output = success_geometry_output(&input);
                 output.readback.surface_provenance_present = false;
+                Ok(output)
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct FirstMissingSurfaceThenSuccessGeometryPort {
+        calls: Arc<AtomicUsize>,
+    }
+
+    impl RestrictedGeometryPort for FirstMissingSurfaceThenSuccessGeometryPort {
+        fn build_compile_render(
+            &self,
+            input: RestrictedGeometryInput,
+            _cancellation: CancellationToken,
+        ) -> RestrictedGeometryFuture {
+            let call = self.calls.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                let mut output = success_geometry_output(&input);
+                if call == 0 {
+                    output.readback.surface_provenance_present = false;
+                }
                 Ok(output)
             })
         }
@@ -7649,6 +8764,56 @@ mod tests {
         })
     }
 
+    fn forge_visual_program(title: &str, width: f64, material_id: &str) -> Value {
+        let suffix = material_id.trim_start_matches("mat_");
+        let surface_program_id = format!("surface_{suffix}");
+        let mut geometry_graph = shape_program("box");
+        geometry_graph["program_id"] = json!(format!("shape_visual_{suffix}"));
+        geometry_graph["operations"][0]["args"]["size"] = json!([width, 56.0, 34.0]);
+        json!({
+            "schema_version":"ForgeVisualProgram@1",
+            "program_id":format!("visual_program_{suffix}"),
+            "domain_pack_id":"pack_robotic_arm_concept",
+            "title":title,
+            "stage":"draft",
+            "visual_only":true,
+            "design_tokens":[{"token_id":"surface_language","value":material_id}],
+            "parts":[{
+                "part_id":"part_primary", "role":"link_armor", "parent_part_id":null,
+                "geometry_output_ids":["output_primary"], "material_zone_ids":["zone_primary"]
+            }],
+            "geometry_graph":geometry_graph,
+            "assembly_graph":{"schema_version":"AssemblyGraph@1","parts":[],"connections":[]},
+            "material_graph":[{
+                "part_id":"part_primary", "material_zone_id":"zone_primary", "material_id":material_id
+            }],
+            "surface_graph":[{
+                "surface_program_id":surface_program_id, "part_id":"part_primary", "material_zone_id":"zone_primary"
+            }],
+            "detail_inventory":[
+                {
+                    "detail_id":"detail_silhouette", "level":"macro", "description":"articulated silhouette",
+                    "critical":true, "status":"bound", "bindings":[{
+                        "kind":"geometry_output", "part_id":"part_primary", "target_id":"output_primary"
+                    }]
+                },
+                {
+                    "detail_id":"detail_panel", "level":"meso", "description":"surface panel flow",
+                    "critical":true, "status":"bound", "bindings":[{
+                        "kind":"surface_program", "part_id":"part_primary", "target_id":surface_program_id
+                    }]
+                },
+                {
+                    "detail_id":"detail_finish", "level":"micro", "description":"PBR finish",
+                    "critical":true, "status":"bound", "bindings":[{
+                        "kind":"material_zone", "part_id":"part_primary", "target_id":"zone_primary"
+                    }]
+                }
+            ],
+            "export_profile":"production_concept"
+        })
+    }
+
     fn contains_json_key(value: &Value, expected: &str) -> bool {
         match value {
             Value::Object(object) => object
@@ -7667,6 +8832,666 @@ mod tests {
             .execute(request, CancellationToken::new())
             .await
             .unwrap()
+    }
+
+    #[test]
+    fn pv003_native_visual_program_tools_are_transactional_and_hash_bound() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let executor = executor_with(
+                Arc::new(SuccessGeometryPort::default()),
+                NativeProductToolExecutorConfig::default(),
+            );
+            let author = run_tool(
+                &executor,
+                standard_request(
+                    &registry,
+                    "author_forge_visual_program",
+                    json!({"program":forge_visual_program(
+                        "Graphite articulated arm", 180.0, "mat_graphite"
+                    )}),
+                    "call_visual_author",
+                ),
+            )
+            .await;
+            assert_eq!(author.status, ProductToolExecutionStatus::Completed);
+            let authored = &author.validated_output.as_ref().unwrap().value;
+            assert_eq!(authored.get("revision").and_then(Value::as_u64), Some(1));
+            assert_eq!(authored.get("program"), Some(&Value::Null));
+            let source_hash = authored
+                .get("source_program_sha256")
+                .and_then(Value::as_str)
+                .unwrap()
+                .to_string();
+
+            let full = run_tool(
+                &executor,
+                standard_request(
+                    &registry,
+                    "inspect_forge_visual_program",
+                    json!({"view":"full"}),
+                    "call_visual_inspect_full",
+                ),
+            )
+            .await;
+            assert_eq!(full.status, ProductToolExecutionStatus::Completed);
+            assert_eq!(
+                full.validated_output
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .get("program")
+                    .and_then(Value::as_object)
+                    .and_then(|program| program.get("title"))
+                    .and_then(Value::as_str),
+                Some("Graphite articulated arm")
+            );
+
+            let patch = json!({
+                "schema_version":"ForgeVisualPatch@1",
+                "patch_id":"patch_visual_warm_copper",
+                "expected_revision":1,
+                "expected_source_sha256":source_hash,
+                "preserve_geometry":true,
+                "preserve_material_surface":false,
+                "operations":[
+                    {"op":"set_title","title":"Warm copper articulated arm"},
+                    {"op":"replace_material_graph","material_graph":[{
+                        "part_id":"part_primary", "material_zone_id":"zone_primary", "material_id":"mat_warm_copper"
+                    }]}
+                ]
+            });
+            let patched = run_tool(
+                &executor,
+                standard_request(
+                    &registry,
+                    "patch_forge_visual_program",
+                    json!({"patch":patch.clone()}),
+                    "call_visual_patch",
+                ),
+            )
+            .await;
+            assert_eq!(patched.status, ProductToolExecutionStatus::Completed);
+            let patched_output = &patched.validated_output.as_ref().unwrap().value;
+            assert_eq!(
+                patched_output.get("revision").and_then(Value::as_u64),
+                Some(2)
+            );
+            assert_ne!(
+                patched_output
+                    .get("source_program_sha256")
+                    .and_then(Value::as_str),
+                Some(source_hash.as_str())
+            );
+
+            let stale = run_tool(
+                &executor,
+                standard_request(
+                    &registry,
+                    "patch_forge_visual_program",
+                    json!({"patch":patch}),
+                    "call_visual_patch_stale",
+                ),
+            )
+            .await;
+            assert_eq!(stale.status, ProductToolExecutionStatus::Failed);
+            assert_eq!(
+                stale.error_code.as_deref(),
+                Some("FORGE_VISUAL_PROGRAM_INVALID")
+            );
+
+            let after_failure = run_tool(
+                &executor,
+                standard_request(
+                    &registry,
+                    "inspect_forge_visual_program",
+                    json!({"view":"summary"}),
+                    "call_visual_inspect_after_stale",
+                ),
+            )
+            .await;
+            assert_eq!(
+                after_failure
+                    .validated_output
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .get("revision")
+                    .and_then(Value::as_u64),
+                Some(2)
+            );
+        });
+    }
+
+    #[test]
+    fn pv004_visual_program_build_converges_exact_eight_views_into_one_preview() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let geometry = SuccessGeometryPort::default();
+            let executor = executor_with(
+                Arc::new(geometry.clone()),
+                NativeProductToolExecutorConfig::default(),
+            );
+            let execution_id = "execution_pv004_visual";
+            let turn_id = "turn_pv004_visual";
+            let cancellation_id = "cancel_pv004_visual";
+            let cancellation_token = "token_pv004_visual";
+            executor
+                .bind_execution_project_native(execution_id, turn_id, Some("project_pv004_visual"))
+                .unwrap();
+
+            let calls = [
+                (
+                    "infer_product_domain",
+                    json!({"brief":"设计一款精致的未来机械臂概念模型"}),
+                    "call_pv004_domain",
+                ),
+                (
+                    "author_forge_visual_program",
+                    json!({"program":forge_visual_program(
+                        "Refined future robotic arm", 220.0, "mat_graphite"
+                    )}),
+                    "call_pv004_author",
+                ),
+                (
+                    "build_candidate_geometry",
+                    json!({
+                        "direction_id":"direction_visual_program",
+                        "variant_id":null,
+                        "presentation_profile":"showcase"
+                    }),
+                    "call_pv004_build",
+                ),
+                (
+                    "compile_readback_candidate",
+                    json!({}),
+                    "call_pv004_readback",
+                ),
+                ("render_candidate_views", json!({}), "call_pv004_render"),
+                ("evaluate_candidate", json!({}), "call_pv004_evaluate"),
+                ("prepare_candidate_preview", json!({}), "call_pv004_preview"),
+            ];
+            let mut results = Vec::new();
+            for (name, arguments, call_id) in calls {
+                let result = run_tool(
+                    &executor,
+                    request(
+                        &registry,
+                        name,
+                        arguments,
+                        call_id,
+                        execution_id,
+                        turn_id,
+                        cancellation_id,
+                        cancellation_token,
+                    ),
+                )
+                .await;
+                assert_eq!(
+                    result.status,
+                    ProductToolExecutionStatus::Completed,
+                    "{name} failed: {:?}",
+                    result.error_code
+                );
+                results.push(result.validated_output.unwrap().value);
+            }
+
+            let build = &results[2];
+            assert_eq!(
+                build
+                    .get("design_build_ledger")
+                    .and_then(|ledger| ledger.get("passes"))
+                    .and_then(Value::as_array)
+                    .map(Vec::len),
+                Some(7)
+            );
+            assert_eq!(
+                build
+                    .get("design_build_ledger")
+                    .and_then(|ledger| ledger.get("passes"))
+                    .and_then(Value::as_array)
+                    .and_then(|passes| passes.last())
+                    .and_then(|pass| pass.get("output_sha256")),
+                results[3].get("glb_sha256")
+            );
+            let expected_views = CONVERGENCE_REQUIRED_VIEWS
+                .into_iter()
+                .map(str::to_string)
+                .collect::<BTreeSet<_>>();
+            assert_eq!(
+                results[4]
+                    .get("view_ids")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<BTreeSet<_>>(),
+                expected_views
+            );
+            assert_eq!(results[5].get("hard_gate_passed"), Some(&json!(true)));
+            assert_eq!(
+                results[5]
+                    .get("visual_convergence_report")
+                    .and_then(|report| report.get("passed")),
+                Some(&json!(true))
+            );
+            assert!(results[6]
+                .get("single_result_decision")
+                .is_some_and(Value::is_object));
+            assert_eq!(results[6].get("permanent_side_effects"), Some(&json!(0)));
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                geometry.captured.lock().unwrap()[0].render_view_profile,
+                RestrictedRenderViewProfile::ConvergenceEight
+            );
+
+            let second_build = run_tool(
+                &executor,
+                request(
+                    &registry,
+                    "build_candidate_geometry",
+                    json!({
+                        "direction_id":"direction_visual_program",
+                        "variant_id":null,
+                        "presentation_profile":"showcase"
+                    }),
+                    "call_pv004_second_build",
+                    execution_id,
+                    turn_id,
+                    cancellation_id,
+                    cancellation_token,
+                ),
+            )
+            .await;
+            assert_eq!(second_build.status, ProductToolExecutionStatus::Failed);
+            assert_eq!(
+                second_build.error_code.as_deref(),
+                Some("SINGLE_GENERATION_FULL_BUILD_ALREADY_USED")
+            );
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+        });
+    }
+
+    #[test]
+    fn pv004_failed_convergence_accepts_one_typed_local_repair_and_rebuilds_from_scratch() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let geometry = FirstMissingSurfaceThenSuccessGeometryPort::default();
+            let executor = executor_with(
+                Arc::new(geometry.clone()),
+                NativeProductToolExecutorConfig::default(),
+            );
+            let execution_id = "execution_pv004_repair";
+            let turn_id = "turn_pv004_repair";
+            let cancellation_id = "cancel_pv004_repair";
+            let cancellation_token = "token_pv004_repair";
+            executor
+                .bind_execution_project_native(execution_id, turn_id, Some("project_pv004_repair"))
+                .unwrap();
+            let run = |name: &str, arguments: Value, call_id: &str| {
+                run_tool(
+                    &executor,
+                    request(
+                        &registry,
+                        name,
+                        arguments,
+                        call_id,
+                        execution_id,
+                        turn_id,
+                        cancellation_id,
+                        cancellation_token,
+                    ),
+                )
+            };
+
+            assert_eq!(
+                run(
+                    "infer_product_domain",
+                    json!({"brief":"精致未来机械臂"}),
+                    "call_pv004_repair_domain"
+                )
+                .await
+                .status,
+                ProductToolExecutionStatus::Completed
+            );
+            let authored = run(
+                "author_forge_visual_program",
+                json!({"program":forge_visual_program(
+                    "Repairable future arm", 180.0, "mat_graphite"
+                )}),
+                "call_pv004_repair_author",
+            )
+            .await;
+            let source_sha256 = authored
+                .validated_output
+                .as_ref()
+                .unwrap()
+                .value
+                .get("source_program_sha256")
+                .and_then(Value::as_str)
+                .unwrap()
+                .to_string();
+            for (name, arguments, call_id) in [
+                (
+                    "build_candidate_geometry",
+                    json!({
+                        "direction_id":"direction_visual_program",
+                        "variant_id":null,
+                        "presentation_profile":"showcase"
+                    }),
+                    "call_pv004_repair_build_1",
+                ),
+                (
+                    "compile_readback_candidate",
+                    json!({}),
+                    "call_pv004_repair_readback_1",
+                ),
+                (
+                    "render_candidate_views",
+                    json!({}),
+                    "call_pv004_repair_render_1",
+                ),
+            ] {
+                assert_eq!(
+                    run(name, arguments, call_id).await.status,
+                    ProductToolExecutionStatus::Completed
+                );
+            }
+            let failed = run(
+                "evaluate_candidate",
+                json!({}),
+                "call_pv004_repair_evaluate_1",
+            )
+            .await;
+            assert_eq!(
+                failed
+                    .validated_output
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .get("hard_gate_passed"),
+                Some(&json!(false))
+            );
+
+            let mut repaired_geometry = shape_program("box");
+            repaired_geometry["program_id"] = json!("shape_visual_graphite_repaired");
+            repaired_geometry["operations"][0]["args"]["size"] = json!([220.0, 56.0, 34.0]);
+            let patched = run(
+                "patch_forge_visual_program",
+                json!({"patch":{
+                    "schema_version":"ForgeVisualPatch@1",
+                    "patch_id":"patch_pv004_local_geometry",
+                    "expected_revision":1,
+                    "expected_source_sha256":source_sha256,
+                    "preserve_geometry":false,
+                    "preserve_material_surface":true,
+                    "operations":[{
+                        "op":"replace_geometry_graph",
+                        "geometry_graph":repaired_geometry
+                    }]
+                }}),
+                "call_pv004_repair_patch",
+            )
+            .await;
+            assert_eq!(patched.status, ProductToolExecutionStatus::Completed);
+
+            for (name, arguments, call_id) in [
+                (
+                    "build_candidate_geometry",
+                    json!({
+                        "direction_id":"direction_visual_program",
+                        "variant_id":null,
+                        "presentation_profile":"showcase"
+                    }),
+                    "call_pv004_repair_build_2",
+                ),
+                (
+                    "compile_readback_candidate",
+                    json!({}),
+                    "call_pv004_repair_readback_2",
+                ),
+                (
+                    "render_candidate_views",
+                    json!({}),
+                    "call_pv004_repair_render_2",
+                ),
+            ] {
+                assert_eq!(
+                    run(name, arguments, call_id).await.status,
+                    ProductToolExecutionStatus::Completed
+                );
+            }
+            let passed = run(
+                "evaluate_candidate",
+                json!({}),
+                "call_pv004_repair_evaluate_2",
+            )
+            .await;
+            assert_eq!(
+                passed
+                    .validated_output
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .get("visual_convergence_report")
+                    .and_then(|report| report.get("repair_attempt_count")),
+                Some(&json!(1))
+            );
+            assert_eq!(
+                passed
+                    .validated_output
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .get("hard_gate_passed"),
+                Some(&json!(true))
+            );
+            let preview = run(
+                "prepare_candidate_preview",
+                json!({}),
+                "call_pv004_repair_preview",
+            )
+            .await;
+            assert_eq!(preview.status, ProductToolExecutionStatus::Completed);
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 2);
+        });
+    }
+
+    #[test]
+    fn pv004_runtime_rejects_a_third_typed_visual_repair() {
+        let revision = ForgeVisualProgramRevision::author(&forge_visual_program(
+            "Bounded repair arm",
+            180.0,
+            "mat_graphite",
+        ))
+        .unwrap();
+        let mut state = NativeToolState {
+            forge_visual_program: Some(revision),
+            build: Some(json!({"candidate_only":true})),
+            evaluation: Some(json!({"hard_gate_passed":false})),
+            visual_convergence_report: Some(VisualConvergenceReport {
+                schema_version: "VisualConvergenceReport@1".into(),
+                report_sha256: "a".repeat(64),
+                source_program_sha256: "b".repeat(64),
+                source_revision: 1,
+                glb_sha256: "c".repeat(64),
+                passed: false,
+                completed_stage_count: 7,
+                fixed_view_count: 8,
+                repair_attempt_count: 0,
+                failure_codes: vec!["SURFACE_PROVENANCE_MISSING".into()],
+            }),
+            ..NativeToolState::default()
+        };
+        for number in 1..=2 {
+            let current = state.forge_visual_program.as_ref().unwrap();
+            let mut geometry = shape_program("box");
+            geometry["program_id"] = json!(format!("shape_visual_repair_{number}"));
+            geometry["operations"][0]["args"]["size"] =
+                json!([180.0 + f64::from(number), 56.0, 34.0]);
+            let mut arguments = BTreeMap::new();
+            arguments.insert(
+                "patch".into(),
+                json!({
+                    "schema_version":"ForgeVisualPatch@1",
+                    "patch_id":format!("patch_visual_repair_{number}"),
+                    "expected_revision":current.revision,
+                    "expected_source_sha256":current.source_program_sha256,
+                    "preserve_geometry":false,
+                    "preserve_material_surface":true,
+                    "operations":[{"op":"replace_geometry_graph","geometry_graph":geometry}]
+                }),
+            );
+            patch_forge_visual_program(&arguments, &mut state).unwrap();
+            assert_eq!(state.visual_repairs.len(), number as usize);
+            state.build = Some(json!({"candidate_only":true}));
+            state.evaluation = Some(json!({"hard_gate_passed":false}));
+            state.visual_convergence_report = Some(VisualConvergenceReport {
+                schema_version: "VisualConvergenceReport@1".into(),
+                report_sha256: format!("{:064x}", number + 16),
+                source_program_sha256: state
+                    .forge_visual_program
+                    .as_ref()
+                    .unwrap()
+                    .source_program_sha256
+                    .clone(),
+                source_revision: state.forge_visual_program.as_ref().unwrap().revision,
+                glb_sha256: "d".repeat(64),
+                passed: false,
+                completed_stage_count: 7,
+                fixed_view_count: 8,
+                repair_attempt_count: number,
+                failure_codes: vec!["SURFACE_PROVENANCE_MISSING".into()],
+            });
+        }
+        let current = state.forge_visual_program.as_ref().unwrap();
+        let mut geometry = shape_program("box");
+        geometry["program_id"] = json!("shape_visual_repair_3");
+        geometry["operations"][0]["args"]["size"] = json!([183.0, 56.0, 34.0]);
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            "patch".into(),
+            json!({
+                "schema_version":"ForgeVisualPatch@1",
+                "patch_id":"patch_visual_repair_3",
+                "expected_revision":current.revision,
+                "expected_source_sha256":current.source_program_sha256,
+                "preserve_geometry":false,
+                "preserve_material_surface":true,
+                "operations":[{"op":"replace_geometry_graph","geometry_graph":geometry}]
+            }),
+        );
+        let error = patch_forge_visual_program(&arguments, &mut state).unwrap_err();
+        assert_eq!(error.code, "VISUAL_REPAIR_LIMIT_REACHED");
+        assert_eq!(state.visual_repairs.len(), 2);
+    }
+
+    #[test]
+    fn pv003_distinct_visual_briefs_preserve_real_geometry_material_and_surface_differences() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let executor = executor_with(
+                Arc::new(SuccessGeometryPort::default()),
+                NativeProductToolExecutorConfig::default(),
+            );
+            let cases = [
+                (
+                    "compact_graphite",
+                    "Compact graphite arm with restrained seams",
+                    140.0,
+                    "mat_graphite",
+                ),
+                (
+                    "long_copper",
+                    "Long-reach copper arm with warm flowlines",
+                    260.0,
+                    "mat_warm_copper",
+                ),
+            ];
+            let mut inspections = Vec::new();
+            for (suffix, title, width, material_id) in cases {
+                let execution_id = format!("execution_{suffix}");
+                let turn_id = format!("turn_{suffix}");
+                let cancellation_id = format!("cancel_{suffix}");
+                let cancellation_token = format!("token_{suffix}");
+                let authored = run_tool(
+                    &executor,
+                    request(
+                        &registry,
+                        "author_forge_visual_program",
+                        json!({"program":forge_visual_program(title, width, material_id)}),
+                        &format!("call_author_{suffix}"),
+                        &execution_id,
+                        &turn_id,
+                        &cancellation_id,
+                        &cancellation_token,
+                    ),
+                )
+                .await;
+                assert_eq!(authored.status, ProductToolExecutionStatus::Completed);
+                let inspected = run_tool(
+                    &executor,
+                    request(
+                        &registry,
+                        "inspect_forge_visual_program",
+                        json!({"view":"full"}),
+                        &format!("call_inspect_{suffix}"),
+                        &execution_id,
+                        &turn_id,
+                        &cancellation_id,
+                        &cancellation_token,
+                    ),
+                )
+                .await;
+                assert_eq!(inspected.status, ProductToolExecutionStatus::Completed);
+                inspections.push(
+                    inspected
+                        .validated_output
+                        .unwrap()
+                        .value
+                        .into_iter()
+                        .collect::<Map<_, _>>(),
+                );
+            }
+
+            assert_ne!(
+                inspections[0]
+                    .get("source_program_sha256")
+                    .and_then(Value::as_str),
+                inspections[1]
+                    .get("source_program_sha256")
+                    .and_then(Value::as_str)
+            );
+            assert_eq!(
+                inspections[0]
+                    .get("program")
+                    .and_then(|program| program.pointer("/geometry_graph/operations/0/args/size/0"))
+                    .and_then(Value::as_f64),
+                Some(140.0)
+            );
+            assert_eq!(
+                inspections[1]
+                    .get("program")
+                    .and_then(|program| program.pointer("/geometry_graph/operations/0/args/size/0"))
+                    .and_then(Value::as_f64),
+                Some(260.0)
+            );
+            assert_eq!(
+                inspections[1]
+                    .get("program")
+                    .and_then(|program| program.pointer("/material_graph/0/material_id"))
+                    .and_then(Value::as_str),
+                Some("mat_warm_copper")
+            );
+            assert_eq!(
+                inspections[1]
+                    .get("program")
+                    .and_then(|program| program.pointer("/surface_graph/0/surface_program_id"))
+                    .and_then(Value::as_str),
+                Some("surface_warm_copper")
+            );
+        });
     }
 
     async fn prepare_preview_for(
@@ -7711,7 +9536,7 @@ mod tests {
             ),
             (
                 "build_candidate_geometry",
-                json!({"direction_id": "direction_primary", "variant_id": null, "presentation_profile": "showcase"}),
+                json!({"direction_id": "direction_auto", "variant_id": null, "presentation_profile": "showcase"}),
             ),
             ("compile_readback_candidate", json!({})),
             ("render_candidate_views", json!({})),
@@ -9191,6 +11016,95 @@ mod tests {
     }
 
     #[test]
+    fn c111a_dense_showcase_routes_one_exact_golden_asset_with_a005_v3() {
+        let catalog = RecipeBackedReviewedShapeProgramCatalog;
+        let mut plan = concept_plan_for("pack_robotic_arm_concept");
+        plan["arm_design_intent"] = json!({
+            "schema_version": "ArmDesignIntent@1",
+            "domain_pack_id": "pack_robotic_arm_concept",
+            "architecture": "serial_chain",
+            "joint_language": "armored_bearing",
+            "link_language": "closed_shell",
+            "base_language": "round_turntable",
+            "wrist_language": "layered_wrist",
+            "end_effector_language": "adaptive_claw",
+            "cable_language": "armored_harness",
+            "surface_language": ["panel_seams", "flowline"],
+            "material_palette": "graphite_blue",
+            "detail_density": "dense",
+            "pose": "grounded",
+            "proportion_profile": "balanced",
+            "style_keywords": ["golden_surface", "mechanical"],
+            "source": "user_brief",
+            "visual_only": true
+        });
+        let request = |presentation_profile: &str| ReviewedCatalogRequest {
+            domain_pack_id: "pack_robotic_arm_concept".into(),
+            direction_id: "direction_primary".into(),
+            variant_id: None,
+            presentation_profile: presentation_profile.into(),
+            plan: plan.clone(),
+            style_recipe: None,
+            authored_profile_sketch: None,
+            authored_shape_program: None,
+            geometry_strategy: GeometryStrategy::ComponentRecipe,
+        };
+
+        let golden = catalog.expand(&request("showcase")).unwrap();
+        golden.validate().unwrap();
+        assert_eq!(
+            golden.component_recipe_instances.as_ref().unwrap()[0]["recipe"]["recipe_id"],
+            json!(C111_GOLDEN_ROOT_RECIPE_ID)
+        );
+        assert_eq!(
+            golden.expanded_assembly_graph.as_ref().unwrap()["parts"]
+                .as_array()
+                .unwrap()
+                .len(),
+            10
+        );
+        assert_eq!(
+            golden.geometry_input.shape_program["operations"]
+                .as_array()
+                .unwrap()
+                .len(),
+            198
+        );
+        assert_eq!(
+            golden.geometry_input.shape_program["outputs"]
+                .as_array()
+                .unwrap()
+                .len(),
+            96
+        );
+        assert_eq!(golden.geometry_input.surface_adornment_programs.len(), 6);
+        assert!(golden
+            .geometry_input
+            .surface_adornment_programs
+            .iter()
+            .all(|program| program.skill_version == 3));
+        assert_eq!(
+            golden.expanded_shape_program_sha256.as_deref(),
+            Some("5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d")
+        );
+        assert!(golden.arm_geometry_binding.is_none());
+        assert!(golden.semantic_proportion_binding.is_none());
+        assert_eq!(
+            recipe_preview_output_contract(golden.component_recipe_instances.as_ref().unwrap())
+                .unwrap(),
+            RecipePreviewOutputContract::C111GoldenSurfaceComponents
+        );
+
+        let preview = catalog.expand(&request("quick_sketch")).unwrap();
+        assert_eq!(
+            preview.component_recipe_instances.as_ref().unwrap()[0]["recipe"]["recipe_id"],
+            json!(C106_ARM_DESKTOP_ROOT_RECIPE_ID),
+            "C111A is an opt-in high-detail showcase path; the light preview catalog remains C106"
+        );
+        assert!(preview.geometry_input.surface_adornment_programs.is_empty());
+    }
+
+    #[test]
     fn c110e_arm_intent_changes_reviewed_shape_and_assembly_together() {
         let catalog = RecipeBackedReviewedShapeProgramCatalog;
         let arm_intent = |link_language: &str| {
@@ -9390,6 +11304,49 @@ mod tests {
     }
 
     #[test]
+    fn continuation_template_is_lowered_only_from_the_rust_owned_active_snapshot() {
+        let mut state = NativeToolState::default();
+        state.active_snapshot = Some(json!({
+            "schema_version": "ActiveDesignSnapshot@1",
+            "active_design": {
+                "source": "agent_asset",
+                "asset_version_id": "assetver_current"
+            },
+            "agent_edit_context": {
+                "schema_version": "ForgeCADArmContinuationEditContext@1",
+                "base_asset_version_id": "assetver_current",
+                "ready_operations": [{
+                    "op": "add_reviewed_recipe",
+                    "operation_id": "delta_add_wrist_mount",
+                    "new_part_id": "part_addon_current",
+                    "parent_part_id": "part_arm_root",
+                    "parent_connector_id": "connector_service_wrist",
+                    "child_connector_id": "connector_wrist_tool_mount",
+                    "recipe_id": "recipe_c110d_arm_wrist_tool_mount",
+                    "slot_id": "slot_arm_tool_changer",
+                    "transform": {
+                        "position": [0.0, 18.0, 0.0],
+                        "rotation": [0.0, 0.15, 0.0],
+                        "scale": [1.0, 1.0, 1.0]
+                    }
+                }]
+            }
+        }));
+        let mut plan = concept_plan_for("pack_robotic_arm_concept");
+        plan["continuation_template_id"] = json!("next_reviewed_attachment");
+
+        let accepted =
+            plan_complete_concept(&BTreeMap::from([("plan".into(), plan)]), &mut state).unwrap();
+        let delta = &accepted["plan"]["assembly_delta"];
+        assert_eq!(delta["base_asset_version_id"], "assetver_current");
+        assert_eq!(
+            delta["operations"][0]["recipe_id"],
+            "recipe_c110d_arm_wrist_tool_mount"
+        );
+        assert!(accepted["plan"].get("continuation_template_id").is_none());
+    }
+
+    #[test]
     fn c106_output_contract_requires_exact_registry_and_recipe_provenance() {
         let expand = |registry: &RecipeRegistry, recipe_id: &str| {
             let recipe = registry.recipe(recipe_id).unwrap();
@@ -9518,7 +11475,7 @@ mod tests {
                     .keys()
                     .map(String::as_str)
                     .collect::<BTreeSet<_>>(),
-                REQUIRED_VIEWS.into_iter().collect::<BTreeSet<_>>()
+                RestrictedRenderViewProfile::WorkbenchFour.required_views()
             );
             assert_eq!(
                 executor.preview_artifact(&preview_id).unwrap().unwrap(),

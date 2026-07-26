@@ -595,6 +595,65 @@ export type EditableComponentRecipe = {
   "non_functional_only": true
 }
 
+export type ForgeVisualPatch = {
+  "schema_version": "ForgeVisualPatch@1"
+  "patch_id": Id
+  "expected_revision": number
+  "expected_source_sha256": Sha256
+  "preserve_geometry": boolean
+  "preserve_material_surface": boolean
+  "operations": Array<SetTitle | UpsertDesignToken | RemoveDesignToken | ReplaceParts | ReplaceGeometryGraph | ReplaceAssemblyGraph | ReplaceMaterialGraph | ReplaceSurfaceGraph | ReplaceDetailInventory | SetExportProfile>
+}
+
+export type ForgeVisualProgram = {
+  "schema_version": "ForgeVisualProgram@1"
+  "program_id": Id
+  "domain_pack_id": Id
+  "title": string
+  "stage": "draft" | "sealed"
+  "visual_only": true
+  "design_tokens": Array<{
+  "token_id": Id
+  "value": string
+}>
+  "parts": Array<{
+  "part_id": Id
+  "role": Id
+  "parent_part_id": Id | null
+  "geometry_output_ids": Array<Id>
+  "material_zone_ids": Array<Id>
+}>
+  "geometry_graph": {
+  "schema_version": "ShapeProgram@1"
+}
+  "assembly_graph": {
+  "schema_version": "AssemblyGraph@1"
+}
+  "material_graph": Array<{
+  "part_id": Id
+  "material_zone_id": Id
+  "material_id": Id
+}>
+  "surface_graph": Array<{
+  "surface_program_id": Id
+  "part_id": Id
+  "material_zone_id": Id
+}>
+  "detail_inventory": Array<{
+  "detail_id": Id
+  "level": "macro" | "meso" | "micro"
+  "description": string
+  "critical": boolean
+  "status": "bound" | "unresolved"
+  "bindings": Array<{
+  "kind": "geometry_output" | "material_zone" | "surface_program"
+  "part_id": Id
+  "target_id": Id
+}>
+}>
+  "export_profile": "interactive_preview" | "production_concept"
+}
+
 export type FormalModuleReview = {
   "schema_version": "FormalModuleReview@1"
   "review_id": string
@@ -1444,6 +1503,28 @@ export type SurfaceLayerProgram = {
   "skill_sha256": Sha256
   "generator": "surface_layer_v1"
   "non_functional_only": true
+}
+
+export type VisualConvergenceInput = {
+  "schema_version": "VisualConvergenceInput@1"
+  "ledger": Ledger
+  "readback": Readback
+  "fixed_views": Array<View>
+  "detail_coverage": DetailCoverage
+  "repairs": Array<Repair>
+}
+
+export type VisualConvergenceReport = {
+  "schema_version": "VisualConvergenceReport@1"
+  "report_sha256": string
+  "source_program_sha256": string
+  "source_revision": number
+  "glb_sha256": string
+  "passed": boolean
+  "completed_stage_count": number
+  "fixed_view_count": number
+  "repair_attempt_count": number
+  "failure_codes": Array<string>
 }
 
 export type VisualIntentMapping = {

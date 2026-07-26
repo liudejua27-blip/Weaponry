@@ -40,20 +40,23 @@ def _material(material_id: str) -> dict[str, object]:
 
 def main() -> None:
     manifest = studio_environment_manifest()
+    legacy_manifest = studio_environment_manifest("env_forgecad_room_studio_v1")
+    assert legacy_manifest["environment_sha256"] == "291b13f7d1606bd3c180a3fb9850538f5d23208086d7f8488c2214fa59061042"
     lighting = manifest["cad_neutral_lighting"]
     assert isinstance(lighting, dict)
-    assert manifest["tone_mapping_exposure"] == 0.86
-    assert lighting["hemisphere"]["intensity"] == 1.45
-    assert lighting["ambient"]["intensity"] == 0.24
-    assert lighting["key"]["intensity"] == 3.6
-    assert lighting["rim"]["intensity"] == 0.95
-    assert lighting["warm_rim"]["intensity"] == 0.28
+    assert manifest["environment_id"] == "env_forgecad_room_studio_v2"
+    assert manifest["tone_mapping_exposure"] == 0.62
+    assert lighting["hemisphere"]["intensity"] == 0.58
+    assert lighting["ambient"]["intensity"] == 0.12
+    assert lighting["key"]["intensity"] == 1.35
+    assert lighting["rim"]["intensity"] == 0.5
+    assert lighting["warm_rim"]["intensity"] == 0.1
     total_direct_fill = sum(
         float(lighting[name]["intensity"])
         for name in ("hemisphere", "ambient", "key", "rim", "warm_rim")
     )
-    assert abs(total_direct_fill - 6.52) < 1e-9
-    assert total_direct_fill < 7.0
+    assert abs(total_direct_fill - 2.65) < 1e-9
+    assert total_direct_fill < 3.0
 
     automotive = _material("mat_automotive_paint")
     graphite = _material("mat_primary")
@@ -64,24 +67,27 @@ def main() -> None:
     automotive_base = automotive["base"]
     assert isinstance(automotive_base, tuple)
     assert automotive_base[2] >= automotive_base[0] * 2.5
-    assert automotive["clearcoat"] == 0.9
-    assert _luminance(aluminium["base"]) - _luminance(graphite["base"]) >= 0.25
-    assert _luminance(graphite["base"]) - _luminance(composite["base"]) >= 0.05
-    assert _luminance(composite["base"]) - _luminance(rubber["base"]) >= 0.05
-    assert float(graphite["metallic"]) - float(composite["metallic"]) >= 100
-    assert float(rubber["roughness"]) - float(composite["roughness"]) >= 70
+    assert automotive["clearcoat"] == 0.22
+    assert _luminance(aluminium["base"]) - _luminance(composite["base"]) >= 0.35
+    assert _luminance(composite["base"]) - _luminance(graphite["base"]) >= 0.05
+    assert _luminance(graphite["base"]) - _luminance(rubber["base"]) >= 0.03
+    assert float(graphite["metallic"]) - float(composite["metallic"]) >= 25
+    assert float(rubber["roughness"]) - float(composite["roughness"]) >= 35
     assert emissive["emissive"] == (12, 112, 255)
 
     source = VIEWPORT.read_text(encoding="utf-8")
     environment_hash = str(manifest["environment_sha256"])
     assert environment_hash in source
+    assert str(legacy_manifest["environment_sha256"]) in source
+    assert "studioEnvironmentIdFromEmbedded" in source
+    assert "applyStudioEnvironment" in source
     for token in (
-        "tone_mapping_exposure: 0.86",
-        "intensity: 1.45",
-        "intensity: 0.24",
-        "intensity: 3.6",
-        "intensity: 0.95",
-        "intensity: 0.28",
+        "tone_mapping_exposure: 0.62",
+        "intensity: 0.58",
+        "intensity: 0.12",
+        "intensity: 1.35",
+        "intensity: 0.5",
+        "intensity: 0.1",
         "applyForgecadPbrDisplayCalibration",
         "FORGECAD_PBR_ENVIRONMENT_INTENSITY_BY_MATERIAL_ID",
         "mat_automotive_paint: 0.52",

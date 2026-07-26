@@ -97,7 +97,7 @@ def main() -> int:
     program = _mapping(candidate.get("expanded_shape_program"), "M109A_PROGRAM_INVALID")
     if len(graph.get("parts", [])) != 10 or len(graph.get("connections", [])) != 9:
         raise AssertionError("M109A_ASSEMBLY_IDENTITY_DRIFT")
-    if len(program.get("outputs", [])) != 48:
+    if len(program.get("outputs", [])) != 55:
         raise AssertionError("M109A_OUTPUT_IDENTITY_DRIFT")
 
     preview_profile = geometry_artifact_profile_manifest("interactive_preview")
@@ -149,7 +149,7 @@ def main() -> int:
                 "shape_program_sha256": first["shape_program_sha256"],
                 "parts": 10,
                 "connections": 9,
-                "outputs": 48,
+                "outputs": 55,
                 "measured_provider_calls": 0,
                 "formal_eligible": False,
             },

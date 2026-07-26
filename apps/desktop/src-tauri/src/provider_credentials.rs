@@ -138,6 +138,10 @@ impl fmt::Display for ProviderStoreError {
 impl Error for ProviderStoreError {}
 
 trait ProviderSecretBackend: Send + Sync + 'static {
+    fn requires_stable_app_identity(&self) -> bool {
+        false
+    }
+
     fn read(&self, account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError>;
     fn write(&self, account: &str, secret: &[u8]) -> Result<(), ProviderStoreError>;
     fn delete(&self, account: &str) -> Result<(), ProviderStoreError>;
@@ -147,12 +151,42 @@ trait ProviderSecretBackend: Send + Sync + 'static {
 #[derive(Debug, Default)]
 struct MacOsKeychainBackend;
 
+/// Keychain ACLs bind access to the caller's designated code requirement. An
+/// ad-hoc rebuild has no stable certificate/team identity, so every new
+/// CodeDirectory hash can be treated as a different requester and trigger a
+/// password dialog. Fail before any Keychain API call unless this process is a
+/// strictly valid Apple-anchored ForgeCAD bundle.
+#[cfg(target_os = "macos")]
+fn require_stable_macos_app_identity() -> Result<(), ProviderStoreError> {
+    use security_framework::os::macos::code_signing::{Flags, SecCode, SecRequirement};
+
+    const REQUIREMENT: &str = concat!(
+        "anchor apple generic and ",
+        "certificate leaf[subject.OU] exists and ",
+        "identifier \"local.wushen.forge\""
+    );
+    let requirement = REQUIREMENT
+        .parse::<SecRequirement>()
+        .map_err(|_| ProviderStoreError)?;
+    let code = SecCode::for_self(Flags::NONE).map_err(|_| ProviderStoreError)?;
+    code.check_validity(
+        Flags::STRICT_VALIDATE | Flags::CHECK_NESTED_CODE | Flags::NO_NETWORK_ACCESS,
+        &requirement,
+    )
+    .map_err(|_| ProviderStoreError)
+}
+
 #[cfg(target_os = "macos")]
 impl ProviderSecretBackend for MacOsKeychainBackend {
+    fn requires_stable_app_identity(&self) -> bool {
+        true
+    }
+
     fn read(&self, account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError> {
         use security_framework::passwords::get_generic_password;
         use security_framework_sys::base::errSecItemNotFound;
 
+        require_stable_macos_app_identity()?;
         match get_generic_password(KEYCHAIN_SERVICE, account) {
             Ok(secret) => Ok(Some(Zeroizing::new(secret))),
             Err(error) if error.code() == errSecItemNotFound => Ok(None),
@@ -161,6 +195,7 @@ impl ProviderSecretBackend for MacOsKeychainBackend {
     }
 
     fn write(&self, account: &str, secret: &[u8]) -> Result<(), ProviderStoreError> {
+        require_stable_macos_app_identity()?;
         security_framework::passwords::set_generic_password(KEYCHAIN_SERVICE, account, secret)
             .map_err(|_| ProviderStoreError)
     }
@@ -168,6 +203,7 @@ impl ProviderSecretBackend for MacOsKeychainBackend {
     fn delete(&self, account: &str) -> Result<(), ProviderStoreError> {
         use security_framework_sys::base::errSecItemNotFound;
 
+        require_stable_macos_app_identity()?;
         match security_framework::passwords::delete_generic_password(KEYCHAIN_SERVICE, account) {
             Ok(()) => Ok(()),
             Err(error) if error.code() == errSecItemNotFound => Ok(()),
@@ -276,6 +312,12 @@ impl ProviderCredentialStore {
     ) -> Result<ProviderConfigMetadata, String> {
         validate_provider_endpoint_model(&base_url, &model)?;
         validate_api_key(&api_key)?;
+        #[cfg(target_os = "macos")]
+        if self.secrets.requires_stable_app_identity()
+            && require_stable_macos_app_identity().is_err()
+        {
+            return Err("PROVIDER_STABLE_APP_IDENTITY_REQUIRED".to_string());
+        }
         let _guard = self
             .lock()
             .map_err(|_| "Provider credential transaction is unavailable.".to_string())?;
@@ -335,6 +377,12 @@ impl ProviderCredentialStore {
     }
 
     pub fn clear(&self) -> Result<ProviderConfigMetadata, String> {
+        #[cfg(target_os = "macos")]
+        if self.secrets.requires_stable_app_identity()
+            && require_stable_macos_app_identity().is_err()
+        {
+            return Err("PROVIDER_STABLE_APP_IDENTITY_REQUIRED".to_string());
+        }
         let _guard = self
             .lock()
             .map_err(|_| "Provider credential transaction is unavailable.".to_string())?;
@@ -663,6 +711,14 @@ mod tests {
     use zeroize::Zeroizing;
 
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn cargo_test_binary_is_rejected_before_any_production_keychain_call() {
+        // A cargo test executable is not the strictly signed ForgeCAD app and
+        // must fail the identity preflight without touching a Keychain item.
+        assert!(require_stable_macos_app_identity().is_err());
+    }
 
     #[derive(Default)]
     struct FakeSecretBackend {

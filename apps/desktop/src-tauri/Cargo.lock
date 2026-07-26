@@ -4880,6 +4880,7 @@ dependencies = [
  "forgecad-app-server-protocol",
  "forgecad-core",
  "getrandom 0.3.4",
+ "image",
  "reqwest",
  "rusqlite",
  "security-framework",
@@ -4889,6 +4890,7 @@ dependencies = [
  "sha2",
  "tauri",
  "tauri-build",
+ "tempfile",
  "tokio",
  "zeroize",
 ]

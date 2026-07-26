@@ -24,7 +24,7 @@ use forgecad_app_server_protocol::{
     RpcError, HTTP_COMPAT_RESPONSE_SCHEMA_VERSION,
 };
 use forgecad_core::{
-    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2,
+    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v3,
     inspect_external_glb, is_external_glb_reference, reference_rebuild_plan_id_for_change_set,
     resolve_semantic_proportions, semantic_sha256, validate_reference_surface_analysis_for_plan,
     verify_forgecad_glb, ActiveDesignSnapshot, AgentAssetChangeSet, AgentAssetVersion,
@@ -139,14 +139,173 @@ impl ActiveDesignSnapshotReader for RustCoreActiveDesignSnapshotReader {
             })?;
         snapshot
             .map(|snapshot| {
-                serde_json::to_value(snapshot).map_err(|error| {
+                let mut value = serde_json::to_value(&snapshot).map_err(|error| {
                     ProductToolPortError::invalid_response(format!(
                         "Rust ActiveDesignSnapshot serialization failed: {error}"
                     ))
-                })
+                })?;
+                let Some(asset_version_id) = snapshot.active_design.asset_version_id() else {
+                    return Ok(value);
+                };
+                let version = self
+                    .core
+                    .repository()
+                    .version(asset_version_id)
+                    .map_err(|error| {
+                        ProductToolPortError::invalid_response(format!(
+                            "Rust active asset read failed ({}): {}",
+                            error.code(),
+                            error
+                        ))
+                    })?
+                    .ok_or_else(|| {
+                        ProductToolPortError::invalid_response(
+                            "Rust ActiveDesignSnapshot points to a missing asset version.",
+                        )
+                    })?;
+                if let Some(edit_context) = arm_continuation_edit_context(&version) {
+                    value
+                        .as_object_mut()
+                        .expect("ActiveDesignSnapshot serializes as an object")
+                        .insert("agent_edit_context".into(), edit_context);
+                }
+                Ok(value)
             })
             .transpose()
     }
+}
+
+/// Project a confirmed robotic arm into a small, read-only attachment context
+/// for the Provider.  The model gets stable existing identities plus a fully
+/// reviewed operation template, rather than having to guess a Part UUID or an
+/// arbitrary Recipe/Slot pairing.  Rust still validates the returned
+/// `AssemblyDeltaProgram@1` and remains the only ChangeSet writer.
+fn arm_continuation_edit_context(version: &AgentAssetVersion) -> Option<Value> {
+    if version.domain_pack_id != "pack_robotic_arm_concept" {
+        return None;
+    }
+    let parts = version.assembly_graph.get("parts")?.as_array()?;
+    let part_summaries = parts
+        .iter()
+        .filter_map(|part| {
+            let part_id = part.get("part_id")?.as_str()?;
+            let role = part.get("role")?.as_str()?;
+            let connectors = part
+                .get("connectors")
+                .and_then(Value::as_array)
+                .map(|connectors| {
+                    connectors
+                        .iter()
+                        .filter_map(|connector| connector.get("connector_id")?.as_str())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let joint_ids = part
+                .get("joints")
+                .and_then(Value::as_array)
+                .map(|joints| {
+                    joints
+                        .iter()
+                        .filter_map(|joint| joint.get("joint_id")?.as_str())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            Some(json!({
+                "part_id": part_id,
+                "role": role,
+                "connector_ids": connectors,
+                "joint_ids": joint_ids,
+            }))
+        })
+        .collect::<Vec<_>>();
+    let has_connector = |part: &Value, connector_id: &str| {
+        part.get("connectors")
+            .and_then(Value::as_array)
+            .is_some_and(|connectors| {
+                connectors.iter().any(|connector| {
+                    connector.get("connector_id").and_then(Value::as_str) == Some(connector_id)
+                })
+            })
+    };
+    // The continuation catalog deliberately exposes the next compatible
+    // attachment only. This keeps the Provider from guessing graph bindings:
+    // first it gets a wrist tool mount on the reviewed service connector;
+    // after that immutable child exists it gets one compatible end effector
+    // on the new mount. Both are actual AssemblyDelta structure edits.
+    let (
+        parent_part_id,
+        parent_connector_id,
+        child_connector_id,
+        recipe_id,
+        slot_id,
+        operation_id,
+        transform,
+    ) = if let Some(wrist_mount) = parts
+        .iter()
+        .find(|part| has_connector(part, "connector_wrist_tool_mount"))
+    {
+        if parts
+            .iter()
+            .any(|part| has_connector(part, "connector_wrist_gripper_mount"))
+        {
+            return None;
+        }
+        (
+            wrist_mount.get("part_id")?.as_str()?,
+            "connector_wrist_tool_mount",
+            "connector_wrist_gripper_mount",
+            "recipe_c110d_arm_wrist_gripper",
+            "slot_arm_end_effector",
+            "delta_add_wrist_gripper",
+            json!({
+                "position": [78.0, 0.0, 0.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+            }),
+        )
+    } else {
+        let parent = parts.iter().find(|part| {
+            part.get("role").and_then(Value::as_str) == Some("base_form")
+                && has_connector(part, "connector_service_wrist")
+        })?;
+        (
+            parent.get("part_id")?.as_str()?,
+            "connector_service_wrist",
+            "connector_wrist_tool_mount",
+            "recipe_c110d_arm_wrist_tool_mount",
+            "slot_arm_tool_changer",
+            "delta_add_wrist_tool_mount",
+            json!({
+                "position": [0.0, 18.0, 0.0],
+                "rotation": [0.0, 0.15, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+            }),
+        )
+    };
+    let suffix = semantic_sha256(&json!({
+        "base_asset_version_id": version.asset_version_id,
+        "recipe_id": recipe_id,
+        "slot_id": slot_id,
+    }))
+    .ok()?;
+    let ready_operation = json!({
+        "op": "add_reviewed_recipe",
+        "operation_id": operation_id,
+        "new_part_id": format!("part_addon_{}", &suffix[..20]),
+        "parent_part_id": parent_part_id,
+        "parent_connector_id": parent_connector_id,
+        "child_connector_id": child_connector_id,
+        "recipe_id": recipe_id,
+        "slot_id": slot_id,
+        "transform": transform,
+    });
+    Some(json!({
+        "schema_version": "ForgeCADArmContinuationEditContext@1",
+        "base_asset_version_id": version.asset_version_id,
+        "parts": part_summaries,
+        "ready_operations": [ready_operation],
+        "instruction": "For an add-on continuation, copy one ready_operations entry exactly. Do not invent Part, Connector, Recipe, Slot, or transform identities.",
+    }))
 }
 
 impl RustCoreRuntime {
@@ -819,9 +978,9 @@ impl RustCoreRuntime {
             if activation.skill_version != manifest.version
                 || activation.skill_sha256 != manifest_sha256
             {
-                // An older explicit activation is not silently granted C106
+                // An older explicit activation is not silently granted C111A
                 // rights. The same explicit enable request performs the
-                // immutable v2 activation below.
+                // immutable v3 activation below.
             } else {
                 return json_response(
                     200,
@@ -844,7 +1003,7 @@ impl RustCoreRuntime {
         }) {
             self.repository.record_skill_eval(&AgentSkillEvalReport {
                 schema_version: "AgentSkillEvalReport@1".into(),
-                report_id: "skilleval_first_party_surface_adornment_v2".into(),
+                report_id: "skilleval_first_party_surface_adornment_v3".into(),
                 skill_id: manifest.skill_id.clone(),
                 skill_version: manifest.version,
                 skill_sha256: skill_sha256.clone(),
@@ -859,7 +1018,7 @@ impl RustCoreRuntime {
         }
         let activation = AgentSkillActivation {
             schema_version: "AgentSkillActivation@1".into(),
-            activation_id: "skillact_first_party_surface_adornment_v2".into(),
+            activation_id: "skillact_first_party_surface_adornment_v3".into(),
             skill_id: manifest.skill_id,
             skill_version: manifest.version,
             skill_sha256,
@@ -3544,7 +3703,7 @@ fn r007b_adornment_program(
     let target_part_id = r007b_part_id(part)?;
     r007b_require_material_zone(part, zone_id)?;
     r007b_require_surface_adornment_slot(part, zone_id, kind, motif, coverage)?;
-    let skill = builtin_surface_adornment_manifest_v2();
+    let skill = builtin_surface_adornment_manifest_v3();
     let skill_sha256 = skill.canonical_sha256()?;
     let seed = u32::from_str_radix(&fact_hash[..8], 16).map_err(|_| {
         CoreError::invalid_data(
@@ -3950,7 +4109,7 @@ fn build_reference_surface_analysis(
             )
         }
     };
-    let skill = builtin_surface_adornment_manifest_v2();
+    let skill = builtin_surface_adornment_manifest_v3();
     let surface_skill_sha256 = skill.canonical_sha256()?;
     Ok(ReferenceSurfaceAnalysis {
         schema_version: "ReferenceSurfaceAnalysis@1".into(),
@@ -4705,6 +4864,88 @@ mod tests {
             material_bindings: BTreeMap::new(),
             created_at: format!("2026-07-17T00:00:0{no}Z"),
         }
+    }
+
+    #[test]
+    fn arm_continuation_context_exposes_only_rust_reviewed_attachment_facts() {
+        let mut version = asset("prj_arm", "assetver_arm_v4", None, 4, "arm-shell");
+        version.domain_pack_id = "pack_robotic_arm_concept".into();
+        version.assembly_graph = json!({
+            "schema_version": "AssemblyGraph@1",
+            "parts": [
+                {
+                    "part_id": "part_arm_root",
+                    "role": "base_form",
+                    "connectors": [
+                        {"connector_id": "connector_service_wrist"}
+                    ],
+                    "joints": []
+                },
+                {
+                    "part_id": "part_arm_joint",
+                    "role": "joint_housing",
+                    "connectors": [{"connector_id": "connector_joint_mount"}],
+                    "joints": [{"joint_id": "joint_visual_wrist"}]
+                }
+            ]
+        });
+
+        let context = arm_continuation_edit_context(&version).unwrap();
+        assert_eq!(
+            context["schema_version"],
+            "ForgeCADArmContinuationEditContext@1"
+        );
+        assert_eq!(context["base_asset_version_id"], "assetver_arm_v4");
+        assert_eq!(context["parts"].as_array().unwrap().len(), 2);
+        let ready = &context["ready_operations"][0];
+        assert_eq!(ready["parent_part_id"], "part_arm_root");
+        assert_eq!(ready["parent_connector_id"], "connector_service_wrist");
+        assert_eq!(ready["recipe_id"], "recipe_c110d_arm_wrist_tool_mount");
+        assert_eq!(ready["slot_id"], "slot_arm_tool_changer");
+        assert_eq!(ready["child_connector_id"], "connector_wrist_tool_mount");
+        assert!(ready["new_part_id"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("part_addon_")));
+        assert!(arm_continuation_edit_context(&asset(
+            "prj_prop",
+            "assetver_prop",
+            None,
+            1,
+            "prop-shell"
+        ))
+        .is_none());
+    }
+
+    #[test]
+    fn arm_continuation_context_advances_from_wrist_mount_to_end_effector() {
+        let mut version = asset("prj_arm", "assetver_arm_v5", None, 5, "arm-shell");
+        version.domain_pack_id = "pack_robotic_arm_concept".into();
+        version.assembly_graph = json!({
+            "schema_version": "AssemblyGraph@1",
+            "parts": [
+                {
+                    "part_id": "part_arm_root",
+                    "role": "base_form",
+                    "connectors": [{"connector_id": "connector_service_wrist"}],
+                    "joints": []
+                },
+                {
+                    "part_id": "part_wrist_mount",
+                    "role": "visual_detail",
+                    "connectors": [{"connector_id": "connector_wrist_tool_mount"}],
+                    "joints": []
+                }
+            ]
+        });
+
+        let context = arm_continuation_edit_context(&version).unwrap();
+        let ready = &context["ready_operations"][0];
+        assert_eq!(ready["parent_part_id"], "part_wrist_mount");
+        assert_eq!(ready["parent_connector_id"], "connector_wrist_tool_mount");
+        assert_eq!(ready["recipe_id"], "recipe_c110d_arm_wrist_gripper");
+        assert_eq!(ready["slot_id"], "slot_arm_end_effector");
+        assert_eq!(ready["child_connector_id"], "connector_wrist_gripper_mount");
+        assert_eq!(ready["operation_id"], "delta_add_wrist_gripper");
     }
 
     fn test_profile_glb(profile_id: &str) -> Vec<u8> {
@@ -6672,7 +6913,7 @@ mod tests {
             );
             assert_eq!(
                 response_json(&skill_enabled)["activation"]["skill_version"],
-                2
+                3
             );
             let proposed = handled(
                 &runtime,
@@ -6981,7 +7222,7 @@ mod tests {
         assert_eq!(wide.operations[1]["op"], "apply_surface_adornment");
         assert_eq!(
             wide.operations[1]["surface_adornment_program"]["skill_version"],
-            2
+            3
         );
         assert_eq!(
             wide.operations[1]["surface_adornment_program"]["motif"],

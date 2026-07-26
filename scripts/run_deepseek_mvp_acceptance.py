@@ -30,6 +30,7 @@ from smoke_packaged_tauri_alpha import (
     _stop_desktop_and_listener,
     _wait_for_native_health,
 )
+from macos_stable_app_identity import inspect_stable_app_identity
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +55,7 @@ SAFE_PROBE_ERROR_CODES = {
     "LIVE_ACTIVE_DESIGN_REVISION_MISSING", "LIVE_TURN_TIMEOUT", "LIVE_TURN_NOT_EPHEMERAL_COMPLETION",
     "LIVE_TURN_SNAPSHOT_SIDE_EFFECT", "LIVE_TURN_NETWORK_ATTEMPT_MISSING", "LIVE_CANCEL_REJECTED",
     "LIVE_CANCEL_NOT_ACCEPTED", "LIVE_CANCEL_TIMEOUT", "LIVE_CANCEL_TERMINAL_DRIFT",
-    "LIVE_CANCEL_SNAPSHOT_SIDE_EFFECT", "LIVE_TURN_ARM_INTENT_MISSING",
+    "LIVE_CANCEL_SNAPSHOT_SIDE_EFFECT", "LIVE_TURN_ARM_INTENT_MISSING", "LIVE_TURN_EXPECTED_ARCHITECTURE_MISSING",
     "LIVE_FAILURE_PROBE_REJECTED", "LIVE_FAILURE_NOT_FAIL_CLOSED",
 }
 SAFE_PHASE_ERROR_CODES = {
@@ -115,6 +116,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id")
     parser.add_argument("--output", type=Path)
     parser.add_argument(
+        "--expected-architecture",
+        choices=("parallel_link",),
+        help="explicitly verify one reviewed architecture chosen by the live Provider",
+    )
+    parser.add_argument(
         "--foreground-launch",
         action="store_true",
         help="launch the release binary directly so macOS Keychain authorization is visible",
@@ -133,7 +139,7 @@ def _dry_report(reason: str) -> dict[str, object]:
     }
 
 
-def _validate_live(args: argparse.Namespace) -> tuple[str, Path]:
+def _validate_live(args: argparse.Namespace) -> tuple[str, Path, str | None]:
     values = (args.confirm_live_provider, args.accept_network, args.confirmation, args.run_id, args.output)
     if not any(values):
         raise AcceptanceError("LIVE_CONFIRMATION_REQUIRED")
@@ -144,7 +150,7 @@ def _validate_live(args: argparse.Namespace) -> tuple[str, Path]:
     output = args.output.expanduser()
     if not output.is_absolute() or output.suffix.lower() != ".json":
         raise AcceptanceError("LIVE_OUTPUT_INVALID")
-    return args.run_id, output
+    return args.run_id, output, args.expected_architecture
 
 
 def _start(environment: dict[str, str], foreground_launch: bool) -> int:
@@ -175,6 +181,7 @@ def _start(environment: dict[str, str], foreground_launch: bool) -> int:
         "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_CONFIRM",
         "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_RUN_ID",
         "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_OUTPUT",
+        "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_EXPECTED_ARCHITECTURE",
         "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_BUDGET_OVERRIDE",
     )
     for name in names:
@@ -204,7 +211,7 @@ def _read_report(path: Path) -> dict[str, Any]:
     raise AcceptanceError("LIVE_REPORT_TIMEOUT")
 
 
-def _validate_report(report: dict[str, Any], run_id: str) -> dict[str, Any]:
+def _validate_report(report: dict[str, Any], run_id: str, expected_architecture: str | None) -> dict[str, Any]:
     encoded = json.dumps(report, ensure_ascii=False, sort_keys=True)
     if report.get("schema_version") != REPORT_SCHEMA_VERSION or report.get("status") not in {"pass", "fail"}:
         raise AcceptanceError("LIVE_RUST_PROBE_FAILED")
@@ -233,7 +240,7 @@ def _validate_report(report: dict[str, Any], run_id: str) -> dict[str, Any]:
         if category is not None and category not in SAFE_FAILURE_CATEGORIES:
             raise AcceptanceError("LIVE_REPORT_REDACTION_INVALID")
         phase_error = value.get("error_code")
-        if phase_error is not None and phase_error not in SAFE_PHASE_ERROR_CODES:
+        if phase_error is not None and phase_error not in SAFE_PHASE_ERROR_CODES | SAFE_PROBE_ERROR_CODES:
             raise AcceptanceError("LIVE_REPORT_REDACTION_INVALID")
     if report.get("no_raw_prompt_or_response") is not True or report.get("no_key_or_provider_endpoint") is not True:
         raise AcceptanceError("LIVE_REDACTION_EVIDENCE_INVALID")
@@ -253,6 +260,8 @@ def _validate_report(report: dict[str, Any], run_id: str) -> dict[str, Any]:
             raise AcceptanceError("LIVE_PHASE_EVIDENCE_INVALID")
     if report["live_turn"].get("arm_intent_bound") is not True:
         raise AcceptanceError("LIVE_TURN_ARM_INTENT_MISSING")
+    if expected_architecture is not None and report["live_turn"].get("expected_architecture_bound") is not True:
+        raise AcceptanceError("LIVE_TURN_EXPECTED_ARCHITECTURE_MISSING")
     return report
 
 
@@ -274,13 +283,13 @@ def _safe_failure_summary(report: dict[str, Any] | None) -> dict[str, object] | 
         "error_code": report.get("error_code") if report.get("error_code") in SAFE_PROBE_ERROR_CODES else None,
         "error_phase": phase,
         "network_call_made": evidence.get("network_call_made") is True,
-        "phase_error_code": evidence.get("error_code") if evidence.get("error_code") in SAFE_PHASE_ERROR_CODES else None,
+        "phase_error_code": evidence.get("error_code") if evidence.get("error_code") in SAFE_PHASE_ERROR_CODES | SAFE_PROBE_ERROR_CODES else None,
         "phase_failure_category": category,
         "phase_status": status,
     }
 
 
-def _live_environment(library: Path, run_id: str, output: Path) -> dict[str, str]:
+def _live_environment(library: Path, run_id: str, output: Path, expected_architecture: str | None) -> dict[str, str]:
     environment = os.environ.copy()
     for name in tuple(environment):
         if name.startswith("FORGECAD_DEEPSEEK_MVP_ACCEPTANCE") or name in {
@@ -306,6 +315,8 @@ def _live_environment(library: Path, run_id: str, output: Path) -> dict[str, str
         "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE": "1",
         "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_BUDGET_OVERRIDE": "1",
     })
+    if expected_architecture is not None:
+        environment["FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_EXPECTED_ARCHITECTURE"] = expected_architecture
     return environment
 
 
@@ -313,19 +324,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     report: dict[str, Any] | None = None
     try:
-        run_id, output = _validate_live(args)
+        run_id, output, expected_architecture = _validate_live(args)
     except AcceptanceError as error:
         print(json.dumps(_dry_report(str(error)), ensure_ascii=False, sort_keys=True))
         return 0
     try:
         if not APP_BINARY.is_file():
             raise AcceptanceError("LIVE_APP_NOT_BUILT")
+        if not inspect_stable_app_identity(APP_BUNDLE).ready:
+            # Fail before launching the app. An ad-hoc rebuild has a different
+            # Keychain code requirement and can produce repeated password
+            # prompts even after the user previously selected Always Allow.
+            raise AcceptanceError("LIVE_STABLE_APP_IDENTITY_REQUIRED")
         if _listener_pid() is not None:
             raise AcceptanceError("LIVE_PORT_8000_OCCUPIED")
         output.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="forgecad_deepseek_mvp_") as temporary:
             desktop_pid = _start(
-                _live_environment(Path(temporary) / "library", run_id, output),
+                _live_environment(Path(temporary) / "library", run_id, output, expected_architecture),
                 args.foreground_launch,
             )
             try:
@@ -333,7 +349,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if not _is_descendant(listener, desktop_pid):
                     raise AcceptanceError("LIVE_SIDECAR_OWNERSHIP_INVALID")
                 report = _read_report(output)
-                _validate_report(report, run_id)
+                _validate_report(report, run_id, expected_architecture)
             finally:
                 _stop_desktop_and_listener(desktop_pid)
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))

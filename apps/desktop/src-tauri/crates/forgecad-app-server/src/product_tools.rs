@@ -1,8 +1,8 @@
 //! Code-owned Product Tool registry and restricted executor boundary.
 //!
-//! K002 can invoke only these thirteen A004-compatible planning/candidate
-//! tools. Permanent Product writes remain outside the registry and require an
-//! explicit approval path owned by product core.
+//! K002/PV003 can invoke only these sixteen code-owned planning, visual-source
+//! and candidate tools. Permanent Product writes remain outside the registry
+//! and require an explicit approval path owned by product core.
 
 mod native_executor;
 
@@ -28,6 +28,16 @@ use crate::{
 };
 
 pub const MAX_PRODUCT_TOOL_CALLS: u32 = 12;
+
+/// Provider input is deliberately narrower for a confirmed robotic-arm
+/// continuation than for an initial synthesis.  This is a presentation/input
+/// mode only: every accepted call is normalized and then validated against the
+/// immutable Product Tool registry before it can reach the native executor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderToolInputMode {
+    InitialSynthesis,
+    ArmContinuationDelta,
+}
 
 pub type ProductToolPortFuture = Pin<
     Box<
@@ -300,6 +310,13 @@ impl ProductToolRegistry {
     }
 
     pub fn provider_definitions(&self) -> Vec<ProviderToolDefinition> {
+        self.provider_definitions_for_mode(ProviderToolInputMode::InitialSynthesis)
+    }
+
+    pub fn provider_definitions_for_mode(
+        &self,
+        input_mode: ProviderToolInputMode,
+    ) -> Vec<ProviderToolDefinition> {
         self.definitions()
             .map(|definition| ProviderToolDefinition {
                 name: definition.name.clone(),
@@ -311,10 +328,18 @@ impl ProductToolRegistry {
                 // legacy compatibility fields while planning a new asset.
                 // `build_execution_request` still validates the exact full
                 // registry schema before any Product Tool runs.
-                input_schema: if definition.name == "plan_complete_concept" {
-                    compact_plan_provider_schema()
-                } else {
-                    definition.input_schema.clone()
+                input_schema: match (definition.name.as_str(), input_mode) {
+                    ("author_forge_visual_program", _) => {
+                        compact_forge_visual_program_author_schema()
+                    }
+                    ("patch_forge_visual_program", _) => compact_forge_visual_patch_schema(),
+                    ("plan_complete_concept", ProviderToolInputMode::InitialSynthesis) => {
+                        compact_plan_provider_schema()
+                    }
+                    ("plan_complete_concept", ProviderToolInputMode::ArmContinuationDelta) => {
+                        compact_arm_continuation_provider_schema()
+                    }
+                    _ => definition.input_schema.clone(),
                 },
             })
             .collect()
@@ -341,6 +366,25 @@ impl ProductToolRegistry {
         cancellation_id: &str,
         cancellation_token: &str,
     ) -> Result<ProductToolExecutionRequest, ProductToolRegistryError> {
+        self.build_execution_request_for_mode(
+            turn_id,
+            call,
+            execution_id,
+            cancellation_id,
+            cancellation_token,
+            ProviderToolInputMode::InitialSynthesis,
+        )
+    }
+
+    pub fn build_execution_request_for_mode(
+        &self,
+        turn_id: &str,
+        call: &ProviderToolCall,
+        execution_id: &str,
+        cancellation_id: &str,
+        cancellation_token: &str,
+        input_mode: ProviderToolInputMode,
+    ) -> Result<ProductToolExecutionRequest, ProductToolRegistryError> {
         let definition = self.definition(&call.name)?;
         if definition.approval_policy == ProductToolApprovalPolicy::UserConfirmationRequired {
             return Err(ProductToolRegistryError::new(
@@ -349,13 +393,20 @@ impl ProductToolRegistry {
                 "Permanent-write tools cannot run inside the K002 Action Loop.",
             ));
         }
-        let arguments = value_to_btree_object(&call.arguments).ok_or_else(|| {
+        let supplied_arguments = value_to_btree_object(&call.arguments).ok_or_else(|| {
             ProductToolRegistryError::new(
                 "PRODUCT_TOOL_ARGUMENTS_NOT_OBJECT",
                 ProductToolRegistryErrorKind::InvalidArguments,
                 "Product Tool arguments must be a JSON object.",
             )
         })?;
+        let arguments = if definition.name == "plan_complete_concept"
+            && input_mode == ProviderToolInputMode::ArmContinuationDelta
+        {
+            normalize_arm_continuation_arguments(supplied_arguments)?
+        } else {
+            supplied_arguments
+        };
         validate_json_schema(
             &definition.input_schema,
             &Value::Object(arguments.clone().into_iter().collect::<Map<_, _>>()),
@@ -455,11 +506,11 @@ impl ProductToolRegistry {
     }
 
     fn validate_registry(&self) -> Result<(), ProductToolRegistryError> {
-        if self.definitions.len() != 13 {
+        if self.definitions.len() != 16 {
             return Err(ProductToolRegistryError::new(
                 "PRODUCT_TOOL_REGISTRY_INCOMPLETE",
                 ProductToolRegistryErrorKind::InvalidSchema,
-                "ForgeCAD Product Tool registry must contain exactly thirteen tools.",
+                "ForgeCAD Product Tool registry must contain exactly sixteen tools.",
             ));
         }
         let mut ids = BTreeSet::new();
@@ -497,128 +548,81 @@ impl ProductToolRegistry {
     }
 }
 
-fn compact_plan_provider_schema() -> Value {
-    let delta_transform = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["position", "rotation", "scale"],
-        "properties": {
-            "position": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
-            "rotation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
-            "scale": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}
-        }
-    });
-    let delta_pose = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["rotation", "translation"],
-        "properties": {
-            "rotation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
-            "translation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}
-        }
-    });
-    let delta_add = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-            "op", "operation_id", "new_part_id", "parent_part_id", "parent_connector_id",
-            "child_connector_id", "recipe_id", "slot_id", "transform"
-        ],
-        "properties": {
-            "op": {"const": "add_reviewed_recipe"},
-            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_:-]+$"},
-            "new_part_id": {"type": "string", "pattern": "^part_[A-Za-z0-9_:-]+$"},
-            "parent_part_id": {"type": "string", "minLength": 1},
-            "parent_connector_id": {"type": "string", "minLength": 1},
-            "child_connector_id": {"type": "string", "minLength": 1},
-            "recipe_id": {"type": "string", "enum": [
-                "recipe_c106_arm_turntable", "recipe_c106_arm_joint_housing", "recipe_c106_arm_link_armor",
-                "recipe_c106_arm_cable_harness", "recipe_c106_arm_gripper", "recipe_c106_arm_surface_trim",
-                "recipe_c110c_arm_sensor_pod", "recipe_c110d_arm_actuator_cover", "recipe_c110d_arm_cable_guide",
-                "recipe_c110d_arm_wrist_tool_mount", "recipe_c110g_parallel_rail", "recipe_c110g_parallel_carriage",
-                "recipe_c110g_parallel_link", "recipe_c110g_parallel_end_effector"
-            ]},
-            "slot_id": {"type": "string", "enum": [
-                "slot_arm_sensor_pod", "slot_arm_guard_rail", "slot_arm_tool_changer", "slot_arm_camera_boom",
-                "slot_c110g_parallel_rail", "slot_c110g_parallel_carriage", "slot_c110g_parallel_link", "slot_c110g_parallel_tool"
-            ]},
-            "transform": delta_transform
-        }
-    });
-    let delta_replace = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["op", "operation_id", "part_id", "recipe_id"],
-        "properties": {
-            "op": {"const": "replace_reviewed_recipe"},
-            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_:-]+$"},
-            "part_id": {"type": "string", "minLength": 1},
-            "recipe_id": {"type": "string", "enum": [
-                "recipe_c106_arm_turntable", "recipe_c106_arm_joint_housing", "recipe_c106_arm_link_armor",
-                "recipe_c106_arm_cable_harness", "recipe_c106_arm_gripper", "recipe_c106_arm_surface_trim",
-                "recipe_c110c_arm_sensor_pod", "recipe_c110d_arm_actuator_cover", "recipe_c110d_arm_cable_guide",
-                "recipe_c110d_arm_wrist_tool_mount", "recipe_c110g_parallel_rail", "recipe_c110g_parallel_carriage",
-                "recipe_c110g_parallel_link", "recipe_c110g_parallel_end_effector"
-            ]}
-        }
-    });
-    let delta_transform_part = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["op", "operation_id", "part_id", "transform"],
-        "properties": {
-            "op": {"const": "set_part_transform"},
-            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_:-]+$"},
-            "part_id": {"type": "string", "minLength": 1},
-            "transform": delta_transform
-        }
-    });
-    let delta_pose_part = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["op", "operation_id", "part_id", "joint_id", "pose"],
-        "properties": {
-            "op": {"const": "set_joint_pose"},
-            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_:-]+$"},
-            "part_id": {"type": "string", "minLength": 1},
-            "joint_id": {"type": "string", "minLength": 1},
-            "pose": delta_pose
-        }
-    });
-    let delta_snap = json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["op", "operation_id", "part_id", "target_part_id", "target_connector_id", "connector_id"],
-        "properties": {
-            "op": {"const": "snap_part_to_connector"},
-            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_:-]+$"},
-            "part_id": {"type": "string", "minLength": 1},
-            "target_part_id": {"type": "string", "minLength": 1},
-            "target_connector_id": {"type": "string", "minLength": 1},
-            "connector_id": {"type": "string", "minLength": 1}
-        }
-    });
-    let assembly_delta = json!({
-        "anyOf": [
-            {"type": "null"},
-            {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["schema_version", "domain_pack_id", "base_asset_version_id", "summary", "operations", "visual_only"],
-                "properties": {
-                    "schema_version": {"const": "AssemblyDeltaProgram@1"},
-                    "domain_pack_id": {"const": "pack_robotic_arm_concept"},
-                    "base_asset_version_id": {"type": "string", "pattern": "^assetver_[A-Za-z0-9_:-]+$"},
-                    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
-                    "operations": {
-                        "type": "array", "minItems": 1, "maxItems": 8,
-                        "items": {"anyOf": [delta_add, delta_replace, delta_transform_part, delta_pose_part, delta_snap]}
-                    },
-                    "visual_only": {"const": true}
+fn compact_forge_visual_program_author_schema() -> Value {
+    let mut program: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../../../packages/concept-spec/schemas/forge-visual-program.schema.json"
+    )))
+    .expect("shipped ForgeVisualProgram provider schema must parse");
+    // Providers may author only a draft. The full Rust contract also checks
+    // this after deserialization, but making it explicit avoids a wasted call.
+    program["properties"]["stage"] = json!({"type":"string", "const":"draft"});
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["program"],
+        "properties":{"program":program}
+    })
+}
+
+fn compact_forge_visual_patch_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["patch"],
+        "properties":{
+            "patch":{
+                "type":"object",
+                "additionalProperties":false,
+                "required":[
+                    "schema_version", "patch_id", "expected_revision",
+                    "expected_source_sha256", "preserve_geometry",
+                    "preserve_material_surface", "operations"
+                ],
+                "properties":{
+                    "schema_version":{"type":"string", "const":"ForgeVisualPatch@1"},
+                    "patch_id":{"type":"string", "minLength":1, "maxLength":128},
+                    "expected_revision":{"type":"integer", "minimum":1},
+                    "expected_source_sha256":{"type":"string", "minLength":64, "maxLength":64},
+                    "preserve_geometry":{"type":"boolean"},
+                    "preserve_material_surface":{"type":"boolean"},
+                    "operations":{
+                        "type":"array", "minItems":1, "maxItems":32,
+                        "items":{
+                            "type":"object",
+                            "required":["op"],
+                            "properties":{
+                                "op":{"enum":[
+                                    "set_title", "upsert_design_token", "remove_design_token",
+                                    "replace_parts", "replace_geometry_graph",
+                                    "replace_assembly_graph", "replace_material_graph",
+                                    "replace_surface_graph", "replace_detail_inventory",
+                                    "set_export_profile"
+                                ]},
+                                "title":{"type":"string", "minLength":1, "maxLength":160},
+                                "token":{"type":"object"},
+                                "token_id":{"type":"string", "minLength":1, "maxLength":128},
+                                "parts":{"type":"array", "minItems":1, "maxItems":256, "items":{"type":"object"}},
+                                "geometry_graph":{"type":"object"},
+                                "assembly_graph":{"type":"object"},
+                                "material_graph":{"type":"array", "minItems":1, "maxItems":2048, "items":{"type":"object"}},
+                                "surface_graph":{"type":"array", "maxItems":2048, "items":{"type":"object"}},
+                                "detail_inventory":{"type":"array", "minItems":1, "maxItems":512, "items":{"type":"object"}},
+                                "export_profile":{"enum":["interactive_preview", "production_concept"]}
+                            }
+                        }
+                    }
                 }
             }
-        ]
-    });
+        }
+    })
+}
+
+fn compact_plan_provider_schema() -> Value {
+    // An initial synthesis has no confirmed asset to bind.  Its Provider
+    // projection therefore cannot advertise AssemblyDelta or a continuation
+    // template.  The full Rust registry remains the execution validator, and
+    // existing assets use compact_arm_continuation_provider_schema instead.
     json!({
         "type": "object",
         "additionalProperties": false,
@@ -701,11 +705,83 @@ fn compact_plan_provider_schema() -> Value {
                             {"type": "null"}
                         ]
                     },
-                    "assembly_delta": assembly_delta,
                     "shape_program_ready": {"type": "boolean"}
                 }
             }
         }
+    })
+}
+
+/// The live edit prompt already carries the Rust-owned ActiveDesignSnapshot.
+/// Asking a Provider to restate an entire initial-synthesis plan during an
+/// edit made valid AssemblyDelta calls needlessly fragile.  This envelope is
+/// intentionally only an input projection; it accepts no plan metadata or
+/// extra Provider-controlled fields and is normalized below before the full
+/// registry schema is checked.
+fn compact_arm_continuation_provider_schema() -> Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plan"],
+        "properties": {
+            "plan": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["continuation_template_id"],
+                "properties": {
+                    "continuation_template_id": {"const": "next_reviewed_attachment"}
+                }
+            }
+        }
+    })
+}
+
+fn normalize_arm_continuation_arguments(
+    supplied_arguments: BTreeMap<String, Value>,
+) -> Result<BTreeMap<String, Value>, ProductToolRegistryError> {
+    let supplied_value = Value::Object(supplied_arguments.into_iter().collect::<Map<_, _>>());
+    validate_json_schema(&compact_arm_continuation_provider_schema(), &supplied_value).map_err(
+        |message| {
+            ProductToolRegistryError::new(
+                "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
+                ProductToolRegistryErrorKind::InvalidArguments,
+                message,
+            )
+        },
+    )?;
+    let continuation_template_id = supplied_value
+        .pointer("/plan/continuation_template_id")
+        .and_then(Value::as_str)
+        .expect("the compact continuation schema requires continuation_template_id");
+    let plan_id = format!(
+        "plan_continuation_{}",
+        &sha256_hex(continuation_template_id.as_bytes())[..20]
+    );
+    value_to_btree_object(&json!({
+        "plan": {
+            "schema_version": "MechanicalConceptPlan@1",
+            "plan_id": plan_id,
+            "domain_pack_id": "pack_robotic_arm_concept",
+            "brief": "Continue the current non-functional robotic-arm concept with one Rust-selected reviewed visual attachment.",
+            "spec": {},
+            "directions": [{
+                "direction_id": "direction_current_arm",
+                "title": "Current robotic-arm continuation",
+                "summary": "One bounded visual-only edit to the current confirmed robotic-arm concept.",
+                "silhouette": "industrial",
+                "primary_part_roles": ["link_armor", "surface_trim"],
+                "material_direction": "Preserve the current Rust-owned material zones and reviewed PBR exterior."
+            }],
+            "provider_id": "provider_compact_continuation",
+            "continuation_template_id": continuation_template_id
+        }
+    }))
+    .ok_or_else(|| {
+        ProductToolRegistryError::new(
+            "PRODUCT_TOOL_CONTINUATION_NORMALIZATION_FAILED",
+            ProductToolRegistryErrorKind::InvalidArguments,
+            "The compact continuation could not be normalized into the Product Tool contract.",
+        )
     })
 }
 
@@ -740,7 +816,7 @@ fn validate_fixture_header_and_manifest(
     if fixture.schema_version != "K002ProductToolRegistryFixture@1"
         || fixture.fixture_id != "k002_shared_a004_product_tool_registry"
         || fixture.registry_schema_version != PRODUCT_TOOL_REGISTRY_SCHEMA_VERSION
-        || fixture.tools.len() != 13
+        || fixture.tools.len() != 16
         || !canonicalization_valid
     {
         return Err(ProductToolRegistryError::new(
@@ -1019,18 +1095,32 @@ fn value_matches_type(value: &Value, expected: &str) -> bool {
 }
 
 fn matches_known_pattern(pattern: &str, value: &str) -> bool {
+    if pattern == "^[A-Za-z0-9_:-]+$" {
+        return !value.is_empty()
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'-'));
+    }
     let prefix = match pattern {
         "^direction_[a-z0-9_\\-]+$" => "direction_",
         "^plan_[a-z0-9_\\-]+$" => "plan_",
         "^pack_[a-z0-9_\\-]+$" => "pack_",
         "^attempt_[a-z0-9_\\-]+$" => "attempt_",
         "^gate_[a-z0-9_\\-]+$" => "gate_",
+        "^part_[A-Za-z0-9_:-]+$" => "part_",
+        "^assetver_[A-Za-z0-9_:-]+$" => "assetver_",
         _ => return false,
     };
     value.strip_prefix(prefix).is_some_and(|suffix| {
         !suffix.is_empty()
             && suffix.bytes().all(|byte| {
-                byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+                if pattern == "^part_[A-Za-z0-9_:-]+$" || pattern == "^assetver_[A-Za-z0-9_:-]+$" {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'-')
+                } else {
+                    byte.is_ascii_lowercase()
+                        || byte.is_ascii_digit()
+                        || matches!(byte, b'_' | b'-')
+                }
             })
     })
 }
@@ -1040,13 +1130,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_has_exactly_thirteen_code_owned_non_permanent_tools() {
+    fn registry_has_exactly_sixteen_code_owned_non_permanent_tools() {
         let registry = ProductToolRegistry::default();
-        assert_eq!(registry.definitions().count(), 13);
+        assert_eq!(registry.definitions().count(), 16);
         assert!(registry.definitions().all(|definition| {
             definition.approval_policy != ProductToolApprovalPolicy::UserConfirmationRequired
         }));
         assert!(registry.definition("compile_readback_candidate").is_ok());
+        assert!(registry.definition("inspect_forge_visual_program").is_ok());
+        assert!(registry.definition("author_forge_visual_program").is_ok());
+        assert!(registry.definition("patch_forge_visual_program").is_ok());
         assert!(registry.definition("arbitrary_shell").is_err());
     }
 
@@ -1061,8 +1154,7 @@ mod tests {
             .unwrap();
         let provider_bytes = serde_json::to_vec(&provider.input_schema).unwrap().len();
         let full_bytes = serde_json::to_vec(&full.input_schema).unwrap().len();
-        // The delta projection is intentionally more explicit than the old
-        // opaque `{}` placeholder, but it must remain smaller than the full
+        // The initial-synthesis projection must remain smaller than the full
         // registry contract and below a bounded Provider request size.
         assert!(provider_bytes < 20_000);
         assert!(full_bytes > 10_000);
@@ -1072,13 +1164,14 @@ mod tests {
             .input_schema
             .pointer("/properties/plan/properties/arm_design_intent")
             .is_some());
-        assert_eq!(
-            provider
-                .input_schema
-                .pointer("/properties/plan/properties/assembly_delta/anyOf/1/properties/operations/items/anyOf/0/properties/recipe_id/enum/0")
-                .and_then(Value::as_str),
-            Some("recipe_c106_arm_turntable")
-        );
+        assert!(provider
+            .input_schema
+            .pointer("/properties/plan/properties/assembly_delta")
+            .is_none());
+        assert!(provider
+            .input_schema
+            .pointer("/properties/plan/properties/continuation_template_id")
+            .is_none());
         // The exact full schema is still used at the execution boundary.
         let valid = json!({
             "plan": {
@@ -1111,6 +1204,132 @@ mod tests {
                 "token_provider_schema"
             )
             .is_ok());
+    }
+
+    #[test]
+    fn pv003_provider_receives_compact_typed_visual_program_and_patch_contracts() {
+        let registry = ProductToolRegistry::default();
+        let definitions = registry.provider_definitions();
+        let author = definitions
+            .iter()
+            .find(|definition| definition.name == "author_forge_visual_program")
+            .unwrap();
+        assert_eq!(
+            author
+                .input_schema
+                .pointer("/properties/program/properties/stage/const")
+                .and_then(Value::as_str),
+            Some("draft")
+        );
+        assert!(author
+            .input_schema
+            .pointer("/properties/program/properties/geometry_graph")
+            .is_some());
+        assert!(author
+            .input_schema
+            .pointer("/properties/program/properties/detail_inventory")
+            .is_some());
+
+        let patch = definitions
+            .iter()
+            .find(|definition| definition.name == "patch_forge_visual_program")
+            .unwrap();
+        let operations = patch
+            .input_schema
+            .pointer("/properties/patch/properties/operations/items/properties/op/enum")
+            .and_then(Value::as_array)
+            .unwrap();
+        assert!(operations.contains(&json!("replace_geometry_graph")));
+        assert!(operations.contains(&json!("replace_material_graph")));
+        assert!(operations.contains(&json!("replace_surface_graph")));
+        assert!(patch
+            .input_schema
+            .pointer("/properties/patch/properties/expected_source_sha256")
+            .is_some());
+    }
+
+    #[test]
+    fn arm_continuation_provider_schema_accepts_only_a_template_selector_and_normalizes_to_full_plan(
+    ) {
+        let registry = ProductToolRegistry::default();
+        let provider = registry
+            .provider_definitions_for_mode(ProviderToolInputMode::ArmContinuationDelta)
+            .into_iter()
+            .find(|definition| definition.name == "plan_complete_concept")
+            .unwrap();
+        assert!(provider
+            .input_schema
+            .pointer("/properties/plan/properties/continuation_template_id")
+            .is_some());
+        assert!(provider
+            .input_schema
+            .pointer("/properties/plan/properties/assembly_delta")
+            .is_none());
+        assert!(provider
+            .input_schema
+            .pointer("/properties/plan/properties/arm_design_intent")
+            .is_none());
+
+        let compact_call = ProviderToolCall {
+            call_id: "continuation_delta_call".into(),
+            name: "plan_complete_concept".into(),
+            arguments: json!({
+                "plan": {
+                    "continuation_template_id": "next_reviewed_attachment"
+                }
+            }),
+        };
+        let request = registry
+            .build_execution_request_for_mode(
+                "turn_continuation",
+                &compact_call,
+                "execution_continuation",
+                "cancel_continuation",
+                "token_continuation",
+                ProviderToolInputMode::ArmContinuationDelta,
+            )
+            .unwrap();
+        let plan = request
+            .validated_arguments
+            .value
+            .get("plan")
+            .and_then(Value::as_object)
+            .unwrap();
+        assert!(plan
+            .get("plan_id")
+            .and_then(Value::as_str)
+            .is_some_and(|plan_id| plan_id.starts_with("plan_continuation_")));
+        assert_eq!(
+            plan.get("continuation_template_id").and_then(Value::as_str),
+            Some("next_reviewed_attachment")
+        );
+        assert!(plan.get("arm_design_intent").is_none());
+    }
+
+    #[test]
+    fn arm_continuation_rejects_unknown_envelope_fields_before_full_plan_normalization() {
+        let registry = ProductToolRegistry::default();
+        let call = ProviderToolCall {
+            call_id: "continuation_invalid_call".into(),
+            name: "plan_complete_concept".into(),
+            arguments: json!({
+                "plan": {
+                    "continuation_template_id": "next_reviewed_attachment",
+                    "brief": "Provider must not supply initial-plan metadata here."
+                }
+            }),
+        };
+        let error = registry
+            .build_execution_request_for_mode(
+                "turn_continuation_invalid",
+                &call,
+                "execution_continuation_invalid",
+                "cancel_continuation_invalid",
+                "token_continuation_invalid",
+                ProviderToolInputMode::ArmContinuationDelta,
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID");
     }
 
     #[test]
@@ -1154,7 +1373,7 @@ mod tests {
             ),
             (
                 "plan_complete_concept",
-                "486efc390e8e51a2147cf6e189c4bf2424d1193eaa10b488a2773afd6820dd53",
+                "2a7d15abd0aa07fbd157b111d03d1edef3cfd5082b85ebaf8bfc7c9953f42755",
                 "680fb6a9db6a2b2c2ceaa72337e1bd5b90901c223ca51d4ecb02f5d219cf1101",
             ),
             (

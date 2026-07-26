@@ -86,6 +86,11 @@ class MechanicalConceptPlan(StrictApiModel):
     # Rust revalidates and lowers this candidate; the Provider never receives
     # a write capability or a client-supplied version truth.
     assembly_delta: Optional[AssemblyDeltaProgram] = None
+    # The only provider-visible continuation selector.  The desktop Rust
+    # executor expands it from the active snapshot into the reviewed
+    # AssemblyDeltaProgram; the provider never supplies recipe IDs,
+    # connectors, transforms, or geometry.
+    continuation_template_id: Optional[Literal["next_reviewed_attachment"]] = None
     shape_program_ready: bool = False
 
 

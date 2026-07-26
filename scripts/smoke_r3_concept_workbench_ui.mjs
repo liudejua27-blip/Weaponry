@@ -848,7 +848,7 @@ async function captureM108WorkbenchFixtures(page) {
     )
     const expectedVisualEnvironment = fixture.visual_environment
     if (
-      expectedVisualEnvironment?.environment_id !== 'env_forgecad_room_studio_v1'
+      expectedVisualEnvironment?.environment_id !== 'env_forgecad_room_studio_v2'
       || !/^[a-f0-9]{64}$/.test(expectedVisualEnvironment?.environment_sha256 ?? '')
     ) {
       throw new Error(`M108 fixture has no valid visual environment contract: ${fixture.fixture_id}`)

@@ -215,6 +215,62 @@ fn materializes_sensor_attachment_into_shape_and_assembly_graph() {
 }
 
 #[test]
+fn materializes_two_sequential_wrist_structure_edits_with_exact_connector_lineage() {
+    let base = c110c_base();
+    let root_part_id = base.assembly_graph["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| {
+            part["role"] == "base_form"
+                && part["connectors"].as_array().is_some_and(|connectors| {
+                    connectors
+                        .iter()
+                        .any(|connector| connector["connector_id"] == "connector_service_wrist")
+                })
+        })
+        .expect("C110D fixture exposes the reviewed wrist service connector")["part_id"]
+        .as_str()
+        .unwrap();
+    let mount_delta = json!({
+        "schema_version": "AssemblyDeltaProgram@1",
+        "domain_pack_id": "pack_robotic_arm_concept",
+        "base_asset_version_id": base.asset_version_id,
+        "summary": "Add the reviewed wrist tool mount.",
+        "visual_only": true,
+        "operations": [{
+            "op":"add_reviewed_recipe", "operation_id":"delta_add_wrist_mount", "new_part_id":"part_wrist_mount", "parent_part_id":root_part_id, "parent_connector_id":"connector_service_wrist", "child_connector_id":"connector_wrist_tool_mount", "recipe_id":"recipe_c110d_arm_wrist_tool_mount", "slot_id":"slot_arm_tool_changer", "transform":{"position":[0.0,18.0,0.0],"rotation":[0.0,0.15,0.0],"scale":[1.0,1.0,1.0]}
+        }]
+    });
+    let mut with_mount = materialize_assembly_delta(&base, &mount_delta).unwrap();
+    with_mount.asset_version_id = "assetver_c110d_with_mount".into();
+    with_mount.version_no += 1;
+    let gripper_delta = json!({
+        "schema_version": "AssemblyDeltaProgram@1",
+        "domain_pack_id": "pack_robotic_arm_concept",
+        "base_asset_version_id": with_mount.asset_version_id,
+        "summary": "Add the reviewed wrist end effector.",
+        "visual_only": true,
+        "operations": [{
+            "op":"add_reviewed_recipe", "operation_id":"delta_add_wrist_gripper", "new_part_id":"part_wrist_gripper", "parent_part_id":"part_wrist_mount", "parent_connector_id":"connector_wrist_tool_mount", "child_connector_id":"connector_wrist_gripper_mount", "recipe_id":"recipe_c110d_arm_wrist_gripper", "slot_id":"slot_arm_end_effector", "transform":{"position":[78.0,0.0,0.0],"rotation":[0.0,0.0,0.0],"scale":[1.0,1.0,1.0]}
+        }]
+    });
+    let with_gripper = materialize_assembly_delta(&with_mount, &gripper_delta).unwrap();
+    assert_eq!(with_gripper.parts.len(), base.parts.len() + 2);
+    assert!(with_gripper.assembly_graph["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|connection| {
+            connection["from_part_id"] == "part_wrist_mount"
+                && connection["from_connector_id"] == "connector_wrist_tool_mount"
+                && connection["to_part_id"] == "part_wrist_gripper"
+                && connection["to_connector_id"] == "connector_wrist_gripper_mount"
+                && connection["slot_id"] == "slot_arm_end_effector"
+        }));
+}
+
+#[test]
 fn materializes_c110g_attachment_on_the_independent_parallel_link_arm() {
     let base = c110g_base();
     let root = base.assembly_graph["parts"]
@@ -267,7 +323,7 @@ fn materializes_c110g_attachment_on_the_independent_parallel_link_arm() {
 }
 
 #[test]
-fn c110d_attachment_registry_exposes_three_composable_visual_recipes() {
+fn c110d_attachment_registry_exposes_composable_visual_recipes() {
     let registry = RecipeRegistry::from_embedded_c110c_robotic_arm_attachments().unwrap();
     let recipes = [
         ("recipe_c110c_arm_sensor_pod", "connector_sensor_pod_mount"),
@@ -282,6 +338,10 @@ fn c110d_attachment_registry_exposes_three_composable_visual_recipes() {
         (
             "recipe_c110d_arm_wrist_tool_mount",
             "connector_wrist_tool_mount",
+        ),
+        (
+            "recipe_c110d_arm_wrist_gripper",
+            "connector_wrist_gripper_mount",
         ),
     ];
     assert_eq!(registry.recipes().count(), recipes.len());

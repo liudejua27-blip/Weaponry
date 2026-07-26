@@ -5,7 +5,9 @@
 
 ## 1. 产品一句话
 
-ForgeCAD 是面向零基础用户的本地优先通用机械概念 3D Agent。用户只需要描述创意，Agent 负责理解、在内部生成和评审候选、选择一个最佳完整外观、生成轻量可编辑模型、拆分部件、应用视觉材质、检查并导出。
+目标产品面向用户的名称是 **Forge Studio**：一款面向零基础用户的 AI 3D 视觉资产生成软件。用户只需要输入自然语言或授权图片，系统生成精致几何、完整 PBR 和丰富表面细节的唯一 GLB 结果，并允许继续用自然语言修改和导出标准资产包。
+
+仓库和内部兼容标识当前仍使用 ForgeCAD。当前实现仍是本机 Alpha；AI 编写程序化视觉设计并连续修改的完整闭环尚未接通，不得把新目标描述成已经可用。
 
 产品名称不再使用 “Weapon Concept Agent” 作为总产品名。武器只保留为第一批领域包之一：`future_weapon_prop`。
 
@@ -27,14 +29,16 @@ ForgeCAD 是面向零基础用户的本地优先通用机械概念 3D Agent。�
 以下是 P0 目标流程。当前可验证的缩减流程以 [USER_GUIDE.md](USER_GUIDE.md) 为准。
 
 ```text
-说出创意
-  → Agent 回述理解并在内部生成多个受限候选
-  → 编译、GLB 回读、概念渲染并评审候选
-  → Agent 只展示一个有证据的最佳完整外观
-  → Agent 建议分件，用户接受或调整
-  → 选中部件后用自然语言或简单编辑卡微调
-  → 预览并确认变更，生成新的资产版本
-  → 检查、渲染、导出
+自然语言或本机只读授权参考
+  → DeepSeek 形成视觉 Brief 和 Detail Inventory
+  → DeepSeek 通过 typed Product Tool 编写 ForgeVisualProgram
+  → Rust 校验并降低到 ShapeProgram / AssemblyGraph / Surface Program
+  → 受限编译器生成 PBR GLB
+  → Rust 回读和固定八视角检查
+  → 只展示一个未保存结果
+  → 用户确认后创建不可变版本
+  → 用自然语言修改或重新生成子版本
+  → 导出 GLB / ForgeAssetPackage
 ```
 
 首屏只保留：Agent 对话、单一 3D 主视图、步骤状态、撤销、检查和导出。Connector、Joint、ShapeProgram、拓扑、坐标和格式等专业信息按需展开。
@@ -77,9 +81,9 @@ ForgeCAD 是面向零基础用户的本地优先通用机械概念 3D Agent。�
 
 ## 5. 轻量技术路线
 
-默认不安装本地神经 3D 模型、CUDA、ComfyUI 或模型权重。大模型 API 负责交流、规划和生成受限 `ShapeProgram`；本机 Geometry Worker 只执行白名单 primitive、分件、质量检查和 GLB 写出；桌面端始终复用单一 Three.js renderer。
+默认不安装本地神经 3D 模型、CUDA、ComfyUI 或模型权重，也不要求购买 FAL。DeepSeek 负责理解视觉意图并通过 typed Product Tool 编写和修改 `ForgeVisualProgram@1`；Rust 负责 Schema、预算、hash、降低、GLB/PBR 回读、版本、质量、导出和恢复；桌面端始终复用单一 Three.js renderer。
 
-P0 的目标是“完整、比例可信、外观接近真实产品、可编辑、低资源”。“接近真实产品”指曲面转折、部件接缝、视觉细节、Material Zone、PBR 纹理、透明/涂层表现、光照和色彩管理明显优于当前低多边形参数材质；它仍不等于工程精度、制造可行性或真实材料性能。DeepSeek 负责规划、评审与工具编排，本机受限几何和资产管线负责生成、验证和固化 3D。
+`ForgeVisualProgram` 绑定现有 `ShapeProgram`、`AssemblyGraph`、Recipe、Material Zone 和 Surface Compiler，不创建第二几何真值。可选远程 Provider 只保留为默认关闭的扩展槽，不能阻塞首次生成或 MVP Gate。完整决策见 [ADR-0019](ADR/0019-programmatic-visual-program-mvp.md)。
 
 ## 6. 明确不做的事情
 
@@ -90,6 +94,9 @@ P0 的目标是“完整、比例可信、外观接近真实产品、可编辑�
 - B-Rep/STEP 工程 CAD、完整 DFM、切片和制造就绪结论；
 - 在 Agent 中执行任意 Python、JavaScript、shell 或外部 URL；
 - 将旧任务中心、Mode、Forge、独立资产库重新变成产品导航。
+- 商城交易、游戏技能、战斗数值、多人游戏和第二款游戏软件；
+- 第一阶段的手工拓扑、复杂参数编辑和神经 GLB 参数化承诺；
+- 默认要求用户购买或配置远程图像/神经 3D 服务。
 
 ## 7. 文档使用规则
 

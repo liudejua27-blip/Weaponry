@@ -1,5 +1,5 @@
 use forgecad_core::{
-    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2,
+    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v3,
     validate_reference_surface_analysis_for_plan, ComponentRecipeRef, ImportedGlbInspection,
     RecipeRegistry, RecipeValidator, ReferenceClass, ReferenceEvidence, ReferenceEvidenceKind,
     ReferenceEvidenceObservations, ReferenceGuidedRebuildPlan, ReferenceGuidedRebuildPlanStatus,
@@ -155,7 +155,7 @@ fn binding(
 }
 
 fn analysis(registry: &RecipeRegistry, evidence: &ReferenceEvidence) -> ReferenceSurfaceAnalysis {
-    let skill = builtin_surface_adornment_manifest_v2();
+    let skill = builtin_surface_adornment_manifest_v3();
     let skill_sha256 = skill.canonical_sha256().unwrap();
     ReferenceSurfaceAnalysis {
         schema_version: REFERENCE_SURFACE_ANALYSIS_SCHEMA_VERSION.into(),

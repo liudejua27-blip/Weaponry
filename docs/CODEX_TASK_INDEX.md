@@ -2028,15 +2028,15 @@ v3 微表面与历史纹理兼容检查点（2026-07-16）：当前新生成集�
 
 ### FGC-C110D 任务卡
 
-状态：in_progress（2026-07-22；C110C packaged add+pose+snap 已通过；C110D 的三项新 Recipe、Schema allowlist、Rust Core 物化和 app-server preview→confirm→GLB readback 回归已通过；本轮已完成 Rust ActiveDesignSnapshot 只读上下文→AssemblyDelta 严格验证→桌面 ChangeSet preview 桥，并将 delta Turn 收敛为 plan-only，避免重复生产编译；最新 packaged `ForgeCADArmMvpPackagedProtocolProof@3` 已通过 C110D V4、production export 和第二进程恢复，剩余真实 DeepSeek structured delta 专项证据）。
+状态：done（2026-07-23；真实 DeepSeek 的两次连续同资产续作均由 Rust 绑定、预览、确认和写入不可变版本；新进程恢复最终版本并导出 production GLB，恢复阶段无网络调用）。
 
 目标：在不开放任意网格、脚本或工程参数的前提下，把“同一机械臂继续设计”从单个 sensor pod 扩展为可审查的 Recipe/AssemblyDelta 家族，并接入真实 DeepSeek 的结构化输出。
 
-范围：新增 3–5 个 robotic-arm visual-only Recipe（当前已落地 actuator cover、cable guide、wrist tool mount），每个 Recipe 必须有 connector/slot、ShapeProgram fixture、Material Zone、GLB readback、取消/迟到/重启测试和 provenance；DeepSeek 只允许输出 `ArmDesignIntent@1` + `AssemblyDeltaProgram@1`，Rust 负责 schema、allowlist、预算、parent/head/lock/connector 检查和 preview→confirm，Python 仍只执行受限几何。当前自然语言 delta 已接入真实活动版本的只读上下文和现有 ChangeSet 预览入口；delta Turn 在 plan 完成后不再进入完整 synthesis 链。下一退出条件是用真实 DeepSeek 产生至少一条可验证 delta，并完成 packaged C110D 重启/取消/迟到证据。
+范围：已新增四项 robotic-arm visual-only Recipe（actuator cover、cable guide、wrist tool mount、wrist gripper），每项都有 connector/slot、ShapeProgram fixture、Material Zone、GLB readback 和 provenance。为避免 Provider 直接编写几何，DeepSeek 当前只选择受审的 `next_reviewed_attachment` 续作模板；Rust 从 `ActiveDesignSnapshot` 的只读 `ready_operations` 展开完整 `AssemblyDeltaProgram@1`，负责 schema、allowlist、预算、parent/head/lock/connector 检查和 preview→confirm，Python 仍只执行受限几何。delta Turn 在 plan 完成后不再进入完整 synthesis 链。
 
 禁止：自由 mesh/CSG 脚本、任意关节数量、制造尺寸、现实武器功能、把自然语言或 HTML/CSS 直接当作几何真值、一次生成多个完整模型比较。
 
-退出条件：至少两种新增 Recipe 在同一已确认机械臂上连续完成“描述→结构化 delta→真实 preview GLB→confirm→Snapshot→重启恢复”，每次只展示一个结果；最新 packaged 证据已满足两种 Recipe、V4、production export 和恢复，仍需真实 DeepSeek structured delta（不能用离线 deterministic 代替）。Provider 真实调用与离线 fallback 必须在报告中可区分，失败/取消/未知 Recipe 无版本副作用。
+退出条件：已满足。`output/deepseek-delta-acceptance-20260723-template-two-deltas-final.json` 与 `-second.json` 记录两次真实 DeepSeek 网络调用；第一步添加 wrist tool mount，第二步以第一步的新版本为 base 添加 wrist gripper。两次均完成 Rust-bound preview GLB、confirm 和一次版本写入；`-resume.json` 记录新进程恢复最终版本、production export（110,368 triangles）且网络调用为 0。报告区分真实 Provider 与离线 seed，不保存 Key、endpoint、prompt 或 response。既有 Action Loop 回归继续覆盖取消、迟到、未知 Recipe 和无版本副作用；这不是任意部件、任意风格或任意拓扑生成能力。
 
 ### FGC-C110E 任务卡
 
@@ -2064,13 +2064,97 @@ v3 微表面与历史纹理兼容检查点（2026-07-16）：当前新生成集�
 
 ### FGC-C110G 任务卡
 
-状态：部分实现（2026-07-22；Rust Core/app-server focused tests、source build 与 packaged C110G golden path 通过；parallel-link is a bounded visual layout family, not an independent kinematic/engineering model）。
+状态：部分实现（2026-07-24；Rust Core/app-server focused tests、source build 与当前 release packaged C110G golden path 通过；parallel-link is a bounded visual layout family, not an independent kinematic/engineering model）。
 
 目标：先消除“DeepSeek 返回 parallel-link 却总是固定 serial-chain”这一自由度断点，同时保持 ShapeProgram/AssemblyGraph/CAS/GLB 真值由 Rust 管理。
 
-完成内容：`parallel_link` 现在由 `ArmRecipeLowering@1` 显式降到独立的 C110G `Recipe/Connector` 目录（双导轨、滑台、并联连杆、末端工具座），`ArmGeometryFamily@1` 使用 `robotic_arm.parallel_link.c110g_v1` binding，对该目录生成的 ShapeProgram 与 AssemblyGraph 同步施加受限变化；AssemblyDelta 也允许四项 C110G 子配方与对应槽位，真实 child Connector 由 Rust registry 校验。C110G provenance 有独立 registry hash、source、review 和六实例结构合同。未知 `scara/gantry/delta/cantilever` 仍 fail closed。Core C110 AssemblyDelta 集成测试 9 项与 app-server focused test 通过，新增 registry expansion、AssemblyDelta、output-contract、派生节点 rotation 和 domain-role binding 回归。`npm run desktop:c110g-packaged-smoke` 已通过：唯一 production preview → confirm → 同一资产添加 reviewed C110G Recipe → delta GLB readback → confirm/export → 新进程恢复，证据位于 `output/c110g-packaged-golden-path/`。
+完成内容：`parallel_link` 现在由 `ArmRecipeLowering@1` 显式降到独立的 C110G `Recipe/Connector` 目录（双导轨、滑台、并联连杆、末端工具座），`ArmGeometryFamily@1` 使用 `robotic_arm.parallel_link.c110g_v1` binding，对该目录生成的 ShapeProgram 与 AssemblyGraph 同步施加受限变化；AssemblyDelta 也允许四项 C110G 子配方与对应槽位，真实 child Connector 由 Rust registry 校验。C110G provenance 有独立 registry hash、source、review 和六实例结构合同。未知 `scara/gantry/delta/cantilever` 仍 fail closed。初始机械臂只由 Provider 提交一次创意计划，Rust 随后固定执行五阶段 V003 完成链；完整 Turn 为 1 次 Provider request、6 次 Product Tool call。Core C110 AssemblyDelta 集成测试 10 项与 app-server 124 项通过。`npm run desktop:c110g-packaged-smoke` 已通过：唯一 576-triangle production preview → confirm → 同一资产添加 reviewed C110G Recipe → delta GLB readback → confirm/export 640 triangles、5,374,220 bytes、SHA `8fb9eb88705f248d42cf3e0484ef0b796bc1e9a23710ff7eb93c5a48502d1ed8` → 新进程恢复，证据位于 `output/c110g-packaged-golden-path/`，且 0 网络/0 凭据读取。
 
 限制：C110G packaged production GLB/readback、confirm、导出和重启恢复已完成，但真实 DeepSeek 选择该架构并驱动同资产 AssemblyDelta 的 live Turn 尚未完成；它仍是视觉概念布局，不是关节运动学或工程装配。下一步是用真实 DeepSeek 完成同一版本链的 structured delta acceptance，再扩展 `scara/gantry/delta/cantilever` 等族和 M108B 真人视觉门。任意用户描述→任意机械臂仍未完成。
+
+### FGC-C111A 任务卡
+
+状态：in_progress（2026-07-26；独立黄金资产 Recipe、Rust A005 v3、sealed ForgeVisualProgram 和真实双档 GLB 已完成；iteration 70 无 critical inventory blocker，但尚未重跑唯一结果确认、ActiveDesignSnapshot、A005 子版本、导出与新进程恢复，也不满足 M108B 三位独立真人门）。
+
+目标：不改变 ForgeCAD 的 Rust-first、Recipe/ShapeProgram/Surface Compiler/单 renderer/GLB 真值路线，先把一个 serial-chain 机械臂做成肉眼可信的黄金表面资产，用它验证“AI 驱动的表面编译平台”能否稳定承载生产概念资产所需的轮廓、分层关节、装甲分段、线缆、末端执行器与五通道 PBR。
+
+当前实现：独立 `registry_c111_golden_surface_robotic_arm_v1` 的 8 项 first-party/visual-only Recipe 在 iteration 70 展开为 10 Parts、9 connections、198 operations、96 个可见输出。主连杆每侧由三个缩短的独立 Loft 漆面段覆盖暗色连续内壳，形成双侧真实凹槽；基座/回转罩使用共享纵向八边形截面的四层 Loft enclosure，两端加宽 collar 与 circular guard 重叠，浅石墨/复合嵌条提供第二层分缝。腕掌继续使用受限 Revolve 护罩/近端指节和连续倒角指身。真实双档为 49,392-triangle preview 与 124,376-triangle/152-primitive production，ShapeProgram SHA-256 `5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d`，production GLB SHA-256 `af2bda0ff7c180970ef6eb1750ba3d6e88c062cfd16db8d28313c8914b66d037`。27 项 `VisualDetailInventory` 为 24 项 readback verified、3 项非关键 unresolved、0 critical，development program 已 sealed。iteration 47 的 release packaged V2/export/restart 仍是历史生命周期证据，iteration 70 尚未重跑该链，不能据此声明当前资产已交付或达到目标图。
+
+当前边界：自动 Gate 与 Codex 代理肉眼检查均不能替代三位独立真人。底座仍像叠箱、连续臂甲仍偏平整单块、装甲/关节转接突兀、腕掌与指节仍偏直方套筒、接缝与 PBR 分层不足，警示 Decal 与局部磨损仍缺失；服务面板现在被诚实记录为缺失，不再用未输出操作冒充细节。授权目标参考已通过外部文件摘要冻结，仓库不保存图片或绝对路径。因此 `formal_eligible=false`、`human_benchmark_evidence=false`、`blocks_single_result_display=true`，M108B 继续 blocked；packaged 探针是离线工程验收入口，不代表普通用户已获得目标图级 C111 结果。
+
+ADR-0017 增量要求：为目标参考建立冻结的 C111A `VisualDetailInventory` 开发 fixture，按 macro/meso/micro 枚举关键轮廓、关节层级、装甲嵌合、线缆固定、夹爪构造、接缝/凹槽/紧固件/标识/流线和微表面；每个 critical 项必须绑定现有 Recipe、Shape operation、Material Zone 或 A005 program，并由 GLB readback 或固定视图标记为 `readback_verified`，不能只留在说明文字。该 fixture 只服务 C111A 收敛，不等于通用 `VisualDetailInventory@1` 已实现。
+
+退出条件：将 C111A exact registry 选择接入 Rust Product Tool 和唯一结果链；完成 preview→confirm→ActiveDesignSnapshot→A005 ChangeSet→production export→新进程恢复；冻结 VisualDetailInventory、六视图、关键近景与目标参考并由至少三位未参与实现的真人评审 `proportion/material_readability/surface_detail`，各项中位数达到 `4/5`。失败、取消、旧版本并发与篡改必须无版本副作用。满足前不得把该资产描述为目标图级、照片级或可供所有用户自由生成。
+
+### FGC-C112 任务卡
+
+状态：blocked（等待 C111A）。
+
+目标：从通过正式视觉门的 C111A 中提取可组合的 Operator Recipe 与 Generative Pattern Recipe，而不是保存第二份固定整机模板。至少覆盖 layered shell、joint ring stack、open rail、transition shell、cable sweep/clamp、armor split、fastener array 和 gripper/end-effector pattern。
+
+验收：每项生成器有 Rust-owned schema/registry/hash、受限输入范围、ShapeProgram lowering、Material Zone/A005 lineage、失败/预算/取消测试和至少三种结构可见变体；组合后仍保持 AssemblyGraph/Connector、preview→confirm、GLB readback 和旧资产 hash 不变。变体不能只有颜色或整体缩放差异。
+
+不得做：不复制 C111A 整机为多个风格模板，不新增任意代码执行，不在本任务建立 DesignWorkspace 或修改 V003。
+
+### FGC-C113 任务卡
+
+状态：blocked（等待 C112）。
+
+目标：实现 Rust-owned `DesignWorkspace@1` 与 `DesignWorkspacePatch@1`，让一个 Turn 拥有可读取、增量修改、编译和恢复的 typed design source 草稿；workspace revision/CAS 与 AssetVersion/ActiveDesignSnapshot 严格隔离。
+
+验收：create/read/inspect/patch/compile/seal/cancel/restart/TTL cleanup、expected revision、幂等重放、迟到结果、项目隔离和配额均有 Core/app-server/packaged Gate；草稿可恢复但任何失败或取消都不创建版本、质量或导出。用户确认密封结果时才原子提升一个不可变版本。
+
+不得做：不把工作区表示成任意磁盘文件树，不给 Provider/Python 路径或 SQLite/CAS 权限，不创建第二 head 或 localStorage 真值。
+
+### FGC-C114 任务卡
+
+状态：blocked（等待 C113）。
+
+目标：实现 `MechanicalMorphologyProgram@1`，允许 Agent 在受限 Domain Pack/Recipe/预算中创建 scaffold nodes、connections、topology families、negative spaces、shell layers、Material Zone 和 surface intents，并由 Rust 确定性降低为已有 ShapeProgram/AssemblyGraph/A005 合同。
+
+验收：serial-chain、parallel-link、open-frame、enclosed-shell 至少四个受审 topology family 具有 schema、validator、canonical hash、lowering、非法/环/悬空/超预算拒绝和 GLB/readback；不同 morphology 产生不同且可解释的 topology/profile/part 指纹。旧 C110/C111 资产不迁移、不改 hash。
+
+不得做：不接受自由 mesh、B-Rep、代码、URL、路径、未知 operation 或工程装配/运动学参数。
+
+### FGC-C115 任务卡
+
+状态：blocked（等待 C114）。
+
+目标：让 Agent 在 Rust 合同内创建和编辑新的 `ProfileSketch@1`/`ProfileSectionSet@1`，而不是只选择固定截面；将生成式轮廓接入 C112 pattern 和 C114 morphology lowering。
+
+验收：line/quadratic/cubic 受限段、闭合/绕序/自交/孔洞/重采样/连续性/scale/twist/预算均有正反 fixture；至少 12 条机械臂外观描述产生可辨认的新轮廓/截面 hash 和多视图差异；所有结果经过 Loft/Sweep/Revolve/Extrude 现有 executor/readback，非法输入零工件。
+
+不得做：不执行 SVG path/HTML/JavaScript，不把前端控制点或 DOM 当持久真值，不在本任务增加新的几何 operation。
+
+### FGC-A006 任务卡
+
+状态：blocked（等待 C115）。
+
+目标：建立 Codex 式 typed Product Tool 设计循环。DeepSeek 可以检查 workspace/reference/detail/readback，修改 morphology/profile/section/geometry/assembly/surface sources，编译并修复同一草稿；Rust 继续拥有工具 registry、权限、预算、revision、取消和结果验证。
+
+验收：工具按理解/形态/轮廓/几何/表面/编译五组分批进入 registry，每组都有 Skill 交集、Schema、稳定错误、tool Item、取消/超时/上下文恢复和零未确认版本副作用；真实 Provider 只提交 typed intent/patch，不接触任意代码或隐藏路径。完整机械臂 Turn 仍只展示一个结果。
+
+不得做：不暴露 shell/Python/JavaScript/网络，不保存隐藏推理，不让 Provider 自报编译或视觉通过，不取消 A004/V003 既有上限。
+
+### FGC-Q004 任务卡
+
+状态：blocked（等待 A006）。
+
+目标：实现 `VisualDetailInventory@1`、`DesignBuildLedger@1` 与 `VisualConvergenceReport@1`。固定阶段为 intent/reference→silhouette→structure→form→material→surface→lighting→optimization；确定性 hard gates 先于可选 VLM。
+
+验收：critical detail 必须映射到 morphology/operation/Material Zone/A005 并由 readback/render 证明；reference-match、iso、front/back/left/right/top 和必要 close-up 使用固定 renderer/camera/light；多角度退化、部件完整、attachment、穿插、PBR 通道和 lineage 失败稳定阻断。VLM 只在 hard gates 通过后运行，不能覆盖失败；V003 修复仍最多两次，并覆盖重复缺陷、振荡、平台期和预算停止。
+
+不得做：不把自动分数写成 M108B 人工结论，不以单视角、bloom、纹理分辨率或三角形数量代替结构质量，不创建阶段资产版本。
+
+### FGC-E004 任务卡
+
+状态：blocked（等待 Q004）。
+
+目标：冻结未参与实现的机械臂自由度与连续修改评测，证明 ForgeCAD 已从固定目录选择升级为 Agent 编写设计程序。
+
+验收：至少 12 条未见 Brief 覆盖紧凑封闭、开放工业、双轨、重型维护、轻量服务、不同末端工具和表面语言；要求 topology/profile/section/part/material-zone 存在语义相关差异，不能只有换色/缩放。每项通过编译、readback、多视图、唯一结果、确认、production GLB 和重启；至少三条完成同一资产连续五轮自然语言修改。越界、未知 topology、超预算和证据不足必须停止。真人视觉结果与 M108B 分开记录。
+
+退出：只有结构自由度、视觉质量、连续编辑和企业级版本边界共同通过，才可在基准覆盖范围内称为“Codex 式机械臂设计 Agent”；仍不得声称任意描述可生成任意 3D 模型。
 
 ### FGC-D006 任务卡
 
@@ -2087,3 +2171,143 @@ v3 微表面与历史纹理兼容检查点（2026-07-16）：当前新生成集�
 退出：至少一个非首批领域通过完整晋级 Gate，证明 ForgeCAD 可扩展到生活机械；“通用”仍由逐包证据支持，而不是口号。
 
 完整完成标准见 [CODEX_DEFINITION_OF_DONE.md](CODEX_DEFINITION_OF_DONE.md)。
+
+### FGC-N001 任务卡
+
+状态：已实现（2026-07-26；Rust Core 合同与纯状态机 5/5 通过；不等于远程 Provider 已接入）。
+
+目标：冻结 Forge Studio 视觉优先 MVP 的最小 Rust 真值，使图像/神经 3D Provider 只能生成候选字节，不能拥有授权、任务、质量、版本或导出状态。
+
+完成内容：新增 `VisualDesignBrief@1`、`ConceptReferenceArtifact@1`、`Neural3DGenerationRequest@1`、`NeuralVisualGenerationJob@1`、`NeuralVisualArtifact@1` 和 `ForgeAssetPackage@1`。图片输入必须同时确认来源权利和远程处理；后端偏好是版本化枚举，当前包含 Pixal3D、TRELLIS.2、Hunyuan3D-2.1、Hunyuan3D v3.1 Pro 和 Stable Fast 3D；任务严格按 concept→geometry→PBR→readback→八视角推进，backend/provider job 由 Rust 绑定，终态不可重入；正式候选需要真实 GLB/PBR/readback/hash 和恰好八视角；资产包严格绑定六个 canonical member 和活动 GLB digest。
+
+Gate：`script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-core neural_visual_generation --offline -- --nocapture`，当前 7 passed / 0 failed；新增真实 PNG 完整解码和最高 256 MiB/150 万三角形的 self-contained neural GLB 结构回读。
+
+边界：N001 不含网络客户端、Provider Key、概念图服务、GPU endpoint、SQLite 迁移、AgentAssetVersion 双源、Three.js 展示或真实视觉结果。现有用户能力没有改变。
+
+### FGC-N002 任务卡
+
+状态：已实现（2026-07-26；Rust app-server 远程端口、协调器和 deterministic fake Gate 4/4 通过；不含真实网络）。
+
+目标：在 Rust app-server 增加可替换的 `NeuralVisualProviderPort` 和任务协调器，以确定性假后端证明 submit/poll/cancel/timeout/idempotency/restart-resume/late-result 屏障。
+
+完成内容：`NeuralVisualProviderPort` 只暴露 submit/poll/cancel；receipt 只含 backend/provider job ID，ready 只含 bounded artifact handle/hash/byte size。`NeuralVisualCoordinator` 实现后端偏好检查、request semantic hash、幂等 replay/冲突、活动任务上限、Project/Turn scope、超时取消、终态迟到结果屏障和受限恢复快照。Provider ready 只将 Core 任务推进到 `pbr_refining` 并标记 `AwaitingRustAcceptance`，绝不自行进入 readback、八视角、preview 或版本。
+
+Gate：`script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-app-server neural_visual_provider --offline -- --nocapture`，4 passed / 0 failed。
+
+边界：没有真实付费 endpoint、凭据、SQLite/Snapshot/版本、GLB 下载或视觉能力；fake 成功不是神经 3D 产品证据。
+
+### FGC-N003 任务卡
+
+状态：部分实现（2026-07-26；真实 Fal Flux 2 text/edit 协议适配、DeepSeek 视觉导演、桌面文字/授权图片入口、安全下载与 Rust CAS 已实现并以 fake transport 验证；付费实调尚未完成）。
+
+目标：把文字和授权图片输入降低为 `VisualDesignBrief@1`，并通过可替换图像 Provider 生成单主体、干净背景的 `ConceptReferenceArtifact@1`。
+
+当前实现：`ConceptImageGenerationRequest@1` 将 transient prompt、首个已授权 evidence hash、Fal Flux 2/OpenAI GPT Image 偏好、单张 1024×1024 PNG、单主体/干净背景和幂等键绑定到同一 Brief/Project/Turn。`VisualBriefDirector` 要求 DeepSeek 只通过一个 required tool call 返回物体类别、视觉摘要、风格、材质和概念图 prompt；Rust 单独生成 ID/hash/backend/幂等键并校验 Core 合同。`ConceptImageProviderPort` 只允许 submit/poll/cancel。真实 `FalFlux2ConceptImageAdapter` 对纯文字使用 `/fal-ai/flux-2`，对已持久化且同时确认权利与远程处理的图片使用 `/fal-ai/flux-2/edit`；后者从 Rust CAS 严格读回/解码/核对 SHA，并以最高 8 MiB 的 data URI 提交，不需要公开本机文件 URL。两条路径共享禁重定向 HTTPS、状态/结果/取消队列、allowlisted media host、单图 safety result、完整 PNG 解码和原子 CAS reference。Tauri 已暴露独立视觉凭据 metadata/save/clear、direct/submit/poll/cancel 以及有界单次文字/图片生成编排。视觉凭据使用仓库外 0600 secret file，只在显式生成动作读取，不在启动时读取 Keychain。URL、Key、Provider JSON 和日志不进入产品合同。
+
+当前 Gate：Core `neural_visual_generation` 与 prompt-free remote-job repository focused Gate 通过（新增 2/2 重启/单调转移测试）；app-server `concept_image_provider` 3/3、`visual_brief_director` 3/3；desktop `visual_provider_adapters` 8/8；DeepSeek provider focused 22/22；desktop typecheck/build/F004/F026 通过。
+
+剩余退出条件：配置真实 Fal Key 后在桌面完成文字和授权图片各一次付费概念参考，并补持久 remote-job recovery。请求已设置不保留 IO JSON 和一小时 CDN 生命周期，但仍需真实调用证据。当前没有真实概念图，因此仍不得升级用户能力。
+
+### FGC-N004 任务卡
+
+状态：部分实现（2026-07-26；真实 Fal Hunyuan3D v3.1 Pro 协议适配和本机命令已实现，尚无付费 GLB 证据）。
+
+目标：接入至少一个真实远程高质量 Image-to-3D 服务并完成受控费用、取消、超时、数据删除和 PBR GLB 下载验收。
+
+当前实现：正式首后端改为具有公开稳定 API 合同的 Fal Hunyuan3D v3.1 Pro；Pixal3D 保留为高优先级质量对照，但公共 Gradio/本地 CUDA 路线不作为产品 SLA。适配器从 Rust CAS 读取 exact concept PNG，以有界 data URI 提交，按快速/标准/收藏档请求 100k/250k/500k faces、`Normal + enable_pbr=true`，轮询并下载单个 allowlisted GLB。Rust 结构回读限制 self-contained glTF 2.0、最高 256 MiB/150 万三角形并记录 UV0/tangent/PBR texture binding facts；通过后只写 `raw_neural_visual_glb` CAS 候选，不创建版本。桌面已有 submit/poll/cancel 和 5 分钟概念图、15 分钟神经 3D 的有界组合命令；新增 SQLite 0042/`VisualRemoteJobRecord@1`，在不保存完整 prompt、Key、URL 或原始 Provider 响应的前提下持久化 receipt/lineage，重启后工作台可继续或取消。`desktop:n004-visual-provider-gate` 从新进程可读的 concept receipt 开始，以脚本化 Fal HTTPS 协议响应贯通完整 1024 PNG、Hunyuan 提交/轮询、self-contained PBR GLB 下载/回读、CAS 和终态封存，并验证零可恢复残留任务与凭据不出现在 debug。结果仍只是 `neural_visual_candidate_pbr` 未保存候选，不能标为 N006 视觉通过或生产资产。
+
+当前 Gate：`desktop:n004-visual-provider-gate` 通过，覆盖 Core remote job 2/2、concept port 3/3、Flux adapter 8/8、Hunyuan adapter 2/2、live acceptance opt-in 2/2、桌面恢复全链 1/1、runner redaction smoke、typecheck 和 F026；`desktop:n004-live-acceptance` 无参数 dry-run 为零网络/零凭据读取/不启动应用。真实 live 参数尚未执行。
+
+剩余退出条件：在应用内配置 Fal Key 后运行 `desktop:n004-live-acceptance`，取得真实 Fal 请求、费用/删除策略证据和真实 PBR GLB 下载/readback；另补真实取消/超时实证；随后才解锁 N005。官方合同：[Hunyuan3D v3.1 Pro](https://fal.ai/docs/model-api-reference/3d-api/hunyuan-3d-v3.1-pro)。
+
+### FGC-N005 任务卡
+
+状态：superseded（ADR-0019 不再建立神经 GLB 默认双源主链；历史设计保留）。
+
+目标：为 `AgentAssetVersion` 增加 `procedural_shape_program | neural_visual_glb` 判别来源，使经 Rust 接受的神经 GLB 可 preview→confirm→Snapshot→restart，且不伪造 ShapeProgram。
+
+### FGC-N006 任务卡
+
+状态：superseded（由 PV004 的程序化 GLB 八视角门取代）。
+
+目标：实现神经 GLB 的严格 glTF/PBR readback、固定八视角退化检查和唯一结果硬门。
+
+### FGC-N007 任务卡
+
+状态：superseded（FAL/神经候选已从默认 F026 工作台退役；连续修改由 PV003/PV005 接续）。
+
+目标：在 F026 单 renderer 工作台展示神经生成阶段、唯一结果和自然语言 geometry/material/surface 再生成子版本。
+
+### FGC-N008 任务卡
+
+状态：superseded（资产包由 PV005 接续，仍复用既有 ForgeAssetPackage 合同）。
+
+目标：导出与当前 Snapshot 工件完全一致的 `ForgeAssetPackage@1` 六成员资产包。
+
+### FGC-N009 任务卡
+
+状态：superseded（盲测与真人门由 PV006 接续）。
+
+目标：运行 20 条未见 Brief、五类别、八视角、语言修改、重启和导出盲测；至少 15/20 经独立真人达到 4/5 后，才宣布第一阶段视觉 MVP 完成。
+
+## 12. Forge Studio 程序化视觉 MVP
+
+### FGC-PV001 任务卡
+
+状态：已实现（2026-07-26；Rust 合同/lowering 6/6、生成类型、desktop typecheck/build、F026 默认程序化路由及文档/安全 Gate 全部通过；不证明 DeepSeek authoring 或视觉 MVP）。
+
+目标：接受 ADR-0019，恢复 AI 编写三维视觉程序为默认主链；默认 F026 不显示 FAL Key、不要求购买服务、不把普通 Brief 发送到 Fal。新增 Rust-owned `ForgeVisualProgram@1` 最小合同和 lowering 入口，在不创建第二几何真值的前提下绑定 ShapeProgram、AssemblyGraph、Material Zone、Surface Program 与 macro/meso/micro Detail Inventory。
+
+验收：Rust 拒绝未知字段、悬空 Part/parent/output/zone、重复材质目标、虚假 detail binding 和 sealed critical unresolved；合法程序产生稳定 semantic hash 和规范化 ShapeProgram/AssemblyGraph。F026 保持唯一 renderer/唯一结果并由既有 Rust程序化 Turn 处理普通 Brief；参考抽屉不要求远程处理授权。focused Rust、typecheck、F026、contracts 与文档/安全 Gate 通过。
+
+不得做：不删除 GLB readback/CAS/Snapshot/版本/恢复，不删除历史 SQLite migration，不执行任意 Three.js/JavaScript，不把本任务称为完整自由生成或目标图级视觉通过。
+
+### FGC-PV002 任务卡
+
+状态：已实现（2026-07-26；iteration 70 真实 C111 sealed development fixture、同一受限执行器双档 GLB、八视图 exact-lineage 和 0 critical inventory blocker 已通过；不证明 packaged、DeepSeek authoring 或真人目标图门）。
+
+目标：把 C111 当前机械臂黄金资产的真实 ShapeProgram/AssemblyGraph/Material Zone/A005/Detail Inventory 封装为 sealed `ForgeVisualProgram@1` fixture，并由同一 RestrictedGeometryExecutor 编译双档 GLB。
+
+验收：program hash、geometry/assembly/surface lineage、全部 critical detail、preview/production GLB readback和八视图绑定；仍未解决的 critical 项必须使 sealed 失败，不能改成文字通过。
+
+当前证据：Rust 从 iteration 70 C111 的 10 Parts、96 Shape outputs、47 个 part-scoped Material bindings、6 个 A005 programs 和 27 项 Detail Inventory 构造 sealed `ForgeVisualProgram@1`；program SHA-256 为 `e8971a0ed490169db06d895f88a1ee9c20bc9d6577f4760ed34a4822595a746e`，lowering 保持 ShapeProgram SHA-256 `5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d` 和完整 AssemblyGraph。`agent:pv002-c111-forge-visual-gate` 用同一 `RestrictedGeometryExecutor` 生成 49,392-triangle/152-primitive preview 与 124,376-triangle/152-primitive/1K PBR production，并绑定 8 个固定视图 hash 与 v2 环境真值，0 Provider 调用。Inventory 为 24 verified / 3 noncritical unresolved / 0 critical；stage 为 `sealed`，`blocks_single_result_display=false`，但 `formal_eligible=false`、`human_benchmark_evidence=false`。
+
+PV002 无剩余 critical 阻断。尚未完成的是下一层产品闭环：PV003 DeepSeek typed author/patch、PV004 八视图有界收敛、PV005 三次语言修改与资产包，以及 C111A packaged confirm/export/restart 和 M108B 真人评分；这些不得由 PV002 sealed 状态替代。
+
+### FGC-PV003 任务卡
+
+状态：已实现（2026-07-26；Rust Core revision/hash 事务、16-tool registry、native executor、DeepSeek Action Loop 和有界恢复 Gate 通过；真实 GLB 编译与视觉收敛属于 PV004）。
+
+目标：让 DeepSeek 通过 typed Product Tool inspect/author/patch 同一 ForgeVisualProgram 草稿；Rust 拥有工具注册、revision、预算、取消和最终校验。
+
+验收：无任意代码/路径/URL；合法 patch 产生可解释 program diff，不同机械臂描述产生真实结构/轮廓/材质/表面差异，失败零版本副作用。
+
+当前证据：`inspect_forge_visual_program`、`author_forge_visual_program`、`patch_forge_visual_program` 三个 Product Tool 均由 Rust 执行；草稿以 `revision + source_program_sha256 + parent_source_program_sha256` 绑定，patch 只接受 10 类显式 operation、最多 32 项，支持 geometry 与 material/surface 保持锁。过期 hash、违反锁、未知字段、语义 no-op 和非法 ShapeProgram 均在事务外失败，不更新当前 revision。两份不同 Brief fixture 已证明实际几何宽度、材质和表面 ID 不同；Action Loop 已证明 author→inspect→patch 和最多一次结构恢复。`npm run agent:pv003-visual-authoring-gate` 通过 Core 9/9、PV003 5/5、registry 8/8、K002 manifest 与 generated contract drift 检查。
+
+### FGC-PV004 任务卡
+
+状态：已实现（2026-07-26；动态 ForgeVisualProgram→production worker→七阶段 ledger→精确八视图→有界 typed repair→唯一未保存 preview 聚合 Gate 通过）。
+
+目标：实现 silhouette→structure→form→material→surface→lighting→optimization 固定构建账本、确定性优先八视角 Gate 和最多两次同意图局部程序修复。
+
+已完成子能力：`DesignBuildLedger@1`、`VisualConvergenceInput@1` 和 `VisualConvergenceReport@1` 已由 Rust 实现并有 JSON Schema/生成类型。七阶段必须顺序完整且 input/output hash 串联到 production GLB；八个固定视图必须共用同一 GLB/renderer 并通过 image readback；macro/meso/micro 都必须有 bound detail，critical unresolved 必须为 0，第三次修复必然失败。`agent:pv004-visual-convergence-core-gate` 已同时重编译真实 49,392/124,376-triangle、152-primitive 黄金机械臂 GLB，并验证 47 Material Zones、24 bound/3 noncritical unresolved/0 critical 和 8 视图 lineage。
+
+完成证据：PV003 新 author/patch 的执行内 draft 直接 lowering 为 `RestrictedGeometryInput@1` production profile，并选择代码所有 `convergence_eight`；Python renderer 从同一 opaque compiled artifact 返回八个真实视角，其中 gripper 两视图为确定性局部裁切而非改名副本。Rust Action Loop 在 Provider 发出一次 reserved build signal 后自动完成 compile/readback/render/evaluate/preview；失败 Gate 把具体 report 交回 Provider，只允许当前 revision 的 1–8 个 typed visual-domain operations，清空旧 artifact evidence 后完整重编译，最多两次，第三次硬拒绝。`agent:pv004-visual-convergence-core-gate` 覆盖 Core 4/4、app-server PV004 5/5、desktop bridge 1/1、Python worker 1/1、C111 真实双档回归与 contracts。仍不写 Snapshot/版本，不证明真实 DeepSeek 联网结果或真人视觉评分。
+
+### FGC-PV005 任务卡
+
+状态：ready（PV004 已完成；下一原子任务）。
+
+目标：完成同一资产至少三轮自然语言修改、geometry/material 锁定、preview→confirm、undo、restart、GLB 与六成员资产包一致性。
+
+### FGC-PV006 任务卡
+
+状态：blocked（等待 PV005）。
+
+目标：运行 20 条未见机械硬表面 Brief；所有结果明确成功或失败，至少 15/20 经独立真人在轮廓、材质和细节完整度达到 4/5。
+
+### FGC-PV007 任务卡
+
+状态：blocked（等待 PV006）。
+
+目标：按同一程序语言和质量门依次扩展未来道具、无人机、工业设备、汽车与飞机；角色/生物不进入首阶段承诺。

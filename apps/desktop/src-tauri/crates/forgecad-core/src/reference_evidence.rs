@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
 use crate::{
-    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2, ComponentRecipeRef,
+    builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v3, ComponentRecipeRef,
     CoreError, CoreResult, ImportedGlbInspection, ObjectRecord, RecipeRegistry, RecipeValidator,
 };
 
@@ -932,7 +932,7 @@ impl ReferenceSurfaceAnalysis {
         }
         validate_recipe_ref(&registry, &self.target_root_recipe)?;
 
-        let current_skill = builtin_surface_adornment_manifest_v2();
+        let current_skill = builtin_surface_adornment_manifest_v3();
         let legacy_skill = builtin_surface_adornment_manifest();
         let current_skill_sha256 = current_skill.canonical_sha256()?;
         let legacy_skill_sha256 = legacy_skill.canonical_sha256()?;
@@ -943,7 +943,7 @@ impl ReferenceSurfaceAnalysis {
         {
             return Err(CoreError::invalid_data(
                 "REFERENCE_SURFACE_A005_V2_REQUIRED",
-                "C106 reference surfaces require the immutable A005 v2 manifest; legacy v1 is denied.",
+                "C106 reference surfaces require the current immutable A005 v3 manifest; legacy activations are denied.",
             ));
         }
 
@@ -1165,7 +1165,7 @@ fn validate_c106_surface_target(
             "Reference surface mapping must target an exact C106 Recipe, semantic part, Material Zone and A005 slot.",
         ));
     }
-    let manifest = builtin_surface_adornment_manifest_v2();
+    let manifest = builtin_surface_adornment_manifest_v3();
     if !manifest
         .recipe_ids
         .iter()
@@ -1173,7 +1173,7 @@ fn validate_c106_surface_target(
     {
         return Err(CoreError::invalid_data(
             "REFERENCE_SURFACE_A005_V2_REQUIRED",
-            "Reference surface target is not authorized by immutable A005 v2.",
+            "Reference surface target is not authorized by immutable A005 v3.",
         ));
     }
     Ok(())

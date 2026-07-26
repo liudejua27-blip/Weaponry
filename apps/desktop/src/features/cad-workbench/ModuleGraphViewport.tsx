@@ -17,6 +17,7 @@ type BlockoutGlbKind =
   | 'compiled_agent_pbr'
   | 'compiled_agent_preview_pbr'
   | 'compiled_agent_production_pbr'
+  | 'neural_visual_candidate_pbr'
   | 'external_reference'
   | null
 type Graph = NonNullable<ModuleGraphRecord>['graph']
@@ -29,7 +30,7 @@ const PBR_TEXTURE_ANISOTROPY_CAP = 4
 // Must match ForgeCADVisualEnvironment@1 written into every current ShapeProgram
 // GLB.  The viewport has one renderer/context; this profile only configures its
 // existing RoomEnvironment/PMREM scene and never creates asset state.
-const FORGECAD_STUDIO_MANIFEST = {
+const FORGECAD_STUDIO_MANIFEST_V1 = {
   schema_version: 'ForgeCADVisualEnvironment@1',
   environment_id: 'env_forgecad_room_studio_v1',
   environment_kind: 'procedural_studio',
@@ -54,7 +55,32 @@ const FORGECAD_STUDIO_MANIFEST = {
     iso: { direction: [-0.9, 0.85, 1.55] as [number, number, number], distance_ratio: 0.98, fov_degrees: 38 },
   },
 } as const
-const FORGECAD_STUDIO_ENVIRONMENT_SHA256 = '291b13f7d1606bd3c180a3fb9850538f5d23208086d7f8488c2214fa59061042'
+const FORGECAD_STUDIO_MANIFEST_V2 = {
+  ...FORGECAD_STUDIO_MANIFEST_V1,
+  environment_id: 'env_forgecad_room_studio_v2',
+  tone_mapping_exposure: 0.62,
+  cad_neutral_lighting: {
+    ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting,
+    hemisphere: { ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting.hemisphere, intensity: 0.58 },
+    ambient: { ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting.ambient, intensity: 0.12 },
+    key: { ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting.key, intensity: 1.35 },
+    rim: { ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting.rim, intensity: 0.5 },
+    warm_rim: { ...FORGECAD_STUDIO_MANIFEST_V1.cad_neutral_lighting.warm_rim, intensity: 0.1 },
+  },
+} as const
+const FORGECAD_STUDIO_MANIFEST = FORGECAD_STUDIO_MANIFEST_V2
+const FORGECAD_STUDIO_ENVIRONMENTS = {
+  env_forgecad_room_studio_v1: {
+    manifest: FORGECAD_STUDIO_MANIFEST_V1,
+    sha256: '291b13f7d1606bd3c180a3fb9850538f5d23208086d7f8488c2214fa59061042',
+  },
+  env_forgecad_room_studio_v2: {
+    manifest: FORGECAD_STUDIO_MANIFEST_V2,
+    sha256: '0884e4f7b32c11ce94b4d406260f9ea89ca0c7933e0088d14e9eb89f382508a4',
+  },
+} as const
+type ForgecadStudioEnvironmentId = keyof typeof FORGECAD_STUDIO_ENVIRONMENTS
+const FORGECAD_STUDIO_ENVIRONMENT_SHA256 = FORGECAD_STUDIO_ENVIRONMENTS.env_forgecad_room_studio_v2.sha256
 // GLB material data and its readback remain immutable.  This bounded table
 // only tunes the existing RoomEnvironment reflection in the one workbench
 // renderer, so clearcoat/aluminium highlights do not erase the authored base
@@ -174,6 +200,19 @@ type QaViewportCaptureRequest = {
   viewport: HTMLElement
   resolve: (capture: QaViewportCapture) => void
   reject: (error: Error) => void
+}
+
+function studioEnvironmentIdFromEmbedded(value: unknown): ForgecadStudioEnvironmentId | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Record<string, unknown>
+  const environmentId = candidate.environment_id
+  if (typeof environmentId !== 'string' || !(environmentId in FORGECAD_STUDIO_ENVIRONMENTS)) return null
+  const typedId = environmentId as ForgecadStudioEnvironmentId
+  const expected = FORGECAD_STUDIO_ENVIRONMENTS[typedId]
+  return canonicalJson(candidate) === canonicalJson({
+    ...expected.manifest,
+    environment_sha256: expected.sha256,
+  }) ? typedId : null
 }
 
 export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
@@ -713,6 +752,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         return
       }
       runtime.blockoutRoot.add(source)
+      const embeddedEnvironmentId = source.userData.forgecadVisualEnvironmentId
+      applyStudioEnvironment(
+        runtime,
+        typeof embeddedEnvironmentId === 'string' && embeddedEnvironmentId in FORGECAD_STUDIO_ENVIRONMENTS
+          ? embeddedEnvironmentId as ForgecadStudioEnvironmentId
+          : FORGECAD_STUDIO_MANIFEST.environment_id,
+      )
       runtime.blockoutRoot.visible = true
       runtime.axes.visible = false
       runtime.grid.visible = false
@@ -780,11 +826,14 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // make the PBR/readback promise unverifiable in the workbench.
       const externalReference = props.blockoutGlbKind === 'external_reference'
       const productionConcept = props.blockoutGlbKind === 'compiled_agent_production_pbr'
+      const neuralVisualCandidate = props.blockoutGlbKind === 'neural_visual_candidate_pbr'
       setBlockoutLoadMessage(
         externalReference
           ? '正在加载只读外部参考 GLB…'
           : productionConcept
             ? '正在加载生产概念工件档 PBR GLB…'
+            : neuralVisualCandidate
+              ? '正在加载神经生成 PBR 候选 GLB…'
             : '正在加载同源轻量 PBR 预览…',
       )
       void import('three/examples/jsm/loaders/GLTFLoader.js')
@@ -799,6 +848,18 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
               reject(new Error('导入 GLB 没有 scene'))
               return
             }
+            const parserJson = gltf.parser.json as Record<string, unknown>
+            const parserExtras = parserJson.extras
+            const embeddedEnvironment = parserExtras && typeof parserExtras === 'object'
+              ? (parserExtras as Record<string, unknown>).forgecad_visual_environment
+              : null
+            const embeddedEnvironmentId = studioEnvironmentIdFromEmbedded(embeddedEnvironment)
+            if (!externalReference && !embeddedEnvironmentId) {
+              reject(new Error('编译 GLB 的视觉环境合同缺失或与已知版本不匹配'))
+              return
+            }
+            source.userData.forgecadVisualEnvironmentId = embeddedEnvironmentId
+              ?? FORGECAD_STUDIO_MANIFEST.environment_id
             source.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
             source.traverse((child) => {
               if (isMeshObject(child)) {
@@ -1599,7 +1660,7 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
     recordEnvironment()
     return
   }
-  const neutral = FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting
+  const neutral = activeStudioManifest(runtime).cad_neutral_lighting
   runtime.keyLight.color.set(neutral.key.color)
   runtime.keyLight.intensity = neutral.key.intensity
   runtime.keyLight.position.set(...neutral.key.position)
@@ -1623,24 +1684,70 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value) ?? 'null'
 }
 
+function activeStudioEnvironmentId(runtime: ViewportRuntime): ForgecadStudioEnvironmentId {
+  const environmentId = runtime.scene.userData.forgecadVisualEnvironment
+  return typeof environmentId === 'string' && environmentId in FORGECAD_STUDIO_ENVIRONMENTS
+    ? environmentId as ForgecadStudioEnvironmentId
+    : FORGECAD_STUDIO_MANIFEST.environment_id
+}
+
+function activeStudioManifest(runtime: ViewportRuntime) {
+  return FORGECAD_STUDIO_ENVIRONMENTS[activeStudioEnvironmentId(runtime)].manifest
+}
+
+function applyStudioEnvironment(runtime: ViewportRuntime, environmentId: ForgecadStudioEnvironmentId): void {
+  const selected = FORGECAD_STUDIO_ENVIRONMENTS[environmentId]
+  const manifest = selected.manifest
+  const neutral = manifest.cad_neutral_lighting
+  runtime.scene.userData.forgecadVisualEnvironment = environmentId
+  runtime.renderer.toneMappingExposure = manifest.tone_mapping_exposure
+  runtime.scene.background = new THREE.Color(neutral.background)
+  if (runtime.scene.fog instanceof THREE.Fog) runtime.scene.fog.color.set(neutral.background)
+  runtime.hemisphereLight.color.set(neutral.hemisphere.sky)
+  runtime.hemisphereLight.groundColor.set(neutral.hemisphere.ground)
+  runtime.hemisphereLight.intensity = neutral.hemisphere.intensity
+  runtime.ambientLight.color.set(neutral.ambient.color)
+  runtime.ambientLight.intensity = neutral.ambient.intensity
+  runtime.keyLight.color.set(neutral.key.color)
+  runtime.keyLight.intensity = neutral.key.intensity
+  runtime.keyLight.position.set(...neutral.key.position)
+  runtime.rimLight.color.set(neutral.rim.color)
+  runtime.rimLight.intensity = neutral.rim.intensity
+  runtime.rimLight.position.set(...neutral.rim.position)
+  runtime.warmRimLight.color.set(neutral.warm_rim.color)
+  runtime.warmRimLight.intensity = neutral.warm_rim.intensity
+  runtime.warmRimLight.position.set(...neutral.warm_rim.position)
+  const floorMaterial = runtime.displayFloor.material
+  floorMaterial.color.set(neutral.floor.color)
+  floorMaterial.opacity = neutral.floor.opacity
+  const host = runtime.renderer.domElement.parentElement
+  if (host instanceof HTMLElement) {
+    host.dataset.visualEnvironmentId = environmentId
+    host.dataset.visualEnvironmentSha256 = selected.sha256
+    recordAppliedVisualEnvironment(runtime, host)
+  }
+}
+
 function colorHex(color: THREE.Color): string {
   return `#${color.getHexString(THREE.SRGBColorSpace)}`
 }
 
 function recordAppliedVisualEnvironment(runtime: ViewportRuntime, host: HTMLElement): void {
+  const environmentId = activeStudioEnvironmentId(runtime)
+  const manifestContract = FORGECAD_STUDIO_ENVIRONMENTS[environmentId].manifest
   const floorMaterial = runtime.displayFloor.material
   const manifest = {
-    schema_version: FORGECAD_STUDIO_MANIFEST.schema_version,
-    environment_id: FORGECAD_STUDIO_MANIFEST.environment_id,
-    environment_kind: FORGECAD_STUDIO_MANIFEST.environment_kind,
-    source: FORGECAD_STUDIO_MANIFEST.source,
-    license: FORGECAD_STUDIO_MANIFEST.license,
-    color_workflow: FORGECAD_STUDIO_MANIFEST.color_workflow,
+    schema_version: manifestContract.schema_version,
+    environment_id: manifestContract.environment_id,
+    environment_kind: manifestContract.environment_kind,
+    source: manifestContract.source,
+    license: manifestContract.license,
+    color_workflow: manifestContract.color_workflow,
     output_color_space: runtime.renderer.outputColorSpace === THREE.SRGBColorSpace ? 'srgb' : 'unsupported',
     tone_mapping: runtime.renderer.toneMapping === THREE.ACESFilmicToneMapping ? 'aces_filmic' : 'unsupported',
     tone_mapping_exposure: runtime.renderer.toneMappingExposure,
     contact_shadows: runtime.renderer.shadowMap.enabled && runtime.keyLight.castShadow && runtime.displayFloor.receiveShadow,
-    pmrem: FORGECAD_STUDIO_MANIFEST.pmrem,
+    pmrem: manifestContract.pmrem,
     cad_neutral_lighting: {
       background: runtime.scene.background instanceof THREE.Color ? colorHex(runtime.scene.background) : 'unsupported',
       hemisphere: {
@@ -1657,16 +1764,16 @@ function recordAppliedVisualEnvironment(runtime: ViewportRuntime, host: HTMLElem
         position: runtime.warmRimLight.position.toArray(),
       },
       floor: {
-        kind: FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.kind,
+        kind: manifestContract.cad_neutral_lighting.floor.kind,
         color: colorHex(floorMaterial.color),
         opacity: floorMaterial.opacity,
-        radius_ratio: FORGECAD_STUDIO_MANIFEST.cad_neutral_lighting.floor.radius_ratio,
+        radius_ratio: manifestContract.cad_neutral_lighting.floor.radius_ratio,
       },
     },
     camera_views: {
       iso: {
-        direction: FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction,
-        distance_ratio: FORGECAD_STUDIO_MANIFEST.camera_views.iso.distance_ratio,
+        direction: manifestContract.camera_views.iso.direction,
+        distance_ratio: manifestContract.camera_views.iso.distance_ratio,
         fov_degrees: runtime.camera.fov,
       },
     },

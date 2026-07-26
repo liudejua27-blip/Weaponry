@@ -30,13 +30,14 @@ from smoke_packaged_tauri_alpha import (
     _stop_desktop_and_listener,
     _wait_for_native_health,
 )
+from macos_stable_app_identity import inspect_stable_app_identity
 
 
 ROOT = Path(__file__).resolve().parents[1]
 LIVE_CONFIRMATION = "I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST"
 RUN_ID = re.compile(r"^live_[A-Za-z0-9_-]{7,75}$")
 DELTA_SCHEMA = "ForgeCADDeepSeekDeltaAcceptance@1"
-PACKAGED_SCHEMA = "ForgeCADArmMvpPackagedProtocolProof@3"
+PACKAGED_SCHEMA = "ForgeCADArmMvpPackagedProtocolProof@4"
 FORBIDDEN_KEYS = {"api_key", "secret", "base_url", "model", "brief", "prompt", "response"}
 
 
@@ -240,6 +241,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if not APP_BINARY.is_file():
         raise AcceptanceError("LIVE_APP_NOT_BUILT")
+    if not inspect_stable_app_identity(APP_BUNDLE).ready:
+        raise AcceptanceError("LIVE_STABLE_APP_IDENTITY_REQUIRED")
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="forgecad_deepseek_delta_") as temporary:
         library = Path(temporary) / "library"
@@ -283,14 +286,38 @@ def main(argv: Sequence[str] | None = None) -> int:
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE",
         }, output, args.foreground_launch)
         _validate_delta(delta, run_id)
-        resume_path = Path(temporary) / "resume.json"
+        second_output = output.with_name(f"{output.stem}-second{output.suffix}")
+        second_environment = _clean_environment()
+        second_environment.update({
+            "WUSHEN_LIBRARY_ROOT": str(library),
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE": "1",
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_CONFIRM": LIVE_CONFIRMATION,
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RUN_ID": run_id,
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT": str(output),
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_OUTPUT": str(second_output),
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE": "1",
+        })
+        second = _launch_and_read(second_environment, {
+            "WUSHEN_LIBRARY_ROOT", "WUSHEN_AGENT_RUNTIME_MODE", "FORGECAD_CONCEPT_WORKER_ENABLED",
+            "WUSHEN_LOCAL_WORKER_ENABLED", "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE",
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_CONFIRM", "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RUN_ID",
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT", "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_OUTPUT",
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE",
+        }, second_output, args.foreground_launch)
+        _validate_delta(second, run_id)
+        if second.get("base_asset_version_id") != delta.get("new_asset_version_id"):
+            raise AcceptanceError("LIVE_SECOND_DELTA_LINEAGE_INVALID")
+        # Preserve every successful phase as redacted evidence.  Keeping the
+        # resume report beside the two live reports makes the packaged restart
+        # proof independently reviewable after this temporary Library is gone.
+        resume_path = output.with_name(f"{output.stem}-resume{output.suffix}")
         resume_environment = _clean_environment()
         resume_environment.update({
             "WUSHEN_LIBRARY_ROOT": str(library),
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE": "1",
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_CONFIRM": LIVE_CONFIRMATION,
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RUN_ID": run_id,
-            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT": str(output),
+            "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT": str(second_output),
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_OUTPUT": str(resume_path),
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RESUME": "1",
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE": "1",
@@ -302,8 +329,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT", "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_OUTPUT",
             "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RESUME", "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE",
         }, resume_path, args.foreground_launch)
-        _validate_resume(resumed, run_id, str(delta["new_asset_version_id"]))
-    print(json.dumps({"schema_version": DELTA_SCHEMA, "status": "pass", "delta": delta, "resume": resumed}, ensure_ascii=False, sort_keys=True))
+        _validate_resume(resumed, run_id, str(second["new_asset_version_id"]))
+    print(json.dumps({"schema_version": DELTA_SCHEMA, "status": "pass", "delta": delta, "second_delta": second, "resume": resumed}, ensure_ascii=False, sort_keys=True))
     return 0
 
 

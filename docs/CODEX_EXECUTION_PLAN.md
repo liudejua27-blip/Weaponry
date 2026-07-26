@@ -229,6 +229,32 @@ FGC-G819 运行时操作白名单单一真值
 
 每个 operation 只有在 G819 manifest 中具有真实执行器、预算和 readback 后才可被 Agent/Recipe/Skill 使用。前端 SVG 只序列化 `ProfileSketch@1`；GSAP 只处理 mini/focus、步骤、抽屉、相机和确认动画；可选 SDF/体素只允许产生可丢弃候选，不能进入 editable asset 真值。
 
+### 7.3 Codex 式设计工作区与视觉收敛主链
+
+ADR-0017 将下一阶段从“继续增加固定整机目录”改为“先关闭机械臂黄金资产，再提取可由 Agent 编写的设计语言”。它不改变 ADR-0016、V003、Rust-first、单 renderer 或 GLB 真值：
+
+```text
+C111A 机械臂黄金表面资产 + 冻结 VisualDetailInventory
+  → C112 Operator/Generative Pattern 提取
+  → C113 DesignWorkspace/Patch/CAS 草稿
+  → C114 MechanicalMorphologyProgram 与 Rust lowering
+  → C115 生成式 Profile/Section authoring
+  → A006 Codex 式 typed Product Tool 循环
+  → Q004 固定 build passes + VisualConvergenceReport
+  → E004 未见机械臂 Brief 自由度与连续修改验收
+  → M108B/D006/M109 按证据扩展领域与质量档
+```
+
+约束：
+
+- C111A 未退出前只能深化当前机械臂，不建立另一套完整语言或扩展其他整机；
+- `VisualDetailInventory` 的 critical 项必须映射到实际 Recipe/Shape operation/Material Zone/A005 输出并由 readback/render 证明；
+- DesignWorkspace revision 只是 Rust-owned 草稿，不推进 AssetVersion 或 Snapshot；
+- DeepSeek 只能修改 typed sources，不能输出任意 JavaScript、Python、mesh bytes、URL 或路径；
+- V003 仍只有一次完整合成和最多两次同意图原位修复，不采用上游更长循环；
+- 自动图像/VLM Gate 不能替代 M108B 真人 `4/5`；
+- img2threejs 当前只作为锁定 commit 的方法参考，不进入安装包、SBOM 或产品运行时。
+
 ## 8. V1：概念视图
 
 目标：从同一活动 Agent 资产生成三分之四、正面、侧面、顶部和可选爆炸图。
@@ -282,3 +308,45 @@ FGC-G819 运行时操作白名单单一真值
 - 未完成项和下一任务 ID。
 
 不得只交付 UI、只交付 Schema 或只交付 smoke。
+
+## 12. N：Forge Studio 视觉优先神经 MVP（已由 ADR-0019 取代默认主链）
+
+该段保存 ADR-0018 的历史实施顺序。N001/N002 和 N003/N004 已完成的通用授权、任务、取消、恢复、下载和 readback 工程可以复用，但真实 Fal 付费调用、N005 双源资产和神经 GLB 主链不再是当前 MVP 前置。
+
+执行顺序：
+
+1. N001：Rust 合同、同意/lineage、纯任务状态机和资产包清单；
+2. N002：可替换远程 Provider 端口、确定性假后端、幂等/取消/恢复；
+3. N003：文字/授权图片到概念参考；
+4. N004：真实高质量 Image-to-3D 远程适配器；首个可调用基线为 Fal Hunyuan3D v3.1 Pro，Pixal3D/TRELLIS.2 继续作为可替换质量对照；
+5. N005：`procedural_shape_program | neural_visual_glb` 双源版本和 Snapshot；
+6. N006：真实 GLB/PBR readback、固定八视角和质量硬门；
+7. N007：F026 单结果工作台、进度和自然语言子版本修改；
+8. N008：`ForgeAssetPackage@1`；
+9. N009：20 条未见 Brief、五类别、15/20 真人 4/5 和完整桌面 E2E。
+
+N001 完成前不得发起真实 GPU 费用；N004 前必须有可配置 endpoint、secure credential、预算/超时、数据授权和删除策略。任何远程响应只有在 Rust readback/quality 接受后才是候选资产，用户确认前不得写入版本。
+
+## 13. PV：Forge Studio 程序化视觉 MVP（当前最高优先级）
+
+用户在 2026-07-26 再次明确：FAL 成本过高，专用神经 Image-to-3D 可以从默认产品删除；Forge Studio 应像 Codex 一样由 DeepSeek 编写并连续修改三维视觉程序。ADR-0019 为当前权威。
+
+```text
+PV001 路线切换、默认工作台退役 FAL、ForgeVisualProgram 最小合同
+→ PV002 C111 机械臂黄金资产封装为 ForgeVisualProgram fixture
+→ PV003 DeepSeek typed inspect/author/patch Product Tool
+→ PV004 固定 build passes、Detail Inventory 与八视角收敛门
+→ PV005 三轮连续语言修改、确认、重启与 GLB/资产包
+→ PV006 20 条未见机械硬表面 Brief 与真人视觉验收
+→ PV007 按证据扩展未来道具、无人机、工业设备、汽车和飞机
+```
+
+当前检查点（2026-07-26）：PV001–PV004 已实现，PV005 已 ready。PV004 已把动态 program revision 接入 production restricted worker、七阶段 ledger、真实 GLB/PBR readback、精确八视图、最多两次 typed 同意图局部修复与唯一未保存 preview；失败后旧 readback/view/gate 全部作废，第三次修复硬拒绝。它仍不创建 Snapshot/资产版本，也未证明真实 DeepSeek 联网生成的模型达到收藏级视觉。下一个原子任务是 PV005：同一资产三轮语言修改、preview→confirm、undo、restart、GLB 与六成员资产包一致性。
+
+强制边界：
+
+- 默认 UI、普通 Brief 和 MVP Gate 不得要求 FAL Key或发起付费图像/神经 3D 请求；
+- Fal-specific adapter 可留在默认关闭的实验扩展中，不删除历史 migration；
+- `ForgeVisualProgram@1` 只封装现有 ShapeProgram/AssemblyGraph/Material Zone/Surface Program，Rust 拒绝任意代码、悬空引用和虚假细节绑定；
+- img2threejs 只提供细节清单、阶段化程序生成、确定性优先多视角检查和有界修复方法；当前不执行其任意 TypeScript，也不以 THREE.Group 取代 GLB/Snapshot；
+- 第一个退出样例是未来工业机械臂收藏品。在它完成一句话生成、三轮修改、八视角、唯一结果、重启和 GLB 导出前，不横向扩展其他整机领域。

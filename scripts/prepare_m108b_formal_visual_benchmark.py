@@ -202,7 +202,10 @@ def _validate_renderer_contract(value: object, fixture_id: str) -> None:
     contract = _require_mapping(value, f"{fixture_id}.renderer_contract")
     if contract.get("renderer_id") != "ForgeCADWorkbenchRenderer@1":
         raise FormalKitBlockedError(f"{fixture_id}.renderer_contract.renderer_id 不属于 ForgeCAD 工作台")
-    if contract.get("environment_id") != "env_forgecad_room_studio_v1":
+    if contract.get("environment_id") not in {
+        "env_forgecad_room_studio_v1",
+        "env_forgecad_room_studio_v2",
+    }:
         raise FormalKitBlockedError(f"{fixture_id}.renderer_contract.environment_id 不属于固定工作室环境")
     _hash(contract.get("environment_sha256"), f"{fixture_id}.renderer_contract.environment_sha256")
     if contract.get("camera_preset") != "iso" or contract.get("load_state") != "ready" or contract.get("render_source") != "glb_pbr":
@@ -443,7 +446,7 @@ def _self_test() -> None:
     def fixture(index: int, domain: str) -> dict[str, object]:
         digest = f"{index:064x}"
         maps = [{"texture_role": role, "texture_id": f"vtex_self_v4_{role}", "width": 512, "height": 512, "sha256": digest} for role in sorted(PBR_ROLES)]
-        renderer_contract = {"renderer_id": "ForgeCADWorkbenchRenderer@1", "environment_id": "env_forgecad_room_studio_v1", "environment_sha256": digest, "camera_preset": "iso", "load_state": "ready", "render_source": "glb_pbr", "single_webgl_context": True, "embedded_pbr_material_count": 1}
+        renderer_contract = {"renderer_id": "ForgeCADWorkbenchRenderer@1", "environment_id": "env_forgecad_room_studio_v2", "environment_sha256": digest, "camera_preset": "iso", "load_state": "ready", "render_source": "glb_pbr", "single_webgl_context": True, "embedded_pbr_material_count": 1}
         return {
             "fixture_id": f"{domain}:formal_{index}", "domain_pack_id": domain, "source_glb": f"fixtures/formal_{index}.glb", "glb_sha256": digest, "glb_byte_size": 1,
             "recipe": {"recipe_id": f"recipe_{index}", "version": 1, "recipe_sha256": digest},
@@ -536,7 +539,7 @@ def _self_test() -> None:
         (root / "evidence").mkdir()
         renderer_contract = {
             "renderer_id": "ForgeCADWorkbenchRenderer@1",
-            "environment_id": "env_forgecad_room_studio_v1",
+            "environment_id": "env_forgecad_room_studio_v2",
             "environment_sha256": glb_hash,
             "camera_preset": "iso",
             "load_state": "ready",

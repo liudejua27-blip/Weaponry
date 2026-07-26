@@ -1622,6 +1622,7 @@ export type MechanicalConceptPlan = {
   "model"?: string | null
   "arm_design_intent"?: ArmDesignIntent | null
   "assembly_delta"?: AssemblyDeltaProgram | null
+  "continuation_template_id"?: "next_reviewed_attachment" | null
   "shape_program_ready"?: boolean
 }
 

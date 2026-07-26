@@ -7,11 +7,15 @@ mod deepseek_provider;
 mod k003_packaged_probe;
 mod mvp_arm_packaged_probe;
 mod mvp_arm_provider;
+mod neural_3d_provider_adapter;
 mod provider_credentials;
 mod rust_core_runtime;
 mod rust_product_catalog;
+mod visual_provider_acceptance_probe;
+mod visual_provider_adapters;
 
 use std::{
+    collections::HashMap,
     env,
     ffi::OsStr,
     fs::{self, OpenOptions},
@@ -21,7 +25,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{Arc, Condvar, Mutex, OnceLock},
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(unix)]
@@ -29,16 +33,26 @@ use std::os::unix::process::CommandExt;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use forgecad_app_server::{
+    accept_concept_output, accept_resumed_concept_output,
     compatibility::{AllowedHttpMethod, LocalAgentEndpoint, PreparedCompatHttpRequest},
-    CancellationToken,
+    validate_concept_receipt, validate_neural_visual_receipt, CancellationToken,
+    ConceptImageProviderPort, ConceptImageProviderReceipt, ConceptImageProviderStatus,
+    NeuralVisualProviderPort, NeuralVisualProviderReceipt, NeuralVisualProviderStatus,
+    VisualBriefDirector, VisualBriefDirectorInput, VisualBriefDirectorOutput,
 };
 use forgecad_app_server_protocol::ProtocolHttpBody;
-use forgecad_core::semantic_sha256;
+use forgecad_core::{
+    inspect_neural_visual_glb, semantic_sha256, ConceptImageBackend, ConceptImageGenerationRequest,
+    ConceptImageResumeBinding, ConceptReferenceArtifact, Neural3DBackend,
+    Neural3DGenerationRequest, Neural3DResumeBinding, NeuralVisualGlbInspection, VisualDesignBrief,
+    VisualInputEvidence, VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
+    NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION, VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tauri::{Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use app_server_bridge::{
     forgecad_protocol_connect, forgecad_protocol_disconnect, forgecad_protocol_send,
@@ -49,10 +63,17 @@ use deepseek_provider::{
 };
 use forgecad_app_server::ProviderClient;
 use mvp_arm_provider::{LocalRoboticArmMvpProvider, MVP_MODEL};
+use neural_3d_provider_adapter::{
+    CoreConceptImageSource, CoreNeuralGlbObjectSink, FalHunyuan3dV31ProAdapter,
+};
 use provider_credentials::{
     validate_provider_config_input, ProviderConfigMetadata, ProviderCredentialStore,
 };
 use rust_core_runtime::RustCoreRuntime;
+use visual_provider_adapters::{
+    CoreConceptImageObjectSink, CoreConceptInputImageSource, FalFlux2ConceptImageAdapter,
+    PrivateFileFalCredentialSource, ReqwestVisualHttpTransport, VisualHttpTransport,
+};
 use zeroize::Zeroize;
 
 const AGENT_HOST: &str = "127.0.0.1";
@@ -82,6 +103,829 @@ struct AgentProcessState {
     mode: Mutex<String>,
     internal_capability_token: String,
     provider_credentials: Arc<ProviderCredentialStore>,
+}
+
+struct VisualProviderState {
+    fal_credentials: Arc<PrivateFileFalCredentialSource>,
+    transport: Arc<dyn VisualHttpTransport>,
+    repository: Arc<forgecad_core::CoreRepository>,
+    brief_director: VisualBriefDirector,
+    active_requests: Mutex<HashMap<String, CancellationToken>>,
+}
+
+impl VisualProviderState {
+    fn fal_adapter(&self, owner_id: String, uses_input_image: bool) -> FalFlux2ConceptImageAdapter {
+        let sink = Arc::new(CoreConceptImageObjectSink::new(
+            self.repository.clone(),
+            owner_id,
+            rust_core_timestamp(),
+        ));
+        if uses_input_image {
+            FalFlux2ConceptImageAdapter::new_edit(
+                self.transport.clone(),
+                self.fal_credentials.clone(),
+                sink,
+                Arc::new(CoreConceptInputImageSource::new(self.repository.clone())),
+            )
+        } else {
+            FalFlux2ConceptImageAdapter::new(
+                self.transport.clone(),
+                self.fal_credentials.clone(),
+                sink,
+            )
+        }
+    }
+
+    fn hunyuan_adapter(&self, owner_id: String) -> FalHunyuan3dV31ProAdapter {
+        FalHunyuan3dV31ProAdapter::new(
+            self.transport.clone(),
+            self.fal_credentials.clone(),
+            Arc::new(CoreConceptImageSource::new(self.repository.clone())),
+            Arc::new(CoreNeuralGlbObjectSink::new(
+                self.repository.clone(),
+                owner_id,
+                rust_core_timestamp(),
+            )),
+        )
+    }
+}
+
+#[tauri::command]
+async fn direct_visual_brief(
+    input: VisualBriefDirectorInput,
+    state: State<'_, VisualProviderState>,
+) -> Result<VisualBriefDirectorOutput, String> {
+    state
+        .brief_director
+        .direct(input, CancellationToken::new())
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+async fn generate_visual_asset(
+    input: GenerateVisualAssetRequest,
+    app: AppHandle,
+    state: State<'_, VisualProviderState>,
+) -> Result<GenerateVisualAssetResponse, String> {
+    if input.client_request_id.is_empty()
+        || input.client_request_id.len() > 128
+        || !input
+            .client_request_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'@'))
+    {
+        return Err("VISUAL_GENERATION_REQUEST_ID_INVALID".into());
+    }
+    let cancellation = CancellationToken::new();
+    {
+        let mut active = state
+            .active_requests
+            .lock()
+            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
+        if active.contains_key(&input.client_request_id) {
+            return Err("VISUAL_GENERATION_REQUEST_ALREADY_ACTIVE".into());
+        }
+        active.insert(input.client_request_id.clone(), cancellation.clone());
+    }
+    let result = generate_visual_asset_inner(&input, &app, &state, cancellation.clone()).await;
+    if let Ok(mut active) = state.active_requests.lock() {
+        active.remove(&input.client_request_id);
+    }
+    if let Err(message) = &result {
+        let (state_value, fallback) =
+            if cancellation.is_cancelled() || message.starts_with("VISUAL_GENERATION_CANCELLED") {
+                (
+                    VisualRemoteJobState::Cancelled {
+                        code: "USER_CANCELLED".into(),
+                    },
+                    "USER_CANCELLED",
+                )
+            } else {
+                let code = stable_visual_error_code(message, "VISUAL_GENERATION_FAILED");
+                (
+                    VisualRemoteJobState::Failed { code },
+                    "VISUAL_GENERATION_FAILED",
+                )
+            };
+        let _ = finish_visual_remote_job(
+            &state.repository,
+            &input.client_request_id,
+            state_value,
+            fallback,
+        );
+    }
+    result
+}
+
+#[tauri::command]
+async fn cancel_visual_asset_generation(
+    client_request_id: String,
+    state: State<'_, VisualProviderState>,
+) -> Result<bool, String> {
+    {
+        let active = state
+            .active_requests
+            .lock()
+            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
+        if let Some(cancellation) = active.get(&client_request_id) {
+            cancellation.cancel();
+            return Ok(true);
+        }
+    }
+    let Some(record) = state
+        .repository
+        .visual_remote_job(&client_request_id)
+        .map_err(|error| format!("{}: {}", error.code(), error))?
+    else {
+        return Ok(false);
+    };
+    match &record.state {
+        VisualRemoteJobState::ConceptSubmitted { binding } => {
+            let adapter = state.fal_adapter(
+                binding.request_id.clone(),
+                binding.input_image_object_sha256.is_some(),
+            );
+            adapter
+                .cancel(ConceptImageProviderReceipt {
+                    schema_version:
+                        forgecad_app_server::CONCEPT_IMAGE_PROVIDER_RECEIPT_SCHEMA_VERSION.into(),
+                    backend: binding.backend,
+                    provider_job_id: binding.provider_job_id.clone(),
+                })
+                .await
+                .map_err(|error| format!("{}: {}", error.code, error.message))?;
+        }
+        VisualRemoteJobState::NeuralSubmitted { binding } => {
+            let adapter = state.hunyuan_adapter(binding.request.request_id.clone());
+            adapter
+                .cancel(NeuralVisualProviderReceipt {
+                    schema_version:
+                        forgecad_app_server::NEURAL_VISUAL_PROVIDER_RECEIPT_SCHEMA_VERSION.into(),
+                    backend: binding.backend,
+                    provider_job_id: binding.provider_job_id.clone(),
+                })
+                .await
+                .map_err(|error| format!("{}: {}", error.code, error.message))?;
+        }
+        _ => return Ok(false),
+    }
+    finish_visual_remote_job(
+        &state.repository,
+        &client_request_id,
+        VisualRemoteJobState::Cancelled {
+            code: "USER_CANCELLED".into(),
+        },
+        "USER_CANCELLED",
+    )?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn list_recoverable_visual_asset_generations(
+    project_id: Option<String>,
+    state: State<'_, VisualProviderState>,
+) -> Result<Vec<VisualRemoteJobRecord>, String> {
+    state
+        .repository
+        .recoverable_visual_remote_jobs(project_id.as_deref())
+        .map_err(|error| format!("{}: {}", error.code(), error))
+}
+
+#[tauri::command]
+async fn resume_visual_asset_generation(
+    client_request_id: String,
+    app: AppHandle,
+    state: State<'_, VisualProviderState>,
+) -> Result<GenerateVisualAssetResponse, String> {
+    let record = state
+        .repository
+        .visual_remote_job(&client_request_id)
+        .map_err(|error| format!("{}: {}", error.code(), error))?
+        .ok_or_else(|| "VISUAL_REMOTE_JOB_NOT_FOUND".to_string())?;
+    if !record.state.is_recoverable() {
+        return Err("VISUAL_REMOTE_JOB_NOT_RECOVERABLE".into());
+    }
+    let cancellation = CancellationToken::new();
+    {
+        let mut active = state
+            .active_requests
+            .lock()
+            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
+        if active.contains_key(&client_request_id) {
+            return Err("VISUAL_GENERATION_REQUEST_ALREADY_ACTIVE".into());
+        }
+        active.insert(client_request_id.clone(), cancellation.clone());
+    }
+    emit_visual_progress(
+        &app,
+        &client_request_id,
+        "recovery",
+        "正在恢复上次未完成的远程任务",
+    );
+    let result = resume_visual_asset_inner(
+        &client_request_id,
+        record,
+        &app,
+        &state,
+        cancellation.clone(),
+    )
+    .await;
+    if let Ok(mut active) = state.active_requests.lock() {
+        active.remove(&client_request_id);
+    }
+    if let Err(message) = &result {
+        let state_value =
+            if cancellation.is_cancelled() || message.starts_with("VISUAL_GENERATION_CANCELLED") {
+                VisualRemoteJobState::Cancelled {
+                    code: "USER_CANCELLED".into(),
+                }
+            } else {
+                VisualRemoteJobState::Failed {
+                    code: stable_visual_error_code(message, "VISUAL_GENERATION_RECOVERY_FAILED"),
+                }
+            };
+        let _ = finish_visual_remote_job(
+            &state.repository,
+            &client_request_id,
+            state_value,
+            "VISUAL_GENERATION_RECOVERY_FAILED",
+        );
+    }
+    result
+}
+
+async fn generate_visual_asset_inner<R: tauri::Runtime>(
+    input: &GenerateVisualAssetRequest,
+    app: &AppHandle<R>,
+    state: &VisualProviderState,
+    cancellation: CancellationToken,
+) -> Result<GenerateVisualAssetResponse, String> {
+    let job_created_at = rust_core_timestamp();
+    emit_visual_progress(
+        app,
+        &input.client_request_id,
+        "understanding",
+        "正在理解视觉意图",
+    );
+    let directed = state
+        .brief_director
+        .direct(
+            VisualBriefDirectorInput {
+                project_id: input.project_id.clone(),
+                turn_id: input.turn_id.clone(),
+                user_intent: input.user_intent.clone(),
+                input_evidence: input.input_evidence.clone(),
+            },
+            cancellation.clone(),
+        )
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    check_visual_cancellation(&cancellation)?;
+
+    emit_visual_progress(
+        app,
+        &input.client_request_id,
+        "concept_image",
+        "正在生成视觉参考",
+    );
+    let concept_adapter = state.fal_adapter(
+        directed.concept_request.request_id.clone(),
+        directed.concept_request.input_image_object_sha256.is_some(),
+    );
+    let concept_backend = directed.concept_request.backend_preferences[0];
+    let reference_id = stable_visual_id("concept_reference", &directed.brief.brief_id);
+    let concept_receipt = concept_adapter
+        .submit(directed.concept_request.clone(), concept_backend)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    validate_concept_receipt(&concept_receipt, &directed.concept_request)
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let concept_binding = ConceptImageResumeBinding::from_submitted_request(
+        directed.brief.clone(),
+        &directed.concept_request,
+        concept_receipt.backend,
+        concept_receipt.provider_job_id.clone(),
+        reference_id.clone(),
+        input.quality_tier,
+    )
+    .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let concept_record = VisualRemoteJobRecord {
+        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
+        client_request_id: input.client_request_id.clone(),
+        project_id: input.project_id.clone(),
+        turn_id: input.turn_id.clone(),
+        state: VisualRemoteJobState::ConceptSubmitted {
+            binding: concept_binding,
+        },
+        created_at: job_created_at.clone(),
+        updated_at: rust_core_timestamp(),
+    };
+    if let Err(error) = state.repository.put_visual_remote_job(&concept_record) {
+        let _ = concept_adapter.cancel(concept_receipt.clone()).await;
+        return Err(format!("{}: {}", error.code(), error));
+    }
+    let concept_deadline = Instant::now() + Duration::from_secs(5 * 60);
+    let concept_reference = loop {
+        if cancellation.is_cancelled() {
+            let _ = concept_adapter.cancel(concept_receipt.clone()).await;
+            return Err("VISUAL_GENERATION_CANCELLED".into());
+        }
+        if Instant::now() >= concept_deadline {
+            let _ = concept_adapter.cancel(concept_receipt.clone()).await;
+            return Err("CONCEPT_IMAGE_GENERATION_TIMEOUT".into());
+        }
+        let status = concept_adapter
+            .poll(concept_receipt.clone())
+            .await
+            .map_err(|error| format!("{}: {}", error.code, error.message))?;
+        match status {
+            ConceptImageProviderStatus::Queued | ConceptImageProviderStatus::Running => {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+            ConceptImageProviderStatus::Ready { output } => {
+                break accept_concept_output(
+                    &directed.brief,
+                    &directed.concept_request,
+                    &concept_receipt,
+                    &output,
+                    reference_id.clone(),
+                )
+                .map_err(|error| format!("{}: {}", error.code, error.message))?;
+            }
+            ConceptImageProviderStatus::Failed { code } => return Err(code),
+        }
+    };
+    let concept_png = state
+        .repository
+        .read_object(&concept_reference.image_object_sha256)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+
+    check_visual_cancellation(&cancellation)?;
+    emit_visual_progress(
+        app,
+        &input.client_request_id,
+        "neural_3d",
+        "正在生成 3D 形体与 PBR 材质",
+    );
+    let neural_seed = sha256_text(&format!(
+        "{}:{}:{}",
+        directed.brief.brief_id, concept_reference.reference_id, input.client_request_id
+    ));
+    let neural_request = Neural3DGenerationRequest {
+        schema_version: NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION.into(),
+        request_id: stable_visual_id("neural_request", &neural_seed),
+        project_id: directed.brief.project_id.clone(),
+        turn_id: directed.brief.turn_id.clone(),
+        brief_id: directed.brief.brief_id.clone(),
+        concept_reference_id: concept_reference.reference_id.clone(),
+        concept_reference_sha256: concept_reference.image_object_sha256.clone(),
+        quality_tier: input.quality_tier,
+        backend_preferences: vec![Neural3DBackend::Hunyuan3dV31Pro],
+        idempotency_key: stable_visual_id("neural_idempotency", &neural_seed),
+    };
+    neural_request
+        .validate()
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    finish_visual_asset_from_concept(
+        &input.client_request_id,
+        job_created_at,
+        directed.brief,
+        concept_reference,
+        neural_request,
+        concept_png,
+        app,
+        state,
+        cancellation,
+    )
+    .await
+}
+
+async fn resume_visual_asset_inner<R: tauri::Runtime>(
+    client_request_id: &str,
+    record: VisualRemoteJobRecord,
+    app: &AppHandle<R>,
+    state: &VisualProviderState,
+    cancellation: CancellationToken,
+) -> Result<GenerateVisualAssetResponse, String> {
+    let job_created_at = record.created_at.clone();
+    match record.state {
+        VisualRemoteJobState::ConceptSubmitted { binding } => {
+            let adapter = state.fal_adapter(
+                binding.request_id.clone(),
+                binding.input_image_object_sha256.is_some(),
+            );
+            let receipt = ConceptImageProviderReceipt {
+                schema_version: forgecad_app_server::CONCEPT_IMAGE_PROVIDER_RECEIPT_SCHEMA_VERSION
+                    .into(),
+                backend: binding.backend,
+                provider_job_id: binding.provider_job_id.clone(),
+            };
+            let deadline = Instant::now() + Duration::from_secs(5 * 60);
+            let concept_reference = loop {
+                if cancellation.is_cancelled() {
+                    let _ = adapter.cancel(receipt.clone()).await;
+                    return Err("VISUAL_GENERATION_CANCELLED".into());
+                }
+                if Instant::now() >= deadline {
+                    let _ = adapter.cancel(receipt.clone()).await;
+                    return Err("CONCEPT_IMAGE_GENERATION_TIMEOUT".into());
+                }
+                match adapter
+                    .poll(receipt.clone())
+                    .await
+                    .map_err(|error| format!("{}: {}", error.code, error.message))?
+                {
+                    ConceptImageProviderStatus::Queued | ConceptImageProviderStatus::Running => {
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    }
+                    ConceptImageProviderStatus::Ready { output } => {
+                        break accept_resumed_concept_output(&binding, &output)
+                            .map_err(|error| format!("{}: {}", error.code, error.message))?;
+                    }
+                    ConceptImageProviderStatus::Failed { code } => return Err(code),
+                }
+            };
+            let concept_png = state
+                .repository
+                .read_object(&concept_reference.image_object_sha256)
+                .map_err(|error| format!("{}: {}", error.code(), error))?;
+            emit_visual_progress(
+                app,
+                client_request_id,
+                "neural_3d",
+                "正在生成 3D 形体与 PBR 材质",
+            );
+            let neural_seed = sha256_text(&format!(
+                "{}:{}:{}",
+                binding.brief.brief_id, concept_reference.reference_id, client_request_id
+            ));
+            let neural_request = Neural3DGenerationRequest {
+                schema_version: NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION.into(),
+                request_id: stable_visual_id("neural_request", &neural_seed),
+                project_id: binding.brief.project_id.clone(),
+                turn_id: binding.brief.turn_id.clone(),
+                brief_id: binding.brief.brief_id.clone(),
+                concept_reference_id: concept_reference.reference_id.clone(),
+                concept_reference_sha256: concept_reference.image_object_sha256.clone(),
+                quality_tier: binding.quality_tier,
+                backend_preferences: vec![Neural3DBackend::Hunyuan3dV31Pro],
+                idempotency_key: stable_visual_id("neural_idempotency", &neural_seed),
+            };
+            neural_request
+                .validate()
+                .map_err(|error| format!("{}: {}", error.code(), error))?;
+            finish_visual_asset_from_concept(
+                client_request_id,
+                job_created_at,
+                binding.brief,
+                concept_reference,
+                neural_request,
+                concept_png,
+                app,
+                state,
+                cancellation,
+            )
+            .await
+        }
+        VisualRemoteJobState::NeuralSubmitted { binding } => {
+            let concept_png = state
+                .repository
+                .read_object(&binding.concept_reference.image_object_sha256)
+                .map_err(|error| format!("{}: {}", error.code(), error))?;
+            let adapter = state.hunyuan_adapter(binding.request.request_id.clone());
+            let receipt = NeuralVisualProviderReceipt {
+                schema_version: forgecad_app_server::NEURAL_VISUAL_PROVIDER_RECEIPT_SCHEMA_VERSION
+                    .into(),
+                backend: binding.backend,
+                provider_job_id: binding.provider_job_id.clone(),
+            };
+            poll_neural_visual_asset(
+                client_request_id,
+                binding.brief,
+                binding.concept_reference,
+                concept_png,
+                adapter,
+                receipt,
+                app,
+                state,
+                cancellation,
+            )
+            .await
+        }
+        _ => Err("VISUAL_REMOTE_JOB_NOT_RECOVERABLE".into()),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn finish_visual_asset_from_concept<R: tauri::Runtime>(
+    client_request_id: &str,
+    job_created_at: String,
+    brief: VisualDesignBrief,
+    concept_reference: ConceptReferenceArtifact,
+    neural_request: Neural3DGenerationRequest,
+    concept_png: Vec<u8>,
+    app: &AppHandle<R>,
+    state: &VisualProviderState,
+    cancellation: CancellationToken,
+) -> Result<GenerateVisualAssetResponse, String> {
+    let neural_adapter = state.hunyuan_adapter(neural_request.request_id.clone());
+    let neural_receipt = neural_adapter
+        .submit(neural_request.clone(), Neural3DBackend::Hunyuan3dV31Pro)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    validate_neural_visual_receipt(&neural_receipt, Neural3DBackend::Hunyuan3dV31Pro)
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let neural_record = VisualRemoteJobRecord {
+        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
+        client_request_id: client_request_id.into(),
+        project_id: brief.project_id.clone(),
+        turn_id: brief.turn_id.clone(),
+        state: VisualRemoteJobState::NeuralSubmitted {
+            binding: Neural3DResumeBinding {
+                brief: brief.clone(),
+                concept_reference: concept_reference.clone(),
+                request: neural_request.clone(),
+                backend: neural_receipt.backend,
+                provider_job_id: neural_receipt.provider_job_id.clone(),
+            },
+        },
+        created_at: job_created_at,
+        updated_at: rust_core_timestamp(),
+    };
+    if let Err(error) = state.repository.put_visual_remote_job(&neural_record) {
+        let _ = neural_adapter.cancel(neural_receipt.clone()).await;
+        return Err(format!("{}: {}", error.code(), error));
+    }
+    poll_neural_visual_asset(
+        client_request_id,
+        brief,
+        concept_reference,
+        concept_png,
+        neural_adapter,
+        neural_receipt,
+        app,
+        state,
+        cancellation,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn poll_neural_visual_asset<R: tauri::Runtime>(
+    client_request_id: &str,
+    brief: VisualDesignBrief,
+    concept_reference: ConceptReferenceArtifact,
+    concept_png: Vec<u8>,
+    neural_adapter: FalHunyuan3dV31ProAdapter,
+    neural_receipt: NeuralVisualProviderReceipt,
+    app: &AppHandle<R>,
+    state: &VisualProviderState,
+    cancellation: CancellationToken,
+) -> Result<GenerateVisualAssetResponse, String> {
+    let neural_deadline = Instant::now() + Duration::from_secs(15 * 60);
+    let artifact = loop {
+        if cancellation.is_cancelled() {
+            let _ = neural_adapter.cancel(neural_receipt.clone()).await;
+            return Err("VISUAL_GENERATION_CANCELLED".into());
+        }
+        if Instant::now() >= neural_deadline {
+            let _ = neural_adapter.cancel(neural_receipt.clone()).await;
+            return Err("NEURAL_3D_GENERATION_TIMEOUT".into());
+        }
+        match neural_adapter
+            .poll(neural_receipt.clone())
+            .await
+            .map_err(|error| format!("{}: {}", error.code, error.message))?
+        {
+            NeuralVisualProviderStatus::Queued | NeuralVisualProviderStatus::Running => {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+            NeuralVisualProviderStatus::Ready { artifact } => break artifact,
+            NeuralVisualProviderStatus::Failed { code } => return Err(code),
+        }
+    };
+
+    emit_visual_progress(
+        app,
+        client_request_id,
+        "readback",
+        "正在校验 GLB 与材质绑定",
+    );
+    let glb = state
+        .repository
+        .read_object(&artifact.glb_sha256)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let inspection =
+        inspect_neural_visual_glb(&glb).map_err(|error| format!("{}: {}", error.code(), error))?;
+    if inspection.sha256 != artifact.glb_sha256 || inspection.byte_size != artifact.glb_byte_size {
+        return Err("NEURAL_GLB_CAS_READBACK_MISMATCH".into());
+    }
+    complete_visual_remote_job(&state.repository, client_request_id, inspection.clone())?;
+    emit_visual_progress(app, client_request_id, "ready", "唯一 3D 结果已就绪");
+    Ok(GenerateVisualAssetResponse {
+        brief,
+        concept_reference,
+        inspection,
+        concept_png_base64: BASE64_STANDARD.encode(concept_png),
+        glb_base64: BASE64_STANDARD.encode(glb),
+    })
+}
+
+fn finish_visual_remote_job(
+    repository: &forgecad_core::CoreRepository,
+    client_request_id: &str,
+    state: VisualRemoteJobState,
+    missing_fallback: &str,
+) -> Result<(), String> {
+    let Some(previous) = repository
+        .visual_remote_job(client_request_id)
+        .map_err(|error| format!("{}: {}", error.code(), error))?
+    else {
+        // Brief/credential failures happen before any remote queue receipt and
+        // therefore correctly have no recoverable journal row.
+        let _ = missing_fallback;
+        return Ok(());
+    };
+    let terminal = VisualRemoteJobRecord {
+        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
+        client_request_id: previous.client_request_id,
+        project_id: previous.project_id,
+        turn_id: previous.turn_id,
+        state,
+        created_at: previous.created_at,
+        updated_at: rust_core_timestamp(),
+    };
+    repository
+        .put_visual_remote_job(&terminal)
+        .map(|_| ())
+        .map_err(|error| format!("{}: {}", error.code(), error))
+}
+
+fn complete_visual_remote_job(
+    repository: &forgecad_core::CoreRepository,
+    client_request_id: &str,
+    inspection: NeuralVisualGlbInspection,
+) -> Result<(), String> {
+    let previous = repository
+        .visual_remote_job(client_request_id)
+        .map_err(|error| format!("{}: {}", error.code(), error))?
+        .ok_or_else(|| "VISUAL_REMOTE_JOB_NOT_FOUND".to_string())?;
+    let VisualRemoteJobState::NeuralSubmitted { binding } = previous.state else {
+        return Err("VISUAL_REMOTE_JOB_COMPLETION_STATE_INVALID".into());
+    };
+    let completed = VisualRemoteJobRecord {
+        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
+        client_request_id: previous.client_request_id,
+        project_id: previous.project_id,
+        turn_id: previous.turn_id,
+        state: VisualRemoteJobState::Completed {
+            binding,
+            inspection,
+        },
+        created_at: previous.created_at,
+        updated_at: rust_core_timestamp(),
+    };
+    repository
+        .put_visual_remote_job(&completed)
+        .map(|_| ())
+        .map_err(|error| format!("{}: {}", error.code(), error))
+}
+
+fn stable_visual_error_code(message: &str, fallback: &str) -> String {
+    let candidate = message.split(':').next().unwrap_or_default().trim();
+    if !candidate.is_empty()
+        && candidate.len() <= 96
+        && candidate
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+    {
+        candidate.into()
+    } else {
+        fallback.into()
+    }
+}
+
+fn emit_visual_progress<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    client_request_id: &str,
+    stage: &'static str,
+    detail: &'static str,
+) {
+    let _ = app.emit(
+        "forgecad://visual-generation-progress",
+        VisualGenerationProgress {
+            client_request_id: client_request_id.into(),
+            stage,
+            detail,
+        },
+    );
+}
+
+fn check_visual_cancellation(cancellation: &CancellationToken) -> Result<(), String> {
+    if cancellation.is_cancelled() {
+        Err("VISUAL_GENERATION_CANCELLED".into())
+    } else {
+        Ok(())
+    }
+}
+
+fn stable_visual_id(prefix: &str, seed: &str) -> String {
+    let digest = sha256_text(seed);
+    format!("{prefix}_{}", &digest[..24])
+}
+
+fn sha256_text(value: &str) -> String {
+    format!("{:x}", Sha256::digest(value.as_bytes()))
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VisualProviderConfigMetadata {
+    provider: String,
+    configured: bool,
+    storage: String,
+    requires_os_prompt: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SaveVisualProviderConfigRequest {
+    fal_api_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SubmitConceptImageRequest {
+    brief: VisualDesignBrief,
+    request: ConceptImageGenerationRequest,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PollConceptImageRequest {
+    brief: VisualDesignBrief,
+    request: ConceptImageGenerationRequest,
+    receipt: ConceptImageProviderReceipt,
+    reference_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CancelConceptImageRequest {
+    request: ConceptImageGenerationRequest,
+    receipt: ConceptImageProviderReceipt,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PollNeural3dRequest {
+    request: Neural3DGenerationRequest,
+    receipt: NeuralVisualProviderReceipt,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PollConceptImageResponse {
+    status: ConceptImageProviderStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<ConceptReferenceArtifact>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GenerateVisualAssetRequest {
+    client_request_id: String,
+    project_id: String,
+    turn_id: String,
+    user_intent: String,
+    quality_tier: VisualQualityTier,
+    #[serde(default)]
+    input_evidence: Vec<VisualInputEvidence>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateVisualAssetResponse {
+    brief: VisualDesignBrief,
+    concept_reference: ConceptReferenceArtifact,
+    inspection: NeuralVisualGlbInspection,
+    concept_png_base64: String,
+    glb_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VisualGenerationProgress {
+    client_request_id: String,
+    stage: &'static str,
+    detail: &'static str,
+}
+
+impl Drop for SaveVisualProviderConfigRequest {
+    fn drop(&mut self) {
+        self.fal_api_key.zeroize();
+    }
 }
 
 static K001_PACKAGED_PROBE_COMPLETION: OnceLock<(Mutex<bool>, Condvar)> = OnceLock::new();
@@ -1886,6 +2730,188 @@ fn clear_provider_config(
     ))
 }
 
+#[tauri::command]
+fn get_visual_provider_config(
+    state: State<'_, VisualProviderState>,
+) -> Result<VisualProviderConfigMetadata, String> {
+    Ok(VisualProviderConfigMetadata {
+        provider: "fal_flux_2".into(),
+        configured: state
+            .fal_credentials
+            .configured()
+            .map_err(|error| error.message)?,
+        storage: "private_secret_file".into(),
+        requires_os_prompt: false,
+    })
+}
+
+#[tauri::command]
+fn save_visual_provider_config(
+    mut request: SaveVisualProviderConfigRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<VisualProviderConfigMetadata, String> {
+    let secret = std::mem::take(&mut request.fal_api_key);
+    state
+        .fal_credentials
+        .save(secret)
+        .map_err(|error| error.message)?;
+    get_visual_provider_config(state)
+}
+
+#[tauri::command]
+fn clear_visual_provider_config(
+    state: State<'_, VisualProviderState>,
+) -> Result<VisualProviderConfigMetadata, String> {
+    state
+        .fal_credentials
+        .delete()
+        .map_err(|error| error.message)?;
+    get_visual_provider_config(state)
+}
+
+#[tauri::command]
+async fn submit_concept_image(
+    input: SubmitConceptImageRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<ConceptImageProviderReceipt, String> {
+    input
+        .request
+        .validate_against(&input.brief)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let backend = *input
+        .request
+        .backend_preferences
+        .first()
+        .ok_or_else(|| "CONCEPT_IMAGE_BACKEND_PREFERENCES_INVALID".to_string())?;
+    if backend != ConceptImageBackend::FalFlux2 {
+        return Err("CONCEPT_IMAGE_BACKEND_NOT_CONFIGURED".into());
+    }
+    let adapter = state.fal_adapter(
+        input.request.request_id.clone(),
+        input.request.input_image_object_sha256.is_some(),
+    );
+    adapter
+        .submit(input.request, backend)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+async fn poll_concept_image(
+    input: PollConceptImageRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<PollConceptImageResponse, String> {
+    input
+        .request
+        .validate_against(&input.brief)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    validate_concept_receipt(&input.receipt, &input.request)
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let adapter = state.fal_adapter(
+        input.request.request_id.clone(),
+        input.request.input_image_object_sha256.is_some(),
+    );
+    let status = adapter
+        .poll(input.receipt.clone())
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let reference = match &status {
+        ConceptImageProviderStatus::Ready { output } => Some(
+            accept_concept_output(
+                &input.brief,
+                &input.request,
+                &input.receipt,
+                output,
+                input.reference_id,
+            )
+            .map_err(|error| format!("{}: {}", error.code, error.message))?,
+        ),
+        _ => None,
+    };
+    Ok(PollConceptImageResponse { status, reference })
+}
+
+#[tauri::command]
+async fn cancel_concept_image(
+    input: CancelConceptImageRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<(), String> {
+    validate_concept_receipt(&input.receipt, &input.request)
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let uses_input_image = input.request.input_image_object_sha256.is_some();
+    let adapter = state.fal_adapter(input.request.request_id, uses_input_image);
+    adapter
+        .cancel(input.receipt)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+async fn submit_neural_3d(
+    request: Neural3DGenerationRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<NeuralVisualProviderReceipt, String> {
+    request
+        .validate()
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let backend = *request
+        .backend_preferences
+        .first()
+        .ok_or_else(|| "NEURAL_3D_BACKEND_PREFERENCES_INVALID".to_string())?;
+    if backend != Neural3DBackend::Hunyuan3dV31Pro {
+        return Err("NEURAL_3D_BACKEND_NOT_CONFIGURED".into());
+    }
+    let adapter = state.hunyuan_adapter(request.request_id.clone());
+    adapter
+        .submit(request, backend)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+async fn poll_neural_3d(
+    input: PollNeural3dRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<NeuralVisualProviderStatus, String> {
+    input
+        .request
+        .validate()
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    if input.receipt.backend != Neural3DBackend::Hunyuan3dV31Pro
+        || !input
+            .request
+            .backend_preferences
+            .contains(&input.receipt.backend)
+    {
+        return Err("NEURAL_VISUAL_REMOTE_RECEIPT_MISMATCH".into());
+    }
+    let adapter = state.hunyuan_adapter(input.request.request_id);
+    adapter
+        .poll(input.receipt)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+async fn cancel_neural_3d(
+    input: PollNeural3dRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<(), String> {
+    if input.receipt.backend != Neural3DBackend::Hunyuan3dV31Pro
+        || !input
+            .request
+            .backend_preferences
+            .contains(&input.receipt.backend)
+    {
+        return Err("NEURAL_VISUAL_REMOTE_RECEIPT_MISMATCH".into());
+    }
+    let adapter = state.hunyuan_adapter(input.request.request_id);
+    adapter
+        .cancel(input.receipt)
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
 impl AgentProcessState {
     fn shutdown_managed(&self) {
         if let Ok(mut child_guard) = self.child.lock() {
@@ -2154,7 +3180,7 @@ fn main() {
     let app_server_bridge = match AppServerBridge::new_production(
         &agent_base_url(),
         internal_capability_token.clone(),
-        native_provider,
+        native_provider.clone(),
         Arc::clone(&rust_core),
     ) {
         Ok(bridge) => bridge,
@@ -2162,6 +3188,22 @@ fn main() {
             let _ = rust_core.rollback_cutover_before_publish();
             panic!("ForgeCAD app-server bridge initialization failed before cutover: {error}");
         }
+    };
+    let visual_transport = ReqwestVisualHttpTransport::new().unwrap_or_else(|error| {
+        let _ = rust_core.rollback_cutover_before_publish();
+        panic!(
+            "Forge Studio visual HTTPS transport failed before cutover: {}",
+            error.message
+        );
+    });
+    let visual_provider_state = VisualProviderState {
+        fal_credentials: Arc::new(PrivateFileFalCredentialSource::new(
+            library_root.join("secrets").join("visual").join("fal.key"),
+        )),
+        transport: Arc::new(visual_transport),
+        repository: Arc::new(rust_core.repository().clone()),
+        brief_director: VisualBriefDirector::new(native_provider),
+        active_requests: Mutex::new(HashMap::new()),
     };
     if let Err(error) = rust_core.publish() {
         let _ = rust_core.rollback_cutover_before_publish();
@@ -2174,6 +3216,7 @@ fn main() {
     let packaged_probe_core = Arc::clone(&rust_core);
     tauri::Builder::default()
         .manage(app_server_bridge)
+        .manage(visual_provider_state)
         .manage(AgentProcessState {
             child: Mutex::new(None),
             mode: Mutex::new(AGENT_MODE_LOCAL.to_string()),
@@ -2212,6 +3255,7 @@ fn main() {
                     deepseek_delta_acceptance_probe::run_if_enabled(
                         app.state::<AppServerBridge>().inner().clone(),
                     );
+                    visual_provider_acceptance_probe::run_if_enabled(app.handle().clone());
                 }
                 Err(error) => {
                     eprintln!("ForgeCAD Agent startup failed: {error}");
@@ -2228,6 +3272,20 @@ fn main() {
             get_provider_config,
             save_provider_config,
             clear_provider_config,
+            get_visual_provider_config,
+            save_visual_provider_config,
+            clear_visual_provider_config,
+            direct_visual_brief,
+            generate_visual_asset,
+            cancel_visual_asset_generation,
+            list_recoverable_visual_asset_generations,
+            resume_visual_asset_generation,
+            submit_concept_image,
+            poll_concept_image,
+            cancel_concept_image,
+            submit_neural_3d,
+            poll_neural_3d,
+            cancel_neural_3d,
             forgecad_k001_packaged_probe_config,
             forgecad_k001_packaged_probe_report,
             forgecad_k002_packaged_probe_config,
@@ -2905,29 +3963,311 @@ fn agent_python(repo_root: &Path) -> PathBuf {
 mod tests {
     use std::{
         cell::Cell,
-        collections::BTreeMap,
+        collections::{BTreeMap, VecDeque},
         env,
         ffi::OsStr,
+        future::Future,
+        io::Cursor,
         process::{Command, Stdio},
+        sync::{Arc, Mutex},
     };
 
+    use forgecad_app_server::ConceptImageProviderError;
     use forgecad_app_server_protocol::{AppServerCursor, CursorPhase};
+    use forgecad_core::{
+        ConceptImageBackend, ConceptImageGenerationRequest, ConceptImageResumeBinding,
+        CoreRepository, Project, ProjectStatus, VisualDesignBrief, VisualInputKind,
+        VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
+        CONCEPT_IMAGE_GENERATION_REQUEST_SCHEMA_VERSION, VISUAL_DESIGN_BRIEF_SCHEMA_VERSION,
+        VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION,
+    };
+    use image::ImageFormat;
+    use serde_json::{json, Value};
+    use sha2::{Digest, Sha256};
+    use tempfile::tempdir;
+
+    use crate::visual_provider_adapters::{
+        VisualHttpFuture, VisualHttpRequest, VisualHttpResponse, VisualHttpTransport,
+    };
 
     use super::{
         agent_health_url, apply_sidecar_environment, arm_webview_qa_glb_readback,
         arm_webview_qa_png_dimensions, build_loopback_get_request,
         classify_capability_ownership_response, finish_packaged_probe_report,
-        generate_internal_capability_token, status_from_probe, valid_internal_capability_token,
-        validate_arm_webview_qa_success, validate_k001_probe_success, validate_k002_probe_success,
-        validate_provider_config_input, AgentProbe, ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture,
-        ArmWebviewQaReport, K001PackagedProbeReport, K002PackagedProbeReport,
-        LoopbackProbeResponse, ProviderConfigMetadata, ARM_WEBVIEW_QA_SCHEMA,
+        generate_internal_capability_token, resume_visual_asset_inner, status_from_probe,
+        valid_internal_capability_token, validate_arm_webview_qa_success,
+        validate_k001_probe_success, validate_k002_probe_success, validate_provider_config_input,
+        AgentProbe, ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture, ArmWebviewQaReport,
+        CancellationToken, K001PackagedProbeReport, K002PackagedProbeReport,
+        LocalRoboticArmMvpProvider, LoopbackProbeResponse, PrivateFileFalCredentialSource,
+        ProviderConfigMetadata, VisualBriefDirector, VisualProviderState, ARM_WEBVIEW_QA_SCHEMA,
         K001_PACKAGED_PROBE_SCHEMA, K002_PACKAGED_PROBE_SCHEMA, PROVIDER_ENVIRONMENT_KEYS,
         RESTRICTED_GEOMETRY_CAPABILITY_HEADER, RESTRICTED_GEOMETRY_OWNERSHIP_PATH,
     };
 
     const SIDECAR_ENVIRONMENT_PROBE_CHILD: &str = "FORGECAD_TEST_SIDECAR_ENVIRONMENT_PROBE_CHILD";
     const SIDECAR_ENVIRONMENT_PROBE_MARKER: &str = "ForgeCAD sidecar environment probe=";
+
+    struct ScriptedVisualTransport {
+        responses: Mutex<VecDeque<VisualHttpResponse>>,
+        requests: Mutex<Vec<VisualHttpRequest>>,
+    }
+
+    impl ScriptedVisualTransport {
+        fn new(responses: Vec<VisualHttpResponse>) -> Self {
+            Self {
+                responses: Mutex::new(responses.into()),
+                requests: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl VisualHttpTransport for ScriptedVisualTransport {
+        fn execute(&self, request: VisualHttpRequest) -> VisualHttpFuture<VisualHttpResponse> {
+            self.requests.lock().unwrap().push(request);
+            let response = self.responses.lock().unwrap().pop_front();
+            Box::pin(async move {
+                response.ok_or_else(|| {
+                    ConceptImageProviderError::new(
+                        "TEST_VISUAL_TRANSPORT_EXHAUSTED",
+                        "Scripted visual response sequence was exhausted.",
+                    )
+                })
+            })
+        }
+    }
+
+    fn visual_json(value: Value) -> VisualHttpResponse {
+        VisualHttpResponse {
+            status: 200,
+            content_type: Some("application/json".into()),
+            body: serde_json::to_vec(&value).unwrap(),
+            network_call_made: true,
+        }
+    }
+
+    fn visual_concept_png() -> Vec<u8> {
+        let image = image::RgbaImage::from_pixel(1024, 1024, image::Rgba([8, 24, 48, 255]));
+        let mut bytes = Vec::new();
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+            .unwrap();
+        bytes
+    }
+
+    fn visual_pbr_candidate_glb() -> Vec<u8> {
+        let mut binary = Vec::new();
+        for value in [0.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0] {
+            binary.extend_from_slice(&value.to_le_bytes());
+        }
+        for index in [0_u16, 1, 2] {
+            binary.extend_from_slice(&index.to_le_bytes());
+        }
+        while binary.len() % 4 != 0 {
+            binary.push(0);
+        }
+        let document = json!({
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{"mesh": 0}],
+            "buffers": [{"byteLength": binary.len()}],
+            "bufferViews": [
+                {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+                {"buffer": 0, "byteOffset": 36, "byteLength": 6}
+            ],
+            "accessors": [
+                {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0,0,0], "max": [1,1,0]},
+                {"bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR"}
+            ],
+            "materials": [{"pbrMetallicRoughness": {"baseColorFactor": [0.1,0.2,0.3,1], "metallicFactor": 0.8, "roughnessFactor": 0.35}}],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "material": 0}]}]
+        });
+        let mut json_bytes = serde_json::to_vec(&document).unwrap();
+        while json_bytes.len() % 4 != 0 {
+            json_bytes.push(b' ');
+        }
+        let total = 12 + 8 + json_bytes.len() + 8 + binary.len();
+        let mut glb = Vec::with_capacity(total);
+        glb.extend_from_slice(b"glTF");
+        glb.extend_from_slice(&2_u32.to_le_bytes());
+        glb.extend_from_slice(&(total as u32).to_le_bytes());
+        glb.extend_from_slice(&(json_bytes.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x4e4f534a_u32.to_le_bytes());
+        glb.extend_from_slice(&json_bytes);
+        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x004e4942_u32.to_le_bytes());
+        glb.extend_from_slice(&binary);
+        glb
+    }
+
+    fn run_visual_async<T>(future: impl Future<Output = T>) -> T {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(future)
+    }
+
+    #[test]
+    fn persisted_concept_receipt_resumes_through_neural_glb_and_seals_completion() {
+        run_visual_async(async {
+            let root = tempdir().unwrap();
+            let repository = Arc::new(
+                CoreRepository::open(
+                    root.path().join("library.db"),
+                    root.path(),
+                    "visual_resume_desktop_gate",
+                )
+                .unwrap(),
+            );
+            repository
+                .ensure_default_domain_profile("2026-07-26T11:00:00Z")
+                .unwrap();
+            repository
+                .create_project(&Project {
+                    project_id: "project_visual_desktop_gate".into(),
+                    profile_id: "profile_weapon_concept_v1".into(),
+                    domain_type: "weapon_concept".into(),
+                    name: "Visual desktop gate".into(),
+                    status: ProjectStatus::Active,
+                    current_version_id: None,
+                    created_at: "2026-07-26T11:00:01Z".into(),
+                    updated_at: "2026-07-26T11:00:01Z".into(),
+                })
+                .unwrap();
+            let credentials = Arc::new(PrivateFileFalCredentialSource::new(
+                root.path().join("secrets").join("visual").join("fal.key"),
+            ));
+            credentials.save("test-only-visual-secret".into()).unwrap();
+            let concept_png = visual_concept_png();
+            let glb = visual_pbr_candidate_glb();
+            let transport = Arc::new(ScriptedVisualTransport::new(vec![
+                visual_json(json!({"status": "COMPLETED"})),
+                visual_json(json!({
+                    "has_nsfw_concepts": [false],
+                    "images": [{
+                        "width": 1024,
+                        "height": 1024,
+                        "content_type": "image/png",
+                        "url": "https://v3.fal.media/files/test/concept.png"
+                    }]
+                })),
+                VisualHttpResponse {
+                    status: 200,
+                    content_type: Some("image/png".into()),
+                    body: concept_png.clone(),
+                    network_call_made: true,
+                },
+                visual_json(json!({"request_id": "hunyuan-resume-job"})),
+                visual_json(json!({"status": "COMPLETED"})),
+                visual_json(json!({
+                    "model_glb": {
+                        "content_type": "model/gltf-binary",
+                        "file_size": glb.len(),
+                        "url": "https://v3b.fal.media/files/test/model.glb"
+                    }
+                })),
+                VisualHttpResponse {
+                    status: 200,
+                    content_type: Some("model/gltf-binary".into()),
+                    body: glb.clone(),
+                    network_call_made: true,
+                },
+            ]));
+            let state = VisualProviderState {
+                fal_credentials: credentials,
+                transport: transport.clone(),
+                repository: repository.clone(),
+                brief_director: VisualBriefDirector::new(Arc::new(
+                    LocalRoboticArmMvpProvider::new(),
+                )),
+                active_requests: Mutex::new(std::collections::HashMap::new()),
+            };
+            let brief = VisualDesignBrief {
+                schema_version: VISUAL_DESIGN_BRIEF_SCHEMA_VERSION.into(),
+                brief_id: "visual_brief_desktop_gate".into(),
+                project_id: "project_visual_desktop_gate".into(),
+                turn_id: "visual_turn_desktop_gate".into(),
+                input_kind: VisualInputKind::Text,
+                user_intent_sha256: "a".repeat(64),
+                object_class: "fictional mechanical collectible".into(),
+                visual_summary: "Layered titanium shell with luminous blue surface lines.".into(),
+                style_terms: vec!["industrial_futurism".into()],
+                material_terms: vec!["brushed_titanium".into()],
+                input_evidence: vec![],
+            };
+            let request = ConceptImageGenerationRequest {
+                schema_version: CONCEPT_IMAGE_GENERATION_REQUEST_SCHEMA_VERSION.into(),
+                request_id: "concept_request_desktop_gate".into(),
+                project_id: brief.project_id.clone(),
+                turn_id: brief.turn_id.clone(),
+                brief_id: brief.brief_id.clone(),
+                prompt: "One complete isolated fictional mechanical collectible, centered three-quarter view, clean background.".into(),
+                input_image_object_sha256: None,
+                input_image_media_type: None,
+                backend_preferences: vec![ConceptImageBackend::FalFlux2],
+                width: 1024,
+                height: 1024,
+                output_media_type: "image/png".into(),
+                isolated_subject: true,
+                clean_background: true,
+                image_count: 1,
+                idempotency_key: "concept_idempotency_desktop_gate".into(),
+            };
+            let binding = ConceptImageResumeBinding::from_submitted_request(
+                brief,
+                &request,
+                ConceptImageBackend::FalFlux2,
+                "flux-resume-job".into(),
+                "concept_reference_desktop_gate".into(),
+                VisualQualityTier::StandardAsset,
+            )
+            .unwrap();
+            let record = VisualRemoteJobRecord {
+                schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
+                client_request_id: "visual_generation_desktop_gate".into(),
+                project_id: binding.brief.project_id.clone(),
+                turn_id: binding.brief.turn_id.clone(),
+                state: VisualRemoteJobState::ConceptSubmitted { binding },
+                created_at: "2026-07-26T11:00:02Z".into(),
+                updated_at: "2026-07-26T11:00:03Z".into(),
+            };
+            repository.put_visual_remote_job(&record).unwrap();
+            let app = tauri::test::mock_app();
+            let response = resume_visual_asset_inner(
+                "visual_generation_desktop_gate",
+                record,
+                app.handle(),
+                &state,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                response.inspection.sha256,
+                format!("{:x}", Sha256::digest(&glb))
+            );
+            assert_eq!(response.inspection.material_count, 1);
+            assert!(matches!(
+                repository
+                    .visual_remote_job("visual_generation_desktop_gate")
+                    .unwrap()
+                    .unwrap()
+                    .state,
+                VisualRemoteJobState::Completed { .. }
+            ));
+            assert!(repository
+                .recoverable_visual_remote_jobs(None)
+                .unwrap()
+                .is_empty());
+            let requests = transport.requests.lock().unwrap();
+            assert_eq!(requests.len(), 7);
+            assert!(requests[2].authorization.is_none());
+            assert!(requests[6].authorization.is_none());
+            assert!(!format!("{requests:?}").contains("test-only-visual-secret"));
+        });
+    }
 
     #[test]
     fn packaged_probe_completion_is_signaled_after_validation_and_recording_even_on_failure() {

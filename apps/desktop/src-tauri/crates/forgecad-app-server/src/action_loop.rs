@@ -499,13 +499,15 @@ impl ActionLoop {
         // tools to the single plan contract; Rust still validates the full
         // Product Tool schema after the call and the ChangeSet path remains
         // the only write route.
-        let provider_tools = provider_definitions_for_context(&self.registry, &input.context);
+        let provider_input_mode = provider_input_mode_for_context(&input.context);
+        let provider_tools =
+            provider_definitions_for_context(&self.registry, &input.context, provider_input_mode);
         let mut seen_call_ids = BTreeSet::new();
         let mut provider_schema_repair_attempts = 0u8;
         let mut product_tool_recovery_attempts = 0u8;
         let mut product_tool_attempts = 0u32;
 
-        loop {
+        'provider_turn: loop {
             if cancellation.is_cancelled() {
                 return Err(failure(
                     "ACTION_LOOP_CANCELLED",
@@ -586,6 +588,7 @@ impl ActionLoop {
                 context_digest: input.context.context_digest.clone(),
                 messages: messages.clone(),
                 tools: provider_tools.clone(),
+                require_tool_call: false,
                 max_output_tokens: self
                     .config
                     .max_output_tokens_per_request
@@ -899,12 +902,13 @@ impl ActionLoop {
                         product_tool_attempts = product_tool_attempts.saturating_add(1);
                         let call_number = product_tool_attempts;
                         usage.product_tool_calls = call_number;
-                        let request = match self.registry.build_execution_request(
+                        let request = match self.registry.build_execution_request_for_mode(
                             &input.turn_id,
                             &call,
                             &input.execution_id,
                             &input.cancellation_id,
                             &input.cancellation_token,
+                            provider_input_mode,
                         ) {
                             Ok(request) => request,
                             Err(error) => {
@@ -920,6 +924,7 @@ impl ActionLoop {
                                         product_tool_schema_recovery_message(
                                             &call.name,
                                             &error.code,
+                                            provider_input_mode,
                                         )
                                     {
                                         product_tool_recovery_attempts =
@@ -946,7 +951,11 @@ impl ActionLoop {
                                             tool_calls: Vec::new(),
                                             ephemeral_reasoning: None,
                                         });
-                                        continue;
+                                        // Do not execute a second stale tool
+                                        // call from the same Provider reply.
+                                        // A repair must be a fresh model turn
+                                        // with the fixed Rust message.
+                                        continue 'provider_turn;
                                     }
                                 }
                                 return Err(failure(
@@ -1124,7 +1133,11 @@ impl ActionLoop {
                                         tool_calls: Vec::new(),
                                         ephemeral_reasoning: None,
                                     });
-                                    continue;
+                                    // The recovery envelope applies to one
+                                    // fresh Provider turn only; later calls
+                                    // in this response were authored before
+                                    // Rust supplied the correction.
+                                    continue 'provider_turn;
                                 }
                             }
                             return Err(non_completed_tool_failure(
@@ -1178,6 +1191,46 @@ impl ActionLoop {
                                 trace,
                             });
                         }
+                        // An initial robotic-arm plan is the one bounded piece
+                        // of creative work delegated to the Provider.  Once
+                        // Rust has normalized its ArmDesignIntent and selected
+                        // the reviewed root Recipe, the rest of V003 is a
+                        // deterministic Product Tool pipeline.  Requiring a
+                        // model to remember five mechanical follow-up calls
+                        // made real DeepSeek turns stop after a valid plan and
+                        // is neither a user-facing capability nor useful
+                        // creative freedom.  Continue in Rust instead.
+                        if let Some(steps) =
+                            rust_owned_visual_program_completion_steps(&call.name, &output_value)
+                                .or_else(|| {
+                                    rust_owned_initial_arm_synthesis_steps(
+                                        &call.name,
+                                        &output_value,
+                                    )
+                                })
+                        {
+                            match self
+                                .complete_rust_owned_initial_arm_synthesis(
+                                    &input,
+                                    &call.call_id,
+                                    steps,
+                                    cancellation.clone(),
+                                    deadline,
+                                    started,
+                                    network_call_made,
+                                    &mut product_tool_attempts,
+                                    &mut usage,
+                                    &mut item_events,
+                                    &mut trace,
+                                    item_event_sink.as_ref(),
+                                    &mut messages,
+                                )
+                                .await?
+                            {
+                                Some(result) => return Ok(result),
+                                None => continue 'provider_turn,
+                            }
+                        }
                         messages.push(ProviderMessage {
                             role: ProviderRole::Tool,
                             content: serde_json::to_string(&output_value).map_err(|_| {
@@ -1204,13 +1257,316 @@ impl ActionLoop {
             }
         }
     }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn complete_rust_owned_initial_arm_synthesis(
+        &self,
+        input: &ActionLoopInput,
+        plan_call_id: &str,
+        steps: Vec<(&'static str, Value)>,
+        cancellation: CancellationToken,
+        deadline: Instant,
+        started: Instant,
+        network_call_made: bool,
+        product_tool_attempts: &mut u32,
+        usage: &mut ActionLoopUsage,
+        item_events: &mut Vec<ActionLoopItemEvent>,
+        trace: &mut RedactedExecutionTrace,
+        item_event_sink: &dyn ActionLoopItemEventSink,
+        messages: &mut Vec<ProviderMessage>,
+    ) -> Result<Option<ActionLoopResult>, ActionLoopFailure> {
+        for (index, (tool_name, arguments)) in steps.into_iter().enumerate() {
+            if *product_tool_attempts >= self.config.max_tool_calls {
+                return Err(failure(
+                    "ACTION_LOOP_TOOL_CALL_BUDGET_EXCEEDED",
+                    ActionLoopFailureKind::ProductToolBudget,
+                    "Rust-owned initial synthesis exceeded the Product Tool call budget.",
+                    false,
+                    network_call_made,
+                    usage,
+                    item_events,
+                    trace,
+                    started,
+                    TracePhase::Budget,
+                    TraceEventKind::BudgetExceeded,
+                ));
+            }
+            let call = crate::ProviderToolCall {
+                call_id: format!("auto_{plan_call_id}_{}", index + 1),
+                name: tool_name.into(),
+                arguments,
+            };
+            *product_tool_attempts = product_tool_attempts.saturating_add(1);
+            usage.product_tool_calls = *product_tool_attempts;
+            let request = self
+                .registry
+                .build_execution_request_for_mode(
+                    &input.turn_id,
+                    &call,
+                    &input.execution_id,
+                    &input.cancellation_id,
+                    &input.cancellation_token,
+                    crate::ProviderToolInputMode::InitialSynthesis,
+                )
+                .map_err(|error| {
+                    failure(
+                        &error.code,
+                        ActionLoopFailureKind::ProductToolSchema,
+                        &error.message,
+                        false,
+                        network_call_made,
+                        usage,
+                        item_events,
+                        trace,
+                        started,
+                        TracePhase::ProductTool,
+                        TraceEventKind::Rejected,
+                    )
+                })?;
+            if let Err(error) = emit_item_event(
+                item_events,
+                ActionLoopItemEvent::tool_call(&request),
+                item_event_sink,
+                &cancellation,
+                deadline,
+            )
+            .await
+            {
+                return Err(item_event_failure(
+                    error,
+                    network_call_made,
+                    usage,
+                    item_events,
+                    trace,
+                    started,
+                ));
+            }
+            let mut tool_started = RedactedTraceEntry::new(
+                TracePhase::ProductTool,
+                TraceEventKind::Started,
+                elapsed_ms(started),
+            );
+            tool_started.call_id = Some(call.call_id.clone());
+            tool_started.tool_name = Some(call.name.clone());
+            tool_started.input_sha256 = Some(RedactedExecutionTrace::digest_value(&call.arguments));
+            trace.push(tool_started);
+
+            let tool_scope = cancellation.child_token();
+            let result = match guarded(
+                self.executor.execute(request.clone(), tool_scope.clone()),
+                tool_scope,
+                deadline,
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(GuardedError::Cancelled) => {
+                    return Err(failure(
+                        "ACTION_LOOP_CANCELLED",
+                        ActionLoopFailureKind::Cancelled,
+                        "Rust-owned initial synthesis was cancelled; late output is rejected.",
+                        true,
+                        network_call_made,
+                        usage,
+                        item_events,
+                        trace,
+                        started,
+                        TracePhase::Cancellation,
+                        TraceEventKind::Cancelled,
+                    ));
+                }
+                Err(GuardedError::Timeout) => {
+                    return Err(failure(
+                        "ACTION_LOOP_WALL_TIME_EXCEEDED",
+                        ActionLoopFailureKind::WallTimeBudget,
+                        "Rust-owned initial synthesis exceeded its wall-time budget.",
+                        true,
+                        network_call_made,
+                        usage,
+                        item_events,
+                        trace,
+                        started,
+                        TracePhase::Budget,
+                        TraceEventKind::BudgetExceeded,
+                    ));
+                }
+                Err(GuardedError::Inner(error)) => {
+                    let status = if error.kind == crate::ProductToolPortErrorKind::Cancelled {
+                        ActionLoopItemStatus::Cancelled
+                    } else {
+                        ActionLoopItemStatus::Failed
+                    };
+                    let category = match error.kind {
+                        crate::ProductToolPortErrorKind::Cancelled => {
+                            ProductToolFailureCategory::Cancelled
+                        }
+                        crate::ProductToolPortErrorKind::Timeout => {
+                            ProductToolFailureCategory::Timeout
+                        }
+                        crate::ProductToolPortErrorKind::Unavailable
+                        | crate::ProductToolPortErrorKind::InvalidResponse => {
+                            ProductToolFailureCategory::Execution
+                        }
+                    };
+                    if let Err(sink_error) = emit_item_event(
+                        item_events,
+                        ActionLoopItemEvent::synthetic_failure(
+                            &request,
+                            status,
+                            category,
+                            error.code.clone(),
+                            error.message.clone(),
+                        ),
+                        item_event_sink,
+                        &cancellation,
+                        deadline,
+                    )
+                    .await
+                    {
+                        return Err(item_event_failure(
+                            sink_error,
+                            network_call_made,
+                            usage,
+                            item_events,
+                            trace,
+                            started,
+                        ));
+                    }
+                    return Err(tool_port_failure(
+                        error,
+                        network_call_made,
+                        usage,
+                        item_events,
+                        trace,
+                        started,
+                    ));
+                }
+            };
+            if let Err(error) = self.registry.validate_result(&request, &result) {
+                if let Err(sink_error) = emit_item_event(
+                    item_events,
+                    ActionLoopItemEvent::synthetic_failure(
+                        &request,
+                        ActionLoopItemStatus::Rejected,
+                        ProductToolFailureCategory::Schema,
+                        error.code.clone(),
+                        error.message.clone(),
+                    ),
+                    item_event_sink,
+                    &cancellation,
+                    deadline,
+                )
+                .await
+                {
+                    return Err(item_event_failure(
+                        sink_error,
+                        network_call_made,
+                        usage,
+                        item_events,
+                        trace,
+                        started,
+                    ));
+                }
+                return Err(failure(
+                    &error.code,
+                    ActionLoopFailureKind::ProductToolSchema,
+                    &error.message,
+                    false,
+                    network_call_made,
+                    usage,
+                    item_events,
+                    trace,
+                    started,
+                    TracePhase::ProductTool,
+                    TraceEventKind::Rejected,
+                ));
+            }
+            if let Err(error) = emit_item_event(
+                item_events,
+                ActionLoopItemEvent::tool_result(&request, &result),
+                item_event_sink,
+                &cancellation,
+                deadline,
+            )
+            .await
+            {
+                return Err(item_event_failure(
+                    error,
+                    network_call_made,
+                    usage,
+                    item_events,
+                    trace,
+                    started,
+                ));
+            }
+            if result.status != ProductToolExecutionStatus::Completed {
+                return Err(non_completed_tool_failure(
+                    &result,
+                    network_call_made,
+                    usage,
+                    item_events,
+                    trace,
+                    started,
+                ));
+            }
+            let output = result
+                .validated_output
+                .expect("validated completed result has output");
+            let output_value = Value::Object(output.value.into_iter().collect());
+            let mut tool_completed = RedactedTraceEntry::new(
+                TracePhase::ProductTool,
+                TraceEventKind::Completed,
+                elapsed_ms(started),
+            );
+            tool_completed.call_id = Some(call.call_id);
+            tool_completed.tool_name = Some(call.name);
+            tool_completed.output_sha256 =
+                Some(RedactedExecutionTrace::digest_value(&output_value));
+            trace.push(tool_completed);
+            if tool_name == "evaluate_candidate"
+                && output_value.get("hard_gate_passed") == Some(&Value::Bool(false))
+            {
+                messages.push(ProviderMessage {
+                    role: ProviderRole::Tool,
+                    content: serde_json::to_string(&json!({
+                        "build_status":"convergence_failed",
+                        "evaluation":output_value,
+                        "required_next_action":"Inspect the current ForgeVisualProgram, apply one typed same-intent local patch targeting the reported failures, then call the reserved build once again. At most two visual repair attempts are accepted."
+                    }))
+                    .expect("bounded convergence repair message serializes"),
+                    // The Provider issued the build signal; the internal
+                    // evidence calls are Rust-owned and therefore collapse
+                    // back into that same tool result boundary.
+                    tool_call_id: Some(plan_call_id.to_string()),
+                    tool_calls: Vec::new(),
+                    ephemeral_reasoning: None,
+                });
+                return Ok(None);
+            }
+        }
+        trace.push(RedactedTraceEntry::new(
+            TracePhase::Final,
+            TraceEventKind::Completed,
+            elapsed_ms(started),
+        ));
+        Ok(Some(ActionLoopResult {
+            execution_id: input.execution_id.clone(),
+            turn_id: input.turn_id.clone(),
+            final_content: "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。".into(),
+            usage: usage.clone(),
+            network_call_made,
+            item_events: item_events.clone(),
+            trace: trace.clone(),
+        }))
+    }
 }
 
 fn provider_definitions_for_context(
     registry: &ProductToolRegistry,
     context: &AgentContext,
+    input_mode: crate::ProviderToolInputMode,
 ) -> Vec<crate::ProviderToolDefinition> {
-    let definitions = registry.provider_definitions();
+    let definitions = registry.provider_definitions_for_mode(input_mode);
     if !is_plan_only_continuation(context) {
         return definitions;
     }
@@ -1218,6 +1574,14 @@ fn provider_definitions_for_context(
         .into_iter()
         .filter(|definition| definition.name == "plan_complete_concept")
         .collect()
+}
+
+fn provider_input_mode_for_context(context: &AgentContext) -> crate::ProviderToolInputMode {
+    if is_plan_only_continuation(context) {
+        crate::ProviderToolInputMode::ArmContinuationDelta
+    } else {
+        crate::ProviderToolInputMode::InitialSynthesis
+    }
 }
 
 fn is_plan_only_continuation(context: &AgentContext) -> bool {
@@ -1265,6 +1629,78 @@ fn is_plan_only_assembly_delta(tool_name: &str, output: &Value) -> bool {
             .is_some_and(|delta| delta.is_object())
 }
 
+/// Convert a Rust-normalized initial robotic-arm plan into the fixed V003
+/// completion chain.  The Provider has no control over the stage list,
+/// direction binding, quality profile or any geometry argument after the
+/// reviewed ArmDesignIntent has been accepted.
+fn rust_owned_initial_arm_synthesis_steps(
+    tool_name: &str,
+    output: &Value,
+) -> Option<Vec<(&'static str, Value)>> {
+    if tool_name != "plan_complete_concept"
+        // The Product Tool already owns ArmDesignIntent normalization.  Do
+        // not repeat an outer-plan shape assumption here: Provider-facing
+        // schemas can evolve while the reviewed intent remains the stable
+        // proof that this is an initial robotic-arm synthesis.
+        || output
+            .pointer("/plan/arm_recipe_lowering/root_recipe_id")
+            .and_then(Value::as_str)
+            .is_none()
+        || output
+            .pointer("/plan/assembly_delta")
+            .is_some_and(Value::is_object)
+    {
+        return None;
+    }
+    Some(vec![
+        (
+            "build_candidate_geometry",
+            json!({
+                // This reserved selector is resolved against the Rust-bound
+                // plan inside NativeProductToolExecutor.  It is deliberately
+                // not a Provider-supplied direction ID: V003 only accepts a
+                // single reviewed result and the model's creative decision is
+                // already sealed in ArmDesignIntent/recipe lowering.
+                "direction_id": "direction_auto",
+                "variant_id": null,
+                "presentation_profile": "showcase"
+            }),
+        ),
+        ("compile_readback_candidate", json!({})),
+        ("render_candidate_views", json!({})),
+        ("evaluate_candidate", json!({})),
+        ("prepare_candidate_preview", json!({})),
+    ])
+}
+
+/// Once the Provider has finished authoring and explicitly requests the one
+/// reserved visual-program build, Rust owns every remaining stage. This keeps
+/// compile/readback, exact eight-view rendering, convergence and preview
+/// promotion ordered even when a model would otherwise stop after build.
+fn rust_owned_visual_program_completion_steps(
+    tool_name: &str,
+    output: &Value,
+) -> Option<Vec<(&'static str, Value)>> {
+    if tool_name != "build_candidate_geometry"
+        || output
+            .get("visual_program_source_sha256")
+            .and_then(Value::as_str)
+            .is_none()
+        || output
+            .get("design_build_ledger")
+            .and_then(Value::as_object)
+            .is_none()
+    {
+        return None;
+    }
+    Some(vec![
+        ("compile_readback_candidate", json!({})),
+        ("render_candidate_views", json!({})),
+        ("evaluate_candidate", json!({})),
+        ("prepare_candidate_preview", json!({})),
+    ])
+}
+
 /// A malformed initial-synthesis delta is recoverable exactly once.  The
 /// recovery is deliberately narrow: other Product Tool failures remain
 /// terminal so a model cannot use retries to bypass the Rust-owned contract.
@@ -1272,6 +1708,17 @@ fn product_tool_recovery_message(
     tool_name: &str,
     result: &forgecad_app_server_protocol::ProductToolExecutionResult,
 ) -> Option<&'static str> {
+    if result.error_code.as_deref() == Some("FORGE_VISUAL_PROGRAM_INVALID") {
+        return match tool_name {
+            "author_forge_visual_program" => Some(
+                "Rust rejected the authored visual source. Retry once with a draft ForgeVisualProgram@1 matching the current tool schema: every output must have exactly one Part owner, every Part zone exactly one material, every bound detail a real geometry/material/surface target, and macro/meso/micro must all be present. Do not add code, URLs, paths, or unknown fields.",
+            ),
+            "patch_forge_visual_program" => Some(
+                "Rust rejected the visual patch without changing the draft. Call inspect_forge_visual_program with view=full, then retry once using that exact revision and source_program_sha256. Respect preserve_geometry and preserve_material_surface and keep the complete resulting program valid.",
+            ),
+            _ => None,
+        };
+    }
     if tool_name != "plan_complete_concept" {
         return None;
     }
@@ -1296,14 +1743,35 @@ fn product_tool_recovery_message(
 /// intentionally separate from execution-result recovery: no geometry has
 /// run, and the Provider receives a stable instruction rather than the raw
 /// JSON-schema validator message.
-fn product_tool_schema_recovery_message(tool_name: &str, error_code: &str) -> Option<&'static str> {
-    if tool_name != "plan_complete_concept" {
-        return None;
-    }
+fn product_tool_schema_recovery_message(
+    tool_name: &str,
+    error_code: &str,
+    input_mode: crate::ProviderToolInputMode,
+) -> Option<&'static str> {
     match error_code {
-        "PRODUCT_TOOL_ARGUMENTS_NOT_OBJECT" | "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID" => Some(
-            "Rust rejected the plan_complete_concept argument envelope. Retry exactly one time with a single JSON object matching the current tool schema: plan must contain one direction, spec must be an object, and arm_design_intent must be a complete ArmDesignIntent@1 object for a visual-only robotic-arm concept. Do not add unknown fields, Markdown, research tools, dimensions, or executable code. If editing an existing asset, include only a valid AssemblyDeltaProgram@1 using the current ActiveDesignSnapshot asset_version_id.",
-        ),
+        "PRODUCT_TOOL_ARGUMENTS_NOT_OBJECT" | "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID" => {
+            if tool_name == "author_forge_visual_program" {
+                return Some(
+                    "Rust rejected the author envelope. Retry exactly once with only {\"program\": <one draft ForgeVisualProgram@1 object>} matching the advertised schema; do not add Markdown, code, URLs, paths, or unknown wrapper fields.",
+                );
+            }
+            if tool_name == "patch_forge_visual_program" {
+                return Some(
+                    "Rust rejected the patch envelope. Retry exactly once with only {\"patch\": <one ForgeVisualPatch@1 object>} matching the advertised schema and the latest inspected revision/hash; do not add JSON paths, code, URLs, filesystem paths, or unknown wrapper fields.",
+                );
+            }
+            if tool_name != "plan_complete_concept" {
+                return None;
+            }
+            match input_mode {
+                crate::ProviderToolInputMode::ArmContinuationDelta => Some(
+                    "Rust rejected the continuation envelope. Retry exactly one time with only {\"plan\":{\"continuation_template_id\":\"next_reviewed_attachment\"}}. Do not add AssemblyDelta, Part, Connector, Recipe, Slot, transform, Markdown, dimensions, ShapeProgram, code, or unknown fields.",
+                ),
+                crate::ProviderToolInputMode::InitialSynthesis => Some(
+                    "Rust rejected the plan_complete_concept argument envelope. Retry exactly one time with a single JSON object matching the current tool schema: plan must contain one direction, spec must be an object, and arm_design_intent must be a complete ArmDesignIntent@1 object for a visual-only robotic-arm concept. Do not add unknown fields, Markdown, research tools, dimensions, or executable code.",
+                ),
+            }
+        }
         _ => None,
     }
 }
@@ -1822,6 +2290,10 @@ mod tests {
         expected_tool_ids: Arc<Vec<String>>,
         next: Arc<AtomicUsize>,
         captured: Arc<Mutex<Vec<ProductToolExecutionRequest>>>,
+        arm_plan_output: bool,
+        visual_build_output: bool,
+        fail_first_visual_evaluation: bool,
+        visual_evaluations: Arc<AtomicUsize>,
     }
 
     impl StatefulChainExecutor {
@@ -1844,7 +2316,29 @@ mod tests {
                 expected_tool_ids: Arc::new(expected_tool_ids),
                 next: Arc::new(AtomicUsize::new(0)),
                 captured: Arc::new(Mutex::new(Vec::new())),
+                arm_plan_output: false,
+                visual_build_output: false,
+                fail_first_visual_evaluation: false,
+                visual_evaluations: Arc::new(AtomicUsize::new(0)),
             }
+        }
+
+        fn new_arm_auto(registry: &ProductToolRegistry, expected_names: &[&str]) -> Self {
+            let mut executor = Self::new(registry, expected_names);
+            executor.arm_plan_output = true;
+            executor
+        }
+
+        fn new_visual_auto(registry: &ProductToolRegistry, expected_names: &[&str]) -> Self {
+            let mut executor = Self::new(registry, expected_names);
+            executor.visual_build_output = true;
+            executor
+        }
+
+        fn new_visual_repair_auto(registry: &ProductToolRegistry, expected_names: &[&str]) -> Self {
+            let mut executor = Self::new_visual_auto(registry, expected_names);
+            executor.fail_first_visual_evaluation = true;
+            executor
         }
     }
 
@@ -1858,6 +2352,10 @@ mod tests {
             let expected = self.expected_tool_ids.get(index).cloned();
             self.captured.lock().unwrap().push(request.clone());
             let schema_sha256 = self.output_schema_sha256.get(&request.tool_id).cloned();
+            let arm_plan_output = self.arm_plan_output;
+            let visual_build_output = self.visual_build_output;
+            let fail_first_visual_evaluation = self.fail_first_visual_evaluation;
+            let visual_evaluations = self.visual_evaluations.clone();
             Box::pin(async move {
                 if expected.as_deref() != Some(request.tool_id.as_str()) {
                     return Err(ProductToolPortError::invalid_response(
@@ -1869,7 +2367,21 @@ mod tests {
                         "Stateful executor received an unknown Product Tool ID.",
                     )
                 })?;
-                let value = stateful_output(&request.tool_id);
+                let value = if arm_plan_output
+                    && request.tool_id == "forgecad.plan.complete_concept.v1"
+                {
+                    stateful_arm_plan_output()
+                } else if visual_build_output && request.tool_id == "forgecad.geometry.build.v1" {
+                    stateful_visual_build_output()
+                } else if visual_build_output && request.tool_id == "forgecad.candidate.evaluate.v1"
+                {
+                    let evaluation_number = visual_evaluations.fetch_add(1, Ordering::SeqCst);
+                    stateful_visual_evaluation(
+                        !fail_first_visual_evaluation || evaluation_number > 0,
+                    )
+                } else {
+                    stateful_output(&request.tool_id)
+                };
                 Ok(ProductToolExecutionResult {
                     schema_version: PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION.into(),
                     execution_id: request.execution_id,
@@ -1895,6 +2407,42 @@ mod tests {
 
     fn stateful_output(tool_id: &str) -> BTreeMap<String, Value> {
         let value = match tool_id {
+            "forgecad.visual_program.author.v1" => json!({
+                "schema_version":"ForgeVisualProgramInspection@1",
+                "revision":1,
+                "source_program_sha256":"a".repeat(64),
+                "parent_source_program_sha256":null,
+                "program_id":"visual_program_agent_authored",
+                "domain_pack_id":"pack_robotic_arm_concept",
+                "title":"Agent-authored industrial arm",
+                "stage":"draft",
+                "changed_domains":["geometry", "material", "surface"],
+                "program":null
+            }),
+            "forgecad.visual_program.inspect.v1" => json!({
+                "schema_version":"ForgeVisualProgramInspection@1",
+                "revision":1,
+                "source_program_sha256":"a".repeat(64),
+                "parent_source_program_sha256":null,
+                "program_id":"visual_program_agent_authored",
+                "domain_pack_id":"pack_robotic_arm_concept",
+                "title":"Agent-authored industrial arm",
+                "stage":"draft",
+                "changed_domains":["geometry", "material", "surface"],
+                "program":{"schema_version":"ForgeVisualProgram@1"}
+            }),
+            "forgecad.visual_program.patch.v1" => json!({
+                "schema_version":"ForgeVisualProgramInspection@1",
+                "revision":2,
+                "source_program_sha256":"b".repeat(64),
+                "parent_source_program_sha256":"a".repeat(64),
+                "program_id":"visual_program_agent_authored",
+                "domain_pack_id":"pack_robotic_arm_concept",
+                "title":"Agent-authored warm copper arm",
+                "stage":"draft",
+                "changed_domains":["material", "title"],
+                "program":null
+            }),
             "forgecad.plan.complete_concept.v1" => {
                 json!({"plan": {"plan_id": "plan_primary"}, "accepted": true})
             }
@@ -1940,6 +2488,91 @@ mod tests {
             .collect()
     }
 
+    fn stateful_arm_plan_output() -> BTreeMap<String, Value> {
+        json!({
+            "plan": {
+                "plan_id": "plan_parallel_primary",
+                "domain_pack_id": "pack_robotic_arm_concept",
+                "directions": [{"direction_id": "direction_parallel_primary"}],
+                "arm_design_intent": {
+                    "schema_version": "ArmDesignIntent@1",
+                    "domain_pack_id": "pack_robotic_arm_concept",
+                    "architecture": "parallel_link",
+                    "joint_language": "exposed_ring",
+                    "link_language": "twin_rail",
+                    "base_language": "industrial_deck",
+                    "wrist_language": "layered_wrist",
+                    "end_effector_language": "precision_tool",
+                    "cable_language": "armored_harness",
+                    "surface_language": ["panel_seams", "flowline"],
+                    "material_palette": "white_aluminum",
+                    "detail_density": "dense",
+                    "pose": "grounded",
+                    "proportion_profile": "balanced",
+                    "style_keywords": ["industrial", "precision"],
+                    "source": "agent_inferred",
+                    "visual_only": true
+                },
+                "arm_recipe_lowering": {
+                    "status": "lowered",
+                    "root_recipe_id": "recipe_c110g_parallel_link_root"
+                }
+            },
+            "accepted": true
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
+    }
+
+    fn stateful_visual_build_output() -> BTreeMap<String, Value> {
+        json!({
+            "direction_id": "direction_visual_program",
+            "topology_hash": "c".repeat(64),
+            "triangle_count": 1200,
+            "bounds_mm": [100, 40, 30],
+            "candidate_only": true,
+            "visual_program_revision": 2,
+            "visual_program_source_sha256": "b".repeat(64),
+            "design_build_ledger": {
+                "schema_version": "DesignBuildLedger@1",
+                "source_program_sha256": "b".repeat(64),
+                "source_revision": 2,
+                "passes": []
+            }
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
+    }
+
+    fn stateful_visual_evaluation(passed: bool) -> BTreeMap<String, Value> {
+        json!({
+            "hard_gate_passed": passed,
+            "checks": [{
+                "gate_id":"pv004_visual_convergence",
+                "outcome":if passed { "pass" } else { "fail" },
+                "repairable":false,
+                "summary":if passed { "converged" } else { "surface provenance missing" }
+            }],
+            "visual_convergence_report": {
+                "schema_version":"VisualConvergenceReport@1",
+                "passed":passed,
+                "failure_codes":if passed { json!([]) } else { json!(["SURFACE_PROVENANCE_MISSING"]) }
+            },
+            "evidence_source":"pv004_visual_convergence_v1"
+        })
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
+    }
+
     fn context() -> AgentContext {
         ContextBuilder
             .build(ContextBuildInput {
@@ -1980,16 +2613,22 @@ mod tests {
             name: None,
             tool_call_id: None,
         });
-        let definitions =
-            provider_definitions_for_context(&ProductToolRegistry::default(), &edit_context);
+        let definitions = provider_definitions_for_context(
+            &ProductToolRegistry::default(),
+            &edit_context,
+            provider_input_mode_for_context(&edit_context),
+        );
         assert_eq!(definitions.len(), 1);
         assert_eq!(definitions[0].name, "plan_complete_concept");
     }
 
     #[test]
     fn active_initial_context_keeps_full_discovery_tool_projection() {
-        let definitions =
-            provider_definitions_for_context(&ProductToolRegistry::default(), &context());
+        let definitions = provider_definitions_for_context(
+            &ProductToolRegistry::default(),
+            &context(),
+            provider_input_mode_for_context(&context()),
+        );
         assert!(definitions.len() > 1);
         assert!(definitions
             .iter()
@@ -1997,6 +2636,67 @@ mod tests {
         assert!(definitions
             .iter()
             .any(|definition| definition.name == "plan_complete_concept"));
+    }
+
+    #[test]
+    fn continuation_schema_repair_keeps_the_compact_delta_contract() {
+        let message = product_tool_schema_recovery_message(
+            "plan_complete_concept",
+            "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
+            crate::ProviderToolInputMode::ArmContinuationDelta,
+        )
+        .expect("continuation schema errors should receive one bounded repair");
+
+        assert!(message.contains("only {\"plan\":{\"continuation_template_id\""));
+        assert!(!message.contains("ArmDesignIntent"));
+        assert!(!message.contains("one direction"));
+    }
+
+    #[test]
+    fn initial_schema_repair_keeps_the_full_synthesis_contract() {
+        let message = product_tool_schema_recovery_message(
+            "plan_complete_concept",
+            "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
+            crate::ProviderToolInputMode::InitialSynthesis,
+        )
+        .expect("initial schema errors should receive one bounded repair");
+
+        assert!(message.contains("one direction"));
+        assert!(message.contains("ArmDesignIntent"));
+    }
+
+    #[test]
+    fn pv003_visual_source_recovery_is_bounded_and_revision_directed() {
+        let author = product_tool_schema_recovery_message(
+            "author_forge_visual_program",
+            "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
+            crate::ProviderToolInputMode::InitialSynthesis,
+        )
+        .unwrap();
+        assert!(author.contains("draft ForgeVisualProgram@1"));
+        assert!(!author.contains("plan_complete_concept"));
+
+        let registry = ProductToolRegistry::default();
+        let definition = registry.definition("patch_forge_visual_program").unwrap();
+        let result = ProductToolExecutionResult {
+            schema_version: PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION.into(),
+            execution_id: "execution_visual_recovery".into(),
+            turn_id: "turn_visual_recovery".into(),
+            call_id: "call_visual_recovery".into(),
+            tool_id: definition.tool_id.clone(),
+            cancellation_id: "cancel_visual_recovery".into(),
+            status: ProductToolExecutionStatus::Failed,
+            validated_output: None,
+            failure_category: Some(ProductToolFailureCategory::Schema),
+            error_code: Some("FORGE_VISUAL_PROGRAM_INVALID".into()),
+            message: Some("Visual patch was rejected.".into()),
+            duration_ms: 1,
+            permanent_side_effects: 0,
+        };
+        let patch = product_tool_recovery_message("patch_forge_visual_program", &result).unwrap();
+        assert!(patch.contains("inspect_forge_visual_program"));
+        assert!(patch.contains("revision"));
+        assert!(patch.contains("source_program_sha256"));
     }
 
     fn tool_response(call_id: &str) -> ProviderResponse {
@@ -2049,6 +2749,45 @@ mod tests {
         })
     }
 
+    fn complete_parallel_arm_plan_arguments() -> Value {
+        json!({
+            "plan": {
+                "plan_id": "plan_parallel_primary",
+                "domain_pack_id": "pack_robotic_arm_concept",
+                "brief": "非功能性双导轨并联机械臂概念资产。",
+                "spec": {},
+                "provider_id": "deepseek",
+                "directions": [{
+                    "direction_id": "direction_parallel_primary",
+                    "title": "并联维护机械臂",
+                    "summary": "双导轨、中央滑台与并联连杆的生产概念外观。",
+                    "silhouette": "industrial",
+                    "primary_part_roles": ["parallel_rail", "carriage", "tool_mount"],
+                    "material_direction": "白色铝与深石墨、蓝色信号灯带"
+                }],
+                "arm_design_intent": {
+                    "schema_version": "ArmDesignIntent@1",
+                    "domain_pack_id": "pack_robotic_arm_concept",
+                    "architecture": "parallel_link",
+                    "joint_language": "exposed_ring",
+                    "link_language": "twin_rail",
+                    "base_language": "industrial_deck",
+                    "wrist_language": "layered_wrist",
+                    "end_effector_language": "precision_tool",
+                    "cable_language": "armored_harness",
+                    "surface_language": ["panel_seams", "flowline"],
+                    "material_palette": "white_aluminum",
+                    "detail_density": "dense",
+                    "pose": "grounded",
+                    "proportion_profile": "balanced",
+                    "style_keywords": ["industrial", "precision"],
+                    "source": "agent_inferred",
+                    "visual_only": true
+                }
+            }
+        })
+    }
+
     #[test]
     fn assembly_delta_plan_is_plan_only_and_other_plans_keep_the_synthesis_chain() {
         let mut continuation = complete_plan_arguments();
@@ -2074,6 +2813,80 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn lowered_initial_arm_plan_has_one_rust_owned_v003_completion_chain() {
+        let output = json!({
+            "plan": {
+                "domain_pack_id": "pack_robotic_arm_concept",
+                "directions": [{"direction_id": "direction_primary"}],
+                "arm_design_intent": {"schema_version": "ArmDesignIntent@1"},
+                "arm_recipe_lowering": {"status": "lowered", "root_recipe_id": "recipe_c110g_parallel_link_root"}
+            }
+        });
+        let steps = rust_owned_initial_arm_synthesis_steps("plan_complete_concept", &output)
+            .expect("lowered initial arm plan must enter the fixed completion chain");
+        assert_eq!(
+            steps.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            vec![
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ]
+        );
+        assert_eq!(
+            steps[0].1.pointer("/direction_id").and_then(Value::as_str),
+            Some("direction_auto")
+        );
+        assert_eq!(
+            steps[0]
+                .1
+                .pointer("/presentation_profile")
+                .and_then(Value::as_str),
+            Some("showcase")
+        );
+        let mut continuation = output.clone();
+        continuation["plan"]["assembly_delta"] =
+            json!({"schema_version": "AssemblyDeltaProgram@1"});
+        assert!(
+            rust_owned_initial_arm_synthesis_steps("plan_complete_concept", &continuation)
+                .is_none()
+        );
+
+        let mut normalized_provider_output = output.clone();
+        normalized_provider_output["plan"]
+            .as_object_mut()
+            .expect("test plan is an object")
+            .remove("domain_pack_id");
+        assert!(rust_owned_initial_arm_synthesis_steps(
+            "plan_complete_concept",
+            &normalized_provider_output
+        )
+        .is_some());
+
+        let visual_steps = rust_owned_visual_program_completion_steps(
+            "build_candidate_geometry",
+            &json!({
+                "visual_program_source_sha256":"a".repeat(64),
+                "design_build_ledger":{"schema_version":"DesignBuildLedger@1"}
+            }),
+        )
+        .expect("a visual-program build must enter the fixed PV004 completion chain");
+        assert_eq!(
+            visual_steps
+                .iter()
+                .map(|(name, _)| *name)
+                .collect::<Vec<_>>(),
+            vec![
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ]
+        );
+    }
+
     fn final_response() -> ProviderResponse {
         ProviderResponse {
             content: Some("唯一生产概念候选已准备完成。".into()),
@@ -2089,6 +2902,249 @@ mod tests {
             finish_reason: ProviderFinishReason::Stop,
             network_call_made: true,
         }
+    }
+
+    #[test]
+    fn pv003_deepseek_action_loop_routes_typed_visual_author_inspect_and_patch() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "author_forge_visual_program",
+                "inspect_forge_visual_program",
+                "patch_forge_visual_program",
+            ];
+            let executor = StatefulChainExecutor::new(&registry, &names);
+            let captured = executor.captured.clone();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![
+                    Ok(named_tool_response(
+                        "call_visual_author",
+                        "author_forge_visual_program",
+                        json!({"program":{}}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_inspect",
+                        "inspect_forge_visual_program",
+                        json!({"view":"full"}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_patch",
+                        "patch_forge_visual_program",
+                        json!({"patch":{}}),
+                    )),
+                    Ok(final_response()),
+                ],
+            );
+            let provider_records = provider.clone();
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(input(), CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert_eq!(result.usage.product_tool_calls, 3);
+            assert_eq!(result.item_events.len(), 6);
+            assert_eq!(result.final_content, "唯一生产概念候选已准备完成。");
+            assert_eq!(
+                captured
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|request| request.tool_name.as_str())
+                    .collect::<Vec<_>>(),
+                names
+            );
+            let records = provider_records.records();
+            assert_eq!(records.len(), 4);
+            assert!(records[0]
+                .tool_names
+                .iter()
+                .any(|name| name == "author_forge_visual_program"));
+            assert!(records[0]
+                .tool_names
+                .iter()
+                .any(|name| name == "patch_forge_visual_program"));
+        });
+    }
+
+    #[test]
+    fn pv004_visual_build_signal_finishes_readback_eight_view_gate_and_preview_in_rust() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "author_forge_visual_program",
+                "inspect_forge_visual_program",
+                "patch_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_visual_auto(&registry, &names);
+            let captured = executor.captured.clone();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![
+                    Ok(named_tool_response(
+                        "call_visual_author",
+                        "author_forge_visual_program",
+                        json!({"program":{}}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_inspect",
+                        "inspect_forge_visual_program",
+                        json!({"view":"full"}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_patch",
+                        "patch_forge_visual_program",
+                        json!({"patch":{}}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_build",
+                        "build_candidate_geometry",
+                        json!({
+                            "direction_id":"direction_visual_program",
+                            "variant_id":null,
+                            "presentation_profile":"showcase"
+                        }),
+                    )),
+                ],
+            );
+            let provider_records = provider.clone();
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(input(), CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert_eq!(result.usage.product_tool_calls, names.len() as u32);
+            assert_eq!(result.item_events.len(), names.len() * 2);
+            assert_eq!(
+                result.final_content,
+                "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。"
+            );
+            assert_eq!(
+                captured
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|request| request.tool_name.as_str())
+                    .collect::<Vec<_>>(),
+                names
+            );
+            // The Provider authors one program and signals build once. It is
+            // not asked to remember or fabricate the four evidence stages.
+            assert_eq!(provider_records.records().len(), 4);
+        });
+    }
+
+    #[test]
+    fn pv004_failed_auto_convergence_returns_to_provider_for_one_typed_repair() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "author_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "inspect_forge_visual_program",
+                "patch_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_visual_repair_auto(&registry, &names);
+            let captured = executor.captured.clone();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![
+                    Ok(named_tool_response(
+                        "call_visual_author_repair",
+                        "author_forge_visual_program",
+                        json!({"program":{}}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_build_failed",
+                        "build_candidate_geometry",
+                        json!({
+                            "direction_id":"direction_visual_program",
+                            "variant_id":null,
+                            "presentation_profile":"showcase"
+                        }),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_inspect_repair",
+                        "inspect_forge_visual_program",
+                        json!({"view":"full"}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_patch_repair",
+                        "patch_forge_visual_program",
+                        json!({"patch":{}}),
+                    )),
+                    Ok(named_tool_response(
+                        "call_visual_build_repaired",
+                        "build_candidate_geometry",
+                        json!({
+                            "direction_id":"direction_visual_program",
+                            "variant_id":null,
+                            "presentation_profile":"showcase"
+                        }),
+                    )),
+                ],
+            );
+            let provider_records = provider.clone();
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(input(), CancellationToken::new())
+            .await
+            .unwrap();
+
+            let actual_names = captured
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|request| request.tool_name.clone())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                result.usage.product_tool_calls,
+                names.len() as u32,
+                "actual tools: {actual_names:?}"
+            );
+            assert_eq!(actual_names, names);
+            assert_eq!(provider_records.records().len(), 5);
+            assert_eq!(
+                result.final_content,
+                "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。"
+            );
+        });
     }
 
     #[derive(Clone, Default)]
@@ -2593,6 +3649,70 @@ mod tests {
                     && request.cancellation_id == "cancel_1"
                     && request.cancellation_token == "cancel_token_1"
             }));
+        });
+    }
+
+    #[test]
+    fn one_provider_arm_plan_runs_the_remaining_v003_chain_in_rust() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "plan_complete_concept",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_arm_auto(&registry, &names);
+            let captured = executor.captured.clone();
+            let completed = executor.next.clone();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![Ok(named_tool_response(
+                    "call_parallel_plan",
+                    "plan_complete_concept",
+                    complete_parallel_arm_plan_arguments(),
+                ))],
+            );
+            let provider_records = provider.clone();
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(input(), CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert_eq!(provider_records.records().len(), 1);
+            assert_eq!(completed.load(Ordering::SeqCst), 6);
+            assert_eq!(result.usage.product_tool_calls, 6);
+            assert_eq!(result.item_events.len(), 12);
+            assert_eq!(
+                result.final_content,
+                "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。"
+            );
+            let requests = captured.lock().unwrap();
+            assert_eq!(
+                requests[1]
+                    .validated_arguments
+                    .value
+                    .get("direction_id")
+                    .and_then(Value::as_str),
+                Some("direction_auto")
+            );
+            assert_eq!(
+                requests
+                    .iter()
+                    .map(|request| request.tool_name.as_str())
+                    .collect::<Vec<_>>(),
+                names
+            );
         });
     }
 

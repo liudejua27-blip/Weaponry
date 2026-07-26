@@ -16,6 +16,7 @@ use forgecad_app_server::{
     CancellationToken,
 };
 use forgecad_app_server_protocol::{CompatHttpResponse, ProtocolHttpBody};
+use forgecad_core::lower_assembly_delta;
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -33,7 +34,7 @@ const INPUT_FLAG: &str = "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_INPUT";
 const RESUME_FLAG: &str = "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_RESUME";
 const SCHEMA_VERSION: &str = "ForgeCADDeepSeekDeltaAcceptance@1";
 const CONFIRMATION: &str = "I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST";
-const CONTINUATION_BRIEF: &str = "在当前已确认的机械臂上继续设计：增加一个可见传感器舱和一条线缆导向，保留现有蓝黑金属语言；只做非功能展示概念。必须调用 plan_complete_concept，并在 plan.assembly_delta 中输出 AssemblyDeltaProgram@1 增量方案，base_asset_version_id 必须读取当前 ActiveDesignSnapshot；只使用工具合同列出的 reviewed recipe、slot、Part/Connector 和 bounded transform，不要重新生成完整机械臂，不要输出 dimensions、ShapeProgram、代码或未知字段，最后等待工作台预览确认。";
+const CONTINUATION_BRIEF: &str = "在当前已确认的机械臂上继续设计：增加 Rust 提供的下一个可见结构组件，保留现有蓝黑金属语言；只做非功能展示概念。必须调用 plan_complete_concept，并只输出 {\"plan\":{\"continuation_template_id\":\"next_reviewed_attachment\"}}。Rust 会从当前 ActiveDesignSnapshot 的唯一已审核操作模板生成 AssemblyDeltaProgram@1；不要输出 Part、Connector、Recipe、Slot、transform、dimensions、ShapeProgram、代码或其他字段，最后等待工作台预览确认。";
 
 #[derive(Debug, Clone)]
 struct ProbeConfig {
@@ -65,6 +66,10 @@ struct PhaseEvidence {
     turn_error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error_code: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    change_set_rejection_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preview_rejection_code: Option<String>,
 }
 
 impl PhaseEvidence {
@@ -81,6 +86,8 @@ impl PhaseEvidence {
             turn_status: None,
             turn_error_code: None,
             error_code: None,
+            change_set_rejection_code: None,
+            preview_rejection_code: None,
         }
     }
 }
@@ -232,8 +239,13 @@ fn read_seed(path: &PathBuf) -> Result<Seed, &'static str> {
         .map_err(|_| "LIVE_INPUT_INVALID")?;
     let project_id = required_id(&value, "project_id").ok_or("LIVE_SEED_PROJECT_MISSING")?;
     let base_asset_version_id = value
-        .pointer("/c110d/v4_asset_version_id")
+        .get("new_asset_version_id")
         .and_then(Value::as_str)
+        .or_else(|| {
+            value
+                .pointer("/c110d/v4_asset_version_id")
+                .and_then(Value::as_str)
+        })
         .or_else(|| value.get("base_asset_version_id").and_then(Value::as_str))
         .filter(|id| !id.is_empty())
         .map(str::to_string)
@@ -261,6 +273,17 @@ async fn run_delta(
     config: &ProbeConfig,
     seed: &Seed,
 ) -> Result<DeltaReport, Failure> {
+    // Every continuation is anchored to a different immutable head. Reusing
+    // command IDs here would correctly trigger the Rust idempotency guard,
+    // but would incorrectly replay the previous thread instead of creating
+    // the next sequential user turn.
+    let request_suffix = &sha256_hex(seed.base_asset_version_id.as_bytes())[..16];
+    let thread_request_id = format!("live_delta_thread_{request_suffix}");
+    let turn_request_id = format!("live_delta_turn_{request_suffix}");
+    let propose_request_id = format!("live_delta_propose_{request_suffix}");
+    let preview_request_id = format!("live_delta_preview_{request_suffix}");
+    let confirm_request_id = format!("live_delta_confirm_{request_suffix}");
+    let export_request_id = format!("live_delta_export_{request_suffix}");
     let active = compat_json(
         bridge,
         AllowedHttpMethod::Get,
@@ -279,11 +302,11 @@ async fn run_delta(
     {
         return Err(Failure::before("delta", "LIVE_ACTIVE_ASSET_HEAD_DRIFT"));
     }
-    let thread_id = create_thread(bridge, &seed.project_id, "live_delta_thread")
+    let thread_id = create_thread(bridge, &seed.project_id, &thread_request_id)
         .await
         .map_err(|code| Failure::before("delta", code))?;
     let (turn_id, _cancellation_id, _cancellation_token) =
-        start_turn(bridge, &thread_id, "live_delta_turn")
+        start_turn(bridge, &thread_id, &turn_request_id)
             .await
             .map_err(|code| Failure::before("delta", code))?;
     let turn = wait_terminal(bridge, &thread_id, &turn_id)
@@ -309,6 +332,8 @@ async fn run_delta(
         turn_status: terminal_turn_status(&turn),
         turn_error_code: terminal_turn_error_code(&turn),
         error_code: None,
+        change_set_rejection_code: None,
+        preview_rejection_code: None,
     };
     if turn.get("status").and_then(Value::as_str) != Some("completed") {
         return Err(Failure::observed(
@@ -328,17 +353,31 @@ async fn run_delta(
             evidence,
         ));
     }
-    let operations = delta
+    let provider_operations = delta
         .get("operations")
         .and_then(Value::as_array)
         .filter(|operations| !operations.is_empty() && operations.len() <= 8)
         .ok_or_else(|| {
             Failure::observed("delta", "LIVE_DELTA_OPERATIONS_INVALID", evidence.clone())
         })?;
-    if !operations.iter().all(reviewed_delta_operation) {
+    if !provider_operations.iter().all(reviewed_delta_operation) {
         return Err(Failure::observed(
             "delta",
             "LIVE_DELTA_REVIEWED_ALLOWLIST_FAILED",
+            evidence,
+        ));
+    }
+    // `AssemblyDeltaProgram@1` deliberately calls the attachment target
+    // `parent_part_id`. ChangeSets use the older neutral `part_id` field.
+    // Always make that projection through the Core lowerer instead of copying
+    // Provider-owned JSON into the persistence boundary.
+    let lowered = lower_assembly_delta(&delta).map_err(|_| {
+        Failure::observed("delta", "LIVE_DELTA_LOWERING_REJECTED", evidence.clone())
+    })?;
+    if lowered.base_asset_version_id != seed.base_asset_version_id {
+        return Err(Failure::observed(
+            "delta",
+            "LIVE_DELTA_BASE_DRIFT",
             evidence,
         ));
     }
@@ -347,17 +386,27 @@ async fn run_delta(
         bridge,
         AllowedHttpMethod::Post,
         &format!("/api/v1/agent/asset-versions/{}/change-sets", seed.base_asset_version_id),
-        Some("live_delta_propose"),
+        Some(&propose_request_id),
         None,
         Some(json!({
-            "client_request_id": "live_delta_propose",
+            "client_request_id": propose_request_id,
             "summary": delta.get("summary").and_then(Value::as_str).unwrap_or("DeepSeek reviewed arm continuation"),
-            "operations": operations,
+            "operations": lowered.operations,
         })),
         &[201],
     )
-    .await
-    .map_err(|_| Failure::observed("delta", "LIVE_DELTA_CHANGE_SET_REJECTED", evidence.clone()))?;
+    .await;
+    let proposed = match proposed {
+        Ok(proposed) => proposed,
+        Err(error) => {
+            evidence.change_set_rejection_code = Some(stable_change_set_rejection_code(&error));
+            return Err(Failure::observed(
+                "delta",
+                "LIVE_DELTA_CHANGE_SET_REJECTED",
+                evidence,
+            ));
+        }
+    };
     let change_set_id = required_id(&proposed, "change_set_id").ok_or_else(|| {
         Failure::observed(
             "delta",
@@ -365,17 +414,26 @@ async fn run_delta(
             evidence.clone(),
         )
     })?;
-    compat_json(
+    let preview = compat_json(
         bridge,
         AllowedHttpMethod::Post,
         &format!("/api/v1/agent/change-sets/{change_set_id}:preview"),
-        Some("live_delta_preview"),
+        Some(&preview_request_id),
         None,
         None,
         &[200],
     )
-    .await
-    .map_err(|_| Failure::observed("delta", "LIVE_DELTA_PREVIEW_REJECTED", evidence.clone()))?;
+    .await;
+    if let Err(error) = preview {
+        // Keep only the stable Rust boundary code. The response body may
+        // contain implementation text and must never enter live evidence.
+        evidence.preview_rejection_code = Some(stable_change_set_rejection_code(&error));
+        return Err(Failure::observed(
+            "delta",
+            "LIVE_DELTA_PREVIEW_REJECTED",
+            evidence,
+        ));
+    }
     let (response, bytes) = preview_binary(
         bridge,
         &format!("/api/v1/agent/change-sets/{change_set_id}:preview.glb"),
@@ -406,7 +464,7 @@ async fn run_delta(
         bridge,
         AllowedHttpMethod::Post,
         &format!("/api/v1/agent/change-sets/{change_set_id}:confirm"),
-        Some("live_delta_confirm"),
+        Some(&confirm_request_id),
         None,
         None,
         &[200],
@@ -456,7 +514,7 @@ async fn run_delta(
         bridge,
         AllowedHttpMethod::Post,
         &format!("/api/v1/agent/asset-versions/{new_asset_version_id}:export"),
-        Some("live_delta_export"),
+        Some(&export_request_id),
         None,
         None,
         &[200],
@@ -508,7 +566,11 @@ async fn run_resume(
         .get("new_asset_version_id")
         .and_then(Value::as_str)
         .ok_or_else(|| Failure::before("restart", "LIVE_RESUME_ASSET_MISSING"))?;
-    if expected == seed.base_asset_version_id {
+    if checkpoint
+        .get("base_asset_version_id")
+        .and_then(Value::as_str)
+        == Some(expected)
+    {
         return Err(Failure::before("restart", "LIVE_RESUME_ASSET_NOT_ADVANCED"));
     }
     let active = compat_json(
@@ -557,6 +619,8 @@ async fn run_resume(
         turn_status: None,
         turn_error_code: None,
         error_code: None,
+        change_set_rejection_code: None,
+        preview_rejection_code: None,
     };
     Ok(DeltaReport {
         schema_version: SCHEMA_VERSION,
@@ -687,6 +751,7 @@ fn reviewed_delta_operation(operation: &Value) -> bool {
                         | "recipe_c110d_arm_actuator_cover"
                         | "recipe_c110d_arm_cable_guide"
                         | "recipe_c110d_arm_wrist_tool_mount"
+                        | "recipe_c110d_arm_wrist_gripper"
                         | "recipe_c110g_parallel_rail"
                         | "recipe_c110g_parallel_carriage"
                         | "recipe_c110g_parallel_link"
@@ -698,6 +763,7 @@ fn reviewed_delta_operation(operation: &Value) -> bool {
                     "slot_arm_sensor_pod"
                         | "slot_arm_guard_rail"
                         | "slot_arm_tool_changer"
+                        | "slot_arm_end_effector"
                         | "slot_arm_camera_boom"
                         | "slot_c110g_parallel_rail"
                         | "slot_c110g_parallel_carriage"
@@ -720,6 +786,7 @@ fn reviewed_delta_operation(operation: &Value) -> bool {
                         | "recipe_c110d_arm_actuator_cover"
                         | "recipe_c110d_arm_cable_guide"
                         | "recipe_c110d_arm_wrist_tool_mount"
+                        | "recipe_c110d_arm_wrist_gripper"
                         | "recipe_c110g_parallel_rail"
                         | "recipe_c110g_parallel_carriage"
                         | "recipe_c110g_parallel_link"
@@ -767,6 +834,23 @@ fn terminal_turn_error_code(turn: &Value) -> Option<String> {
         _ => "TURN_ERROR_UNCLASSIFIED",
     };
     Some(stable.to_string())
+}
+
+/// The packaged compatibility route already filters error envelopes.  Keep
+/// only its stable code prefix for the acceptance report, never response text,
+/// request data, Provider content or endpoint details.
+fn stable_change_set_rejection_code(value: &str) -> String {
+    let code = value.strip_prefix("MVP_ARM_BOUNDARY_").unwrap_or("");
+    if !code.is_empty()
+        && code.len() <= 96
+        && code
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+    {
+        code.to_string()
+    } else {
+        "CHANGE_SET_BOUNDARY_UNCLASSIFIED".into()
+    }
 }
 
 async fn preview_binary(
@@ -819,4 +903,25 @@ fn sha256_hex(value: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value);
     format!("{:x}", hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stable_change_set_rejection_code;
+
+    #[test]
+    fn change_set_rejection_report_keeps_only_a_stable_boundary_code() {
+        assert_eq!(
+            stable_change_set_rejection_code("MVP_ARM_BOUNDARY_ASSEMBLY_DELTA_BASE_STALE"),
+            "ASSEMBLY_DELTA_BASE_STALE"
+        );
+        assert_eq!(
+            stable_change_set_rejection_code("MVP_ARM_COMPAT_STATUS_422"),
+            "CHANGE_SET_BOUNDARY_UNCLASSIFIED"
+        );
+        assert_eq!(
+            stable_change_set_rejection_code("MVP_ARM_BOUNDARY_bad value"),
+            "CHANGE_SET_BOUNDARY_UNCLASSIFIED"
+        );
+    }
 }

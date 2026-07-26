@@ -23,14 +23,18 @@ const ENABLE_FLAG: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE";
 const CONFIRM_FLAG: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_CONFIRM";
 const RUN_ID_FLAG: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_RUN_ID";
 const OUTPUT_FLAG: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_OUTPUT";
+const EXPECTED_ARCHITECTURE_FLAG: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_EXPECTED_ARCHITECTURE";
 const SCHEMA_VERSION: &str = "ForgeCADDeepSeekMvpAcceptance@1";
 const LIVE_CONFIRMATION: &str = "I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST";
 const BRIEF: &str = "设计一台非功能性桌面维护机械臂概念资产：固定基座、双连杆、旋转腕部和夹爪，深色金属与蓝色点缀。";
+const PARALLEL_LINK_BRIEF: &str = "设计一台非功能性双导轨并联维护机械臂概念资产：工业底座、两条平行导轨、中央滑台、并联连杆和环形工具座，白色铝与深石墨材质、蓝色信号灯带。必须选择 parallel_link 架构；不要把它降级为串联双连杆机械臂。";
+const PARALLEL_LINK_ROOT_RECIPE_ID: &str = "recipe_c110g_parallel_link_root";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProbeConfig {
     run_id_hash: String,
     output: PathBuf,
+    expected_architecture: Option<&'static str>,
 }
 
 #[derive(Serialize)]
@@ -64,6 +68,11 @@ struct PhaseEvidence {
     /// reviewed recipe lowering.  This is a boolean by design: the probe
     /// must never persist the provider's plan text or raw tool arguments.
     arm_intent_bound: bool,
+    /// Present only for an explicitly requested reviewed architecture.  This
+    /// lets C110G prove a real Provider selected the independently compiled
+    /// parallel family without serialising the Provider plan into evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_architecture_bound: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     input_tokens: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,6 +83,26 @@ struct PhaseEvidence {
     /// provider's message, endpoint, model, prompt, response, or trace.
     #[serde(skip_serializing_if = "Option::is_none")]
     failure_category: Option<&'static str>,
+    /// A fixed Product Tool stage, never a provider string, request body, or
+    /// native error message. It makes a live architecture failure actionable
+    /// while keeping the acceptance artifact redacted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failed_tool_stage: Option<&'static str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tool_stages: Vec<ToolStageEvidence>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tool_calls: Vec<&'static str>,
+}
+
+/// A compact, Rust-owned trace of Product Tool terminal states.  It carries
+/// neither arguments nor messages and maps names/codes through fixed
+/// allow-lists, so it is safe to include in the explicit acceptance report.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct ToolStageEvidence {
+    tool_name: &'static str,
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_code: Option<&'static str>,
 }
 
 impl PhaseEvidence {
@@ -83,10 +112,14 @@ impl PhaseEvidence {
             network_call_made: false,
             asset_or_snapshot_writes: 0,
             arm_intent_bound: false,
+            expected_architecture_bound: None,
             input_tokens: None,
             output_tokens: None,
             error_code: None,
             failure_category: None,
+            failed_tool_stage: None,
+            tool_stages: Vec::new(),
+            tool_calls: Vec::new(),
         }
     }
 }
@@ -110,10 +143,18 @@ impl ProbeFailure {
                 network_call_made: false,
                 asset_or_snapshot_writes: 0,
                 arm_intent_bound: false,
+                expected_architecture_bound: None,
                 input_tokens: None,
                 output_tokens: None,
-                error_code: None,
+                // `code` is an internal fixed allow-list member selected at
+                // this call site, never a server or Provider string.  Keeping
+                // it makes a pre-network desktop/runtime failure diagnosable
+                // without weakening the probe's redaction boundary.
+                error_code: Some(code),
                 failure_category: Some("native_protocol"),
+                failed_tool_stage: None,
+                tool_stages: Vec::new(),
+                tool_calls: Vec::new(),
             },
         }
     }
@@ -177,9 +218,15 @@ fn parse_config(
     if !output.is_absolute() {
         return Err("LIVE_OUTPUT_INVALID");
     }
+    let expected_architecture = match lookup(EXPECTED_ARCHITECTURE_FLAG).as_deref() {
+        None => None,
+        Some("parallel_link") => Some("parallel_link"),
+        Some(_) => return Err("LIVE_EXPECTED_ARCHITECTURE_INVALID"),
+    };
     Ok(Some(ProbeConfig {
         run_id_hash: sha256_hex(run_id.as_bytes()),
         output,
+        expected_architecture,
     }))
 }
 
@@ -213,7 +260,7 @@ fn run(bridge: AppServerBridge, config: &ProbeConfig) -> Result<ProbeReport, &'s
         .build()
         .map_err(|_| "LIVE_RUNTIME_UNAVAILABLE")?;
     runtime.block_on(async move {
-        let live_turn = match run_live_turn(&bridge).await {
+        let live_turn = match run_live_turn(&bridge, config.expected_architecture).await {
             Ok(evidence) => evidence,
             Err(failure) => return Ok(failed_report(config, failure)),
         };
@@ -329,6 +376,7 @@ async fn start_turn(
     bridge: &AppServerBridge,
     thread_id: &str,
     request_id: &str,
+    message: &str,
 ) -> Result<(String, String, String), &'static str> {
     let value = native(
         bridge,
@@ -339,7 +387,7 @@ async fn start_turn(
             "command_id": request_id,
             "command": {"operation":"start","thread_id":thread_id,"request":{
                 "client_request_id": request_id,
-                "message": BRIEF,
+                "message": message,
                 "clarification_domain_pack_id": null
             }}
         }),
@@ -411,7 +459,10 @@ fn empty_snapshot_revision_from_value(value: &Value) -> Result<u64, &'static str
         .ok_or("LIVE_ACTIVE_DESIGN_REVISION_MISSING")
 }
 
-async fn run_live_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, ProbeFailure> {
+async fn run_live_turn(
+    bridge: &AppServerBridge,
+    expected_architecture: Option<&'static str>,
+) -> Result<PhaseEvidence, ProbeFailure> {
     let project_id = create_project(bridge, "live_accept_project")
         .await
         .map_err(|code| ProbeFailure::before_terminal("live_turn", code))?;
@@ -421,7 +472,12 @@ async fn run_live_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, ProbeF
     let revision_before = empty_snapshot_revision(bridge, &project_id)
         .await
         .map_err(|code| ProbeFailure::before_terminal("live_turn", code))?;
-    let (turn_id, _, _) = start_turn(bridge, &thread_id, "live_accept_turn")
+    let brief = if expected_architecture == Some("parallel_link") {
+        PARALLEL_LINK_BRIEF
+    } else {
+        BRIEF
+    };
+    let (turn_id, _, _) = start_turn(bridge, &thread_id, "live_accept_turn", brief)
         .await
         .map_err(|code| ProbeFailure::before_terminal("live_turn", code))?;
     let turn = wait_terminal(bridge, &thread_id, &turn_id)
@@ -430,7 +486,11 @@ async fn run_live_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, ProbeF
     let revision_after = empty_snapshot_revision(bridge, &project_id)
         .await
         .map_err(|code| ProbeFailure::before_terminal("live_turn", code))?;
-    let evidence = observed_turn_evidence(&turn, revision_after != revision_before);
+    let evidence = observed_turn_evidence(
+        &turn,
+        revision_after != revision_before,
+        expected_architecture,
+    );
     if turn.get("status").and_then(Value::as_str) != Some("completed") {
         return Err(ProbeFailure::observed(
             "live_turn",
@@ -460,6 +520,13 @@ async fn run_live_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, ProbeF
             evidence,
         ));
     }
+    if expected_architecture.is_some() && evidence.expected_architecture_bound != Some(true) {
+        return Err(ProbeFailure::observed(
+            "live_turn",
+            "LIVE_TURN_EXPECTED_ARCHITECTURE_MISSING",
+            evidence,
+        ));
+    }
     Ok(evidence)
 }
 
@@ -474,7 +541,7 @@ async fn run_cancelled_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, P
         .await
         .map_err(|code| ProbeFailure::before_terminal("cancellation", code))?;
     let (turn_id, cancellation_id, cancellation_token) =
-        start_turn(bridge, &thread_id, "live_cancel_turn")
+        start_turn(bridge, &thread_id, "live_cancel_turn", BRIEF)
             .await
             .map_err(|code| ProbeFailure::before_terminal("cancellation", code))?;
     let cancelled = native(
@@ -506,7 +573,7 @@ async fn run_cancelled_turn(bridge: &AppServerBridge) -> Result<PhaseEvidence, P
     let revision_after = empty_snapshot_revision(bridge, &project_id)
         .await
         .map_err(|code| ProbeFailure::before_terminal("cancellation", code))?;
-    let evidence = observed_turn_evidence(&turn, revision_after != revision_before);
+    let evidence = observed_turn_evidence(&turn, revision_after != revision_before, None);
     if turn.get("status").and_then(Value::as_str) != Some("cancelled") {
         return Err(ProbeFailure::observed(
             "cancellation",
@@ -550,14 +617,22 @@ async fn run_local_failure(bridge: &AppServerBridge) -> Result<PhaseEvidence, Pr
         network_call_made: false,
         asset_or_snapshot_writes: 0,
         arm_intent_bound: false,
+        expected_architecture_bound: None,
         input_tokens: None,
         output_tokens: None,
         error_code: Some("UNSUPPORTED_PROVIDER_REJECTED"),
         failure_category: Some("provider_configuration"),
+        failed_tool_stage: None,
+        tool_stages: Vec::new(),
+        tool_calls: Vec::new(),
     })
 }
 
-fn observed_turn_evidence(turn: &Value, snapshot_changed: bool) -> PhaseEvidence {
+fn observed_turn_evidence(
+    turn: &Value,
+    snapshot_changed: bool,
+    expected_architecture: Option<&'static str>,
+) -> PhaseEvidence {
     let usage = turn.get("usage").unwrap_or(&Value::Null);
     let status = match turn.get("status").and_then(Value::as_str) {
         Some("completed") => "completed",
@@ -576,10 +651,15 @@ fn observed_turn_evidence(turn: &Value, snapshot_changed: bool) -> PhaseEvidence
         // is a conservative lower bound for this acceptance diagnostic.
         asset_or_snapshot_writes: u64::from(snapshot_changed),
         arm_intent_bound: turn_contains_bound_arm_intent(turn),
+        expected_architecture_bound: expected_architecture
+            .map(|architecture| turn_contains_bound_arm_architecture(turn, architecture)),
         input_tokens: usage.get("input_tokens").and_then(Value::as_u64),
         output_tokens: usage.get("output_tokens").and_then(Value::as_u64),
         error_code: safe_phase_error_code(turn),
         failure_category: failure_category(turn),
+        failed_tool_stage: safe_failed_tool_stage(turn),
+        tool_stages: safe_tool_stage_evidence(turn),
+        tool_calls: safe_tool_call_evidence(turn),
     }
 }
 
@@ -612,6 +692,123 @@ fn turn_contains_bound_arm_intent(turn: &Value) -> bool {
         })
 }
 
+/// Verify only Rust-normalized facts from the persisted Plan item.  The
+/// Provider text stays out of the report; C110G only needs to know whether a
+/// requested reviewed architecture reached its exact Rust-owned root Recipe.
+fn turn_contains_bound_arm_architecture(turn: &Value, expected_architecture: &str) -> bool {
+    turn.get("items")
+        .and_then(Value::as_array)
+        .is_some_and(|items| {
+            items.iter().any(|item| {
+                let plan = item.pointer("/payload/result/plan");
+                let architecture = plan
+                    .and_then(|value| value.pointer("/arm_design_intent/architecture"))
+                    .and_then(Value::as_str);
+                let root_recipe_id = plan
+                    .and_then(|value| value.pointer("/arm_recipe_lowering/root_recipe_id"))
+                    .and_then(Value::as_str);
+                architecture == Some(expected_architecture)
+                    && match expected_architecture {
+                        "parallel_link" => root_recipe_id == Some(PARALLEL_LINK_ROOT_RECIPE_ID),
+                        _ => false,
+                    }
+            })
+        })
+}
+
+/// The persisted item sequence is Rust-owned. Only map an exact fixed tool
+/// name to a short stage label; unknown values deliberately remain absent.
+fn safe_failed_tool_stage(turn: &Value) -> Option<&'static str> {
+    let items = turn.get("items")?.as_array()?;
+    let tool_name = items.iter().rev().find_map(|item| {
+        let failed = item.get("status").and_then(Value::as_str) == Some("failed");
+        failed
+            .then(|| item.pointer("/payload/tool_name"))
+            .flatten()
+            .and_then(Value::as_str)
+    })?;
+    match tool_name {
+        "infer_domain" => Some("infer_domain"),
+        "select_style_recipe" => Some("select_style_recipe"),
+        "plan_complete_concept" => Some("plan_complete_concept"),
+        "author_shape_program" => Some("author_shape_program"),
+        "validate_shape_program" => Some("validate_shape_program"),
+        "build_candidate" => Some("build_candidate"),
+        "compile_readback_candidate" => Some("compile_readback_candidate"),
+        "render_candidate_views" => Some("render_candidate_views"),
+        "evaluate_candidate" => Some("evaluate_candidate"),
+        "prepare_candidate_preview" => Some("prepare_candidate_preview"),
+        _ => None,
+    }
+}
+
+fn safe_tool_stage_evidence(turn: &Value) -> Vec<ToolStageEvidence> {
+    let Some(items) = turn.get("items").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| {
+            if item.get("item_type").and_then(Value::as_str) != Some("tool_result") {
+                return None;
+            }
+            let tool_name =
+                safe_tool_name(item.pointer("/payload/tool_name").and_then(Value::as_str))?;
+            let status = match item.get("status").and_then(Value::as_str) {
+                Some("completed") => "completed",
+                Some("failed") => "failed",
+                Some("cancelled") => "cancelled",
+                Some("pending") => "pending",
+                _ => return None,
+            };
+            let error_code = safe_product_tool_code(
+                item.pointer("/payload/error_code")
+                    .and_then(Value::as_str)
+                    .or_else(|| {
+                        item.pointer("/payload/tool_result/error_code")
+                            .and_then(Value::as_str)
+                    }),
+            );
+            Some(ToolStageEvidence {
+                tool_name,
+                status,
+                error_code,
+            })
+        })
+        .collect()
+}
+
+fn safe_tool_call_evidence(turn: &Value) -> Vec<&'static str> {
+    turn.get("items")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| item.get("item_type").and_then(Value::as_str) == Some("tool_call"))
+                .filter_map(|item| {
+                    safe_tool_name(item.pointer("/payload/tool_name").and_then(Value::as_str))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn safe_tool_name(tool_name: Option<&str>) -> Option<&'static str> {
+    match tool_name {
+        Some("infer_domain") => Some("infer_domain"),
+        Some("select_style_recipe") => Some("select_style_recipe"),
+        Some("plan_complete_concept") => Some("plan_complete_concept"),
+        Some("author_shape_program") => Some("author_shape_program"),
+        Some("validate_shape_program") => Some("validate_shape_program"),
+        Some("build_candidate") => Some("build_candidate"),
+        Some("compile_readback_candidate") => Some("compile_readback_candidate"),
+        Some("render_candidate_views") => Some("render_candidate_views"),
+        Some("evaluate_candidate") => Some("evaluate_candidate"),
+        Some("prepare_candidate_preview") => Some("prepare_candidate_preview"),
+        _ => None,
+    }
+}
+
 /// Project only reviewed Rust-owned Provider codes into the acceptance report.
 /// Do not trust a prefix: Turn JSON is a protocol boundary and unknown values
 /// must remain redacted even when they look like a Provider code.
@@ -621,7 +818,8 @@ fn safe_phase_error_code(turn: &Value) -> Option<&'static str> {
         return safe_product_tool_code(
             turn.get("error_code")
                 .and_then(Value::as_str)
-                .or_else(|| turn.pointer("/usage/error_code").and_then(Value::as_str)),
+                .or_else(|| turn.pointer("/usage/error_code").and_then(Value::as_str))
+                .or_else(|| failed_product_tool_error_code(turn)),
         );
     }
     if category != Some("provider_execution") {
@@ -710,6 +908,23 @@ fn safe_phase_error_code(turn: &Value) -> Option<&'static str> {
         Some("PROVIDER_CANCELLED") => Some("PROVIDER_CANCELLED"),
         _ => None,
     }
+}
+
+/// A terminal Turn may deliberately omit its low-level tool error, while the
+/// persisted Rust-owned ToolResult item still records it.  Read only that
+/// fixed event field, then pass it through the allow-list above; neither a
+/// provider argument nor an error message can enter the acceptance report.
+fn failed_product_tool_error_code(turn: &Value) -> Option<&str> {
+    turn.get("items")?
+        .as_array()?
+        .iter()
+        .rev()
+        .find_map(|item| {
+            (item.get("status").and_then(Value::as_str) == Some("failed"))
+                .then(|| item.pointer("/payload/error_code"))
+                .flatten()
+                .and_then(Value::as_str)
+        })
 }
 
 /// Product Tool failures are projected only from this fixed Rust-owned list.
@@ -900,6 +1115,7 @@ mod tests {
                 "items": [{"payload": {"content": "untrusted response"}}]
             }),
             false,
+            None,
         );
         assert_eq!(evidence.status, "failed");
         assert!(evidence.network_call_made);
@@ -910,6 +1126,7 @@ mod tests {
         let config = ProbeConfig {
             run_id_hash: "a".repeat(64),
             output: PathBuf::from("/tmp/unused.json"),
+            expected_architecture: None,
         };
         let report = failed_report(
             &config,
@@ -931,6 +1148,47 @@ mod tests {
     }
 
     #[test]
+    fn failed_live_turn_reads_only_allowlisted_code_from_rust_tool_event() {
+        let evidence = observed_turn_evidence(
+            &json!({
+                "status": "failed",
+                "usage": {
+                    "network_call_made": true,
+                    "input_tokens": 12,
+                    "output_tokens": 0,
+                    "failure_kind": "product_tool"
+                },
+                "items": [{
+                    "item_type": "tool_result",
+                    "status": "failed",
+                    "payload": {
+                        "tool_name": "build_candidate",
+                        "error_code": "REVIEWED_RECIPE_EXPANSION_FAILED",
+                        "message": "untrusted detail must not leave Rust"
+                    }
+                }]
+            }),
+            false,
+            None,
+        );
+        assert_eq!(
+            evidence.error_code,
+            Some("REVIEWED_RECIPE_EXPANSION_FAILED")
+        );
+        assert_eq!(evidence.failed_tool_stage, Some("build_candidate"));
+        assert_eq!(
+            evidence.tool_stages,
+            vec![ToolStageEvidence {
+                tool_name: "build_candidate",
+                status: "failed",
+                error_code: Some("REVIEWED_RECIPE_EXPANSION_FAILED"),
+            }]
+        );
+        let encoded = serde_json::to_string(&evidence).unwrap();
+        assert!(!encoded.contains("untrusted detail"));
+    }
+
+    #[test]
     fn failed_live_turn_projects_only_reviewed_provider_code() {
         let evidence = observed_turn_evidence(
             &json!({
@@ -947,6 +1205,7 @@ mod tests {
                 "items": [{"payload": {"content": "untrusted response"}}]
             }),
             false,
+            None,
         );
         assert_eq!(evidence.error_code, Some("PROVIDER_AUTHENTICATION_FAILED"));
         let encoded = serde_json::to_string(&evidence).unwrap();
@@ -969,6 +1228,7 @@ mod tests {
                 "usage": {"failure_kind": "runtime", "network_call_made": false}
             }),
             false,
+            None,
         );
         assert_eq!(non_provider.error_code, None);
     }
@@ -993,6 +1253,7 @@ mod tests {
                 "usage": {"network_call_made": true, "failure_kind": "provider"}
             }),
             false,
+            None,
         );
         assert_eq!(evidence.error_code, Some("PROVIDER_SCHEMA_USAGE_MISSING"));
         let encoded = serde_json::to_string(&evidence).unwrap();
@@ -1010,15 +1271,28 @@ mod tests {
                     "tool_name": "plan_complete_concept",
                     "result": {"accepted": true, "plan": {
                         "arm_design_intent": {
-                            "schema_version": "ArmDesignIntent@1"
+                            "schema_version": "ArmDesignIntent@1",
+                            "architecture": "parallel_link"
                         },
-                        "arm_recipe_lowering": {"status": "lowered"}
+                        "arm_recipe_lowering": {
+                            "status": "lowered",
+                            "root_recipe_id": "recipe_c110g_parallel_link_root"
+                        }
                     }}
                 }
             }]
         });
         assert!(turn_contains_bound_arm_intent(&completed));
-        assert!(observed_turn_evidence(&completed, false).arm_intent_bound);
+        assert!(observed_turn_evidence(&completed, false, None).arm_intent_bound);
+        assert!(turn_contains_bound_arm_architecture(
+            &completed,
+            "parallel_link"
+        ));
+        assert_eq!(
+            observed_turn_evidence(&completed, false, Some("parallel_link"))
+                .expected_architecture_bound,
+            Some(true)
+        );
 
         let unlowered = json!({
             "status": "completed",
@@ -1031,7 +1305,7 @@ mod tests {
             }]
         });
         assert!(!turn_contains_bound_arm_intent(&unlowered));
-        assert!(!observed_turn_evidence(&unlowered, false).arm_intent_bound);
+        assert!(!observed_turn_evidence(&unlowered, false, None).arm_intent_bound);
     }
 
     #[test]

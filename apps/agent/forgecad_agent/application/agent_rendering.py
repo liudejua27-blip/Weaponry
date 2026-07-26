@@ -25,12 +25,27 @@ class AgentRenderError(ValueError):
 
 Vector3 = tuple[float, float, float]
 Color4 = tuple[float, float, float, float]
-VIEW_ORDER = ("iso", "front", "side", "top")
+WORKBENCH_VIEW_ORDER = ("iso", "front", "side", "top")
+CONVERGENCE_VIEW_ORDER = (
+    "iso",
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "gripper_iso",
+    "gripper_front",
+)
 VIEW_CAMERAS: dict[str, tuple[Vector3, Vector3]] = {
     "iso": ((1.0, 0.72, 1.0), (0.0, 1.0, 0.0)),
     "front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
     "side": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+    "back": ((0.0, 0.0, -1.0), (0.0, 1.0, 0.0)),
+    "left": ((-1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+    "right": ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
     "top": ((0.0, 1.0, 0.0), (0.0, 0.0, -1.0)),
+    "gripper_iso": ((1.0, 0.72, 1.0), (0.0, 1.0, 0.0)),
+    "gripper_front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
 }
 
 
@@ -64,6 +79,7 @@ def render_agent_views(
     width: int = 640,
     height: int = 640,
     exploded_parts: Sequence[ExplodedPartOffset] = (),
+    view_profile: str = "workbench_four",
 ) -> AgentRenderResult:
     """Render immutable Agent views, with an optional facts-bound exploded candidate.
 
@@ -74,24 +90,31 @@ def render_agent_views(
     """
     if not 64 <= width <= 2048 or not 64 <= height <= 2048:
         raise AgentRenderError("render dimensions must be between 64 and 2048")
+    if view_profile == "workbench_four":
+        view_order = WORKBENCH_VIEW_ORDER
+    elif view_profile == "convergence_eight":
+        view_order = CONVERGENCE_VIEW_ORDER
+    else:
+        raise AgentRenderError("render view profile is not code-owned")
     try:
         obj = build_combined_obj(glb)
         triangles = _triangles_from_obj(obj)
+        detail_triangles = _upper_detail_triangles(triangles)
         views: dict[str, bytes] = {
             view_id: _render_png(
-                triangles,
+                detail_triangles if view_id.startswith("gripper_") else triangles,
                 width,
                 height,
                 camera_vector=VIEW_CAMERAS[view_id][0],
                 up_hint=VIEW_CAMERAS[view_id][1],
             )
-            for view_id in VIEW_ORDER
+            for view_id in view_order
         }
     except (CombinedObjError, KeyError, IndexError, TypeError, ValueError) as exc:
         if isinstance(exc, AgentRenderError):
             raise
         raise AgentRenderError(f"agent concept render failed: {exc}") from exc
-    for view_id in VIEW_ORDER:
+    for view_id in view_order:
         _readback_png(views[view_id], width=width, height=height, require_transparent_background=True)
 
     exploded_part_ids: tuple[str, ...] = ()
@@ -126,6 +149,27 @@ def render_agent_views(
         exploded_part_ids=exploded_part_ids,
         exploded_unavailable_reason=exploded_unavailable_reason,
     )
+
+
+def _upper_detail_triangles(triangles: Sequence[_Triangle]) -> list[_Triangle]:
+    """Select a deterministic upper/end-effector detail region.
+
+    The golden-path arm is authored with its base at the minimum Y bound and
+    its wrist/gripper in the upper range. The fallback keeps the full model for
+    non-arm inputs instead of inventing missing geometry.
+    """
+
+    min_y = min(point[1] for triangle in triangles for point in triangle.points)
+    max_y = max(point[1] for triangle in triangles for point in triangle.points)
+    if max_y - min_y <= 1e-6:
+        return list(triangles)
+    threshold = min_y + (max_y - min_y) * 0.62
+    selected = [
+        triangle
+        for triangle in triangles
+        if sum(point[1] for point in triangle.points) / 3.0 >= threshold
+    ]
+    return selected if len(selected) >= 4 else list(triangles)
 
 
 def _triangles_from_obj(result: CombinedObjResult) -> list[_Triangle]:

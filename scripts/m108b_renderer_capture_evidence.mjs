@@ -82,7 +82,7 @@ export function validateDevelopmentPlan(plan) {
     ) {
       throw new Error('M108B renderer fixture requires three positive finite readback bounds')
     }
-    if (fixture.visual_environment?.environment_id !== 'env_forgecad_room_studio_v1' || !/^[a-f0-9]{64}$/.test(fixture.visual_environment?.environment_sha256 ?? '')) {
+    if (!['env_forgecad_room_studio_v1', 'env_forgecad_room_studio_v2'].includes(fixture.visual_environment?.environment_id) || !/^[a-f0-9]{64}$/.test(fixture.visual_environment?.environment_sha256 ?? '')) {
       throw new Error('M108B renderer fixture requires the fixed workbench environment')
     }
   }

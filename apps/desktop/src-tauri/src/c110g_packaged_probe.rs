@@ -33,8 +33,8 @@ const BRIEF: &str = "双导轨并联维护机械臂，工业底座、滑台、�
 const ROOT_RECIPE_ID: &str = "recipe_c110g_parallel_link_root";
 const ATTACHMENT_RECIPE_ID: &str = "recipe_c110g_parallel_link";
 const ATTACHMENT_SLOT_ID: &str = "slot_c110g_parallel_link";
-const SCHEMA_VERSION: &str = "ForgeCADC110GPackagedProtocolProof@1";
-const RESUME_SCHEMA_VERSION: &str = "ForgeCADC110GPackagedResumeProof@1";
+const SCHEMA_VERSION: &str = "ForgeCADC110GPackagedProtocolProof@2";
+const RESUME_SCHEMA_VERSION: &str = "ForgeCADC110GPackagedResumeProof@2";
 
 #[derive(Serialize)]
 struct ProviderEvidence {
@@ -382,8 +382,11 @@ async fn run(bridge: AppServerBridge) -> Result<ProbeReport, ProbeFailure> {
         .get("product_tool_calls")
         .and_then(Value::as_u64)
         .unwrap_or_default();
-    if provider_requests != 8
-        || product_tool_calls != 7
+    // The Provider owns only the creative ArmDesignIntent plan. Once Rust has
+    // normalized it, ActionLoop executes the five fixed V003 follow-up stages.
+    // The complete turn is one Provider request and six Product Tool calls.
+    if provider_requests != 1
+        || product_tool_calls != 6
         || usage.get("network_call_made").and_then(Value::as_bool) != Some(false)
     {
         return Err(ProbeFailure::with_ids(

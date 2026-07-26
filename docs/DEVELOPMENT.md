@@ -154,6 +154,26 @@ npm run desktop:deepseek-mvp-acceptance -- \
 
 真实验收只检查一次未确认的生成 Turn、一次取消和一次本地 fail-closed 路径；每个临时项目必须保持无 ActiveDesignSnapshot/资产写入。报告只含运行编号哈希、状态、token 汇总和固定错误码，不含 Key、端点、模型名、Prompt 或 Provider 原始响应。它不证明 C106 的视觉质量、R007B 的参考重建质量或 M108B 的真人评审；这些仍由离线黄金路径和正式视觉基准分别验证。
 
+### 显式视觉 Provider 验收（默认绝不联网）
+
+本节是 ADR-0018/N004 的历史实验验收入口。ADR-0019 后它不属于默认工作台、程序化视觉 MVP 或发布 Gate；普通开发和用户生成不需要 FAL Key，也不应执行下面的 live 命令。
+
+`desktop:n004-live-acceptance` 只验证 Forge Studio 视觉链：DeepSeek Brief→Fal Flux 2 概念图→Hunyuan3D v3.1 Pro PBR GLB→Rust CAS/readback→远程任务 Completed。无参数时只输出 dry-run，保证 `network_calls_made=0`、`credential_reads=0`、`app_launched=false`。真实运行要求已在原生工作台保存 FAL Key、至少有一个活动项目、关闭其他 CAD 工作台进程，并构建当前 `.app`。Python 启动器不读取任何 Key、Provider 响应、PNG 或 GLB。
+
+```bash
+npm run desktop:n004-live-acceptance
+
+# 仅在操作者明确接受一次远程图像和神经 3D 费用后执行。
+npm run desktop:n004-live-acceptance -- \
+  --confirm-live-provider \
+  --accept-network \
+  --confirmation I_UNDERSTAND_THIS_MAY_INCUR_VISUAL_PROVIDER_COST \
+  --run-id live_20260726_visual_acceptance \
+  --output /absolute/path/visual-provider-acceptance.json
+```
+
+Rust 报告只保留 concept/GLB SHA-256、GLB 字节数、三角形/网格/材质数、PBR channel、UV0/tangent 和终态。启动器要求至少 `base_color + normal + roughness + metallic`、全部 primitive UV0、真实远程 Completed，并拒绝任何 Prompt、响应、端点、Key 或 Base64 字节字段。该报告仍不证明八视角美术 4/5；它只关闭 N004 的真实 Provider/PBR readback 部分。
+
 ## 5. 当前核心验证
 
 快速静态验证：

@@ -188,6 +188,13 @@ try {
   assert(referenceEvidence.includes('保留') && referenceEvidence.includes('主动改变') && referenceEvidence.includes('仍未知'), 'R007B must present the three bounded reference/rebuild comparison columns')
   assert(referenceEvidence.includes('单张图片只约束') && referenceEvidence.includes('保真度上限'), 'R007B must make single-image and missing-view fidelity limits explicit')
   assert(!referenceEvidence.includes('相似度分数') || referenceEvidence.includes('不显示相似度分数'), 'R007B must not present a similarity score')
+  assert(
+    !panel.includes('VisualGenerationCard')
+      && !panel.includes('useVisualGeneration')
+      && !panel.includes('FAL API Key')
+      && !panel.includes('neural_visual_candidate_pbr'),
+    'the default F026 workbench must use the Rust-owned programmatic turn and must not require or advertise Fal/neural generation',
+  )
   assert(dockState.includes("'docked' | 'focus'") && !dockState.includes('canvas:'), 'viewport dock state must remain a pure dock/focus presentation state')
 
   console.log(JSON.stringify({
@@ -199,6 +206,7 @@ try {
       'docked_focus_presentation_state',
       'single_viewport_component',
       'no_direction_selection_or_appearance_rotation',
+      'default_programmatic_turn_without_fal',
     ],
   }, null, 2))
 } finally {

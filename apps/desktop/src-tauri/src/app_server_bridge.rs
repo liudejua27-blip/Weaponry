@@ -28,7 +28,7 @@ use forgecad_app_server::{
     ProviderToolCall, RecipePreviewOutputContract, RequestHandler, RestrictedGeometryError,
     RestrictedGeometryErrorKind, RestrictedGeometryFuture, RestrictedGeometryInput,
     RestrictedGeometryOutput, RestrictedGeometryPort, RestrictedGeometryReadback,
-    RestrictedQualityProfile, SystemRuntimeIdentityClock,
+    RestrictedQualityProfile, RestrictedRenderViewProfile, SystemRuntimeIdentityClock,
 };
 use forgecad_app_server_protocol::{
     valid_stable_id, AppServerCursor, CompatHttpRequest, CompatHttpResponse, CursorPhase,
@@ -113,6 +113,16 @@ const RESTRICTED_GEOMETRY_NETWORK_GRACE_MS: u64 = 2_000;
 const RESTRICTED_GEOMETRY_HTTP_TIMEOUT_MS: u64 = 245_000;
 const RESTRICTED_GEOMETRY_RENDERER_ID: &str = "forgecad-agent-software-raster@1";
 const RESTRICTED_GEOMETRY_REQUIRED_VIEWS: [&str; 4] = ["front", "iso", "side", "top"];
+const RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS: [&str; 8] = [
+    "iso",
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "gripper_iso",
+    "gripper_front",
+];
 // A single ChangeSet may ask for the same production ShapeProgram more than
 // once (preview download, confirm, quality and export). Keep the cache small,
 // in-memory and process-local: the sidecar artifact handle is intentionally
@@ -471,6 +481,17 @@ impl AppServerBridge {
     ) -> Result<Value, String> {
         let connection = self.inner.server.open_connection();
         let connection_id = connection.connection_id.clone();
+        // Internal packaged probes do not have a WebView transport draining
+        // notifications.  Leaving this receiver idle can exhaust the same
+        // bounded delivery queue that a normal desktop connection drains,
+        // causing a lifecycle request to wait forever after its first durable
+        // write.  Drain and discard only the probe-local frames; durable
+        // state still comes from the normal Rust readback routes below.
+        let mut notifications = connection.notifications;
+        let notification_drain =
+            tauri::async_runtime::spawn(
+                async move { while notifications.recv().await.is_some() {} },
+            );
         let initialize = json!({
             "jsonrpc": "2.0",
             "id": "mvp_arm_initialize",
@@ -555,10 +576,7 @@ impl AppServerBridge {
         }
         .await;
         self.inner.server.disconnect(&connection_id);
-        // Keep the receiver alive until after disconnect: native lifecycle
-        // notifications are bounded and are intentionally not replayed by an
-        // acceptance probe.
-        drop(connection);
+        notification_drain.abort();
         result
     }
 
@@ -1252,6 +1270,7 @@ struct RestrictedGeometryRenderRequest<'a> {
 struct RestrictedGeometryRenderRequestOptions {
     width: u16,
     height: u16,
+    view_profile: RestrictedRenderViewProfile,
     exploded_parts: Vec<Value>,
 }
 
@@ -1709,6 +1728,7 @@ impl LoopbackHttpPort {
             section_set: None,
             surface_adornment_programs: native_surface_adornment_programs(&version)?,
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "production_concept".into(),
                 runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
@@ -2062,6 +2082,7 @@ impl LoopbackHttpPort {
             section_set: None,
             surface_adornment_programs: native_surface_adornment_programs(version)?,
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: profile_id.into(),
                 runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
@@ -2783,8 +2804,9 @@ impl LoopbackHttpPort {
             shape_program: preview.shape_program.clone(),
             profile_sketch: None,
             section_set: None,
-            surface_adornment_programs: Vec::new(),
+            surface_adornment_programs: preview.surface_adornment_programs.clone(),
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "production_concept".into(),
                 runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
@@ -2842,8 +2864,9 @@ impl LoopbackHttpPort {
             shape_program: preview.shape_program.clone(),
             profile_sketch: None,
             section_set: None,
-            surface_adornment_programs: Vec::new(),
+            surface_adornment_programs: preview.surface_adornment_programs.clone(),
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "interactive_preview".into(),
                 runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
@@ -3065,8 +3088,29 @@ impl LoopbackHttpPort {
                 "Canonical GLB identity does not match the restricted geometry result.",
             ));
         }
-        let (parts, assembly_graph, material_bindings) =
+        let (parts, mut assembly_graph, material_bindings) =
             native_blockout_parts_and_graph(&production_preview, Some(project_id))?;
+        if !production_preview.surface_adornment_programs.is_empty() {
+            assembly_graph
+                .as_object_mut()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "RECIPE_PREVIEW_GRAPH_INVALID",
+                        "Recipe-backed assembly graph must be an object.",
+                    )
+                })?
+                .insert(
+                    "surface_adornments".into(),
+                    serde_json::to_value(&production_preview.surface_adornment_programs).map_err(
+                        |_| {
+                            NativeBlockoutCompatError::conflict(
+                                "SURFACE_ADORNMENT_PROVENANCE_INVALID",
+                                "Reviewed surface adornment provenance could not be persisted.",
+                            )
+                        },
+                    )?,
+                );
+        }
         // The transient preview creation time is sealed into the candidate so
         // concurrent retries of the same idempotency key build byte-for-byte
         // identical bundle input.
@@ -3569,6 +3613,7 @@ impl LoopbackHttpPort {
             render: RestrictedGeometryRenderRequestOptions {
                 width: input.quality_profile.render_width,
                 height: input.quality_profile.render_height,
+                view_profile: input.render_view_profile,
                 exploded_parts: Vec::new(),
             },
         };
@@ -3585,6 +3630,7 @@ impl LoopbackHttpPort {
             render_response,
             &render_identity.execution_id,
             &compiled,
+            input.render_view_profile,
         )?;
         let output = RestrictedGeometryOutput {
             schema_version: "RestrictedGeometryOutput@1".into(),
@@ -3888,6 +3934,13 @@ fn restricted_geometry_compile_cache_key(
 ) -> Result<String, RestrictedGeometryError> {
     let mut value =
         serde_json::to_value(input).map_err(|_| restricted_geometry_invalid_response())?;
+    // View selection belongs to the deterministic render phase and must not
+    // split the content-addressed compiled GLB cache. The exact profile is
+    // still validated on every render response.
+    value
+        .as_object_mut()
+        .ok_or_else(restricted_geometry_invalid_response)?
+        .remove("render_view_profile");
     let profile = value
         .get_mut("quality_profile")
         .and_then(Value::as_object_mut)
@@ -4160,6 +4213,7 @@ fn validate_restricted_geometry_render_response(
     response: RestrictedGeometryExecutionResponse,
     execution_id: &str,
     compiled: &CompiledRestrictedGeometry,
+    view_profile: RestrictedRenderViewProfile,
 ) -> Result<(BTreeMap<String, Vec<u8>>, BTreeMap<String, String>, String), RestrictedGeometryError>
 {
     if response.schema_version != "RestrictedGeometryExecutionResult@1"
@@ -4190,8 +4244,13 @@ fn validate_restricted_geometry_render_response(
         .render_view_sha256
         .as_ref()
         .ok_or_else(restricted_geometry_invalid_response)?;
-    let required = RESTRICTED_GEOMETRY_REQUIRED_VIEWS
-        .into_iter()
+    let required_views: &[&str] = match view_profile {
+        RestrictedRenderViewProfile::WorkbenchFour => &RESTRICTED_GEOMETRY_REQUIRED_VIEWS,
+        RestrictedRenderViewProfile::ConvergenceEight => &RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS,
+    };
+    let required = required_views
+        .iter()
+        .copied()
         .map(str::to_string)
         .collect::<BTreeSet<_>>();
     if encoded_views.keys().cloned().collect::<BTreeSet<_>>() != required
@@ -5023,8 +5082,11 @@ fn native_recipe_blockout_parts_and_graph(
     }
     let output_contract = recipe_preview_output_contract(recipe_instances)
         .map_err(native_blockout_product_tool_error)?;
-    let c106_arm_semantic_components =
-        output_contract == RecipePreviewOutputContract::C106ArmSemanticComponents;
+    let c106_arm_semantic_components = matches!(
+        output_contract,
+        RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents
+    );
     let _instance_domains = recipe_instances
         .as_array()
         .and_then(|instances| {
@@ -6357,9 +6419,12 @@ fn native_change_set_replace_recipe(
         })?;
     let candidate_recipe_instances = serde_json::to_value(&candidate.component_recipe_instances)
         .expect("recipe instance provenance serializes");
-    let c106_arm_semantic_components = recipe_preview_output_contract(&candidate_recipe_instances)
-        .map_err(native_blockout_product_tool_error)?
-        == RecipePreviewOutputContract::C106ArmSemanticComponents;
+    let c106_arm_semantic_components = matches!(
+        recipe_preview_output_contract(&candidate_recipe_instances)
+            .map_err(native_blockout_product_tool_error)?,
+        RecipePreviewOutputContract::C106ArmSemanticComponents
+            | RecipePreviewOutputContract::C111GoldenSurfaceComponents
+    );
     let candidate_root = candidate_graph
         .get("root_part_id")
         .and_then(Value::as_str)
@@ -10665,7 +10730,11 @@ mod tests {
         let height = u32::try_from(request["render"]["height"].as_u64().unwrap()).unwrap();
         let mut views = serde_json::Map::new();
         let mut hashes = serde_json::Map::new();
-        for view_id in RESTRICTED_GEOMETRY_REQUIRED_VIEWS {
+        let view_ids: &[&str] = match request["render"]["view_profile"].as_str() {
+            Some("convergence_eight") => &RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS,
+            _ => &RESTRICTED_GEOMETRY_REQUIRED_VIEWS,
+        };
+        for view_id in view_ids.iter().copied() {
             let mut png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".to_vec();
             png.extend_from_slice(&width.to_be_bytes());
             png.extend_from_slice(&height.to_be_bytes());
@@ -10733,6 +10802,7 @@ mod tests {
             section_set: None,
             surface_adornment_programs: Vec::new(),
             surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: forgecad_app_server::RestrictedQualityProfile {
                 profile_id: "interactive_preview".into(),
                 runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
@@ -11039,6 +11109,34 @@ mod tests {
         assert!(state.request_bodies[0].get("style_recipe").is_none());
         assert!(state.request_bodies[0].get("provider_key").is_none());
         assert!(state.request_bodies[1].get("glb_base64").is_none());
+    }
+
+    #[test]
+    fn pv004_restricted_geometry_port_accepts_exact_convergence_eight_views() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let port = restricted_geometry_test_port(&backend.endpoint);
+        let mut input = restricted_geometry_test_input();
+        input.render_view_profile = RestrictedRenderViewProfile::ConvergenceEight;
+        let output = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(port.build_compile_render(input.clone(), CancellationToken::new()))
+            .unwrap();
+        output.validate(&input).unwrap();
+        assert_eq!(
+            output
+                .views
+                .keys()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>(),
+            RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS.into_iter().collect()
+        );
+        let state = backend.state.lock().unwrap();
+        assert_eq!(
+            state.request_bodies[1]["render"]["view_profile"],
+            "convergence_eight"
+        );
     }
 
     #[test]
@@ -11981,7 +12079,7 @@ mod tests {
             .len();
         assert_eq!(production_glb_sha256, artifact_sha256);
         assert!(production_triangle_count > 0);
-        assert_eq!(material_zone_count, 19);
+        assert_eq!(material_zone_count, 26);
         let confirmed_counts = persistent_counts(&library_root.join("library.db"));
         assert_ne!(confirmed_counts, baseline_counts);
         assert_eq!(
@@ -13882,13 +13980,13 @@ mod tests {
         let enabled_adornment_json = json_body(&enabled_adornment);
         assert_eq!(enabled_adornment_json["status"], "enabled");
         let enabled_activation = &enabled_adornment_json["activation"];
-        // The fixture now activates immutable A005 v2.  Bind the later
+        // The fixture now activates immutable A005 v3. Bind the later
         // ChangeSet provenance to this exact activation rather than merely
         // accepting any positive skill version.
-        assert_eq!(enabled_activation["skill_version"], 2);
+        assert_eq!(enabled_activation["skill_version"], 3);
         let enabled_skill_sha256 = enabled_activation["skill_sha256"]
             .as_str()
-            .expect("enabled immutable A005 v2 activation must carry a hash")
+            .expect("enabled immutable A005 v3 activation must carry a hash")
             .to_string();
         assert_eq!(enabled_skill_sha256.len(), 64);
         let legacy_v1 = rust_core

@@ -109,14 +109,14 @@ def geometry_artifact_profile_manifest(
 
 
 _MATERIALS: tuple[Mapping[str, object], ...] = (
-    {"material_id": "mat_primary", "name": "深石墨金属外观", "pattern": "machined", "base": (50, 58, 68), "metallic": 150, "roughness": 105, "normal_scale": 0.42, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_primary", "name": "深石墨金属外观", "pattern": "machined", "base": (24, 30, 38), "metallic": 36, "roughness": 165, "normal_scale": 0.48, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_aluminum", "name": "拉丝金属外观", "pattern": "brushed", "base": (145, 154, 164), "metallic": 240, "roughness": 72, "normal_scale": 0.62, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_signal_red", "name": "信号红涂层外观", "pattern": "coated", "base": (196, 55, 43), "metallic": 72, "roughness": 88, "normal_scale": 0.25, "clearcoat": 0.34, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
-    {"material_id": "mat_composite", "name": "哑光复合外观", "pattern": "composite", "base": (35, 42, 50), "metallic": 35, "roughness": 145, "normal_scale": 0.5, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_composite", "name": "哑光复合外观", "pattern": "composite", "base": (42, 50, 60), "metallic": 10, "roughness": 190, "normal_scale": 0.5, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_rubber", "name": "橡胶外观", "pattern": "rubber", "base": (18, 22, 28), "metallic": 0, "roughness": 226, "normal_scale": 0.72, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_dark_glass", "name": "深色透明外观", "pattern": "glass", "base": (45, 70, 94), "metallic": 8, "roughness": 48, "normal_scale": 0.12, "clearcoat": 0.18, "transmission": 0.54, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
     {"material_id": "mat_emissive_blue", "name": "蓝色发光饰条外观", "pattern": "emissive", "base": (18, 55, 120), "metallic": 38, "roughness": 68, "normal_scale": 0.22, "clearcoat": 0.0, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (12, 112, 255)},
-    {"material_id": "mat_automotive_paint", "name": "蓝色汽车漆外观", "pattern": "coated", "base": (22, 75, 160), "metallic": 140, "roughness": 45, "normal_scale": 0.22, "clearcoat": 0.9, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
+    {"material_id": "mat_automotive_paint", "name": "蓝色汽车漆外观", "pattern": "coated", "base": (22, 75, 160), "metallic": 12, "roughness": 100, "normal_scale": 0.22, "clearcoat": 0.22, "transmission": 0.0, "ior": 1.5, "alpha": 1.0, "emissive": (0, 0, 0)},
 )
 
 # v1/v2 GLBs are immutable persisted assets.  Their texture ids and PNG hashes
@@ -1413,39 +1413,53 @@ def builtin_material_properties(index: int) -> Mapping[str, object]:
         raise ValueError(f"unsupported GLB material index: {index}") from exc
 
 
-def studio_environment_manifest() -> dict[str, object]:
-    """The renderer's fixed RoomEnvironment/PMREM display contract.
+def studio_environment_manifest(
+    environment_id: str = "env_forgecad_room_studio_v2",
+) -> dict[str, object]:
+    """Return one versioned RoomEnvironment/PMREM display contract.
 
     This is a procedural studio profile rather than a claimed third-party
     HDRI.  Its canonical hash travels with the GLB so the viewport cannot
-    silently substitute a different tone-mapping or contact-shadow setup.
+    silently substitute a different tone-mapping or contact-shadow setup. V1
+    remains available for immutable historical GLBs; new compiles use the
+    lower-energy V2 profile so authored paint, graphite and composite values
+    do not converge under frontal lighting.
     """
-
+    if environment_id == "env_forgecad_room_studio_v1":
+        exposure = 0.86
+        hemisphere_intensity = 1.45
+        ambient_intensity = 0.24
+        key_intensity = 3.6
+        rim_intensity = 0.95
+        warm_rim_intensity = 0.28
+    elif environment_id == "env_forgecad_room_studio_v2":
+        exposure = 0.62
+        hemisphere_intensity = 0.58
+        ambient_intensity = 0.12
+        key_intensity = 1.35
+        rim_intensity = 0.5
+        warm_rim_intensity = 0.1
+    else:
+        raise ValueError(f"unsupported visual environment: {environment_id}")
     payload: dict[str, object] = {
         "schema_version": "ForgeCADVisualEnvironment@1",
-        "environment_id": "env_forgecad_room_studio_v1",
+        "environment_id": environment_id,
         "environment_kind": "procedural_studio",
         "source": "forgecad_builtin",
         "license": "not_applicable",
         "color_workflow": "linear_srgb",
         "output_color_space": "srgb",
         "tone_mapping": "aces_filmic",
-        # This studio is deliberately contrast-preserving.  The previous
-        # high-energy fill caused clearcoat paint, aluminium and graphite to
-        # converge to the same pale display value in the workbench even though
-        # their embedded PBR maps remained distinct.  Keep direct light for
-        # form readability, but let the material palettes carry their own
-        # luminance and hue hierarchy.
-        "tone_mapping_exposure": 0.86,
+        "tone_mapping_exposure": exposure,
         "contact_shadows": True,
         "pmrem": {"near": 0.04, "cube_size": 128},
         "cad_neutral_lighting": {
             "background": "#0b1420",
-            "hemisphere": {"sky": "#eef6ff", "ground": "#111820", "intensity": 1.45},
-            "ambient": {"color": "#8aa0b8", "intensity": 0.24},
-            "key": {"color": "#f7fbff", "intensity": 3.6, "position": [150, 210, 160]},
-            "rim": {"color": "#91b6d9", "intensity": 0.95, "position": [-160, 110, -120]},
-            "warm_rim": {"color": "#ffd0b5", "intensity": 0.28, "position": [110, 20, -190]},
+            "hemisphere": {"sky": "#eef6ff", "ground": "#111820", "intensity": hemisphere_intensity},
+            "ambient": {"color": "#8aa0b8", "intensity": ambient_intensity},
+            "key": {"color": "#f7fbff", "intensity": key_intensity, "position": [150, 210, 160]},
+            "rim": {"color": "#91b6d9", "intensity": rim_intensity, "position": [-160, 110, -120]},
+            "warm_rim": {"color": "#ffd0b5", "intensity": warm_rim_intensity, "position": [110, 20, -190]},
             "floor": {"kind": "shadow_catcher", "color": "#000000", "opacity": 0.16, "radius_ratio": 1.1},
         },
         "camera_views": {
