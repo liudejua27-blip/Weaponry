@@ -95,7 +95,7 @@ HTML/React 负责工作台，SVG 负责受限轮廓控制点，GSAP 负责界面
 - `MechanicalConceptSpec@1`；G815 已将其中的 `VisualIntentMapping@1` 用于有限的轮廓、细节、色彩和展示姿态分类，再选择既有视觉族。R006 随后把同一未保存方向的受限 GLB 交给既有软件栅格器，生成一次性的 `AgentBlockoutConceptPreview@1` iso PNG；它不创建候选、版本、Snapshot、质量或导出，也不增加 WebGL context。两者都只影响预审概念外观，不生成尺寸、自由 ShapeProgram、工程材料或性能结论；映射缺失/损坏时回退到既有方向轮廓选择；
 - `AssemblyGraph@1` 与概念级 Joint；
 - `ShapeProgram@1` 及只执行受限 `box`/`cylinder`/`capsule`/`wedge`/`profile`/`extrude`/`revolve`/`mirror`/`array`/`radial_array`/`union`/`subtract`/`bevel_approx`/`surface_panel` 的轻量几何 worker；G5 已能输出按领域角色组织的分件候选，G6 已提供视觉材质目录、AgentAssetVersion、AgentComponent 注册/替换、声明式 Connector 对齐和受限 GLB 导出；G7 已提供安全外部 GLB 参考导入与同视口显示；G807 已提供四领域各 12 个确定性结构变体，G816 让既有形体完整进入同一展示视口，G818 让展示档同源追加受限视觉细节和有限 PBR 索引。复杂曲面、自由 fillet、碰撞/运动学、前端变体目录与外部 GLB 自动重建/深度分件仍未完成；
-- macOS Tauri 工作台已提供轻量 Provider 配置入口；Rust supervisor 负责 Keychain 读取与子进程注入，Provider Key 不进入项目和 Agent 数据；真实 Provider 评测仍保持显式、可计费的单独门禁；
+- macOS Tauri 工作台已提供轻量 Provider 配置入口；Rust desktop 用代际绑定的 `0700/0600` 私密文件拥有本机 Alpha 凭据，普通启动不读 secret，Provider Key 不进入项目、Agent 数据、日志或 Git；真实 Provider 评测仍保持显式、可计费的单独门禁；
 - `MaterialPreset@1` 与 Material Zone；
 - 汽车、飞机、机械臂领域包；
 - Agent 的完整外观 blockout → 分件候选 → editable asset → 受限编辑 → GLB 导出最小闭环。
@@ -228,7 +228,7 @@ DeepSeek Provider 只接受受 Schema 验证的概念计划或受限产品 Tool 
 
 ### 5.5 DeepSeek Provider Gateway
 
-当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-15 官方文档。A003 已实现 Gateway 的配置/运行诊断：本机无 metadata/Keychain 时稳定报告 `unconfigured + network_call_made=false`，不再把离线结果包装成真实 Provider 结果。
+当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-15 官方文档。A003 已实现 Gateway 的配置/运行诊断：本机无 metadata/私密凭据时稳定报告 `unconfigured + network_call_made=false`，不再把离线结果包装成真实 Provider 结果。
 
 `ProviderConnectionState@1`：
 
@@ -240,7 +240,7 @@ unconfigured → checking → ready
 
 A003 当前实现：
 
-- 保存后先验证 metadata 和 Keychain 可读，再重启并等待新 Agent 报告 provider/model capability；
+- 保存后先验证 metadata 和私密凭据代际可读，再确认 Rust runtime 的 provider/model capability；
 - `provider:check` 和普通 Turn 产生可取消的脱敏 lifecycle；工作台轮询正在运行 Turn 以展示 Item 和取消 ID，原始 token delta 不进入 UI；
 - 固定映射 DeepSeek 400、401、402、422、429、500、503 和网络/超时；不向 UI 泄露 Key、原始响应或内部 Base URL；
 - JSON 模式 prompt 明确包含 JSON 要求和输出示例；空 `content`、缺少 choice、无效 JSON、Schema 不符分别记录为结构化错误，不能回退为离线成功；
@@ -584,14 +584,14 @@ Brief / reference evidence
 
 资产层级分为 `preview`、`editable`、`export` 三档，但都从同一 ShapeProgram/AssemblyGraph 重建，不保存三套互相漂移的网格。preview 优先反馈速度；editable 保留选择与材质区；export 才执行完整 validate/inspect、纹理压缩和未引用资源清理。
 
-DeepSeek 不是网格生成或纹理服务。它负责把模糊意图展开成严格 typed `ForgeVisualProgram@1`，并在 Rust 返回结构化错误时进行有界修复；Rust 负责引用完整性、操作白名单、预算、hash、GLB/PBR readback、八视角、质量、版本和导出。`ForgeVisualProgram@1` 是设计源信封，不是第二条资产版本链：lowering 后仍由 `ShapeProgram@1`、`AssemblyGraph@1`、Material Zone、Surface program、`AgentAssetVersion@1` 和 `ActiveDesignSnapshot@1` 分别承担既有真值。
+DeepSeek 不是网格生成或纹理服务。默认 Provider 边界只允许它把模糊意图写成紧凑的 `ForgeVisualAuthoringIntent@1`：选择视觉架构、比例、材质与表面语言，不直接填写 Shape operation、内部 Part/Zone/Detail ID 或可执行代码。Rust Core 将该意图确定性降级为严格 typed `ForgeVisualProgram@1`，并在校验失败时只返回结构化、可有界修复的错误；Rust 继续负责引用完整性、操作白名单、预算、hash、GLB/PBR readback、八视角、质量、版本和导出。`ForgeVisualAuthoringIntent@1` 只是一次编译输入，`ForgeVisualProgram@1` 是设计源信封，二者都不创建第二条资产版本链：lowering 后仍由 `ShapeProgram@1`、`AssemblyGraph@1`、Material Zone、Surface program、`AgentAssetVersion@1` 和 `ActiveDesignSnapshot@1` 分别承担既有真值。
 
 程序化视觉主链为：
 
 ```text
 Natural-language brief / authorized reference evidence
-→ DeepSeek typed ForgeVisualProgram
-→ Rust validate + semantic lowering
+→ DeepSeek typed ForgeVisualAuthoringIntent
+→ Rust validate + lower to ForgeVisualProgram
 → Restricted Shape/Assembly/Material/Surface compilation
 → real GLB/PBR readback + fixed eight-view review
 → at most two in-place repairs of the same intent
@@ -600,7 +600,9 @@ Natural-language brief / authorized reference evidence
 → ForgeAssetPackage
 ```
 
-该链当前只有 PV001 的最小 Rust 合同/lowering 和既有 V003/ShapeProgram/Surface/GLB 基础；PV002 的机械臂真实 fixture/双档编译、PV003 的 DeepSeek typed authoring、PV004 的阶段化构建与八视角收敛、PV005 的三轮语言修改/恢复/资产包、PV006 的 20 条盲测和 PV007 的逐领域扩展尚未完成，因此不得宣称自由生成或收藏级 MVP 闭环。历史 N001–N004 Provider 代码为 `experimental/default-off`，默认工作台不读取 FAL Key，也不会发起付费视觉请求。
+该链当前已完成 PV001–PV005、PV006A–PV006C 与 PV008：Rust 合同/lowering、机械臂真实 fixture/双档编译、typed author/patch、七阶段构建与八视角收敛、同一资产三次修改/确认/恢复/GLB/六成员资产包工程闭环，以及多模态请求→独立 Vision Evidence Provider→视觉证据图→真实 Detail Inventory 的 exact-lineage 绑定。视觉 Provider 只读取本 Turn 明确授权的 CAS 图片并返回 `observed | inferred | unknown` 证据，不得生成网格、执行代码、写 Snapshot 或直接修改资产；其配置与 DeepSeek 分离，并在本机 Alpha 使用不触发 Keychain 弹窗的权限受限私密文件。随后 DeepSeek 把文字和证据融合成紧凑 `ForgeVisualAuthoringIntent@1`，Rust 绑定内部细节并继续校验、编译、八视图评估和最多两次同意图修复。2026-07-27 的真实 DeepSeek 验收已以 `provider_authoring_ir` 来源完成 author→build→readback→render→evaluate→preview→confirm→Snapshot→export；它证明工程链真实可用，不证明目标图级视觉质量或任意类别自由生成。
+
+PV006C 已把 Rust-normalized request+graph 接入原生 `turn/start`，在任何 Turn 写入前重读 sealed evidence、校验当前 Snapshot/选择/锁定，并要求 DeepSeek author/patch 为每条视觉 claim 提交 `bound | unresolved | evaluation_only` disposition；Rust 再构造并随 preview/AssetVersion 持久化 `MultimodalProgramEvidenceBinding@1`。候选 GLB 编译后的确切八视图与 sealed 参考像素经独立 comparison port 交给同一视觉模型，但模型只能提交逐 claim assessment；Rust 通过 hash-only `VisualReferenceComparisonInput@1` 与派生 `Report@1` 决定三层相似度、修复目标和硬门。比较失败会进入最多两次同意图 typed repair，旧 readback/view/report 全部作废；只有通过的最新报告可随唯一 preview/AssetVersion 保存。离线组合 E2E 已证明确认、Snapshot、同字节 GLB 直接导出和六成员资产包。但真实 Vision+DeepSeek 组合 E2E、PV006 的 20 条多模态盲测与真人门、PV007 的逐领域扩展仍未完成，因此不得宣称自由生成或收藏级 MVP 闭环。历史 N001–N004 神经 3D Provider 代码仍为 `experimental/default-off`；视觉理解 Provider 与神经网格生成不同，它不替换 ShapeProgram/Surface Compiler，也不要求 FAL。
 
 ### 9.2 建模语法路由
 

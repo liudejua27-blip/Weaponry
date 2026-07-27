@@ -339,6 +339,22 @@ export type AgentBlockoutConceptPreview = {
   "byte_size": number
 }
 
+export type C111StructuralDetailContract = {
+  "schema_version": "C111StructuralDetailContract@1"
+  "source_program_sha256": string
+  "surface_layer_program_id": string
+  "surface_layer_program_sha256": string
+  "surface_layer_lowering_sha256": string
+  "lineages": Array<{
+  "detail_class": "service_panel" | "joint_stack" | "auxiliary_linkage" | "cable_clamps" | "gripper_hinges" | "decal" | "wear"
+  "part_ids": Array<string>
+  "geometry_output_ids": Array<string>
+  "material_zone_ids": Array<string>
+  "surface_program_ids": Array<string>
+  "required_texture_roles": Array<"base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive">
+}>
+}
+
 export type ComponentRecipeCandidate = {
   "schema_version": "ComponentRecipeCandidate@1"
   "candidate_id": string
@@ -595,6 +611,13 @@ export type EditableComponentRecipe = {
   "non_functional_only": true
 }
 
+export type ForgeVisualAuthoringIntent = {
+  "schema_version": "ForgeVisualAuthoringIntent@1"
+  "authoring_id": string
+  "title": string
+  "arm_design_intent": ArmDesignIntent
+}
+
 export type ForgeVisualPatch = {
   "schema_version": "ForgeVisualPatch@1"
   "patch_id": Id
@@ -602,7 +625,7 @@ export type ForgeVisualPatch = {
   "expected_source_sha256": Sha256
   "preserve_geometry": boolean
   "preserve_material_surface": boolean
-  "operations": Array<SetTitle | UpsertDesignToken | RemoveDesignToken | ReplaceParts | ReplaceGeometryGraph | ReplaceAssemblyGraph | ReplaceMaterialGraph | ReplaceSurfaceGraph | ReplaceDetailInventory | SetExportProfile>
+  "operations": Array<SetTitle | UpsertDesignToken | RemoveDesignToken | ReplaceParts | ReplaceGeometryGraph | UpsertGeometryOperation | ReplaceAssemblyGraph | ReplaceMaterialGraph | UpsertMaterialBinding | ReplaceSurfaceGraph | UpsertSurfaceBinding | ReplaceDetailInventory | UpsertDetailInventoryItem | SetExportProfile>
 }
 
 export type ForgeVisualProgram = {
@@ -632,7 +655,7 @@ export type ForgeVisualProgram = {
   "material_graph": Array<{
   "part_id": Id
   "material_zone_id": Id
-  "material_id": Id
+  "material_id": "mat_primary" | "mat_graphite" | "mat_painted_steel" | "mat_powder_coat" | "mat_aluminum" | "mat_signal_red" | "mat_composite" | "mat_abs_matte" | "mat_carbon_composite" | "mat_rubber" | "mat_rubber_tire" | "mat_dark_glass" | "mat_clear_glass" | "mat_emissive_blue" | "mat_automotive_paint"
 }>
   "surface_graph": Array<{
   "surface_program_id": Id
@@ -1117,6 +1140,36 @@ export type ModulePackManifest = {
 }>
 }
 
+export type MultimodalDesignRequest = {
+  "schema_version": "MultimodalDesignRequest@1"
+  "request_id": string
+  "project_id": string
+  "turn_id": string
+  "domain_pack_id": string
+  "instruction": string
+  "reference_inputs": Array<ReferenceInput>
+  "active_asset_version_id"?: string | null
+  "selection"?: Selection | null
+  "locks": Locks
+}
+
+export type MultimodalProgramEvidenceBinding = {
+  "schema_version": "MultimodalProgramEvidenceBinding@1"
+  "binding_id": string
+  "request_sha256": string
+  "evidence_graph_sha256": string
+  "source_program_sha256": string
+  "project_id": string
+  "domain_pack_id": string
+  "program_id": string
+  "dispositions": Array<{
+  "claim_id": string
+  "disposition": "bound" | "unresolved" | "evaluation_only"
+  "detail_ids": Array<string>
+  "reason": string
+}>
+}
+
 export type ProductionComponentRecipeRegistry = {
   "schema_version": "EditableComponentRecipeRegistry@1"
   "registry_id": "registry_m108b_production_concept_v1"
@@ -1511,6 +1564,7 @@ export type VisualConvergenceInput = {
   "readback": Readback
   "fixed_views": Array<View>
   "detail_coverage": DetailCoverage
+  "reference_comparison"?: ReferenceComparison
   "repairs": Array<Repair>
 }
 
@@ -1527,6 +1581,22 @@ export type VisualConvergenceReport = {
   "failure_codes": Array<string>
 }
 
+export type VisualEvidenceGraph = {
+  "schema_version": "VisualEvidenceGraph@1"
+  "graph_id": string
+  "request_id": string
+  "request_sha256": string
+  "project_id": string
+  "domain_pack_id": string
+  "provider": {
+  "provider_id": string
+  "model_id": string
+  "provider_response_sha256": string
+  "analyzed_at": string
+}
+  "claims": Array<Claim>
+}
+
 export type VisualIntentMapping = {
   "schema_version": "VisualIntentMapping@1" | "VisualIntentMapping@2"
   "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
@@ -1539,6 +1609,53 @@ export type VisualIntentMapping = {
   "pose_category": "neutral" | "grounded" | "elevated" | "extended"
   "variant_family_index": number
 }>
+}
+
+export type VisualReferenceComparisonInput = {
+  "schema_version": "VisualReferenceComparisonInput@1"
+  "request_sha256": string
+  "evidence_graph_sha256": string
+  "program_binding_sha256": string
+  "source_program_sha256": string
+  "glb_sha256": string
+  "reference_sources": Array<{
+  "evidence_id": string
+  "evidence_sha256": string
+}>
+  "candidate_views": Array<{
+  "view_id": "iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front"
+  "glb_sha256": string
+  "renderer_id": string
+  "image_sha256": string
+  "readback_passed": true
+}>
+}
+
+export type VisualReferenceComparisonReport = {
+  "schema_version": "VisualReferenceComparisonReport@1"
+  "report_sha256": string
+  "comparison_input_sha256": string
+  "provider": {
+  "provider_id": string
+  "model_id": string
+  "provider_response_sha256": string
+  "analyzed_at": string
+}
+  "assessments": Array<{
+  "claim_id": string
+  "outcome": "matched" | "partial" | "contradicted" | "not_visible"
+  "similarity_bps": number
+  "confidence_bps": number
+  "source_evidence_ids": Array<string>
+  "candidate_view_ids": Array<"iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front">
+  "reason": string
+}>
+  "macro_similarity_bps"?: number
+  "meso_similarity_bps"?: number
+  "micro_similarity_bps"?: number
+  "passed": boolean
+  "failure_codes": Array<string>
+  "repair_claim_ids": Array<string>
 }
 
 export type VisualTextureSet = {

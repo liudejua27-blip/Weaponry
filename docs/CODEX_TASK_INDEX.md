@@ -2272,7 +2272,7 @@ Gate：`script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/sr
 
 当前证据：Rust 从 iteration 70 C111 的 10 Parts、96 Shape outputs、47 个 part-scoped Material bindings、6 个 A005 programs 和 27 项 Detail Inventory 构造 sealed `ForgeVisualProgram@1`；program SHA-256 为 `e8971a0ed490169db06d895f88a1ee9c20bc9d6577f4760ed34a4822595a746e`，lowering 保持 ShapeProgram SHA-256 `5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d` 和完整 AssemblyGraph。`agent:pv002-c111-forge-visual-gate` 用同一 `RestrictedGeometryExecutor` 生成 49,392-triangle/152-primitive preview 与 124,376-triangle/152-primitive/1K PBR production，并绑定 8 个固定视图 hash 与 v2 环境真值，0 Provider 调用。Inventory 为 24 verified / 3 noncritical unresolved / 0 critical；stage 为 `sealed`，`blocks_single_result_display=false`，但 `formal_eligible=false`、`human_benchmark_evidence=false`。
 
-PV002 无剩余 critical 阻断。尚未完成的是下一层产品闭环：PV003 DeepSeek typed author/patch、PV004 八视图有界收敛、PV005 三次语言修改与资产包，以及 C111A packaged confirm/export/restart 和 M108B 真人评分；这些不得由 PV002 sealed 状态替代。
+PV002 无剩余 critical 阻断。后续 PV003 typed author/patch、PV004 八视图有界收敛和 PV005 三次语言修改/资产包现已分别完成；仍未完成的是 PV006 的 20 条未见 Brief 与独立真人评分、PV007 逐领域扩展，以及 M108B 正式四领域真人门。这些后续证据不得由 PV002 sealed 状态替代。
 
 ### FGC-PV003 任务卡
 
@@ -2296,15 +2296,83 @@ PV002 无剩余 critical 阻断。尚未完成的是下一层产品闭环：PV00
 
 ### FGC-PV005 任务卡
 
-状态：ready（PV004 已完成；下一原子任务）。
+状态：已实现（2026-07-26；同资产四版本/三次修改、双域锁、确认、导航、恢复、GLB 与六成员资产包聚合 Gate 通过）。
 
 目标：完成同一资产至少三轮自然语言修改、geometry/material 锁定、preview→confirm、undo、restart、GLB 与六成员资产包一致性。
 
+完成内容：确认版本现在在现有 `AgentAssetVersion.assembly_graph` 内保存精确 `ForgeVisualProgramRevision@1` provenance；下一 Turn 只从 Rust `ActiveDesignSnapshot` 指向的不可变版本恢复该源，并重新 lowering 后要求与版本 ShapeProgram 完全一致。材质图绑定会实际覆盖对应输出 operation 的 `material_id`，不再只改变说明元数据。后续唯一结果通过代码所有 `replace_forge_visual_program` ChangeSet 进入既有 preview→confirm/Snapshot/CAS/Quality 生命周期；公共 ChangeSet API 拒绝直接提交该内部 operation。
+
+验收证据：离线语言 fixture 从石墨机械臂开始，连续执行“只改暖铜材质”“保持材质拉长连杆”“继续保持材质增强比例”三次修改，形成四个不可变版本；geometry/material-surface 锁、每次 GLB hash 变化、undo/redo、新进程恢复和导出 GLB 同 hash 均通过。`GET /api/v1/agent/asset-versions/{id}:asset-package` 会从活动 Snapshot 重新编译同一 production GLB，生成八个环绕视图、WebP、真实 H.264 MP4，并以 `ForgeAssetPackage@1` 校验 `asset.glb/thumbnail.webp/turntable.mp4/manifest.json/quality-report.json/license-metadata.json` 六成员；缺少代码允许的本机 FFmpeg 时明确 503，不生成假视频。`npm run agent:pv005-continuous-asset-gate` 已通过 Rust Core、desktop、真实 Python restricted worker 和 contracts。
+
+限制：本任务使用 `offline_deterministic` typed language fixture，实测 Provider 调用为 0；它证明产品生命周期和工件一致性，不证明真实 DeepSeek 已自由写出这些修改，也不证明视觉达到收藏级。FFmpeg 尚未作为签名 packaged 资源随应用分发，因此外部安装/签名发布仍由 P009–P012 约束。
+
+### FGC-PV006A 任务卡
+
+状态：已实现（2026-07-26；Rust 多模态证据合同与程序绑定 Gate 通过）。
+
+目标：在不改变 `ReferenceEvidence@1` 只读证据、`ForgeVisualProgram@1` 设计源和 `ActiveDesignSnapshot@1` 产品真值边界的前提下，建立文字、单图、多视图、活动模型、局部选择与锁定的统一 Rust 合同。
+
+完成内容：新增 `MultimodalDesignRequest@1`、八类 `ReferenceRole`、整数归一化区域、活动资产/Part/Material Zone 选择与双域锁；新增 `VisualEvidenceGraph@1`，强制每条视觉判断标为 `observed | inferred | unknown` 并带宏观/中频/微观层级、目标域、置信度和 exact sealed evidence lineage；新增 `MultimodalProgramEvidenceBinding@1`，要求每条 claim 逐一处置为真实 bound detail、显式 unresolved detail 或 evaluation-only，且 program/request/graph 全部 semantic hash 一致。单图声明缺失的视角不能支持 `observed`，URL、路径、data URI、Bearer/API Key 标记不能进入 Provider 输出合同。
+
+Gate：`npm run agent:pv006a-multimodal-contract-gate`；当前 Rust 5/5、generated contracts 和 `git diff --check` 通过。该任务没有网络调用、没有读取用户视觉 Key、没有创建或修改资产版本，也不证明视觉模型质量。
+
+### FGC-PV006B 任务卡
+
+状态：已实现（2026-07-26；独立 Vision Evidence Provider、私密配置、可取消工作台证据入口与聚合 Gate 通过）。
+
+目标：实现 OpenAI-compatible 的 `VisionEvidenceProvider` 端口与桌面适配器，只从 Rust CAS 读取本次已授权的图片，使用 `messages[].content = text + image_url` 请求视觉模型，严格解析为 `VisualEvidenceGraph@1`；配置元数据与 DeepSeek 分离，Key 仅进入权限受限 secret/稳定签名后的 Keychain，启动、普通生成和元数据读取均不得触发凭据弹窗。必须覆盖无网络 fake、超时、取消、响应上限、重定向拒绝、JSON 漂移、密钥脱敏、一次读取和迟到结果屏障；真实测试只能由显式动作触发。
+
+完成内容：Rust app-server 协调器只接受已验证 `MultimodalDesignRequest@1` 与同 Project/Domain 的 sealed `ReferenceEvidence@1`；desktop 只按 evidence ID 从 Rust CAS 读取图片字节，OpenAI-compatible 适配器以受限 `text + image_url` 请求并由 Rust 构造最终证据图。独立权限受限私密文件以 0700 目录、0600 metadata/credential generation 保存 Base URL、model 与 Key，metadata 读取不打开 secret，也不使用 Keychain。工作台参考抽屉可为已保存图片指定轮廓/结构/材质/表面/局部/风格/多视图角色，携带活动 Asset/Part/Material Zone 和保持锁，显式分析、取消并展示宏观/中频/微观 `observed | inferred | unknown`；该步骤不创建 ChangeSet、版本或 GLB。
+
+Gate：`npm run agent:pv006b-vision-evidence-provider-gate`；app-server 5/5、desktop 5/5（含请求 registry 的重复/取消/清理）、F026 工作台 smoke、typecheck、generated contracts 和 diff check 通过。测试均为 fake HTTP；用户测试 Key 未进入代码、命令、日志或 fixture，尚未执行真实付费请求，因此不证明指定视觉模型的真实输出质量。
+
+### FGC-PV006C 任务卡
+
+状态：in_progress（offline exact-lineage→author/patch→PV004/PV005→确认导出已接通；等待真实 Vision+DeepSeek 联网 E2E）。
+
+目标：把文字+单图、文字+多视图、活动模型+局部参考修改接入 Codex 工作台和现有 PV003–PV005 author/patch、八视图、最多两次同意图修复、preview→confirm、Snapshot 与 GLB/资产包链；视觉证据只影响程序编写和评审，不直接生成网格或创建第二版本链。
+
+当前增量：工作台先获得 Rust 归一化的 exact request，再通过“使用这些证据生成/修改”把 request+graph 送入原生 `turn/start`。运行时在首个持久化 Turn 变更前从 Rust 产品状态重读每个 `ReferenceEvidence@1`，校验 Project、指令、活动 Asset、semantic hash 和 graph；同 client request 换证据 digest 必须冲突，失败不创建 Turn。`ValidatedMultimodalActionContext` 只向 DeepSeek 投影无字节/文件名/URL/路径/密钥的不可信只读证据，并进入 Provider/cache/trace digest。多模态 author/patch 必须对每条 claim 精确处置为 bound/unresolved/evaluation-only，Rust 自行构造并验证 `MultimodalProgramEvidenceBinding@1`。production 入口把 sealed 参考像素与同 GLB/renderer 的确切八张候选 PNG 交给同一视觉适配器；Provider 只返回逐 claim assessment，Rust 通过 `VisualReferenceComparisonInput@1`/`Report@1` 派生三层相似度、失败码和修复 claim，且视觉比较成为独立 `pv006c_reference_comparison` 硬门。失败后的 typed same-intent patch 会清除旧比较、完整重编译并再次比较，最多两次；通过后的比较 input/report 才进入唯一 preview，并在确认时进入 AssemblyGraph provenance。desktop offline E2E 同时证明 Snapshot、最终 GLB、直接导出和六成员资产包，且三个 GLB 落点字节相同。2026-07-27 真实视觉服务已为单图返回 Rust-validated 三层 graph；DeepSeek 真实 Turn 已联网并先后暴露 13/16 tool drift、重复 discovery、60 秒高推理 timeout 与 4 MiB SSE 信封不足。代码现以单一 16-tool 常量、视觉证据专用四工具投影、180 秒单请求与 16 MiB aggregate SSE 修复，并保持更小 payload 上限、Turn deadline 和取消。最新包尚未在锁屏解除后重跑，因此状态仍 `in_progress`，没有真实 GLB/唯一 preview/确认导出成功证据；其后才进入 20 条真人门。
+
+### FGC-PV008 任务卡
+
+状态：已实现（2026-07-27；紧凑 Provider Authoring IR、Rust lowering、真实 DeepSeek→唯一 GLB→确认/Snapshot→导出证据通过）。
+
+目标：停止要求 Provider 手写完整 ForgeVisualProgram/ShapeProgram/Part/Zone/Surface/Detail 跨图数据库对象。DeepSeek 只提交 `ForgeVisualAuthoringIntent@1` 视觉创作意图；Rust Core 从同一 reviewed compiler substrate 派生唯一完整 `ForgeVisualProgram@1`，并复用现有受限编译、readback、八视图、唯一结果、确认、版本和导出链。
+
+完成内容：Provider schema 只暴露机械臂架构、形体语言、材质、表面 motif、细节密度、姿态、比例和安全视觉关键词；不暴露 operation/output/Part/Zone/Surface/Detail ID、尺寸、代码、URL 或路径。Rust lowering 同步改变 ShapeProgram、AssemblyGraph 和 material_graph，确定性生成 surface/detail lineage，并将多模态 claim 决策绑定到派生后的真实 Detail。`ForgeVisualProgram@1` 仍是唯一候选设计真值，Intent 不单独持久化为资产或版本。
+
+真实证据：`output/deepseek-forge-visual/live_forge_visual_20260727_225722.json` 为 `pass`，1 次网络调用、2,098 input / 317 output tokens、`author_source_mode=provider_authoring_ir`；author/build/compile/readback/render/evaluate/preview、确认、Snapshot 和 production GLB 导出 hash 全部通过。该证据不使用 `reviewed_fallback`。
+
+Gate：`npm run agent:pv008-provider-authoring-ir-gate`；另已通过 Core 119、app-server 192、desktop probe 6、contracts、no-network launcher、release packaged sidecar/App build 和 `git diff --check`。
+
+限制：当前 IR 只完成机械臂 serial/parallel reviewed family，不证明汽车、飞机、未来道具或任意类别自由生成；视觉仍低于目标参考图，M108B 真人逐领域 4/5 仍 blocked。下一任务是 C111B。
+
+### FGC-C111B 任务卡
+
+状态：ready（2026-07-27；PV008 已使真实 DeepSeek 紧凑视觉意图经 Rust lowering→编译/readback→八视图→唯一 preview→确认/Snapshot→production GLB 导出完整通过，`author_source_mode=provider_authoring_ir`。C111B 现在只负责提高机械臂真实视觉质量）。
+
+目标：在不扩展任意代码执行、不新增第二 renderer、不改变 ForgeVisualProgram/ShapeProgram/GLB 真值的前提下，把 C111 机械臂从“生产密度 blockout”推进为可进入 M108B 真人评审的结构与表面资产。任务只深化机械臂黄金路径，不横向扩展汽车、飞机或未来道具。
+
+结构范围：在现有 C111 reviewed registry 中增加真实可回读的服务底座面板/角护甲/维修盖、转台轴承与螺栓环、深槽开放连杆/横撑/安装耳、层叠 motor/bearing/guard 关节、后置辅助连杆或执行器壳、2–3 条受夹具约束的线束，以及包含 knuckle/hinge/接触垫的分段夹爪。每个关键细节必须对应真实 Shape output、Part/Zone 与 GLB readback，不能只写入 Prompt、operation history 或 inventory 文案。
+
+表面范围：复用 A005/Surface Compiler 增加窄警示 Decal/资产编号、边缘磨损 mask、分区 roughness 与方向性拉丝；必须证明实际纹理被 GLB PBR 通道消费。统一 microgrid 或纯颜色材质不能单独满足微表面门。
+
+自动退出条件：
+
+1. `C111StructuralDetailContract@1` 对 service panel、joint stack、auxiliary linkage、cable clamps、gripper hinges、decal 与 wear 各有 exact Part/output/zone/texture lineage；缺任一关键类返回 `C111_STRUCTURAL_DETAIL_MISSING`。
+2. production 继续满足既有 manifold、PBR 五通道、Material Zone、八视图、GLB/export/readback/hash 与 80,000–150,000 triangle 预算；三角数不能替代结构门。
+3. 有授权参考图时 `VisualConvergenceReport.reference_comparison` 必填；同一 GLB 的工作台 WebGL/PBR 八视图要求 macro ≥7600 bps、meso ≥6500 bps、micro ≥5000 bps，关键结构 claim 不得为 `not_visible`。`forgecad-agent-software-raster@1` 只保留为确定性几何辅助，不能成为图片级 PBR 视觉证明。
+4. 单一 Three.js canvas 的 docked/focus、确认、导出、重启恢复保持通过；失败候选不显示、不创建版本。
+5. 自动门通过后才进入 M108B 三位独立真人逐项 `4/5`，不得由 Codex/自动 VLM 替代最终评分。
+
+主要入口：`packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-component-recipe-registry.json`、`packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json`、`apps/desktop/src-tauri/crates/forgecad-core/src/skills.rs`、`surface_layers.rs`、`visual_convergence.rs`、工作台 renderer capture 与 C111 packaged Gate。
+
 ### FGC-PV006 任务卡
 
-状态：blocked（等待 PV005）。
+状态：blocked（等待 PV006B–PV006C 与正式评审输入）。
 
-目标：运行 20 条未见机械硬表面 Brief；所有结果明确成功或失败，至少 15/20 经独立真人在轮廓、材质和细节完整度达到 4/5。
+目标：运行 20 条未见多模态机械硬表面任务：5 条纯文字、5 条文字+单图、5 条文字+多视图、5 条活动模型+局部参考修改。所有结果必须明确成功或失败，成功结果均为真实 GLB 且与视口/导出同 hash；至少 15/20 经独立真人在轮廓、材质和细节完整度达到 4/5。
 
 ### FGC-PV007 任务卡
 

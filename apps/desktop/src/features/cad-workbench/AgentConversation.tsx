@@ -3,11 +3,13 @@ import type { ChangeEvent } from 'react'
 import type { AgentItem, MechanicalConceptPlan } from '../../shared/types'
 import type { ProviderConfigMetadata } from '../../shared/tauri/agentSupervisor'
 import type { AgentClarification, AgentClarificationOption } from './agentConversationState.js'
-import { AgentStepItem } from './AgentStepItem.js'
+import { AgentStepItem, agentProcessSteps } from './AgentStepItem.js'
 import { LegacyCompatibilityNotice } from './LegacyCompatibilityNotice.js'
 import type { LegacyCompatibilityDisplay } from './legacyCompatibilityDisplay.js'
 import type { AgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation.js'
 import type { AgentPlanSourcePresentation } from './agentPlanSourcePresentation.js'
+import { CandidatePreviewQualityPanel } from './candidatePreviewQuality.js'
+import type { CandidatePreviewQuality } from './candidatePreviewQualityLogic.js'
 import { providerConfigPresentation } from './providerConnectionPresentation.js'
 
 export type { AgentClarification, AgentClarificationOption } from './agentConversationState.js'
@@ -54,6 +56,8 @@ export type AgentConversationProps = {
   agentKernelItems: AgentItem[]
   agentKernelUnavailable: boolean
   agentPlan: MechanicalConceptPlan | null
+  candidatePreviewPresent: boolean
+  candidatePreviewQuality: CandidatePreviewQuality | null
 }
 
 export function AgentConversation({
@@ -96,8 +100,11 @@ export function AgentConversation({
   agentKernelItems,
   agentKernelUnavailable,
   agentPlan,
+  candidatePreviewPresent,
+  candidatePreviewQuality,
 }: AgentConversationProps) {
   const providerPresentation = providerConfigPresentation(providerConfig)
+  const processSteps = agentProcessSteps(agentKernelItems).slice(-6)
   return (
     <>
       {!projectExists && !loading && (
@@ -129,7 +136,7 @@ export function AgentConversation({
       {providerSetupOpen && (
         <div id="forgecad-provider-setup" className="provider-setup-card" aria-label="配置模型服务">
           <strong>连接你的大模型 API</strong>
-          <small>API Key 只保存到 macOS Keychain，不写入项目、版本或导出包。</small>
+          <small>API Key 只保存到本机权限受限的私密文件，不写入项目、日志、Git 或导出包。</small>
           <label><span>API Base URL</span><input value={providerBaseUrl} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderBaseUrlChange(event.target.value)} placeholder="https://api.deepseek.com" /></label>
           <label><span>Model</span><input value={providerModel} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderModelChange(event.target.value)} placeholder="deepseek-v4-pro" /></label>
           <label><span>API Key</span><input type="password" value={providerApiKey} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderApiKeyChange(event.target.value)} placeholder="只在本次配置时输入" autoComplete="off" /></label>
@@ -138,7 +145,7 @@ export function AgentConversation({
             <button type="button" onClick={onTestProvider} disabled={providerSaving || !providerPresentation.canTest}>测试连接（会联网）</button>
             <button type="button" className="primary" onClick={onSaveProvider} disabled={providerSaving}>{providerSaving ? '保存并连接中…' : '保存并连接'}</button>
           </div>
-          <small>浏览器调试预览不提供 Keychain；请按操作文档使用 secret file 启动 Agent。</small>
+          <small>本机 Alpha 不使用 macOS 钥匙串，因此不会因频繁重建反复索要系统密码。</small>
         </div>
       )}
       {activeProviderTurnId && (
@@ -185,6 +192,10 @@ export function AgentConversation({
           <small>{blockoutPreviewPresentation.detail}</small>
         </div>
       )}
+      <CandidatePreviewQualityPanel
+        candidatePresent={candidatePreviewPresent}
+        quality={candidatePreviewQuality}
+      />
       {agentClarification && (
         <div className="agent-clarification" role="group" aria-label={agentClarification.kind === 'scope' ? '当前请求超出概念范围' : '需要确认设计类别'} aria-live="polite">
           <strong>{agentClarification.kind === 'scope' ? '请换一种外观创意描述' : '先确认设计对象'}</strong>
@@ -206,13 +217,13 @@ export function AgentConversation({
           )}
         </div>
       )}
-      {agentKernelItems.length > 0 && (
+      {processSteps.length > 0 && (
         <div className="agent-kernel-events" role="log" aria-live="polite" aria-label="Agent 步骤">
           <div className="agent-kernel-events-title">
-            <span>Agent 步骤</span>
-            <small>{agentKernelUnavailable ? '兼容模式' : '已记录'}</small>
+            <span>可核验生成过程</span>
+            <small>{agentKernelUnavailable ? '兼容模式' : '仅展示已持久化步骤，不展示模型推理'}</small>
           </div>
-          {agentKernelItems.slice(-4).map((item) => <AgentStepItem key={item.item_id} item={item} />)}
+          {processSteps.map((step) => <AgentStepItem key={step.key} step={step} />)}
         </div>
       )}
       {agentPlan && agentPlanSourcePresentation && (

@@ -103,7 +103,10 @@ export function agentConversationReducer(
       return {
         ...state,
         agentThreadId: action.threadId,
-        agentKernelItems: action.items.slice(-6),
+        // Preserve enough alternating ToolCall/ToolResult rows to derive a
+        // compact, verifiable process timeline without retaining Provider
+        // reasoning or unbounded tool payloads.
+        agentKernelItems: action.items.slice(-16),
         agentKernelUnavailable: false,
         agentClarification: action.presentation.clarification,
         agentPlan: action.presentation.clarification
@@ -132,7 +135,22 @@ export function isCurrentAgentConversationRequest(latestRequestId: number, reque
   return latestRequestId === requestId
 }
 
-export function parseAgentTurnPresentation(items: AgentItem[], requestText: string): AgentTurnPresentation {
+/**
+ * A workbench has one visible Agent turn at a time. Keep this tiny guard pure
+ * so all entry points (composer, clarification, and visual evidence) can
+ * share the same submission boundary before a request is started.
+ */
+export function claimAgentTurnSubmission(guard: { current: boolean }): boolean {
+  if (guard.current) return false
+  guard.current = true
+  return true
+}
+
+export function releaseAgentTurnSubmission(guard: { current: boolean }): void {
+  guard.current = false
+}
+
+export function parseAgentTurnPresentation(items: readonly AgentItem[], requestText: string): AgentTurnPresentation {
   const clarificationItem = items.find((item) => item.item_type === 'clarification')
   if (clarificationItem) {
     const payload = clarificationItem.payload

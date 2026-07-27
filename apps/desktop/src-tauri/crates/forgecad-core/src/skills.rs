@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     component_recipes::{ExpandedComponentCandidate, RecipeRegistry, RecipeSurfaceAdornmentSlot},
+    surface_layers::{
+        DecalLayer, EmissiveMask, NormalReliefLayer, RoughnessMask, SurfaceLayerProgram,
+        SurfaceSymmetry, UvFrame,
+    },
     semantic_sha256, CoreError, CoreResult,
 };
 
@@ -614,18 +618,6 @@ pub fn c111_golden_surface_adornment_programs(
             11103,
         ),
         (
-            "adorn_c111_link_flowline",
-            "link_armor",
-            "recipe_c111_arm_link_armor",
-            "zone_arm_link_armor",
-            "flowline",
-            "double_flowline",
-            "balanced",
-            "center_band",
-            "mat_automotive_paint",
-            11105,
-        ),
-        (
             "adorn_c111_gripper_chevron",
             "end_effector_form",
             "recipe_c111_arm_gripper",
@@ -651,7 +643,7 @@ pub fn c111_golden_surface_adornment_programs(
         ),
     ];
 
-    specs
+    let mut programs = specs
         .into_iter()
         .map(
             |(
@@ -694,7 +686,155 @@ pub fn c111_golden_surface_adornment_programs(
                 Ok(program)
             },
         )
-        .collect()
+        .collect::<CoreResult<Vec<_>>>()?;
+    let layer = c111_golden_surface_layer_program(candidate, registry)?;
+    let link_recipe = registry
+        .recipe("recipe_c111_arm_link_armor")
+        .ok_or_else(|| {
+            invalid(
+                "C111_GOLDEN_SURFACE_RECIPE_MISSING",
+                "C111B Design Surface references a Recipe outside the reviewed registry.",
+            )
+        })?;
+    for adornment in layer.lower()?.adornments {
+        adornment.validate_recipe_surface_slot(
+            "recipe_c111_arm_link_armor",
+            &link_recipe.surface_adornment_slots,
+        )?;
+        programs.push(adornment);
+    }
+    Ok(programs)
+}
+
+/// C111B's one sealed Design Surface. It replaces the old uniform link
+/// flowline on the same Material Zone with real retained decal, roughness,
+/// directional brush and emissive layers while preserving the bounded A005
+/// normal-relief binding used by the restricted compiler.
+pub fn c111_golden_surface_layer_program(
+    candidate: &ExpandedComponentCandidate,
+    registry: &RecipeRegistry,
+) -> CoreResult<SurfaceLayerProgram> {
+    if candidate.recipe.recipe_id != "recipe_c111_arm_golden_surface"
+        || registry.registry_id() != "registry_c111_golden_surface_robotic_arm_v1"
+        || candidate.registry_sha256 != registry.registry_sha256()
+    {
+        return Err(invalid(
+            "C111_GOLDEN_SURFACE_LINEAGE_INVALID",
+            "C111B Design Surface requires the exact reviewed golden robotic-arm lineage.",
+        ));
+    }
+    let target_part_id = candidate.expanded_assembly_graph["parts"]
+        .as_array()
+        .and_then(|parts| {
+            parts
+                .iter()
+                .find(|part| part["role"] == "link_armor")
+                .and_then(|part| part["part_id"].as_str())
+        })
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            invalid(
+                "C111_GOLDEN_SURFACE_PART_MISSING",
+                "C111B Design Surface requires a reviewed link-armor Part.",
+            )
+        })?;
+    c111_link_finish_surface_layer(&target_part_id)
+}
+
+/// Build the hash-stable C111B finish for an already validated C111 link Part.
+/// The caller remains responsible for proving that the Part and Zone belong
+/// to the reviewed C111 program before crossing the restricted boundary.
+pub fn c111_link_finish_surface_layer(target_part_id: &str) -> CoreResult<SurfaceLayerProgram> {
+    if !valid_prefixed_id(target_part_id, "part_") {
+        return Err(invalid(
+            "C111_GOLDEN_SURFACE_PART_MISSING",
+            "C111B Design Surface target Part is invalid.",
+        ));
+    }
+    let skill = builtin_surface_adornment_manifest_v3();
+    let skill_sha256 = skill.canonical_sha256()?;
+    let program = SurfaceLayerProgram {
+        schema_version: "SurfaceLayerProgram@1".into(),
+        program_id: "surface_layer_c111_link_finish".into(),
+        target_part_id: target_part_id.to_owned(),
+        target_zone_id: "zone_arm_link_armor".into(),
+        target_part_role: "link_armor".into(),
+        material_zone_id: "zone_arm_link_armor".into(),
+        base_material: "mat_automotive_paint".into(),
+        vector_paths: Vec::new(),
+        decal_layers: vec![
+            DecalLayer {
+                decal_id: "decal_c111_warning_stripe".into(),
+                motif: "warning_stripe".into(),
+                text_token: "CAUTION".into(),
+                color_token: "signal_red".into(),
+                anchor_uv: [0.22, 0.74],
+                scale_milli: 150,
+                opacity_milli: 820,
+            },
+            DecalLayer {
+                decal_id: "decal_c111_asset_id".into(),
+                motif: "panel_label".into(),
+                text_token: "A-01".into(),
+                color_token: "aluminum".into(),
+                anchor_uv: [0.72, 0.28],
+                scale_milli: 170,
+                opacity_milli: 900,
+            },
+        ],
+        normal_relief_layers: vec![NormalReliefLayer {
+            layer_id: "relief_c111_link_groove".into(),
+            motif: "parallel_groove".into(),
+            intensity: "subtle".into(),
+            coverage: "center_band".into(),
+            seed: 11107,
+        }],
+        roughness_masks: vec![
+            RoughnessMask {
+                mask_id: "rough_c111_edge_wear".into(),
+                motif: "edge_wear".into(),
+                coverage: "edge_band".into(),
+                intensity_milli: 220,
+                seed: 11108,
+            },
+            RoughnessMask {
+                mask_id: "rough_c111_directional_brush".into(),
+                motif: "linear_brush".into(),
+                coverage: "full_zone".into(),
+                intensity_milli: 180,
+                seed: 11109,
+            },
+        ],
+        emissive_masks: vec![EmissiveMask {
+            mask_id: "emissive_c111_double_flowline".into(),
+            motif: "double_flowline".into(),
+            color_token: "accent_blue".into(),
+            coverage: "symmetric_pair".into(),
+            intensity_milli: 360,
+            seed: 11110,
+        }],
+        symmetry: SurfaceSymmetry {
+            mode: "mirror_u".into(),
+            center_uv: [0.5, 0.5],
+        },
+        uv_frame: UvFrame {
+            frame_id: "uvframe_c111_link_finish".into(),
+            u_min: 0.06,
+            u_max: 0.94,
+            v_min: 0.08,
+            v_max: 0.92,
+            rotation_degrees: 90.0,
+        },
+        quality_profile: "production_concept".into(),
+        execution: "lower_to_a005_and_retain".into(),
+        skill_id: skill.skill_id,
+        skill_version: skill.version,
+        skill_sha256,
+        generator: "surface_layer_v1".into(),
+        non_functional_only: true,
+    };
+    program.validate()?;
+    Ok(program)
 }
 
 pub(crate) fn valid_prefixed_id(value: &str, prefix: &str) -> bool {

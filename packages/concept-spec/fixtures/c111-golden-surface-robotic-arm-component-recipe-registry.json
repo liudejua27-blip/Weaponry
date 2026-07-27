@@ -2236,6 +2236,18 @@
             "part_role": "upper_link_form"
           },
           {
+            "output_id": "output_link_upper_tension_rod",
+            "operation_id": "op_link_upper_tension_rod",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_frame_cross_brace",
+            "operation_id": "op_link_frame_cross_brace",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
             "output_id": "output_link_panel_seam_a",
             "operation_id": "op_link_panel_seam_a",
             "kind": "mesh",
@@ -2674,11 +2686,13 @@
             "zone_id": "zone_arm_link_armor",
             "allowed_kinds": [
               "flowline",
-              "pattern"
+              "pattern",
+              "normal_relief"
             ],
             "allowed_motifs": [
               "double_flowline",
-              "hex_microgrid"
+              "hex_microgrid",
+              "parallel_groove"
             ],
             "allowed_coverages": [
               "center_band",
@@ -4768,6 +4782,30 @@
             }
           },
           {
+            "operation_id": "op_plinth_service_panel_box",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [290, -210, 416],
+              "size": [198, 86, 26],
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_service"
+            }
+          },
+          {
+            "operation_id": "op_plinth_service_panel",
+            "op": "bevel_approx",
+            "inputs": ["op_plinth_service_panel_box"],
+            "args": {
+              "radius": 6,
+              "segments": 2,
+              "part_role": "base_form",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_base_service"
+            }
+          },
+          {
             "operation_id": "op_plinth_front_belt_box",
             "op": "box",
             "inputs": [],
@@ -5029,6 +5067,12 @@
           {
             "output_id": "output_plinth_guard_array",
             "operation_id": "op_plinth_guard_array",
+            "kind": "mesh",
+            "part_role": "base_form"
+          },
+          {
+            "output_id": "output_plinth_service_panel",
+            "operation_id": "op_plinth_service_panel",
             "kind": "mesh",
             "part_role": "base_form"
           },
@@ -5370,6 +5414,11 @@
           "zone_id": "zone_arm_base_fastener",
           "role": "trim",
           "material_preset_id": "mat_graphite"
+        },
+        {
+          "zone_id": "zone_arm_base_service",
+          "role": "service_panel",
+          "material_preset_id": "mat_aluminum"
         }
       ],
       "surface_adornment_slots": [

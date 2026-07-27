@@ -56,7 +56,25 @@
         "properties": {
           "part_id": { "$ref": "#/$defs/id" },
           "material_zone_id": { "$ref": "#/$defs/id" },
-          "material_id": { "$ref": "#/$defs/id" }
+          "material_id": {
+            "enum": [
+              "mat_primary",
+              "mat_graphite",
+              "mat_painted_steel",
+              "mat_powder_coat",
+              "mat_aluminum",
+              "mat_signal_red",
+              "mat_composite",
+              "mat_abs_matte",
+              "mat_carbon_composite",
+              "mat_rubber",
+              "mat_rubber_tire",
+              "mat_dark_glass",
+              "mat_clear_glass",
+              "mat_emissive_blue",
+              "mat_automotive_paint"
+            ]
+          }
         }
       }
     },

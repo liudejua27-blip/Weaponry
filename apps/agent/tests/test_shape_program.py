@@ -54,3 +54,52 @@ def test_non_finite_values_are_rejected():
     candidate = {**VALID_PROGRAM, "operations": [{**VALID_PROGRAM["operations"][0], "args": {"size": [1, 2, float("inf")]}}]}
     with pytest.raises(ShapeProgramValidationError, match="SHAPE_PROGRAM_NON_FINITE"):
         validate_shape_program(candidate)
+
+
+@pytest.mark.parametrize("operation_name", ["union", "subtract"])
+def test_boolean_operations_accept_two_to_eight_ordered_inputs(operation_name):
+    sources = [
+        {
+            "operation_id": f"op_source_{index}",
+            "op": "box",
+            "inputs": [],
+            "args": {"position": [index * 20, 0, 0], "size": [10, 10, 10], "part_role": "source"},
+        }
+        for index in range(3)
+    ]
+    boolean = {
+        "operation_id": "op_boolean",
+        "op": operation_name,
+        "inputs": [source["operation_id"] for source in sources],
+        "args": {"part_role": "boolean_result"},
+    }
+    candidate = {
+        **VALID_PROGRAM,
+        "operations": [*sources, boolean],
+        "outputs": [{**VALID_PROGRAM["outputs"][0], "operation_id": "op_boolean"}],
+    }
+
+    assert validate_shape_program(candidate)["operations"][-1]["inputs"] == [
+        "op_source_0",
+        "op_source_1",
+        "op_source_2",
+    ]
+
+
+@pytest.mark.parametrize("operation_name", ["union", "subtract"])
+def test_boolean_operations_reject_fewer_than_two_inputs(operation_name):
+    source = {**VALID_PROGRAM["operations"][0], "operation_id": "op_source"}
+    boolean = {
+        "operation_id": "op_boolean",
+        "op": operation_name,
+        "inputs": ["op_source"],
+        "args": {"part_role": "boolean_result"},
+    }
+    candidate = {
+        **VALID_PROGRAM,
+        "operations": [source, boolean],
+        "outputs": [{**VALID_PROGRAM["outputs"][0], "operation_id": "op_boolean"}],
+    }
+
+    with pytest.raises(ShapeProgramValidationError, match=f"SHAPE_PROGRAM_{operation_name.upper()}_INPUT"):
+        validate_shape_program(candidate)

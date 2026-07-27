@@ -181,6 +181,166 @@ pub struct BlockoutCandidate {
     pub updated_at: String,
 }
 
+/// The durable boundary between the high-freedom creative loop and the
+/// Rust-owned production delivery loop. A draft has no asset-version identity
+/// and must never be treated as an editable or exportable asset.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DraftCandidateStatus {
+    Draft,
+    Confirmed,
+    Cancelled,
+    Failed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DraftArtifactReference {
+    pub sha256: String,
+    pub byte_size: u64,
+    pub extension: String,
+}
+
+impl DraftArtifactReference {
+    pub fn validate(&self) -> CoreResult<()> {
+        if self.sha256.len() != 64
+            || !self
+                .sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || self.byte_size == 0
+            || self.extension != "glb"
+        {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_ARTIFACT_INVALID",
+                "Draft candidate preview must be a non-empty content-addressed GLB.",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DraftCandidate {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_asset_version_id: Option<String>,
+    pub summary: String,
+    pub plan_id: String,
+    pub direction_id: String,
+    pub domain_pack_id: String,
+    pub artifact_id: String,
+    pub parts: Vec<Value>,
+    pub shape_program: Value,
+    pub assembly_graph: Value,
+    #[serde(default)]
+    pub material_bindings: BTreeMap<String, Value>,
+    pub interactive_preview: DraftArtifactReference,
+    pub idempotency_key: String,
+    pub request_hash: String,
+    pub status: DraftCandidateStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confirmed_asset_version_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality_report_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure_code: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl DraftCandidate {
+    pub fn validate(&self) -> CoreResult<()> {
+        if self.schema_version != "DraftCandidate@1" {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_SCHEMA_INVALID",
+                "Draft candidate must use DraftCandidate@1.",
+            ));
+        }
+        require_id("candidate_id", &self.candidate_id)?;
+        require_id("project_id", &self.project_id)?;
+        if let Some(base) = self.base_asset_version_id.as_deref() {
+            require_id("base_asset_version_id", base)?;
+        }
+        require_text("summary", &self.summary, 2_000)?;
+        require_id("plan_id", &self.plan_id)?;
+        require_id("direction_id", &self.direction_id)?;
+        require_id("domain_pack_id", &self.domain_pack_id)?;
+        require_id("artifact_id", &self.artifact_id)?;
+        if self.parts.is_empty() {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_PARTS_EMPTY",
+                "Draft candidate must retain at least one Rust-owned part.",
+            ));
+        }
+        require_object("shape_program", &self.shape_program)?;
+        require_object("assembly_graph", &self.assembly_graph)?;
+        self.interactive_preview.validate()?;
+        require_id("idempotency_key", &self.idempotency_key)?;
+        if self.request_hash.len() != 64
+            || !self
+                .request_hash
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_REQUEST_HASH_INVALID",
+                "Draft candidate request hash must be lowercase SHA-256.",
+            ));
+        }
+        if let Some(id) = self.confirmed_asset_version_id.as_deref() {
+            require_id("confirmed_asset_version_id", id)?;
+        }
+        if let Some(id) = self.quality_report_id.as_deref() {
+            require_id("quality_report_id", id)?;
+        }
+        if let Some(code) = self.failure_code.as_deref() {
+            require_text("failure_code", code, 128)?;
+        }
+        require_text("created_at", &self.created_at, 128)?;
+        require_text("updated_at", &self.updated_at, 128)
+    }
+}
+
+impl FromStr for DraftCandidateStatus {
+    type Err = CoreError;
+
+    fn from_str(value: &str) -> CoreResult<Self> {
+        match value {
+            "draft" => Ok(Self::Draft),
+            "confirmed" => Ok(Self::Confirmed),
+            "cancelled" => Ok(Self::Cancelled),
+            "failed" => Ok(Self::Failed),
+            _ => Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_STATUS_INVALID",
+                "Draft candidate has an unsupported status.",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DraftCandidateBundleReadback {
+    pub draft: DraftCandidate,
+    pub interactive_preview_glb: ObjectRecord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ConfirmedAsset {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub version: AgentAssetVersion,
+    pub snapshot: ActiveDesignSnapshot,
+    pub quality: QualityReport,
+    pub interactive_preview_glb: ObjectRecord,
+    pub production_glb: ObjectRecord,
+}
+
 impl BlockoutCandidate {
     pub fn validate(&self) -> CoreResult<()> {
         require_id("artifact_id", &self.artifact_id)?;

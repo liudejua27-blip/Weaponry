@@ -493,12 +493,21 @@ def compile_shape_program(
         else None
     )
     if normalized_surface_layer is not None:
-        if list(surface_adornments) != normalized_surface_layer["adornments"]:
-            raise ValueError("surface layer lowering must carry the exact Rust-lowered A005 adornment list")
+        lowered_adornments = normalized_surface_layer["adornments"]
+        if any(item not in surface_adornments for item in lowered_adornments):
+            raise ValueError("surface layer lowering lost a Rust-lowered A005 adornment")
+        layer_zones = {item["target_zone_id"] for item in lowered_adornments}
+        if any(
+            item["target_zone_id"] in layer_zones and item not in lowered_adornments
+            for item in surface_adornments
+        ):
+            raise ValueError("surface layer lowering conflicts with another adornment on its zone")
         # The retained five-channel bake supersedes (rather than stacks with)
-        # the intermediate A005 texture set.  The exact A005 list remains in
-        # the sealed lowering and GLB provenance below.
-        surface_adornments = ()
+        # only its intermediate A005 texture set. Independent adornments on
+        # other zones remain real PBR inputs.
+        surface_adornments = tuple(
+            item for item in surface_adornments if item not in lowered_adornments
+        )
     program = assert_shape_program_runtime_compatible(program)
     source_triangle_budget = int(program.get("triangle_budget", 0))
     effective_triangle_budget = min(
@@ -792,10 +801,15 @@ def compile_shape_program(
                 resolved[operation_id] = [_radial_primitive(item, axis, radius, angle * index / count) for index in range(count) for item in source]
         elif op in {"union", "subtract"}:
             inputs = operation.get("inputs", [])
-            first = resolved.get(inputs[0], []) if len(inputs) > 0 else []
-            second = resolved.get(inputs[1], []) if len(inputs) > 1 else []
-            if not first or not second:
-                raise ManifoldCsgError("CSG_INPUT_MISSING", operation_id, f"{op} requires two exportable geometry inputs")
+            operands = [resolved.get(str(input_id), []) for input_id in inputs]
+            if len(operands) < 2 or any(not operand for operand in operands):
+                raise ManifoldCsgError(
+                    "CSG_INPUT_MISSING",
+                    operation_id,
+                    f"{op} requires at least two exportable geometry inputs",
+                )
+            first = operands[0]
+            remaining = [primitive for operand in operands[1:] for primitive in operand]
             depth = 1 + max(csg_depth_by_id.get(str(input_id), 0) for input_id in inputs)
             if depth > MAX_CSG_DEPTH:
                 raise ManifoldCsgError(
@@ -806,8 +820,10 @@ def compile_shape_program(
             csg_depth_by_id[operation_id] = depth
             if any(
                 _box_inputs_have_near_coincident_planes(left, right)
-                for left in first
-                for right in second
+                for left_index, left_operand in enumerate(operands)
+                for right_operand in operands[left_index + 1:]
+                for left in left_operand
+                for right in right_operand
                 if isinstance(left, BoxPrimitive) and isinstance(right, BoxPrimitive)
             ):
                 raise ManifoldCsgError(
@@ -819,7 +835,11 @@ def compile_shape_program(
                 node_id=operation_id,
                 operation=str(op),
                 left_solids=[_primitive_csg_solid(item) for item in first],
-                right_solids=[_primitive_csg_solid(item) for item in second],
+                # Manifold composes every solid within an operand before the
+                # boolean.  This preserves ordered n-ary semantics:
+                # union(a,b,c) = a + union(b,c) and
+                # subtract(a,b,c) = a - union(b,c).
+                right_solids=[_primitive_csg_solid(item) for item in remaining],
                 triangle_budget=effective_triangle_budget,
                 cancel_check=cancel_check,
                 timeout_seconds=csg_timeout_seconds,

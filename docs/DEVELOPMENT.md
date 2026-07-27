@@ -119,7 +119,7 @@ VITE_FORGE_API_BASE_URL=http://127.0.0.1:8000 npm run desktop:dev
 
 ## 4. Provider 配置
 
-原生 Tauri 应通过工作台 Provider 弹窗把 Key 保存到 macOS Keychain。浏览器调试使用只读 secret file：
+原生 Tauri 本机 Alpha 通过工作台 Provider 弹窗把 Key 保存到 Rust-owned `0700/0600` 私密文件代际。浏览器调试仍使用显式环境 secret file：
 
 ```bash
 umask 077
@@ -134,11 +134,11 @@ export FORGECAD_AGENT_API_KEY_FILE="$HOME/.config/forgecad/provider.key"
 
 不要把 API Key 放入 shell history、`.env`、SQLite、测试 fixture、日志或截图。真实调用必须由操作者显式执行；默认 smoke 使用确定性或本机 fake Provider。
 
-保存配置后不等于已经调用 DeepSeek。普通工作台启动只通过 `inspect_metadata_only()` 读取非敏感 metadata；不得在 mount 或 DeepSeek client 初始化时读取 Keychain。一次显式连接测试只建立一个 `turn_session()` 凭据快照；一次普通 Turn 也只建立一个快照，并在 preflight、budget、stream/tool follow-up 间复用，terminal success/failure/cancel 后释放和 zeroize。保存/清除仍按配置生命周期访问 Keychain。界面在尚未读取密钥时显示 `secret_status=not_checked`，不能伪装成已连接。连接测试可取消，Provider 失败不会自动重试或静默切换为离线 Planner。ad-hoc 重建会改变请求者身份，开发包更新后 macOS 可能再次要求用户授权，不能把“始终允许”视为稳定开发合同。浏览器调试没有 Tauri/Keychain preflight，只适合使用上面的权限受限 secret file 验证 Agent 端合同。
+保存配置后不等于已经调用 DeepSeek。普通工作台启动只通过 `inspect_metadata_only()` 读取非敏感 metadata；不得在 mount 或 DeepSeek client 初始化时读取凭据文件。一次显式连接测试或普通 Turn 只建立一个 `turn_session()` 凭据快照，并在 preflight、budget、stream/tool follow-up 间复用，terminal success/failure/cancel 后释放和 zeroize。界面在尚未读取密钥时显示 `secret_status=not_checked`，不能伪装成已连接。Provider 失败不会自动重试或静默切换为离线 Planner。历史 `macos-keychain` metadata 只会显示一次显式迁移要求，不读取旧 Keychain 项。
 
 ### 显式 DeepSeek 机械臂验收（默认绝不联网）
 
-`desktop:deepseek-mvp-acceptance` 是单次、隔离的 Rust-native 验收入口，不是普通生成路径，也不加入 CI。无参数时只输出 dry-run，保证 `network_calls_made=0`、`credential_reads=0` 且不启动应用。只有操作者显式确认可能产生 Provider 费用时才会启动已构建的 `.app`；Python 启动器不会读取 Keychain、secret file、Provider 配置或 API Key，应用内才由 Rust `ProviderCredentialStore` 从既有 Keychain 配置取得凭据。
+`desktop:deepseek-mvp-acceptance` 是单次、隔离的 Rust-native 验收入口，不是普通生成路径，也不加入 CI。无参数时只输出 dry-run，保证 `network_calls_made=0`、`credential_reads=0` 且不启动应用。只有操作者显式确认可能产生 Provider 费用时才会启动已构建的 `.app`；Python 启动器不会读取凭据文件、Provider 配置或 API Key，应用内才由 Rust `ProviderCredentialStore` 取得凭据。
 
 ```bash
 npm run desktop:deepseek-mvp-acceptance

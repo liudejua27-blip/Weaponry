@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Wushen Forge desktop shell"
 authors = ["Wushen Forge Contributors"]
 edition = "2021"
+default-run = "wushen-forge-desktop"
 
 [workspace]
 members = [
@@ -29,12 +30,14 @@ forgecad-app-server-protocol = { path = "crates/forgecad-app-server-protocol" }
 forgecad-core = { path = "crates/forgecad-core" }
 base64 = "0.22"
 getrandom = "0.3"
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
+tempfile = "3"
 zeroize = "1.8"
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -45,10 +48,8 @@ security-framework-sys = "2.17"
 custom-protocol = ["tauri/custom-protocol"]
 
 [dev-dependencies]
-image = { version = "0.25", default-features = false, features = ["png"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 tauri = { version = "2", features = ["test"] }
-tempfile = "3"
 
 [[test]]
 name = "deepseek_provider"

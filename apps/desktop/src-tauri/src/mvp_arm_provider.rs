@@ -12,10 +12,10 @@ use std::{
 };
 
 use forgecad_app_server::{
-    CancellationToken, ProviderClient, ProviderError, ProviderEventSink, ProviderFinishReason,
-    ProviderFuture, ProviderHealthCheck, ProviderMessage, ProviderPreflight, ProviderRequest,
-    ProviderRequestBudgetPolicy, ProviderResponse, ProviderRole, ProviderStreamEvent,
-    ProviderToolCall, ProviderUsage,
+    reviewed_c111_draft_visual_program, CancellationToken, ProviderClient, ProviderError,
+    ProviderEventSink, ProviderFinishReason, ProviderFuture, ProviderHealthCheck, ProviderMessage,
+    ProviderPreflight, ProviderRequest, ProviderRequestBudgetPolicy, ProviderResponse,
+    ProviderRole, ProviderStreamEvent, ProviderToolCall, ProviderUsage,
 };
 use serde_json::json;
 
@@ -24,6 +24,7 @@ pub const MVP_MODEL: &str = "本机机械臂 MVP";
 const MVP_SOURCE_LABEL: &str = "offline_deterministic";
 const MAX_BRIEF_BYTES: usize = 8_000;
 const ARCHITECTURE_FLAG: &str = "FORGECAD_MVP_ARM_ARCHITECTURE";
+const VISUAL_PROGRAM_FLAG: &str = "FORGECAD_MVP_VISUAL_PROGRAM_E2E";
 
 /// A code-owned local provider used only when `FORGECAD_MVP_OFFLINE_ARM=1`.
 /// It never loads credentials or opens a network transport.
@@ -87,46 +88,64 @@ impl ProviderClient for LocalRoboticArmMvpProvider {
             }
             validate_request_identity(&request)?;
             let step = completed_product_tool_calls(&request.messages);
-            let result = match step {
-                0 => tool_response(
-                    "mvp_arm_01_plan",
-                    "plan_complete_concept",
-                    json!({
-                        "plan": arm_plan(extract_arm_brief(&request.messages)?)
-                    }),
-                ),
-                1 => tool_response(
-                    "mvp_arm_02_style",
-                    "select_style_recipe",
-                    json!({
-                        "domain_pack_id": "pack_robotic_arm_concept",
-                        "intent": "流线工业维护机械臂"
-                    }),
-                ),
-                2 => tool_response(
-                    "mvp_arm_03_build",
-                    "build_candidate_geometry",
-                    json!({
-                        "direction_id": "direction_mvp_robotic_arm",
-                        // `showcase` is the code-owned request vocabulary;
-                        // the native catalog maps it to the verified
-                        // `production_concept` artifact profile.
-                        "presentation_profile": "showcase"
-                    }),
-                ),
-                3 => tool_response(
-                    "mvp_arm_04_compile",
-                    "compile_readback_candidate",
-                    json!({}),
-                ),
-                4 => tool_response("mvp_arm_05_render", "render_candidate_views", json!({})),
-                5 => tool_response("mvp_arm_06_evaluate", "evaluate_candidate", json!({})),
-                6 => tool_response("mvp_arm_07_preview", "prepare_candidate_preview", json!({})),
-                7 => final_response(),
-                _ => Err(ProviderError::schema_mismatch(
-                    "本机机械臂 MVP 收到超出已审核工具序列的请求。",
-                    false,
-                )),
+            let result = if env::var(VISUAL_PROGRAM_FLAG).as_deref() == Ok("1") {
+                match step {
+                    0 => tool_response(
+                        "mvp_visual_01_author",
+                        "author_forge_visual_program",
+                        json!({
+                            "program": visual_program(extract_arm_brief(&request.messages)?)?
+                        }),
+                    ),
+                    _ => Err(ProviderError::schema_mismatch(
+                        "视觉程序 packaged E2E 只允许一次 Provider author 调用；其余 Product Tools 由 Rust Action Loop 拥有。",
+                        false,
+                    )),
+                }
+            } else {
+                match step {
+                    0 => tool_response(
+                        "mvp_arm_01_plan",
+                        "plan_complete_concept",
+                        json!({
+                            "plan": arm_plan(extract_arm_brief(&request.messages)?)
+                        }),
+                    ),
+                    1 => tool_response(
+                        "mvp_arm_02_style",
+                        "select_style_recipe",
+                        json!({
+                            "domain_pack_id": "pack_robotic_arm_concept",
+                            "intent": "流线工业维护机械臂"
+                        }),
+                    ),
+                    2 => tool_response(
+                        "mvp_arm_03_build",
+                        "build_candidate_geometry",
+                        json!({
+                            "direction_id": "direction_mvp_robotic_arm",
+                            // `showcase` is the code-owned request vocabulary;
+                            // the native catalog maps it to the verified
+                            // `production_concept` artifact profile.
+                            "presentation_profile": "showcase"
+                        }),
+                    ),
+                    3 => tool_response(
+                        "mvp_arm_04_compile",
+                        "compile_readback_candidate",
+                        json!({}),
+                    ),
+                    4 => tool_response("mvp_arm_05_render", "render_candidate_views", json!({})),
+                    5 => tool_response("mvp_arm_06_evaluate", "evaluate_candidate", json!({})),
+                    6 => {
+                        tool_response("mvp_arm_07_preview", "prepare_candidate_preview", json!({}))
+                    }
+                    7 => final_response(),
+                    _ => Err(ProviderError::schema_mismatch(
+                        "本机机械臂 MVP 收到超出已审核工具序列的请求。",
+                        false,
+                    )),
+                }
             }?;
             Ok(result)
         })();
@@ -293,6 +312,21 @@ fn arm_plan(brief: String) -> serde_json::Value {
     plan
 }
 
+fn visual_program(brief: String) -> Result<serde_json::Value, ProviderError> {
+    let mut program = reviewed_c111_draft_visual_program().map_err(|_| {
+        ProviderError::schema_mismatch("内置 C111 审核视觉程序不可用；未生成降级占位模型。", false)
+    })?;
+    program["program_id"] = json!("visual_program_mvp_robotic_arm");
+    program["title"] = json!("本机机械臂生产密度视觉概念");
+    if let Some(tokens) = program
+        .get_mut("design_tokens")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        tokens.push(json!({"token_id": "user_brief", "value": brief}));
+    }
+    Ok(program)
+}
+
 fn tool_response(
     call_id: &str,
     name: &str,
@@ -445,5 +479,31 @@ mod tests {
             assert_eq!(error.code, "PROVIDER_SCHEMA_MISMATCH");
             assert!(!error.network_call_made);
         });
+    }
+
+    #[test]
+    fn visual_program_e2e_payload_is_valid_and_non_functional() {
+        let program = visual_program("设计一台非功能展示用机械臂".into()).unwrap();
+        let revision = forgecad_core::ForgeVisualProgramRevision::author(&program)
+            .expect("visual E2E payload must satisfy the Rust-owned contract");
+        assert_eq!(
+            revision.program.program_id,
+            "visual_program_mvp_robotic_arm"
+        );
+        assert_eq!(revision.program.domain_pack_id, "pack_robotic_arm_concept");
+        assert!(revision.program.visual_only);
+        assert_eq!(revision.program.parts.len(), 10);
+        assert_eq!(
+            revision.program.geometry_graph["outputs"]
+                .as_array()
+                .map(Vec::len),
+            Some(96)
+        );
+        assert_eq!(revision.program.surface_graph.len(), 6);
+        assert_eq!(revision.program.detail_inventory.len(), 27);
+        assert_eq!(
+            revision.program.stage,
+            forgecad_core::ForgeVisualProgramStage::Draft
+        );
     }
 }

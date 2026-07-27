@@ -29,6 +29,7 @@ use forgecad_app_server::{
     RestrictedGeometryErrorKind, RestrictedGeometryFuture, RestrictedGeometryInput,
     RestrictedGeometryOutput, RestrictedGeometryPort, RestrictedGeometryReadback,
     RestrictedQualityProfile, RestrictedRenderViewProfile, SystemRuntimeIdentityClock,
+    VisualReferenceComparisonProviderPort,
 };
 use forgecad_app_server_protocol::{
     valid_stable_id, AppServerCursor, CompatHttpRequest, CompatHttpResponse, CursorPhase,
@@ -55,8 +56,9 @@ use forgecad_core::{
 };
 
 use crate::asset_render_compat::{
-    parse_asset_render_request, render_package_response, render_set_response, seal_render_set,
-    AssetRenderCompatError, AssetRenderCompatRequest, SealedRenderSet,
+    forge_asset_package_response, parse_asset_render_request, render_package_response,
+    render_set_response, seal_render_set, AssetRenderCompatError, AssetRenderCompatRequest,
+    SealedRenderSet,
 };
 use crate::rust_core_runtime::{RustCoreActiveDesignSnapshotReader, RustCoreRuntime};
 
@@ -79,6 +81,11 @@ const LIVE_MVP_ACCEPTANCE_BUDGET_OVERRIDE: &str =
     "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_BUDGET_OVERRIDE";
 const LIVE_MVP_ACCEPTANCE_ENABLE: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE";
 const LIVE_MVP_ACCEPTANCE_CONFIRM: &str = "FORGECAD_DEEPSEEK_MVP_ACCEPTANCE_CONFIRM";
+const LIVE_FORGE_VISUAL_ACCEPTANCE_BUDGET_OVERRIDE: &str =
+    "FORGECAD_DEEPSEEK_FORGE_VISUAL_ACCEPTANCE_BUDGET_OVERRIDE";
+const LIVE_FORGE_VISUAL_ACCEPTANCE_ENABLE: &str = "FORGECAD_DEEPSEEK_FORGE_VISUAL_ACCEPTANCE";
+const LIVE_FORGE_VISUAL_ACCEPTANCE_CONFIRM: &str =
+    "FORGECAD_DEEPSEEK_FORGE_VISUAL_ACCEPTANCE_CONFIRM";
 const LIVE_ACCEPTANCE_CONFIRM: &str = "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_CONFIRM";
 const LIVE_ACCEPTANCE_CONFIRMATION: &str = "I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST";
 
@@ -89,6 +96,10 @@ fn explicit_live_acceptance_budget_override() -> bool {
         || (env::var(LIVE_MVP_ACCEPTANCE_BUDGET_OVERRIDE).as_deref() == Ok("1")
             && env::var(LIVE_MVP_ACCEPTANCE_ENABLE).as_deref() == Ok("1")
             && env::var(LIVE_MVP_ACCEPTANCE_CONFIRM).as_deref() == Ok(LIVE_ACCEPTANCE_CONFIRMATION))
+        || (env::var(LIVE_FORGE_VISUAL_ACCEPTANCE_BUDGET_OVERRIDE).as_deref() == Ok("1")
+            && env::var(LIVE_FORGE_VISUAL_ACCEPTANCE_ENABLE).as_deref() == Ok("1")
+            && env::var(LIVE_FORGE_VISUAL_ACCEPTANCE_CONFIRM).as_deref()
+                == Ok(LIVE_ACCEPTANCE_CONFIRMATION))
 }
 // M109A/C108 production_concept assets use the same bounded ShapeProgram as
 // preview but compile 80k-150k triangles and a 1K five-channel PBR set. A cold
@@ -122,6 +133,16 @@ const RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS: [&str; 8] = [
     "top",
     "gripper_iso",
     "gripper_front",
+];
+const RESTRICTED_GEOMETRY_TURNTABLE_VIEWS: [&str; 8] = [
+    "turntable_000",
+    "turntable_045",
+    "turntable_090",
+    "turntable_135",
+    "turntable_180",
+    "turntable_225",
+    "turntable_270",
+    "turntable_315",
 ];
 // A single ChangeSet may ask for the same production ShapeProgram more than
 // once (preview download, confirm, quality and export). Keep the cache small,
@@ -441,6 +462,21 @@ impl AppServerBridge {
                 "Native Product Tool previews are unavailable in this bridge.".to_string()
             })?
             .preview_artifact(preview_id)
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) fn attach_visual_reference_comparison_provider(
+        &self,
+        provider: Arc<dyn VisualReferenceComparisonProviderPort>,
+    ) -> Result<(), String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool reference comparison is unavailable in this bridge."
+                    .to_string()
+            })?
+            .attach_visual_reference_comparison_provider(provider)
             .map_err(|error| error.message)
     }
 
@@ -1332,6 +1368,40 @@ struct RestrictedGeometryErrorBody {
     details: Value,
 }
 
+// Error details cross the Python worker boundary only for a finite set of
+// code-owned operation labels.  Never echo an arbitrary rejected `op` value:
+// it originated in Provider-authored JSON and could otherwise become a covert
+// prompt/program logging channel.
+const SAFE_UNSUPPORTED_OPERATION_LABELS: [&str; 15] = [
+    "bevel",
+    "boolean",
+    "chamfer",
+    "cone",
+    "difference",
+    "fillet",
+    "intersect",
+    "intersection",
+    "offset",
+    "plane",
+    "rounded_box",
+    "shell",
+    "sphere",
+    "torus",
+    "tube",
+];
+
+fn safe_unsupported_operation_detail(details: &Value) -> Option<&'static str> {
+    let object = details.as_object()?;
+    if object.len() != 1 {
+        return None;
+    }
+    let operation = object.get("unsupported_operation")?.as_str()?;
+    SAFE_UNSUPPORTED_OPERATION_LABELS
+        .iter()
+        .copied()
+        .find(|candidate| *candidate == operation)
+}
+
 #[derive(Debug)]
 enum RestrictedGeometryCallError {
     Cancelled,
@@ -1342,6 +1412,7 @@ enum RestrictedGeometryCallError {
         status: u16,
         code: String,
         recoverable: bool,
+        unsupported_operation: Option<&'static str>,
     },
 }
 
@@ -1559,6 +1630,22 @@ impl LoopbackHttpPort {
             Ok(parsed) => parsed,
             Err(error) => return Some(Ok(error.response())),
         };
+        if let AssetRenderCompatRequest::AssetPackage {
+            asset_version_id,
+            width,
+            height,
+        } = parsed
+        {
+            return Some(Ok(
+                match self
+                    .native_forge_asset_package(&asset_version_id, width, height, cancellation)
+                    .await
+                {
+                    Ok(response) => response,
+                    Err(error) => error.response(),
+                },
+            ));
+        }
         let (asset_version_id, width, height, expected_fingerprint) = match parsed {
             AssetRenderCompatRequest::Views {
                 asset_version_id,
@@ -1571,6 +1658,7 @@ impl LoopbackHttpPort {
                 height,
                 render_set_sha256,
             } => (asset_version_id, width, height, Some(render_set_sha256)),
+            AssetRenderCompatRequest::AssetPackage { .. } => unreachable!("handled above"),
         };
         let render_set = match self
             .native_asset_render_set(&asset_version_id, width, height, cancellation)
@@ -1772,6 +1860,160 @@ impl LoopbackHttpPort {
             &rendered.renderer_id,
             &rendered.views,
             format!("unix_ms_{}", native_blockout_now_unix_ms()),
+            MAX_RAW_COMPAT_BODY_BYTES,
+        )
+        .map_err(Into::into)
+    }
+
+    async fn native_forge_asset_package(
+        &self,
+        asset_version_id: &str,
+        width: u16,
+        height: u16,
+        cancellation: CancellationToken,
+    ) -> Result<CompatHttpResponse, NativeAssetRenderCompatError> {
+        if width % 2 != 0 || height % 2 != 0 {
+            return Err(AssetRenderCompatError {
+                status: 422,
+                code: "ASSET_PACKAGE_DIMENSION_INVALID",
+                message: "Turntable dimensions must be even for bounded H.264 encoding.",
+                recoverable: false,
+            }
+            .into());
+        }
+        let rust_core = self.inner.rust_core.as_ref().ok_or_else(|| {
+            NativeBlockoutCompatError::unavailable(
+                "RUST_CORE_UNAVAILABLE",
+                "Rust product core is unavailable for Forge asset packaging.",
+            )
+        })?;
+        let repository = rust_core.repository();
+        let version = repository
+            .version(asset_version_id)
+            .map_err(native_blockout_core_error)?
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::not_found(
+                    "ASSET_VERSION_NOT_FOUND",
+                    "Agent asset version does not exist.",
+                )
+            })?;
+        let snapshot = repository
+            .snapshot(&version.project_id)
+            .map_err(native_blockout_core_error)?
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::not_found(
+                    "ACTIVE_DESIGN_NOT_FOUND",
+                    "ActiveDesignSnapshot does not exist for this asset.",
+                )
+            })?;
+        if snapshot.active_design.asset_version_id() != Some(asset_version_id)
+            || snapshot.preview.is_some()
+        {
+            return Err(NativeBlockoutCompatError::conflict(
+                "ACTIVE_DESIGN_STALE",
+                "Forge asset package can only be built from the active confirmed asset.",
+            )
+            .into());
+        }
+        let quality_reference = snapshot.quality.as_ref().ok_or_else(|| {
+            NativeBlockoutCompatError::conflict(
+                "PACKAGE_QUALITY_REQUIRED",
+                "Forge asset package requires Snapshot-bound production quality.",
+            )
+        })?;
+        if quality_reference.asset_version_id != asset_version_id {
+            return Err(NativeBlockoutCompatError::conflict(
+                "QUALITY_ASSET_STALE",
+                "Snapshot quality does not belong to the packaged asset.",
+            )
+            .into());
+        }
+        let quality = repository
+            .quality_report(&quality_reference.quality_report_id)
+            .map_err(native_blockout_core_error)?
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::not_found(
+                    "QUALITY_REPORT_NOT_FOUND",
+                    "Snapshot-bound quality report does not exist.",
+                )
+            })?;
+        if quality.asset_version_id != asset_version_id || quality.status != QualityStatus::Passed {
+            return Err(NativeBlockoutCompatError::conflict(
+                "PACKAGE_QUALITY_REQUIRED",
+                "Forge asset package requires passed production GLB quality.",
+            )
+            .into());
+        }
+        let object = repository
+            .object_for_reference(&ObjectReference {
+                reference_kind: "asset_version".into(),
+                owner_id: asset_version_id.into(),
+                role: "production_glb".into(),
+            })
+            .map_err(native_blockout_core_error)?
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::conflict(
+                    "PRODUCTION_GLB_REQUIRED",
+                    "Forge asset package requires the current production GLB.",
+                )
+            })?;
+        let stored_glb = repository
+            .read_object(&object.sha256)
+            .map_err(native_blockout_core_error)?;
+        let canonical = verify_forgecad_glb(&stored_glb, Some("production_concept"))
+            .map_err(native_blockout_core_error)?;
+        let input = RestrictedGeometryInput {
+            schema_version: "RestrictedGeometryInput@1".into(),
+            shape_program: version.shape_program.clone(),
+            profile_sketch: None,
+            section_set: None,
+            surface_adornment_programs: native_surface_adornment_programs(&version)?,
+            surface_layer_input: None,
+            render_view_profile: RestrictedRenderViewProfile::TurntableEight,
+            quality_profile: RestrictedQualityProfile {
+                profile_id: "production_concept".into(),
+                runtime_manifest_version: "ShapeProgramRuntimeManifest@1".into(),
+                max_triangle_count: 150_000,
+                render_width: width,
+                render_height: height,
+                require_closed_manifold: true,
+                require_surface_provenance: true,
+            },
+        };
+        input
+            .validate()
+            .map_err(|error| NativeBlockoutCompatError::conflict(error.code, error.message))?;
+        let rendered = RestrictedGeometryPort::build_compile_render(self, input, cancellation)
+            .await
+            .map_err(native_blockout_restricted_geometry_error)?;
+        let rendered_readback = native_verified_geometry_readback(
+            &rendered.glb_bytes,
+            &rendered.readback,
+            "production_concept",
+            &version.shape_program,
+        )?;
+        if rendered.glb_bytes != stored_glb
+            || rendered.glb_sha256 != object.sha256
+            || rendered_readback != canonical
+        {
+            return Err(NativeBlockoutCompatError::conflict(
+                "PACKAGE_SOURCE_DRIFT",
+                "Package rendering no longer matches the Snapshot-bound production GLB.",
+            )
+            .into());
+        }
+        let quality_value = serde_json::to_value(&quality).map_err(|_| {
+            NativeBlockoutCompatError::unavailable(
+                "PACKAGE_QUALITY_SERIALIZATION_FAILED",
+                "Snapshot quality could not be serialized into the package.",
+            )
+        })?;
+        forge_asset_package_response(
+            &version.project_id,
+            asset_version_id,
+            &stored_glb,
+            &quality_value,
+            &rendered.views,
             MAX_RAW_COMPAT_BODY_BYTES,
         )
         .map_err(Into::into)
@@ -2996,15 +3238,36 @@ impl LoopbackHttpPort {
                     "The requested Project does not exist or is unavailable.",
                 )
             })?;
-        if repository
+        let existing_head = repository
             .head(project_id)
-            .map_err(native_blockout_core_error)?
-            .is_some()
-        {
-            return Err(NativeBlockoutCompatError::conflict(
-                "BLOCKOUT_PROJECT_ALREADY_INITIALIZED",
-                "Initial blockout confirmation only creates version 1 for an empty Project.",
-            ));
+            .map_err(native_blockout_core_error)?;
+        let visual_change_set_id = format!(
+            "assetcs_visual_{}",
+            &sha256_hex(input.client_request_id.as_bytes())[..24]
+        );
+        let visual_result_id = native_change_set_version_id(&visual_change_set_id, "confirmed");
+        let visual_quality_id = native_blockout_quality_report_id(&visual_result_id);
+        if existing_head.is_some() {
+            if let Some(existing) = repository
+                .read_change_set_confirm_bundle(
+                    &visual_change_set_id,
+                    &visual_result_id,
+                    &visual_quality_id,
+                )
+                .map_err(native_blockout_core_error)?
+            {
+                if existing.version.project_id != project_id
+                    || existing.version.summary != input.summary
+                {
+                    return Err(NativeBlockoutCompatError::conflict(
+                        "IDEMPOTENCY_CONFLICT",
+                        "Idempotency-Key was reused with a different visual revision confirmation.",
+                    ));
+                }
+                let response = native_blockout_asset_version_payload(&existing.version)?;
+                self.best_effort_cleanup_replayed_blockout(&input.artifact_id);
+                return Ok(response);
+            }
         }
 
         let executor = self.native_product_tools()?;
@@ -3111,10 +3374,280 @@ impl LoopbackHttpPort {
                     )?,
                 );
         }
+        if let Some(revision) = &production_preview.forge_visual_program_revision {
+            revision.validate().map_err(native_blockout_core_error)?;
+            assembly_graph
+                .as_object_mut()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "FORGE_VISUAL_PROGRAM_PROVENANCE_INVALID",
+                        "ForgeVisualProgram provenance requires an object AssemblyGraph.",
+                    )
+                })?
+                .insert(
+                    "forge_visual_program_revision".into(),
+                    serde_json::to_value(revision).map_err(|_| {
+                        NativeBlockoutCompatError::conflict(
+                            "FORGE_VISUAL_PROGRAM_PROVENANCE_INVALID",
+                            "ForgeVisualProgram provenance could not be persisted.",
+                        )
+                    })?,
+                );
+        }
+        if let Some(binding) = &production_preview.multimodal_program_evidence_binding {
+            let revision = production_preview
+                .forge_visual_program_revision
+                .as_ref()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "MULTIMODAL_PROGRAM_PROVENANCE_INVALID",
+                        "Multimodal evidence provenance requires a ForgeVisualProgram revision.",
+                    )
+                })?;
+            if binding.source_program_sha256 != revision.source_program_sha256
+                || binding.program_id != revision.program.program_id
+                || binding.domain_pack_id != revision.program.domain_pack_id
+            {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "MULTIMODAL_PROGRAM_PROVENANCE_INVALID",
+                    "Multimodal evidence provenance does not match the converged visual program.",
+                ));
+            }
+            assembly_graph
+                .as_object_mut()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "MULTIMODAL_PROGRAM_PROVENANCE_INVALID",
+                        "Multimodal evidence provenance requires an object AssemblyGraph.",
+                    )
+                })?
+                .insert(
+                    "multimodal_program_evidence_binding".into(),
+                    serde_json::to_value(binding).map_err(|_| {
+                        NativeBlockoutCompatError::conflict(
+                            "MULTIMODAL_PROGRAM_PROVENANCE_INVALID",
+                            "Multimodal evidence provenance could not be persisted.",
+                        )
+                    })?,
+                );
+        }
+        if let (Some(input), Some(report)) = (
+            production_preview
+                .visual_reference_comparison_input
+                .as_ref(),
+            production_preview
+                .visual_reference_comparison_report
+                .as_ref(),
+        ) {
+            if input.glb_sha256 != production_preview.glb_sha256 || !report.passed {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "VISUAL_REFERENCE_COMPARISON_PROVENANCE_INVALID",
+                    "Only a passed reference comparison for the exact production GLB may be persisted.",
+                ));
+            }
+            let graph = assembly_graph.as_object_mut().ok_or_else(|| {
+                NativeBlockoutCompatError::conflict(
+                    "VISUAL_REFERENCE_COMPARISON_PROVENANCE_INVALID",
+                    "Reference comparison provenance requires an object AssemblyGraph.",
+                )
+            })?;
+            graph.insert(
+                "visual_reference_comparison_input".into(),
+                serde_json::to_value(input).map_err(|_| {
+                    NativeBlockoutCompatError::conflict(
+                        "VISUAL_REFERENCE_COMPARISON_PROVENANCE_INVALID",
+                        "Reference comparison input could not be persisted.",
+                    )
+                })?,
+            );
+            graph.insert(
+                "visual_reference_comparison_report".into(),
+                serde_json::to_value(report).map_err(|_| {
+                    NativeBlockoutCompatError::conflict(
+                        "VISUAL_REFERENCE_COMPARISON_PROVENANCE_INVALID",
+                        "Reference comparison report could not be persisted.",
+                    )
+                })?,
+            );
+        }
+        // The transient preview creation time is sealed into either the
+        // initial candidate or the later visual ChangeSet so idempotent
+        // replays receive byte-identical lineage.
+        let timestamp = format!("unix_ms_{}", preview.created_at_unix_ms);
+        if let Some(base_asset_version_id) = existing_head.as_deref() {
+            let revision = production_preview
+                .forge_visual_program_revision
+                .as_ref()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "FORGE_VISUAL_PROGRAM_REVISION_REQUIRED",
+                        "A non-empty Project can only confirm a converged ForgeVisualProgram revision.",
+                    )
+                })?;
+            let base = repository
+                .version(base_asset_version_id)
+                .map_err(native_blockout_core_error)?
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::not_found(
+                        "ASSET_VERSION_NOT_FOUND",
+                        "The active visual-program base asset no longer exists.",
+                    )
+                })?;
+            let base_revision: forgecad_core::ForgeVisualProgramRevision = serde_json::from_value(
+                base.assembly_graph
+                    .get("forge_visual_program_revision")
+                    .cloned()
+                    .ok_or_else(|| {
+                        NativeBlockoutCompatError::conflict(
+                            "FORGE_VISUAL_PROGRAM_BASE_REQUIRED",
+                            "The active asset has no ForgeVisualProgram source to continue.",
+                        )
+                    })?,
+            )
+            .map_err(|_| {
+                NativeBlockoutCompatError::conflict(
+                    "FORGE_VISUAL_PROGRAM_BASE_INVALID",
+                    "The active asset ForgeVisualProgram source is malformed.",
+                )
+            })?;
+            base_revision
+                .validate()
+                .map_err(native_blockout_core_error)?;
+            if revision.revision != base_revision.revision.saturating_add(1)
+                || revision.parent_source_program_sha256.as_deref()
+                    != Some(base_revision.source_program_sha256.as_str())
+            {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "FORGE_VISUAL_PROGRAM_BASE_STALE",
+                    "The converged visual result is not the exact next source revision of the active asset.",
+                ));
+            }
+            let root_part_id = base
+                .parts
+                .iter()
+                .find_map(|part| part.get("part_id").and_then(Value::as_str))
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "FORGE_VISUAL_PROGRAM_BASE_INVALID",
+                        "The active visual-program asset has no root Part identity.",
+                    )
+                })?;
+            let geometry_changed = revision
+                .changed_domains
+                .iter()
+                .any(|domain| matches!(domain.as_str(), "parts" | "geometry" | "assembly"));
+            let material_surface_changed = revision
+                .changed_domains
+                .iter()
+                .any(|domain| matches!(domain.as_str(), "material" | "surface"));
+            let shape_program_sha256 =
+                native_blockout_semantic_sha256(&production_preview.shape_program)?;
+            let change_set = AgentAssetChangeSet {
+                change_set_id: visual_change_set_id.clone(),
+                project_id: project_id.to_string(),
+                base_asset_version_id: base_asset_version_id.to_string(),
+                summary: input.summary.clone(),
+                operations: vec![json!({
+                    "op":"replace_forge_visual_program",
+                    "operation_id":format!("op_{}", &visual_change_set_id[8..]),
+                    "part_id":root_part_id,
+                    "forge_visual_program_revision":revision,
+                    "source_program_sha256":revision.source_program_sha256,
+                    "shape_program_sha256":shape_program_sha256,
+                    "preserve_geometry":!geometry_changed,
+                    "preserve_material_surface":!material_surface_changed,
+                })],
+                protected_part_ids: Vec::new(),
+                preview: None,
+                status: ChangeSetStatus::Proposed,
+                resulting_asset_version_id: None,
+                created_at: timestamp.clone(),
+                updated_at: timestamp.clone(),
+            };
+            repository
+                .create_change_set(&change_set)
+                .map_err(native_blockout_core_error)?;
+            let snapshot = repository
+                .snapshot(project_id)
+                .map_err(native_blockout_core_error)?
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::not_found(
+                        "ACTIVE_DESIGN_NOT_FOUND",
+                        "The visual-program base has no ActiveDesignSnapshot.",
+                    )
+                })?;
+            if snapshot.active_design.asset_version_id() != Some(base_asset_version_id) {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "FORGE_VISUAL_PROGRAM_BASE_STALE",
+                    "The visual-program base no longer matches ActiveDesignSnapshot.",
+                ));
+            }
+            let sealed_preview = AgentAssetVersion {
+                asset_version_id: native_change_set_version_id(&visual_change_set_id, "preview"),
+                project_id: project_id.to_string(),
+                parent_asset_version_id: Some(base_asset_version_id.to_string()),
+                version_no: base.version_no.saturating_add(1),
+                status: AssetVersionStatus::Committed,
+                summary: input.summary.clone(),
+                stage: AssetStage::EditableAsset,
+                plan_id: base.plan_id.clone(),
+                direction_id: base.direction_id.clone(),
+                domain_pack_id: base.domain_pack_id.clone(),
+                artifact_id: candidate.artifact_id.clone(),
+                parts,
+                shape_program: production_preview.shape_program.clone(),
+                assembly_graph,
+                material_bindings,
+                created_at: timestamp.clone(),
+            };
+            sealed_preview
+                .validate()
+                .map_err(native_blockout_core_error)?;
+            let interactive_readback = serde_json::to_value(&interactive_preview.readback)
+                .map_err(|_| {
+                    NativeBlockoutCompatError::unavailable(
+                        "CHANGE_SET_INTERACTIVE_READBACK_INVALID",
+                        "Visual-program interactive readback could not be sealed.",
+                    )
+                })?;
+            let preview_bundle = repository
+                .preview_change_set_bundle(
+                    &visual_change_set_id,
+                    &sealed_preview,
+                    &interactive_preview.glb_bytes,
+                    &interactive_readback,
+                    snapshot.etag(),
+                    &timestamp,
+                )
+                .map_err(native_blockout_core_error)?;
+            let mut resulting = sealed_preview.clone();
+            resulting.asset_version_id = visual_result_id.clone();
+            let quality = native_geometry_quality_report(
+                project_id,
+                &visual_result_id,
+                &production_preview.readback,
+                &production_preview.renderer_id,
+                &production_preview.view_sha256,
+                &production_verified,
+                &timestamp,
+            )?;
+            let confirmed = repository
+                .confirm_change_set_bundle(
+                    &visual_change_set_id,
+                    &preview_bundle.sealed_preview,
+                    &resulting,
+                    &interactive_preview.glb_bytes,
+                    &production_preview.glb_bytes,
+                    &quality,
+                    preview_bundle.snapshot.etag(),
+                )
+                .map_err(native_blockout_core_error)?;
+            self.best_effort_cleanup_committed_blockout(&executor, &candidate);
+            return native_blockout_asset_version_payload(&confirmed.version);
+        }
         // The transient preview creation time is sealed into the candidate so
         // concurrent retries of the same idempotency key build byte-for-byte
         // identical bundle input.
-        let timestamp = format!("unix_ms_{}", preview.created_at_unix_ms);
         let persisted_candidate = BlockoutCandidate {
             artifact_id: candidate.artifact_id.clone(),
             project_id: Some(project_id.to_string()),
@@ -3438,15 +3971,21 @@ impl LoopbackHttpPort {
         if !(200..300).contains(&status) {
             let envelope = serde_json::from_slice::<RestrictedGeometryErrorEnvelope>(&bytes)
                 .map_err(|_| RestrictedGeometryCallError::InvalidResponse)?;
+            let unsupported_operation = if envelope.error.code == "UNSUPPORTED_RUNTIME_OPERATION" {
+                safe_unsupported_operation_detail(&envelope.error.details)
+            } else {
+                None
+            };
             if !valid_stable_id(&envelope.error.code)
                 || envelope.error.message.is_empty()
                 || envelope.error.message.len() > 2_000
                 || envelope.error.message.contains('\0')
-                || !envelope
+                || (!envelope
                     .error
                     .details
                     .as_object()
                     .is_some_and(serde_json::Map::is_empty)
+                    && unsupported_operation.is_none())
             {
                 return Err(RestrictedGeometryCallError::InvalidResponse);
             }
@@ -3454,6 +3993,7 @@ impl LoopbackHttpPort {
                 status,
                 code: envelope.error.code,
                 recoverable: envelope.error.recoverable,
+                unsupported_operation,
             });
         }
         serde_json::from_slice(&bytes).map_err(|_| RestrictedGeometryCallError::InvalidResponse)
@@ -4247,6 +4787,7 @@ fn validate_restricted_geometry_render_response(
     let required_views: &[&str] = match view_profile {
         RestrictedRenderViewProfile::WorkbenchFour => &RESTRICTED_GEOMETRY_REQUIRED_VIEWS,
         RestrictedRenderViewProfile::ConvergenceEight => &RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS,
+        RestrictedRenderViewProfile::TurntableEight => &RESTRICTED_GEOMETRY_TURNTABLE_VIEWS,
     };
     let required = required_views
         .iter()
@@ -4435,6 +4976,7 @@ fn restricted_geometry_port_error(error: RestrictedGeometryCallError) -> Restric
             status,
             code,
             recoverable,
+            unsupported_operation,
         } => RestrictedGeometryError {
             kind: if code == "GEOMETRY_EXECUTION_CANCELLED" {
                 RestrictedGeometryErrorKind::Cancelled
@@ -4448,7 +4990,27 @@ fn restricted_geometry_port_error(error: RestrictedGeometryCallError) -> Restric
                 RestrictedGeometryErrorKind::Execution
             },
             code,
-            message: "The restricted geometry executor rejected the frozen request.".into(),
+            message: unsupported_operation
+                .map(|operation| match operation {
+                    "bevel" => "The restricted geometry executor rejected the unsupported bevel operation.",
+                    "boolean" => "The restricted geometry executor rejected the unsupported boolean operation.",
+                    "chamfer" => "The restricted geometry executor rejected the unsupported chamfer operation.",
+                    "cone" => "The restricted geometry executor rejected the unsupported cone operation.",
+                    "difference" => "The restricted geometry executor rejected the unsupported difference operation.",
+                    "fillet" => "The restricted geometry executor rejected the unsupported fillet operation.",
+                    "intersect" => "The restricted geometry executor rejected the unsupported intersect operation.",
+                    "intersection" => "The restricted geometry executor rejected the unsupported intersection operation.",
+                    "offset" => "The restricted geometry executor rejected the unsupported offset operation.",
+                    "plane" => "The restricted geometry executor rejected the unsupported plane operation.",
+                    "rounded_box" => "The restricted geometry executor rejected the unsupported rounded_box operation.",
+                    "shell" => "The restricted geometry executor rejected the unsupported shell operation.",
+                    "sphere" => "The restricted geometry executor rejected the unsupported sphere operation.",
+                    "torus" => "The restricted geometry executor rejected the unsupported torus operation.",
+                    "tube" => "The restricted geometry executor rejected the unsupported tube operation.",
+                    _ => "The restricted geometry executor rejected the frozen request.",
+                })
+                .unwrap_or("The restricted geometry executor rejected the frozen request.")
+                .into(),
             recoverable,
         },
     }
@@ -5746,6 +6308,14 @@ fn native_change_set_apply(
         return Err(NativeBlockoutCompatError::conflict(
             "CHANGE_SET_STATE_CONFLICT",
             "Only proposed or exactly replayed previewed ChangeSets may be compiled.",
+        ));
+    }
+    if change_set.operations.iter().any(|operation| {
+        operation.get("op").and_then(Value::as_str) == Some("replace_forge_visual_program")
+    }) {
+        return Err(NativeBlockoutCompatError::conflict(
+            "FORGE_VISUAL_PROGRAM_REPLACEMENT_INTERNAL_ONLY",
+            "Visual-program replacement can only consume a converged Rust-owned single-result preview.",
         ));
     }
     if change_set.project_id != base.project_id
@@ -9169,7 +9739,7 @@ fn persisted_turn_cancellation_target(
     }
     let request = serde_json::from_slice::<Value>(body).ok()?;
     let request_text = request.get("message")?.as_str()?;
-    if request_text.is_empty() || request_text.len() > 8000 {
+    if request_text.is_empty() || request_text.chars().count() > 200_000 {
         return None;
     }
     Some(PersistedTurnCancellationTarget {
@@ -9915,6 +10485,238 @@ mod tests {
         serde_json::from_str(data).unwrap()
     }
 
+    fn stored_zip_entries(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
+        fn u16_at(bytes: &[u8], offset: usize) -> u16 {
+            u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap())
+        }
+        fn u32_at(bytes: &[u8], offset: usize) -> u32 {
+            u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
+        }
+        let mut entries = BTreeMap::new();
+        let mut cursor = 0_usize;
+        while bytes.get(cursor..cursor + 4) == Some(&0x0403_4b50_u32.to_le_bytes()) {
+            assert_eq!(
+                u16_at(bytes, cursor + 8),
+                0,
+                "PV005 package entries are stored"
+            );
+            let size = usize::try_from(u32_at(bytes, cursor + 18)).unwrap();
+            let name_len = usize::from(u16_at(bytes, cursor + 26));
+            let extra_len = usize::from(u16_at(bytes, cursor + 28));
+            let name_start = cursor + 30;
+            let data_start = name_start + name_len + extra_len;
+            let name = std::str::from_utf8(&bytes[name_start..name_start + name_len])
+                .unwrap()
+                .to_string();
+            entries.insert(name, bytes[data_start..data_start + size].to_vec());
+            cursor = data_start + size;
+        }
+        entries
+    }
+
+    fn pv005_visual_program() -> Value {
+        json!({
+            "schema_version":"ForgeVisualProgram@1",
+            "program_id":"visual_program_pv005_arm",
+            "domain_pack_id":"pack_robotic_arm_concept",
+            "title":"Graphite desktop robotic arm",
+            "stage":"draft",
+            "visual_only":true,
+            "design_tokens":[{"token_id":"surface_language","value":"graphite industrial"}],
+            "parts":[{
+                "part_id":"part_pv005_link",
+                "role":"link_armor",
+                "parent_part_id":null,
+                "geometry_output_ids":["output_pv005_link"],
+                "material_zone_ids":["zone_pv005_shell"]
+            }],
+            "geometry_graph":{
+                "schema_version":"ShapeProgram@1",
+                "program_id":"shape_pv005_arm",
+                "units":"millimeter",
+                "seed":5005,
+                "triangle_budget":24000,
+                "parameters":[],
+                "operations":[{
+                    "operation_id":"op_pv005_link",
+                    "op":"box",
+                    "inputs":[],
+                    "args":{
+                        "size":[180.0,56.0,34.0],
+                        "position":[0.0,0.0,0.0],
+                        "rotation":[0.0,0.0,0.0],
+                        "part_role":"link_armor",
+                        "zone_id":"zone_pv005_shell",
+                        "material_id":"mat_graphite"
+                    }
+                }],
+                "outputs":[{
+                    "output_id":"output_pv005_link",
+                    "operation_id":"op_pv005_link",
+                    "kind":"mesh",
+                    "part_role":"link_armor"
+                }],
+                "non_functional_only":true
+            },
+            "assembly_graph":{"schema_version":"AssemblyGraph@1","parts":[],"connections":[]},
+            "material_graph":[{
+                "part_id":"part_pv005_link",
+                "material_zone_id":"zone_pv005_shell",
+                "material_id":"mat_graphite"
+            }],
+            "surface_graph":[{
+                "surface_program_id":"surface_pv005_shell",
+                "part_id":"part_pv005_link",
+                "material_zone_id":"zone_pv005_shell"
+            }],
+            "detail_inventory":[
+                {"detail_id":"detail_pv005_macro","level":"macro","description":"readable articulated silhouette","critical":true,"status":"bound","bindings":[{"kind":"geometry_output","part_id":"part_pv005_link","target_id":"output_pv005_link"}]},
+                {"detail_id":"detail_pv005_meso","level":"meso","description":"panel flow language","critical":true,"status":"bound","bindings":[{"kind":"surface_program","part_id":"part_pv005_link","target_id":"surface_pv005_shell"}]},
+                {"detail_id":"detail_pv005_micro","level":"micro","description":"production PBR shell finish","critical":true,"status":"bound","bindings":[{"kind":"material_zone","part_id":"part_pv005_link","target_id":"zone_pv005_shell"}]}
+            ],
+            "export_profile":"production_concept"
+        })
+    }
+
+    fn pv006c_bridge_multimodal_context(
+        project_id: &str,
+        instruction: &str,
+    ) -> forgecad_app_server::ValidatedMultimodalActionContext {
+        let evidence: forgecad_core::ReferenceEvidence = serde_json::from_value(json!({
+            "schema_version":"ReferenceEvidence@1",
+            "evidence_id":"refevid_pv006c_bridge",
+            "project_id":project_id,
+            "kind":"image",
+            "reference_class":"single_image",
+            "domain_pack_id":"pack_robotic_arm_concept",
+            "source_file_name":"authorized-arm-reference.png",
+            "source_media_type":"image/png",
+            "source_object_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source_statement":"User supplied reference",
+            "license_statement":"User confirms rights",
+            "missing_views":["back"],
+            "user_notes":"Use only visible exterior evidence",
+            "observations":{
+                "silhouette_summary":"Tall articulated arm silhouette",
+                "proportion_ranges":["Upper and lower links have comparable visible length"],
+                "material_zone_observations":[],
+                "visible_part_hypotheses":[],
+                "uncertainties":["Back view is unknown"],
+                "image_surface_facts":{
+                    "width":1024,
+                    "height":1024,
+                    "aspect_ratio_milli":1000,
+                    "dominant_color_buckets":["blue"],
+                    "brightness":"dark",
+                    "edge_density":"high",
+                    "foreground_bbox_normalized":[100,80,900,950],
+                    "contact_sheet_layout_evidence":false,
+                    "foreground_confidence":"medium"
+                }
+            },
+            "created_at":"2026-07-26T12:00:00Z"
+        }))
+        .unwrap();
+        let evidence_sha256 = forgecad_core::semantic_sha256(&evidence).unwrap();
+        let request: forgecad_core::MultimodalDesignRequest = serde_json::from_value(json!({
+            "schema_version":"MultimodalDesignRequest@1",
+            "request_id":"mmreq_pv006c_bridge",
+            "project_id":project_id,
+            "turn_id":"turn_pv006c_bridge_analysis",
+            "domain_pack_id":"pack_robotic_arm_concept",
+            "instruction":instruction,
+            "reference_inputs":[{
+                "evidence_id":"refevid_pv006c_bridge",
+                "evidence_sha256":evidence_sha256,
+                "role":"surface",
+                "view_id":"front"
+            }],
+            "locks":{
+                "preserve_geometry":false,
+                "preserve_material_surface":false,
+                "locked_part_ids":[],
+                "locked_material_zone_ids":[]
+            }
+        }))
+        .unwrap();
+        let request_sha256 = forgecad_core::semantic_sha256(&request).unwrap();
+        let graph: forgecad_core::VisualEvidenceGraph = serde_json::from_value(json!({
+            "schema_version":"VisualEvidenceGraph@1",
+            "graph_id":"vegraph_pv006c_bridge",
+            "request_id":"mmreq_pv006c_bridge",
+            "request_sha256":request_sha256,
+            "project_id":project_id,
+            "domain_pack_id":"pack_robotic_arm_concept",
+            "provider":{
+                "provider_id":"vision_fixture",
+                "model_id":"vision_fixture",
+                "provider_response_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "analyzed_at":"2026-07-26T12:01:00Z"
+            },
+            "claims":[
+                {
+                    "claim_id":"vclaim_bridge_macro",
+                    "level":"macro",
+                    "status":"observed",
+                    "target":"geometry",
+                    "description":"Tall articulated silhouette",
+                    "critical":true,
+                    "confidence_bps":9300,
+                    "source_evidence_ids":["refevid_pv006c_bridge"],
+                    "source_view_id":"front"
+                },
+                {
+                    "claim_id":"vclaim_bridge_meso",
+                    "level":"meso",
+                    "status":"observed",
+                    "target":"surface",
+                    "description":"Layered panel flow",
+                    "critical":true,
+                    "confidence_bps":9000,
+                    "source_evidence_ids":["refevid_pv006c_bridge"],
+                    "source_view_id":"front"
+                },
+                {
+                    "claim_id":"vclaim_bridge_micro",
+                    "level":"micro",
+                    "status":"observed",
+                    "target":"material",
+                    "description":"Dark metal finish",
+                    "critical":true,
+                    "confidence_bps":8800,
+                    "source_evidence_ids":["refevid_pv006c_bridge"],
+                    "source_view_id":"front"
+                }
+            ]
+        }))
+        .unwrap();
+        forgecad_app_server::ValidatedMultimodalActionContext::new(request, graph, &[evidence])
+            .unwrap()
+    }
+
+    fn pv006c_bridge_dispositions() -> Value {
+        json!([
+            {
+                "claim_id":"vclaim_bridge_macro",
+                "disposition":"bound",
+                "detail_ids":["detail_pv005_macro"],
+                "reason":"Bound to the authored silhouette output."
+            },
+            {
+                "claim_id":"vclaim_bridge_meso",
+                "disposition":"bound",
+                "detail_ids":["detail_pv005_meso"],
+                "reason":"Bound to the authored panel surface."
+            },
+            {
+                "claim_id":"vclaim_bridge_micro",
+                "disposition":"bound",
+                "detail_ids":["detail_pv005_micro"],
+                "reason":"Bound to the authored material zone."
+            }
+        ])
+    }
+
     struct FakeHttpRequest {
         method: String,
         path: String,
@@ -10202,7 +11004,7 @@ mod tests {
         requested_paths: Vec<String>,
         capability_headers: Vec<Option<String>>,
         request_bodies: Vec<Value>,
-        artifact: Option<FakeGeometryArtifact>,
+        artifacts: StdHashMap<String, FakeGeometryArtifact>,
         cancel_seen: bool,
         request_failures: usize,
     }
@@ -10361,12 +11163,13 @@ mod tests {
     }
 
     fn fake_forgecad_profile_glb(profile_id: &str) -> Vec<u8> {
-        fake_forgecad_profile_glb_with_profile_height(profile_id, 1.0)
+        fake_forgecad_profile_glb_with_profile_height(profile_id, 1.0, "mat_primary")
     }
 
     fn fake_forgecad_profile_glb_with_profile_height(
         profile_id: &str,
         profile_height_scale: f32,
+        material_id: &str,
     ) -> Vec<u8> {
         let production = profile_id == "production_concept";
         assert!(production || profile_id == "interactive_preview");
@@ -10497,7 +11300,7 @@ mod tests {
             let view = append_view(&png, None);
             let sha = sha256_hex(&png);
             images.push(json!({
-                "name": format!("vtex_test_{role}_{texture_version}"),
+                "name": format!("vtex_test_{material_id}_{role}_{texture_version}"),
                 "bufferView": view,
                 "mimeType": "image/png",
                 "extras": {"forgecad_visual_texture": {
@@ -10516,7 +11319,7 @@ mod tests {
                 }}
             }));
             textures.push(json!({
-                "name": format!("vtex_test_{role}_{texture_version}"),
+                "name": format!("vtex_test_{material_id}_{role}_{texture_version}"),
                 "source": index
             }));
         }
@@ -10552,7 +11355,7 @@ mod tests {
                 "emissiveFactor": [1,1,1],
                 "extras": {
                     "forgecad_visual_texture_set_id": format!("vtexset_primary_builtin_{texture_version}"),
-                    "forgecad_texture_material_id": "mat_primary",
+                    "forgecad_texture_material_id": material_id,
                     "forgecad_visual_only": true
                 }
             }],
@@ -10624,16 +11427,46 @@ mod tests {
             request["shape_program"]
         );
         let profile_id = request["artifact_profile_id"].as_str().unwrap().to_string();
-        let artifact_handle = format!("geomart_{}", "a".repeat(48));
-        let profile_height_scale = request["shape_program"]["operations"]
+        let artifact_handle = format!(
+            "geomart_{}",
+            &sha256_hex(format!("{profile_id}:{shape_program_sha256}").as_bytes())[..48]
+        );
+        let output_operation_id = request["shape_program"]["outputs"]
             .as_array()
             .into_iter()
             .flatten()
-            .find(|operation| operation["op"] == "sweep")
-            .and_then(|operation| operation["args"]["profile_scale"][1].as_f64())
-            .map(|height| (height / 100.0).clamp(0.1, 10.0) as f32)
+            .next()
+            .and_then(|output| output["operation_id"].as_str());
+        let output_operation = request["shape_program"]["operations"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|operation| {
+                output_operation_id.is_some_and(|operation_id| {
+                    operation["operation_id"].as_str() == Some(operation_id)
+                })
+            });
+        let profile_height_scale = output_operation
+            .and_then(|operation| {
+                operation["args"]["profile_scale"][1]
+                    .as_f64()
+                    .or_else(|| operation["args"]["size"][0].as_f64())
+            })
+            .map(|extent| (extent / 100.0).clamp(0.1, 10.0) as f32)
             .unwrap_or(1.0);
-        let glb = fake_forgecad_profile_glb_with_profile_height(&profile_id, profile_height_scale);
+        let material_zone_id = output_operation
+            .and_then(|operation| operation["args"]["zone_id"].as_str())
+            .unwrap_or("zone_primary")
+            .to_string();
+        let material_id = output_operation
+            .and_then(|operation| operation["args"]["material_id"].as_str())
+            .unwrap_or("mat_graphite")
+            .to_string();
+        let glb = fake_forgecad_profile_glb_with_profile_height(
+            &profile_id,
+            profile_height_scale,
+            &material_id,
+        );
         let canonical = verify_forgecad_glb(&glb, Some(&profile_id)).unwrap();
         let profile_sha256 = canonical.artifact_profile_sha256.clone();
         let bounds_mm: [f64; 3] = canonical.bounds_mm.clone().try_into().unwrap();
@@ -10654,7 +11487,11 @@ mod tests {
             triangle_count,
             bounds_mm,
         };
-        state.lock().unwrap().artifact = Some(artifact.clone());
+        state
+            .lock()
+            .unwrap()
+            .artifacts
+            .insert(artifact_handle.clone(), artifact.clone());
         json!({
             "schema_version": "RestrictedGeometryExecutionResult@1",
             "protocol_version": RESTRICTED_GEOMETRY_PROTOCOL_VERSION,
@@ -10688,13 +11525,13 @@ mod tests {
                 // bounded Material Zone and five-map PBR provenance rather
                 // than trusting an untyped visual claim from the harness.
                 "material_zone_faces": [{
-                    "material_zone_id": "zone_primary",
-                    "material_id": "mat_graphite",
+                    "material_zone_id": material_zone_id,
+                    "material_id": material_id,
                     "texture_ready": true
                 }],
                 "visual_texture_sets": [{
-                    "material_id": "mat_graphite",
-                    "material_zone_ids": ["zone_primary"],
+                    "material_id": material_id,
+                    "material_zone_ids": [material_zone_id],
                     "maps": [
                         {"texture_role": "base_color", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
                         {"texture_role": "metallic_roughness", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
@@ -10725,22 +11562,45 @@ mod tests {
         request: &Value,
         state: &Arc<Mutex<FakeGeometryState>>,
     ) -> Value {
-        let artifact = state.lock().unwrap().artifact.clone().unwrap();
+        let artifact_handle = request["artifact_handle"].as_str().unwrap();
+        let artifact = state
+            .lock()
+            .unwrap()
+            .artifacts
+            .get(artifact_handle)
+            .cloned()
+            .unwrap();
         let width = u32::try_from(request["render"]["width"].as_u64().unwrap()).unwrap();
         let height = u32::try_from(request["render"]["height"].as_u64().unwrap()).unwrap();
         let mut views = serde_json::Map::new();
         let mut hashes = serde_json::Map::new();
         let view_ids: &[&str] = match request["render"]["view_profile"].as_str() {
             Some("convergence_eight") => &RESTRICTED_GEOMETRY_CONVERGENCE_VIEWS,
+            Some("turntable_eight") => &[
+                "turntable_000",
+                "turntable_045",
+                "turntable_090",
+                "turntable_135",
+                "turntable_180",
+                "turntable_225",
+                "turntable_270",
+                "turntable_315",
+            ],
             _ => &RESTRICTED_GEOMETRY_REQUIRED_VIEWS,
         };
-        for view_id in view_ids.iter().copied() {
-            let mut png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".to_vec();
-            png.extend_from_slice(&width.to_be_bytes());
-            png.extend_from_slice(&height.to_be_bytes());
-            png.extend_from_slice(&[8, 6, 0, 0, 0]);
-            png.extend_from_slice(&[0, 0, 0, 0]);
-            png.extend_from_slice(view_id.as_bytes());
+        for (index, view_id) in view_ids.iter().copied().enumerate() {
+            let color = image::Rgba([
+                24_u8.saturating_add(u8::try_from(index).unwrap_or(0) * 12),
+                72,
+                128,
+                255,
+            ]);
+            let image = image::RgbaImage::from_pixel(width, height, color);
+            let mut encoded = std::io::Cursor::new(Vec::new());
+            image::DynamicImage::ImageRgba8(image)
+                .write_to(&mut encoded, image::ImageFormat::Png)
+                .unwrap();
+            let png = encoded.into_inner();
             hashes.insert(view_id.into(), Value::String(sha256_hex(&png)));
             views.insert(view_id.into(), Value::String(BASE64.encode(png)));
         }
@@ -11179,6 +12039,25 @@ mod tests {
         assert_eq!(error.code, "SHAPE_PROGRAM_INVALID");
         assert_eq!(error.kind, RestrictedGeometryErrorKind::InvalidInput);
         assert!(!error.recoverable);
+    }
+
+    #[test]
+    fn restricted_geometry_diagnostic_detail_accepts_only_fixed_operation_labels() {
+        assert_eq!(
+            safe_unsupported_operation_detail(&json!({"unsupported_operation":"fillet"})),
+            Some("fillet")
+        );
+        assert_eq!(
+            safe_unsupported_operation_detail(&json!({"unsupported_operation":"user_secret"})),
+            None
+        );
+        assert_eq!(
+            safe_unsupported_operation_detail(&json!({
+                "unsupported_operation":"fillet",
+                "provider_message":"must not cross boundary"
+            })),
+            None
+        );
     }
 
     #[test]
@@ -11721,6 +12600,758 @@ mod tests {
 
         drop(bridge);
         drop(rust_core);
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn pv006c_multimodal_binding_survives_build_confirm_snapshot_and_export() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-pv006c-confirm-export-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(&library_root, format!("pv006c-confirm-export-{serial}"))
+                .expect("open PV006C Rust core"),
+        );
+        let project_id = "project_pv006c_bridge";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                profile_id: "profile_weapon_concept_v1".into(),
+                domain_type: "weapon_concept".into(),
+                name: "PV006C multimodal confirmation".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-26T00:00:00Z".into(),
+                updated_at: "2026-07-26T00:00:00Z".into(),
+            })
+            .unwrap();
+        let provider: Arc<dyn ProviderClient> = Arc::new(FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            false,
+            false,
+            Vec::new(),
+        ));
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        let registry = ProductToolRegistry::default();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let endpoint = LocalAgentEndpoint::parse(&backend.endpoint).unwrap();
+        let execution_id = "execution_pv006c_bridge";
+        let turn_id = "turn_pv006c_bridge";
+        let instruction = "Use the authorized reference to design one dark robotic arm concept.";
+        executor
+            .bind_execution_project(execution_id, turn_id, Some(project_id))
+            .unwrap();
+        executor
+            .bind_execution_multimodal_context(
+                execution_id,
+                turn_id,
+                pv006c_bridge_multimodal_context(project_id, instruction),
+            )
+            .unwrap();
+        let run_tool = |name: &str, arguments: Value, call_index: usize| -> Value {
+            let request = registry
+                .build_execution_request(
+                    turn_id,
+                    &ProviderToolCall {
+                        call_id: format!("call_pv006c_bridge_{call_index}"),
+                        name: name.into(),
+                        arguments,
+                    },
+                    execution_id,
+                    "cancel_pv006c_bridge",
+                    "token_pv006c_bridge",
+                )
+                .unwrap();
+            let result = runtime
+                .block_on(executor.execute(request, CancellationToken::new()))
+                .unwrap();
+            assert_eq!(
+                result.status,
+                ProductToolExecutionStatus::Completed,
+                "PV006C tool {name} failed: code={:?} message={:?}",
+                result.error_code,
+                result.message
+            );
+            serde_json::to_value(result.validated_output.unwrap().value).unwrap()
+        };
+
+        run_tool("infer_product_domain", json!({"brief":instruction}), 0);
+        let authored = run_tool(
+            "author_forge_visual_program",
+            json!({
+                "program":pv005_visual_program(),
+                "evidence_dispositions":pv006c_bridge_dispositions()
+            }),
+            1,
+        );
+        assert_eq!(
+            authored["multimodal_evidence_binding"]["schema_version"],
+            "MultimodalProgramEvidenceBinding@1"
+        );
+        for (call_index, (name, arguments)) in [
+            (
+                "build_candidate_geometry",
+                json!({
+                    "direction_id":"direction_visual_program",
+                    "variant_id":null,
+                    "presentation_profile":"showcase"
+                }),
+            ),
+            ("compile_readback_candidate", json!({})),
+            ("render_candidate_views", json!({})),
+            ("evaluate_candidate", json!({})),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            run_tool(name, arguments, call_index + 2);
+        }
+        let prepared = run_tool("prepare_candidate_preview", json!({}), 6);
+        let decision = &prepared["single_result_decision"];
+        let preview_id = decision["preview"]["preview_id"].as_str().unwrap();
+        let artifact_sha256 = decision["preview"]["artifact_sha256"].as_str().unwrap();
+        assert!(rust_core.repository().head(project_id).unwrap().is_none());
+
+        let confirm_request_id = "confirm_pv006c_bridge";
+        let confirmed = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!(
+                        "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+                    ),
+                    headers: vec![
+                        ("Content-Type".into(), "application/json".into()),
+                        ("Idempotency-Key".into(), confirm_request_id.into()),
+                        ("If-Match".into(), format!("\"sha256:{artifact_sha256}\"")),
+                    ],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({
+                            "client_request_id":confirm_request_id,
+                            "expected_artifact_sha256":artifact_sha256,
+                            "summary":instruction
+                        })
+                        .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(confirmed.status, 201, "{:?}", confirmed.body);
+        let head = rust_core.repository().head(project_id).unwrap().unwrap();
+        let version = rust_core.repository().version(&head).unwrap().unwrap();
+        let binding: forgecad_core::MultimodalProgramEvidenceBinding = serde_json::from_value(
+            version.assembly_graph["multimodal_program_evidence_binding"].clone(),
+        )
+        .expect("confirmed version retains the Rust-built multimodal binding");
+        let revision: forgecad_core::ForgeVisualProgramRevision =
+            serde_json::from_value(version.assembly_graph["forge_visual_program_revision"].clone())
+                .unwrap();
+        assert_eq!(
+            binding.source_program_sha256,
+            revision.source_program_sha256
+        );
+        assert_eq!(binding.dispositions.len(), 3);
+        let snapshot = rust_core
+            .repository()
+            .snapshot(project_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            snapshot.active_design.asset_version_id(),
+            Some(head.as_str())
+        );
+        assert!(snapshot.preview.is_none());
+
+        let exported = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/asset-versions/{head}:export"),
+                    headers: vec![
+                        ("Content-Type".into(), "application/json".into()),
+                        ("Idempotency-Key".into(), "export_pv006c_bridge".into()),
+                    ],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({"client_request_id":"export_pv006c_bridge"}).to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(exported.status, 200, "{:?}", exported.body);
+        let export_glb = BASE64
+            .decode(compat_json(&exported)["glb_base64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(sha256_hex(&export_glb), artifact_sha256);
+        verify_forgecad_glb(&export_glb, Some("production_concept")).unwrap();
+
+        let packaged = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint,
+                    method: AllowedHttpMethod::Get,
+                    path: format!(
+                        "/api/v1/agent/asset-versions/{head}:asset-package?width=128&height=128"
+                    ),
+                    headers: Vec::new(),
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(packaged.status, 200, "{:?}", packaged.body);
+        assert!(packaged.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("x-forgecad-source-glb-sha256") && value == artifact_sha256
+        }));
+        let ProtocolHttpBody::Base64 { data: package_data } = packaged.body else {
+            panic!("PV006C ForgeAssetPackage must be a binary ZIP transport");
+        };
+        let package_entries = stored_zip_entries(&BASE64.decode(package_data).unwrap());
+        assert_eq!(
+            package_entries
+                .keys()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "asset.glb",
+                "thumbnail.webp",
+                "turntable.mp4",
+                "manifest.json",
+                "quality-report.json",
+                "license-metadata.json",
+            ])
+        );
+        assert_eq!(
+            package_entries["asset.glb"], export_glb,
+            "the multimodal viewport, direct GLB export, and asset package must carry identical bytes"
+        );
+        let package_manifest: Value =
+            serde_json::from_slice(&package_entries["manifest.json"]).unwrap();
+        assert_eq!(
+            package_manifest["schema_version"],
+            "ForgeAssetPackageManifest@1"
+        );
+        assert_eq!(package_manifest["asset_version_id"], head);
+        assert_eq!(package_manifest["source_artifact_sha256"], artifact_sha256);
+
+        drop(bridge);
+        drop(rust_core);
+        drop(backend);
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn pv005_same_asset_accepts_three_visual_language_revisions_and_survives_navigation_restart_export(
+    ) {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-pv005-continuation-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(&library_root, format!("pv005-continuation-{serial}"))
+                .expect("open PV005 Rust core"),
+        );
+        let project_id = "project_pv005_continuation";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                // The Alpha Project row still carries the legacy bounded
+                // domain discriminator; the immutable asset version below is
+                // authoritative for the robotic-arm Domain Pack identity.
+                profile_id: "profile_weapon_concept_v1".into(),
+                domain_type: "weapon_concept".into(),
+                name: "PV005 same-asset continuation".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-26T00:00:00Z".into(),
+                updated_at: "2026-07-26T00:00:00Z".into(),
+            })
+            .unwrap();
+        let provider_probe =
+            FakeDeepSeekClient::scripted("deepseek-chat", false, false, Vec::new());
+        let provider: Arc<dyn ProviderClient> = Arc::new(provider_probe.clone());
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        let registry = ProductToolRegistry::default();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let endpoint = LocalAgentEndpoint::parse(&backend.endpoint).unwrap();
+        let language_requests = [
+            "设计一款石墨黑桌面机械臂，保持非功能概念展示定位。",
+            "保持几何不变，把外壳改成暖铜金属。",
+            "保持暖铜材质不变，把主连杆拉长，轮廓更修长。",
+            "继续保持材质不变，再增强主连杆的纵向比例。",
+        ];
+        let mut confirmed_heads = Vec::new();
+        let mut confirmed_versions = Vec::new();
+        let mut production_glb_hashes = Vec::new();
+
+        for (turn_index, language_request) in language_requests.iter().enumerate() {
+            let execution_id = format!("execution_pv005_{turn_index}");
+            let turn_id = format!("turn_pv005_{turn_index}");
+            executor
+                .bind_execution_project(&execution_id, &turn_id, Some(project_id))
+                .unwrap();
+            let run_tool = |name: &str, arguments: Value, call_index: usize| -> Value {
+                let request = registry
+                    .build_execution_request(
+                        &turn_id,
+                        &ProviderToolCall {
+                            call_id: format!("call_pv005_{turn_index}_{call_index}"),
+                            name: name.into(),
+                            arguments,
+                        },
+                        &execution_id,
+                        &format!("cancel_pv005_{turn_index}"),
+                        &format!("token_pv005_{turn_index}"),
+                    )
+                    .unwrap();
+                let result = runtime
+                    .block_on(executor.execute(request, CancellationToken::new()))
+                    .unwrap();
+                assert_eq!(
+                    result.status,
+                    ProductToolExecutionStatus::Completed,
+                    "PV005 turn {turn_index} tool {name} failed: code={:?} message={:?}",
+                    result.error_code,
+                    result.message
+                );
+                serde_json::to_value(result.validated_output.unwrap().value).unwrap()
+            };
+
+            let mut next_call = 0_usize;
+            if turn_index == 0 {
+                run_tool(
+                    "infer_product_domain",
+                    json!({"brief":language_request}),
+                    next_call,
+                );
+                next_call += 1;
+                let authored = run_tool(
+                    "author_forge_visual_program",
+                    json!({"program":pv005_visual_program()}),
+                    next_call,
+                );
+                next_call += 1;
+                assert_eq!(authored["revision"], json!(1));
+            } else {
+                let inspection = run_tool(
+                    "inspect_forge_visual_program",
+                    json!({"view":"full"}),
+                    next_call,
+                );
+                next_call += 1;
+                let expected_revision = u64::try_from(turn_index + 0).unwrap();
+                assert_eq!(inspection["revision"], json!(expected_revision));
+                let expected_source_sha256 = inspection["source_program_sha256"]
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+                let current_program = inspection["program"].clone();
+                let patch = if turn_index == 1 {
+                    json!({
+                        "schema_version":"ForgeVisualPatch@1",
+                        "patch_id":"patch_pv005_blue_paint",
+                        "expected_revision":expected_revision,
+                        "expected_source_sha256":expected_source_sha256,
+                        "preserve_geometry":true,
+                        "preserve_material_surface":false,
+                        "operations":[
+                            {"op":"set_title","title":"Blue painted desktop robotic arm"},
+                            {"op":"upsert_design_token","token":{"token_id":"surface_language","value":"blue automotive paint industrial"}},
+                            {"op":"replace_material_graph","material_graph":[{
+                                "part_id":"part_pv005_link",
+                                "material_zone_id":"zone_pv005_shell",
+                                "material_id":"mat_automotive_paint"
+                            }]}
+                        ]
+                    })
+                } else {
+                    let mut geometry_graph = current_program["geometry_graph"].clone();
+                    geometry_graph["operations"][0]["args"]["size"][0] =
+                        json!(if turn_index == 2 { 240.0 } else { 300.0 });
+                    json!({
+                        "schema_version":"ForgeVisualPatch@1",
+                        "patch_id":format!("patch_pv005_geometry_{turn_index}"),
+                        "expected_revision":expected_revision,
+                        "expected_source_sha256":expected_source_sha256,
+                        "preserve_geometry":false,
+                        "preserve_material_surface":true,
+                        "operations":[
+                            {"op":"set_title","title":if turn_index == 2 { "Long blue painted robotic arm" } else { "Extended blue painted robotic arm" }},
+                            {"op":"replace_geometry_graph","geometry_graph":geometry_graph}
+                        ]
+                    })
+                };
+                let patched = run_tool(
+                    "patch_forge_visual_program",
+                    json!({"patch":patch}),
+                    next_call,
+                );
+                next_call += 1;
+                assert_eq!(patched["revision"], json!(expected_revision + 1));
+            }
+
+            for (name, arguments) in [
+                (
+                    "build_candidate_geometry",
+                    json!({
+                        "direction_id":"direction_visual_program",
+                        "variant_id":null,
+                        "presentation_profile":"showcase"
+                    }),
+                ),
+                ("compile_readback_candidate", json!({})),
+                ("render_candidate_views", json!({})),
+                ("evaluate_candidate", json!({})),
+            ] {
+                run_tool(name, arguments, next_call);
+                next_call += 1;
+            }
+            let prepared = run_tool("prepare_candidate_preview", json!({}), next_call);
+            let decision = &prepared["single_result_decision"];
+            let preview_id = decision["preview"]["preview_id"].as_str().unwrap();
+            let artifact_sha256 = decision["preview"]["artifact_sha256"].as_str().unwrap();
+            let before_confirm = rust_core.repository().head(project_id).unwrap();
+            assert_eq!(before_confirm.as_ref(), confirmed_heads.last());
+            let path = format!(
+                "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+            );
+            let client_request_id = format!("confirm_pv005_{turn_index}");
+            let confirmed = runtime
+                .block_on(CompatibilityHttpPort::execute(
+                    bridge.inner.port.as_ref(),
+                    PreparedCompatHttpRequest {
+                        endpoint: endpoint.clone(),
+                        method: AllowedHttpMethod::Post,
+                        path,
+                        headers: vec![
+                            ("Content-Type".into(), "application/json".into()),
+                            ("Idempotency-Key".into(), client_request_id.clone()),
+                            ("If-Match".into(), format!("\"sha256:{artifact_sha256}\"")),
+                        ],
+                        body: ProtocolHttpBody::Utf8 {
+                            data: json!({
+                                "client_request_id":client_request_id,
+                                "expected_artifact_sha256":artifact_sha256,
+                                "summary":language_request,
+                            })
+                            .to_string(),
+                        },
+                    },
+                    CancellationToken::new(),
+                ))
+                .unwrap();
+            assert_eq!(confirmed.status, 201, "{:?}", confirmed.body);
+            let head = rust_core.repository().head(project_id).unwrap().unwrap();
+            let version = rust_core.repository().version(&head).unwrap().unwrap();
+            assert_eq!(version.version_no, u64::try_from(turn_index + 1).unwrap());
+            assert_eq!(
+                version.parent_asset_version_id.as_ref(),
+                confirmed_heads.last(),
+                "each language confirmation must create exactly one immutable child"
+            );
+            let revision: forgecad_core::ForgeVisualProgramRevision = serde_json::from_value(
+                version.assembly_graph["forge_visual_program_revision"].clone(),
+            )
+            .expect("confirmed PV005 version persists its exact visual source revision");
+            revision.validate().unwrap();
+            assert_eq!(revision.revision, u64::try_from(turn_index + 1).unwrap());
+            let lowered = forgecad_core::lower_forge_visual_program(
+                &serde_json::to_value(&revision.program).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(lowered.shape_program, version.shape_program);
+            let snapshot = rust_core
+                .repository()
+                .snapshot(project_id)
+                .unwrap()
+                .unwrap();
+            let quality_id = &snapshot.quality.as_ref().unwrap().quality_report_id;
+            let quality = rust_core
+                .repository()
+                .quality_report(quality_id)
+                .unwrap()
+                .unwrap();
+            let production_glb_sha256 = quality.report["compile_readback"]["glb_sha256"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            assert_eq!(production_glb_sha256, artifact_sha256);
+            confirmed_heads.push(head);
+            confirmed_versions.push(version);
+            production_glb_hashes.push(production_glb_sha256);
+        }
+
+        assert_eq!(
+            confirmed_versions[0].shape_program["operations"][0]["args"]["size"],
+            confirmed_versions[1].shape_program["operations"][0]["args"]["size"],
+            "material-only language edits must preserve geometry"
+        );
+        assert_ne!(
+            confirmed_versions[0].shape_program["operations"][0]["args"]["material_id"],
+            confirmed_versions[1].shape_program["operations"][0]["args"]["material_id"],
+            "material language edits must reach the compiled ShapeProgram"
+        );
+        for index in 2..confirmed_versions.len() {
+            assert_eq!(
+                confirmed_versions[index - 1].shape_program["operations"][0]["args"]["material_id"],
+                confirmed_versions[index].shape_program["operations"][0]["args"]["material_id"],
+                "geometry-only language edits must preserve material/surface identity"
+            );
+            assert_ne!(
+                confirmed_versions[index - 1].shape_program["operations"][0]["args"]["size"],
+                confirmed_versions[index].shape_program["operations"][0]["args"]["size"]
+            );
+        }
+        assert_eq!(
+            production_glb_hashes.iter().collect::<BTreeSet<_>>().len(),
+            production_glb_hashes.len(),
+            "each accepted visual revision must produce a distinct production GLB identity"
+        );
+
+        let final_head = confirmed_heads.last().unwrap().clone();
+        let final_snapshot = rust_core
+            .repository()
+            .snapshot(project_id)
+            .unwrap()
+            .unwrap();
+        let undo = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/projects/{project_id}/active-design:undo"),
+                    headers: vec![
+                        ("Content-Type".into(), "application/json".into()),
+                        ("Idempotency-Key".into(), "undo_pv005_final".into()),
+                        ("If-Match".into(), final_snapshot.etag().to_string()),
+                    ],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({
+                            "client_request_id":"undo_pv005_final",
+                            "snapshot_revision":final_snapshot.revision,
+                        })
+                        .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(undo.status, 200, "{:?}", undo.body);
+        let undo_snapshot = rust_core
+            .repository()
+            .snapshot(project_id)
+            .unwrap()
+            .unwrap();
+        let undo_head = undo_snapshot.active_design.asset_version_id().unwrap();
+        let undo_version = rust_core.repository().version(undo_head).unwrap().unwrap();
+        assert_eq!(
+            undo_version.shape_program, confirmed_versions[2].shape_program,
+            "undo restores the exact previous accepted visual program"
+        );
+        let redo = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/projects/{project_id}/active-design:redo"),
+                    headers: vec![
+                        ("Content-Type".into(), "application/json".into()),
+                        ("Idempotency-Key".into(), "redo_pv005_final".into()),
+                        ("If-Match".into(), undo_snapshot.etag().to_string()),
+                    ],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({
+                            "client_request_id":"redo_pv005_final",
+                            "snapshot_revision":undo_snapshot.revision,
+                        })
+                        .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(redo.status, 200, "{:?}", redo.body);
+        let redo_snapshot = rust_core
+            .repository()
+            .snapshot(project_id)
+            .unwrap()
+            .unwrap();
+        let redo_head = redo_snapshot
+            .active_design
+            .asset_version_id()
+            .unwrap()
+            .to_string();
+        let redo_version = rust_core.repository().version(&redo_head).unwrap().unwrap();
+        assert_ne!(
+            redo_head, final_head,
+            "redo creates a new immutable descendant"
+        );
+        assert_eq!(
+            redo_version.shape_program,
+            confirmed_versions[3].shape_program
+        );
+
+        let exported = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/asset-versions/{redo_head}:export"),
+                    headers: vec![
+                        ("Content-Type".into(), "application/json".into()),
+                        ("Idempotency-Key".into(), "export_pv005_final".into()),
+                    ],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({"client_request_id":"export_pv005_final"}).to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(exported.status, 200, "{:?}", exported.body);
+        let export_glb = BASE64
+            .decode(compat_json(&exported)["glb_base64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(
+            sha256_hex(&export_glb),
+            *production_glb_hashes.last().unwrap(),
+            "export and the accepted single-result viewport must use the same production GLB"
+        );
+        verify_forgecad_glb(&export_glb, Some("production_concept")).unwrap();
+
+        let packaged = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Get,
+                    path: format!(
+                        "/api/v1/agent/asset-versions/{redo_head}:asset-package?width=128&height=128"
+                    ),
+                    headers: Vec::new(),
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(packaged.status, 200, "{:?}", packaged.body);
+        assert!(packaged.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("x-forgecad-source-glb-sha256")
+                && value == production_glb_hashes.last().unwrap()
+        }));
+        let ProtocolHttpBody::Base64 { data: package_data } = packaged.body else {
+            panic!("PV005 ForgeAssetPackage must be a binary ZIP transport");
+        };
+        let package_entries = stored_zip_entries(&BASE64.decode(package_data).unwrap());
+        assert_eq!(
+            package_entries
+                .keys()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                "asset.glb",
+                "thumbnail.webp",
+                "turntable.mp4",
+                "manifest.json",
+                "quality-report.json",
+                "license-metadata.json",
+            ])
+        );
+        assert_eq!(package_entries["asset.glb"], export_glb);
+        assert_eq!(
+            package_entries["thumbnail.webp"].get(..4),
+            Some(&b"RIFF"[..])
+        );
+        assert_eq!(
+            package_entries["turntable.mp4"].get(4..8),
+            Some(&b"ftyp"[..])
+        );
+        let package_manifest: Value =
+            serde_json::from_slice(&package_entries["manifest.json"]).unwrap();
+        assert_eq!(
+            package_manifest["schema_version"],
+            "ForgeAssetPackageManifest@1"
+        );
+        assert_eq!(package_manifest["asset_version_id"], redo_head);
+        assert_eq!(
+            package_manifest["source_artifact_sha256"],
+            *production_glb_hashes.last().unwrap()
+        );
+        assert_eq!(
+            package_manifest["members"].as_array().map(Vec::len),
+            Some(5)
+        );
+
+        drop(bridge);
+        drop(rust_core);
+        let reopened = RustCoreRuntime::open(
+            &library_root,
+            format!("pv005-continuation-restart-{serial}"),
+        )
+        .unwrap();
+        let restarted_snapshot = reopened.repository().snapshot(project_id).unwrap().unwrap();
+        assert_eq!(
+            restarted_snapshot.active_design.asset_version_id(),
+            Some(redo_head.as_str())
+        );
+        let restarted_version = reopened.repository().version(&redo_head).unwrap().unwrap();
+        assert_eq!(
+            restarted_version.shape_program,
+            confirmed_versions[3].shape_program
+        );
+        let restarted_revision: forgecad_core::ForgeVisualProgramRevision = serde_json::from_value(
+            restarted_version.assembly_graph["forge_visual_program_revision"].clone(),
+        )
+        .unwrap();
+        assert_eq!(restarted_revision.revision, 4);
+        assert_eq!(provider_probe.records().len(), 0);
+
+        drop(reopened);
+        drop(backend);
         fs::remove_dir_all(library_root).unwrap();
     }
 

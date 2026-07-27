@@ -218,6 +218,11 @@ const CORE_MIGRATIONS: &[Migration] = &[
         "0041_reference_evidence_class.sql"
     ),
     legacy_migration!("0042", "visual_remote_jobs", "0042_visual_remote_jobs.sql"),
+    legacy_migration!(
+        "0043",
+        "draft_candidate_delivery_boundary",
+        "0043_draft_candidate_delivery_boundary.sql"
+    ),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

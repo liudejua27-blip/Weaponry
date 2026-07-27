@@ -470,17 +470,22 @@ def surface_layer_visual_texture_set(lowering: Mapping[str, object], *, artifact
     canonical = _canonical_json(normalized)
     payloads = _cached_bytes(artifact_profile_id, canonical)
     suffix = normalized["source_program_sha256"][:32]
-    version = "sl1p" if artifact_profile_id == "interactive_preview" else "sl1d"
+    texture_suffix = "sl1p" if artifact_profile_id == "interactive_preview" else "sl1d"
+    # Surface layers coexist with built-in and A005 material rows in one GLB.
+    # Their contract version therefore has to match the artifact profile's
+    # immutable visual texture family (preview=v3, production=v4).  The
+    # surface-layer-specific suffix remains part of the texture identity.
+    version = "3" if artifact_profile_id == "interactive_preview" else "4"
     width = TEXTURE_WIDTH if artifact_profile_id == "interactive_preview" else PRODUCTION_TEXTURE_WIDTH
     height = TEXTURE_HEIGHT if artifact_profile_id == "interactive_preview" else PRODUCTION_TEXTURE_HEIGHT
     material_id = surface_layer_material_id(normalized)
     return VisualTextureSet(
-        visual_texture_set_id=f"vtexset_surface_layer_{suffix}_{version}",
+        visual_texture_set_id=f"vtexset_surface_layer_{suffix}_{texture_suffix}",
         material_id=material_id,
         display_name="SurfaceLayer retained PBR",
         maps=[
             VisualTextureMap(
-                texture_id=f"vtex_surface_layer_{suffix}_{version}_{role}",
+                texture_id=f"vtex_surface_layer_{suffix}_{texture_suffix}_{role}",
                 texture_role=role,
                 mime_type="image/png",
                 byte_size=len(payloads[role]),
@@ -496,7 +501,7 @@ def surface_layer_visual_texture_set(lowering: Mapping[str, object], *, artifact
         ],
         source="forgecad_builtin",
         license="not_applicable",
-        version="4",
+        version=version,
     )
 
 

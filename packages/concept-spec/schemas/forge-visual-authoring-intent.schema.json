@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/forge-visual-authoring-intent.schema.json",
+  "title": "ForgeVisualAuthoringIntent",
+  "description": "Compact Provider-authored visual intent lowered by Rust into the only ForgeVisualProgram candidate truth. It contains no executable geometry, internal IDs, paths, URLs, code, or secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authoring_id",
+    "title",
+    "arm_design_intent"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ForgeVisualAuthoringIntent@1"
+    },
+    "authoring_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_:-]+$",
+      "maxLength": 96
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "arm_design_intent": {
+      "$ref": "arm-design-intent.schema.json"
+    }
+  }
+}

@@ -1,10 +1,11 @@
 use forgecad_core::{
-    build_c111_forge_visual_program_fixture, builtin_surface_adornment_manifest_v2,
-    builtin_surface_adornment_manifest_v3, c111_golden_surface_adornment_programs,
-    ComponentRecipeRef, ForgeVisualProgramStage, RecipeExpander, RecipeExpansionPolicy,
-    RecipeInstantiationRequest, RecipeRegistry, RecipeValidator, VisualBuildPass, VisualBuildStage,
-    VisualConvergenceInput, VisualDetailCoverage, VisualDetailLevel, VisualDetailStatus,
-    VisualFixedViewEvidence, VisualGlbReadbackEvidence, DESIGN_BUILD_LEDGER_SCHEMA_VERSION,
+    build_c111_forge_visual_program_fixture, build_c111_structural_detail_contract,
+    builtin_surface_adornment_manifest_v2, builtin_surface_adornment_manifest_v3,
+    c111_golden_surface_adornment_programs, c111_golden_surface_layer_program, ComponentRecipeRef,
+    ForgeVisualProgramStage, RecipeExpander, RecipeExpansionPolicy, RecipeInstantiationRequest,
+    RecipeRegistry, RecipeValidator, VisualBuildPass, VisualBuildStage, VisualConvergenceInput,
+    VisualDetailCoverage, VisualDetailLevel, VisualDetailStatus, VisualFixedViewEvidence,
+    VisualGlbReadbackEvidence, DESIGN_BUILD_LEDGER_SCHEMA_VERSION,
     VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -37,7 +38,7 @@ fn pv002_c111_forge_visual_program_preserves_truth_and_seals_complete_inventory(
             .as_array()
             .unwrap()
             .len(),
-        96
+        101
     );
     assert_eq!(fixture.program.surface_graph.len(), 6);
     assert_eq!(fixture.program.detail_inventory.len(), 27);
@@ -159,6 +160,7 @@ fn pv004_c111_real_glb_lineage_closes_fixed_build_and_eight_view_contract() {
             micro_bound: bound_count(VisualDetailLevel::Micro),
             critical_unresolved: fixture.critical_unresolved_detail_ids.len() as u32,
         },
+        reference_comparison: None,
         repairs: Vec::new(),
     }
     .evaluate()
@@ -227,8 +229,8 @@ fn c111_golden_surface_registry_is_independent_and_expands_one_reviewed_arm() {
     assert_eq!(parts.len(), 10);
     assert_eq!(connections.len(), 9);
     assert_eq!(candidate.component_recipe_instances.len(), 10);
-    assert_eq!(operations.len(), 198);
-    assert_eq!(outputs.len(), 96);
+    assert_eq!(operations.len(), 200);
+    assert_eq!(outputs.len(), 101);
     assert!(connections
         .iter()
         .all(|connection| connection["status"] == "connected"));
@@ -277,6 +279,7 @@ fn c111_golden_surface_registry_is_independent_and_expands_one_reviewed_arm() {
         "_base_shell",
         "_plinth_fastener_array",
         "_plinth_guard_array",
+        "_plinth_service_panel",
         "_joint_inner_bearing",
         "_joint_signal_core",
         "_joint_outer_ring_secondary",
@@ -365,23 +368,30 @@ fn c111_golden_surface_binds_exactly_six_reviewed_a005_programs() {
     )
     .unwrap();
     let programs = c111_golden_surface_adornment_programs(&candidate, &registry).unwrap();
+    let surface_layer = c111_golden_surface_layer_program(&candidate, &registry).unwrap();
     let manifest = builtin_surface_adornment_manifest_v3();
     let manifest_sha256 = manifest.canonical_sha256().unwrap();
 
     assert_eq!(programs.len(), 6);
+    let program_ids = programs
+        .iter()
+        .map(|program| program.program_id.as_str())
+        .collect::<BTreeSet<_>>();
+    for stable_id in [
+        "adorn_c111_base_flowline",
+        "adorn_c111_gripper_chevron",
+        "adorn_c111_gripper_microgrid",
+        "adorn_c111_joint_microgrid",
+        "adorn_c111_link_groove",
+    ] {
+        assert!(program_ids.contains(stable_id));
+    }
     assert_eq!(
         programs
             .iter()
-            .map(|program| program.program_id.as_str())
-            .collect::<BTreeSet<_>>(),
-        BTreeSet::from([
-            "adorn_c111_base_flowline",
-            "adorn_c111_gripper_chevron",
-            "adorn_c111_gripper_microgrid",
-            "adorn_c111_joint_microgrid",
-            "adorn_c111_link_flowline",
-            "adorn_c111_link_groove",
-        ])
+            .filter(|program| program.target_zone_id == "zone_arm_link_armor")
+            .count(),
+        1
     );
     assert!(programs.iter().all(|program| {
         program.skill_id == manifest.skill_id
@@ -390,6 +400,22 @@ fn c111_golden_surface_binds_exactly_six_reviewed_a005_programs() {
             && program.execution == "texture_bake"
             && program.non_functional_only
     }));
+    assert_eq!(surface_layer.target_zone_id, "zone_arm_link_armor");
+    assert_eq!(surface_layer.decal_layers.len(), 2);
+    assert_eq!(surface_layer.roughness_masks.len(), 2);
+    assert_eq!(surface_layer.uv_frame.rotation_degrees, 90.0);
+    assert!(surface_layer
+        .decal_layers
+        .iter()
+        .any(|layer| layer.text_token == "A-01"));
+    assert!(surface_layer
+        .roughness_masks
+        .iter()
+        .any(|mask| mask.motif == "edge_wear"));
+    assert!(surface_layer
+        .roughness_masks
+        .iter()
+        .any(|mask| mask.motif == "linear_brush"));
     assert_eq!(
         programs
             .iter()
@@ -404,6 +430,68 @@ fn c111_golden_surface_binds_exactly_six_reviewed_a005_programs() {
             "zone_arm_link_shell",
         ])
     );
+}
+
+#[test]
+fn c111b_structural_detail_contract_is_exact_and_fails_closed() {
+    let registry = RecipeRegistry::from_embedded_c111_golden_surface_robotic_arm().unwrap();
+    let candidate = RecipeExpander::expand(
+        &registry,
+        &request(&registry, "pack_robotic_arm_concept"),
+        &RecipeExpansionPolicy::default(),
+    )
+    .unwrap();
+    let programs = c111_golden_surface_adornment_programs(&candidate, &registry).unwrap();
+    let surface_layer = c111_golden_surface_layer_program(&candidate, &registry).unwrap();
+    let inventory = serde_json::from_str(DETAIL_INVENTORY).unwrap();
+    let fixture =
+        build_c111_forge_visual_program_fixture(&candidate, &registry, &programs, &inventory)
+            .unwrap();
+    let contract =
+        build_c111_structural_detail_contract(&fixture.program, &programs, &surface_layer).unwrap();
+    assert_eq!(contract.schema_version, "C111StructuralDetailContract@1");
+    assert_eq!(contract.lineages.len(), 7);
+    assert_eq!(
+        contract
+            .lineages
+            .iter()
+            .map(|lineage| lineage.detail_class.as_str())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "auxiliary_linkage",
+            "cable_clamps",
+            "decal",
+            "gripper_hinges",
+            "joint_stack",
+            "service_panel",
+            "wear",
+        ])
+    );
+
+    let mut missing_panel = fixture.program.clone();
+    for part in &mut missing_panel.parts {
+        part.geometry_output_ids
+            .retain(|output_id| !output_id.ends_with("_plinth_service_panel"));
+    }
+    missing_panel.geometry_graph["outputs"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|output| {
+            !output["output_id"]
+                .as_str()
+                .is_some_and(|output_id| output_id.ends_with("_plinth_service_panel"))
+        });
+    let error = build_c111_structural_detail_contract(&missing_panel, &programs, &surface_layer)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    let mut missing_wear = surface_layer.clone();
+    missing_wear
+        .roughness_masks
+        .retain(|mask| mask.motif != "edge_wear");
+    let error = build_c111_structural_detail_contract(&fixture.program, &programs, &missing_wear)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
 }
 
 #[test]

@@ -17,8 +17,9 @@ use crate::{
     AgentStructureSuggestion, AgentStructureSuggestionList, ArtifactMigrationRunner,
     AssetVersionStatus, BlockoutCandidate, BootstrapLease, CandidateBundleReadback,
     CandidateStatus, ChangeSetConfirmBundleReadback, ChangeSetPreviewBundleReadback,
-    ChangeSetStatus, ComponentRecipeRef, ContentAddressedObjectStore, CoreError, CoreResult,
-    CreateReferenceEvidenceRequest, ExpandedComponentCandidate, ExportReference,
+    ChangeSetStatus, ComponentRecipeRef, ConfirmedAsset, ContentAddressedObjectStore, CoreError,
+    CoreResult, CreateReferenceEvidenceRequest, DraftCandidate, DraftCandidateBundleReadback,
+    DraftCandidateStatus, ExpandedComponentCandidate, ExportReference,
     ExternalGlbImportBundleReadback, ForgeCadGlbReadback, ImportExternalGlbRequest,
     ImportExternalGlbResponse, ImportedGlbRecord, LegacyActiveDesignConversionResponse,
     LegacyActiveDesignSource, LegacyAgentConversionIntent, MaterialTextureLicense,
@@ -1478,6 +1479,540 @@ impl CoreRepository {
     pub fn candidate(&self, artifact_id: &str) -> CoreResult<Option<BlockoutCandidate>> {
         let connection = open_connection(self.db_path())?;
         candidate_from_connection(&connection, artifact_id)
+    }
+
+    /// Persists only the creative-loop draft and its temporary interactive
+    /// bytes. This method intentionally does not touch AgentAssetVersion,
+    /// head, quality, export, or ActiveDesignSnapshot.
+    pub fn stage_draft_candidate(
+        &self,
+        mut draft: DraftCandidate,
+        interactive_glb: &[u8],
+    ) -> CoreResult<DraftCandidateBundleReadback> {
+        draft.validate()?;
+        if draft.status != DraftCandidateStatus::Draft
+            || draft.confirmed_asset_version_id.is_some()
+            || draft.quality_report_id.is_some()
+        {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_STATE_INVALID",
+                "Only a new DraftCandidate can enter the creative preview boundary.",
+            ));
+        }
+        // The inner loop may use a high-freedom preview artifact. The outer
+        // production contract is deliberately not evaluated here; confirmation
+        // performs the strict profile/PBR/UV/tangent readback.
+        validate_glb_container(interactive_glb)?;
+        let mut promoted = self.object_store.stage(interactive_glb, "glb")?.promote()?;
+        let stored = promoted.metadata().clone();
+        draft.interactive_preview.sha256 = stored.sha256.clone();
+        draft.interactive_preview.byte_size = stored.byte_size;
+
+        let result = self.write(|transaction| {
+            if let Some(existing) = draft_candidate_from_connection(
+                transaction,
+                &draft.candidate_id,
+            )? {
+                if existing != draft {
+                    return Err(CoreError::conflict_with_details(
+                        "DRAFT_CANDIDATE_IDEMPOTENCY_CONFLICT",
+                        "A draft candidate id was already used with different creative input.",
+                        draft_candidate_ids(&draft),
+                    ));
+                }
+                return draft_candidate_bundle_from_connection(
+                    transaction,
+                    &draft.candidate_id,
+                )?
+                .ok_or_else(|| {
+                    draft_candidate_incomplete(
+                        &draft,
+                        vec!["interactive_preview_glb"],
+                    )
+                });
+            }
+            let project_exists: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM projects WHERE project_id=?)",
+                [&draft.project_id],
+                |row| row.get(0),
+            )?;
+            if !project_exists {
+                return Err(CoreError::not_found("Project"));
+            }
+            if let Some(base_id) = draft.base_asset_version_id.as_deref() {
+                let base = require_version(transaction, base_id)?;
+                if base.project_id != draft.project_id {
+                    return Err(CoreError::conflict(
+                        "DRAFT_CANDIDATE_PROJECT_MISMATCH",
+                        "Draft candidate base asset belongs to another Project.",
+                    ));
+                }
+            }
+            insert_object_metadata(transaction, &stored, &draft.created_at)?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_draft_candidates(candidate_id, project_id, base_asset_version_id, draft_json, status, idempotency_key, request_hash, confirmed_asset_version_id, quality_report_id, failure_code, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', ?, ?, NULL, NULL, NULL, ?, ?)",
+                params![
+                    draft.candidate_id,
+                    draft.project_id,
+                    draft.base_asset_version_id,
+                    json_text(&draft)?,
+                    draft.idempotency_key,
+                    draft.request_hash,
+                    draft.created_at,
+                    draft.updated_at,
+                ],
+            )?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('candidate', ?, 'interactive_preview_glb', ?, ?)",
+                params![draft.candidate_id, stored.sha256, draft.created_at],
+            )?;
+            draft_candidate_bundle_from_connection(transaction, &draft.candidate_id)?.ok_or_else(
+                || draft_candidate_incomplete(&draft, vec!["transaction_readback"]),
+            )
+        });
+        match result {
+            Ok(bundle) => {
+                promoted.finalize_commit()?;
+                Ok(bundle)
+            }
+            Err(error) => {
+                promoted.cleanup_after_rollback();
+                Err(error)
+            }
+        }
+    }
+
+    pub fn draft_candidate(&self, candidate_id: &str) -> CoreResult<Option<DraftCandidate>> {
+        let connection = open_connection(self.db_path())?;
+        draft_candidate_from_connection(&connection, candidate_id)
+    }
+
+    pub fn read_draft_candidate_bundle(
+        &self,
+        candidate_id: &str,
+    ) -> CoreResult<Option<DraftCandidateBundleReadback>> {
+        let connection = open_connection(self.db_path())?;
+        let Some(draft) = draft_candidate_from_connection(&connection, candidate_id)? else {
+            return Ok(None);
+        };
+        let Some(bundle) = draft_candidate_bundle_from_connection(&connection, candidate_id)?
+        else {
+            if draft.status == DraftCandidateStatus::Draft {
+                return Err(draft_candidate_incomplete(
+                    &draft,
+                    vec!["interactive_preview_glb"],
+                ));
+            }
+            return Ok(None);
+        };
+        self.validate_draft_candidate_preview_bytes(&bundle)?;
+        Ok(Some(bundle))
+    }
+
+    /// Records a terminal creative-loop cancellation without creating a
+    /// version. The row remains for restart/idempotency diagnostics, while its
+    /// temporary CAS reference is removed.
+    pub fn cancel_draft_candidate(
+        &self,
+        candidate_id: &str,
+        timestamp: &str,
+    ) -> CoreResult<DraftCandidate> {
+        self.resolve_draft_candidate(
+            candidate_id,
+            DraftCandidateStatus::Cancelled,
+            "DRAFT_CANDIDATE_CANCELLED",
+            timestamp,
+        )
+    }
+
+    /// Records a bounded creative-loop failure without promoting any product
+    /// state. Only a stable code is retained; provider payloads are not.
+    pub fn fail_draft_candidate(
+        &self,
+        candidate_id: &str,
+        failure_code: &str,
+        timestamp: &str,
+    ) -> CoreResult<DraftCandidate> {
+        if failure_code.is_empty() || failure_code.len() > 128 || !failure_code.is_ascii() {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_FAILURE_CODE_INVALID",
+                "Draft candidate failure code must be bounded ASCII text.",
+            ));
+        }
+        self.resolve_draft_candidate(
+            candidate_id,
+            DraftCandidateStatus::Failed,
+            failure_code,
+            timestamp,
+        )
+    }
+
+    fn resolve_draft_candidate(
+        &self,
+        candidate_id: &str,
+        status: DraftCandidateStatus,
+        failure_code: &str,
+        timestamp: &str,
+    ) -> CoreResult<DraftCandidate> {
+        self.write(|transaction| {
+            let mut draft = draft_candidate_from_connection(transaction, candidate_id)?
+                .ok_or_else(|| CoreError::not_found("DraftCandidate"))?;
+            if draft.status == DraftCandidateStatus::Confirmed {
+                return Ok(draft);
+            }
+            if !matches!(draft.status, DraftCandidateStatus::Draft) {
+                return Err(CoreError::conflict(
+                    "DRAFT_CANDIDATE_STATE_CONFLICT",
+                    "Draft candidate was already resolved.",
+                ));
+            }
+            transaction.execute(
+                "DELETE FROM forgecad_core_object_references WHERE reference_kind='candidate' AND owner_id=? AND role='interactive_preview_glb'",
+                [candidate_id],
+            )?;
+            draft.status = status;
+            draft.failure_code = Some(failure_code.to_string());
+            draft.updated_at = timestamp.to_string();
+            transaction.execute(
+                "UPDATE forgecad_core_draft_candidates SET draft_json=?, status=?, failure_code=?, updated_at=? WHERE candidate_id=? AND status='draft'",
+                params![
+                    json_text(&draft)?,
+                    draft_status_as_str(status),
+                    failure_code,
+                    timestamp,
+                    candidate_id,
+                ],
+            )?;
+            Ok(draft)
+        })
+    }
+
+    /// Performs the strict production boundary and atomically creates the
+    /// immutable version, quality, Snapshot and production/export lineage.
+    /// `expected` is None only for a brand-new Project with no Snapshot yet.
+    pub fn confirm_draft_candidate(
+        &self,
+        candidate_id: &str,
+        resulting: &AgentAssetVersion,
+        production_glb: &[u8],
+        quality: &QualityReport,
+        expected: Option<SnapshotEtag>,
+        timestamp: &str,
+    ) -> CoreResult<ConfirmedAsset> {
+        resulting.validate()?;
+        quality.validate()?;
+        ensure_canonical_shape_program(
+            &resulting.shape_program,
+            "DRAFT_CANDIDATE_CONFIRM_NON_CANONICAL_SHAPE_PROGRAM",
+        )?;
+        if let Some(existing_draft) = self.draft_candidate(candidate_id)? {
+            if existing_draft.status == DraftCandidateStatus::Confirmed {
+                let existing = self
+                    .read_confirmed_asset(
+                        candidate_id,
+                        existing_draft
+                            .confirmed_asset_version_id
+                            .as_deref()
+                            .ok_or_else(|| {
+                                draft_candidate_incomplete(
+                                    &existing_draft,
+                                    vec!["confirmed_asset_version_id"],
+                                )
+                            })?,
+                        existing_draft.quality_report_id.as_deref().ok_or_else(|| {
+                            draft_candidate_incomplete(&existing_draft, vec!["quality_report_id"])
+                        })?,
+                    )?
+                    .ok_or_else(|| {
+                        draft_candidate_incomplete(&existing_draft, vec!["confirmed_asset"])
+                    })?;
+                if existing.version != *resulting || existing.quality != *quality {
+                    return Err(CoreError::conflict(
+                        "DRAFT_CANDIDATE_CONFIRM_IDEMPOTENCY_CONFLICT",
+                        "Confirmation was already committed with different delivery input.",
+                    ));
+                }
+                let production_verified =
+                    crate::verify_forgecad_glb(production_glb, Some("production_concept"))?;
+                if production_verified.glb_sha256 != existing.production_glb.sha256 {
+                    return Err(CoreError::conflict(
+                        "DRAFT_CANDIDATE_CONFIRM_IDEMPOTENCY_CONFLICT",
+                        "Confirmation was already committed with different production bytes.",
+                    ));
+                }
+                return Ok(existing);
+            }
+        }
+        let draft_bundle = self
+            .read_draft_candidate_bundle(candidate_id)?
+            .ok_or_else(|| {
+                CoreError::conflict(
+                    "DRAFT_CANDIDATE_CONFIRM_REQUIRED",
+                    "Draft candidate is not awaiting confirmation.",
+                )
+            })?;
+        let draft = &draft_bundle.draft;
+        if draft.status != DraftCandidateStatus::Draft {
+            return Err(CoreError::conflict(
+                "DRAFT_CANDIDATE_CONFIRM_STATE_CONFLICT",
+                "Only a live DraftCandidate can be confirmed.",
+            ));
+        }
+        validate_draft_candidate_version_identity(draft, resulting)?;
+
+        // Strict delivery checks begin here, never at stage_draft_candidate.
+        let interactive_bytes = self.read_object(&draft_bundle.interactive_preview_glb.sha256)?;
+        let interactive_verified =
+            crate::verify_forgecad_glb(&interactive_bytes, Some("interactive_preview"))?;
+        let production_verified =
+            crate::verify_forgecad_glb(production_glb, Some("production_concept"))?;
+        validate_production_quality_readback(quality, resulting, &production_verified)?;
+        if resulting.status != AssetVersionStatus::Committed {
+            return Err(CoreError::invalid_data(
+                "DRAFT_CANDIDATE_CONFIRM_RESULT_INVALID",
+                "Confirmed asset must be committed only after strict production readback.",
+            ));
+        }
+        let mut production = self.object_store.stage(production_glb, "glb")?.promote()?;
+        let production_stored = production.metadata().clone();
+        if production_stored.sha256 != production_verified.glb_sha256 {
+            production.cleanup_after_rollback();
+            return Err(CoreError::conflict(
+                "DRAFT_CANDIDATE_PRODUCTION_HASH_MISMATCH",
+                "Strict production readback hash differs from staged bytes.",
+            ));
+        }
+
+        let result = self.write(|transaction| {
+            let draft = draft_candidate_from_connection(transaction, candidate_id)?
+                .ok_or_else(|| CoreError::not_found("DraftCandidate"))?;
+            if draft.status == DraftCandidateStatus::Confirmed {
+                let existing = confirmed_asset_from_connection(
+                    transaction,
+                    candidate_id,
+                    draft.confirmed_asset_version_id.as_deref(),
+                    draft.quality_report_id.as_deref(),
+                )?
+                .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["confirmed_asset"]))?;
+                if existing.production_glb.sha256 != production_stored.sha256
+                    || existing.version != *resulting
+                    || existing.quality != *quality
+                {
+                    return Err(CoreError::conflict(
+                        "DRAFT_CANDIDATE_CONFIRM_IDEMPOTENCY_CONFLICT",
+                        "Confirmation was already committed with different delivery bytes.",
+                    ));
+                }
+                return Ok(existing);
+            }
+            if draft.status != DraftCandidateStatus::Draft {
+                return Err(CoreError::conflict(
+                    "DRAFT_CANDIDATE_CONFIRM_STATE_CONFLICT",
+                    "Draft candidate was already cancelled or failed.",
+                ));
+            }
+            let project_exists: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM projects WHERE project_id=?)",
+                [&draft.project_id],
+                |row| row.get(0),
+            )?;
+            if !project_exists || resulting.project_id != draft.project_id {
+                return Err(CoreError::conflict(
+                    "DRAFT_CANDIDATE_PROJECT_MISMATCH",
+                    "Draft and confirmed asset must belong to the same Project.",
+                ));
+            }
+            let active_snapshot = snapshot_from_connection(transaction, &draft.project_id)?;
+            match draft.base_asset_version_id.as_deref() {
+                None => {
+                    let has_head: bool = transaction.query_row(
+                        "SELECT EXISTS(SELECT 1 FROM agent_asset_heads WHERE project_id=?)",
+                        [&draft.project_id],
+                        |row| row.get(0),
+                    )?;
+                    if active_snapshot.is_some()
+                        || has_head
+                        || resulting.version_no != 1
+                        || resulting.parent_asset_version_id.is_some()
+                    {
+                        return Err(stale("DRAFT_CANDIDATE_INITIAL_BASE_STALE"));
+                    }
+                    if expected.is_some() {
+                        return Err(CoreError::conflict(
+                            "DRAFT_CANDIDATE_INITIAL_ETAG_INVALID",
+                            "Initial confirmation cannot provide a Snapshot ETag.",
+                        ));
+                    }
+                }
+                Some(base_id) => {
+                    let snapshot = active_snapshot.as_ref().ok_or_else(|| stale("DRAFT_CANDIDATE_BASE_STALE"))?;
+                    if expected != Some(snapshot.etag())
+                        || snapshot.preview.is_some()
+                        || snapshot.active_design.asset_version_id() != Some(base_id)
+                        || require_head(transaction, &draft.project_id)? != base_id
+                        || resulting.parent_asset_version_id.as_deref() != Some(base_id)
+                    {
+                        return Err(stale("DRAFT_CANDIDATE_BASE_STALE"));
+                    }
+                    let base = require_version(transaction, base_id)?;
+                    if resulting.version_no != base.version_no.saturating_add(1) {
+                        return Err(stale("DRAFT_CANDIDATE_VERSION_NUMBER_STALE"));
+                    }
+                }
+            }
+            let next_version: u64 = transaction.query_row(
+                "SELECT COALESCE(MAX(version_no), 0) + 1 FROM agent_asset_versions WHERE project_id=?",
+                [&draft.project_id],
+                |row| row.get(0),
+            )?;
+            if resulting.version_no != next_version {
+                return Err(stale("DRAFT_CANDIDATE_VERSION_NUMBER_STALE"));
+            }
+            let interactive_stored = object_for_reference_from_connection(
+                transaction,
+                "candidate",
+                candidate_id,
+                "interactive_preview_glb",
+            )?
+            .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["interactive_preview_glb"]))?;
+            if interactive_stored.sha256 != interactive_verified.glb_sha256 {
+                return Err(CoreError::conflict(
+                    "DRAFT_CANDIDATE_INTERACTIVE_HASH_MISMATCH",
+                    "Draft interactive preview bytes changed before confirmation.",
+                ));
+            }
+            insert_object_metadata(transaction, &production_stored, timestamp)?;
+            insert_version(transaction, resulting)?;
+            if let Some(base_id) = draft.base_asset_version_id.as_deref() {
+                transaction.execute(
+                    "UPDATE agent_asset_versions SET status='superseded' WHERE asset_version_id=? AND status='committed'",
+                    [base_id],
+                )?;
+            }
+            transaction.execute(
+                "INSERT INTO agent_asset_heads(project_id, asset_version_id, updated_at) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET asset_version_id=excluded.asset_version_id, updated_at=excluded.updated_at",
+                params![draft.project_id, resulting.asset_version_id, timestamp],
+            )?;
+            let snapshot = match active_snapshot {
+                Some(snapshot) => {
+                    advance_snapshot(transaction, &snapshot, resulting, timestamp)?;
+                    require_snapshot(transaction, &draft.project_id)?
+                }
+                None => {
+                    let initial = initial_snapshot(resulting)?;
+                    insert_snapshot(transaction, &initial)?;
+                    initial
+                }
+            };
+            insert_object_metadata(transaction, &interactive_stored_as_stored(&interactive_stored), timestamp)?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, 'interactive_preview_glb', ?, ?)",
+                params![resulting.asset_version_id, interactive_stored.sha256, timestamp],
+            )?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, 'production_glb', ?, ?)",
+                params![resulting.asset_version_id, production_stored.sha256, timestamp],
+            )?;
+            transaction.execute(
+                "INSERT INTO agent_asset_quality_reports(quality_report_id, project_id, asset_version_id, report_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                params![quality.quality_report_id, quality.project_id, quality.asset_version_id, json_text(&quality.report)?, quality.status.as_str(), quality.created_at],
+            )?;
+            if snapshot.quality.is_none() {
+                let changed = transaction.execute(
+                    "UPDATE active_design_snapshots SET quality_report_id=?, quality_asset_version_id=?, revision=revision+1, updated_at=? WHERE project_id=? AND revision=?",
+                    params![quality.quality_report_id, resulting.asset_version_id, timestamp, draft.project_id, snapshot.revision],
+                )?;
+                require_changed(changed)?;
+                require_snapshot(transaction, &draft.project_id)?;
+            }
+            transaction.execute(
+                "DELETE FROM forgecad_core_object_references WHERE reference_kind='candidate' AND owner_id=? AND role='interactive_preview_glb'",
+                [candidate_id],
+            )?;
+            let mut confirmed_draft = draft.clone();
+            confirmed_draft.status = DraftCandidateStatus::Confirmed;
+            confirmed_draft.confirmed_asset_version_id = Some(resulting.asset_version_id.clone());
+            confirmed_draft.quality_report_id = Some(quality.quality_report_id.clone());
+            confirmed_draft.updated_at = timestamp.to_string();
+            transaction.execute(
+                "UPDATE forgecad_core_draft_candidates SET draft_json=?, status='confirmed', confirmed_asset_version_id=?, quality_report_id=?, updated_at=? WHERE candidate_id=? AND status='draft'",
+                params![json_text(&confirmed_draft)?, resulting.asset_version_id, quality.quality_report_id, timestamp, candidate_id],
+            )?;
+            confirmed_asset_from_connection(
+                transaction,
+                candidate_id,
+                Some(resulting.asset_version_id.as_str()),
+                Some(quality.quality_report_id.as_str()),
+            )?
+            .ok_or_else(|| draft_candidate_incomplete(&confirmed_draft, vec!["transaction_readback"]))
+        });
+        match result {
+            Ok(confirmed) => {
+                production.finalize_commit()?;
+                self.validate_confirmed_asset(&confirmed)?;
+                Ok(confirmed)
+            }
+            Err(error) => {
+                production.cleanup_after_rollback();
+                Err(error)
+            }
+        }
+    }
+
+    pub fn read_confirmed_asset(
+        &self,
+        candidate_id: &str,
+        asset_version_id: &str,
+        quality_report_id: &str,
+    ) -> CoreResult<Option<ConfirmedAsset>> {
+        let connection = open_connection(self.db_path())?;
+        let Some(asset) = confirmed_asset_from_connection(
+            &connection,
+            candidate_id,
+            Some(asset_version_id),
+            Some(quality_report_id),
+        )?
+        else {
+            return Ok(None);
+        };
+        self.validate_confirmed_asset(&asset)?;
+        Ok(Some(asset))
+    }
+
+    fn validate_draft_candidate_preview_bytes(
+        &self,
+        bundle: &DraftCandidateBundleReadback,
+    ) -> CoreResult<()> {
+        let bytes = self.read_object(&bundle.interactive_preview_glb.sha256)?;
+        validate_glb_container(&bytes)?;
+        if bundle.interactive_preview_glb.byte_size != bytes.len() as u64 {
+            return Err(draft_candidate_incomplete(
+                &bundle.draft,
+                vec!["interactive_preview_byte_size"],
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_confirmed_asset(&self, asset: &ConfirmedAsset) -> CoreResult<()> {
+        asset.version.validate()?;
+        asset.snapshot.validate()?;
+        asset.quality.validate()?;
+        let production = self.read_object(&asset.production_glb.sha256)?;
+        let interactive = self.read_object(&asset.interactive_preview_glb.sha256)?;
+        let production_readback =
+            crate::verify_forgecad_glb(&production, Some("production_concept"))?;
+        let interactive_readback =
+            crate::verify_forgecad_glb(&interactive, Some("interactive_preview"))?;
+        if production_readback.glb_sha256 != asset.production_glb.sha256
+            || interactive_readback.glb_sha256 != asset.interactive_preview_glb.sha256
+        {
+            return Err(CoreError::conflict(
+                "CONFIRMED_ASSET_GLB_READBACK_DRIFT",
+                "Confirmed asset object hashes differ from strict GLB readback.",
+            ));
+        }
+        validate_production_quality_readback(&asset.quality, &asset.version, &production_readback)
     }
 
     /// Reads the initial candidate promotion only when every authoritative
@@ -4107,6 +4642,70 @@ impl CoreRepository {
                 || snapshot.export.source_version_id() != version_id
             {
                 return Err(stale("EXPORT_SOURCE_STALE"));
+            }
+            insert_object_metadata(transaction, &stored, timestamp)?;
+            transaction.execute(
+                "DELETE FROM forgecad_core_object_references WHERE reference_kind='export' AND owner_id=? AND role=?",
+                params![version_id, role],
+            )?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('export', ?, ?, ?, ?)",
+                params![version_id, role, stored.sha256, timestamp],
+            )?;
+            Ok((object_record(transaction, &stored.sha256)?, snapshot))
+        });
+        match result {
+            Ok(output) => {
+                promoted.finalize_commit()?;
+                Ok(output)
+            }
+            Err(error) => {
+                promoted.cleanup_after_rollback();
+                Err(error)
+            }
+        }
+    }
+
+    /// Production delivery export. Unlike the historical compatibility export
+    /// helper above, this boundary refuses bytes unless they are byte-identical
+    /// to the confirmed asset's Rust-indexed production GLB.
+    pub fn attach_confirmed_export_bytes(
+        &self,
+        project_id: &str,
+        expected: SnapshotEtag,
+        role: &str,
+        bytes: &[u8],
+        extension: &str,
+        timestamp: &str,
+    ) -> CoreResult<(ObjectRecord, ActiveDesignSnapshot)> {
+        let reference_probe = ObjectReference {
+            reference_kind: "export".to_string(),
+            owner_id: "placeholder".to_string(),
+            role: role.to_string(),
+        };
+        reference_probe.validate()?;
+        let mut promoted = self.object_store.stage(bytes, extension)?.promote()?;
+        let stored = promoted.metadata().clone();
+        let result = self.write(|transaction| {
+            let snapshot = require_agent_snapshot(transaction, project_id, expected)?;
+            let version_id = snapshot.active_design.asset_version_id().unwrap_or_default();
+            if require_head(transaction, project_id)? != version_id
+                || snapshot.export.source_version_id() != version_id
+            {
+                return Err(stale("EXPORT_SOURCE_STALE"));
+            }
+            let confirmed_sha: Option<String> = transaction
+                .query_row(
+                    "SELECT o.sha256 FROM forgecad_core_object_references r JOIN forgecad_core_objects o ON o.sha256=r.sha256 WHERE r.reference_kind='asset_version' AND r.owner_id=? AND r.role='production_glb'",
+                    [version_id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if confirmed_sha.as_deref() != Some(stored.sha256.as_str()) {
+                return Err(CoreError::conflict(
+                    "CONFIRMED_EXPORT_HASH_MISMATCH",
+                    "Export bytes must equal the confirmed asset production GLB.",
+                ));
             }
             insert_object_metadata(transaction, &stored, timestamp)?;
             transaction.execute(
@@ -7037,6 +7636,7 @@ fn validate_change_set_operations(
                 | "snap_part_to_connector"
                 | "split_part"
                 | "merge_parts"
+                | "replace_forge_visual_program"
         ) {
             return Err(CoreError::invalid_data(
                 "CHANGE_SET_OPERATION_UNSUPPORTED",
@@ -7066,6 +7666,110 @@ fn validate_change_set_operations(
             validate_transform(transform)?;
         }
         match operation_kind {
+            "replace_forge_visual_program" => {
+                let raw_revision =
+                    object.get("forge_visual_program_revision").ok_or_else(|| {
+                        CoreError::invalid_data(
+                            "FORGE_VISUAL_PROGRAM_REVISION_REQUIRED",
+                            "Visual-program replacement requires one exact Rust revision.",
+                        )
+                    })?;
+                let revision: crate::ForgeVisualProgramRevision =
+                    serde_json::from_value(raw_revision.clone()).map_err(|_| {
+                        CoreError::invalid_data(
+                            "FORGE_VISUAL_PROGRAM_REVISION_INVALID",
+                            "Visual-program replacement revision is malformed.",
+                        )
+                    })?;
+                revision.validate()?;
+                let base_raw = version
+                    .assembly_graph
+                    .get("forge_visual_program_revision")
+                    .ok_or_else(|| {
+                        CoreError::conflict(
+                            "FORGE_VISUAL_PROGRAM_BASE_REQUIRED",
+                            "The active asset has no persisted ForgeVisualProgram source to revise.",
+                        )
+                    })?;
+                let base_revision: crate::ForgeVisualProgramRevision =
+                    serde_json::from_value(base_raw.clone()).map_err(|_| {
+                        CoreError::conflict(
+                            "FORGE_VISUAL_PROGRAM_BASE_INVALID",
+                            "The active asset ForgeVisualProgram source is invalid.",
+                        )
+                    })?;
+                base_revision.validate()?;
+                if revision.revision != base_revision.revision.saturating_add(1)
+                    || revision.parent_source_program_sha256.as_deref()
+                        != Some(base_revision.source_program_sha256.as_str())
+                {
+                    return Err(CoreError::conflict(
+                        "FORGE_VISUAL_PROGRAM_BASE_STALE",
+                        "Visual-program replacement must be the exact next source revision.",
+                    ));
+                }
+                let program = serde_json::to_value(&revision.program).map_err(|_| {
+                    CoreError::invalid_data(
+                        "FORGE_VISUAL_PROGRAM_REVISION_INVALID",
+                        "Visual-program replacement could not be lowered.",
+                    )
+                })?;
+                let lowering = crate::lower_forge_visual_program(&program)?;
+                if object
+                    .get("source_program_sha256")
+                    .and_then(serde_json::Value::as_str)
+                    != Some(revision.source_program_sha256.as_str())
+                    || object
+                        .get("shape_program_sha256")
+                        .and_then(serde_json::Value::as_str)
+                        != Some(crate::semantic_sha256(&lowering.shape_program)?.as_str())
+                {
+                    return Err(CoreError::conflict(
+                        "FORGE_VISUAL_PROGRAM_REPLACEMENT_DRIFT",
+                        "Visual-program replacement hashes do not match its lowered source.",
+                    ));
+                }
+                let before_geometry = crate::semantic_sha256(&serde_json::json!((
+                    &base_revision.program.parts,
+                    &base_revision.program.geometry_graph,
+                    &base_revision.program.assembly_graph,
+                )))?;
+                let after_geometry = crate::semantic_sha256(&serde_json::json!((
+                    &revision.program.parts,
+                    &revision.program.geometry_graph,
+                    &revision.program.assembly_graph,
+                )))?;
+                let before_material_surface = crate::semantic_sha256(&serde_json::json!((
+                    &base_revision.program.material_graph,
+                    &base_revision.program.surface_graph,
+                )))?;
+                let after_material_surface = crate::semantic_sha256(&serde_json::json!((
+                    &revision.program.material_graph,
+                    &revision.program.surface_graph,
+                )))?;
+                if object
+                    .get("preserve_geometry")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                    && before_geometry != after_geometry
+                {
+                    return Err(CoreError::conflict(
+                        "FORGE_VISUAL_GEOMETRY_LOCK_VIOLATED",
+                        "Visual-program replacement changed geometry under a geometry lock.",
+                    ));
+                }
+                if object
+                    .get("preserve_material_surface")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                    && before_material_surface != after_material_surface
+                {
+                    return Err(CoreError::conflict(
+                        "FORGE_VISUAL_MATERIAL_LOCK_VIOLATED",
+                        "Visual-program replacement changed material or surface under a material lock.",
+                    ));
+                }
+            }
             "set_part_transform" if object.get("transform").is_none() => {
                 return Err(CoreError::invalid_data(
                     "TRANSFORM_REQUIRED",
@@ -9766,6 +10470,175 @@ fn object_for_reference_from_connection(
         .map_err(Into::into)
 }
 
+fn draft_status_as_str(status: DraftCandidateStatus) -> &'static str {
+    match status {
+        DraftCandidateStatus::Draft => "draft",
+        DraftCandidateStatus::Confirmed => "confirmed",
+        DraftCandidateStatus::Cancelled => "cancelled",
+        DraftCandidateStatus::Failed => "failed",
+    }
+}
+
+fn draft_candidate_from_connection(
+    connection: &Connection,
+    candidate_id: &str,
+) -> CoreResult<Option<DraftCandidate>> {
+    connection
+        .query_row(
+            "SELECT candidate_id, project_id, base_asset_version_id, status, idempotency_key, request_hash, confirmed_asset_version_id, quality_report_id, failure_code, draft_json, created_at, updated_at FROM forgecad_core_draft_candidates WHERE candidate_id=?",
+            [candidate_id],
+            |row| {
+                let persisted_candidate_id: String = row.get(0)?;
+                let persisted_project_id: String = row.get(1)?;
+                let persisted_base_asset_version_id: Option<String> = row.get(2)?;
+                let persisted_status: String = row.get(3)?;
+                let persisted_idempotency_key: String = row.get(4)?;
+                let persisted_request_hash: String = row.get(5)?;
+                let persisted_confirmed_asset_version_id: Option<String> = row.get(6)?;
+                let persisted_quality_report_id: Option<String> = row.get(7)?;
+                let persisted_failure_code: Option<String> = row.get(8)?;
+                let draft: DraftCandidate = parse_json(row.get(9)?).map_err(to_sql_error)?;
+                draft.validate().map_err(to_sql_error)?;
+                let consistent = persisted_candidate_id == draft.candidate_id
+                    && persisted_project_id == draft.project_id
+                    && persisted_base_asset_version_id == draft.base_asset_version_id
+                    && persisted_status == draft_status_as_str(draft.status)
+                    && persisted_idempotency_key == draft.idempotency_key
+                    && persisted_request_hash == draft.request_hash
+                    && persisted_confirmed_asset_version_id == draft.confirmed_asset_version_id
+                    && persisted_quality_report_id == draft.quality_report_id
+                    && persisted_failure_code == draft.failure_code
+                    && row.get::<_, String>(10)? == draft.created_at
+                    && row.get::<_, String>(11)? == draft.updated_at;
+                if !consistent {
+                    return Err(to_sql_error(CoreError::conflict(
+                        "DRAFT_CANDIDATE_DURABLE_STATE_DRIFT",
+                        "Draft candidate columns and JSON payload disagree.",
+                    )));
+                }
+                Ok(draft)
+            },
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn draft_candidate_bundle_from_connection(
+    connection: &Connection,
+    candidate_id: &str,
+) -> CoreResult<Option<DraftCandidateBundleReadback>> {
+    let Some(draft) = draft_candidate_from_connection(connection, candidate_id)? else {
+        return Ok(None);
+    };
+    if draft.status != DraftCandidateStatus::Draft {
+        return Ok(None);
+    }
+    let Some(interactive_preview_glb) = object_for_reference_from_connection(
+        connection,
+        "candidate",
+        candidate_id,
+        "interactive_preview_glb",
+    )?
+    else {
+        return Ok(None);
+    };
+    Ok(Some(DraftCandidateBundleReadback {
+        draft,
+        interactive_preview_glb,
+    }))
+}
+
+fn confirmed_asset_from_connection(
+    connection: &Connection,
+    candidate_id: &str,
+    asset_version_id: Option<&str>,
+    quality_report_id: Option<&str>,
+) -> CoreResult<Option<ConfirmedAsset>> {
+    let Some(draft) = draft_candidate_from_connection(connection, candidate_id)? else {
+        return Ok(None);
+    };
+    if draft.status != DraftCandidateStatus::Confirmed
+        || draft.confirmed_asset_version_id.as_deref() != asset_version_id
+        || draft.quality_report_id.as_deref() != quality_report_id
+    {
+        return Ok(None);
+    }
+    let version_id = asset_version_id.ok_or_else(|| CoreError::not_found("Confirmed asset"))?;
+    let quality_id = quality_report_id.ok_or_else(|| CoreError::not_found("Confirmed quality"))?;
+    let version = version_from_connection(connection, version_id)?
+        .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["asset_version"]))?;
+    let quality = quality_from_connection(connection, quality_id)?
+        .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["quality_report"]))?;
+    let snapshot = snapshot_from_connection(connection, &draft.project_id)?
+        .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["snapshot"]))?;
+    let interactive_preview_glb = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        version_id,
+        "interactive_preview_glb",
+    )?
+    .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["interactive_preview_glb"]))?;
+    let production_glb = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        version_id,
+        "production_glb",
+    )?
+    .ok_or_else(|| draft_candidate_incomplete(&draft, vec!["production_glb"]))?;
+    Ok(Some(ConfirmedAsset {
+        schema_version: "ConfirmedAsset@1".to_string(),
+        candidate_id: candidate_id.to_string(),
+        version,
+        snapshot,
+        quality,
+        interactive_preview_glb,
+        production_glb,
+    }))
+}
+
+fn validate_draft_candidate_version_identity(
+    draft: &DraftCandidate,
+    resulting: &AgentAssetVersion,
+) -> CoreResult<()> {
+    if resulting.project_id != draft.project_id
+        || resulting.parent_asset_version_id != draft.base_asset_version_id
+        || resulting.plan_id != draft.plan_id
+        || resulting.direction_id != draft.direction_id
+        || resulting.domain_pack_id != draft.domain_pack_id
+        || resulting.artifact_id != draft.artifact_id
+        || resulting.parts != draft.parts
+        || resulting.shape_program != draft.shape_program
+        || resulting.assembly_graph != draft.assembly_graph
+        || resulting.material_bindings != draft.material_bindings
+    {
+        return Err(CoreError::conflict(
+            "DRAFT_CANDIDATE_IDENTITY_DRIFT",
+            "Confirmed asset must preserve the exact Rust-owned draft identity.",
+        ));
+    }
+    Ok(())
+}
+
+fn draft_candidate_ids(draft: &DraftCandidate) -> serde_json::Value {
+    serde_json::json!({
+        "candidate_id": draft.candidate_id,
+        "project_id": draft.project_id,
+        "idempotency_key": draft.idempotency_key,
+        "request_hash": draft.request_hash,
+    })
+}
+
+fn draft_candidate_incomplete(draft: &DraftCandidate, missing: Vec<&str>) -> CoreError {
+    CoreError::conflict_with_details(
+        "DRAFT_CANDIDATE_INCOMPLETE",
+        "DraftCandidate authoritative state is incomplete.",
+        serde_json::json!({
+            "candidate_id": draft.candidate_id,
+            "missing": missing,
+        }),
+    )
+}
+
 fn validate_candidate_bundle_input(
     candidate: &BlockoutCandidate,
     version: &AgentAssetVersion,
@@ -10038,6 +10911,10 @@ fn stored_from_record(record: &ObjectRecord) -> StoredObject {
         extension: record.extension.clone(),
         byte_size: record.byte_size,
     }
+}
+
+fn interactive_stored_as_stored(record: &ObjectRecord) -> StoredObject {
+    stored_from_record(record)
 }
 
 fn bundle_input_ids(

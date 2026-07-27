@@ -17,7 +17,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use forgecad_app_server::{
     compatibility::{AllowedHttpMethod, PreparedCompatHttpRequest},
     ActiveDesignSnapshotReader, CancellationToken, LifecyclePersistencePort, LifecyclePortError,
-    LifecyclePortErrorKind, LifecyclePortFuture, ProductToolPortError,
+    LifecyclePortErrorKind, LifecyclePortFuture, ProductToolPortError, ReferenceEvidenceContent,
 };
 use forgecad_app_server_protocol::{
     CompatHttpResponse, LifecyclePersistenceCommand, LifecyclePersistenceResult, ProtocolHttpBody,
@@ -25,11 +25,12 @@ use forgecad_app_server_protocol::{
 };
 use forgecad_core::{
     builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v3,
-    inspect_external_glb, is_external_glb_reference, reference_rebuild_plan_id_for_change_set,
-    resolve_semantic_proportions, semantic_sha256, validate_reference_surface_analysis_for_plan,
-    verify_forgecad_glb, ActiveDesignSnapshot, AgentAssetChangeSet, AgentAssetVersion,
-    AgentSkillActivation, AgentSkillEvalReport, ChangeSetStatus, ComponentRecipeRef, CoreError,
-    CoreRepository, CoreResult, CreateReferenceEvidenceRequest, ImportExternalGlbRequest,
+    inspect_external_glb, is_external_glb_reference, lower_forge_visual_program,
+    reference_rebuild_plan_id_for_change_set, resolve_semantic_proportions, semantic_sha256,
+    validate_reference_surface_analysis_for_plan, verify_forgecad_glb, ActiveDesignSnapshot,
+    AgentAssetChangeSet, AgentAssetVersion, AgentSkillActivation, AgentSkillEvalReport,
+    ChangeSetStatus, ComponentRecipeRef, CoreError, CoreRepository, CoreResult,
+    CreateReferenceEvidenceRequest, ForgeVisualProgramRevision, ImportExternalGlbRequest,
     ImportedGlbInspection, LifecycleStore, MaterialTextureQuery, MaterialTextureRole,
     MaterialTextureSource, MaterialTextureSummary, NavigationAction, ObjectRecord, ObjectReference,
     Project, ProjectStatus, QualityReport, QualityStatus, RecipeInstantiationRequest,
@@ -163,6 +164,50 @@ impl ActiveDesignSnapshotReader for RustCoreActiveDesignSnapshotReader {
                             "Rust ActiveDesignSnapshot points to a missing asset version.",
                         )
                     })?;
+                if let Some(raw_revision) = version
+                    .assembly_graph
+                    .get("forge_visual_program_revision")
+                {
+                    let revision: ForgeVisualProgramRevision =
+                        serde_json::from_value(raw_revision.clone()).map_err(|_| {
+                            ProductToolPortError::invalid_response(
+                                "Rust active asset contains malformed ForgeVisualProgram provenance.",
+                            )
+                        })?;
+                    revision.validate().map_err(|error| {
+                        ProductToolPortError::invalid_response(format!(
+                            "Rust active ForgeVisualProgram provenance failed validation: {error}"
+                        ))
+                    })?;
+                    let program = serde_json::to_value(&revision.program).map_err(|_| {
+                        ProductToolPortError::invalid_response(
+                            "Rust active ForgeVisualProgram could not be inspected.",
+                        )
+                    })?;
+                    let lowering = lower_forge_visual_program(&program).map_err(|error| {
+                        ProductToolPortError::invalid_response(format!(
+                            "Rust active ForgeVisualProgram lowering failed: {error}"
+                        ))
+                    })?;
+                    if lowering.source_program_sha256 != revision.source_program_sha256
+                        || lowering.shape_program != version.shape_program
+                    {
+                        return Err(ProductToolPortError::invalid_response(
+                            "Rust active ForgeVisualProgram does not match the immutable asset ShapeProgram.",
+                        ));
+                    }
+                    value
+                        .as_object_mut()
+                        .expect("ActiveDesignSnapshot serializes as an object")
+                        .insert(
+                            "forge_visual_program_revision".into(),
+                            serde_json::to_value(revision).map_err(|_| {
+                                ProductToolPortError::invalid_response(
+                                    "Rust active ForgeVisualProgram could not be projected.",
+                                )
+                            })?,
+                        );
+                }
                 if let Some(edit_context) = arm_continuation_edit_context(&version) {
                     value
                         .as_object_mut()
@@ -172,6 +217,51 @@ impl ActiveDesignSnapshotReader for RustCoreActiveDesignSnapshotReader {
                 Ok(value)
             })
             .transpose()
+    }
+
+    fn read_reference_evidence(
+        &self,
+        project_id: &str,
+        evidence_id: &str,
+    ) -> Result<Option<Value>, ProductToolPortError> {
+        let (evidence, _sealed_source_bytes) = self
+            .core
+            .repository()
+            .read_reference_evidence_content(project_id, evidence_id)
+            .map_err(|error| {
+                ProductToolPortError::invalid_response(format!(
+                    "Rust ReferenceEvidence read failed ({}): {}",
+                    error.code(),
+                    error
+                ))
+            })?;
+        serde_json::to_value(evidence).map(Some).map_err(|error| {
+            ProductToolPortError::invalid_response(format!(
+                "Rust ReferenceEvidence serialization failed: {error}"
+            ))
+        })
+    }
+
+    fn read_reference_evidence_content(
+        &self,
+        project_id: &str,
+        evidence_id: &str,
+    ) -> Result<Option<ReferenceEvidenceContent>, ProductToolPortError> {
+        let (evidence, bytes) = self
+            .core
+            .repository()
+            .read_reference_evidence_content(project_id, evidence_id)
+            .map_err(|error| {
+                ProductToolPortError::invalid_response(format!(
+                    "Rust ReferenceEvidence content read failed ({}): {}",
+                    error.code(),
+                    error
+                ))
+            })?;
+        Ok(Some(ReferenceEvidenceContent {
+            evidence,
+            bytes: Arc::from(bytes),
+        }))
     }
 }
 
@@ -2362,7 +2452,7 @@ impl RustCoreRuntime {
                     "readback_triangle_count":artifact.inspection.triangle_count,
                     "exported_at":utc_now_timestamp(),
                 }),
-                Vec::new(),
+                external_glb_export_headers(&artifact),
             );
         }
         let artifact = self.production_artifact(asset_version_id)?;
@@ -2384,7 +2474,7 @@ impl RustCoreRuntime {
                 "readback_triangle_count": artifact.triangle_count,
                 "exported_at": now_timestamp(),
             }),
-            Vec::new(),
+            production_glb_export_headers(&artifact),
         )
     }
 
@@ -3302,6 +3392,35 @@ fn artifact_headers(artifact: &ProductionArtifact) -> Vec<(String, String)> {
         (
             "X-ForgeCAD-Triangle-Count".into(),
             artifact.triangle_count.to_string(),
+        ),
+    ]
+}
+
+fn production_glb_export_headers(artifact: &ProductionArtifact) -> Vec<(String, String)> {
+    artifact_headers(artifact)
+        .into_iter()
+        .filter(|(name, _)| !name.eq_ignore_ascii_case("content-type"))
+        .collect()
+}
+
+fn external_glb_export_headers(artifact: &ExternalReferenceArtifact) -> Vec<(String, String)> {
+    vec![
+        ("ETag".into(), format!("\"{}\"", artifact.object.sha256)),
+        (
+            "X-ForgeCAD-Artifact-Profile".into(),
+            EXTERNAL_GLB_ARTIFACT_PROFILE_ID.into(),
+        ),
+        (
+            "X-ForgeCAD-GLB-SHA256".into(),
+            artifact.object.sha256.clone(),
+        ),
+        (
+            "X-ForgeCAD-GLB-Byte-Size".into(),
+            artifact.object.byte_size.to_string(),
+        ),
+        (
+            "X-ForgeCAD-Triangle-Count".into(),
+            artifact.inspection.triangle_count.to_string(),
         ),
     ]
 }
@@ -5529,6 +5648,17 @@ mod tests {
         assert_eq!(export_json["schema_version"], "AgentAssetExport@2");
         assert_eq!(export_json["readback_status"], "passed");
         assert_eq!(
+            response_header(&export, "x-forgecad-glb-sha256"),
+            export_json["glb_sha256"].as_str()
+        );
+        assert_eq!(
+            response_header(&export, "x-forgecad-glb-byte-size"),
+            export_json["glb_byte_size"]
+                .as_u64()
+                .map(|value| value.to_string())
+                .as_deref()
+        );
+        assert_eq!(
             BASE64_STANDARD
                 .decode(export_json["glb_base64"].as_str().unwrap())
                 .unwrap(),
@@ -6955,7 +7085,7 @@ mod tests {
             assert_eq!(payload["operations"][1]["op"], "apply_surface_adornment");
             assert_eq!(
                 payload["operations"][1]["surface_adornment_program"]["skill_version"],
-                2
+                3
             );
             assert_eq!(
                 payload["operations"][1]["surface_adornment_program"]["target_zone_id"],

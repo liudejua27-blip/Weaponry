@@ -102,6 +102,9 @@ _ALLOWED_EXECUTOR_ENVIRONMENT_NAMES = frozenset(
     {
         RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV,
         "FORGECAD_RUNTIME_RESOURCE_ROOT",
+        # Non-secret desktop lease marker used only for stale-sidecar
+        # ownership recovery; it grants no geometry or product authority.
+        "FORGECAD_SUPERVISOR_SESSION_ID",
     }
 )
 
@@ -116,11 +119,54 @@ class RestrictedGeometryBoundaryError(RuntimeError):
         *,
         status_code: int = 400,
         recoverable: bool = False,
+        details: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.status_code = status_code
         self.recoverable = recoverable
+        # The loopback error envelope normally has no details.  A tiny,
+        # code-owned projection exists for one contract-drift diagnosis; it
+        # never carries an operation id, Provider output, request value, path,
+        # or exception text.
+        self.details = dict(details or {})
+
+
+# These labels are implementation vocabulary, not user supplied values.  A
+# model can author arbitrary lower-case strings in a rejected payload, so do
+# not echo an unknown operation into a local report or across the Rust/Python
+# boundary.  The list deliberately covers only common visual-geometry aliases
+# that are useful when a Provider/schema contract drifts.
+_SAFE_UNSUPPORTED_OPERATION_LABELS = frozenset(
+    {
+        "bevel",
+        "boolean",
+        "chamfer",
+        "cone",
+        "difference",
+        "fillet",
+        "intersect",
+        "intersection",
+        "offset",
+        "plane",
+        "rounded_box",
+        "shell",
+        "sphere",
+        "torus",
+        "tube",
+    }
+)
+
+
+def _safe_geometry_error_details(error: BaseException) -> dict[str, str]:
+    """Project one reviewed error fact without copying untrusted values."""
+
+    if type(error).__name__ != "UnsupportedRuntimeOperationError":
+        return {}
+    operation = getattr(error, "op", None)
+    if operation in _SAFE_UNSUPPORTED_OPERATION_LABELS:
+        return {"unsupported_operation": operation}
+    return {}
 
 
 class RestrictedGeometryApiModel(BaseModel):
@@ -135,7 +181,7 @@ class RestrictedGeometryExplodedPart(RestrictedGeometryApiModel):
 class RestrictedGeometryRenderOptions(RestrictedGeometryApiModel):
     width: int = Field(default=640, ge=64, le=2048)
     height: int = Field(default=640, ge=64, le=2048)
-    view_profile: Literal["workbench_four", "convergence_eight"] = "workbench_four"
+    view_profile: Literal["workbench_four", "convergence_eight", "turntable_eight"] = "workbench_four"
     exploded_parts: list[RestrictedGeometryExplodedPart] = Field(
         default_factory=list,
         max_length=512,
@@ -234,9 +280,18 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
                 raise ValueError("surface adornment programs must preserve canonical identity")
             if self.surface_layer_input is not None:
                 sealed_surface = _normalize_surface_layer_input(self.surface_layer_input)
-                if normalized != sealed_surface["lowering"]["adornments"]:
+                lowered = sealed_surface["lowering"]["adornments"]
+                if any(item not in normalized for item in lowered):
                     raise ValueError(
-                        "surface layer input must carry the exact Rust-lowered A005 adornment list"
+                        "surface layer input must retain every exact Rust-lowered A005 adornment"
+                    )
+                layer_zones = {item["target_zone_id"] for item in lowered}
+                if any(
+                    item["target_zone_id"] in layer_zones and item not in lowered
+                    for item in normalized
+                ):
+                    raise ValueError(
+                        "surface layer input must be the only visual program for its material zone"
                     )
         else:
             if (
@@ -410,6 +465,7 @@ class RestrictedGeometryExecutor:
                     _stable_geometry_error_code(exc),
                     "The ShapeProgram did not pass the restricted Schema/G819 boundary.",
                     status_code=422,
+                    details=_safe_geometry_error_details(exc),
                 ) from None
 
         fingerprint = _canonical_json_sha256(request_payload)
@@ -1130,10 +1186,22 @@ def _validate_render_result_payload(
         "gripper_iso",
         "gripper_front",
     }
+    turntable_view_ids = {
+        "turntable_000",
+        "turntable_045",
+        "turntable_090",
+        "turntable_135",
+        "turntable_180",
+        "turntable_225",
+        "turntable_270",
+        "turntable_315",
+    }
     actual_view_ids = set(render_views)
     expected_view_ids = (
         convergence_view_ids
         if render.view_profile == "convergence_eight"
+        else turntable_view_ids
+        if render.view_profile == "turntable_eight"
         else base_view_ids
     )
     allowed_view_ids = (expected_view_ids, expected_view_ids | {"exploded_iso"})
@@ -1516,8 +1584,15 @@ def _compile_retained_surface_layer_pbr(
         normalize_surface_adornment_program(item)
         for item in surface_adornment_programs
     ]
-    if supplied != normalized["adornments"]:
+    lowered = normalized["adornments"]
+    if any(item not in supplied for item in lowered):
         raise ValueError("surface layer retained compiler lost its Rust-lowered A005 binding")
+    layer_zones = {item["target_zone_id"] for item in lowered}
+    if any(
+        item["target_zone_id"] in layer_zones and item not in lowered
+        for item in supplied
+    ):
+        raise ValueError("surface layer retained compiler received a conflicting zone adornment")
     texture_set = surface_layer_visual_texture_set(
         normalized,
         artifact_profile_id=artifact_profile_id,
@@ -1542,6 +1617,13 @@ def _stable_geometry_error_code(error: BaseException) -> str:
     if name == "UnsupportedRuntimeOperationError":
         return "UNSUPPORTED_RUNTIME_OPERATION"
     if name == "ShapeProgramValidationError":
+        # ShapeProgramValidationError messages begin with a code-owned token
+        # followed by optional local details. Preserve only that bounded token
+        # so Rust can distinguish contract drift without receiving operation
+        # IDs, JSON paths, arguments, or exception text.
+        match = re.match(r"^([A-Z][A-Z0-9_]{4,119})(?:\b|:)", str(error))
+        if match is not None:
+            return match.group(1)
         return "SHAPE_PROGRAM_INVALID"
     if name == "ProfileContractValidationError":
         return "PROFILE_CONTRACT_INVALID"

@@ -18,9 +18,6 @@ from run_deepseek_mvp_acceptance import (
     _validate_live,
     _validate_report,
 )
-from macos_stable_app_identity import evaluate_identity_text
-
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -43,33 +40,13 @@ def main() -> int:
     for forbidden in ("find-generic-password", "security find", 'get("FORGECAD_AGENT_API_KEY")'):
         _assert(forbidden not in source, f"launcher must not read credentials: {forbidden}")
     _assert(
-        source.index("inspect_stable_app_identity(APP_BUNDLE)")
-        < source.index("desktop_pid = _start("),
-        "live launcher must reject unstable app identity before app launch",
+        "inspect_stable_app_identity" not in source,
+        "unsigned Alpha acceptance must not require a Keychain signing identity",
     )
-    adhoc = evaluate_identity_text(
-        display=(
-            "Identifier=wushen_forge_desktop-volatile\n"
-            "Signature=adhoc\n"
-            "TeamIdentifier=not set\n"
-        ),
-        requirement="",
-        strict_bundle_valid=False,
+    _assert(
+        "PrivateFileSecretBackend" not in source,
+        "launcher must not open the Rust-owned private credential store",
     )
-    _assert(not adhoc.ready, "ad-hoc rebuild must never be allowed to read Provider Keychain")
-    signed = evaluate_identity_text(
-        display=(
-            "Identifier=local.wushen.forge\n"
-            "Signature=Developer ID Application: Example\n"
-            "TeamIdentifier=ABCDE12345\n"
-        ),
-        requirement=(
-            'designated => anchor apple generic and identifier "local.wushen.forge" '
-            'and certificate leaf[subject.OU] = ABCDE12345'
-        ),
-        strict_bundle_valid=True,
-    )
-    _assert(signed.ready, "stable certificate/team/bundle requirement should be accepted")
 
     _reject([], "LIVE_CONFIRMATION_REQUIRED")
     _reject(["--confirm-live-provider"], "LIVE_CONFIRMATION_REQUIRED")

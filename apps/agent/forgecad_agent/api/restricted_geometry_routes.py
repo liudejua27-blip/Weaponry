@@ -226,6 +226,7 @@ def _boundary_error(error: RestrictedGeometryBoundaryError) -> JSONResponse:
         error.code,
         str(error),
         recoverable=error.recoverable,
+        details=error.details,
     )
 
 
@@ -235,7 +236,37 @@ def _error(
     message: str,
     *,
     recoverable: bool = False,
+    details: Mapping[str, str] | None = None,
 ) -> JSONResponse:
+    # This endpoint is a capability boundary.  Do not turn a generic error
+    # `details` escape hatch into a way to return request values, exception
+    # messages or filesystem data.  The only non-empty payload is produced by
+    # `_safe_geometry_error_details` and is verified again here.
+    safe_details = (
+        {"unsupported_operation": details["unsupported_operation"]}
+        if code == "UNSUPPORTED_RUNTIME_OPERATION"
+        and isinstance(details, Mapping)
+        and set(details) == {"unsupported_operation"}
+        and details.get("unsupported_operation")
+        in {
+            "bevel",
+            "boolean",
+            "chamfer",
+            "cone",
+            "difference",
+            "fillet",
+            "intersect",
+            "intersection",
+            "offset",
+            "plane",
+            "rounded_box",
+            "shell",
+            "sphere",
+            "torus",
+            "tube",
+        }
+        else {}
+    )
     return JSONResponse(
         status_code=status_code,
         content={
@@ -243,7 +274,7 @@ def _error(
                 "code": code,
                 "message": message,
                 "recoverable": recoverable,
-                "details": {},
+                "details": safe_details,
             }
         },
     )

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/c111-structural-detail-contract.schema.json",
+  "title": "C111StructuralDetailContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_program_sha256",
+    "surface_layer_program_id",
+    "surface_layer_program_sha256",
+    "surface_layer_lowering_sha256",
+    "lineages"
+  ],
+  "properties": {
+    "schema_version": { "const": "C111StructuralDetailContract@1" },
+    "source_program_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "surface_layer_program_id": {
+      "type": "string",
+      "pattern": "^surface_layer_[a-z0-9_-]+$"
+    },
+    "surface_layer_program_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "surface_layer_lowering_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "lineages": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "detail_class",
+          "part_ids",
+          "geometry_output_ids",
+          "material_zone_ids",
+          "surface_program_ids",
+          "required_texture_roles"
+        ],
+        "properties": {
+          "detail_class": {
+            "enum": [
+              "service_panel",
+              "joint_stack",
+              "auxiliary_linkage",
+              "cable_clamps",
+              "gripper_hinges",
+              "decal",
+              "wear"
+            ]
+          },
+          "part_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^part_[a-z0-9_-]+$" }
+          },
+          "geometry_output_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^output_[a-z0-9_-]+$" }
+          },
+          "material_zone_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^zone_[a-z0-9_-]+$" }
+          },
+          "surface_program_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^adorn_[a-z0-9_-]+$" }
+          },
+          "required_texture_roles": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": ["base_color", "metallic_roughness", "normal", "occlusion", "emissive"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

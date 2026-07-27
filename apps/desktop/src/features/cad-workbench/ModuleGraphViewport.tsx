@@ -7,6 +7,7 @@ import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } from '../../shared/types'
 import { buildShapeProgramPreview } from './shapeProgramPreview.js'
 import type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
+import { validateCandidateGeometry, type CandidateGeometryMesh } from './candidatePreviewValidation.js'
 
 export type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
 
@@ -227,6 +228,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const [blockoutLoadState, setBlockoutLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
   const [blockoutLoadMessage, setBlockoutLoadMessage] = useState('')
   const [blockoutPreviewPrimitiveKinds, setBlockoutPreviewPrimitiveKinds] = useState<string[]>([])
+  const [blockoutPreviewWarnings, setBlockoutPreviewWarnings] = useState<string[]>([])
   const [blockoutRenderSource, setBlockoutRenderSource] = useState<'empty' | 'glb_pbr' | 'external_reference' | 'shape_program_fallback'>('empty')
   const [blockoutEmbeddedPbrMaterialCount, setBlockoutEmbeddedPbrMaterialCount] = useState(0)
   const [referenceImageLoadState, setReferenceImageLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
@@ -720,8 +722,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
-    restoreModuleGraphPresentation(runtime, propsRef.current)
     if (props.referenceImage) {
+      // A selected reference is an explicit view-mode change, so it may
+      // replace the current result. Ordinary GLB replacement below is more
+      // conservative: retain the last renderable result until the next one
+      // has completed every client-side validation.
+      restoreModuleGraphPresentation(runtime, propsRef.current)
       runtime.moduleRoot.visible = false
       runtime.blockoutRoot.visible = false
       runtime.axes.visible = false
@@ -730,15 +736,18 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
+      setBlockoutPreviewWarnings([])
       setBlockoutRenderSource('empty')
       setBlockoutEmbeddedPbrMaterialCount(0)
       runtime.scheduleRender()
       return
     }
     if (!props.blockoutShapeProgram && !props.blockoutGlbBase64) {
+      restoreModuleGraphPresentation(runtime, propsRef.current)
       setBlockoutLoadState('empty')
       setBlockoutLoadMessage('')
       setBlockoutPreviewPrimitiveKinds([])
+      setBlockoutPreviewWarnings([])
       setBlockoutRenderSource('empty')
       setBlockoutEmbeddedPbrMaterialCount(0)
       runtime.scheduleRender()
@@ -751,29 +760,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
         disposeObject(source)
         return
       }
-      runtime.blockoutRoot.add(source)
-      const embeddedEnvironmentId = source.userData.forgecadVisualEnvironmentId
-      applyStudioEnvironment(
-        runtime,
-        typeof embeddedEnvironmentId === 'string' && embeddedEnvironmentId in FORGECAD_STUDIO_ENVIRONMENTS
-          ? embeddedEnvironmentId as ForgecadStudioEnvironmentId
-          : FORGECAD_STUDIO_MANIFEST.environment_id,
-      )
-      runtime.blockoutRoot.visible = true
-      runtime.axes.visible = false
-      runtime.grid.visible = false
-      setBlockoutPreviewPrimitiveKinds(Array.isArray(source.userData.forgecadPreviewPrimitiveKinds)
-        ? source.userData.forgecadPreviewPrimitiveKinds.filter((item: unknown): item is string => typeof item === 'string')
-        : [])
-      setBlockoutEmbeddedPbrMaterialCount(
-        typeof source.userData.forgecadEmbeddedPbrMaterialCount === 'number'
-          ? source.userData.forgecadEmbeddedPbrMaterialCount
-          : 0,
-      )
       source.updateMatrixWorld(true)
-      runtime.blockoutRoot.updateMatrixWorld(true)
+      assertFiniteObjectTransforms(source)
       let bounds = new THREE.Box3().setFromObject(source)
       if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
+      if (![...bounds.min.toArray(), ...bounds.max.toArray()].every(Number.isFinite)) {
+        throw new Error('候选 GLB 含非有限包围盒（PREVIEW_NON_FINITE_BOUNDS）')
+      }
       const sourceSize = bounds.getSize(new THREE.Vector3())
       const fitScale = Math.min(1, BLOCKOUT_DISPLAY_DIAGONAL_MM / Math.max(sourceSize.length(), 1))
       // GLBLoader has already converted source metres to workbench millimetres.
@@ -791,11 +784,40 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // showing the complete generated silhouette.
       source.position.sub(bounds.getCenter(new THREE.Vector3()))
       source.updateMatrixWorld(true)
-      runtime.blockoutRoot.updateMatrixWorld(true)
       bounds = new THREE.Box3().setFromObject(source)
+      if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
       const framedCenter = bounds.getCenter(new THREE.Vector3())
       const framedSize = bounds.getSize(new THREE.Vector3())
       const framedDiagonal = Math.max(framedSize.length(), 1)
+
+      // Do not clear a confirmed or previously-ready preview until this next
+      // source has parsed, has passed its PBR contract, and has non-empty
+      // bounds. A failed replacement must not strand the shared renderer in
+      // an empty state.
+      restoreModuleGraphPresentation(runtime, propsRef.current)
+      runtime.blockoutRoot.add(source)
+      const embeddedEnvironmentId = source.userData.forgecadVisualEnvironmentId
+      applyStudioEnvironment(
+        runtime,
+        typeof embeddedEnvironmentId === 'string' && embeddedEnvironmentId in FORGECAD_STUDIO_ENVIRONMENTS
+          ? embeddedEnvironmentId as ForgecadStudioEnvironmentId
+          : FORGECAD_STUDIO_MANIFEST.environment_id,
+      )
+      runtime.blockoutRoot.visible = true
+      runtime.axes.visible = false
+      runtime.grid.visible = false
+      setBlockoutPreviewPrimitiveKinds(Array.isArray(source.userData.forgecadPreviewPrimitiveKinds)
+        ? source.userData.forgecadPreviewPrimitiveKinds.filter((item: unknown): item is string => typeof item === 'string')
+        : [])
+      setBlockoutEmbeddedPbrMaterialCount(
+        typeof source.userData.forgecadEmbeddedPbrMaterialCount === 'number'
+          ? source.userData.forgecadEmbeddedPbrMaterialCount
+        : 0,
+      )
+      setBlockoutPreviewWarnings(Array.isArray(source.userData.forgecadPreviewWarnings)
+        ? source.userData.forgecadPreviewWarnings.filter((item: unknown): item is string => typeof item === 'string')
+        : [])
+      runtime.blockoutRoot.updateMatrixWorld(true)
       runtime.displayFloor.position.set(
         framedCenter.x,
         bounds.min.y - Math.max(framedSize.y * 0.01, 1),
@@ -848,16 +870,28 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
               reject(new Error('导入 GLB 没有 scene'))
               return
             }
+            const candidateMeshes: CandidateGeometryMesh[] = []
+            source.traverse((child) => {
+              if (!isMeshObject(child)) return
+              const position = child.geometry.getAttribute('position')
+              candidateMeshes.push({
+                position: position ? { values: position.array, count: position.count } : null,
+                index: child.geometry.index
+                  ? { values: child.geometry.index.array, count: child.geometry.index.count }
+                  : null,
+              })
+            })
+            const geometryValidation = validateCandidateGeometry(candidateMeshes)
+            if (!geometryValidation.ok) {
+              reject(new Error(candidateGeometryValidationMessage(geometryValidation.reason)))
+              return
+            }
             const parserJson = gltf.parser.json as Record<string, unknown>
             const parserExtras = parserJson.extras
             const embeddedEnvironment = parserExtras && typeof parserExtras === 'object'
               ? (parserExtras as Record<string, unknown>).forgecad_visual_environment
               : null
             const embeddedEnvironmentId = studioEnvironmentIdFromEmbedded(embeddedEnvironment)
-            if (!externalReference && !embeddedEnvironmentId) {
-              reject(new Error('编译 GLB 的视觉环境合同缺失或与已知版本不匹配'))
-              return
-            }
             source.userData.forgecadVisualEnvironmentId = embeddedEnvironmentId
               ?? FORGECAD_STUDIO_MANIFEST.environment_id
             source.scale.setScalar(GLB_METERS_TO_WORKBENCH_MILLIMETERS)
@@ -897,13 +931,17 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             })
             applyAgentBlockoutVisualState(source, propsRef.current)
             const embeddedPbrMaterialCount = countEmbeddedPbrMaterials(source)
-            if (!externalReference && embeddedPbrMaterialCount === 0) {
-              reject(new Error(`同源 GLB 没有可用的完整 PBR 纹理材质，不能作为真实纹理预览显示 [${diagnosePbrMaterialGap(source)}]`))
-              return
-            }
             const targetPbrAnisotropy = configurePbrTextureSampling(source, runtime.renderer)
             source.userData.forgecadEmbeddedPbrMaterialCount = embeddedPbrMaterialCount
             source.userData.forgecadPbrTextureFacts = collectPbrTextureFacts(source, targetPbrAnisotropy)
+            source.userData.forgecadPreviewWarnings = [
+              ...(!externalReference && embeddedPbrMaterialCount === 0
+                ? [`材质通道不完整：${diagnosePbrMaterialGap(source)}；仍保留可加载候选预览。`]
+                : []),
+              ...(!externalReference && !embeddedEnvironmentId
+                ? ['视觉环境摘要缺失；已使用工作台默认灯光，继续显示候选。']
+                : []),
+            ]
             resolve(source)
           }, reject)
         }))
@@ -913,21 +951,23 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
             return
           }
           const hasEmbeddedPbr = Number(source.userData.forgecadEmbeddedPbrMaterialCount ?? 0) > 0
-          setBlockoutRenderSource(hasEmbeddedPbr ? 'glb_pbr' : 'external_reference')
+          setBlockoutRenderSource(externalReference ? 'external_reference' : 'glb_pbr')
           attachPreview(
             source,
             externalReference
               ? hasEmbeddedPbr
                 ? '外部参考 GLB 已按完整嵌入 PBR 加载（只读）'
                 : '外部参考 GLB 已按只读来源加载；不声明完整 PBR'
-              : '同源 PBR GLB 已加载',
+              : hasEmbeddedPbr
+                ? '同源 PBR GLB 已加载'
+                : '同源 GLB 已加载；材质细节带质量警告',
           )
         })
         .catch((error) => {
           if (cancelled) return
-          setBlockoutRenderSource('empty')
-          setBlockoutEmbeddedPbrMaterialCount(0)
-          restoreModuleGraphPresentation(runtime, propsRef.current)
+          // Keep the prior successfully-rendered asset in the one existing
+          // Three renderer. The new GLB never became the display source, so
+          // its failure must not clear a confirmed Snapshot or ready preview.
           setBlockoutLoadState('failed')
           setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
           runtime.scheduleRender()
@@ -940,6 +980,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       try {
         setBlockoutRenderSource('shape_program_fallback')
         setBlockoutEmbeddedPbrMaterialCount(0)
+        setBlockoutPreviewWarnings(['正在使用参数外观回退；同源 GLB 细节尚未回读。'])
         attachPreview(
           buildShapeProgramPreview(
             props.blockoutShapeProgram,
@@ -954,9 +995,8 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           'Agent ShapeProgram 参数外观预览已加载；等待同源 PBR GLB',
         )
       } catch (error) {
-        setBlockoutRenderSource('empty')
-        setBlockoutEmbeddedPbrMaterialCount(0)
-        restoreModuleGraphPresentation(runtime, propsRef.current)
+        // ShapeProgram fallback is likewise staged before attachPreview(),
+        // preserving the current GLB when the replacement is invalid.
         setBlockoutLoadState('failed')
         setBlockoutLoadMessage(error instanceof Error ? error.message : String(error))
         runtime.scheduleRender()
@@ -1078,12 +1118,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           (count, reference) => count + (reference.world_triangles_mm?.length ?? 0),
           0,
         )}
-        data-blockout-preview={props.blockoutGlbBase64 ? 'ready' : 'empty'}
+        data-blockout-preview={props.blockoutGlbBase64 || props.blockoutShapeProgram ? 'ready' : 'empty'}
         data-blockout-load-state={blockoutLoadState}
         data-blockout-glb-kind={props.blockoutGlbKind ?? 'none'}
         data-blockout-render-source={blockoutRenderSource}
         data-blockout-embedded-pbr-material-count={String(blockoutEmbeddedPbrMaterialCount)}
         data-blockout-preview-primitives={blockoutPreviewPrimitiveKinds.join(',')}
+        data-blockout-preview-warnings={blockoutPreviewWarnings.join('|')}
         data-reference-display-mode={referenceImageLoadState === 'ready' ? 'reference_image' : referenceImageLoadState === 'loading' ? 'loading' : referenceImageLoadState === 'failed' ? 'failed' : 'result'}
         data-reference-image-load-state={referenceImageLoadState}
         data-reference-evidence-id={props.referenceImage?.evidenceId ?? ''}
@@ -1100,10 +1141,17 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           <span>{loadMessage}</span>
         </div>
       )}
-      {props.blockoutGlbBase64 && blockoutLoadState !== 'ready' && (
+      {(props.blockoutGlbBase64 || props.blockoutShapeProgram) && blockoutLoadState !== 'ready' && (
         <div className={`viewport-data-state blockout-${blockoutLoadState}`} role="status">
-          <strong>{blockoutLoadState === 'loading' ? '加载 Agent blockout' : 'Agent blockout 无法显示'}</strong>
+          <strong>{blockoutLoadState === 'loading' ? '加载 Agent 候选' : 'Agent 候选无法显示'}</strong>
           <span>{blockoutLoadMessage}</span>
+        </div>
+      )}
+      {blockoutLoadState === 'ready' && blockoutPreviewWarnings.length > 0 && !props.referenceImage && (
+        <div className="viewport-data-state blockout-quality-warning" role="status" aria-live="polite">
+          <strong>候选可显示 · 质量提示</strong>
+          {blockoutPreviewWarnings.map((warning) => <span key={warning}>{warning}</span>)}
+          <span>候选仍在同一 3D 视口中；质量不足会继续修复，不会伪装成通过。</span>
         </div>
       )}
       {props.referenceImage && referenceImageLoadState !== 'ready' && (
@@ -1114,6 +1162,25 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       )}
     </div>
   )
+}
+
+function candidateGeometryValidationMessage(reason: ReturnType<typeof validateCandidateGeometry>['reason']): string {
+  switch (reason) {
+    case 'empty_geometry': return '候选 GLB 没有可显示的三角面（PREVIEW_EMPTY_GEOMETRY）'
+    case 'missing_position': return '候选 GLB 缺少有效顶点坐标（PREVIEW_MISSING_POSITION）'
+    case 'non_finite_coordinate': return '候选 GLB 含非有限坐标（PREVIEW_NON_FINITE_COORDINATE）'
+    case 'invalid_face_index': return '候选 GLB 含越界或不完整面索引（PREVIEW_INVALID_FACE_INDEX）'
+    case 'degenerate_face': return '候选 GLB 含退化面（PREVIEW_DEGENERATE_FACE）'
+    default: return '候选 GLB 几何结构无法验证（PREVIEW_GEOMETRY_INVALID）'
+  }
+}
+
+function assertFiniteObjectTransforms(root: THREE.Object3D): void {
+  let invalid = false
+  root.traverse((child) => {
+    if (!child.matrixWorld.elements.every(Number.isFinite)) invalid = true
+  })
+  if (invalid) throw new Error('候选 GLB 含非有限变换（PREVIEW_NON_FINITE_TRANSFORM）')
 }
 
 async function loadNode(

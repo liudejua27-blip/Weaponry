@@ -4,15 +4,15 @@ import {
   isReferenceDrawerCloseShortcut,
   isReferencePreviewBaseStale,
   referenceEvidenceScopeKey,
+  readReferenceRebuildComparisonPlan,
+  readReferenceRebuildExactLineage,
   readReferenceRebuildPreviewLineage,
   readReferenceRebuildRetainLineage,
-  readReferenceRebuildExactLineage,
-  readReferenceRebuildComparisonPlan,
   unavailableReferenceEvidenceAdapter,
   type ReferenceEvidenceAdapter,
   type ReferenceEvidenceRecord,
   type ReferenceEvidenceTarget,
-} from './ReferenceEvidenceDrawer.js'
+} from './referenceEvidenceDrawerLogic.js'
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message) }
 

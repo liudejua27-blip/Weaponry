@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import struct
+import zlib
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
@@ -63,7 +64,7 @@ def build_combined_obj(combined_glb: bytes) -> CombinedObjResult:
     ]
     mtl_lines = ["# ForgeCAD deterministic material projection"]
     for name, material in zip(material_names, materials):
-        mtl_lines.extend(_material_lines(name, material))
+        mtl_lines.extend(_material_lines(name, material, document=document, binary=binary))
     mtl_lines.extend(_material_lines(default_material, {}))
 
     nodes = document.get("nodes", [])
@@ -373,10 +374,40 @@ def _face_vertex(
     return str(vertex)
 
 
-def _material_lines(name: str, material: dict[str, Any]) -> list[str]:
+def _material_lines(
+    name: str,
+    material: dict[str, Any],
+    *,
+    document: dict[str, Any] | None = None,
+    binary: bytes = b"",
+) -> list[str]:
     pbr = material.get("pbrMetallicRoughness", {})
     base = _float_values(pbr.get("baseColorFactor", [0.8, 0.8, 0.8, 1.0]), 4)
     emissive = _float_values(material.get("emissiveFactor", [0, 0, 0]), 3)
+    if document is not None:
+        base_texture = _texture_average_linear_rgb(
+            document,
+            binary,
+            pbr.get("baseColorTexture"),
+        )
+        if base_texture is not None:
+            base = (
+                base[0] * base_texture[0],
+                base[1] * base_texture[1],
+                base[2] * base_texture[2],
+                base[3],
+            )
+        emissive_texture = _texture_average_linear_rgb(
+            document,
+            binary,
+            material.get("emissiveTexture"),
+        )
+        if emissive_texture is not None:
+            emissive = (
+                emissive[0] * emissive_texture[0],
+                emissive[1] * emissive_texture[1],
+                emissive[2] * emissive_texture[2],
+            )
     roughness = float(pbr.get("roughnessFactor", 1.0))
     if not math.isfinite(roughness):
         raise CombinedObjError("material roughnessFactor must be finite")
@@ -390,6 +421,125 @@ def _material_lines(name: str, material: dict[str, Any]) -> list[str]:
         f"Ke {_number(emissive[0])} {_number(emissive[1])} {_number(emissive[2])}",
         "illum 2",
     ]
+
+
+def _texture_average_linear_rgb(
+    document: dict[str, Any],
+    binary: bytes,
+    texture_info: Any,
+) -> tuple[float, float, float] | None:
+    if not isinstance(texture_info, dict) or "index" not in texture_info:
+        return None
+    try:
+        texture = document["textures"][int(texture_info["index"])]
+        image = document["images"][int(texture["source"])]
+        if image.get("mimeType") != "image/png" or "bufferView" not in image:
+            return None
+        view = document["bufferViews"][int(image["bufferView"])]
+        if int(view.get("buffer", 0)) != 0:
+            return None
+        start = int(view.get("byteOffset", 0))
+        end = start + int(view["byteLength"])
+        if start < 0 or end > len(binary):
+            return None
+        return _png_average_linear_rgb(binary[start:end])
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+
+
+def _png_average_linear_rgb(payload: bytes) -> tuple[float, float, float] | None:
+    if len(payload) < 33 or payload[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    width, height, bit_depth, color_type, compression, filtering, interlace = struct.unpack(
+        ">IIBBBBB", payload[16:29]
+    )
+    if (
+        width == 0
+        or height == 0
+        or bit_depth != 8
+        or color_type not in {2, 6}
+        or compression != 0
+        or filtering != 0
+        or interlace != 0
+    ):
+        return None
+    position = 8
+    compressed: list[bytes] = []
+    while position + 12 <= len(payload):
+        length = struct.unpack(">I", payload[position : position + 4])[0]
+        kind = payload[position + 4 : position + 8]
+        end = position + 12 + length
+        if end > len(payload):
+            return None
+        if kind == b"IDAT":
+            compressed.append(payload[position + 8 : position + 8 + length])
+        if kind == b"IEND":
+            break
+        position = end
+    try:
+        encoded = zlib.decompress(b"".join(compressed))
+    except zlib.error:
+        return None
+    channels = 3 if color_type == 2 else 4
+    stride = width * channels
+    if len(encoded) != height * (stride + 1):
+        return None
+    previous = bytearray(stride)
+    decoded = bytearray(width * height * channels)
+    for row_index in range(height):
+        source_offset = row_index * (stride + 1)
+        filter_type = encoded[source_offset]
+        source = encoded[source_offset + 1 : source_offset + 1 + stride]
+        row = bytearray(stride)
+        for index, value in enumerate(source):
+            left = row[index - channels] if index >= channels else 0
+            above = previous[index]
+            upper_left = previous[index - channels] if index >= channels else 0
+            if filter_type == 0:
+                predictor = 0
+            elif filter_type == 1:
+                predictor = left
+            elif filter_type == 2:
+                predictor = above
+            elif filter_type == 3:
+                predictor = (left + above) // 2
+            elif filter_type == 4:
+                predictor = _paeth_predictor(left, above, upper_left)
+            else:
+                return None
+            row[index] = (value + predictor) & 0xFF
+        target_offset = row_index * stride
+        decoded[target_offset : target_offset + stride] = row
+        previous = row
+    pixel_count = width * height
+    sample_step = max(1, pixel_count // 16_384)
+    totals = [0.0, 0.0, 0.0]
+    samples = 0
+    for pixel_index in range(0, pixel_count, sample_step):
+        offset = pixel_index * channels
+        alpha = decoded[offset + 3] / 255.0 if channels == 4 else 1.0
+        for channel in range(3):
+            totals[channel] += _srgb_to_linear(decoded[offset + channel] / 255.0) * alpha
+        samples += 1
+    if samples == 0:
+        return None
+    return tuple(total / samples for total in totals)  # type: ignore[return-value]
+
+
+def _paeth_predictor(left: int, above: int, upper_left: int) -> int:
+    estimate = left + above - upper_left
+    left_distance = abs(estimate - left)
+    above_distance = abs(estimate - above)
+    upper_left_distance = abs(estimate - upper_left)
+    if left_distance <= above_distance and left_distance <= upper_left_distance:
+        return left
+    if above_distance <= upper_left_distance:
+        return above
+    return upper_left
+
+
+def _srgb_to_linear(value: float) -> float:
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
 
 
 def _normalized(value: float | int, component_type: int) -> float:

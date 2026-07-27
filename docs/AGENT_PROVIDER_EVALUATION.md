@@ -78,7 +78,7 @@ npm run agent:e002-provider-evaluation -- \
 
 `agent:e002-provider-evaluation` 保留其历史四领域合同与 synthetic 评测用途，但 Python 已不再允许 `--provider-config-source macos-keychain`：该参数会在任何凭据读取或网络调用之前固定拒绝为 `E002_RUST_NATIVE_PROVIDER_REQUIRED`。这是 K003 的所有权边界，不是可绕过的暂时限制；Python 不得执行 Keychain bridge。浏览器开发才可使用默认 `environment` 来源和既有 0600 secret file 验证合同。
 
-macOS 原生单 Turn 验收改由 `desktop:deepseek-mvp-acceptance` 完成。它默认 dry-run；真实运行必须同时传入 `--confirm-live-provider`、`--accept-network`、确认字符串、唯一 `live_...` 运行编号和绝对 JSON 输出路径。启动器只将这些非敏感开关交给已构建的应用，Rust `ProviderCredentialStore` 才会在进程内访问既有 Keychain 项。该验收只允许一次未确认 Turn、一次取消和一次本地 unsupported-provider fail-closed；临时项目必须无资产或 Snapshot 写入，报告仅保存运行编号 SHA-256、固定状态/错误类别与 token 汇总。它不会保存 Provider Key、Base URL、模型名、Prompt、响应或绝对 Library 路径。
+macOS 原生单 Turn 验收改由 `desktop:deepseek-mvp-acceptance` 完成。它默认 dry-run；真实运行必须同时传入 `--confirm-live-provider`、`--accept-network`、确认字符串、唯一 `live_...` 运行编号和绝对 JSON 输出路径。启动器只将这些非敏感开关交给已构建的应用且不读取凭据；Rust `ProviderCredentialStore` 才会在显式 Turn 中从 generation-bound 私密文件读取一次短生命周期快照。目录固定为 0700、key 固定为 0600，旧 Keychain metadata 必须由用户在 UI 显式重存迁移；本机 Alpha 不依赖 ad-hoc app identity 或系统密码弹窗。该验收只允许一次未确认 Turn、一次取消和一次本地 unsupported-provider fail-closed；临时项目必须无资产或 Snapshot 写入，报告仅保存运行编号 SHA-256、固定状态/错误类别与 token 汇总。它不会保存 Provider Key、Base URL、模型名、Prompt、响应或绝对 Library 路径。
 
 live run 的停止策略固定为：每条最多一次请求、单请求最多 45 秒、最多 1,200 输出 token、最多 120,000 输出 token、最多 720,000 已报告总 token、最多 80 次 Provider 请求。达到任一上限时，在下一条请求前停止；不会自动重试或自动增加预算。20 条澄清/拒绝输入由隔离评测 preflight 本地拦截，正常 Agent Turn 不会因此自动触发评测。
 

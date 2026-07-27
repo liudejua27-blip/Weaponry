@@ -14,7 +14,7 @@ const readyConfig: ProviderConfigMetadata = {
   base_url: 'https://api.deepseek.com',
   model: 'deepseek-v4-pro',
   configured: true,
-  storage: 'macos-keychain',
+  storage: 'private_secret_file',
   metadata_status: 'valid',
   secret_status: 'available',
   supervisor_status: 'running',
@@ -58,7 +58,7 @@ function failedCheck(networkCallMade: boolean): AgentProviderCheckResponse {
 
 export function runProviderConnectionPresentationSmoke(): void {
   assert(providerConfigPresentation(null).label.includes('未调用 DeepSeek'), 'missing metadata must be explicit offline state')
-  assert(providerConfigPresentation(readyConfig).ready, 'metadata + Keychain + supervisor + capability must all be ready')
+  assert(providerConfigPresentation(readyConfig).ready, 'metadata + private credential + supervisor + capability must all be ready')
   const startupConfig = providerConfigPresentation({
     ...readyConfig,
     secret_status: 'not_checked',
@@ -66,7 +66,7 @@ export function runProviderConnectionPresentationSmoke(): void {
   })
   assert(
     !startupConfig.ready && startupConfig.canTest && startupConfig.label.includes('发送请求或测试连接时'),
-    'normal startup must allow an explicit test without implying that Keychain was already read',
+    'normal startup must allow an explicit test without implying that the private credential was already read',
   )
   const startupWithoutSupervisor = providerConfigPresentation({ ...readyConfig, secret_status: 'not_checked', supervisor_status: 'unavailable' })
   assert(!startupWithoutSupervisor.canTest, 'metadata-only startup must not enable test when the local supervisor is unavailable')

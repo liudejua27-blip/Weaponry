@@ -10,18 +10,21 @@ mod arm_geometry_family;
 mod artifact_migration;
 mod artifact_readback;
 mod assembly_delta;
+mod c111_structural_detail;
 mod c111_visual_fixture;
 mod canonical;
 mod component_recipes;
 mod error;
 mod external_glb;
 mod filesystem_permissions;
+mod forge_visual_authoring_intent;
 mod forge_visual_program;
 mod generation_gate_profile;
 mod legacy_conversion;
 mod lifecycle;
 mod migration;
 mod models;
+mod multimodal_design;
 mod neural_visual_generation;
 mod object_store;
 mod ownership;
@@ -49,9 +52,13 @@ pub use assembly_delta::{
     AssemblyDeltaOperation, AssemblyDeltaProgram, DeltaJointPose, DeltaTransform,
     ASSEMBLY_DELTA_LOWERING_SCHEMA_VERSION, ASSEMBLY_DELTA_PROGRAM_SCHEMA_VERSION,
 };
+pub use c111_structural_detail::{
+    build_c111_structural_detail_contract, C111StructuralDetailContract,
+    C111StructuralDetailLineage, C111_STRUCTURAL_DETAIL_SCHEMA_VERSION,
+};
 pub use c111_visual_fixture::{
-    build_c111_forge_visual_program_fixture, C111ForgeVisualProgramFixture,
-    C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION,
+    build_c111_forge_visual_program_fixture, reviewed_c111_draft_visual_program,
+    C111ForgeVisualProgramFixture, C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION,
 };
 pub use canonical::{canonical_json, semantic_sha256};
 pub use component_recipes::{
@@ -68,16 +75,20 @@ pub use external_glb::{
     EXTERNAL_GLB_ARTIFACT_PROFILE_ID, EXTERNAL_GLB_REFERENCE_ROLE, MAX_IMPORTED_GLB_BYTES,
     MAX_IMPORTED_GLB_TRIANGLES,
 };
+pub use forge_visual_authoring_intent::{
+    lower_forge_visual_authoring_intent, ForgeVisualAuthoringIntent,
+    FORGE_VISUAL_AUTHORING_INTENT_SCHEMA_VERSION,
+};
 pub use forge_visual_program::{
-    lower_forge_visual_program, ForgeVisualDesignToken, ForgeVisualExportProfile,
-    ForgeVisualInspectionView, ForgeVisualMaterialBinding, ForgeVisualPart, ForgeVisualPatch,
-    ForgeVisualPatchOperation, ForgeVisualProgram, ForgeVisualProgramInspection,
-    ForgeVisualProgramLowering, ForgeVisualProgramRevision, ForgeVisualProgramStage,
-    ForgeVisualSurfaceBinding, VisualDetailBinding, VisualDetailBindingKind,
-    VisualDetailInventoryItem, VisualDetailLevel, VisualDetailStatus,
-    FORGE_VISUAL_PATCH_SCHEMA_VERSION, FORGE_VISUAL_PROGRAM_INSPECTION_SCHEMA_VERSION,
-    FORGE_VISUAL_PROGRAM_LOWERING_SCHEMA_VERSION, FORGE_VISUAL_PROGRAM_REVISION_SCHEMA_VERSION,
-    FORGE_VISUAL_PROGRAM_SCHEMA_VERSION,
+    compiled_visual_base_material_id, lower_forge_visual_program, ForgeVisualDesignToken,
+    ForgeVisualExportProfile, ForgeVisualInspectionView, ForgeVisualMaterialBinding,
+    ForgeVisualPart, ForgeVisualPatch, ForgeVisualPatchOperation, ForgeVisualProgram,
+    ForgeVisualProgramInspection, ForgeVisualProgramLowering, ForgeVisualProgramRevision,
+    ForgeVisualProgramStage, ForgeVisualSurfaceBinding, VisualDetailBinding,
+    VisualDetailBindingKind, VisualDetailInventoryItem, VisualDetailLevel, VisualDetailStatus,
+    COMPILED_VISUAL_MATERIAL_IDS, FORGE_VISUAL_PATCH_SCHEMA_VERSION,
+    FORGE_VISUAL_PROGRAM_INSPECTION_SCHEMA_VERSION, FORGE_VISUAL_PROGRAM_LOWERING_SCHEMA_VERSION,
+    FORGE_VISUAL_PROGRAM_REVISION_SCHEMA_VERSION, FORGE_VISUAL_PROGRAM_SCHEMA_VERSION,
 };
 pub use generation_gate_profile::{
     evaluate_native_v003_gate_profile_v2, native_v003_gate_profile_sha256,
@@ -98,12 +109,24 @@ pub use models::{
     AgentComponentCandidate, AgentComponentCompatibility, AgentComponentRecord,
     AgentStructureSuggestion, AgentStructureSuggestionList, AssetStage, AssetVersionStatus,
     BlockoutCandidate, CandidateBundleReadback, CandidateStatus, ChangeSetConfirmBundleReadback,
-    ChangeSetPreviewBundleReadback, ChangeSetStatus, ExportReference, MaterialTextureLicense,
-    MaterialTextureObject, MaterialTextureQuery, MaterialTextureRole, MaterialTextureSource,
-    MaterialTextureSummary, NavigationAction, NavigationAvailability, NavigationResult,
-    ObjectRecord, ObjectReference, PartDisplay, PreviewReference, Project, ProjectStatus,
-    QualityReference, QualityReport, QualityStatus, RegisterMaterialTextureRequest, RenderPreset,
-    Selection, SnapshotEtag,
+    ChangeSetPreviewBundleReadback, ChangeSetStatus, ConfirmedAsset, DraftArtifactReference,
+    DraftCandidate, DraftCandidateBundleReadback, DraftCandidateStatus, ExportReference,
+    MaterialTextureLicense, MaterialTextureObject, MaterialTextureQuery, MaterialTextureRole,
+    MaterialTextureSource, MaterialTextureSummary, NavigationAction, NavigationAvailability,
+    NavigationResult, ObjectRecord, ObjectReference, PartDisplay, PreviewReference, Project,
+    ProjectStatus, QualityReference, QualityReport, QualityStatus, RegisterMaterialTextureRequest,
+    RenderPreset, Selection, SnapshotEtag,
+};
+pub use multimodal_design::{
+    MultimodalDesignLocks, MultimodalDesignRequest, MultimodalProgramEvidenceBinding,
+    MultimodalReferenceInput, MultimodalSelectionScope, NormalizedEvidenceRegion, ReferenceRole,
+    VisionEvidenceProviderProvenance, VisualClaimDisposition, VisualClaimDispositionKind,
+    VisualClaimStatus, VisualClaimTarget, VisualEvidenceClaim, VisualEvidenceGraph,
+    VisualReferenceClaimAssessment, VisualReferenceComparisonInput,
+    VisualReferenceComparisonReport, VisualReferenceMatchOutcome, VisualReferenceSourceFingerprint,
+    MULTIMODAL_DESIGN_REQUEST_SCHEMA_VERSION, MULTIMODAL_PROGRAM_EVIDENCE_BINDING_SCHEMA_VERSION,
+    VISUAL_EVIDENCE_GRAPH_SCHEMA_VERSION, VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION,
+    VISUAL_REFERENCE_COMPARISON_REPORT_SCHEMA_VERSION,
 };
 pub use neural_visual_generation::{
     inspect_concept_png, inspect_neural_visual_glb, ConceptImageBackend,
@@ -155,6 +178,7 @@ pub use single_generation::{
 pub use skills::{
     builtin_surface_adornment_manifest, builtin_surface_adornment_manifest_v2,
     builtin_surface_adornment_manifest_v3, c111_golden_surface_adornment_programs,
+    c111_golden_surface_layer_program, c111_link_finish_surface_layer,
     AgentSkillActivation, AgentSkillDryRun, AgentSkillEvalReport, AgentSkillManifest,
     SkillEvalStatus, SkillExample, SkillLicense, SkillProvenance, SurfaceAdornmentProgram,
 };
@@ -166,7 +190,7 @@ pub use surface_layers::{
 pub use visual_convergence::{
     DesignBuildLedger, VisualBuildPass, VisualBuildStage, VisualConvergenceInput,
     VisualConvergenceReport, VisualDetailCoverage, VisualFixedViewEvidence,
-    VisualGlbReadbackEvidence, VisualRepairEvidence, DESIGN_BUILD_LEDGER_SCHEMA_VERSION,
-    MAX_VISUAL_REPAIR_ATTEMPTS, REQUIRED_VISUAL_VIEW_IDS, VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION,
-    VISUAL_CONVERGENCE_REPORT_SCHEMA_VERSION,
+    VisualGlbReadbackEvidence, VisualReferenceConvergenceEvidence, VisualRepairEvidence,
+    DESIGN_BUILD_LEDGER_SCHEMA_VERSION, MAX_VISUAL_REPAIR_ATTEMPTS, REQUIRED_VISUAL_VIEW_IDS,
+    VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION, VISUAL_CONVERGENCE_REPORT_SCHEMA_VERSION,
 };

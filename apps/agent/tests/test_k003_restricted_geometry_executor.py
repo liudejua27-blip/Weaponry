@@ -28,7 +28,13 @@ from forgecad_agent.application.restricted_geometry_executor import (
     RestrictedGeometryCancellationRequest,
     RestrictedGeometryExecutionRequest,
     RestrictedGeometryExecutor,
+    _safe_geometry_error_details,
+    _stable_geometry_error_code,
     sanitize_restricted_geometry_child_environment,
+)
+from forgecad_agent.application.shape_program import ShapeProgramValidationError
+from forgecad_agent.application.shape_program_runtime import (
+    UnsupportedRuntimeOperationError,
 )
 from forgecad_agent.application.profile_contracts import canonical_profile_payload
 from forgecad_agent.application.surface_layer_pbr import (
@@ -69,6 +75,33 @@ VALID_PROGRAM = {
     ],
     "non_functional_only": True,
 }
+
+
+def test_shape_program_worker_error_exposes_only_the_code_owned_prefix() -> None:
+    error = ShapeProgramValidationError(
+        "SHAPE_PROGRAM_EXTRUDE_REQUIRES_PROFILE: op_provider_private"
+    )
+    assert _stable_geometry_error_code(error) == "SHAPE_PROGRAM_EXTRUDE_REQUIRES_PROFILE"
+    assert _stable_geometry_error_code(ShapeProgramValidationError("not safe")) == (
+        "SHAPE_PROGRAM_INVALID"
+    )
+
+
+def test_unsupported_runtime_operation_detail_is_a_fixed_label_not_provider_text() -> None:
+    assert _safe_geometry_error_details(
+        UnsupportedRuntimeOperationError(
+            operation_id="op_provider_private",
+            op="fillet",
+            reason="operation is not declared by ShapeProgramRuntimeManifest@1",
+        )
+    ) == {"unsupported_operation": "fillet"}
+    assert _safe_geometry_error_details(
+        UnsupportedRuntimeOperationError(
+            operation_id="op_provider_private",
+            op="customer_private_operation",
+            reason="provider supplied text must not be projected",
+        )
+    ) == {}
 PROFILE_SKETCH = {
     "schema_version": "ProfileSketch@1",
     "sketch_id": "sketch_k003_companion",
@@ -420,6 +453,7 @@ def test_default_app_is_geometry_only_and_legacy_environment_cannot_reenable_pro
             "FORGECAD_TEST_ONLY_LEGACY_AGENT_LIFECYCLE": "1",
             "FORGECAD_TEST_ONLY_LEGACY_PRODUCT_CORE": "1",
             RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV: CAPABILITY,
+            "FORGECAD_SUPERVISOR_SESSION_ID": "a" * 32,
             "WUSHEN_LIBRARY_ROOT": "/must-not-reach-python-geometry",
             "FORGECAD_AGENT_API_KEY": "must-not-reach-python-geometry",
         }
@@ -432,6 +466,8 @@ def test_default_app_is_geometry_only_and_legacy_environment_cannot_reenable_pro
     assert health.json()["database_access"] is False
     assert health.json()["provider_access"] is False
     assert health.json()["snapshot_write"] is False
+    assert health.json()["supervisor_session_id"] == "a" * 32
+    assert isinstance(health.json()["supervisor_process_group_id"], int)
     assert client.post("/api/v1/agent/threads", json_payload={}).status_code == 410
     assert (
         client.post("/api/v1/internal/k002/lifecycle/execute", json_payload={}).status_code == 410
@@ -720,6 +756,33 @@ def test_compile_readback_then_render_uses_only_opaque_ephemeral_handle() -> Non
     }
     assert convergence["render_view_sha256"]["gripper_iso"] != convergence["render_view_sha256"]["iso"]
     assert convergence["render_view_sha256"]["gripper_front"] != convergence["render_view_sha256"]["front"]
+
+    turntable_request = copy.deepcopy(render_request)
+    turntable_request.update(
+        execution_id="exec_render_turntable",
+        idempotency_key="idem_render_turntable",
+        cancellation_id="cancel_render_turntable",
+        cancellation_token="cancel_token_render_turntable",
+    )
+    turntable_request["render"]["view_profile"] = "turntable_eight"
+    turntable_response = client.post(
+        execute_path,
+        headers=_headers(),
+        json_payload=turntable_request,
+    )
+    assert turntable_response.status_code == 200, turntable_response.json()
+    turntable = turntable_response.json()
+    assert set(turntable["render_views"]) == {
+        f"turntable_{angle:03d}" for angle in range(0, 360, 45)
+    }
+    # The deterministic box fixture is bilaterally symmetric, so opposite
+    # angles may be byte-identical. The profile must still carry genuine
+    # angular variation rather than eight renamed copies.
+    assert len(set(turntable["render_view_sha256"].values())) >= 4
+    assert (
+        turntable["render_view_sha256"]["turntable_000"]
+        != turntable["render_view_sha256"]["turntable_045"]
+    )
 
 
 def test_rust_shape_program_seal_controls_cross_language_float_identity() -> None:

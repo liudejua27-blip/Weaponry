@@ -9,11 +9,15 @@ const MAX_CLIENT_REQUEST_ID_CHARS: usize = 120;
 const MAX_SHORT_TEXT_CHARS: usize = 160;
 const MAX_PROVIDER_ID_CHARS: usize = 120;
 const MAX_ACTION_CHARS: usize = 120;
-const MAX_REQUEST_TEXT_CHARS: usize = 8_000;
+// The composer intentionally behaves as practically unbounded for normal use.
+// Keep only a high transport safety ceiling so pasted design briefs, reference
+// notes and long multi-part prompts are not truncated by the desktop protocol.
+const MAX_REQUEST_TEXT_CHARS: usize = 200_000;
 const MAX_SUMMARY_TEXT_CHARS: usize = 8_000;
 const MAX_ERROR_MESSAGE_CHARS: usize = 8_000;
 const MAX_APPROVAL_NOTE_CHARS: usize = 1_000;
 const MAX_TIMESTAMP_CHARS: usize = 64;
+const MAX_MULTIMODAL_TURN_CONTEXT_BYTES: usize = 256 * 1024;
 
 fn invalid_field(field: &str, requirement: impl AsRef<str>) -> RpcError {
     RpcError::invalid_params(format!("{field} {}.", requirement.as_ref()))
@@ -399,11 +403,92 @@ impl CreateAgentThreadRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct MultimodalTurnContextInput {
+    pub request: Value,
+    pub visual_evidence_graph: Value,
+}
+
+impl MultimodalTurnContextInput {
+    pub fn validate(&self) -> Result<(), RpcError> {
+        if !self.request.is_object() || !self.visual_evidence_graph.is_object() {
+            return Err(invalid_field(
+                "start_turn.multimodal_context",
+                "must contain request and visual_evidence_graph objects",
+            ));
+        }
+        let bytes = serde_json::to_vec(self).map_err(|_| {
+            invalid_field("start_turn.multimodal_context", "must be serializable JSON")
+        })?;
+        if bytes.len() > MAX_MULTIMODAL_TURN_CONTEXT_BYTES {
+            return Err(invalid_field(
+                "start_turn.multimodal_context",
+                "exceeds the 256 KiB protocol limit",
+            ));
+        }
+        reject_multimodal_wire_secrets(&self.request)?;
+        reject_multimodal_wire_secrets(&self.visual_evidence_graph)
+    }
+}
+
+fn reject_multimodal_wire_secrets(value: &Value) -> Result<(), RpcError> {
+    match value {
+        Value::String(text) => {
+            let lower = text.to_ascii_lowercase();
+            if lower.contains("bearer ")
+                || lower.contains("api_key")
+                || lower.contains("apikey")
+                || lower.contains("sk-")
+                || lower.contains("data:image/")
+                || lower.contains("file://")
+                || lower.contains("http://")
+                || lower.contains("https://")
+                || text.starts_with('/')
+                || text.contains("/Users/")
+                || text.contains("\\Users\\")
+            {
+                return Err(invalid_field(
+                    "start_turn.multimodal_context",
+                    "must not contain credentials, image bytes, URLs or machine paths",
+                ));
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                reject_multimodal_wire_secrets(value)?;
+            }
+        }
+        Value::Object(values) => {
+            for (key, value) in values {
+                let lower = key.to_ascii_lowercase();
+                if lower.contains("api_key")
+                    || lower.contains("credential")
+                    || lower.contains("image_bytes")
+                    || lower.contains("content_base64")
+                    || lower.contains("file_path")
+                    || lower == "url"
+                {
+                    return Err(invalid_field(
+                        "start_turn.multimodal_context",
+                        "contains a forbidden field",
+                    ));
+                }
+                reject_multimodal_wire_secrets(value)?;
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct StartAgentTurnRequest {
     pub client_request_id: String,
     pub message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clarification_domain_pack_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multimodal_context: Option<MultimodalTurnContextInput>,
 }
 
 impl StartAgentTurnRequest {
@@ -422,7 +507,17 @@ impl StartAgentTurnRequest {
         validate_optional_stable_id(
             "start_turn.clarification_domain_pack_id",
             self.clarification_domain_pack_id.as_deref(),
-        )
+        )?;
+        if self.clarification_domain_pack_id.is_some() && self.multimodal_context.is_some() {
+            return Err(invalid_field(
+                "start_turn.multimodal_context",
+                "cannot be combined with a clarification answer",
+            ));
+        }
+        if let Some(context) = &self.multimodal_context {
+            context.validate()?;
+        }
+        Ok(())
     }
 }
 
@@ -616,6 +711,7 @@ mod tests {
             client_request_id: "request_turn_1".into(),
             message: "继续优化表面流线".into(),
             clarification_domain_pack_id: Some("vehicle".into()),
+            multimodal_context: None,
         }
         .validate()
         .unwrap();
@@ -647,6 +743,7 @@ mod tests {
             client_request_id: "request_turn_2".into(),
             message: "x".repeat(MAX_REQUEST_TEXT_CHARS + 1),
             clarification_domain_pack_id: None,
+            multimodal_context: None,
         };
         assert!(oversized_message.validate().is_err());
 
@@ -656,6 +753,52 @@ mod tests {
             note: Some("x".repeat(MAX_APPROVAL_NOTE_CHARS + 1)),
         };
         assert!(oversized_note.validate().is_err());
+    }
+
+    #[test]
+    fn multimodal_turn_context_is_bounded_secret_free_and_not_a_clarification_payload() {
+        let safe = MultimodalTurnContextInput {
+            request: json!({"schema_version":"MultimodalDesignRequest@1","request_id":"mmreq_1"}),
+            visual_evidence_graph: json!({"schema_version":"VisualEvidenceGraph@1","graph_id":"vegraph_1"}),
+        };
+        StartAgentTurnRequest {
+            client_request_id: "request_multimodal_1".into(),
+            message: "使用已验证参考图生成机械概念外观".into(),
+            clarification_domain_pack_id: None,
+            multimodal_context: Some(safe.clone()),
+        }
+        .validate()
+        .unwrap();
+
+        let secret = StartAgentTurnRequest {
+            client_request_id: "request_multimodal_secret".into(),
+            message: "生成机械概念外观".into(),
+            clarification_domain_pack_id: None,
+            multimodal_context: Some(MultimodalTurnContextInput {
+                request: json!({"api_key":"forbidden"}),
+                visual_evidence_graph: json!({}),
+            }),
+        };
+        assert!(secret.validate().is_err());
+
+        let oversized = StartAgentTurnRequest {
+            client_request_id: "request_multimodal_oversized".into(),
+            message: "生成机械概念外观".into(),
+            clarification_domain_pack_id: None,
+            multimodal_context: Some(MultimodalTurnContextInput {
+                request: json!({"description":"x".repeat(MAX_MULTIMODAL_TURN_CONTEXT_BYTES)}),
+                visual_evidence_graph: json!({}),
+            }),
+        };
+        assert!(oversized.validate().is_err());
+
+        let clarification = StartAgentTurnRequest {
+            client_request_id: "request_multimodal_clarification".into(),
+            message: "生成机械概念外观".into(),
+            clarification_domain_pack_id: Some("pack_robotic_arm_concept".into()),
+            multimodal_context: Some(safe),
+        };
+        assert!(clarification.validate().is_err());
     }
 
     #[test]

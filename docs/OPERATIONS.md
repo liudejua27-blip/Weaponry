@@ -101,6 +101,29 @@ npm run release:packaging-readiness
 
 `npm run release:packaged-sidecar-preflight` 会先输出不读取 Provider Key、不联网且不执行二进制的 P008 结构报告；当前 macOS arm64 input 的预期状态为 `ready_for_local_alpha`。`npm run desktop:packaged-sidecar-build` 冻结该 target，`npm run desktop:packaged-sidecar-alpha-smoke` 验证独立 frozen binary；`npm run desktop:packaged-tauri-alpha-smoke` 通过 LaunchServices 验证真实 `.app` 的 `packaged-sidecar`。`npm run k002:packaged-gate` 同时保留 K001 WebView 业务/重启链，并增加 K002 原生双启动：未配置 Provider、`network_call_made=false`、稳定 `PROVIDER_NOT_CONFIGURED`、两个有序 Item、旧 lifecycle POST 410、无持久化 reasoning 且 `provider_calls=0`。当前 sidecar 为 31,972,320 bytes、SHA-256 `5aeb68334f54bfee070319191ca055479c1290c9b368a1da569dd39a943620d3`。这些 Gate 均不自动调用 Provider。`release:packaging-readiness` 仍预期失败：其他发布目标 sidecar、全新机器安装/升级/卸载、签名和公证尚未完成。不得通过删除检查、降低严重级别或改文案绕过。
 
+### 5.1 任务 D：新视觉程序 packaged E2E
+
+完成 release `.app` 构建后运行：
+
+```bash
+npm run desktop:task-d-runtime-boundaries
+npm run desktop:task-d-packaged-visual-program-smoke
+```
+
+第一条只检查 Python 默认运行时的活动路由/import 边界：旧 `ConceptVersion`、`ModuleGraph`、`infer_product_domain`、`select_style_recipe` 和旧三方向路径不得注册为活动产品入口；旧工厂只能由显式 test-only 直接调用。第二条由 Rust probe 验证“文字 → `ForgeVisualProgram@1` → candidate GLB → 八张同 renderer 视觉证据 → 单结果预览 → 用户确认 → 导出 → 第二进程恢复”的完整链路，并额外读取确认资产的四视图 render package。报告只写哈希、ID、工具名和计数，不把 Provider 原始内容或图片字节写进日志。
+
+任务 D 不接受 transport-only box：deterministic Provider 必须通过现有 C111 reviewed program builder 产生 10 Parts、96 geometry outputs、6 surface programs、27 details，production export 必须保持 80,000–150,000 triangles，且 GLB bytes、JSON hash、HTTP provenance header 在初次和恢复进程中完全一致。该密度门只防止“协议绿但模型为空壳”，不等于目标图视觉或真人 M108B 通过。
+
+该 packaged E2E 使用 `FORGECAD_MVP_VISUAL_PROGRAM_E2E=1` 的代码拥有确定性替身 Provider，报告中的 `source_kind=offline_deterministic`、`external_network_calls=0` 是本机 Alpha 验证事实，不是真实 DeepSeek 或生产发布证据。真实联网 Provider 必须单独运行并标记为网络评测；旧 `FORGECAD_MVP_ARM_PACKAGED_PROBE`、C110/C111 脚本只保留为兼容 fixture，不得用来证明新视觉程序路径。
+
+### 5.2 显式 DeepSeek ForgeVisualProgram 验收
+
+`npm run desktop:deepseek-forge-visual-acceptance-smoke` 是零网络合同检查。它只验证启动器默认拒绝联网、临时 Library、严格的脱敏报告和完整链路字段，绝不读取 Keychain、私密文件或 Provider 配置。
+
+真实验收需要已构建的 release `.app`、用户明确同意联网和一次调用成本；命令必须带齐 `--confirm-live-provider --accept-network --confirmation I_UNDERSTAND_THIS_MAY_INCUR_PROVIDER_COST --run-id live_<unique> --output /绝对路径/report.json`。该入口不接受环境变量 API Key，临时 Library 也不包含凭据。应用只可通过既有 Rust Provider credential store 取得其本机授权；若没有可用本机授权、Provider 返回不合规输出、或任一步无法闭合，报告写固定脱敏错误码并返回失败，绝不生成离线替身或伪造成功。
+
+通过时报告仅记录 Rust-owned 布尔证据和固定 Product Tool 名称：真实网络 Turn 至少完成 `author_forge_visual_program`，随后由 Rust 完成 compile/readback、八视图、evaluate 与 `SingleResultDecision@1`；probe 再读取带 `If-Match` 的 preview、显式 confirm、验证 Snapshot 前进，并要求导出 GLB 的 bytes、JSON SHA-256 与 `X-ForgeCAD-GLB-SHA256` header 三方完全一致。该验收尚不等于人工视觉质量或 M108B 通过。
+
 ## 6. 文档维护规则
 
 1. 用户指南只写当前通过代码和测试验证的功能；

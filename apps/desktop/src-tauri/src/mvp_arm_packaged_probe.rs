@@ -5,6 +5,7 @@
 //! command and writes one bounded evidence report to its caller-owned path.
 
 use std::{
+    collections::BTreeMap,
     env, fs,
     panic::{catch_unwind, AssertUnwindSafe},
     path::PathBuf,
@@ -29,6 +30,10 @@ const OUTPUT_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_PROBE_OUTPUT";
 const RESUME_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_RESUME";
 const RESUME_INPUT_FLAG: &str = "FORGECAD_MVP_ARM_PACKAGED_RESUME_INPUT";
 const ARM_FAMILY_FLAG: &str = "FORGECAD_MVP_ARM_ARCHITECTURE";
+const VISUAL_PROBE_FLAG: &str = "FORGECAD_MVP_VISUAL_PROGRAM_E2E";
+const VISUAL_OUTPUT_FLAG: &str = "FORGECAD_MVP_VISUAL_PROGRAM_E2E_OUTPUT";
+const VISUAL_RESUME_FLAG: &str = "FORGECAD_MVP_VISUAL_PROGRAM_E2E_RESUME";
+const VISUAL_RESUME_INPUT_FLAG: &str = "FORGECAD_MVP_VISUAL_PROGRAM_E2E_RESUME_INPUT";
 pub(crate) const PROBE_ENDPOINT: &str = "http://127.0.0.1:1";
 const BRIEF: &str = "流线三关节维护机械臂，固定基座、双连杆、旋转腕部和夹爪";
 const SCHEMA_VERSION: &str = "ForgeCADArmMvpPackagedProtocolProof@4";
@@ -40,6 +45,10 @@ const C106_PRODUCTION_TRIANGLE_MIN: u64 = 80_000;
 const C106_PRODUCTION_TRIANGLE_MAX: u64 = 150_000;
 const EXPECTED_ROOT_RECIPE_ID: &str = "recipe_c106_arm_service_display";
 const C111_GOLDEN_ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
+const VISUAL_BRIEF: &str =
+    "非功能展示用未来机械臂概念，强调装甲连杆、可见关节、克制蓝色饰条和统一材质分区";
+const VISUAL_SCHEMA_VERSION: &str = "ForgeCADVisualProgramPackagedProof@1";
+const VISUAL_RESUME_SCHEMA_VERSION: &str = "ForgeCADVisualProgramPackagedResumeProof@1";
 
 fn c111_golden_surface_enabled() -> bool {
     env::var(ARM_FAMILY_FLAG).as_deref() == Ok("golden_surface")
@@ -138,6 +147,65 @@ struct ResumeReport {
 }
 
 #[derive(Serialize)]
+struct VisualProbeReport {
+    schema_version: &'static str,
+    status: &'static str,
+    brief: &'static str,
+    project_id: Option<String>,
+    thread_id: Option<String>,
+    turn_id: Option<String>,
+    program: Option<VisualProgramEvidence>,
+    tools: Vec<String>,
+    image_evidence: Option<VisualImageEvidence>,
+    renderer: Option<VisualRendererEvidence>,
+    preview: Option<PreviewEvidence>,
+    confirmed_asset_version_id: Option<String>,
+    active_design: Option<ActiveDesignEvidence>,
+    export: Option<ExportEvidence>,
+    provider: ProviderEvidence,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_code: Option<String>,
+}
+
+#[derive(Serialize)]
+struct VisualProgramEvidence {
+    program_id: String,
+    source_program_sha256: String,
+    revision: u64,
+    domain_pack_id: String,
+    visual_only: bool,
+}
+
+#[derive(Serialize)]
+struct VisualImageEvidence {
+    evidence_id: String,
+    source_object_sha256: String,
+    media_type: String,
+    content_readback_sha256: String,
+}
+
+#[derive(Serialize)]
+struct VisualRendererEvidence {
+    renderer_id: String,
+    view_ids: Vec<String>,
+    view_sha256: BTreeMap<String, String>,
+    glb_sha256: String,
+    render_package_sha256: String,
+}
+
+#[derive(Serialize)]
+struct VisualResumeReport {
+    schema_version: &'static str,
+    status: &'static str,
+    project_id: Option<String>,
+    expected_asset_version_id: Option<String>,
+    active_design: Option<ActiveDesignEvidence>,
+    export: Option<ExportEvidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_code: Option<String>,
+}
+
+#[derive(Serialize)]
 struct ProviderEvidence {
     source_kind: &'static str,
     internal_subrequests: u64,
@@ -148,6 +216,58 @@ struct ProviderEvidence {
 }
 
 pub(crate) fn run_if_enabled(bridge: AppServerBridge) {
+    if env::var(VISUAL_PROBE_FLAG).as_deref() == Ok("1") {
+        let output = match env::var(VISUAL_OUTPUT_FLAG).ok().map(PathBuf::from) {
+            Some(path) if path.is_absolute() => path,
+            _ => return,
+        };
+        if env::var(VISUAL_RESUME_FLAG).as_deref() == Ok("1") {
+            let input = match env::var(VISUAL_RESUME_INPUT_FLAG).ok().map(PathBuf::from) {
+                Some(path) if path.is_absolute() => path,
+                _ => return,
+            };
+            let _ = thread::Builder::new()
+                .name("forgecad-visual-program-packaged-resume-probe".into())
+                .spawn(move || {
+                    let report = match catch_unwind(AssertUnwindSafe(|| {
+                        run_visual_resume(bridge, &input)
+                    })) {
+                        Ok(result) => result.unwrap_or_else(|failure| VisualResumeReport {
+                            schema_version: VISUAL_RESUME_SCHEMA_VERSION,
+                            status: "fail",
+                            project_id: failure.project_id,
+                            expected_asset_version_id: None,
+                            active_design: None,
+                            export: None,
+                            error_code: Some(failure.code),
+                        }),
+                        Err(_) => VisualResumeReport {
+                            schema_version: VISUAL_RESUME_SCHEMA_VERSION,
+                            status: "fail",
+                            project_id: None,
+                            expected_asset_version_id: None,
+                            active_design: None,
+                            export: None,
+                            error_code: Some("VISUAL_PROGRAM_RESUME_PROBE_PANIC".into()),
+                        },
+                    };
+                    write_report(&output, &report);
+                });
+            return;
+        }
+        let _ = thread::Builder::new()
+            .name("forgecad-visual-program-packaged-probe".into())
+            .spawn(move || {
+                let report = match catch_unwind(AssertUnwindSafe(|| run_visual(bridge))) {
+                    Ok(result) => result.unwrap_or_else(visual_probe_failure_report),
+                    Err(_) => {
+                        visual_probe_failure_report(ProbeFailure::new("VISUAL_PROGRAM_PROBE_PANIC"))
+                    }
+                };
+                write_report(&output, &report);
+            });
+        return;
+    }
     if env::var(PROBE_FLAG).as_deref() != Ok("1") {
         return;
     }
@@ -224,6 +344,632 @@ fn probe_failure_report(failure: ProbeFailure) -> ProbeReport {
         },
         error_code: Some(failure.code),
     }
+}
+
+fn visual_probe_failure_report(failure: ProbeFailure) -> VisualProbeReport {
+    VisualProbeReport {
+        schema_version: VISUAL_SCHEMA_VERSION,
+        status: "fail",
+        brief: VISUAL_BRIEF,
+        project_id: failure.project_id,
+        thread_id: failure.thread_id,
+        turn_id: failure.turn_id,
+        program: None,
+        tools: Vec::new(),
+        image_evidence: None,
+        renderer: None,
+        preview: None,
+        confirmed_asset_version_id: None,
+        active_design: None,
+        export: None,
+        provider: ProviderEvidence {
+            source_kind: "offline_deterministic",
+            internal_subrequests: 0,
+            action_loop_steps: 0,
+            product_tool_calls: 0,
+            external_network_calls: 0,
+            credential_reads: 0,
+        },
+        error_code: Some(failure.code),
+    }
+}
+
+fn run_visual(bridge: AppServerBridge) -> Result<VisualProbeReport, ProbeFailure> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| ProbeFailure::new("VISUAL_PROGRAM_PROBE_RUNTIME_FAILED"))?;
+    runtime.block_on(async move {
+        let project = compat_json(
+            &bridge,
+            AllowedHttpMethod::Post,
+            "/api/v1/projects",
+            Some("visual_program_project_create"),
+            None,
+            Some(json!({
+                "client_request_id": "visual_program_project_create",
+                "name": "ForgeCAD 视觉程序 packaged E2E",
+                "profile_id": "profile_weapon_concept_v1"
+            })),
+            &[200, 201],
+        )
+        .await
+        .map_err(ProbeFailure::new)?;
+        let project_id = required_id(&project, "project_id")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_PROJECT_ID_MISSING"))?;
+        let evidence = compat_json(
+            &bridge,
+            AllowedHttpMethod::Post,
+            "/api/v1/agent/reference-evidence:create",
+            Some("visual_program_reference_create"),
+            None,
+            Some(json!({
+                "schema_version": "ReferenceEvidenceCreateRequest@1",
+                "client_request_id": "visual_program_reference_create",
+                "project_id": project_id,
+                "kind": "image",
+                "reference_class": "single_image",
+                "file_name": "visual-program-reference.png",
+                "media_type": "image/png",
+                "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGPQjVnwHx9mGBkKANXiigEwD3bkAAAAAElFTkSuQmCC",
+                "source_statement": "User supplied this image as visual reference.",
+                "license_statement": "User confirms rights to use this local reference.",
+                "missing_views": ["rear"],
+                "user_notes": "Visible exterior evidence only.",
+                "domain_pack_id": "pack_robotic_arm_concept"
+            })),
+            &[201],
+        )
+        .await
+        .map_err(ProbeFailure::new)?;
+        let evidence = evidence
+            .get("reference_evidence")
+            .cloned()
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_IMAGE_EVIDENCE_CREATE_INVALID"))?;
+        let evidence_id = evidence
+            .get("evidence_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_IMAGE_EVIDENCE_ID_MISSING"))?
+            .to_string();
+        let source_object_sha256 = evidence
+            .get("source_object_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_IMAGE_EVIDENCE_SHA_MISSING"))?
+            .to_string();
+        let (evidence_response, evidence_bytes) = compat_binary(
+            &bridge,
+            &format!("/api/v1/agent/projects/{project_id}/reference-evidence/{evidence_id}:content"),
+            None,
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), None, None))?;
+        if sha256_hex(&evidence_bytes) != source_object_sha256
+            || header_value(&evidence_response, "Content-Type").as_deref() != Some("image/png")
+            || header_value(&evidence_response, "X-ForgeCAD-Reference-Evidence-ID").as_deref()
+                != Some(evidence_id.as_str())
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_IMAGE_EVIDENCE_READBACK_INVALID",
+                Some(project_id.clone()),
+                None,
+                None,
+            ));
+        }
+        let image_evidence = VisualImageEvidence {
+            evidence_id,
+            source_object_sha256,
+            media_type: "image/png".into(),
+            content_readback_sha256: sha256_hex(&evidence_bytes),
+        };
+        let thread = native(
+            &bridge,
+            "visual_program_thread_create",
+            "thread/create",
+            json!({
+                "schema_version": "AgentThreadCommand@1",
+                "command_id": "visual_program_thread_create",
+                "command": {"operation": "create", "request": {
+                    "client_request_id": "visual_program_thread_create",
+                    "project_id": project_id,
+                    "title": "视觉程序 packaged E2E",
+                    "provider_id": "deepseek"
+                }}
+            }),
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), None, None))?;
+        let thread_id = thread
+            .pointer("/result/thread/thread_id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| {
+                ProbeFailure::with_ids(
+                    "VISUAL_PROGRAM_THREAD_ID_MISSING",
+                    Some(project_id.clone()),
+                    None,
+                    None,
+                )
+            })?;
+        let started = native(
+            &bridge,
+            "visual_program_turn_start",
+            "turn/start",
+            json!({
+                "schema_version": "AgentTurnCommand@1",
+                "command_id": "visual_program_turn_start",
+                "command": {"operation": "start", "thread_id": thread_id, "request": {
+                    "client_request_id": "visual_program_turn_start",
+                    "message": VISUAL_BRIEF,
+                    "clarification_domain_pack_id": null
+                }}
+            }),
+        )
+        .await
+        .map_err(|code| {
+            ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), None)
+        })?;
+        let turn_id = started
+            .pointer("/result/turn/turn_id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| {
+                ProbeFailure::with_ids(
+                    "VISUAL_PROGRAM_TURN_ID_MISSING",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    None,
+                )
+            })?;
+        let turn = wait_terminal(&bridge, &thread_id, &turn_id)
+            .await
+            .map_err(|code| {
+                ProbeFailure::with_ids(
+                    code,
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                )
+            })?;
+        if turn.get("status").and_then(Value::as_str) != Some("completed") {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_TURN_NOT_COMPLETED",
+                Some(project_id),
+                Some(thread_id),
+                Some(turn_id),
+            ));
+        }
+        let tools = turn_tool_names(&turn);
+        let expected_tools = [
+            "author_forge_visual_program",
+            "build_candidate_geometry",
+            "compile_readback_candidate",
+            "render_candidate_views",
+            "evaluate_candidate",
+            "prepare_candidate_preview",
+        ];
+        if tools != expected_tools {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_TOOL_SEQUENCE_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        for legacy in [
+            "infer_product_domain",
+            "select_style_recipe",
+            "plan_complete_concept",
+        ] {
+            if tools.iter().any(|name| name == legacy) {
+                return Err(ProbeFailure::with_ids(
+                    "VISUAL_PROGRAM_LEGACY_TOOL_REACHED",
+                    Some(project_id.clone()),
+                    Some(thread_id.clone()),
+                    Some(turn_id.clone()),
+                ));
+            }
+        }
+        let usage = turn.get("usage").cloned().unwrap_or(Value::Null);
+        if usage.get("provider_requests").and_then(Value::as_u64) != Some(1)
+            || usage.get("product_tool_calls").and_then(Value::as_u64) != Some(6)
+            || usage.get("network_call_made").and_then(Value::as_bool) != Some(false)
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_PROVIDER_EVIDENCE_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        let author = turn_tool_result(&turn, "author_forge_visual_program").ok_or_else(|| {
+            ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_AUTHOR_OUTPUT_MISSING",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            )
+        })?;
+        let program = VisualProgramEvidence {
+            program_id: author
+                .get("program_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_ID_MISSING"))?
+                .into(),
+            source_program_sha256: author
+                .get("source_program_sha256")
+                .and_then(Value::as_str)
+                .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_SOURCE_HASH_MISSING"))?
+                .into(),
+            revision: author
+                .get("revision")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_REVISION_MISSING"))?,
+            domain_pack_id: author
+                .get("domain_pack_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_DOMAIN_MISSING"))?
+                .into(),
+            visual_only: true,
+        };
+        if program.domain_pack_id != "pack_robotic_arm_concept" {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_DOMAIN_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        let render = turn_tool_result(&turn, "render_candidate_views").ok_or_else(|| {
+            ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_RENDER_OUTPUT_MISSING",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            )
+        })?;
+        let view_ids = render
+            .get("view_ids")
+            .and_then(Value::as_array)
+            .map(|values| values.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>())
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_VIEW_IDS_MISSING"))?;
+        if view_ids.len() != 8
+            || render.get("renderer_id").and_then(Value::as_str).is_none()
+            || render
+                .get("view_sha256")
+                .and_then(Value::as_object)
+                .map(|views| views.len())
+                != Some(8)
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_IMAGE_EVIDENCE_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        let decision = preview_decision(&turn).ok_or_else(|| {
+            ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_PREVIEW_DECISION_MISSING",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            )
+        })?;
+        let preview_id = required_id(&decision["preview"], "preview_id")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_PREVIEW_ID_MISSING"))?;
+        let expected_sha = required_id(&decision["preview"], "artifact_sha256")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_PREVIEW_SHA_MISSING"))?;
+        if decision["preview"]["artifact_profile_id"].as_str() != Some("production_concept") {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_PREVIEW_PROFILE_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        let preview_path = format!(
+            "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:preview.glb"
+        );
+        let (preview_response, preview_bytes) = compat_binary(
+            &bridge,
+            &preview_path,
+            Some(&format!("\"sha256:{expected_sha}\"")),
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        if sha256_hex(&preview_bytes) != expected_sha
+            || header_u64(&preview_response, "X-ForgeCAD-Triangle-Count").unwrap_or_default() == 0
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_PREVIEW_READBACK_INVALID",
+                Some(project_id.clone()),
+                Some(thread_id.clone()),
+                Some(turn_id.clone()),
+            ));
+        }
+        let confirmed = compat_json(
+            &bridge,
+            AllowedHttpMethod::Post,
+            &format!(
+                "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+            ),
+            Some("visual_program_preview_confirm"),
+            Some(&format!("\"sha256:{expected_sha}\"")),
+            Some(json!({
+                "client_request_id": "visual_program_preview_confirm",
+                "expected_artifact_sha256": expected_sha,
+                "summary": "Confirm visual-program packaged E2E candidate"
+            })),
+            &[201],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        let asset_version_id = required_id(&confirmed, "asset_version_id")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_ASSET_VERSION_MISSING"))?;
+        let active = compat_json(
+            &bridge,
+            AllowedHttpMethod::Get,
+            &format!("/api/v1/projects/{project_id}/active-design"),
+            None,
+            None,
+            None,
+            &[200],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        if active.pointer("/active_design/asset_version_id").and_then(Value::as_str)
+            != Some(asset_version_id.as_str())
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_ACTIVE_HEAD_INVALID",
+                Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone()),
+            ));
+        }
+        let render_set = compat_json(
+            &bridge,
+            AllowedHttpMethod::Get,
+            &format!("/api/v1/agent/asset-versions/{asset_version_id}:render?width=128&height=128"),
+            None, None, None, &[200],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        let render_set_sha = render_set
+            .get("render_set_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RENDER_SET_HASH_MISSING"))?;
+        if render_set.get("views").and_then(Value::as_array).map(Vec::len) != Some(4) {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_RENDER_SET_VIEWS_INVALID",
+                Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone()),
+            ));
+        }
+        let (package_response, package_bytes) = compat_binary(
+            &bridge,
+            &format!("/api/v1/agent/asset-versions/{asset_version_id}:render-package?width=128&height=128&render_set_sha256={render_set_sha}"),
+            None,
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        if header_value(&package_response, "X-ForgeCAD-Render-Set-Sha256").as_deref()
+            != Some(render_set_sha)
+            || package_bytes.is_empty()
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_RENDER_PACKAGE_INVALID",
+                Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone()),
+            ));
+        }
+        let (export_response, export) = compat_json_response(
+            &bridge,
+            AllowedHttpMethod::Post,
+            &format!("/api/v1/agent/asset-versions/{asset_version_id}:export"),
+            Some("visual_program_export"), None, None, &[200],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone())))?;
+        let export_bytes = export
+            .get("glb_base64").and_then(Value::as_str)
+            .and_then(|value| BASE64_STANDARD.decode(value).ok())
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_EXPORT_BYTES_MISSING"))?;
+        let export_sha = required_id(&export, "glb_sha256")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_EXPORT_SHA_MISSING"))?;
+        let export_header_sha = header_value(&export_response, "X-ForgeCAD-GLB-SHA256");
+        if sha256_hex(&export_bytes) != export_sha
+            || export_sha != expected_sha
+            || export_header_sha.as_deref() != Some(export_sha.as_str())
+            || header_u64(&export_response, "X-ForgeCAD-GLB-Byte-Size")
+                != Some(export_bytes.len() as u64)
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_EXPORT_HASH_INVALID",
+                Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone()),
+            ));
+        }
+        let active_design = ActiveDesignEvidence {
+            asset_version_id: asset_version_id.clone(),
+            snapshot_revision: active.get("revision").and_then(Value::as_u64).unwrap_or_default(),
+        };
+        let triangle_count = export.get("triangle_count").and_then(Value::as_u64).unwrap_or_default();
+        if !within_c106_production_triangle_budget(triangle_count) {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_PRODUCTION_DENSITY_INVALID",
+                Some(project_id.clone()), Some(thread_id.clone()), Some(turn_id.clone()),
+            ));
+        }
+        let export_evidence = ExportEvidence {
+            asset_version_id: asset_version_id.clone(),
+            glb_sha256: export_sha.clone(),
+            glb_byte_size: export.get("glb_byte_size").and_then(Value::as_u64).unwrap_or(export_bytes.len() as u64),
+            triangle_count,
+            x_forgecad_glb_sha256: export_header_sha.unwrap_or_default(),
+        };
+        Ok(VisualProbeReport {
+            schema_version: VISUAL_SCHEMA_VERSION,
+            status: "pass",
+            brief: VISUAL_BRIEF,
+            project_id: Some(project_id),
+            thread_id: Some(thread_id),
+            turn_id: Some(turn_id),
+            program: Some(program),
+            tools,
+            image_evidence: Some(image_evidence),
+            renderer: Some(VisualRendererEvidence {
+                renderer_id: render.get("renderer_id").and_then(Value::as_str).unwrap_or_default().into(),
+                view_ids,
+                view_sha256: render.get("view_sha256").and_then(Value::as_object).map(|values| values.iter().filter_map(|(key, value)| Some((key.clone(), value.as_str()?.to_string()))).collect()).unwrap_or_default(),
+                glb_sha256: expected_sha,
+                render_package_sha256: sha256_hex(&package_bytes),
+            }),
+            preview: Some(PreviewEvidence {
+                preview_id,
+                artifact_profile_id: "production_concept".into(),
+                glb_sha256: export_sha,
+                triangle_count,
+            }),
+            confirmed_asset_version_id: Some(asset_version_id),
+            active_design: Some(active_design),
+            export: Some(export_evidence),
+            provider: ProviderEvidence {
+                source_kind: "offline_deterministic",
+                internal_subrequests: 1,
+                action_loop_steps: 1,
+                product_tool_calls: 6,
+                external_network_calls: 0,
+                credential_reads: 0,
+            },
+            error_code: None,
+        })
+    })
+}
+
+fn run_visual_resume(
+    bridge: AppServerBridge,
+    input: &PathBuf,
+) -> Result<VisualResumeReport, ProbeFailure> {
+    let checkpoint: Value = fs::read(input)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RESUME_INPUT_INVALID"))?;
+    let project_id = required_id(&checkpoint, "project_id")
+        .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RESUME_PROJECT_MISSING"))?;
+    let expected_asset_version_id = required_id(&checkpoint, "confirmed_asset_version_id")
+        .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RESUME_VERSION_MISSING"))?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| ProbeFailure::new("VISUAL_PROGRAM_RESUME_RUNTIME_FAILED"))?;
+    runtime.block_on(async move {
+        let active = compat_json(
+            &bridge,
+            AllowedHttpMethod::Get,
+            &format!("/api/v1/projects/{project_id}/active-design"),
+            None,
+            None,
+            None,
+            &[200],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), None, None))?;
+        let active_id = active
+            .pointer("/active_design/asset_version_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if active_id != expected_asset_version_id {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_RESUME_HEAD_DRIFT",
+                Some(project_id.clone()),
+                None,
+                None,
+            ));
+        }
+        let (export_response, export) = compat_json_response(
+            &bridge,
+            AllowedHttpMethod::Post,
+            &format!("/api/v1/agent/asset-versions/{expected_asset_version_id}:export"),
+            Some("visual_program_resume_export"),
+            None,
+            None,
+            &[200],
+        )
+        .await
+        .map_err(|code| ProbeFailure::with_ids(code, Some(project_id.clone()), None, None))?;
+        let bytes = export
+            .get("glb_base64")
+            .and_then(Value::as_str)
+            .and_then(|value| BASE64_STANDARD.decode(value).ok())
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RESUME_EXPORT_BYTES_MISSING"))?;
+        let sha = required_id(&export, "glb_sha256")
+            .ok_or_else(|| ProbeFailure::new("VISUAL_PROGRAM_RESUME_EXPORT_SHA_MISSING"))?;
+        let export_header_sha = header_value(&export_response, "X-ForgeCAD-GLB-SHA256");
+        if sha256_hex(&bytes) != sha
+            || export_header_sha.as_deref() != Some(sha.as_str())
+            || header_u64(&export_response, "X-ForgeCAD-GLB-Byte-Size") != Some(bytes.len() as u64)
+            || Some(sha.as_str())
+                != checkpoint
+                    .pointer("/export/glb_sha256")
+                    .and_then(Value::as_str)
+        {
+            return Err(ProbeFailure::with_ids(
+                "VISUAL_PROGRAM_RESUME_EXPORT_DRIFT",
+                Some(project_id.clone()),
+                None,
+                None,
+            ));
+        }
+        Ok(VisualResumeReport {
+            schema_version: VISUAL_RESUME_SCHEMA_VERSION,
+            status: "pass",
+            project_id: Some(project_id),
+            expected_asset_version_id: Some(expected_asset_version_id.clone()),
+            active_design: Some(ActiveDesignEvidence {
+                asset_version_id: expected_asset_version_id.clone(),
+                snapshot_revision: active
+                    .get("revision")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default(),
+            }),
+            export: Some(ExportEvidence {
+                asset_version_id: expected_asset_version_id,
+                glb_sha256: sha,
+                glb_byte_size: export
+                    .get("glb_byte_size")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(bytes.len() as u64),
+                triangle_count: export
+                    .get("triangle_count")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default(),
+                x_forgecad_glb_sha256: export_header_sha.unwrap_or_default(),
+            }),
+            error_code: None,
+        })
+    })
+}
+
+fn turn_tool_names(turn: &Value) -> Vec<String> {
+    turn.get("items")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|item| item.get("item_type").and_then(Value::as_str) == Some("tool_call"))
+        .filter_map(|item| {
+            item.pointer("/payload/tool_name")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .collect()
+}
+
+fn turn_tool_result(turn: &Value, name: &str) -> Option<Value> {
+    turn.get("items")?.as_array()?.iter().find_map(|item| {
+        (item.get("item_type").and_then(Value::as_str) == Some("tool_result")
+            && item.pointer("/payload/tool_name").and_then(Value::as_str) == Some(name))
+        .then(|| {
+            item.pointer("/payload/tool_result/validated_output/value")
+                .cloned()
+        })
+        .flatten()
+    })
 }
 
 fn write_report(output: &PathBuf, report: &impl Serialize) {
@@ -1521,6 +2267,28 @@ pub(crate) async fn compat_json(
     body: Option<Value>,
     accepted: &[u16],
 ) -> Result<Value, String> {
+    compat_json_response(
+        bridge,
+        method,
+        path,
+        idempotency_key,
+        if_match,
+        body,
+        accepted,
+    )
+    .await
+    .map(|(_, body)| body)
+}
+
+pub(crate) async fn compat_json_response(
+    bridge: &AppServerBridge,
+    method: AllowedHttpMethod,
+    path: &str,
+    idempotency_key: Option<&str>,
+    if_match: Option<&str>,
+    body: Option<Value>,
+    accepted: &[u16],
+) -> Result<(CompatHttpResponse, Value), String> {
     let mut headers = Vec::new();
     if let Some(key) = idempotency_key {
         headers.push(("Idempotency-Key".into(), key.into()));
@@ -1565,10 +2333,12 @@ pub(crate) async fn compat_json(
             |code| format!("MVP_ARM_BOUNDARY_{code}"),
         ));
     }
-    let ProtocolHttpBody::Utf8 { data } = response.body else {
+    let ProtocolHttpBody::Utf8 { data } = &response.body else {
         return Err("MVP_ARM_COMPAT_JSON_MISSING".to_string());
     };
-    serde_json::from_str(&data).map_err(|_| "MVP_ARM_COMPAT_JSON_INVALID".to_string())
+    let value =
+        serde_json::from_str(data).map_err(|_| "MVP_ARM_COMPAT_JSON_INVALID".to_string())?;
+    Ok((response, value))
 }
 
 pub(crate) async fn compat_binary(
@@ -1641,8 +2411,41 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::first_part_adornment_zone;
+    use super::{first_part_adornment_zone, turn_tool_names, turn_tool_result};
     use serde_json::json;
+
+    #[test]
+    fn visual_probe_counts_tool_calls_once_and_reads_the_matching_result() {
+        let turn = json!({
+            "items": [
+                {
+                    "item_type": "tool_call",
+                    "payload": {"tool_name": "author_forge_visual_program"}
+                },
+                {
+                    "item_type": "tool_result",
+                    "payload": {
+                        "tool_name": "author_forge_visual_program",
+                        "tool_result": {
+                            "validated_output": {
+                                "value": {"program_id": "program_visual"}
+                            }
+                        }
+                    }
+                }
+            ]
+        });
+
+        assert_eq!(
+            turn_tool_names(&turn),
+            vec!["author_forge_visual_program".to_string()]
+        );
+        assert_eq!(
+            turn_tool_result(&turn, "author_forge_visual_program")
+                .and_then(|value| value.get("program_id").cloned()),
+            Some(json!("program_visual"))
+        );
+    }
 
     #[test]
     fn packaged_probe_selects_the_reviewed_adornment_slot_not_the_first_material_zone() {

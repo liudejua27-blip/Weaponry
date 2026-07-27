@@ -13,15 +13,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    lower_forge_visual_program, semantic_sha256, CoreError, CoreResult, ExpandedComponentCandidate,
-    ForgeVisualDesignToken, ForgeVisualExportProfile, ForgeVisualMaterialBinding, ForgeVisualPart,
-    ForgeVisualProgram, ForgeVisualProgramLowering, ForgeVisualProgramStage,
-    ForgeVisualSurfaceBinding, RecipeRegistry, SurfaceAdornmentProgram, VisualDetailBinding,
-    VisualDetailBindingKind, VisualDetailInventoryItem, VisualDetailLevel, VisualDetailStatus,
+    c111_golden_surface_adornment_programs, lower_forge_visual_program, semantic_sha256,
+    ComponentRecipeRef, CoreError, CoreResult, ExpandedComponentCandidate, ForgeVisualDesignToken,
+    ForgeVisualExportProfile, ForgeVisualMaterialBinding, ForgeVisualPart, ForgeVisualProgram,
+    ForgeVisualProgramLowering, ForgeVisualProgramStage, ForgeVisualSurfaceBinding, RecipeExpander,
+    RecipeExpansionPolicy, RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
+    SurfaceAdornmentProgram, VisualDetailBinding, VisualDetailBindingKind,
+    VisualDetailInventoryItem, VisualDetailLevel, VisualDetailStatus,
 };
 
 pub const C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION: &str =
     "C111ForgeVisualProgramFixture@1";
+
+const C111_ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
+const C111_DOMAIN_PACK_ID: &str = "pack_robotic_arm_concept";
+const C111_DETAIL_INVENTORY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../../../packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json"
+));
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +53,54 @@ pub struct C111ForgeVisualProgramFixture {
 
 fn invalid(message: impl Into<String>) -> CoreError {
     CoreError::invalid_data("C111_FORGE_VISUAL_FIXTURE_INVALID", message)
+}
+
+/// Build the reviewed production-density C111 program at the Rust Core
+/// boundary.  Callers may use it as a compiler substrate, but the returned
+/// value is never accepted as evidence that a Provider authored the design.
+/// Keeping this builder in Core prevents the recovery path and the compact
+/// authoring-IR path from drifting into two different geometry truths.
+pub fn reviewed_c111_draft_visual_program() -> CoreResult<ForgeVisualProgram> {
+    let registry = RecipeRegistry::from_embedded_c111_golden_surface_robotic_arm()?;
+    let recipe = registry
+        .recipe(C111_ROOT_RECIPE_ID)
+        .ok_or_else(|| invalid("reviewed C111 root recipe is unavailable"))?;
+    let request = RecipeInstantiationRequest {
+        schema_version: "ComponentRecipeInstantiationRequest@1".into(),
+        context_mode: "initial_candidate".into(),
+        request_id: "recipereq_c111_compiler_substrate".into(),
+        project_id: None,
+        base_asset_version_id: None,
+        snapshot_revision: None,
+        domain_pack_id: C111_DOMAIN_PACK_ID.into(),
+        recipe_registry_sha256: registry.registry_sha256().into(),
+        recipe: ComponentRecipeRef {
+            schema_version: "ComponentRecipeRef@1".into(),
+            recipe_id: recipe.recipe_id.clone(),
+            version: recipe.version,
+            recipe_sha256: RecipeValidator::recipe_sha256(recipe)?,
+        },
+        target_part_id: None,
+        slot_bindings: Vec::new(),
+        parameter_values: Vec::new(),
+        material_zone_overrides: Vec::new(),
+    };
+    let candidate = RecipeExpander::expand(&registry, &request, &RecipeExpansionPolicy::default())?;
+    let surface_programs = c111_golden_surface_adornment_programs(&candidate, &registry)?;
+    let inventory: Value = serde_json::from_str(C111_DETAIL_INVENTORY).map_err(|error| {
+        invalid(format!(
+            "reviewed C111 detail inventory is invalid: {error}"
+        ))
+    })?;
+    let mut program = build_c111_forge_visual_program_fixture(
+        &candidate,
+        &registry,
+        &surface_programs,
+        &inventory,
+    )?
+    .program;
+    program.stage = ForgeVisualProgramStage::Draft;
+    Ok(program)
 }
 
 fn object<'a>(value: &'a Value, field: &str) -> CoreResult<&'a serde_json::Map<String, Value>> {
@@ -347,6 +404,34 @@ pub fn build_c111_forge_visual_program_fixture(
                         "surface_program".into(),
                         program.target_part_id.clone(),
                         program_id.to_owned(),
+                    ),
+                    binding,
+                );
+            }
+            if let Some(zone_id) = mapping
+                .get("surface_program_zone_id")
+                .and_then(Value::as_str)
+            {
+                let matches = surface_programs
+                    .iter()
+                    .filter(|program| program.target_zone_id == zone_id)
+                    .collect::<Vec<_>>();
+                if matches.len() != 1 {
+                    return Err(invalid(
+                        "detail surface-program zone must resolve to exactly one reviewed program",
+                    ));
+                }
+                let program = matches[0];
+                let binding = VisualDetailBinding {
+                    kind: VisualDetailBindingKind::SurfaceProgram,
+                    part_id: program.target_part_id.clone(),
+                    target_id: program.program_id.clone(),
+                };
+                bindings.insert(
+                    (
+                        "surface_program".into(),
+                        program.target_part_id.clone(),
+                        program.program_id.clone(),
                     ),
                     binding,
                 );

@@ -97,7 +97,7 @@ def test_retained_surface_layers_bake_all_five_pbr_channels_deterministically(pr
     second = surface_layer_visual_texture_set(copy.deepcopy(lowering), artifact_profile_id=profile)
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.material_id == surface_layer_material_id(lowering)
-    assert first.version == "4"
+    assert first.version == ("4" if profile == "production_concept" else "3")
     assert {item.texture_role for item in first.maps} == {
         "base_color", "metallic_roughness", "normal", "occlusion", "emissive"
     }

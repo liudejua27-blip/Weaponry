@@ -240,7 +240,30 @@ def _wait_for_native_health(desktop_pid: int) -> int:
         try:
             with urllib.request.urlopen(HEALTH_URL, timeout=0.25) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            _assert(payload == _restricted_health_payload(), "unexpected restricted geometry health payload")
+            expected = _restricted_health_payload()
+            _assert(
+                all(payload.get(key) == value for key, value in expected.items()),
+                "unexpected restricted geometry health payload",
+            )
+            _assert(
+                set(payload) == set(expected) | {
+                    "supervisor_session_id",
+                    "supervisor_process_group_id",
+                },
+                "restricted geometry health exposed an unreviewed field",
+            )
+            supervisor_session_id = payload.get("supervisor_session_id")
+            _assert(
+                isinstance(supervisor_session_id, str)
+                and len(supervisor_session_id) == 32
+                and all(character in "0123456789abcdef" for character in supervisor_session_id),
+                "restricted geometry health omitted its supervisor session identity",
+            )
+            _assert(
+                isinstance(payload.get("supervisor_process_group_id"), int)
+                and payload["supervisor_process_group_id"] > 0,
+                "restricted geometry health omitted its process-group identity",
+            )
             listener_pid = _listener_pid()
             _assert(listener_pid is not None, "healthy sidecar did not expose a listening process")
             return listener_pid

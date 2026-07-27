@@ -23,6 +23,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "assembly-delta-program.schema.json": "c513fa47ca80ccbec3737bc81bb9b5608c528254f00ba8a1d7908e9f58e61256",
   "assembly-graph.schema.json": "627ce9eeaaefcf7e6553d86b38a2d55a2cd7723fb47954dd8da4df2c43721bd2",
   "blockout-concept-preview.schema.json": "c25ce1ba16ac21a51baabae4d2bb81e39a5b845c336068cb20ce342380ae33e8",
+  "c111-structural-detail-contract.schema.json": "691289830212b5abd2041b690530c7d5375026c843575053f233ed2c7bde5ca7",
   "common.schema.json": "7edf00bfe2cd3cc6afff5228b84f7c1986465310c81dd9ff1e9f379efd255d36",
   "component-recipe-candidate.schema.json": "c238e90e1b3255c3dea18ddbcec94ee72ad5984196bc5c792b86befc665219e3",
   "component-recipe-instance-provenance.schema.json": "f3a974629caaae99ffa1c84691f5609aec49a174d649577292feff43d900745a",
@@ -36,8 +37,9 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
   "editable-component-recipe.schema.json": "dc78c0b7302462082b427d48e8d1a567c00bd46e9551bd413ff64dab6294cce3",
-  "forge-visual-patch.schema.json": "32223a0dd855a2ba6a67bf4120fc9bf6232ed30a83c4db7eec0346de43ffae64",
-  "forge-visual-program.schema.json": "bd1f449bae103a38bd2e4c7187ba27a30d4719010e19a12fd02899b8fae164e1",
+  "forge-visual-authoring-intent.schema.json": "a8fd7704b3087c2a4b3ff4cb38a666601ef27c9d2107ae87a822edc90f2f9372",
+  "forge-visual-patch.schema.json": "a1a5e6cfbbc76c6a167f1f7c49b13c0d0a747004c4b8eabbd4e959a899dd5ea0",
+  "forge-visual-program.schema.json": "0d17bdbc0e210ee8abe33d0e084bb2e754657de97124d58f3bf3de2d87724db8",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
   "geometry-compile-readback.schema.json": "f88c32e4888a5cc923cc11786920790d16d52a816883b57b4ab6572407073bd9",
@@ -50,6 +52,8 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "module-asset-manifest.schema.json": "13129fe530776b2479e6100facab46214e3bde525e4041bb8a680680d830f3cb",
   "module-graph.schema.json": "369f1c773838e1813fd3fea641dca51629c8850736029e58b781f13651929e75",
   "module-pack-manifest.schema.json": "c3f99aafc1f24f521517368c2b7a15042ab14c47315a93cd80d3ed698ac6710c",
+  "multimodal-design-request.schema.json": "504bad9c14819041f11495d7db4268788efd2a596ec30db114aa31110d84c96c",
+  "multimodal-program-evidence-binding.schema.json": "f65e5ad365cffbfaad60c71cfe27881d004b5fafc3221e591347a95de4d0d999",
   "production-component-recipe-registry.schema.json": "526c7096a5f867a160fc8a5dac9e012f25482cac22d5bbaf4fbb0eb45fe6917b",
   "profile-section-set.schema.json": "5baf4fdb7f1788f6237e57f0222a655043057041b639ba85b46388836c0d750f",
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
@@ -61,12 +65,15 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "reference-guided-rebuild-preview-request.schema.json": "bf8f359c36febbffcfbb1fdaf2b0efb47d835214c7a5b6e3887fa70931bac787",
   "reference-surface-analysis.schema.json": "a55516503d79441ac81a14a7b723f3732d9fd18930d1f67526243db014eb5794",
   "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
-  "shape-program.schema.json": "3bdf00dd393942b22a192a5c856f9745375fcedbdfda28656463f3d50bf85722",
+  "shape-program.schema.json": "b019c577a33eedb8de228bb80c6571da8bfbdb1ada9c7d65604a240dc67d753e",
   "surface-adornment-program.schema.json": "c91ceb6919e11bc5cc6114a36e26b833e32906dfc84f00e19ec3499833446e83",
   "surface-layer-program.schema.json": "be291936de86b757f3be98ec7773d5ed379f82a7708c633ebb8eb9e8574e162b",
-  "visual-convergence-input.schema.json": "9089c4c934b31554d488322b796edda55c78e6cff5f14e9e5aa665ee39508745",
+  "visual-convergence-input.schema.json": "e4670c75fa46863786a969ac1600f67adfc54b4a03379f19ea2bcf5e5efe5e21",
   "visual-convergence-report.schema.json": "af6ace5ebc351abc20cc9282cf82da368b3c818e9aa1ed6d7f53926e13a2b392",
+  "visual-evidence-graph.schema.json": "ba3fe33f2ce809ed025c388ea7ef0416477fef8866e0889e34df8ed877a18c08",
   "visual-intent-mapping.schema.json": "5f5360234126188da3448f7507eb46c2e7575dbbaee9ff1f6b1b27c3aa8ca04f",
+  "visual-reference-comparison-input.schema.json": "9d04fcd468c5ffb61a17b512c448ee50eee45a7284ad22b8129b7b2a4ca1de47",
+  "visual-reference-comparison-report.schema.json": "43e4e6f795b67344f35401933ac4f53caa77367f7a577a3b33bf9e66a2ce7e2a",
   "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
@@ -2851,6 +2858,121 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "AgentBlockoutConceptPreview",
     "type": "object"
   },
+  "c111-structural-detail-contract.schema.json": {
+    "$id": "https://forgecad.local/schemas/c111-structural-detail-contract.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "lineages": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "detail_class": {
+              "enum": [
+                "service_panel",
+                "joint_stack",
+                "auxiliary_linkage",
+                "cable_clamps",
+                "gripper_hinges",
+                "decal",
+                "wear"
+              ]
+            },
+            "geometry_output_ids": {
+              "items": {
+                "pattern": "^output_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "material_zone_ids": {
+              "items": {
+                "pattern": "^zone_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "part_ids": {
+              "items": {
+                "pattern": "^part_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "required_texture_roles": {
+              "items": {
+                "enum": [
+                  "base_color",
+                  "metallic_roughness",
+                  "normal",
+                  "occlusion",
+                  "emissive"
+                ]
+              },
+              "maxItems": 5,
+              "minItems": 5,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "surface_program_ids": {
+              "items": {
+                "pattern": "^adorn_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "detail_class",
+            "part_ids",
+            "geometry_output_ids",
+            "material_zone_ids",
+            "surface_program_ids",
+            "required_texture_roles"
+          ],
+          "type": "object"
+        },
+        "maxItems": 7,
+        "minItems": 7,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "C111StructuralDetailContract@1"
+      },
+      "source_program_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "surface_layer_lowering_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "surface_layer_program_id": {
+        "pattern": "^surface_layer_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "surface_layer_program_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_program_sha256",
+      "surface_layer_program_id",
+      "surface_layer_program_sha256",
+      "surface_layer_lowering_sha256",
+      "lineages"
+    ],
+    "title": "C111StructuralDetailContract",
+    "type": "object"
+  },
   "common.schema.json": {
     "$defs": {
       "editable_parameter_binding": {
@@ -5062,6 +5184,38 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "EditableComponentRecipe",
     "type": "object"
   },
+  "forge-visual-authoring-intent.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-authoring-intent.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Compact Provider-authored visual intent lowered by Rust into the only ForgeVisualProgram candidate truth. It contains no executable geometry, internal IDs, paths, URLs, code, or secrets.",
+    "properties": {
+      "arm_design_intent": {
+        "$ref": "arm-design-intent.schema.json"
+      },
+      "authoring_id": {
+        "maxLength": 96,
+        "pattern": "^[A-Za-z0-9_:-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ForgeVisualAuthoringIntent@1"
+      },
+      "title": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "authoring_id",
+      "title",
+      "arm_design_intent"
+    ],
+    "title": "ForgeVisualAuthoringIntent",
+    "type": "object"
+  },
   "forge-visual-patch.schema.json": {
     "$defs": {
       "design_token": {
@@ -5421,6 +5575,78 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "token"
         ],
         "type": "object"
+      },
+      "upsert_detail_inventory_item": {
+        "additionalProperties": false,
+        "description": "Replaces one existing detail_id; it cannot introduce a new inventory row.",
+        "properties": {
+          "detail": {
+            "$ref": "#/$defs/detail_item"
+          },
+          "op": {
+            "const": "upsert_detail_inventory_item"
+          }
+        },
+        "required": [
+          "op",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "upsert_geometry_operation": {
+        "additionalProperties": false,
+        "description": "Replaces one existing ShapeProgram operation. operation_id must match the replacement operation and outputs cannot be addressed by this operation.",
+        "properties": {
+          "op": {
+            "const": "upsert_geometry_operation"
+          },
+          "operation": {
+            "$ref": "shape-program.schema.json#/properties/operations/items"
+          },
+          "operation_id": {
+            "$ref": "common.schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "op",
+          "operation_id",
+          "operation"
+        ],
+        "type": "object"
+      },
+      "upsert_material_binding": {
+        "additionalProperties": false,
+        "description": "Replaces one existing binding identified by part_id and material_zone_id; it cannot create another binding.",
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/material_binding"
+          },
+          "op": {
+            "const": "upsert_material_binding"
+          }
+        },
+        "required": [
+          "op",
+          "binding"
+        ],
+        "type": "object"
+      },
+      "upsert_surface_binding": {
+        "additionalProperties": false,
+        "description": "Rebinds one existing surface_program_id; full ForgeVisualProgram validation still owns the target part and zone.",
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/surface_binding"
+          },
+          "op": {
+            "const": "upsert_surface_binding"
+          }
+        },
+        "required": [
+          "op",
+          "binding"
+        ],
+        "type": "object"
       }
     },
     "$id": "https://forgecad.local/schemas/concept/forge-visual-patch.schema.json",
@@ -5454,16 +5680,28 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "$ref": "#/$defs/replace_geometry_graph"
             },
             {
+              "$ref": "#/$defs/upsert_geometry_operation"
+            },
+            {
               "$ref": "#/$defs/replace_assembly_graph"
             },
             {
               "$ref": "#/$defs/replace_material_graph"
             },
             {
+              "$ref": "#/$defs/upsert_material_binding"
+            },
+            {
               "$ref": "#/$defs/replace_surface_graph"
             },
             {
+              "$ref": "#/$defs/upsert_surface_binding"
+            },
+            {
               "$ref": "#/$defs/replace_detail_inventory"
+            },
+            {
+              "$ref": "#/$defs/upsert_detail_inventory_item"
             },
             {
               "$ref": "#/$defs/set_export_profile"
@@ -5645,7 +5883,23 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "additionalProperties": false,
           "properties": {
             "material_id": {
-              "$ref": "#/$defs/id"
+              "enum": [
+                "mat_primary",
+                "mat_graphite",
+                "mat_painted_steel",
+                "mat_powder_coat",
+                "mat_aluminum",
+                "mat_signal_red",
+                "mat_composite",
+                "mat_abs_matte",
+                "mat_carbon_composite",
+                "mat_rubber",
+                "mat_rubber_tire",
+                "mat_dark_glass",
+                "mat_clear_glass",
+                "mat_emissive_blue",
+                "mat_automotive_paint"
+              ]
             },
             "material_zone_id": {
               "$ref": "#/$defs/id"
@@ -8530,6 +8784,339 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ModulePackManifest",
     "type": "object"
   },
+  "multimodal-design-request.schema.json": {
+    "$defs": {
+      "locks": {
+        "additionalProperties": false,
+        "properties": {
+          "locked_material_zone_ids": {
+            "items": {
+              "pattern": "^zone_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "locked_part_ids": {
+            "items": {
+              "pattern": "^part_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "preserve_geometry": {
+            "type": "boolean"
+          },
+          "preserve_material_surface": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "preserve_geometry",
+          "preserve_material_surface",
+          "locked_part_ids",
+          "locked_material_zone_ids"
+        ],
+        "type": "object"
+      },
+      "reference_input": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 160,
+            "pattern": "^refevid_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "evidence_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "region": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/region"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "primary_silhouette",
+              "structure",
+              "material",
+              "surface",
+              "local_detail",
+              "style",
+              "multiview",
+              "existing_asset"
+            ]
+          },
+          "view_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "evidence_id",
+          "evidence_sha256",
+          "role"
+        ],
+        "type": "object"
+      },
+      "region": {
+        "additionalProperties": false,
+        "properties": {
+          "bottom": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "left": {
+            "maximum": 999,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "right": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "top": {
+            "maximum": 999,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "left",
+          "top",
+          "right",
+          "bottom"
+        ],
+        "type": "object"
+      },
+      "selection": {
+        "additionalProperties": false,
+        "properties": {
+          "material_zone_ids": {
+            "items": {
+              "pattern": "^zone_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "part_ids": {
+            "items": {
+              "pattern": "^part_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reference_region": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/region"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "part_ids",
+          "material_zone_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/multimodal-design-request.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-owned text, sealed reference, active-asset, selection and preservation intent for one visual design turn.",
+    "properties": {
+      "active_asset_version_id": {
+        "maxLength": 160,
+        "pattern": "^assetver_[A-Za-z0-9_.:\\-]+$",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "domain_pack_id": {
+        "maxLength": 160,
+        "pattern": "^pack_[A-Za-z0-9_.:\\-]+$",
+        "type": "string"
+      },
+      "instruction": {
+        "maxLength": 200000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "locks": {
+        "$ref": "#/$defs/locks"
+      },
+      "project_id": {
+        "maxLength": 160,
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "reference_inputs": {
+        "items": {
+          "$ref": "#/$defs/reference_input"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "request_id": {
+        "maxLength": 160,
+        "pattern": "^mmreq_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "MultimodalDesignRequest@1"
+      },
+      "selection": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/selection"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "turn_id": {
+        "maxLength": 160,
+        "pattern": "^turn_[A-Za-z0-9_.:\\-]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "request_id",
+      "project_id",
+      "turn_id",
+      "domain_pack_id",
+      "instruction",
+      "reference_inputs",
+      "locks"
+    ],
+    "title": "MultimodalDesignRequest",
+    "type": "object"
+  },
+  "multimodal-program-evidence-binding.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/multimodal-program-evidence-binding.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Exact-lineage bridge from one multimodal request and visual evidence graph to one Rust-validated ForgeVisualProgram.",
+    "properties": {
+      "binding_id": {
+        "maxLength": 160,
+        "pattern": "^mmbind_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "dispositions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "claim_id": {
+              "maxLength": 160,
+              "pattern": "^vclaim_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "detail_ids": {
+              "items": {
+                "pattern": "^detail_[A-Za-z0-9_.:\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "disposition": {
+              "enum": [
+                "bound",
+                "unresolved",
+                "evaluation_only"
+              ]
+            },
+            "reason": {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "claim_id",
+            "disposition",
+            "detail_ids",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "domain_pack_id": {
+        "maxLength": 160,
+        "pattern": "^pack_[A-Za-z0-9_.:\\-]+$",
+        "type": "string"
+      },
+      "evidence_graph_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "program_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "project_id": {
+        "maxLength": 160,
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "request_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "MultimodalProgramEvidenceBinding@1"
+      },
+      "source_program_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "binding_id",
+      "request_sha256",
+      "evidence_graph_sha256",
+      "source_program_sha256",
+      "project_id",
+      "domain_pack_id",
+      "program_id",
+      "dispositions"
+    ],
+    "title": "MultimodalProgramEvidenceBinding",
+    "type": "object"
+  },
   "production-component-recipe-registry.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/production-component-recipe-registry.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -10748,7 +11335,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           ],
           "type": "object"
         },
-        "maxItems": 96,
+        "maxItems": 128,
         "minItems": 1,
         "type": "array"
       },
@@ -11782,6 +12369,37 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         ],
         "type": "object"
       },
+      "reference_comparison": {
+        "additionalProperties": false,
+        "properties": {
+          "comparison_input_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "comparison_report_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "failure_codes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "comparison_input_sha256",
+          "comparison_report_sha256",
+          "passed",
+          "failure_codes"
+        ],
+        "type": "object"
+      },
       "repair": {
         "additionalProperties": false,
         "properties": {
@@ -11904,6 +12522,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "readback": {
         "$ref": "#/$defs/readback"
       },
+      "reference_comparison": {
+        "$ref": "#/$defs/reference_comparison"
+      },
       "repairs": {
         "items": {
           "$ref": "#/$defs/repair"
@@ -11990,6 +12611,211 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "failure_codes"
     ],
     "title": "VisualConvergenceReport",
+    "type": "object"
+  },
+  "visual-evidence-graph.schema.json": {
+    "$defs": {
+      "claim": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "maxLength": 160,
+            "pattern": "^vclaim_[a-z0-9_\\-]+$",
+            "type": "string"
+          },
+          "confidence_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "critical": {
+            "type": "boolean"
+          },
+          "description": {
+            "maxLength": 480,
+            "minLength": 1,
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "macro",
+              "meso",
+              "micro"
+            ]
+          },
+          "source_evidence_ids": {
+            "items": {
+              "pattern": "^refevid_[a-z0-9_\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 12,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "source_region": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/region"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_view_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "observed",
+              "inferred",
+              "unknown"
+            ]
+          },
+          "target": {
+            "enum": [
+              "geometry",
+              "assembly",
+              "material",
+              "surface",
+              "style",
+              "evaluation_only"
+            ]
+          }
+        },
+        "required": [
+          "claim_id",
+          "level",
+          "status",
+          "target",
+          "description",
+          "critical",
+          "confidence_bps",
+          "source_evidence_ids"
+        ],
+        "type": "object"
+      },
+      "region": {
+        "additionalProperties": false,
+        "properties": {
+          "bottom": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "left": {
+            "maximum": 999,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "right": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "top": {
+            "maximum": 999,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "left",
+          "top",
+          "right",
+          "bottom"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/visual-evidence-graph.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Bounded provider interpretation of sealed visual evidence. Observations, inferences and unknowns remain explicit and cannot become geometry directly.",
+    "properties": {
+      "claims": {
+        "items": {
+          "$ref": "#/$defs/claim"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "domain_pack_id": {
+        "maxLength": 160,
+        "pattern": "^pack_[A-Za-z0-9_.:\\-]+$",
+        "type": "string"
+      },
+      "graph_id": {
+        "maxLength": 160,
+        "pattern": "^vegraph_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "project_id": {
+        "maxLength": 160,
+        "pattern": "^(prj|project)_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "provider": {
+        "additionalProperties": false,
+        "properties": {
+          "analyzed_at": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "model_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_response_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "model_id",
+          "provider_response_sha256",
+          "analyzed_at"
+        ],
+        "type": "object"
+      },
+      "request_id": {
+        "maxLength": 160,
+        "pattern": "^mmreq_[a-z0-9_\\-]+$",
+        "type": "string"
+      },
+      "request_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualEvidenceGraph@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "graph_id",
+      "request_id",
+      "request_sha256",
+      "project_id",
+      "domain_pack_id",
+      "provider",
+      "claims"
+    ],
+    "title": "VisualEvidenceGraph",
     "type": "object"
   },
   "visual-intent-mapping.schema.json": {
@@ -12124,6 +12950,293 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "directions"
     ],
     "title": "VisualIntentMapping",
+    "type": "object"
+  },
+  "visual-reference-comparison-input.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/visual-reference-comparison-input.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-owned hash-only envelope binding sealed references to the exact candidate GLB and fixed eight-view render set.",
+    "properties": {
+      "candidate_views": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "glb_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "image_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "readback_passed": {
+              "const": true
+            },
+            "renderer_id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "view_id": {
+              "enum": [
+                "iso",
+                "front",
+                "back",
+                "left",
+                "right",
+                "top",
+                "gripper_iso",
+                "gripper_front"
+              ]
+            }
+          },
+          "required": [
+            "view_id",
+            "glb_sha256",
+            "renderer_id",
+            "image_sha256",
+            "readback_passed"
+          ],
+          "type": "object"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "type": "array"
+      },
+      "evidence_graph_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "glb_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "program_binding_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "reference_sources": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_id": {
+              "maxLength": 160,
+              "pattern": "^refevid_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "evidence_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "evidence_id",
+            "evidence_sha256"
+          ],
+          "type": "object"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "type": "array"
+      },
+      "request_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualReferenceComparisonInput@1"
+      },
+      "source_program_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "request_sha256",
+      "evidence_graph_sha256",
+      "program_binding_sha256",
+      "source_program_sha256",
+      "glb_sha256",
+      "reference_sources",
+      "candidate_views"
+    ],
+    "title": "VisualReferenceComparisonInput",
+    "type": "object"
+  },
+  "visual-reference-comparison-report.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/visual-reference-comparison-report.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Claim-level reference comparison whose scores, repair targets and pass/fail decision are derived and sealed by Rust.",
+    "properties": {
+      "assessments": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "candidate_view_ids": {
+              "items": {
+                "enum": [
+                  "iso",
+                  "front",
+                  "back",
+                  "left",
+                  "right",
+                  "top",
+                  "gripper_iso",
+                  "gripper_front"
+                ]
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "claim_id": {
+              "maxLength": 160,
+              "pattern": "^vclaim_[A-Za-z0-9_.:\\-]+$",
+              "type": "string"
+            },
+            "confidence_bps": {
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "outcome": {
+              "enum": [
+                "matched",
+                "partial",
+                "contradicted",
+                "not_visible"
+              ]
+            },
+            "reason": {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            },
+            "similarity_bps": {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source_evidence_ids": {
+              "items": {
+                "pattern": "^refevid_[A-Za-z0-9_.:\\-]+$",
+                "type": "string"
+              },
+              "maxItems": 12,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "claim_id",
+            "outcome",
+            "similarity_bps",
+            "confidence_bps",
+            "source_evidence_ids",
+            "candidate_view_ids",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "comparison_input_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "failure_codes": {
+        "items": {
+          "pattern": "^[A-Z0-9_]+$",
+          "type": "string"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "macro_similarity_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "meso_similarity_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "micro_similarity_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "passed": {
+        "type": "boolean"
+      },
+      "provider": {
+        "additionalProperties": false,
+        "properties": {
+          "analyzed_at": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "model_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_response_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "model_id",
+          "provider_response_sha256",
+          "analyzed_at"
+        ],
+        "type": "object"
+      },
+      "repair_claim_ids": {
+        "items": {
+          "pattern": "^vclaim_[A-Za-z0-9_.:\\-]+$",
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "report_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualReferenceComparisonReport@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "report_sha256",
+      "comparison_input_sha256",
+      "provider",
+      "assessments",
+      "passed",
+      "failure_codes",
+      "repair_claim_ids"
+    ],
+    "title": "VisualReferenceComparisonReport",
     "type": "object"
   },
   "visual-texture-set.schema.json": {

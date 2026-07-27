@@ -4,7 +4,7 @@
 //! only the bounded API representation, PNG readback and deterministic ZIP
 //! packaging; it never writes product state or invents model evidence.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs, io::Cursor, path::Path, process::Command};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use forgecad_app_server::compatibility::{AllowedHttpMethod, PreparedCompatHttpRequest};
@@ -13,6 +13,8 @@ use forgecad_app_server_protocol::{
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+
+use forgecad_core::{ForgeAssetPackage, ForgeAssetPackageFile};
 
 const RENDERER_ID: &str = "forgecad-agent-software-raster@1";
 const REQUIRED_VIEWS: [&str; 4] = ["iso", "front", "side", "top"];
@@ -30,6 +32,11 @@ pub(crate) enum AssetRenderCompatRequest {
         width: u16,
         height: u16,
         render_set_sha256: String,
+    },
+    AssetPackage {
+        asset_version_id: String,
+        width: u16,
+        height: u16,
     },
 }
 
@@ -57,6 +64,15 @@ impl AssetRenderCompatError {
             code: "AGENT_RENDER_READBACK_FAILED",
             message,
             recoverable: false,
+        }
+    }
+
+    fn unavailable(message: &'static str) -> Self {
+        Self {
+            status: 503,
+            code: "ASSET_PACKAGE_ENCODER_UNAVAILABLE",
+            message,
+            recoverable: true,
         }
     }
 
@@ -110,11 +126,13 @@ pub(crate) fn parse_asset_render_request(
     }
     let (route, query) = request.path.split_once('?').unwrap_or((&request.path, ""));
     let asset_route = route.strip_prefix("/api/v1/agent/asset-versions/")?;
-    let (asset_version_id, package) =
+    let (asset_version_id, route_kind) =
         if let Some(value) = asset_route.strip_suffix(":render-package") {
-            (value, true)
+            (value, "render_package")
+        } else if let Some(value) = asset_route.strip_suffix(":asset-package") {
+            (value, "asset_package")
         } else if let Some(value) = asset_route.strip_suffix(":render") {
-            (value, false)
+            (value, "render")
         } else {
             return None;
         };
@@ -135,7 +153,7 @@ pub(crate) fn parse_asset_render_request(
         Ok(value) => value,
         Err(error) => return Some(Err(error)),
     };
-    if package {
+    if route_kind == "render_package" {
         let Some(fingerprint) = parameters.get("render_set_sha256") else {
             return Some(Err(AssetRenderCompatError::invalid(
                 "render_set_sha256 is required for a concept-view package.",
@@ -151,6 +169,12 @@ pub(crate) fn parse_asset_render_request(
             width,
             height,
             render_set_sha256: fingerprint.clone(),
+        }))
+    } else if route_kind == "asset_package" {
+        Some(Ok(AssetRenderCompatRequest::AssetPackage {
+            asset_version_id: asset_version_id.to_string(),
+            width,
+            height,
         }))
     } else {
         Some(Ok(AssetRenderCompatRequest::Views {
@@ -354,6 +378,261 @@ pub(crate) fn render_package_response(
             data: BASE64.encode(archive),
         },
     })
+}
+
+pub(crate) fn forge_asset_package_response(
+    project_id: &str,
+    asset_version_id: &str,
+    source_glb: &[u8],
+    quality_report: &Value,
+    turntable_views: &BTreeMap<String, Vec<u8>>,
+    max_response_bytes: usize,
+) -> Result<CompatHttpResponse, AssetRenderCompatError> {
+    const TURNTABLE_VIEWS: [&str; 8] = [
+        "turntable_000",
+        "turntable_045",
+        "turntable_090",
+        "turntable_135",
+        "turntable_180",
+        "turntable_225",
+        "turntable_270",
+        "turntable_315",
+    ];
+    if source_glb.is_empty()
+        || turntable_views.len() != TURNTABLE_VIEWS.len()
+        || TURNTABLE_VIEWS
+            .iter()
+            .any(|view_id| !turntable_views.contains_key(*view_id))
+    {
+        return Err(AssetRenderCompatError::readback(
+            "Forge asset packaging requires one GLB and the exact eight turntable views.",
+        ));
+    }
+    let frames = TURNTABLE_VIEWS
+        .iter()
+        .map(|view_id| turntable_views[*view_id].clone())
+        .collect::<Vec<_>>();
+    let thumbnail = webp_thumbnail(&frames[0])?;
+    let turntable = encode_turntable_mp4(&frames)?;
+    let source_artifact_sha256 = sha256_hex(source_glb);
+    let quality_bytes = canonical_json(quality_report).into_bytes();
+    let license_bytes = canonical_json(&json!({
+        "schema_version":"ForgeAssetLicenseMetadata@1",
+        "asset_version_id":asset_version_id,
+        "license":"user_generated_visual_asset",
+        "generator":"forgecad_programmatic_visual_pipeline",
+        "built_in_material_sources_only":true,
+        "reference_rights":"no_external_reference_embedded",
+        "non_engineering_notice":"visual_concept_only_not_engineering_or_manufacturing_data"
+    }))
+    .into_bytes();
+    let package_id = format!("package_{}", &source_artifact_sha256[..24]);
+    let mut payloads = vec![
+        (
+            "asset.glb".to_string(),
+            source_glb.to_vec(),
+            "model/gltf-binary",
+        ),
+        ("thumbnail.webp".to_string(), thumbnail, "image/webp"),
+        ("turntable.mp4".to_string(), turntable, "video/mp4"),
+        (
+            "quality-report.json".to_string(),
+            quality_bytes,
+            "application/json",
+        ),
+        (
+            "license-metadata.json".to_string(),
+            license_bytes,
+            "application/json",
+        ),
+    ];
+    let manifest_members = payloads
+        .iter()
+        .map(|(relative_path, bytes, media_type)| {
+            json!({
+                "relative_path":relative_path,
+                "media_type":media_type,
+                "sha256":sha256_hex(bytes),
+                "byte_size":bytes.len()
+            })
+        })
+        .collect::<Vec<_>>();
+    let manifest_bytes = canonical_json(&json!({
+        "schema_version":"ForgeAssetPackageManifest@1",
+        "package_id":package_id,
+        "project_id":project_id,
+        "asset_version_id":asset_version_id,
+        "source_artifact_sha256":source_artifact_sha256,
+        "members":manifest_members,
+        "manifest_identity":"bound_by_outer_ForgeAssetPackage@1_descriptor",
+    }))
+    .into_bytes();
+    payloads.push((
+        "manifest.json".to_string(),
+        manifest_bytes,
+        "application/json",
+    ));
+    payloads.sort_by(|left, right| left.0.cmp(&right.0));
+    let descriptor = ForgeAssetPackage {
+        schema_version: "ForgeAssetPackage@1".into(),
+        package_id: package_id.clone(),
+        project_id: project_id.to_string(),
+        asset_version_id: asset_version_id.to_string(),
+        source_artifact_sha256: source_artifact_sha256.clone(),
+        files: payloads
+            .iter()
+            .map(|(relative_path, bytes, media_type)| ForgeAssetPackageFile {
+                relative_path: relative_path.clone(),
+                media_type: (*media_type).to_string(),
+                sha256: sha256_hex(bytes),
+                byte_size: bytes.len() as u64,
+            })
+            .collect(),
+    };
+    descriptor.validate().map_err(|_| {
+        AssetRenderCompatError::readback("ForgeAssetPackage@1 validation failed closed.")
+    })?;
+    let entries = payloads
+        .iter()
+        .map(|(relative_path, bytes, _)| (relative_path.clone(), bytes.clone()))
+        .collect::<Vec<_>>();
+    let archive = deterministic_stored_zip(&entries)?;
+    if archive.len() > max_response_bytes {
+        return Err(AssetRenderCompatError {
+            status: 413,
+            code: "ASSET_PACKAGE_TOO_LARGE",
+            message: "Forge asset package exceeds the bounded compatibility transport.",
+            recoverable: true,
+        });
+    }
+    let manifest_sha256 = descriptor
+        .files
+        .iter()
+        .find(|file| file.relative_path == "manifest.json")
+        .expect("validated package contains manifest")
+        .sha256
+        .clone();
+    Ok(CompatHttpResponse {
+        schema_version: HTTP_COMPAT_RESPONSE_SCHEMA_VERSION.into(),
+        status: 200,
+        headers: vec![
+            ("Content-Type".into(), "application/zip".into()),
+            ("Cache-Control".into(), "no-store".into()),
+            (
+                "Content-Disposition".into(),
+                format!("attachment; filename=\"{asset_version_id}-forge-asset.zip\""),
+            ),
+            ("X-ForgeCAD-Package-ID".into(), package_id),
+            (
+                "X-ForgeCAD-Source-GLB-SHA256".into(),
+                source_artifact_sha256,
+            ),
+            ("X-ForgeCAD-Manifest-SHA256".into(), manifest_sha256),
+        ],
+        body: ProtocolHttpBody::Base64 {
+            data: BASE64.encode(archive),
+        },
+    })
+}
+
+fn webp_thumbnail(png: &[u8]) -> Result<Vec<u8>, AssetRenderCompatError> {
+    let image =
+        image::load_from_memory_with_format(png, image::ImageFormat::Png).map_err(|_| {
+            AssetRenderCompatError::readback("Turntable thumbnail source is not a decodable PNG.")
+        })?;
+    let thumbnail = image.thumbnail(640, 640);
+    let mut bytes = Cursor::new(Vec::new());
+    thumbnail
+        .write_to(&mut bytes, image::ImageFormat::WebP)
+        .map_err(|_| {
+            AssetRenderCompatError::readback("Turntable thumbnail could not be encoded as WebP.")
+        })?;
+    Ok(bytes.into_inner())
+}
+
+fn encode_turntable_mp4(frames: &[Vec<u8>]) -> Result<Vec<u8>, AssetRenderCompatError> {
+    let ffmpeg = [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+    ]
+    .into_iter()
+    .find(|path| Path::new(path).is_file())
+    .ok_or_else(|| {
+        AssetRenderCompatError::unavailable(
+            "A code-owned FFmpeg encoder is required to create turntable.mp4.",
+        )
+    })?;
+    let directory = tempfile::Builder::new()
+        .prefix("forgecad-asset-package-")
+        .tempdir()
+        .map_err(|_| {
+            AssetRenderCompatError::unavailable(
+                "A private temporary package directory is required.",
+            )
+        })?;
+    for (index, frame) in frames.iter().enumerate() {
+        image::load_from_memory_with_format(frame, image::ImageFormat::Png).map_err(|_| {
+            AssetRenderCompatError::readback("A turntable frame is not a decodable PNG.")
+        })?;
+        fs::write(
+            directory.path().join(format!("frame-{index:03}.png")),
+            frame,
+        )
+        .map_err(|_| {
+            AssetRenderCompatError::unavailable("A turntable frame could not be staged.")
+        })?;
+    }
+    let output = directory.path().join("turntable.mp4");
+    let status = Command::new(ffmpeg)
+        .current_dir(directory.path())
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            "-y",
+            "-framerate",
+            "8",
+            "-start_number",
+            "0",
+            "-i",
+            "frame-%03d.png",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-map_metadata",
+            "-1",
+            "-metadata",
+            "creation_time=1970-01-01T00:00:00Z",
+        ])
+        .arg(&output)
+        .status()
+        .map_err(|_| {
+            AssetRenderCompatError::unavailable("FFmpeg turntable encoding could not start.")
+        })?;
+    if !status.success() {
+        return Err(AssetRenderCompatError::unavailable(
+            "FFmpeg turntable encoding failed.",
+        ));
+    }
+    let bytes = fs::read(output).map_err(|_| {
+        AssetRenderCompatError::unavailable("Encoded turntable.mp4 could not be read.")
+    })?;
+    if bytes.len() < 32
+        || bytes.get(4..8) != Some(b"ftyp")
+        || !bytes.windows(4).any(|window| window == b"moov")
+        || !bytes.windows(4).any(|window| window == b"mdat")
+    {
+        return Err(AssetRenderCompatError::readback(
+            "Encoded turntable bytes failed the bounded MP4 container check.",
+        ));
+    }
+    Ok(bytes)
 }
 
 fn parse_query(query: &str) -> Result<BTreeMap<String, String>, AssetRenderCompatError> {

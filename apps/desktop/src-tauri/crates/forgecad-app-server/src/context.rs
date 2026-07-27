@@ -13,7 +13,10 @@ use crate::canonical::{canonical_json, sha256_hex};
 
 pub const CONTEXT_SCHEMA_VERSION: &str = "AgentContext@1";
 pub const MAX_CONTEXT_MESSAGES: usize = 8;
-pub const MAX_CONTEXT_TEXT_CHARS: usize = 16_000;
+// User design briefs may be substantially longer than a chat message. The
+// Provider transport still applies a finite byte/request ceiling, while the
+// Context builder no longer imposes a small product-facing text limit.
+pub const MAX_CONTEXT_TEXT_CHARS: usize = 200_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

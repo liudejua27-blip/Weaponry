@@ -25,6 +25,8 @@ try {
     'SurfaceAdornmentDrawer.smoke.tsx',
     'ReferenceEvidenceDrawer.tsx',
     'ReferenceEvidenceDrawer.smoke.tsx',
+    'VisionEvidencePanel.tsx',
+    'VisionEvidencePanel.smoke.ts',
     'WorkbenchSidebar.tsx',
     'WorkbenchSidebar.smoke.tsx',
     'agentBlockoutDisplayState.ts',
@@ -58,6 +60,7 @@ try {
     ['WorkbenchComposer.smoke.js', 'runWorkbenchComposerSmoke'],
     ['SurfaceAdornmentDrawer.smoke.js', 'runSurfaceAdornmentDrawerSmoke'],
     ['ReferenceEvidenceDrawer.smoke.js', 'runReferenceEvidenceDrawerSmoke'],
+    ['VisionEvidencePanel.smoke.js', 'runVisionEvidencePanelSmoke'],
     ['WorkbenchSidebar.smoke.js', 'runWorkbenchSidebarSmoke'],
     ['agentBlockoutPreviewPresentation.smoke.js', 'runAgentBlockoutPreviewPresentationSmoke'],
     ['viewportDockState.smoke.js', 'runViewportDockStateSmoke'],
@@ -67,7 +70,7 @@ try {
     await module[exportName]()
   }
 
-  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench] = await Promise.all([
+  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench] = await Promise.all([
     readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanel.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentConversation.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentSelectionCard.tsx'), 'utf8'),
@@ -75,6 +78,7 @@ try {
     readFile(join(WORKBENCH_SOURCE, 'WorkbenchComposer.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'SurfaceAdornmentDrawer.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'ReferenceEvidenceDrawer.tsx'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'VisionEvidencePanel.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'viewportDockState.ts'), 'utf8'),
     readFile(join(DESKTOP_SOURCE, 'shared', 'api', 'forgeApi.ts'), 'utf8'),
     readFile(join(DESKTOP_SOURCE, 'shared', 'api', 'packagedArmWebviewQa.ts'), 'utf8'),
@@ -187,6 +191,12 @@ try {
   assert(referenceEvidence.includes('不会成为可编辑模型') && referenceEvidence.includes('新的可编辑版本'), 'R007 must separate read-only reference evidence from newly rebuilt geometry')
   assert(referenceEvidence.includes('保留') && referenceEvidence.includes('主动改变') && referenceEvidence.includes('仍未知'), 'R007B must present the three bounded reference/rebuild comparison columns')
   assert(referenceEvidence.includes('单张图片只约束') && referenceEvidence.includes('保真度上限'), 'R007B must make single-image and missing-view fidelity limits explicit')
+  assert(
+    visionEvidence.includes('使用这些证据生成 3D')
+      && visionEvidence.includes('setAnalyzedRequest(next.request)')
+      && panel.includes('visual_evidence_graph: multimodalContext.graph'),
+    'PV006C must use the Rust-normalized request and exact evidence graph in one native Agent Turn',
+  )
   assert(!referenceEvidence.includes('相似度分数') || referenceEvidence.includes('不显示相似度分数'), 'R007B must not present a similarity score')
   assert(
     !panel.includes('VisualGenerationCard')

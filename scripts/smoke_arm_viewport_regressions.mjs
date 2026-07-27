@@ -90,7 +90,7 @@ async function main() {
   )
 
   const loadEffectStart = viewport.indexOf(
-    'useEffect(() => {\n    const runtime = runtimeRef.current\n    if (!runtime) return\n    restoreModuleGraphPresentation(runtime, propsRef.current)',
+    'useEffect(() => {\n    const runtime = runtimeRef.current\n    if (!runtime) return\n    if (props.referenceImage)',
   )
   requireFact(loadEffectStart >= 0, 'BLOCKOUT_GLTF_EFFECT_MISSING')
   const loadEffectEnd = viewport.indexOf('\n\n  useEffect(() => {', loadEffectStart + 20)
@@ -99,6 +99,25 @@ async function main() {
   requireFact(loadEffect.includes("import('three/examples/jsm/loaders/GLTFLoader.js')"), 'BLOCKOUT_GLTF_LOADER_MISSING')
   requireFact(loadEffect.includes('let cancelled = false'), 'BLOCKOUT_GLTF_CANCELLATION_GUARD_MISSING')
   requireFact(loadEffect.includes('cancelled = true'), 'BLOCKOUT_GLTF_CLEANUP_MISSING')
+  const attachPreview = boundedSlice(
+    loadEffect,
+    'const attachPreview = (source: THREE.Object3D, message: string) => {',
+    '\n    if (props.blockoutGlbBase64)',
+    'BLOCKOUT_STAGED_ATTACH',
+  )
+  const firstReplacement = attachPreview.indexOf('restoreModuleGraphPresentation(runtime, propsRef.current)')
+  requireFact(firstReplacement > attachPreview.indexOf("if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')"), 'BLOCKOUT_REPLACEMENT_CLEARS_BEFORE_BOUNDS_VALIDATION')
+  const glbFailure = boundedSlice(
+    loadEffect,
+    '.catch((error) => {',
+    '\n        })\n    } else if (props.blockoutShapeProgram)',
+    'BLOCKOUT_GLB_FAILURE',
+  )
+  requireFact(
+    !glbFailure.includes('restoreModuleGraphPresentation(runtime, propsRef.current)')
+      && !glbFailure.includes("setBlockoutRenderSource('empty')"),
+    'BLOCKOUT_GLB_FAILURE_CLEARS_READY_PREVIEW',
+  )
 
   const dependencyBlock = boundedSlice(
     loadEffect,
@@ -223,6 +242,7 @@ async function main() {
       equivalent_hidden_locked_array_rerender_restarts_load: false,
       production_glb_change_restarts_load: true,
       cancellation_guard_retained: true,
+      failed_replacement_preserves_prior_renderable_preview: true,
     },
     same_frame_capture: {
       renderer_constructor_count: 1,

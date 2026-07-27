@@ -1,6 +1,6 @@
 //! Production DeepSeek Provider boundary for the Rust-owned K002 Agent.
 //!
-//! Credentials are injected by the desktop owner (normally macOS Keychain),
+//! Credentials are injected by the desktop-owned private credential store,
 //! the HTTP transport is independently replaceable, and hidden reasoning is
 //! represented only by `EphemeralReasoning`.  Tests use a fake transport and
 //! never open a socket.
@@ -19,7 +19,7 @@ use forgecad_app_server::{
     CancellationToken, EphemeralReasoning, ProviderClient, ProviderError, ProviderEventSink,
     ProviderFinishReason, ProviderFuture, ProviderHealthCheck, ProviderMessage, ProviderPreflight,
     ProviderRequest, ProviderRequestBudgetPolicy, ProviderResponse, ProviderRole,
-    ProviderStreamEvent, ProviderToolCall, ProviderUsage,
+    ProviderStreamEvent, ProviderToolCall, ProviderUsage, PRODUCT_TOOL_DEFINITION_COUNT,
 };
 use reqwest::{header, redirect, Client, Url};
 use serde_json::{json, Map, Value};
@@ -29,8 +29,11 @@ const MAX_BASE_URL_BYTES: usize = 2_048;
 const MAX_MODEL_BYTES: usize = 160;
 const MAX_API_KEY_BYTES: usize = 4_096;
 const MAX_MESSAGES: usize = 128;
-const MAX_MESSAGE_BYTES: usize = 200_000;
-const MAX_TOOLS: usize = 13;
+// 200k Unicode characters can require well above 200k UTF-8 bytes. Keep the
+// user-facing composer practically unbounded while remaining below the
+// independently reviewed 2 MiB aggregate request ceiling.
+const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
+const MAX_TOOLS: usize = PRODUCT_TOOL_DEFINITION_COUNT;
 const MAX_TOOL_CALLS: usize = 12;
 const MAX_TOOL_NAME_BYTES: usize = 64;
 const MAX_TOOL_DESCRIPTION_BYTES: usize = 500;
@@ -38,7 +41,11 @@ const MAX_TOOL_SCHEMA_BYTES: usize = 512_000;
 const MAX_REQUEST_BYTES: usize = 2 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS: u64 = 100_000;
 const PROVIDER_INPUT_FRAMING_OVERHEAD_BYTES: u64 = 4_096;
-const DEFAULT_MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+// High-reasoning streaming responses can contain many small SSE envelopes;
+// the transport framing can exceed 4 MiB while the separately bounded
+// reasoning, content, event and Tool Call payloads remain small. Keep the
+// aggregate stream finite at the already reviewed transport maximum.
+const DEFAULT_MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_MAX_SSE_EVENT_BYTES: usize = 256 * 1024;
 const DEFAULT_MAX_CONTENT_BYTES: usize = 1024 * 1024;
 const DEFAULT_MAX_REASONING_BYTES: usize = 1024 * 1024;
@@ -238,10 +245,38 @@ fn thinking_policy_for_model(
     }
 }
 
+fn thinking_policy_for_request(
+    model: &str,
+    require_tool_call: bool,
+) -> (DeepSeekThinkingMode, Option<DeepSeekReasoningEffort>) {
+    if require_tool_call {
+        // DeepSeek V4 thinking mode supports autonomous tool calls, but its
+        // official agent-integration contract rejects `tool_choice`. The
+        // multimodal bootstrap has exactly one legal, Rust-owned tool and must
+        // not spend the whole Turn in unconstrained reasoning. Run only that
+        // deterministic bootstrap request in non-thinking mode so
+        // `tool_choice=required` remains protocol-valid; later visual-program
+        // inspection and repair requests return to the model's normal thinking
+        // policy.
+        (DeepSeekThinkingMode::Disabled, None)
+    } else {
+        thinking_policy_for_model(model)
+    }
+}
+
 impl DeepSeekProviderConfig {
     pub fn bounded(pricing: DeepSeekPricing) -> Self {
         Self {
-            request_timeout: Duration::from_secs(60),
+            // Current high-reasoning DeepSeek visual-program requests can
+            // stream private reasoning for longer than one minute before the
+            // first complete tool call. The Action Loop still owns the finite
+            // whole-Turn deadline and cancellation scope.
+            // A production ForgeVisualProgram can contain hundreds of typed
+            // geometry/material/surface rows. High-reasoning compatible
+            // Providers can remain connected beyond three minutes while
+            // streaming that bounded JSON. Use the already validated maximum
+            // instead of failing a healthy request at the old 180 s default.
+            request_timeout: Duration::from_secs(300),
             max_response_bytes: DEFAULT_MAX_RESPONSE_BYTES,
             max_sse_event_bytes: DEFAULT_MAX_SSE_EVENT_BYTES,
             max_content_bytes: DEFAULT_MAX_CONTENT_BYTES,
@@ -616,7 +651,8 @@ impl ProviderClient for DeepSeekProviderClient {
         let transport = self.transport.clone();
         let timeout = self.config.request_timeout;
         let thinking_enabled =
-            thinking_policy_for_model(&credentials.model).0 == DeepSeekThinkingMode::Enabled;
+            thinking_policy_for_request(&credentials.model, request.require_tool_call).0
+                == DeepSeekThinkingMode::Enabled;
         let parser = Arc::new(Mutex::new(DeepSeekSseParser::new(
             &self.config,
             thinking_enabled,
@@ -709,7 +745,7 @@ impl ProviderClient for DeepSeekProviderClient {
         let mut config = self.config.clone();
         config.request_timeout = Duration::from_millis(u64::from(timeout_ms));
         // The explicit connectivity check owns one local snapshot too. It
-        // must not re-open Keychain after its initial validation read.
+        // must not re-open credential storage after its initial validation read.
         let probe = Self::from_turn_snapshot(credentials.clone(), self.transport.clone(), config);
         let future = probe.stream(
             ProviderRequest {
@@ -885,17 +921,12 @@ fn build_http_request(
         ));
     }
 
-    let (thinking_mode, reasoning_effort) = thinking_policy_for_model(&credentials.model);
+    let (thinking_mode, reasoning_effort) =
+        thinking_policy_for_request(&credentials.model, request.require_tool_call);
     let messages = request
         .messages
         .iter()
-        .map(|message| {
-            provider_message_json(
-                message,
-                config.max_tool_argument_bytes,
-                thinking_mode == DeepSeekThinkingMode::Enabled,
-            )
-        })
+        .map(|message| provider_message_json(message, config.max_tool_argument_bytes))
         .collect::<Result<Vec<_>, _>>()?;
     let tools = request
         .tools
@@ -947,17 +978,25 @@ fn build_http_request(
     // otherwise compatible endpoints.
     if !tools.is_empty() {
         body_value.insert("tools".into(), Value::Array(tools));
-        body_value.insert(
-            "tool_choice".into(),
-            Value::String(
-                if request.require_tool_call {
-                    "required"
-                } else {
-                    "auto"
-                }
-                .into(),
-            ),
-        );
+        let tool_choice = if request.require_tool_call {
+            // This mode is used only when Rust exposes one deterministic
+            // bootstrap action. Naming that exact function prevents an
+            // OpenAI-compatible model from selecting another code-owned tool
+            // remembered from the system prompt or a previous cached prefix.
+            let sole_tool_name = request
+                .tools
+                .first()
+                .expect("non-empty Provider tool list has a first item")
+                .name
+                .clone();
+            json!({
+                "type": "function",
+                "function": {"name": sole_tool_name}
+            })
+        } else {
+            Value::String("auto".into())
+        };
+        body_value.insert("tool_choice".into(), tool_choice);
     }
     let body_value = Value::Object(body_value);
     let body = serde_json::to_vec(&body_value)
@@ -977,7 +1016,6 @@ fn build_http_request(
 fn provider_message_json(
     message: &ProviderMessage,
     max_tool_argument_bytes: usize,
-    thinking_enabled: bool,
 ) -> Result<Value, ProviderError> {
     if message.content.len() > MAX_MESSAGE_BYTES || message.tool_calls.len() > MAX_TOOL_CALLS {
         return Err(local_schema_error(
@@ -1010,11 +1048,6 @@ fn provider_message_json(
                 .iter()
                 .map(|call| provider_tool_call_json(call, max_tool_argument_bytes))
                 .collect::<Result<Vec<_>, _>>()?;
-            if thinking_enabled && !tool_calls.is_empty() && message.ephemeral_reasoning.is_none() {
-                return Err(local_schema_error(
-                    "Thinking-mode assistant Tool Calls require their ephemeral reasoning continuation.",
-                ));
-            }
             let mut value = Map::new();
             value.insert("role".into(), Value::String("assistant".into()));
             value.insert("content".into(), Value::String(message.content.clone()));
@@ -1651,7 +1684,7 @@ mod tests {
         },
     };
 
-    use forgecad_app_server::{ProviderErrorCategory, ProviderToolDefinition};
+    use forgecad_app_server::{ProductToolRegistry, ProviderErrorCategory, ProviderToolDefinition};
 
     use super::*;
 
@@ -1902,6 +1935,17 @@ mod tests {
                 Some(DeepSeekReasoningEffort::High)
             )
         );
+        assert_eq!(
+            thinking_policy_for_request("deepseek-v4-pro", true),
+            (DeepSeekThinkingMode::Disabled, None)
+        );
+        assert_eq!(
+            thinking_policy_for_request("deepseek-v4-pro", false),
+            (
+                DeepSeekThinkingMode::Enabled,
+                Some(DeepSeekReasoningEffort::Max)
+            )
+        );
     }
 
     #[test]
@@ -1980,7 +2024,88 @@ mod tests {
                 .unwrap();
             let requests = transport.requests.lock().unwrap();
             let body: Value = serde_json::from_slice(requests[0].body()).unwrap();
-            assert_eq!(body["tool_choice"], "required");
+            assert_eq!(
+                body["tool_choice"],
+                json!({"type":"function","function":{"name":"tool_0"}})
+            );
+            assert_eq!(body["thinking"], json!({"type": "disabled"}));
+            assert!(!body.as_object().unwrap().contains_key("reasoning_effort"));
+        });
+    }
+
+    #[test]
+    fn thinking_follow_up_accepts_tool_history_created_in_non_thinking_bootstrap() {
+        block_on(async {
+            let transport = Arc::new(FakeHttpTransport::new(vec![sse_script(&stop_stream("OK"))]));
+            let client = DeepSeekProviderClient::new(
+                source(Some(credentials())),
+                transport.clone(),
+                config(),
+            )
+            .unwrap();
+            let mut follow_up = request(1);
+            follow_up.messages = vec![
+                ProviderMessage {
+                    role: ProviderRole::Assistant,
+                    content: String::new(),
+                    tool_call_id: None,
+                    tool_calls: vec![ProviderToolCall {
+                        call_id: "call_bootstrap".into(),
+                        name: "tool_0".into(),
+                        arguments: json!({"value": 1}),
+                    }],
+                    // The deterministic bootstrap request had thinking
+                    // disabled, so it legitimately has nothing to replay.
+                    ephemeral_reasoning: None,
+                },
+                ProviderMessage {
+                    role: ProviderRole::Tool,
+                    content: "{\"status\":\"completed\"}".into(),
+                    tool_call_id: Some("call_bootstrap".into()),
+                    tool_calls: Vec::new(),
+                    ephemeral_reasoning: None,
+                },
+            ];
+            client
+                .stream(follow_up, CancellationToken::new(), Box::new(|_| {}))
+                .await
+                .unwrap();
+            let requests = transport.requests.lock().unwrap();
+            let body: Value = serde_json::from_slice(requests[0].body()).unwrap();
+            assert_eq!(body["thinking"], json!({"type": "enabled"}));
+            assert!(body["messages"][0].get("reasoning_content").is_none());
+            assert_eq!(body["messages"][0]["tool_calls"][0]["id"], "call_bootstrap");
+        });
+    }
+
+    #[test]
+    fn entire_code_owned_product_tool_registry_is_inside_transport_bound() {
+        block_on(async {
+            let transport = Arc::new(FakeHttpTransport::new(vec![sse_script(&stop_stream("OK"))]));
+            let client = DeepSeekProviderClient::new(
+                source(Some(credentials())),
+                transport.clone(),
+                config(),
+            )
+            .unwrap();
+            let mut full_request = request(0);
+            full_request.tools = ProductToolRegistry::forgecad_v1()
+                .unwrap()
+                .provider_definitions();
+            assert_eq!(full_request.tools.len(), PRODUCT_TOOL_DEFINITION_COUNT);
+
+            client
+                .stream(full_request, CancellationToken::new(), Box::new(|_| {}))
+                .await
+                .unwrap();
+
+            assert_eq!(transport.calls.load(Ordering::SeqCst), 1);
+            let requests = transport.requests.lock().unwrap();
+            let body: Value = serde_json::from_slice(requests[0].body()).unwrap();
+            assert_eq!(
+                body["tools"].as_array().map(Vec::len),
+                Some(PRODUCT_TOOL_DEFINITION_COUNT)
+            );
         });
     }
 
@@ -2457,7 +2582,11 @@ mod tests {
             )
             .unwrap();
             let error = client
-                .stream(request(14), CancellationToken::new(), Box::new(|_| {}))
+                .stream(
+                    request(MAX_TOOLS + 1),
+                    CancellationToken::new(),
+                    Box::new(|_| {}),
+                )
                 .await
                 .unwrap_err();
             assert_eq!(error.category, ProviderErrorCategory::SchemaMismatch);

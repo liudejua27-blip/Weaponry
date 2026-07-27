@@ -1,8 +1,10 @@
 import type { AgentItem, MechanicalConceptPlan } from '../../shared/types.js'
 import {
   agentConversationReducer,
+  claimAgentTurnSubmission,
   initialAgentConversationState,
   parseAgentTurnPresentation,
+  releaseAgentTurnSubmission,
 } from './agentConversationState.js'
 
 const plan: MechanicalConceptPlan = {
@@ -75,6 +77,13 @@ const scopeStopItems: AgentItem[] = [{
 }]
 
 export function runAgentConversationStateSmoke(): void {
+  const submissionGuard = { current: false }
+  assert(claimAgentTurnSubmission(submissionGuard), 'first Agent turn submission must claim the shared workbench boundary')
+  assert(!claimAgentTurnSubmission(submissionGuard), 'a concurrent composer or shortcut submission must not start a second turn')
+  releaseAgentTurnSubmission(submissionGuard)
+  assert(claimAgentTurnSubmission(submissionGuard), 'a later turn must be accepted after the active turn settles')
+  releaseAgentTurnSubmission(submissionGuard)
+
   let state = agentConversationReducer(initialAgentConversationState, { type: 'open_project', projectId: 'project-a' })
   state = agentConversationReducer(state, { type: 'set_chat_input', value: '设计一辆探索汽车' })
   state = agentConversationReducer(state, { type: 'request_started', projectId: 'project-a', requestId: 2 })

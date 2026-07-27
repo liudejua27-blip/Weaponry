@@ -3,9 +3,10 @@
 //! product-state write access.
 
 use forgecad_core::{
-    build_c111_forge_visual_program_fixture, builtin_surface_adornment_manifest_v3,
-    c111_golden_surface_adornment_programs, ComponentRecipeRef, RecipeExpander,
-    RecipeExpansionPolicy, RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
+    build_c111_forge_visual_program_fixture, build_c111_structural_detail_contract,
+    builtin_surface_adornment_manifest_v3, c111_golden_surface_adornment_programs,
+    c111_golden_surface_layer_program, ComponentRecipeRef, RecipeExpander, RecipeExpansionPolicy,
+    RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
 };
 use serde_json::json;
 
@@ -46,6 +47,13 @@ fn main() {
         .expect("C111A arm expansion");
     let surface_adornment_programs = c111_golden_surface_adornment_programs(&candidate, &registry)
         .expect("C111A reviewed surface programs");
+    let surface_layer_program = c111_golden_surface_layer_program(&candidate, &registry)
+        .expect("C111B reviewed Design Surface");
+    let surface_layer_lowering = surface_layer_program
+        .lower()
+        .expect("C111B Design Surface lowering");
+    let surface_layer_lowering_sha256 = forgecad_core::semantic_sha256(&surface_layer_lowering)
+        .expect("C111B Design Surface lowering hash");
     let inventory: serde_json::Value =
         serde_json::from_str(DETAIL_INVENTORY).expect("C111A detail inventory JSON");
     let forge_visual_program_fixture = build_c111_forge_visual_program_fixture(
@@ -55,6 +63,15 @@ fn main() {
         &inventory,
     )
     .expect("C111A ForgeVisualProgram development fixture");
+    let structural_detail_contract = build_c111_structural_detail_contract(
+        &forge_visual_program_fixture.program,
+        &surface_adornment_programs,
+        &surface_layer_program,
+    )
+    .expect("C111B structural detail contract");
+    let structural_detail_contract_sha256 =
+        forgecad_core::semantic_sha256(&structural_detail_contract)
+            .expect("C111B structural detail contract hash");
     let candidate_value = serde_json::to_value(candidate).expect("C111A candidate JSON");
     let skill = builtin_surface_adornment_manifest_v3();
     skill.validate().expect("C111A A005 v3 manifest");
@@ -75,6 +92,14 @@ fn main() {
                 "skill_sha256": skill_sha256,
             },
             "surface_adornment_programs": surface_adornment_programs,
+            "surface_layer_program": surface_layer_program,
+            "structural_detail_contract": structural_detail_contract,
+            "structural_detail_contract_sha256": structural_detail_contract_sha256,
+            "surface_layer_input": {
+                "schema_version": "RestrictedSurfaceLayerInput@1",
+                "lowering": surface_layer_lowering,
+                "lowering_sha256": surface_layer_lowering_sha256,
+            },
             "forge_visual_program_fixture": forge_visual_program_fixture,
             "shape_program_canonical_json": forgecad_core::canonical_json(shape_program)
                 .expect("canonical C111A ShapeProgram"),

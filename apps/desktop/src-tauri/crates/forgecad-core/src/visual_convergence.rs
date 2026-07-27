@@ -109,6 +109,19 @@ pub struct VisualRepairEvidence {
     pub same_intent: bool,
 }
 
+/// Hash-only bridge from the separately validated multimodal reference
+/// comparison into the deterministic convergence decision. The full report
+/// remains a distinct typed artifact so Provider observations cannot mutate
+/// this summary or directly decide pass/fail.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct VisualReferenceConvergenceEvidence {
+    pub comparison_input_sha256: String,
+    pub comparison_report_sha256: String,
+    pub passed: bool,
+    pub failure_codes: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct VisualConvergenceInput {
@@ -117,6 +130,8 @@ pub struct VisualConvergenceInput {
     pub readback: VisualGlbReadbackEvidence,
     pub fixed_views: Vec<VisualFixedViewEvidence>,
     pub detail_coverage: VisualDetailCoverage,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_comparison: Option<VisualReferenceConvergenceEvidence>,
     pub repairs: Vec<VisualRepairEvidence>,
 }
 
@@ -143,6 +158,7 @@ impl VisualConvergenceInput {
         self.evaluate_readback(&mut failures);
         self.evaluate_views(&mut failures);
         self.evaluate_details(&mut failures);
+        self.evaluate_reference_comparison(&mut failures);
         self.evaluate_repairs(&mut failures);
         failures.sort();
         failures.dedup();
@@ -289,6 +305,29 @@ impl VisualConvergenceInput {
             failures.push("VISUAL_REPAIR_LINEAGE_INVALID".into());
         }
     }
+
+    fn evaluate_reference_comparison(&self, failures: &mut Vec<String>) {
+        let Some(reference) = &self.reference_comparison else {
+            return;
+        };
+        if !is_sha256(&reference.comparison_input_sha256)
+            || !is_sha256(&reference.comparison_report_sha256)
+            || reference.failure_codes.len() > 32
+            || reference
+                .failure_codes
+                .iter()
+                .any(|code| code.is_empty() || code.len() > 120)
+            || (reference.passed && !reference.failure_codes.is_empty())
+            || (!reference.passed && reference.failure_codes.is_empty())
+        {
+            failures.push("REFERENCE_COMPARISON_EVIDENCE_INVALID".into());
+            return;
+        }
+        if !reference.passed {
+            failures.push("REFERENCE_COMPARISON_FAILED".into());
+            failures.extend(reference.failure_codes.iter().cloned());
+        }
+    }
 }
 
 fn is_sha256(value: &str) -> bool {
@@ -366,6 +405,7 @@ mod tests {
                 micro_bound: 9,
                 critical_unresolved: 0,
             },
+            reference_comparison: None,
             repairs: Vec::new(),
         }
     }
@@ -445,5 +485,40 @@ mod tests {
         assert!(report
             .failure_codes
             .contains(&"VISUAL_REPAIR_LINEAGE_INVALID".into()));
+    }
+
+    #[test]
+    fn pv006c_reference_comparison_failure_blocks_visual_convergence() {
+        let mut input = passing_input();
+        input.reference_comparison = Some(VisualReferenceConvergenceEvidence {
+            comparison_input_sha256: hash('8'),
+            comparison_report_sha256: hash('9'),
+            passed: false,
+            failure_codes: vec!["REFERENCE_MACRO_MISMATCH".into()],
+        });
+        let report = input.evaluate().unwrap();
+        assert!(!report.passed);
+        assert!(report
+            .failure_codes
+            .contains(&"REFERENCE_COMPARISON_FAILED".to_string()));
+        assert!(report
+            .failure_codes
+            .contains(&"REFERENCE_MACRO_MISMATCH".to_string()));
+    }
+
+    #[test]
+    fn pv006c_reference_comparison_summary_cannot_fake_a_pass() {
+        let mut input = passing_input();
+        input.reference_comparison = Some(VisualReferenceConvergenceEvidence {
+            comparison_input_sha256: hash('8'),
+            comparison_report_sha256: hash('9'),
+            passed: true,
+            failure_codes: vec!["REFERENCE_MESO_MISMATCH".into()],
+        });
+        let report = input.evaluate().unwrap();
+        assert!(!report.passed);
+        assert!(report
+            .failure_codes
+            .contains(&"REFERENCE_COMPARISON_EVIDENCE_INVALID".to_string()));
     }
 }

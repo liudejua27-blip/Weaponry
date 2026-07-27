@@ -62,6 +62,12 @@ try {
   ) {
     throw new Error('empty Project must render the direct Agent first-asset state')
   }
+  if (
+    panelSource.includes('submitAssistantInstructionWithText(chatInput.trim() || DEFAULT_CONCEPT_BRIEF)')
+    || !panelSource.includes('请先在输入框描述想生成的 3D 概念，再发送给 Agent。')
+  ) {
+    throw new Error('an empty regular composer must not start the generic default Agent turn')
+  }
   console.log('F002 AgentConversation component smoke passed')
 } finally {
   await rm(output, { recursive: true, force: true })

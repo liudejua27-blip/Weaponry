@@ -21,6 +21,41 @@ pub const FORGE_VISUAL_PATCH_SCHEMA_VERSION: &str = "ForgeVisualPatch@1";
 pub const FORGE_VISUAL_PROGRAM_REVISION_SCHEMA_VERSION: &str = "ForgeVisualProgramRevision@1";
 pub const FORGE_VISUAL_PROGRAM_INSPECTION_SCHEMA_VERSION: &str = "ForgeVisualProgramInspection@1";
 const MAX_VISUAL_PATCH_OPERATIONS: usize = 32;
+pub const COMPILED_VISUAL_MATERIAL_IDS: &[&str] = &[
+    "mat_primary",
+    "mat_graphite",
+    "mat_painted_steel",
+    "mat_powder_coat",
+    "mat_aluminum",
+    "mat_signal_red",
+    "mat_composite",
+    "mat_abs_matte",
+    "mat_carbon_composite",
+    "mat_rubber",
+    "mat_rubber_tire",
+    "mat_dark_glass",
+    "mat_clear_glass",
+    "mat_emissive_blue",
+    "mat_automotive_paint",
+];
+
+/// Return the exact A005 base-material identity that shares the same reviewed
+/// PBR compiler slot as one authored ForgeVisualProgram material.
+pub fn compiled_visual_base_material_id(material_id: &str) -> Option<&'static str> {
+    match material_id {
+        "mat_primary" | "mat_graphite" | "mat_painted_steel" | "mat_powder_coat" => {
+            Some("mat_graphite")
+        }
+        "mat_aluminum" => Some("mat_aluminum"),
+        "mat_signal_red" => Some("mat_signal_red"),
+        "mat_composite" | "mat_abs_matte" | "mat_carbon_composite" => Some("mat_composite"),
+        "mat_rubber" | "mat_rubber_tire" => Some("mat_rubber"),
+        "mat_dark_glass" | "mat_clear_glass" => Some("mat_dark_glass"),
+        "mat_emissive_blue" => Some("mat_emissive_blue"),
+        "mat_automotive_paint" => Some("mat_automotive_paint"),
+        _ => None,
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -209,17 +244,39 @@ pub enum ForgeVisualPatchOperation {
     ReplaceGeometryGraph {
         geometry_graph: Value,
     },
+    /// Replaces one existing ShapeProgram operation in place. The stable
+    /// operation_id is supplied twice so a patch cannot silently rename a
+    /// graph node or append a new executable operation.
+    UpsertGeometryOperation {
+        operation_id: String,
+        operation: Value,
+    },
     ReplaceAssemblyGraph {
         assembly_graph: Value,
     },
     ReplaceMaterialGraph {
         material_graph: Vec<ForgeVisualMaterialBinding>,
     },
+    /// Replaces one existing material binding identified by its immutable
+    /// (part_id, material_zone_id) pair; it never creates a new binding.
+    UpsertMaterialBinding {
+        binding: ForgeVisualMaterialBinding,
+    },
     ReplaceSurfaceGraph {
         surface_graph: Vec<ForgeVisualSurfaceBinding>,
     },
+    /// Rebinds one existing surface program. The surface_program_id must
+    /// already occur in the current Rust-owned draft.
+    UpsertSurfaceBinding {
+        binding: ForgeVisualSurfaceBinding,
+    },
     ReplaceDetailInventory {
         detail_inventory: Vec<VisualDetailInventoryItem>,
+    },
+    /// Replaces one existing visual-detail row; detail_id is stable and may
+    /// not be introduced by a patch.
+    UpsertDetailInventoryItem {
+        detail: VisualDetailInventoryItem,
     },
     SetExportProfile {
         export_profile: ForgeVisualExportProfile,
@@ -408,6 +465,11 @@ impl ForgeVisualProgram {
             require_id("material_graph.part_id", &binding.part_id)?;
             require_id("material_graph.material_zone_id", &binding.material_zone_id)?;
             require_id("material_graph.material_id", &binding.material_id)?;
+            if !COMPILED_VISUAL_MATERIAL_IDS.contains(&binding.material_id.as_str()) {
+                return Err(invalid(
+                    "material bindings must use the reviewed visual compiler catalog",
+                ));
+            }
             let target = (binding.part_id.as_str(), binding.material_zone_id.as_str());
             if !zones_by_part
                 .get(target.0)
@@ -726,6 +788,17 @@ impl ForgeVisualProgramRevision {
                     program.geometry_graph = geometry_graph;
                     changed_domains.insert("geometry".to_string());
                 }
+                ForgeVisualPatchOperation::UpsertGeometryOperation {
+                    operation_id,
+                    operation,
+                } => {
+                    replace_existing_geometry_operation(
+                        &mut program.geometry_graph,
+                        &operation_id,
+                        operation,
+                    )?;
+                    changed_domains.insert("geometry".to_string());
+                }
                 ForgeVisualPatchOperation::ReplaceAssemblyGraph { assembly_graph } => {
                     program.assembly_graph = assembly_graph;
                     changed_domains.insert("assembly".to_string());
@@ -734,12 +807,44 @@ impl ForgeVisualProgramRevision {
                     program.material_graph = material_graph;
                     changed_domains.insert("material".to_string());
                 }
+                ForgeVisualPatchOperation::UpsertMaterialBinding { binding } => {
+                    let existing = program
+                        .material_graph
+                        .iter_mut()
+                        .find(|existing| {
+                            existing.part_id == binding.part_id
+                                && existing.material_zone_id == binding.material_zone_id
+                        })
+                        .ok_or_else(|| invalid("upsert_material_binding target does not exist"))?;
+                    *existing = binding;
+                    changed_domains.insert("material".to_string());
+                }
                 ForgeVisualPatchOperation::ReplaceSurfaceGraph { surface_graph } => {
                     program.surface_graph = surface_graph;
                     changed_domains.insert("surface".to_string());
                 }
+                ForgeVisualPatchOperation::UpsertSurfaceBinding { binding } => {
+                    let existing = program
+                        .surface_graph
+                        .iter_mut()
+                        .find(|existing| existing.surface_program_id == binding.surface_program_id)
+                        .ok_or_else(|| invalid("upsert_surface_binding target does not exist"))?;
+                    *existing = binding;
+                    changed_domains.insert("surface".to_string());
+                }
                 ForgeVisualPatchOperation::ReplaceDetailInventory { detail_inventory } => {
                     program.detail_inventory = detail_inventory;
+                    changed_domains.insert("detail_inventory".to_string());
+                }
+                ForgeVisualPatchOperation::UpsertDetailInventoryItem { detail } => {
+                    let existing = program
+                        .detail_inventory
+                        .iter_mut()
+                        .find(|existing| existing.detail_id == detail.detail_id)
+                        .ok_or_else(|| {
+                            invalid("upsert_detail_inventory_item target does not exist")
+                        })?;
+                    *existing = detail;
                     changed_domains.insert("detail_inventory".to_string());
                 }
                 ForgeVisualPatchOperation::SetExportProfile { export_profile } => {
@@ -825,6 +930,33 @@ impl ForgeVisualProgramRevision {
     }
 }
 
+fn replace_existing_geometry_operation(
+    geometry_graph: &mut Value,
+    operation_id: &str,
+    operation: Value,
+) -> CoreResult<()> {
+    require_id("upsert_geometry_operation.operation_id", operation_id)?;
+    let replacement_id = operation
+        .get("operation_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("upsert_geometry_operation.operation.operation_id is required"))?;
+    if replacement_id != operation_id {
+        return Err(invalid(
+            "upsert_geometry_operation cannot change an existing operation_id",
+        ));
+    }
+    let operations = geometry_graph
+        .get_mut("operations")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| invalid("upsert_geometry_operation requires ShapeProgram operations"))?;
+    let existing = operations
+        .iter_mut()
+        .find(|existing| existing.get("operation_id").and_then(Value::as_str) == Some(operation_id))
+        .ok_or_else(|| invalid("upsert_geometry_operation target does not exist"))?;
+    *existing = operation;
+    Ok(())
+}
+
 impl ForgeVisualPatch {
     pub fn validate(&self) -> CoreResult<()> {
         if self.schema_version != FORGE_VISUAL_PATCH_SCHEMA_VERSION {
@@ -859,7 +991,78 @@ pub fn lower_forge_visual_program(value: &Value) -> CoreResult<ForgeVisualProgra
     let program: ForgeVisualProgram = serde_json::from_value(value.clone())
         .map_err(|error| invalid(format!("ForgeVisualProgram@1 failed closed: {error}")))?;
     program.validate()?;
-    let normalized_shape = normalize_persisted_shape_program(&program.geometry_graph)?;
+    let mut materialized_shape = normalize_persisted_shape_program(&program.geometry_graph)?;
+    let output_owners = program
+        .parts
+        .iter()
+        .flat_map(|part| {
+            part.geometry_output_ids
+                .iter()
+                .map(move |output_id| (output_id.as_str(), part.part_id.as_str()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let materials = program
+        .material_graph
+        .iter()
+        .map(|binding| {
+            (
+                (binding.part_id.as_str(), binding.material_zone_id.as_str()),
+                binding.material_id.as_str(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let output_facts = materialized_shape
+        .get("outputs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("lowered ShapeProgram outputs are missing"))?
+        .iter()
+        .map(|output| {
+            let output_id = output
+                .get("output_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| invalid("lowered ShapeProgram output_id is missing"))?;
+            let operation_id = output
+                .get("operation_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| invalid("lowered ShapeProgram operation_id is missing"))?;
+            let part_id = output_owners
+                .get(output_id)
+                .copied()
+                .ok_or_else(|| invalid("lowered ShapeProgram output has no owning Part"))?;
+            Ok((operation_id.to_string(), part_id.to_string()))
+        })
+        .collect::<CoreResult<Vec<_>>>()?;
+    let operations = materialized_shape
+        .get_mut("operations")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| invalid("lowered ShapeProgram operations are missing"))?;
+    for (operation_id, part_id) in output_facts {
+        let operation = operations
+            .iter_mut()
+            .find(|operation| {
+                operation.get("operation_id").and_then(Value::as_str) == Some(operation_id.as_str())
+            })
+            .ok_or_else(|| invalid("lowered ShapeProgram output operation is missing"))?;
+        let Some(zone_id) = operation
+            .pointer("/args/zone_id")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+        else {
+            continue;
+        };
+        let material_id = materials
+            .get(&(part_id.as_str(), zone_id.as_str()))
+            .copied()
+            .ok_or_else(|| {
+                invalid("ShapeProgram output zone has no matching Part material binding")
+            })?;
+        operation
+            .get_mut("args")
+            .and_then(Value::as_object_mut)
+            .expect("normalized ShapeProgram args are objects")
+            .insert("material_id".into(), Value::String(material_id.to_string()));
+    }
+    let normalized_shape = normalize_persisted_shape_program(&materialized_shape)?;
     let normalized_assembly: Value =
         serde_json::from_str(&canonical_json(&program.assembly_graph)?)
             .map_err(|_| invalid("assembly_graph could not be canonicalized"))?;
@@ -908,7 +1111,10 @@ mod tests {
             }],
             "geometry_graph": {
                 "schema_version":"ShapeProgram@1", "program_id":"shape_arm_1",
-                "operations":[{"operation_id":"op_base","op":"box","inputs":[],"args":{}}],
+                "operations":[{"operation_id":"op_base","op":"box","inputs":[],"args":{
+                    "size":[180.0,56.0,34.0], "position":[0.0,0.0,0.0],
+                    "part_role":"base", "zone_id":"zone_base", "material_id":"mat_graphite"
+                }}],
                 "outputs":[{"output_id":"output_base","operation_id":"op_base","kind":"mesh","part_role":"base"}]
             },
             "assembly_graph": {"schema_version":"AssemblyGraph@1","parts":[],"connections":[]},
@@ -930,6 +1136,21 @@ mod tests {
             ],
             "export_profile":"production_concept"
         })
+    }
+
+    #[test]
+    fn pv003_rejects_materials_the_restricted_pbr_compiler_cannot_build() {
+        let mut unsupported = program(
+            "draft",
+            "bound",
+            json!([{"kind":"surface_program","part_id":"part_base","target_id":"surface_base_flow"}]),
+        );
+        unsupported["material_graph"][0]["material_id"] = json!("mat_unreviewed_copper");
+        let error = ForgeVisualProgramRevision::author(&unsupported).unwrap_err();
+        assert_eq!(error.code(), "FORGE_VISUAL_PROGRAM_INVALID");
+        assert!(error
+            .to_string()
+            .contains("reviewed visual compiler catalog"));
     }
 
     #[test]
@@ -1050,18 +1271,18 @@ mod tests {
             ForgeVisualProgramRevision::author(&program("draft", "unresolved", json!([]))).unwrap();
         let patch = json!({
             "schema_version":"ForgeVisualPatch@1",
-            "patch_id":"patch_warm_copper_surface",
+            "patch_id":"patch_automotive_paint_surface",
             "expected_revision":revision.revision,
             "expected_source_sha256":revision.source_program_sha256,
             "preserve_geometry":true,
             "preserve_material_surface":false,
             "operations":[
-                {"op":"set_title","title":"暖铜工业机械臂收藏品"},
+                {"op":"set_title","title":"蓝色汽车漆工业机械臂收藏品"},
                 {"op":"upsert_design_token","token":{
-                    "token_id":"surface_language","value":"warm copper ceramic industrial"
+                    "token_id":"surface_language","value":"blue automotive paint industrial"
                 }},
                 {"op":"replace_material_graph","material_graph":[{
-                    "part_id":"part_base","material_zone_id":"zone_base","material_id":"mat_warm_copper"
+                    "part_id":"part_base","material_zone_id":"zone_base","material_id":"mat_automotive_paint"
                 }]}
             ]
         });
@@ -1077,10 +1298,226 @@ mod tests {
             Some(revision.source_program_sha256.as_str())
         );
         assert_eq!(next.program.geometry_graph, revision.program.geometry_graph);
+        let before_lowering =
+            lower_forge_visual_program(&serde_json::to_value(&revision.program).unwrap()).unwrap();
+        let after_lowering =
+            lower_forge_visual_program(&serde_json::to_value(&next.program).unwrap()).unwrap();
+        assert_eq!(
+            before_lowering.shape_program["operations"][0]["args"]["material_id"],
+            "mat_graphite"
+        );
+        assert_eq!(
+            after_lowering.shape_program["operations"][0]["args"]["material_id"],
+            "mat_automotive_paint"
+        );
+        assert_ne!(
+            semantic_sha256(&before_lowering.shape_program).unwrap(),
+            semantic_sha256(&after_lowering.shape_program).unwrap()
+        );
         assert_eq!(
             next.applied_patch_id.as_deref(),
-            Some("patch_warm_copper_surface")
+            Some("patch_automotive_paint_surface")
         );
+    }
+
+    #[test]
+    fn local_patch_upserts_replace_only_existing_program_rows() {
+        let mut source = program(
+            "draft",
+            "bound",
+            json!([{"kind":"surface_program","part_id":"part_base","target_id":"surface_base_flow"}]),
+        );
+        source["parts"].as_array_mut().unwrap().push(json!({
+            "part_id":"part_trim", "role":"trim", "parent_part_id":"part_base",
+            "geometry_output_ids":["output_trim"], "material_zone_ids":["zone_trim"]
+        }));
+        source["geometry_graph"]["operations"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "operation_id":"op_trim", "op":"box", "inputs":[], "args":{
+                    "size":[60.0,20.0,20.0], "position":[0.0,40.0,0.0],
+                    "part_role":"trim", "zone_id":"zone_trim", "material_id":"mat_graphite"
+                }
+            }));
+        source["geometry_graph"]["outputs"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "output_id":"output_trim", "operation_id":"op_trim", "kind":"mesh", "part_role":"trim"
+            }));
+        source["material_graph"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "part_id":"part_trim", "material_zone_id":"zone_trim", "material_id":"mat_graphite"
+            }));
+        let revision = ForgeVisualProgramRevision::author(&source).unwrap();
+        let mut replacement_operation = revision.program.geometry_graph["operations"][0].clone();
+        replacement_operation["args"]["size"][0] = json!(220.0);
+        let mut replacement_detail = serde_json::to_value(
+            revision
+                .program
+                .detail_inventory
+                .iter()
+                .find(|detail| detail.detail_id == "detail_base_flow")
+                .unwrap(),
+        )
+        .unwrap();
+        replacement_detail["description"] = json!("修订后的底座蓝色发光流线");
+        replacement_detail["bindings"] = json!([
+            {"kind":"surface_program","part_id":"part_trim","target_id":"surface_base_flow"}
+        ]);
+        let patch = json!({
+            "schema_version":"ForgeVisualPatch@1",
+            "patch_id":"patch_local_visual_rows",
+            "expected_revision":revision.revision,
+            "expected_source_sha256":revision.source_program_sha256,
+            "preserve_geometry":false,
+            "preserve_material_surface":false,
+            "operations":[
+                {"op":"upsert_geometry_operation", "operation_id":"op_base", "operation":replacement_operation},
+                {"op":"upsert_material_binding", "binding":{
+                    "part_id":"part_base", "material_zone_id":"zone_base", "material_id":"mat_automotive_paint"
+                }},
+                {"op":"upsert_surface_binding", "binding":{
+                    "surface_program_id":"surface_base_flow", "part_id":"part_trim", "material_zone_id":"zone_trim"
+                }},
+                {"op":"upsert_detail_inventory_item", "detail":replacement_detail}
+            ]
+        });
+
+        let next = revision.apply_patch(&patch).unwrap();
+        assert_eq!(
+            next.program.geometry_graph["operations"][0]["args"]["size"][0],
+            220.0
+        );
+        assert_eq!(
+            next.program.material_graph[0].material_id,
+            "mat_automotive_paint"
+        );
+        assert_eq!(next.program.surface_graph[0].part_id, "part_trim");
+        assert_eq!(
+            next.program.detail_inventory[1].description,
+            "修订后的底座蓝色发光流线"
+        );
+        assert_eq!(
+            next.changed_domains,
+            vec!["geometry", "material", "surface", "detail_inventory"]
+        );
+    }
+
+    #[test]
+    fn local_patch_upserts_reject_unknown_targets() {
+        let revision = ForgeVisualProgramRevision::author(&program(
+            "draft",
+            "bound",
+            json!([{"kind":"surface_program","part_id":"part_base","target_id":"surface_base_flow"}]),
+        ))
+        .unwrap();
+        let operation = revision.program.geometry_graph["operations"][0].clone();
+        let unknown_operations = [
+            json!({"op":"upsert_geometry_operation", "operation_id":"op_unknown", "operation":{
+                "operation_id":"op_unknown", "op":"box", "inputs":[], "args":{
+                    "size":[180.0,56.0,34.0], "position":[0.0,0.0,0.0],
+                    "part_role":"base", "zone_id":"zone_base", "material_id":"mat_graphite"
+                }
+            }}),
+            json!({"op":"upsert_material_binding", "binding":{
+                "part_id":"part_unknown", "material_zone_id":"zone_base", "material_id":"mat_graphite"
+            }}),
+            json!({"op":"upsert_surface_binding", "binding":{
+                "surface_program_id":"surface_unknown", "part_id":"part_base", "material_zone_id":"zone_base"
+            }}),
+            json!({"op":"upsert_detail_inventory_item", "detail":{
+                "detail_id":"detail_unknown", "level":"micro", "description":"未知", "critical":false,
+                "status":"bound", "bindings":[{"kind":"geometry_output","part_id":"part_base","target_id":"output_base"}]
+            }}),
+        ];
+        for (index, operation_patch) in unknown_operations.into_iter().enumerate() {
+            let patch = json!({
+                "schema_version":"ForgeVisualPatch@1",
+                "patch_id":format!("patch_unknown_target_{index}"),
+                "expected_revision":revision.revision,
+                "expected_source_sha256":revision.source_program_sha256,
+                "preserve_geometry":false,
+                "preserve_material_surface":false,
+                "operations":[operation_patch]
+            });
+            let error = revision.apply_patch(&patch).unwrap_err();
+            assert_eq!(error.code(), "FORGE_VISUAL_PROGRAM_INVALID");
+        }
+        assert_eq!(operation["operation_id"], "op_base");
+    }
+
+    #[test]
+    fn local_geometry_upsert_rejects_operation_id_drift() {
+        let revision = ForgeVisualProgramRevision::author(&program(
+            "draft",
+            "bound",
+            json!([{"kind":"surface_program","part_id":"part_base","target_id":"surface_base_flow"}]),
+        ))
+        .unwrap();
+        let mut replacement_operation = revision.program.geometry_graph["operations"][0].clone();
+        replacement_operation["operation_id"] = json!("op_renamed");
+        let patch = json!({
+            "schema_version":"ForgeVisualPatch@1",
+            "patch_id":"patch_operation_id_drift",
+            "expected_revision":revision.revision,
+            "expected_source_sha256":revision.source_program_sha256,
+            "preserve_geometry":false,
+            "preserve_material_surface":false,
+            "operations":[{
+                "op":"upsert_geometry_operation", "operation_id":"op_base", "operation":replacement_operation
+            }]
+        });
+        let error = revision.apply_patch(&patch).unwrap_err();
+        assert_eq!(error.code(), "FORGE_VISUAL_PROGRAM_INVALID");
+        assert!(error
+            .to_string()
+            .contains("cannot change an existing operation_id"));
+    }
+
+    #[test]
+    fn preserve_locks_reject_local_geometry_and_material_upserts() {
+        let revision = ForgeVisualProgramRevision::author(&program(
+            "draft",
+            "bound",
+            json!([{"kind":"surface_program","part_id":"part_base","target_id":"surface_base_flow"}]),
+        ))
+        .unwrap();
+        let mut replacement_operation = revision.program.geometry_graph["operations"][0].clone();
+        replacement_operation["args"]["size"][0] = json!(220.0);
+        for (patch_id, preserve_geometry, preserve_material_surface, operation) in [
+            (
+                "patch_locked_local_geometry",
+                true,
+                false,
+                json!({"op":"upsert_geometry_operation", "operation_id":"op_base", "operation":replacement_operation}),
+            ),
+            (
+                "patch_locked_local_material",
+                false,
+                true,
+                json!({"op":"upsert_material_binding", "binding":{
+                    "part_id":"part_base", "material_zone_id":"zone_base", "material_id":"mat_automotive_paint"
+                }}),
+            ),
+        ] {
+            let patch = json!({
+                "schema_version":"ForgeVisualPatch@1",
+                "patch_id":patch_id,
+                "expected_revision":revision.revision,
+                "expected_source_sha256":revision.source_program_sha256,
+                "preserve_geometry":preserve_geometry,
+                "preserve_material_surface":preserve_material_surface,
+                "operations":[operation]
+            });
+            assert_eq!(
+                revision.apply_patch(&patch).unwrap_err().code(),
+                "FORGE_VISUAL_PROGRAM_INVALID"
+            );
+        }
     }
 
     #[test]

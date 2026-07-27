@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -16,6 +17,10 @@ from forgecad_agent.application.restricted_geometry_executor import (
     RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV,
     RestrictedGeometryExecutor,
 )
+
+
+SUPERVISOR_SESSION_ID_ENV = "FORGECAD_SUPERVISOR_SESSION_ID"
+_SUPERVISOR_SESSION_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
 def create_app(
@@ -41,6 +46,7 @@ def create_app(
         for name in (
             RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV,
             "FORGECAD_RUNTIME_RESOURCE_ROOT",
+            SUPERVISOR_SESSION_ID_ENV,
         )
         if values.get(name)
     }
@@ -84,6 +90,7 @@ def create_restricted_geometry_app(
 
     @app.get("/api/health")
     async def restricted_geometry_health() -> dict[str, Any]:
+        supervisor_session_id = values.get(SUPERVISOR_SESSION_ID_ENV, "")
         return {
             "status": "ok",
             "service": "forgecad-restricted-geometry-executor",
@@ -95,6 +102,15 @@ def create_restricted_geometry_app(
             "provider_access": False,
             "snapshot_write": False,
             "persistent_state_writer": False,
+            # This is a random, non-secret desktop session marker. It is only
+            # used to match a stale listener to the local supervisor lease;
+            # it is not the Rust-to-Python capability token.
+            "supervisor_session_id": (
+                supervisor_session_id
+                if _SUPERVISOR_SESSION_ID.fullmatch(supervisor_session_id)
+                else None
+            ),
+            "supervisor_process_group_id": os.getpgrp(),
         }
 
     # Exact internal geometry routes were registered above.  Everything else

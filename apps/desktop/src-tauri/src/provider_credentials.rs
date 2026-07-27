@@ -1,11 +1,12 @@
 //! Atomic, Rust-owned Provider credential snapshots.
 //!
 //! A configured Provider is one immutable tuple: base URL, model and API key.
-//! The API key is first staged under a random Keychain account; only after the
-//! staged value is read back does an atomic metadata rename make that account
-//! active. Readers resolve exactly the account named by the metadata snapshot,
-//! so a failed or interrupted save can never combine old metadata with a new
-//! key. The previous Keychain item is removed only after the commit.
+//! The unsigned local Alpha stores the API key in a generation-bound 0600 file
+//! below a 0700 private directory. Only after the staged value is read back does
+//! an atomic metadata rename make that generation active. Readers resolve
+//! exactly the generation named by the metadata snapshot, so a failed or
+//! interrupted save can never combine old metadata with a new key. A future
+//! stably signed distribution may migrate this boundary back to Keychain.
 
 use std::{
     error::Error,
@@ -17,7 +18,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
@@ -29,12 +30,12 @@ use crate::deepseek_provider::{
 pub const DEFAULT_PROVIDER_BASE_URL: &str = "https://api.deepseek.com";
 pub const DEFAULT_PROVIDER_MODEL: &str = "deepseek-v4-pro";
 
-const KEYCHAIN_SERVICE: &str = "ForgeCAD Agent Provider";
 const LEGACY_KEYCHAIN_ACCOUNT: &str = "default";
 const METADATA_MAX_BYTES: u64 = 64 * 1024;
 const BASE_URL_MAX_BYTES: usize = 2_048;
 const MODEL_MAX_BYTES: usize = 160;
 const API_KEY_MAX_BYTES: usize = 4_096;
+const PRIVATE_SECRET_STORAGE: &str = "private_secret_file";
 
 fn provider_status_not_checked() -> String {
     "not_checked".to_string()
@@ -138,96 +139,77 @@ impl fmt::Display for ProviderStoreError {
 impl Error for ProviderStoreError {}
 
 trait ProviderSecretBackend: Send + Sync + 'static {
-    fn requires_stable_app_identity(&self) -> bool {
-        false
-    }
-
     fn read(&self, account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError>;
     fn write(&self, account: &str, secret: &[u8]) -> Result<(), ProviderStoreError>;
     fn delete(&self, account: &str) -> Result<(), ProviderStoreError>;
 }
 
-#[cfg(target_os = "macos")]
-#[derive(Debug, Default)]
-struct MacOsKeychainBackend;
-
-/// Keychain ACLs bind access to the caller's designated code requirement. An
-/// ad-hoc rebuild has no stable certificate/team identity, so every new
-/// CodeDirectory hash can be treated as a different requester and trigger a
-/// password dialog. Fail before any Keychain API call unless this process is a
-/// strictly valid Apple-anchored ForgeCAD bundle.
-#[cfg(target_os = "macos")]
-fn require_stable_macos_app_identity() -> Result<(), ProviderStoreError> {
-    use security_framework::os::macos::code_signing::{Flags, SecCode, SecRequirement};
-
-    const REQUIREMENT: &str = concat!(
-        "anchor apple generic and ",
-        "certificate leaf[subject.OU] exists and ",
-        "identifier \"local.wushen.forge\""
-    );
-    let requirement = REQUIREMENT
-        .parse::<SecRequirement>()
-        .map_err(|_| ProviderStoreError)?;
-    let code = SecCode::for_self(Flags::NONE).map_err(|_| ProviderStoreError)?;
-    code.check_validity(
-        Flags::STRICT_VALIDATE | Flags::CHECK_NESTED_CODE | Flags::NO_NETWORK_ACCESS,
-        &requirement,
-    )
-    .map_err(|_| ProviderStoreError)
+/// Credential backend for the unsigned local Alpha.
+///
+/// Rebuilt ad-hoc bundles do not have a stable designated code requirement, so
+/// Keychain can repeatedly prompt or reject the same user after each build. A
+/// private generation file avoids that unstable identity dependency while
+/// preserving the same atomic metadata -> credential generation contract.
+#[derive(Debug)]
+struct PrivateFileSecretBackend {
+    root: PathBuf,
 }
 
-#[cfg(target_os = "macos")]
-impl ProviderSecretBackend for MacOsKeychainBackend {
-    fn requires_stable_app_identity(&self) -> bool {
-        true
+impl PrivateFileSecretBackend {
+    fn new(root: PathBuf) -> Self {
+        Self { root }
     }
 
-    fn read(&self, account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError> {
-        use security_framework::passwords::get_generic_password;
-        use security_framework_sys::base::errSecItemNotFound;
+    fn path_for_account(&self, account: &str) -> Result<PathBuf, ProviderStoreError> {
+        let suffix = if account == LEGACY_KEYCHAIN_ACCOUNT {
+            "legacy"
+        } else {
+            let credential_id = account
+                .strip_prefix(&format!("{LEGACY_KEYCHAIN_ACCOUNT}:"))
+                .ok_or(ProviderStoreError)?;
+            if !valid_credential_id(credential_id) {
+                return Err(ProviderStoreError);
+            }
+            credential_id
+        };
+        Ok(self.root.join(format!("credential-{suffix}.key")))
+    }
+}
 
-        require_stable_macos_app_identity()?;
-        match get_generic_password(KEYCHAIN_SERVICE, account) {
-            Ok(secret) => Ok(Some(Zeroizing::new(secret))),
-            Err(error) if error.code() == errSecItemNotFound => Ok(None),
-            Err(_) => Err(ProviderStoreError),
+impl ProviderSecretBackend for PrivateFileSecretBackend {
+    fn read(&self, account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError> {
+        let path = self.path_for_account(account)?;
+        if !path.exists() {
+            return Ok(None);
         }
+        validate_private_directory(&self.root)?;
+        validate_private_file(&path)?;
+        let metadata = fs::metadata(&path).map_err(|_| ProviderStoreError)?;
+        if metadata.len() == 0 || metadata.len() > API_KEY_MAX_BYTES as u64 {
+            return Err(ProviderStoreError);
+        }
+        let value = fs::read(path).map_err(|_| ProviderStoreError)?;
+        Ok(Some(Zeroizing::new(value)))
     }
 
     fn write(&self, account: &str, secret: &[u8]) -> Result<(), ProviderStoreError> {
-        require_stable_macos_app_identity()?;
-        security_framework::passwords::set_generic_password(KEYCHAIN_SERVICE, account, secret)
-            .map_err(|_| ProviderStoreError)
+        if !valid_api_key_bytes(secret) {
+            return Err(ProviderStoreError);
+        }
+        ensure_private_directory(&self.root)?;
+        let path = self.path_for_account(account)?;
+        write_private_secret_file(&path, secret)
     }
 
     fn delete(&self, account: &str) -> Result<(), ProviderStoreError> {
-        use security_framework_sys::base::errSecItemNotFound;
-
-        require_stable_macos_app_identity()?;
-        match security_framework::passwords::delete_generic_password(KEYCHAIN_SERVICE, account) {
-            Ok(()) => Ok(()),
-            Err(error) if error.code() == errSecItemNotFound => Ok(()),
-            Err(_) => Err(ProviderStoreError),
+        let path = self.path_for_account(account)?;
+        if !path.exists() {
+            return Ok(());
         }
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-#[derive(Debug, Default)]
-struct UnsupportedSecretBackend;
-
-#[cfg(not(target_os = "macos"))]
-impl ProviderSecretBackend for UnsupportedSecretBackend {
-    fn read(&self, _account: &str) -> Result<Option<Zeroizing<Vec<u8>>>, ProviderStoreError> {
-        Err(ProviderStoreError)
-    }
-
-    fn write(&self, _account: &str, _secret: &[u8]) -> Result<(), ProviderStoreError> {
-        Err(ProviderStoreError)
-    }
-
-    fn delete(&self, _account: &str) -> Result<(), ProviderStoreError> {
-        Err(ProviderStoreError)
+        validate_private_directory(&self.root)?;
+        validate_private_file(&path)?;
+        fs::remove_file(path).map_err(|_| ProviderStoreError)?;
+        sync_directory(&self.root)
     }
 }
 
@@ -260,13 +242,13 @@ impl fmt::Debug for ProviderCredentialStore {
 
 impl ProviderCredentialStore {
     pub fn production() -> Arc<Self> {
-        #[cfg(target_os = "macos")]
-        let secrets: Arc<dyn ProviderSecretBackend> = Arc::new(MacOsKeychainBackend);
-        #[cfg(not(target_os = "macos"))]
-        let secrets: Arc<dyn ProviderSecretBackend> = Arc::new(UnsupportedSecretBackend);
+        let metadata_path = provider_metadata_path();
+        let secrets: Arc<dyn ProviderSecretBackend> = Arc::new(PrivateFileSecretBackend::new(
+            provider_private_secret_root(&metadata_path),
+        ));
 
         Arc::new(Self {
-            metadata_path: provider_metadata_path(),
+            metadata_path,
             storage_name: provider_storage_name(),
             secrets,
             transaction: Mutex::new(()),
@@ -294,9 +276,9 @@ impl ProviderCredentialStore {
     }
 
     /// Reads only the non-secret metadata file. Normal workbench startup uses
-    /// this path so opening ForgeCAD never triggers a macOS Keychain password
-    /// prompt. The secret is resolved only for an explicit connection test or
-    /// Provider Turn through `load_snapshot_locked`.
+    /// this path and never opens the private credential. The secret is resolved
+    /// only for an explicit connection test or Provider Turn through
+    /// `load_snapshot_locked`.
     pub fn inspect_metadata_only(&self) -> ProviderConfigMetadata {
         let Ok(_guard) = self.lock() else {
             return ProviderConfigMetadata::invalid(self.storage_name);
@@ -312,12 +294,6 @@ impl ProviderCredentialStore {
     ) -> Result<ProviderConfigMetadata, String> {
         validate_provider_endpoint_model(&base_url, &model)?;
         validate_api_key(&api_key)?;
-        #[cfg(target_os = "macos")]
-        if self.secrets.requires_stable_app_identity()
-            && require_stable_macos_app_identity().is_err()
-        {
-            return Err("PROVIDER_STABLE_APP_IDENTITY_REQUIRED".to_string());
-        }
         let _guard = self
             .lock()
             .map_err(|_| "Provider credential transaction is unavailable.".to_string())?;
@@ -330,13 +306,13 @@ impl ProviderCredentialStore {
 
         self.secrets
             .write(&staged_account, api_key.as_bytes())
-            .map_err(|_| "Unable to write the macOS Keychain.".to_string())?;
+            .map_err(|_| "Unable to write the private Provider credential store.".to_string())?;
 
         let staged_secret = match self.secrets.read(&staged_account) {
             Ok(secret) => secret,
             Err(_) => {
                 let _ = self.secrets.delete(&staged_account);
-                return Err("Unable to verify the macOS Keychain entry.".to_string());
+                return Err("Unable to verify the private Provider credential.".to_string());
             }
         };
         let staged_matches = staged_secret
@@ -345,7 +321,7 @@ impl ProviderCredentialStore {
             .unwrap_or(false);
         if !staged_matches {
             let _ = self.secrets.delete(&staged_account);
-            return Err("Unable to verify the macOS Keychain entry.".to_string());
+            return Err("Unable to verify the private Provider credential.".to_string());
         }
 
         let metadata = ProviderConfigMetadata {
@@ -377,12 +353,6 @@ impl ProviderCredentialStore {
     }
 
     pub fn clear(&self) -> Result<ProviderConfigMetadata, String> {
-        #[cfg(target_os = "macos")]
-        if self.secrets.requires_stable_app_identity()
-            && require_stable_macos_app_identity().is_err()
-        {
-            return Err("PROVIDER_STABLE_APP_IDENTITY_REQUIRED".to_string());
-        }
         let _guard = self
             .lock()
             .map_err(|_| "Provider credential transaction is unavailable.".to_string())?;
@@ -438,6 +408,20 @@ impl ProviderCredentialStore {
         };
         if validate_stored_metadata(&metadata, self.storage_name).is_err() {
             return ProviderConfigMetadata::invalid(self.storage_name);
+        }
+        if metadata.storage != self.storage_name {
+            return ProviderConfigMetadata {
+                base_url: metadata.base_url,
+                model: metadata.model,
+                configured: false,
+                storage: self.storage_name.to_string(),
+                credential_id: None,
+                metadata_status: "valid".to_string(),
+                secret_status: "missing".to_string(),
+                supervisor_status: "not_checked".to_string(),
+                capability_status: "offline".to_string(),
+                failure_code: Some("PROVIDER_CREDENTIAL_MIGRATION_REQUIRED".to_string()),
+            };
         }
         metadata.metadata_status = "valid".to_string();
         metadata.secret_status = if metadata.configured {
@@ -673,11 +657,7 @@ fn generate_credential_id() -> Result<String, ProviderStoreError> {
 }
 
 pub fn provider_storage_name() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "macos-keychain"
-    } else {
-        "secret-file-required"
-    }
+    PRIVATE_SECRET_STORAGE
 }
 
 fn provider_metadata_path() -> PathBuf {
@@ -697,6 +677,87 @@ fn provider_metadata_path() -> PathBuf {
         .join("provider.json")
 }
 
+fn provider_private_secret_root(metadata_path: &std::path::Path) -> PathBuf {
+    metadata_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("secrets")
+        .join("provider")
+}
+
+fn ensure_private_directory(path: &std::path::Path) -> Result<(), ProviderStoreError> {
+    fs::create_dir_all(path).map_err(|_| ProviderStoreError)?;
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(|_| ProviderStoreError)?;
+    validate_private_directory(path)
+}
+
+fn validate_private_directory(path: &std::path::Path) -> Result<(), ProviderStoreError> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| ProviderStoreError)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(ProviderStoreError);
+    }
+    #[cfg(unix)]
+    if metadata.permissions().mode() & 0o077 != 0 {
+        return Err(ProviderStoreError);
+    }
+    Ok(())
+}
+
+fn validate_private_file(path: &std::path::Path) -> Result<(), ProviderStoreError> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| ProviderStoreError)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(ProviderStoreError);
+    }
+    #[cfg(unix)]
+    if metadata.permissions().mode() & 0o177 != 0 {
+        return Err(ProviderStoreError);
+    }
+    Ok(())
+}
+
+fn write_private_secret_file(
+    path: &std::path::Path,
+    secret: &[u8],
+) -> Result<(), ProviderStoreError> {
+    let parent = path.parent().ok_or(ProviderStoreError)?;
+    validate_private_directory(parent)?;
+    let temp_id = generate_credential_id()?;
+    let temporary = parent.join(format!(".credential-{temp_id}.tmp"));
+    #[cfg(unix)]
+    let options = {
+        let mut options = OpenOptions::new();
+        options.create_new(true).write(true).mode(0o600);
+        options
+    };
+    #[cfg(not(unix))]
+    let options = {
+        let mut options = OpenOptions::new();
+        options.create_new(true).write(true);
+        options
+    };
+    let result = (|| {
+        let mut file = options.open(&temporary).map_err(|_| ProviderStoreError)?;
+        file.write_all(secret).map_err(|_| ProviderStoreError)?;
+        file.sync_all().map_err(|_| ProviderStoreError)?;
+        fs::rename(&temporary, path).map_err(|_| ProviderStoreError)?;
+        validate_private_file(path)?;
+        sync_directory(parent)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+fn sync_directory(path: &std::path::Path) -> Result<(), ProviderStoreError> {
+    OpenOptions::new()
+        .read(true)
+        .open(path)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|_| ProviderStoreError)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -711,14 +772,6 @@ mod tests {
     use zeroize::Zeroizing;
 
     use super::*;
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn cargo_test_binary_is_rejected_before_any_production_keychain_call() {
-        // A cargo test executable is not the strictly signed ForgeCAD app and
-        // must fail the identity preflight without touching a Keychain item.
-        assert!(require_stable_macos_app_identity().is_err());
-    }
 
     #[derive(Default)]
     struct FakeSecretBackend {
@@ -818,6 +871,42 @@ mod tests {
         }
     }
 
+    struct PrivateFileTestStore {
+        root: PathBuf,
+        store: Arc<ProviderCredentialStore>,
+        secret_root: PathBuf,
+    }
+
+    impl PrivateFileTestStore {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "forgecad-private-provider-credentials-{}",
+                generate_credential_id().unwrap()
+            ));
+            fs::create_dir_all(&root).unwrap();
+            let metadata_path = root.join("provider.json");
+            let secret_root = root.join("secrets").join("provider");
+            let store = Arc::new(ProviderCredentialStore {
+                metadata_path,
+                storage_name: PRIVATE_SECRET_STORAGE,
+                secrets: Arc::new(PrivateFileSecretBackend::new(secret_root.clone())),
+                transaction: Mutex::new(()),
+                fail_next_metadata_commit: std::sync::atomic::AtomicBool::new(false),
+            });
+            Self {
+                root,
+                store,
+                secret_root,
+            }
+        }
+    }
+
+    impl Drop for PrivateFileTestStore {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
     fn save_tuple(store: &ProviderCredentialStore, suffix: &str) {
         store
             .save(
@@ -871,6 +960,76 @@ mod tests {
         );
         assert!(!test.secrets.contains(b"key-one"));
         assert!(test.secrets.contains(b"key-two"));
+    }
+
+    #[test]
+    fn unsigned_alpha_private_store_is_generation_bound_and_permission_restricted() {
+        let test = PrivateFileTestStore::new();
+        save_tuple(&test.store, "private");
+
+        let metadata = test.store.inspect();
+        assert_eq!(metadata.storage, PRIVATE_SECRET_STORAGE);
+        assert_eq!(metadata.secret_status, "available");
+        assert_eq!(test.store.load().unwrap().is_some(), true);
+        let credential_id = metadata.credential_id.unwrap();
+        let secret_path = test
+            .secret_root
+            .join(format!("credential-{credential_id}.key"));
+        assert!(secret_path.is_file());
+        assert!(!fs::read(&test.store.metadata_path)
+            .unwrap()
+            .windows("key-private".len())
+            .any(|window| window == b"key-private"));
+
+        #[cfg(unix)]
+        {
+            assert_eq!(
+                fs::metadata(&test.secret_root)
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o700
+            );
+            assert_eq!(
+                fs::metadata(secret_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn legacy_keychain_metadata_requires_explicit_private_store_resave() {
+        let test = PrivateFileTestStore::new();
+        let legacy = ProviderConfigMetadata {
+            base_url: "https://api.deepseek.com".to_string(),
+            model: "deepseek-v4-pro".to_string(),
+            configured: true,
+            storage: "macos-keychain".to_string(),
+            credential_id: Some("0123456789abcdef0123456789abcdef".to_string()),
+            metadata_status: "not_checked".to_string(),
+            secret_status: "not_checked".to_string(),
+            supervisor_status: "not_checked".to_string(),
+            capability_status: "unavailable".to_string(),
+            failure_code: None,
+        };
+        fs::write(
+            &test.store.metadata_path,
+            serde_json::to_vec(&legacy).unwrap(),
+        )
+        .unwrap();
+
+        let inspected = test.store.inspect_metadata_only();
+        assert!(!inspected.configured);
+        assert_eq!(inspected.storage, PRIVATE_SECRET_STORAGE);
+        assert_eq!(inspected.metadata_status, "valid");
+        assert_eq!(inspected.secret_status, "missing");
+        assert_eq!(
+            inspected.failure_code.as_deref(),
+            Some("PROVIDER_CREDENTIAL_MIGRATION_REQUIRED")
+        );
+        assert!(test.store.load().unwrap().is_none());
     }
 
     #[test]
@@ -1036,13 +1195,15 @@ mod tests {
     }
 
     #[test]
-    fn production_source_contains_no_security_cli_or_secret_argv_path() {
+    fn production_source_contains_no_security_cli_keychain_or_secret_argv_path() {
         let module_source = include_str!("provider_credentials.rs");
         let main_source = include_str!("main.rs");
         let forbidden_cli = ["Command::new(\"", "/usr/bin", "/security", "\")"].concat();
+        let forbidden_keychain_api = ["security_framework", "::passwords", "::"].concat();
         assert!(!module_source.contains(&forbidden_cli));
         assert!(!main_source.contains(&forbidden_cli));
-        assert!(module_source.contains("security_framework::passwords::set_generic_password"));
+        assert!(!module_source.contains(&forbidden_keychain_api));
+        assert!(module_source.contains("PrivateFileSecretBackend"));
     }
 
     #[test]

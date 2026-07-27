@@ -2,6 +2,7 @@ mod app_server_bridge;
 mod asset_render_compat;
 mod c110g_packaged_probe;
 mod deepseek_delta_acceptance_probe;
+mod deepseek_forge_visual_acceptance_probe;
 mod deepseek_mvp_acceptance_probe;
 mod deepseek_provider;
 mod k003_packaged_probe;
@@ -11,6 +12,7 @@ mod neural_3d_provider_adapter;
 mod provider_credentials;
 mod rust_core_runtime;
 mod rust_product_catalog;
+mod vision_evidence_adapter;
 mod visual_provider_acceptance_probe;
 mod visual_provider_adapters;
 
@@ -29,7 +31,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::unix::process::CommandExt;
+use std::os::unix::{fs::PermissionsExt, process::CommandExt};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use forgecad_app_server::{
@@ -38,14 +40,16 @@ use forgecad_app_server::{
     validate_concept_receipt, validate_neural_visual_receipt, CancellationToken,
     ConceptImageProviderPort, ConceptImageProviderReceipt, ConceptImageProviderStatus,
     NeuralVisualProviderPort, NeuralVisualProviderReceipt, NeuralVisualProviderStatus,
+    VisionEvidenceCoordinator, VisionEvidenceImage, VisionEvidenceProviderRequest,
     VisualBriefDirector, VisualBriefDirectorInput, VisualBriefDirectorOutput,
 };
 use forgecad_app_server_protocol::ProtocolHttpBody;
 use forgecad_core::{
     inspect_neural_visual_glb, semantic_sha256, ConceptImageBackend, ConceptImageGenerationRequest,
-    ConceptImageResumeBinding, ConceptReferenceArtifact, Neural3DBackend,
-    Neural3DGenerationRequest, Neural3DResumeBinding, NeuralVisualGlbInspection, VisualDesignBrief,
-    VisualInputEvidence, VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
+    ConceptImageResumeBinding, ConceptReferenceArtifact, MultimodalDesignRequest, Neural3DBackend,
+    Neural3DGenerationRequest, Neural3DResumeBinding, NeuralVisualGlbInspection,
+    ReferenceEvidenceKind, VisualDesignBrief, VisualEvidenceGraph, VisualInputEvidence,
+    VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
     NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION, VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION,
 };
 use serde::Deserialize;
@@ -70,6 +74,10 @@ use provider_credentials::{
     validate_provider_config_input, ProviderConfigMetadata, ProviderCredentialStore,
 };
 use rust_core_runtime::RustCoreRuntime;
+use vision_evidence_adapter::{
+    OpenAiCompatibleVisionEvidenceAdapter, PrivateFileVisionEvidenceCredentialStore,
+    ReqwestVisionEvidenceTransport, VisionEvidenceConfigMetadata,
+};
 use visual_provider_adapters::{
     CoreConceptImageObjectSink, CoreConceptInputImageSource, FalFlux2ConceptImageAdapter,
     PrivateFileFalCredentialSource, ReqwestVisualHttpTransport, VisualHttpTransport,
@@ -92,6 +100,8 @@ const ARM_WEBVIEW_QA_CAPTURE_MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
 const ARM_WEBVIEW_QA_CAPTURE_MAX_GLB_BYTES: usize = 16 * 1024 * 1024;
 const RESTRICTED_GEOMETRY_CAPABILITY_HEADER: &str = "X-ForgeCAD-Restricted-Geometry-Capability";
 const RESTRICTED_GEOMETRY_OWNERSHIP_PATH: &str = "/api/v1/internal/geometry/capability/ownership";
+const SIDECAR_SUPERVISOR_SESSION_ENV: &str = "FORGECAD_SUPERVISOR_SESSION_ID";
+const MANAGED_SIDECAR_LEASE_SCHEMA: &str = "ForgeCADManagedSidecarLease@1";
 // Deterministic budget-accounting coefficients, not a claim about current
 // DeepSeek billing. The per-Turn cost gate remains an explicit conservative
 // policy even when external prices change.
@@ -102,7 +112,22 @@ struct AgentProcessState {
     child: Mutex<Option<Child>>,
     mode: Mutex<String>,
     internal_capability_token: String,
+    supervisor_session_id: String,
     provider_credentials: Arc<ProviderCredentialStore>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+struct ManagedSidecarLease {
+    schema_version: String,
+    supervisor_session_id: String,
+    desktop_pid: u32,
+    sidecar_process_group_id: u32,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ForgecadSidecarIdentity {
+    supervisor_session_id: String,
+    process_group_id: u32,
 }
 
 struct VisualProviderState {
@@ -110,6 +135,9 @@ struct VisualProviderState {
     transport: Arc<dyn VisualHttpTransport>,
     repository: Arc<forgecad_core::CoreRepository>,
     brief_director: VisualBriefDirector,
+    vision_credentials: Arc<PrivateFileVisionEvidenceCredentialStore>,
+    vision_coordinator: VisionEvidenceCoordinator,
+    vision_active_requests: Mutex<HashMap<String, CancellationToken>>,
     active_requests: Mutex<HashMap<String, CancellationToken>>,
 }
 
@@ -852,6 +880,37 @@ struct VisualProviderConfigMetadata {
 #[serde(deny_unknown_fields)]
 struct SaveVisualProviderConfigRequest {
     fal_api_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SaveVisionEvidenceProviderConfigRequest {
+    base_url: String,
+    model: String,
+    api_key: String,
+}
+
+impl Drop for SaveVisionEvidenceProviderConfigRequest {
+    fn drop(&mut self) {
+        self.api_key.zeroize();
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AnalyzeVisualEvidenceRequest {
+    client_request_id: String,
+    request: MultimodalDesignRequest,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalyzeVisualEvidenceResult {
+    /// Rust-normalized request carrying semantic hashes of the immutable
+    /// ReferenceEvidence records. The UI must bind this exact request, rather
+    /// than its pre-analysis draft, into turn/start.
+    request: MultimodalDesignRequest,
+    visual_evidence_graph: VisualEvidenceGraph,
 }
 
 #[derive(Deserialize)]
@@ -2770,6 +2829,169 @@ fn clear_visual_provider_config(
 }
 
 #[tauri::command]
+fn get_vision_evidence_provider_config(
+    state: State<'_, VisualProviderState>,
+) -> Result<VisionEvidenceConfigMetadata, String> {
+    state
+        .vision_credentials
+        .inspect_metadata()
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+fn save_vision_evidence_provider_config(
+    mut request: SaveVisionEvidenceProviderConfigRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<VisionEvidenceConfigMetadata, String> {
+    let api_key = std::mem::take(&mut request.api_key);
+    let base_url = std::mem::take(&mut request.base_url);
+    let model = std::mem::take(&mut request.model);
+    state
+        .vision_credentials
+        .save(base_url, model, api_key)
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+#[tauri::command]
+fn clear_vision_evidence_provider_config(
+    state: State<'_, VisualProviderState>,
+) -> Result<VisionEvidenceConfigMetadata, String> {
+    state
+        .vision_credentials
+        .clear()
+        .map_err(|error| format!("{}: {}", error.code, error.message))
+}
+
+/// Explicit read-only vision analysis. This command never creates a Version,
+/// ChangeSet, Snapshot, preview or geometry artifact. It resolves every image
+/// from sealed Rust CAS using evidence identifiers supplied by the already
+/// validated multimodal request.
+#[tauri::command]
+async fn analyze_visual_evidence(
+    input: AnalyzeVisualEvidenceRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<AnalyzeVisualEvidenceResult, String> {
+    validate_visual_client_request_id(&input.client_request_id)
+        .map_err(|_| "VISION_EVIDENCE_REQUEST_ID_INVALID".to_string())?;
+    let cancellation =
+        register_visual_evidence_request(&state.vision_active_requests, &input.client_request_id)?;
+    let result = analyze_visual_evidence_inner(input.request, &state, cancellation).await;
+    finish_visual_evidence_request(&state.vision_active_requests, &input.client_request_id);
+    result
+}
+
+async fn analyze_visual_evidence_inner(
+    mut request: MultimodalDesignRequest,
+    state: &VisualProviderState,
+    cancellation: CancellationToken,
+) -> Result<AnalyzeVisualEvidenceResult, String> {
+    let mut evidence = Vec::with_capacity(request.reference_inputs.len());
+    let mut images = Vec::new();
+    for reference in &request.reference_inputs {
+        if cancellation.is_cancelled() {
+            return Err("VISION_EVIDENCE_CANCELLED".into());
+        }
+        let (sealed, bytes) = state
+            .repository
+            .read_reference_evidence_content(&request.project_id, &reference.evidence_id)
+            .map_err(|error| format!("{}: {}", error.code(), error))?;
+        if sealed.kind == ReferenceEvidenceKind::Image {
+            images.push(VisionEvidenceImage {
+                evidence_id: sealed.evidence_id.clone(),
+                media_type: sealed.source_media_type.clone(),
+                bytes: Arc::from(bytes),
+            });
+        }
+        evidence.push(sealed);
+    }
+    for reference in &mut request.reference_inputs {
+        let sealed = evidence
+            .iter()
+            .find(|item| item.evidence_id == reference.evidence_id)
+            .ok_or_else(|| "VISION_EVIDENCE_REFERENCE_NOT_FOUND".to_string())?;
+        reference.evidence_sha256 =
+            semantic_sha256(sealed).map_err(|error| format!("{}: {}", error.code(), error))?;
+    }
+    let normalized_request = request.clone();
+    let visual_evidence_graph = state
+        .vision_coordinator
+        .analyze(
+            VisionEvidenceProviderRequest {
+                request,
+                evidence,
+                images,
+            },
+            cancellation,
+        )
+        .await
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
+    Ok(AnalyzeVisualEvidenceResult {
+        request: normalized_request,
+        visual_evidence_graph,
+    })
+}
+
+#[tauri::command]
+fn cancel_visual_evidence_analysis(
+    client_request_id: String,
+    state: State<'_, VisualProviderState>,
+) -> Result<bool, String> {
+    validate_visual_client_request_id(&client_request_id)
+        .map_err(|_| "VISION_EVIDENCE_REQUEST_ID_INVALID".to_string())?;
+    cancel_visual_evidence_request(&state.vision_active_requests, &client_request_id)
+}
+
+fn validate_visual_client_request_id(value: &str) -> Result<(), ()> {
+    if value.is_empty()
+        || value.len() > 128
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'@'))
+    {
+        return Err(());
+    }
+    Ok(())
+}
+
+fn register_visual_evidence_request(
+    active_requests: &Mutex<HashMap<String, CancellationToken>>,
+    client_request_id: &str,
+) -> Result<CancellationToken, String> {
+    let cancellation = CancellationToken::new();
+    let mut active = active_requests
+        .lock()
+        .map_err(|_| "VISION_EVIDENCE_STATE_UNAVAILABLE".to_string())?;
+    if active.contains_key(client_request_id) {
+        return Err("VISION_EVIDENCE_REQUEST_ALREADY_ACTIVE".into());
+    }
+    active.insert(client_request_id.to_string(), cancellation.clone());
+    Ok(cancellation)
+}
+
+fn cancel_visual_evidence_request(
+    active_requests: &Mutex<HashMap<String, CancellationToken>>,
+    client_request_id: &str,
+) -> Result<bool, String> {
+    let active = active_requests
+        .lock()
+        .map_err(|_| "VISION_EVIDENCE_STATE_UNAVAILABLE".to_string())?;
+    if let Some(cancellation) = active.get(client_request_id) {
+        cancellation.cancel();
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+fn finish_visual_evidence_request(
+    active_requests: &Mutex<HashMap<String, CancellationToken>>,
+    client_request_id: &str,
+) {
+    if let Ok(mut active) = active_requests.lock() {
+        active.remove(client_request_id);
+    }
+}
+
+#[tauri::command]
 async fn submit_concept_image(
     input: SubmitConceptImageRequest,
     state: State<'_, VisualProviderState>,
@@ -2915,21 +3137,26 @@ async fn cancel_neural_3d(
 impl AgentProcessState {
     fn shutdown_managed(&self) {
         if let Ok(mut child_guard) = self.child.lock() {
-            if let Some(child) = child_guard.as_mut() {
+            if let Some(mut child) = child_guard.take() {
                 // PyInstaller onefile uses a parent process which unpacks and
                 // then starts the actual Agent child. The desktop owns a
                 // dedicated process group so normal window close stops both,
                 // rather than leaving a hidden listener on port 8000.
-                #[cfg(unix)]
-                let _ = Command::new("kill")
-                    .arg("-TERM")
-                    .arg(format!("-{}", child.id()))
-                    .status();
+                terminate_process_group(child.id());
                 let _ = child.kill();
                 let _ = child.wait();
             }
-            *child_guard = None;
         }
+        clear_managed_sidecar_lease(&self.supervisor_session_id);
+    }
+
+    fn record_managed_sidecar(&self, process_group_id: u32) -> Result<(), String> {
+        write_managed_sidecar_lease(&ManagedSidecarLease {
+            schema_version: MANAGED_SIDECAR_LEASE_SCHEMA.to_string(),
+            supervisor_session_id: self.supervisor_session_id.clone(),
+            desktop_pid: std::process::id(),
+            sidecar_process_group_id: process_group_id,
+        })
     }
 }
 
@@ -3020,6 +3247,13 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
         }
     }
 
+    match recover_orphaned_managed_sidecar()? {
+        true => append_supervisor_log(
+            "ForgeCAD supervisor reclaimed a stale managed sidecar before startup",
+        ),
+        false => {}
+    }
+
     match probe_agent(&state.internal_capability_token) {
         AgentProbe::Healthy => {
             let mode_name = runtime_mode_name(runtime_mode());
@@ -3037,7 +3271,7 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
         }
         AgentProbe::CapabilityMismatch(reason) => {
             return Err(format!(
-                "Port 8000 is occupied by a ForgeCAD sidecar not owned by this desktop session: {reason}"
+                "Port 8000 is occupied by an active ForgeCAD sidecar from another desktop session; it was not stopped: {reason}"
             ));
         }
         AgentProbe::Offline => {}
@@ -3063,13 +3297,27 @@ fn start_agent_service(state: State<'_, AgentProcessState>) -> Result<AgentServi
 
     *child_guard = None;
     let child = match mode {
-        AgentMode::PackagedSidecar => start_packaged_sidecar(&state.internal_capability_token)?,
+        AgentMode::PackagedSidecar => start_packaged_sidecar(
+            &state.internal_capability_token,
+            &state.supervisor_session_id,
+        )?,
         AgentMode::LocalDev => {
             let repo_root = repo_root()?;
-            start_local_python_sidecar(&repo_root, &state.internal_capability_token)?
+            start_local_python_sidecar(
+                &repo_root,
+                &state.internal_capability_token,
+                &state.supervisor_session_id,
+            )?
         }
     };
     let pid = child.id();
+    if let Err(error) = state.record_managed_sidecar(pid) {
+        terminate_process_group(pid);
+        let mut child = child;
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(error);
+    }
     *child_guard = Some(child);
     drop(child_guard);
 
@@ -3160,6 +3408,8 @@ fn provider_config_with_runtime_status(
 fn main() {
     let internal_capability_token = generate_internal_capability_token()
         .expect("ForgeCAD must create an ephemeral Rust-to-Python capability token");
+    let supervisor_session_id = generate_supervisor_session_id()
+        .expect("ForgeCAD must create a non-secret managed-sidecar session marker");
     let provider_credentials = ProviderCredentialStore::production();
     let native_provider = build_native_provider_client(provider_credentials.clone())
         .expect("ForgeCAD must initialize its Rust-owned DeepSeek Provider client");
@@ -3196,6 +3446,48 @@ fn main() {
             error.message
         );
     });
+    let vision_credentials = Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
+        library_root
+            .join("secrets")
+            .join("vision-evidence-provider"),
+    ));
+    let vision_transport = ReqwestVisionEvidenceTransport::new().unwrap_or_else(|error| {
+        let _ = rust_core.rollback_cutover_before_publish();
+        panic!(
+            "Forge Studio vision-evidence HTTPS transport failed before cutover: {}",
+            error.message
+        );
+    });
+    let vision_adapter = Arc::new(
+        OpenAiCompatibleVisionEvidenceAdapter::new(
+            vision_credentials.clone(),
+            Arc::new(vision_transport),
+            Duration::from_secs(115),
+        )
+        .unwrap_or_else(|error| {
+            let _ = rust_core.rollback_cutover_before_publish();
+            panic!(
+                "Forge Studio vision-evidence adapter failed before cutover: {}",
+                error.message
+            );
+        }),
+    );
+    app_server_bridge
+        .attach_visual_reference_comparison_provider(vision_adapter.clone())
+        .unwrap_or_else(|error| {
+            let _ = rust_core.rollback_cutover_before_publish();
+            panic!("Forge Studio visual reference comparator failed before cutover: {error}");
+        });
+    let vision_coordinator =
+        VisionEvidenceCoordinator::new(vision_adapter, Duration::from_secs(100)).unwrap_or_else(
+            |error| {
+                let _ = rust_core.rollback_cutover_before_publish();
+                panic!(
+                    "Forge Studio vision-evidence coordinator failed before cutover: {}",
+                    error.message
+                );
+            },
+        );
     let visual_provider_state = VisualProviderState {
         fal_credentials: Arc::new(PrivateFileFalCredentialSource::new(
             library_root.join("secrets").join("visual").join("fal.key"),
@@ -3203,6 +3495,9 @@ fn main() {
         transport: Arc::new(visual_transport),
         repository: Arc::new(rust_core.repository().clone()),
         brief_director: VisualBriefDirector::new(native_provider),
+        vision_credentials,
+        vision_coordinator,
+        vision_active_requests: Mutex::new(HashMap::new()),
         active_requests: Mutex::new(HashMap::new()),
     };
     if let Err(error) = rust_core.publish() {
@@ -3214,13 +3509,14 @@ fn main() {
     );
     let resource_bridge = app_server_bridge.clone();
     let packaged_probe_core = Arc::clone(&rust_core);
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(app_server_bridge)
         .manage(visual_provider_state)
         .manage(AgentProcessState {
             child: Mutex::new(None),
             mode: Mutex::new(AGENT_MODE_LOCAL.to_string()),
             internal_capability_token,
+            supervisor_session_id,
             provider_credentials,
         })
         .register_asynchronous_uri_scheme_protocol(
@@ -3252,6 +3548,9 @@ fn main() {
                     deepseek_mvp_acceptance_probe::run_if_enabled(
                         app.state::<AppServerBridge>().inner().clone(),
                     );
+                    deepseek_forge_visual_acceptance_probe::run_if_enabled(
+                        app.state::<AppServerBridge>().inner().clone(),
+                    );
                     deepseek_delta_acceptance_probe::run_if_enabled(
                         app.state::<AppServerBridge>().inner().clone(),
                     );
@@ -3275,6 +3574,11 @@ fn main() {
             get_visual_provider_config,
             save_visual_provider_config,
             clear_visual_provider_config,
+            get_vision_evidence_provider_config,
+            save_vision_evidence_provider_config,
+            clear_vision_evidence_provider_config,
+            analyze_visual_evidence,
+            cancel_visual_evidence_analysis,
             direct_visual_brief,
             generate_visual_asset,
             cancel_visual_asset_generation,
@@ -3309,8 +3613,21 @@ fn main() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Wushen Forge desktop");
+        .build(tauri::generate_context!())
+        .expect("error while building Wushen Forge desktop");
+    app.run(|app, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            if let Some(state) = app.try_state::<AppServerBridge>() {
+                state.shutdown();
+            }
+            if let Some(state) = app.try_state::<AgentProcessState>() {
+                state.shutdown_managed();
+            }
+        }
+    });
 }
 
 fn status_from_probe(
@@ -3345,6 +3662,7 @@ fn status_from_probe(
 fn start_local_python_sidecar(
     repo_root: &Path,
     internal_capability_token: &str,
+    supervisor_session_id: &str,
 ) -> Result<Child, String> {
     let log_path = repo_root.join(".wushen-agent.log");
     if let Some(parent) = log_path.parent() {
@@ -3353,6 +3671,8 @@ fn start_local_python_sidecar(
     }
     let mut command = Command::new(&agent_python(repo_root));
     apply_sidecar_environment(&mut command, env::vars_os());
+    #[cfg(unix)]
+    command.process_group(0);
     let log_file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -3376,7 +3696,11 @@ fn start_local_python_sidecar(
         .env("PYTHONUNBUFFERED", "1")
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_log));
-    configure_python_facet_environment(&mut command, internal_capability_token);
+    configure_python_facet_environment(
+        &mut command,
+        internal_capability_token,
+        supervisor_session_id,
+    );
 
     command.spawn().map_err(|error| {
         format!(
@@ -3386,7 +3710,10 @@ fn start_local_python_sidecar(
     })
 }
 
-fn start_packaged_sidecar(internal_capability_token: &str) -> Result<Child, String> {
+fn start_packaged_sidecar(
+    internal_capability_token: &str,
+    supervisor_session_id: &str,
+) -> Result<Child, String> {
     let sidecar = sidecar_binary_path()?;
     let log_path = sidecar_log_path();
     if let Some(parent) = log_path.parent() {
@@ -3412,7 +3739,11 @@ fn start_packaged_sidecar(internal_capability_token: &str) -> Result<Child, Stri
         .current_dir(sidecar.parent().unwrap_or_else(|| Path::new(".")))
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_log));
-    configure_python_facet_environment(&mut command, internal_capability_token);
+    configure_python_facet_environment(
+        &mut command,
+        internal_capability_token,
+        supervisor_session_id,
+    );
     command.spawn().map_err(|error| {
         format!(
             "failed to start packaged-sidecar with {}: {error}",
@@ -3516,7 +3847,11 @@ fn strip_provider_environment(command: &mut Command) {
     }
 }
 
-fn configure_python_facet_environment(command: &mut Command, internal_capability_token: &str) {
+fn configure_python_facet_environment(
+    command: &mut Command,
+    internal_capability_token: &str,
+    supervisor_session_id: &str,
+) {
     // K003 gives Python only one ephemeral compiler capability. Database,
     // object-store and Provider locations are deliberately absent. No
     // environment switch can select the retired Python product writer.
@@ -3524,6 +3859,7 @@ fn configure_python_facet_environment(command: &mut Command, internal_capability
         "FORGECAD_RESTRICTED_GEOMETRY_CAPABILITY_TOKEN",
         internal_capability_token,
     );
+    command.env(SIDECAR_SUPERVISOR_SESSION_ENV, supervisor_session_id);
 }
 
 fn generate_internal_capability_token() -> Result<String, String> {
@@ -3537,6 +3873,19 @@ fn generate_internal_capability_token() -> Result<String, String> {
         token.push(HEX[(byte & 0x0f) as usize] as char);
     }
     Ok(token)
+}
+
+fn generate_supervisor_session_id() -> Result<String, String> {
+    let mut bytes = [0_u8; 16];
+    getrandom::fill(&mut bytes)
+        .map_err(|_| "secure supervisor session generation failed".to_string())?;
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut session_id = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        session_id.push(HEX[(byte >> 4) as usize] as char);
+        session_id.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    Ok(session_id)
 }
 
 fn generate_rust_core_instance_id() -> Result<String, String> {
@@ -3574,6 +3923,184 @@ fn sidecar_log_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."));
     base.join("WushenForge").join("agent.log")
 }
+
+fn managed_sidecar_lease_path() -> PathBuf {
+    sidecar_log_path().with_file_name("managed-sidecar-lease.json")
+}
+
+fn valid_supervisor_session_id(value: &str) -> bool {
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn write_managed_sidecar_lease(lease: &ManagedSidecarLease) -> Result<(), String> {
+    if lease.schema_version != MANAGED_SIDECAR_LEASE_SCHEMA
+        || !valid_supervisor_session_id(&lease.supervisor_session_id)
+        || lease.desktop_pid == 0
+        || lease.sidecar_process_group_id == 0
+    {
+        return Err("ForgeCAD refused to write an invalid managed-sidecar lease".to_string());
+    }
+    let path = managed_sidecar_lease_path();
+    let parent = path
+        .parent()
+        .ok_or_else(|| "managed-sidecar lease has no parent directory".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("failed to create managed-sidecar lease directory: {error}"))?;
+    let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
+    let encoded = serde_json::to_vec(lease)
+        .map_err(|_| "failed to serialize managed-sidecar lease".to_string())?;
+    {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&temporary)
+            .map_err(|error| format!("failed to open managed-sidecar lease: {error}"))?;
+        file.write_all(&encoded)
+            .map_err(|error| format!("failed to write managed-sidecar lease: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("failed to flush managed-sidecar lease: {error}"))?;
+    }
+    #[cfg(unix)]
+    fs::set_permissions(&temporary, fs::Permissions::from_mode(0o600)).map_err(|error| {
+        format!("failed to restrict managed-sidecar lease permissions: {error}")
+    })?;
+    fs::rename(&temporary, &path)
+        .map_err(|error| format!("failed to publish managed-sidecar lease: {error}"))?;
+    Ok(())
+}
+
+fn read_managed_sidecar_lease() -> Option<ManagedSidecarLease> {
+    let bytes = fs::read(managed_sidecar_lease_path()).ok()?;
+    let lease = serde_json::from_slice::<ManagedSidecarLease>(&bytes).ok()?;
+    (lease.schema_version == MANAGED_SIDECAR_LEASE_SCHEMA
+        && valid_supervisor_session_id(&lease.supervisor_session_id)
+        && lease.desktop_pid != 0
+        && lease.sidecar_process_group_id != 0)
+        .then_some(lease)
+}
+
+fn clear_managed_sidecar_lease(supervisor_session_id: &str) {
+    let Some(lease) = read_managed_sidecar_lease() else {
+        return;
+    };
+    if lease.supervisor_session_id == supervisor_session_id {
+        let _ = fs::remove_file(managed_sidecar_lease_path());
+    }
+}
+
+fn probe_forgecad_sidecar_identity() -> Option<ForgecadSidecarIdentity> {
+    let response = loopback_get("/api/health", None).ok()?;
+    if response.status != 200 {
+        return None;
+    }
+    let payload = serde_json::from_str::<Value>(&response.body).ok()?;
+    if payload.get("status").and_then(Value::as_str) != Some("ok")
+        || payload.get("service").and_then(Value::as_str)
+            != Some("forgecad-restricted-geometry-executor")
+        || payload
+            .get("persistent_state_writer")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return None;
+    }
+    let supervisor_session_id = payload
+        .get("supervisor_session_id")
+        .and_then(Value::as_str)?
+        .to_string();
+    let process_group_id = payload
+        .get("supervisor_process_group_id")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())?;
+    if !valid_supervisor_session_id(&supervisor_session_id) || process_group_id == 0 {
+        return None;
+    }
+    Some(ForgecadSidecarIdentity {
+        supervisor_session_id,
+        process_group_id,
+    })
+}
+
+fn managed_sidecar_lease_is_orphaned(
+    identity: &ForgecadSidecarIdentity,
+    lease: &ManagedSidecarLease,
+    desktop_is_alive: bool,
+) -> bool {
+    identity.supervisor_session_id == lease.supervisor_session_id
+        && identity.process_group_id == lease.sidecar_process_group_id
+        && !desktop_is_alive
+}
+
+fn recover_orphaned_managed_sidecar() -> Result<bool, String> {
+    let Some(identity) = probe_forgecad_sidecar_identity() else {
+        return Ok(false);
+    };
+    let Some(lease) = read_managed_sidecar_lease() else {
+        return Ok(false);
+    };
+    if !managed_sidecar_lease_is_orphaned(&identity, &lease, process_is_alive(lease.desktop_pid)) {
+        return Ok(false);
+    }
+    terminate_process_group(lease.sidecar_process_group_id);
+    for _ in 0..50 {
+        if probe_forgecad_sidecar_identity().is_none() {
+            clear_managed_sidecar_lease(&lease.supervisor_session_id);
+            return Ok(true);
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    Err("a stale ForgeCAD-managed sidecar did not release port 8000 after termination".to_string())
+}
+
+#[cfg(unix)]
+fn process_is_alive(process_id: u32) -> bool {
+    process_id != 0
+        && Command::new("/bin/kill")
+            .arg("-0")
+            .arg(process_id.to_string())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+}
+
+#[cfg(not(unix))]
+fn process_is_alive(_process_id: u32) -> bool {
+    true
+}
+
+#[cfg(unix)]
+fn process_group_is_alive(process_group_id: u32) -> bool {
+    process_group_id != 0
+        && Command::new("/bin/kill")
+            .arg("-0")
+            .arg(format!("-{process_group_id}"))
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+}
+
+#[cfg(unix)]
+fn terminate_process_group(process_group_id: u32) {
+    if process_group_id == 0 {
+        return;
+    }
+    let target = format!("-{process_group_id}");
+    let _ = Command::new("/bin/kill").arg("-TERM").arg(&target).status();
+    for _ in 0..25 {
+        if !process_group_is_alive(process_group_id) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    let _ = Command::new("/bin/kill").arg("-KILL").arg(target).status();
+}
+
+#[cfg(not(unix))]
+fn terminate_process_group(_process_group_id: u32) {}
 
 fn append_supervisor_log(message: &str) {
     let path = sidecar_log_path();
@@ -3970,6 +4497,7 @@ mod tests {
         io::Cursor,
         process::{Command, Stdio},
         sync::{Arc, Mutex},
+        time::Duration,
     };
 
     use forgecad_app_server::ConceptImageProviderError;
@@ -3992,21 +4520,42 @@ mod tests {
 
     use super::{
         agent_health_url, apply_sidecar_environment, arm_webview_qa_glb_readback,
-        arm_webview_qa_png_dimensions, build_loopback_get_request,
+        arm_webview_qa_png_dimensions, build_loopback_get_request, cancel_visual_evidence_request,
         classify_capability_ownership_response, finish_packaged_probe_report,
-        generate_internal_capability_token, resume_visual_asset_inner, status_from_probe,
-        valid_internal_capability_token, validate_arm_webview_qa_success,
-        validate_k001_probe_success, validate_k002_probe_success, validate_provider_config_input,
-        AgentProbe, ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture, ArmWebviewQaReport,
-        CancellationToken, K001PackagedProbeReport, K002PackagedProbeReport,
-        LocalRoboticArmMvpProvider, LoopbackProbeResponse, PrivateFileFalCredentialSource,
-        ProviderConfigMetadata, VisualBriefDirector, VisualProviderState, ARM_WEBVIEW_QA_SCHEMA,
-        K001_PACKAGED_PROBE_SCHEMA, K002_PACKAGED_PROBE_SCHEMA, PROVIDER_ENVIRONMENT_KEYS,
+        finish_visual_evidence_request, generate_internal_capability_token,
+        generate_supervisor_session_id, managed_sidecar_lease_is_orphaned,
+        register_visual_evidence_request, resume_visual_asset_inner, status_from_probe,
+        valid_internal_capability_token, valid_supervisor_session_id,
+        validate_arm_webview_qa_success, validate_k001_probe_success, validate_k002_probe_success,
+        validate_provider_config_input, AgentProbe, ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture,
+        ArmWebviewQaReport, CancellationToken, ForgecadSidecarIdentity, K001PackagedProbeReport,
+        K002PackagedProbeReport, LocalRoboticArmMvpProvider, LoopbackProbeResponse,
+        ManagedSidecarLease, OpenAiCompatibleVisionEvidenceAdapter, PrivateFileFalCredentialSource,
+        PrivateFileVisionEvidenceCredentialStore, ProviderConfigMetadata,
+        ReqwestVisionEvidenceTransport, VisionEvidenceCoordinator, VisualBriefDirector,
+        VisualProviderState, ARM_WEBVIEW_QA_SCHEMA, K001_PACKAGED_PROBE_SCHEMA,
+        K002_PACKAGED_PROBE_SCHEMA, PROVIDER_ENVIRONMENT_KEYS,
         RESTRICTED_GEOMETRY_CAPABILITY_HEADER, RESTRICTED_GEOMETRY_OWNERSHIP_PATH,
     };
 
     const SIDECAR_ENVIRONMENT_PROBE_CHILD: &str = "FORGECAD_TEST_SIDECAR_ENVIRONMENT_PROBE_CHILD";
     const SIDECAR_ENVIRONMENT_PROBE_MARKER: &str = "ForgeCAD sidecar environment probe=";
+
+    #[test]
+    fn pv006b_visual_analysis_registry_rejects_duplicates_cancels_and_cleans_up() {
+        let active = Mutex::new(std::collections::HashMap::new());
+        let request_id = "vision_evidence_registry_test";
+        let cancellation = register_visual_evidence_request(&active, request_id).unwrap();
+        assert!(!cancellation.is_cancelled());
+        assert_eq!(
+            register_visual_evidence_request(&active, request_id).unwrap_err(),
+            "VISION_EVIDENCE_REQUEST_ALREADY_ACTIVE"
+        );
+        assert!(cancel_visual_evidence_request(&active, request_id).unwrap());
+        assert!(cancellation.is_cancelled());
+        finish_visual_evidence_request(&active, request_id);
+        assert!(!cancel_visual_evidence_request(&active, request_id).unwrap());
+    }
 
     struct ScriptedVisualTransport {
         responses: Mutex<VecDeque<VisualHttpResponse>>,
@@ -4182,6 +4731,25 @@ mod tests {
                 brief_director: VisualBriefDirector::new(Arc::new(
                     LocalRoboticArmMvpProvider::new(),
                 )),
+                vision_credentials: {
+                    Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
+                        root.path().join("secrets").join("vision-evidence"),
+                    ))
+                },
+                vision_coordinator: {
+                    let credentials = Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
+                        root.path().join("secrets").join("vision-evidence"),
+                    ));
+                    let adapter = OpenAiCompatibleVisionEvidenceAdapter::new(
+                        credentials,
+                        Arc::new(ReqwestVisionEvidenceTransport::new().unwrap()),
+                        Duration::from_secs(30),
+                    )
+                    .unwrap();
+                    VisionEvidenceCoordinator::new(Arc::new(adapter), Duration::from_secs(40))
+                        .unwrap()
+                },
+                vision_active_requests: Mutex::new(std::collections::HashMap::new()),
                 active_requests: Mutex::new(std::collections::HashMap::new()),
             };
             let brief = VisualDesignBrief {
@@ -4346,6 +4914,40 @@ mod tests {
     }
 
     #[test]
+    fn managed_sidecar_orphan_recovery_requires_exact_forgecad_lease_identity() {
+        let session_id = generate_supervisor_session_id().unwrap();
+        assert!(valid_supervisor_session_id(&session_id));
+        let lease = ManagedSidecarLease {
+            schema_version: "ForgeCADManagedSidecarLease@1".to_string(),
+            supervisor_session_id: session_id.clone(),
+            desktop_pid: 4242,
+            sidecar_process_group_id: 5252,
+        };
+        let identity = ForgecadSidecarIdentity {
+            supervisor_session_id: session_id.clone(),
+            process_group_id: 5252,
+        };
+        assert!(managed_sidecar_lease_is_orphaned(&identity, &lease, false));
+        assert!(!managed_sidecar_lease_is_orphaned(&identity, &lease, true));
+        assert!(!managed_sidecar_lease_is_orphaned(
+            &ForgecadSidecarIdentity {
+                supervisor_session_id: "b".repeat(32),
+                process_group_id: 5252,
+            },
+            &lease,
+            false,
+        ));
+        assert!(!managed_sidecar_lease_is_orphaned(
+            &ForgecadSidecarIdentity {
+                supervisor_session_id: session_id,
+                process_group_id: 5253,
+            },
+            &lease,
+            false,
+        ));
+    }
+
+    #[test]
     fn capability_ownership_request_is_header_bound_and_injection_safe() {
         let token = "a".repeat(64);
         let request = build_loopback_get_request(
@@ -4499,7 +5101,7 @@ mod tests {
             base_url: "https://api.deepseek.com".to_string(),
             model: "deepseek-v4-pro".to_string(),
             configured: true,
-            storage: "macos-keychain".to_string(),
+            storage: "private_secret_file".to_string(),
             credential_id: None,
             metadata_status: "valid".to_string(),
             secret_status: "available".to_string(),

@@ -49,9 +49,10 @@ def main() -> int:
             process = _start_sidecar(temporary, environment, port)
             try:
                 payload = _wait_for_health(port, process)
-                _assert(
-                    payload == _restricted_health_payload(),
-                    f"unexpected {phase} health payload",
+                _assert_restricted_health_payload(
+                    payload,
+                    require_supervisor_identity=False,
+                    phase=phase,
                 )
                 _assert_restricted_ownership(port, capability)
                 _assert_product_tombstones(port)
@@ -164,6 +165,44 @@ def _restricted_health_payload() -> dict[str, object]:
         "snapshot_write": False,
         "persistent_state_writer": False,
     }
+
+
+def _assert_restricted_health_payload(
+    payload: dict[str, object],
+    *,
+    require_supervisor_identity: bool,
+    phase: str,
+) -> None:
+    expected = _restricted_health_payload()
+    _assert(
+        all(payload.get(key) == value for key, value in expected.items()),
+        f"unexpected {phase} health payload",
+    )
+    _assert(
+        set(payload) == set(expected) | {
+            "supervisor_session_id",
+            "supervisor_process_group_id",
+        },
+        f"{phase} health payload exposed an unreviewed field",
+    )
+    supervisor_session_id = payload.get("supervisor_session_id")
+    if require_supervisor_identity:
+        _assert(
+            isinstance(supervisor_session_id, str)
+            and len(supervisor_session_id) == 32
+            and all(character in "0123456789abcdef" for character in supervisor_session_id),
+            f"{phase} health payload omitted its supervisor session identity",
+        )
+    else:
+        _assert(
+            supervisor_session_id is None,
+            f"standalone {phase} health unexpectedly claimed a desktop supervisor",
+        )
+    _assert(
+        isinstance(payload.get("supervisor_process_group_id"), int)
+        and payload["supervisor_process_group_id"] > 0,
+        f"{phase} health payload omitted its process-group identity",
+    )
 
 
 def _assert_product_tombstones(port: int) -> None:

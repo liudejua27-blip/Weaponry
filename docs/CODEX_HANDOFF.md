@@ -3,10 +3,53 @@
 快照日期：2026-07-25
 用途：后续 Codex 开始任务前的第一份上下文
 
+# 2026-07-27：PV008 紧凑 Provider Authoring IR 真实闭环通过
+
+- 新增 `ForgeVisualAuthoringIntent@1`。DeepSeek 只决定机械臂架构、关节/连杆/底座/腕部/末端/线缆语言、表面 motif、材质方向、细节密度、姿态与比例；它不再手写 ShapeProgram、Part、Assembly、Material Zone、Surface Program、Detail ID 或跨图引用。Rust Core 以同一 C111 reviewed compiler substrate 确定性派生完整 `ForgeVisualProgram@1`，后续 revision、受限编译、GLB readback、八视图、唯一 preview、确认、Snapshot 和导出链保持不变，不新增第二资产真值。
+- release `.app` 显式联网报告 `output/deepseek-forge-visual/live_forge_visual_20260727_225722.json` 完整 PASS：1 次真实 DeepSeek 网络调用，2,098 input / 317 output tokens，`author_source_mode=provider_authoring_ir`；六阶段 Product Tool、确认建版、Snapshot 前进和导出 hash 全部为 true。该证据首次证明 Provider 原始视觉意图被 Rust 编译采用，不是 `reviewed_fallback`。
+- Core 同时同步变更 geometry/assembly/material lineage，并把表面语言编译到实际 A005 surface program ID；Provider 多模态 claim 只选择 `bound | unresolved | evaluation_only`，Rust 负责绑定派生后的真实 detail ID。非法 URL、路径、代码、密钥文本、未知字段或未实现架构 fail closed。
+- 自动证据：Core 119 项、app-server 192 项、desktop acceptance probe 6 项、generated contracts、无联网 launcher、release sidecar/App build 与 `git diff --check` 均通过。专属 Gate 为 `npm run agent:pv008-provider-authoring-ir-gate`。
+- 当前边界：PV008 证明“紧凑意图→高密度机械臂程序→真实 GLB”的工程闭环和多种视觉语言差异，不等于任意类别自由生成，也不等于目标图视觉 4/5。下一原子任务仍是 C111B，深化真实装甲层级、执行器/线缆、紧固件、Decal、磨损与分区粗糙度；之后才进入 M108B 真人评审和 PV006 20 条盲测。
+
+# 2026-07-27：真实 DeepSeek→ForgeVisualProgram→GLB→确认→导出闭环首次通过
+
+- release `.app` 的显式联网验收 `live_forge_visual_20260728_0130` 已通过：1 次真实 Provider 网络调用，`author_forge_visual_program → build_candidate_geometry → compile_readback_candidate → render_candidate_views → evaluate_candidate → prepare_candidate_preview` 六阶段齐全；随后唯一 preview 的字节/hash/header 一致、用户确认建版、`ActiveDesignSnapshot` 前进、production GLB 导出字节/JSON/header hash 一致。脱敏报告位于 `output/deepseek-forge-visual/live_forge_visual_20260728_0130.json`，记录 4,219 input / 6,284 output tokens，不保存 Key、endpoint、prompt 或 response。
+- 本轮修复了 Rust/Python ShapeProgram 合同漂移：Python Worker 现在真正执行 2–8 输入的 `union(a,b,...)` 与 `subtract(a,b,...)=a-union(b,...)`，第三输入不再被忽略；Rust 同步前置拒绝 profile 布尔输入、超过 8 层的 CSG、非 box 的 `bevel_approx/surface_panel` 来源以及非法阵列。相关 Python 35 项、Rust app-server 188 项与新增回归通过。
+- Provider-facing 大 Schema 仍是可靠性瓶颈。严格 Schema 继续作为模型编写提示，但 author 的最终安全边界改为原生 Rust validator；若文本机械臂草稿无效，Rust 可使用 C111 reviewed fallback 完成同领域工程闭环。来源枚举版复验 `live_forge_visual_20260728_0200` 再次完整 PASS，并明确记录 `author_source_mode=reviewed_fallback`（4,219 input / 5,724 output tokens）。因此当前已经证明真实 DeepSeek 参与和完整 Rust/GLB 生命周期，但**尚未证明 DeepSeek 自由写出的程序可被原样编译**；在扩大自由生成前必须先设计更小的 Provider Authoring IR，由 Rust 自动派生 Part/Material/Surface/Detail 账本。
+- 视觉质量结论没有改变：C111 仍低于用户目标图，M108B 三位独立真人逐领域 `4/5` 仍 blocked。下一原子任务是 C111B，深化机械臂装甲层级、执行器/线缆、紧固件、接缝与微表面，再运行正式视觉门。
+
+# 2026-07-27：任务 D 生产密度 packaged 闭环通过；真实 Provider 与目标图门仍未通过
+
+- 新视觉程序的 release `.app` 双进程闭环已通过：授权图片证据 → `ForgeVisualProgram@1` → Rust lowering/受限 worker → 八视图 → 唯一预览 → 用户确认 → production GLB 导出 → 新进程恢复。导出字节、JSON `glb_sha256` 与 HTTP `X-ForgeCAD-GLB-SHA256` 现在强制三方一致；最新证据为 124,376 triangles、34,304,740 bytes，初次与恢复导出 SHA-256 均为 `4e880e4f4660856ba6035ceebe04f926d82d32296fc9e9ec893acdcbb0952265`。
+- 任务 D 原来的确定性 Provider 只写出一个 box，虽然协议通过但仅有 12 triangles。该“假绿”已删除：同一 Provider 现在通过现有 C111 reviewed builder 写出 10 Parts、96 outputs、6 surface programs、27 details 的 draft program；Rust/Python/GLB/预览路径不变，并新增 80,000–150,000 production triangle 硬门。该 Provider 仍是 `offline_deterministic`，不能冒充 DeepSeek 创作能力。
+- GLB 人工开发视图已复核：完整机械臂、关节/连杆/基座/夹爪和 PBR 分区可见，但装甲层级、执行器/线缆、紧固件、粗糙度变化与微表面仍明显弱于目标图。M108B 真人 `4/5`、PV006 20 条盲测和“自由生成各种精致模型”仍未完成。
+- `DraftCandidate@1` 的 Core 存储/确认/严格导出合同及 5 项测试已存在，但尚未接入真实 `SingleResultDecision → preview → confirm` bridge；当前初始确认仍经旧 `BlockoutCandidate` 提交，已确认资产编辑仍经 ChangeSet。不得宣称 DraftCandidate 已成为运行时唯一候选真值；下一独立原子任务必须移除双候选路径后再接入。
+- 当前 build bundle 与 `/Applications/CAD 工作台.app` 不同：build 主二进制比安装版更新且 SHA 不一致。构建脚本不会复制到 `/Applications`；同 bundle ID/version 的旧备份和历史 LaunchServices 登记会放大 Dock/Finder 启动歧义。当前没有 8000 listener。完成真实 Provider 验收前不覆盖安装版、不触碰 Keychain；最终应 staged copy→hash verify→atomic replace，并只按明确 app 路径验证。
+
+# 2026-07-27：PV006C 真实组合 Provider 调试（进行中；尚无 GLB 成功）
+
+- 用户已在应用内配置独立视觉服务和 DeepSeek。真实视觉请求使用 `qwen3.7-plus` 成功返回机械臂宏观/中频/微观证据并通过 Rust `VisualEvidenceGraph@1` 校验；已观察到三关节轮廓、宽低底座、蓝黑材质、同心关节环、外露线缆、双指夹爪、紧固件、发光线和 `A-01`。这证明单图→结构化视觉证据的真实 Provider 边界，不证明 3D 视觉质量。
+- 本机 Alpha 的 DeepSeek credential 已从不稳定 ad-hoc Keychain identity 迁移到 Rust-owned generation 私密文件（0700 directory、0600 key、原子替换、拒绝 symlink）。旧 `macos-keychain` metadata 返回 `PROVIDER_CREDENTIAL_MIGRATION_REQUIRED`，用户显式重存一次后状态为已配置；普通启动不打开 secret，显式 Turn 读取一次并 terminal zeroize。当前安装包不再触发 Keychain 系统密码弹窗。
+- 第一次真实多模态 Turn 在联网前因 DeepSeek transport 保留旧 `MAX_TOOLS=13`、而代码所有 registry 已为 16 项而失败。provider 现直接引用 `PRODUCT_TOOL_DEFINITION_COUNT`，完整 registry request focused test 通过。
+- 第二次真实 Turn 成功联网 3 次并完成 `infer_product_domain`、`select_style_recipe` 和 `research_approved_references`，随后以 `PROVIDER_TIMEOUT` 失败（22,496 input / 2,042 output / 3 Product Tool calls；0 asset/Snapshot write）。有 Rust 视觉证据的新建 Turn 现只广告 `author/inspect/patch/build` 四项视觉编译工具，避免重复发现；DeepSeek 高推理单请求上限从 60 秒增至 180 秒，整个 Turn 与取消仍有界。
+- 第三次真实 Turn 已直接进入视觉程序编写，运行 117 秒后因高推理 SSE 分片累计超过旧 4 MiB 信封上限而 `PROVIDER_SCHEMA_RESPONSE_TOO_LARGE`；0 Product Tool、0 asset/Snapshot write。aggregate SSE 上限现提升到代码已审阅的 16 MiB，同时保留 reasoning/content/event/tool arguments 各自更小的独立上限。DeepSeek focused Rust 23/23、multimodal tool projection 1/1、release `.app` build 通过，安装 binary SHA-256 `919e60605ba05d24aa435cf41c3346becf4cf641b86cb1b8be63cfd06c6f5c32`。
+- 最新包已安装到 `/Applications/CAD 工作台.app`，但 macOS 在重跑前锁屏；尚未在 16 MiB 修复后重新执行真实 Turn。因此 PV006C 仍 `in_progress`：没有 claim→program→GLB→八视图比较→唯一 preview 的真实成功证据，也没有 confirm/export/hash。解锁后应重跑同一已封存图片，不重新录入任何 Key。
+
+# 2026-07-26：PV005 同资产连续修改与六成员资产包（已实现）
+
+- 已确认的 `ForgeVisualProgramRevision@1` 现在作为现有 `AgentAssetVersion.assembly_graph` provenance 保存；Rust Snapshot reader 在新 Turn 恢复后重新校验 revision/source hash，并要求 lowering ShapeProgram 与不可变版本完全一致。材质图现在会真正覆盖输出 operation 的 `material_id`，修复了“语言说换材质但 GLB 不变”的根因。
+- 非首版唯一结果通过代码所有 `replace_forge_visual_program` ChangeSet 复用现有 preview→confirm、Snapshot、CAS、Quality 和原子子版本链；公共 ChangeSet 路由拒绝直接提交该内部 operation。离线中文 fixture 完成三次后续修改、geometry/material-surface 双锁、四版本、undo/redo、重启和导出一致，Provider 调用为 0。
+- 新只读 `:asset-package` 路径从活动 Snapshot 重编译并核对同一 production GLB，使用 restricted worker 的 `turntable_eight` 生成真实环绕 PNG，再编码 WebP 与 H.264 MP4；Rust `ForgeAssetPackage@1` 校验六个 canonical member，`asset.glb` 与视口/导出 SHA-256 完全相同。缺少允许的本机 FFmpeg 返回 503，不伪造视频；FFmpeg 尚未随签名安装包分发。
+- `npm run agent:pv005-continuous-asset-gate` 通过：Core visual program 9/9、desktop PV005 1/1、Python opaque artifact/三种 view profile 1/1、contracts drift 通过。Ruff 固定为 0.15.21，`npm audit` 为 0 vulnerabilities。
+- PV006A 已新增 `multimodal_design.rs` 及三份 JSON Schema：文字/单图/多视图/活动模型/局部选择/锁定形成 exact-lineage request；Vision 输出必须区分观察、推断、未知；每条 claim 必须逐一落到真实 program detail、显式 unresolved 或 evaluation-only。`npm run agent:pv006a-multimodal-contract-gate` 当前 Rust 5/5、contracts 和 diff check 通过。
+- PV006B 已新增独立 `VisionEvidenceProviderPort`、OpenAI-compatible desktop adapter、Rust CAS 图片解析、0700/0600 私密配置、请求 registry/取消/迟到丢弃，以及工作台参考角色/局部范围/保持锁/三层证据 UI。`npm run agent:pv006b-vision-evidence-provider-gate` 当前 app-server 5/5、desktop 5/5、F026 smoke、typecheck、contracts 和 diff check 通过。用户测试视觉 Key 未写入代码、命令、日志或 fixture，也尚未真实联网；下一原子任务是 PV006C，将 graph exact-hash 注入 DeepSeek author/patch 并复用 PV004/PV005 闭环。
+- PV006C 已把 Rust-normalized request+graph 从工作台按钮接入原生 `turn/start`；运行时在 Turn 持久化前重读 sealed evidence，校验 Project/指令/活动 Asset/hash，以 digest 绑定幂等回放。多模态 author/patch 必须对每条 claim 提交 bound/unresolved/evaluation-only disposition，Rust 构造 `MultimodalProgramEvidenceBinding@1`。新增 transport-neutral reference comparison boundary：production 入口将 sealed 参考像素与当前 GLB 的确切八张 PNG 送入同一 OpenAI-compatible 视觉适配器，Provider 只提交 assessment，Rust 构造 `VisualReferenceComparisonInput@1`/`Report@1` 并派生三层相似度、修复 claim 与 `pv006c_reference_comparison` 硬门；过期/缺失图、hash 不符及 Provider 伪造 pass 均拒绝。失败后可最多两次 typed same-intent 修复并重新编译/比较，通过的比较证据随唯一 preview 持久到 AssemblyGraph provenance。offline E2E 已覆盖 confirm、Snapshot、同字节 GLB 导出与六成员资产包。尚未用真实 Vision+DeepSeek 生成多模态 GLB；下一步是在应用内保存受限视觉配置后执行一条真实单图 E2E，再进入 20 条真人门。
+- Tauri 开发入口曾因根 manifest 同时包含主 App 与多个 Recipe/证据 dump binary、但未声明 `default-run` 而失败；`Cargo.toml` 现明确 `default-run = "wushen-forge-desktop"`。这解释了“最新开发工作台打不开、用户随后看到旧安装版”的一个确定根因；仍需以最新 dev/packaged App 的可见版本标识完成运行时核对。
+
 # 2026-07-26：PV003 DeepSeek typed visual authoring
 
 - Rust Core 新增 `ForgeVisualProgramRevision@1`、`ForgeVisualProgramInspection@1` 和 `ForgeVisualPatch@1`；草稿 author 从 revision 1 开始，patch 必须精确匹配 revision/source hash，成功后保留 parent hash 和 changed domains。只允许 10 类显式 operation/最多 32 项，未知字段、任意代码/路径/URL、过期请求、保持锁违反、语义 no-op 和非法 ShapeProgram 均 fail closed，且不更新执行内 revision。
-- K002 Product Tool registry 由 13 扩展为 16，新增 `inspect_forge_visual_program`、`author_forge_visual_program`、`patch_forge_visual_program`。三者只在 Rust native executor 执行；旧 13 个 A004 兼容工具仍与临时 Python registry 精确对齐，K002 smoke 不再错误要求 Python 拥有新视觉工具。manifest hash 为 `bca8fa0b5216d72077ed4db1726f1c1424ffded52670bfcacc00566d95e4508e`。
+- K002 Product Tool registry 由 13 扩展为 16，新增 `inspect_forge_visual_program`、`author_forge_visual_program`、`patch_forge_visual_program`。三者只在 Rust native executor 执行；旧 13 个 A004 兼容工具仍与临时 Python registry 精确对齐，K002 smoke 不再错误要求 Python 拥有新视觉工具。PV006C 加入可选 claim-disposition envelope 后 manifest hash 为 `dedddb3281dd6109143c01373f9ee2c3de16dcaacc15d6064058f6603adf328d`。
 - DeepSeek Action Loop 已有 author→inspect→patch 的确定性 Provider 合同测试，首次结构错误只允许一次固定恢复；patch 错误会要求先 full inspect 再以精确 revision/hash 重试。两个不同 Brief fixture 证明几何宽度、材质、surface ID 和 program hash 真实不同。
 - `npm run agent:pv003-visual-authoring-gate` 已通过：Core PV001/PV003 9/9、app-server PV003 5/5、registry 8/8、K002 manifest 和 generated schemas/OpenAPI 均通过。未通过的仍是 PV004/PV005 边界：新草稿尚未接入固定 build ledger、真实 GLB/八视图收敛、确认版本、三轮语言修改或重启/资产包。下一原子任务是 PV004。
 

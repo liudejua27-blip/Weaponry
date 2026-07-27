@@ -114,7 +114,13 @@ const DEFAULT_BASE_URL = appServerTransport.getCompatibilityBaseUrl()
 const NATIVE_LIST_LIMIT = 200
 const NATIVE_REPLAY_MAX_PAGES = 32
 const NATIVE_REPLAY_TRANSIENT_RECOVERY_ATTEMPTS = 1
-const NATIVE_TURN_WAIT_MS = 125_000
+// A real multimodal Turn can legitimately include Provider authoring,
+// restricted compile/readback, eight-view rendering, visual comparison and
+// one bounded repair. Keep the UI attached longer than the Rust 12-minute
+// Turn ceiling so a valid result is not mislabeled as failed while Core keeps
+// working in the background.
+const NATIVE_TURN_WAIT_MS = 780_000
+const NATIVE_TURN_CANCELLATION_WAIT_MS = 125_000
 const NATIVE_TURN_READ_POLL_MS = 250
 
 type NativeTurnCancellation = {
@@ -1390,7 +1396,7 @@ export class ForgeApiClient {
           capability.cancellationId,
         )
 
-        const deadline = Date.now() + NATIVE_TURN_WAIT_MS
+        const deadline = Date.now() + NATIVE_TURN_CANCELLATION_WAIT_MS
         let authoritative = await this.readNativeAgentTurn(capability.threadId, turnId)
         while (!isNativeTurnTerminal(authoritative)) {
           if (notificationError) throw notificationError
@@ -3018,7 +3024,7 @@ function readNativeApprovalNotification(
 function mapNativeProviderPreflight(result: NativeProviderPreflight): AgentProviderCheckResponse {
   const providerId = result.providerId ?? 'deepseek'
   if (result.status === 'unconfigured') {
-    const message = '模型服务尚未在桌面 Keychain 中配置；没有发起网络请求。'
+    const message = '模型服务尚未在桌面私密凭据存储中配置；没有发起网络请求。'
     return {
       status: 'not_configured',
       provider_id: providerId,

@@ -4,8 +4,8 @@
 //! the normal application never enters this module, and a caller must opt in
 //! with both a per-run confirmation and a caller-owned absolute report path.
 //! The only credential source is the production Rust `ProviderCredentialStore`
-//! already wired into `AppServerBridge`; this module never reads a Keychain,
-//! environment API key, secret file, or Provider configuration itself.
+//! already wired into `AppServerBridge`; this module never reads an environment
+//! API key, credential file, or Provider configuration itself.
 
 use std::{env, fs, path::PathBuf, thread};
 
@@ -718,7 +718,7 @@ fn turn_contains_bound_arm_architecture(turn: &Value, expected_architecture: &st
 
 /// The persisted item sequence is Rust-owned. Only map an exact fixed tool
 /// name to a short stage label; unknown values deliberately remain absent.
-fn safe_failed_tool_stage(turn: &Value) -> Option<&'static str> {
+pub(crate) fn safe_failed_tool_stage(turn: &Value) -> Option<&'static str> {
     let items = turn.get("items")?.as_array()?;
     let tool_name = items.iter().rev().find_map(|item| {
         let failed = item.get("status").and_then(Value::as_str) == Some("failed");
@@ -731,6 +731,10 @@ fn safe_failed_tool_stage(turn: &Value) -> Option<&'static str> {
         "infer_domain" => Some("infer_domain"),
         "select_style_recipe" => Some("select_style_recipe"),
         "plan_complete_concept" => Some("plan_complete_concept"),
+        "author_forge_visual_program" => Some("author_forge_visual_program"),
+        "inspect_forge_visual_program" => Some("inspect_forge_visual_program"),
+        "patch_forge_visual_program" => Some("patch_forge_visual_program"),
+        "build_candidate_geometry" => Some("build_candidate_geometry"),
         "author_shape_program" => Some("author_shape_program"),
         "validate_shape_program" => Some("validate_shape_program"),
         "build_candidate" => Some("build_candidate"),
@@ -798,6 +802,10 @@ fn safe_tool_name(tool_name: Option<&str>) -> Option<&'static str> {
         Some("infer_domain") => Some("infer_domain"),
         Some("select_style_recipe") => Some("select_style_recipe"),
         Some("plan_complete_concept") => Some("plan_complete_concept"),
+        Some("author_forge_visual_program") => Some("author_forge_visual_program"),
+        Some("inspect_forge_visual_program") => Some("inspect_forge_visual_program"),
+        Some("patch_forge_visual_program") => Some("patch_forge_visual_program"),
+        Some("build_candidate_geometry") => Some("build_candidate_geometry"),
         Some("author_shape_program") => Some("author_shape_program"),
         Some("validate_shape_program") => Some("validate_shape_program"),
         Some("build_candidate") => Some("build_candidate"),
@@ -812,7 +820,7 @@ fn safe_tool_name(tool_name: Option<&str>) -> Option<&'static str> {
 /// Project only reviewed Rust-owned Provider codes into the acceptance report.
 /// Do not trust a prefix: Turn JSON is a protocol boundary and unknown values
 /// must remain redacted even when they look like a Provider code.
-fn safe_phase_error_code(turn: &Value) -> Option<&'static str> {
+pub(crate) fn safe_phase_error_code(turn: &Value) -> Option<&'static str> {
     let category = failure_category(turn);
     if category == Some("product_tool") || category == Some("product_tool_schema") {
         return safe_product_tool_code(
@@ -921,9 +929,15 @@ fn failed_product_tool_error_code(turn: &Value) -> Option<&str> {
         .rev()
         .find_map(|item| {
             (item.get("status").and_then(Value::as_str) == Some("failed"))
-                .then(|| item.pointer("/payload/error_code"))
+                .then(|| {
+                    item.pointer("/payload/error_code")
+                        .and_then(Value::as_str)
+                        .or_else(|| {
+                            item.pointer("/payload/tool_result/error_code")
+                                .and_then(Value::as_str)
+                        })
+                })
                 .flatten()
-                .and_then(Value::as_str)
         })
 }
 
@@ -958,6 +972,42 @@ fn safe_product_tool_code(code: Option<&str>) -> Option<&'static str> {
             Some("NATIVE_PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID")
         }
         Some("NATIVE_PRODUCT_TOOL_CALL_LIMIT") => Some("NATIVE_PRODUCT_TOOL_CALL_LIMIT"),
+        Some("FORGE_VISUAL_PROGRAM_INVALID") => Some("FORGE_VISUAL_PROGRAM_INVALID"),
+        Some("FORGE_VISUAL_PROGRAM_DOMAIN_CONFLICT") => {
+            Some("FORGE_VISUAL_PROGRAM_DOMAIN_CONFLICT")
+        }
+        Some("FORGE_VISUAL_PROGRAM_DOMAIN_UNSUPPORTED") => {
+            Some("FORGE_VISUAL_PROGRAM_DOMAIN_UNSUPPORTED")
+        }
+        Some("SHAPE_PROGRAM_SCHEMA_INVALID") => Some("SHAPE_PROGRAM_SCHEMA_INVALID"),
+        Some("SHAPE_PROGRAM_OPERATION_INPUT_INVALID") => {
+            Some("SHAPE_PROGRAM_OPERATION_INPUT_INVALID")
+        }
+        Some("SHAPE_PROGRAM_PRIMITIVE_INVALID") => Some("SHAPE_PROGRAM_PRIMITIVE_INVALID"),
+        Some("SHAPE_PROGRAM_FORWARD_OR_MISSING_REFERENCE") => {
+            Some("SHAPE_PROGRAM_FORWARD_OR_MISSING_REFERENCE")
+        }
+        Some("SHAPE_PROGRAM_OUTPUT_REFERENCE_MISSING") => {
+            Some("SHAPE_PROGRAM_OUTPUT_REFERENCE_MISSING")
+        }
+        Some("SHAPE_PROGRAM_BOOLEAN_INPUT_INVALID") => Some("SHAPE_PROGRAM_BOOLEAN_INPUT_INVALID"),
+        Some("SHAPE_PROGRAM_LOFT_INPUT_INVALID") => Some("SHAPE_PROGRAM_LOFT_INPUT_INVALID"),
+        Some("SHAPE_PROGRAM_SWEEP_INPUT_INVALID") => Some("SHAPE_PROGRAM_SWEEP_INPUT_INVALID"),
+        Some("SHAPE_PROGRAM_AXIS_INVALID") => Some("SHAPE_PROGRAM_AXIS_INVALID"),
+        Some("SHAPE_PROGRAM_ARRAY_BUDGET") => Some("SHAPE_PROGRAM_ARRAY_BUDGET"),
+        Some("SHAPE_PROGRAM_RADIAL_ARRAY_BUDGET") => Some("SHAPE_PROGRAM_RADIAL_ARRAY_BUDGET"),
+        Some("SHAPE_PROGRAM_DUPLICATE_OPERATION") => Some("SHAPE_PROGRAM_DUPLICATE_OPERATION"),
+        Some("SHAPE_PROGRAM_DUPLICATE_OUTPUT") => Some("SHAPE_PROGRAM_DUPLICATE_OUTPUT"),
+        Some("SHAPE_PROGRAM_UNKNOWN_PARAMETER") => Some("SHAPE_PROGRAM_UNKNOWN_PARAMETER"),
+        Some("SHAPE_PROGRAM_PARAMETER_RANGE") => Some("SHAPE_PROGRAM_PARAMETER_RANGE"),
+        Some("SHAPE_PROGRAM_FUNCTIONAL_FORBIDDEN") => Some("SHAPE_PROGRAM_FUNCTIONAL_FORBIDDEN"),
+        Some("VISUAL_PROGRAM_AUTHOR_TOOL_REQUIRED") => Some("VISUAL_PROGRAM_AUTHOR_TOOL_REQUIRED"),
+        Some("VISUAL_PROGRAM_INSPECT_TOOL_REQUIRED") => {
+            Some("VISUAL_PROGRAM_INSPECT_TOOL_REQUIRED")
+        }
+        Some("PRODUCT_TOOL_SCHEMA_REPAIR_REQUESTED") => {
+            Some("PRODUCT_TOOL_SCHEMA_REPAIR_REQUESTED")
+        }
         Some("PRODUCT_TOOL_EXECUTION_FAILED") => Some("PRODUCT_TOOL_EXECUTION_FAILED"),
         Some("PRODUCT_TOOL_OUTPUT_SERIALIZATION_FAILED") => {
             Some("PRODUCT_TOOL_OUTPUT_SERIALIZATION_FAILED")
@@ -1007,7 +1057,7 @@ fn provider_schema_diagnostic_code(message: &str) -> Option<&'static str> {
     }
 }
 
-fn failure_category(turn: &Value) -> Option<&'static str> {
+pub(crate) fn failure_category(turn: &Value) -> Option<&'static str> {
     let failure_kind = turn.pointer("/usage/failure_kind").and_then(Value::as_str);
     let error_code = turn.get("error_code").and_then(Value::as_str);
     match failure_kind {

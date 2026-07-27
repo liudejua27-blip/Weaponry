@@ -36,6 +36,7 @@ CONVERGENCE_VIEW_ORDER = (
     "gripper_iso",
     "gripper_front",
 )
+TURNTABLE_VIEW_ORDER = tuple(f"turntable_{angle:03d}" for angle in range(0, 360, 45))
 VIEW_CAMERAS: dict[str, tuple[Vector3, Vector3]] = {
     "iso": ((1.0, 0.72, 1.0), (0.0, 1.0, 0.0)),
     "front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
@@ -47,6 +48,15 @@ VIEW_CAMERAS: dict[str, tuple[Vector3, Vector3]] = {
     "gripper_iso": ((1.0, 0.72, 1.0), (0.0, 1.0, 0.0)),
     "gripper_front": ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
 }
+VIEW_CAMERAS.update(
+    {
+        view_id: (
+            (math.sin(math.radians(angle)), 0.45, math.cos(math.radians(angle))),
+            (0.0, 1.0, 0.0),
+        )
+        for view_id, angle in zip(TURNTABLE_VIEW_ORDER, range(0, 360, 45), strict=True)
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -94,6 +104,8 @@ def render_agent_views(
         view_order = WORKBENCH_VIEW_ORDER
     elif view_profile == "convergence_eight":
         view_order = CONVERGENCE_VIEW_ORDER
+    elif view_profile == "turntable_eight":
+        view_order = TURNTABLE_VIEW_ORDER
     else:
         raise AgentRenderError("render view profile is not code-owned")
     try:
@@ -242,6 +254,11 @@ def _parse_mtl(text: str) -> dict[str, Color4]:
             color = [float(value) for value in line.split()[1:]]
             if len(color) == 3:
                 values[current][:3] = color
+        elif current is not None and line.startswith("Ke "):
+            emissive = [float(value) for value in line.split()[1:]]
+            if len(emissive) == 3:
+                for index, component in enumerate(emissive):
+                    values[current][index] += component * 0.8
         elif current is not None and line.startswith("d "):
             values[current][3] = float(line.split()[1])
     return {

@@ -26,7 +26,7 @@ export function providerConfigPresentation(config: ProviderConfigMetadata | null
       ready: false,
       canTest: true,
       tone: 'offline',
-      label: '模型服务已配置；发送请求或测试连接时再由 macOS 钥匙串授权',
+      label: '模型服务已配置；发送请求或测试连接时才读取本机私密凭据',
     }
   }
   if (config?.failure_code) {
@@ -41,7 +41,7 @@ export function providerCheckPresentation(result: AgentProviderCheckResponse): s
     return `模型服务连接成功；真实网络请求已完成并通过结构化校验（${trace?.latency_ms ?? 0} ms）。`
   }
   if (result.status === 'offline' || result.status === 'not_configured') {
-    return '当前没有调用 DeepSeek：Provider metadata、Keychain 或 Agent capability 尚未就绪。'
+    return '当前没有调用 DeepSeek：Provider metadata、私密凭据或 Agent capability 尚未就绪。'
   }
   const code = trace?.error_code ?? result.connection.failure_code ?? 'PROVIDER_FAILED'
   return `模型服务测试失败：${code}。network_call_made=${result.network_call_made ? 'true' : 'false'}；已保存设计没有变化。`

@@ -1,20 +1,27 @@
 # ForgeCAD 文档状态账本
 
-版本：2026-07-25
+版本：2026-07-27
 状态：当前文档维护真值；不是产品运行时能力证明
 
 本文件解决一个具体问题：ForgeCAD 同时有产品说明、目标设计、历史证据、兼容资料和任务计划。没有一个短的状态账本时，后续 Codex 容易把“目标设计”或“过去通过的 smoke”误读为当前已完成能力。
 
 ## 2026-07-26：Forge Studio 程序化视觉 MVP 路线
 
-- ADR-0019 已取代 ADR-0018 的默认远程神经 3D 路线。第一阶段默认闭环是 `DeepSeek 视觉 Brief/细节清单 → ForgeVisualProgram@1 → Rust 校验与降级 → ShapeProgram/AssemblyGraph/Material Zone/Surface Compiler → GLB/readback → 单一结果`；商城、游戏技能、战斗和复杂 CAD 仍不进入第一阶段。
+- ADR-0019 已取代 ADR-0018 的默认远程神经 3D 路线。第一阶段默认闭环是 `DeepSeek 视觉 Brief/细节清单 → ForgeVisualAuthoringIntent@1 → Rust 降级为 ForgeVisualProgram@1 → ShapeProgram/AssemblyGraph/Material Zone/Surface Compiler → GLB/readback → 单一结果`；商城、游戏技能、战斗和复杂 CAD 仍不进入第一阶段。
+- `FGC-PV008` 已实现：Provider 不再承担完整 ShapeProgram、Part/Zone/Detail ID 的长 JSON authoring，只提交紧凑视觉架构、比例、材质与表面语言；Rust Core 复用单一 C111 reviewed substrate 并生成完整 `ForgeVisualProgram@1`，原生 executor 再绑定多模态 claim 到真实派生 Detail。2026-07-27 真实 DeepSeek 以 2,098 input / 317 output tokens 完成 author→build→readback→render→evaluate→preview→confirm→Snapshot→export，报告来源为 `provider_authoring_ir`，不是 reviewed fallback。该通过只证明机械臂黄金路径的真实联网工程闭环，不证明目标图级质量、20 条盲测或通用类别自由生成。
 - `FGC-PV001` 已完成：最小 Rust-owned `ForgeVisualProgram@1` 要求设计 Token、部件层级、几何图、装配图、材质图、表面图、宏观/中频/微观细节清单和双档导出 Profile 形成可校验绑定。未知字段、孤立/重复几何输出、循环层级、悬空部件/面区/细节绑定和 sealed 阶段的关键缺失均 fail closed；lowering 生成稳定语义 hash，并只交付既有受限运行时合同。Rust 6/6、contracts、desktop typecheck/build、F026 与文档/安全聚合 Gate 已通过。
 - `FGC-PV002` 已实现：iteration 70 的真实 C111 黄金资产已转换为 sealed program `e8971a0ed490169db06d895f88a1ee9c20bc9d6577f4760ed34a4822595a746e`，绑定 10 Parts、96 outputs、47 个 part-scoped Material bindings、6 个 A005 programs、27 项细节和 8 视图；同一受限执行器重编译为 49,392/124,376 triangles、152 primitives 的双档 GLB，0 Provider。纵向八边形 Loft 基座、加宽 collar、六段甲片间真实凹槽和双侧浅嵌条均进入 GLB。Inventory 为 24 verified / 3 unresolved / 0 critical，`blocks_single_result_display=false`。PV002 Gate 和 Core 6/6 通过；这不等于 packaged 生命周期、DeepSeek authoring、三次语言修改或目标图真人门已完成。
 - `FGC-PV003` 已实现：Rust-owned inspect/author/patch 已进入 16-tool registry 和 DeepSeek Action Loop；草稿修改绑定 revision/hash/parent hash，只允许 10 类 typed patch operation，支持 geometry 与 material/surface 保持锁，过期、违反锁和非法输入均零 revision 副作用。不同 Brief fixture 已产生不同宽度、材质、表面 ID 和 program hash；Action Loop 已证明 author→inspect→patch 和一次有界恢复。这仍是执行内草稿，未创建 Snapshot/资产版本，也未证明收藏级视觉。
 - `FGC-PV004` 已实现：动态 `ForgeVisualProgramRevision` 现在直接 lowering 到受限 production worker，Rust 生成七阶段连续 hash ledger，并要求同 GLB/renderer 的 `iso/front/back/left/right/top/gripper_iso/gripper_front` 八视图、三层 bound detail、PBR 五通道和表面来源全部通过后才准备唯一未保存预览。失败结果返回给 Provider 后只接受当前 revision 的 1–8 个 typed local operations，每次清除旧 readback/view/gate 并完整重编译，最多两次；第三次硬拒绝。Action Loop 的内部 compile/render/evaluate/preview 不再依赖模型记忆，真实 Python renderer 的八视图合同、桌面 bridge、动态成功/失败修复和 C111 49,392/124,376-triangle 黄金回归已进入同一聚合 Gate。该完成不等于真实 DeepSeek 联网视觉质量、Snapshot 确认、三轮修改或真人 4/5。
+- `FGC-PV005` 已实现：每个已确认版本在现有 AssemblyGraph provenance 中保存精确 visual-program revision；下一 Turn 由 Rust Snapshot 恢复、验证并 lowering，三次 typed 语言修改分别证明 geometry 锁和 material/surface 锁，每次只在用户确认后创建一个不可变子版本。undo/redo、新进程恢复、生产 GLB 导出均保持同一 source lineage。六成员 `ForgeAssetPackage@1` 会重新验证活动 production GLB，并生成 WebP、八角度 H.264 MP4、manifest、质量和许可元数据；GLB 与视口/导出 hash 一致，编码器缺失则 503。聚合 Gate 为离线 0 Provider 证据，FFmpeg 也尚未随签名安装包分发。
 - F026 默认工作台已移除 FAL Key、远程生成卡和 `neural_visual_candidate_pbr` 注入；创建和修改重新进入既有 Rust V003/ShapeProgram 路径。默认打开、生成和编辑不读取 FAL 凭据，也不会发起付费视觉请求。
 - N001–N004 的 Rust 合同、Provider adapter、SQLite receipt 和本地协议 Gate 保留为 `experimental/default-off` 研究基础设施；N005–N009 已被 PV002–PV007 取代。不得把这些代码或历史 Gate 描述成当前默认产品路线。
-- 当前用户能力仍没有升级为“自由生成精致收藏级资产”：PV004 已关闭执行内程序→生产 GLB→八视图→最多两次局部修复→唯一预览的工程闭环，但 PV005 多轮修改/确认/重启/资产包、PV006 20 条盲测与真人门、PV007 逐领域扩展均未完成；本轮也没有把真实 DeepSeek 联网调用或目标图视觉质量写成通过。C111A 的实际视觉未达目标图事实不变。
+- `FGC-PV006A` 已实现：`MultimodalDesignRequest@1` 将文字、最多 12 个 sealed reference、参考角色、活动模型、Part/Material Zone/归一化区域选择和双域锁统一为 Rust 请求；`VisualEvidenceGraph@1` 明确区分观察、推断和未知，并拒绝缺失视角伪观察及 URL/路径/凭据标记；`MultimodalProgramEvidenceBinding@1` 要求每条 claim 精确映射到真实 bound/unresolved Detail 或 evaluation-only，三份 semantic hash 不一致即拒绝。focused Rust 5/5 与 generated contracts 通过；当前没有 Vision Provider 网络调用或 UI 闭环。
+- `FGC-PV006B` 已实现并获得一条真实 Provider 证据：独立 OpenAI-compatible Vision Evidence Provider 只读取本 Turn 显式选择的 Rust CAS 图片，严格返回由 Rust 验证的三层证据；Base URL/model/Key 使用独立 0700/0600 私密文件，不走 Keychain，metadata 读取和普通启动不读取 secret。2026-07-27 `qwen3.7-plus` 对已封存机械臂参考图真实返回 9–10 项宏观/中频/微观 claim，Rust graph 校验通过；该步骤没有 ChangeSet、版本或 GLB，不能证明 3D 质量。
+- `FGC-PV006C` 已实现其工程闭环：Rust-normalized request+graph 从工作台原子进入 `turn/start`；持久化前重读 sealed evidence，校验 Project/指令/活动 Asset/hash，并以 digest 阻止幂等请求换证据。只读 Action Loop attachment 不含图片字节、文件名、URL、路径或密钥；Rust 将 Provider claim disposition 绑定到真实派生 Detail，`MultimodalProgramEvidenceBinding@1` 随 preview 进入 AssemblyGraph provenance。候选 production GLB 的确切八张 PNG会与 sealed 参考像素进入同一视觉适配器；Provider 只能返回逐 claim assessment，Rust 派生三层分数、修复 claim 和硬门结果。offline E2E 与 PV008 真实 DeepSeek run 均已覆盖唯一预览、确认、Snapshot 和直接 GLB 导出；20 条多模态盲测、真实视觉比较质量门和收藏级真人门仍未完成。
+- 当前用户能力仍没有升级为“自由生成精致收藏级资产”：PV005 已关闭同资产三轮修改、确认、恢复、GLB 与资产包的工程闭环；PV006A–PV006C 已关闭多模态合同、工作台入口、真实 Vision 证据、原生 Turn、claim→program 绑定与确认导出链；PV008 又首次关闭真实 DeepSeek 紧凑意图到真实 GLB 的完整生命周期。但现阶段只证明机械臂黄金路径，PV006 的 20 条多模态盲测与真人门、PV007 逐领域扩展、C111B 目标图级深化均未完成。C111A 的实际视觉未达目标图事实不变。
+- 2026-07-27 任务 D 已用当前 release `.app` 重新验证生产密度程序化路径：确定性 Provider 不再生成 12-triangle box，而是复用 C111 reviewed builder 生成 10 Parts/96 outputs/6 surface programs/27 details；初次 packaged 结果与重启恢复均为 124,376 triangles、34,304,740-byte GLB，导出 bytes/JSON/header SHA-256 精确一致，八视图均由同一 renderer/GLB 产生。该证据仍为 0 网络/0 凭据读取，且人工开发截图仍未达到目标图，不能升级 PV006C、M108B 或通用生成能力。
+- 新 `DraftCandidate@1` 目前仅是已测试的 Core 能力，尚未被 Tauri bridge、app-server 或工作台实际 preview/confirm 路径调用；运行时继续使用初始 `BlockoutCandidate` 与编辑 ChangeSet。它不得被列为当前用户可用候选真值，接入时必须先消除双写与两条候选身份。
 
 ## 1. 当前一句话结论
 

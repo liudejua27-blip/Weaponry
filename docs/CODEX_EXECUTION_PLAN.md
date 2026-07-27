@@ -337,11 +337,14 @@ PV001 路线切换、默认工作台退役 FAL、ForgeVisualProgram 最小合同
 → PV003 DeepSeek typed inspect/author/patch Product Tool
 → PV004 固定 build passes、Detail Inventory 与八视角收敛门
 → PV005 三轮连续语言修改、确认、重启与 GLB/资产包
-→ PV006 20 条未见机械硬表面 Brief 与真人视觉验收
+→ PV006A Rust 多模态请求/证据图/程序绑定
+→ PV006B 独立 Vision Evidence Provider
+→ PV006C 工作台多模态生成与局部修改闭环
+→ PV006 20 条多模态盲测与真人视觉验收
 → PV007 按证据扩展未来道具、无人机、工业设备、汽车和飞机
 ```
 
-当前检查点（2026-07-26）：PV001–PV004 已实现，PV005 已 ready。PV004 已把动态 program revision 接入 production restricted worker、七阶段 ledger、真实 GLB/PBR readback、精确八视图、最多两次 typed 同意图局部修复与唯一未保存 preview；失败后旧 readback/view/gate 全部作废，第三次修复硬拒绝。它仍不创建 Snapshot/资产版本，也未证明真实 DeepSeek 联网生成的模型达到收藏级视觉。下一个原子任务是 PV005：同一资产三轮语言修改、preview→confirm、undo、restart、GLB 与六成员资产包一致性。
+当前检查点（2026-07-27）：PV001–PV005、PV006A 与 PV006B 已实现。PV006C 的 offline exact-lineage→author/patch→八视图比较/修复→confirm/Snapshot/同字节导出/资产包链已通过；真实 `qwen3.7-plus` 单图证据也已返回并由 Rust 验证。DeepSeek 组合 Turn 已真实联网，但尚未产出 GLB：13/16 tool transport drift、视觉证据后的重复 discovery、60 秒高推理 timeout 和 4 MiB aggregate SSE 上限均已被精确失败证据暴露并修复。最新代码只向多模态新建 Turn 广告 author/inspect/patch/build，使用 180 秒单请求和 16 MiB aggregate SSE，同时保留 payload、Turn、工具数与取消硬门。最新包因 macOS 锁屏尚未重跑；下一原子动作仍是同一单图真实 E2E，成功后再进入 PV006 的 20 条多模态真人门。
 
 强制边界：
 

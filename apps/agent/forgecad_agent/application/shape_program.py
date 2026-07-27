@@ -464,7 +464,7 @@ def _assert_non_zero_axis(operation: Mapping[str, Any], label: str) -> None:
 
 
 def _assert_boolean_references(operation: Mapping[str, Any], operation_by_id: Mapping[str, Mapping[str, Any]], label: str) -> None:
-    if len(operation["inputs"]) != 2 or any(input_id not in operation_by_id for input_id in operation["inputs"]):
+    if len(operation["inputs"]) < 2 or any(input_id not in operation_by_id for input_id in operation["inputs"]):
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_{label}_INPUT: {operation['operation_id']}")
     if any(operation_by_id[input_id]["op"] == "profile" for input_id in operation["inputs"]):
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_{label}_PROFILE_INPUT: {operation['operation_id']}")

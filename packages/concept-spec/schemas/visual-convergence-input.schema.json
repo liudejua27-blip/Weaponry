@@ -16,6 +16,7 @@
       "items": { "$ref": "#/$defs/view" }
     },
     "detail_coverage": { "$ref": "#/$defs/detail_coverage" },
+    "reference_comparison": { "$ref": "#/$defs/reference_comparison" },
     "repairs": {
       "type": "array",
       "maxItems": 2,
@@ -100,6 +101,22 @@
         "meso_bound": { "type": "integer", "minimum": 0 },
         "micro_bound": { "type": "integer", "minimum": 0 },
         "critical_unresolved": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reference_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comparison_input_sha256", "comparison_report_sha256", "passed", "failure_codes"],
+      "properties": {
+        "comparison_input_sha256": { "$ref": "#/$defs/sha256" },
+        "comparison_report_sha256": { "$ref": "#/$defs/sha256" },
+        "passed": { "type": "boolean" },
+        "failure_codes": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
       }
     },
     "repair": {

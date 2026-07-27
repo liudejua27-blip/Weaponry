@@ -71,7 +71,6 @@ REQUIRED_SURFACE_PROGRAM_IDS = {
     "adorn_c111_base_flowline",
     "adorn_c111_joint_microgrid",
     "adorn_c111_link_groove",
-    "adorn_c111_link_flowline",
     "adorn_c111_gripper_chevron",
     "adorn_c111_gripper_microgrid",
 }
@@ -89,7 +88,7 @@ def _load_detail_inventory() -> Mapping[str, Any]:
     inventory = _mapping(payload, "C111_DETAIL_INVENTORY_INVALID")
     if (
         inventory.get("schema_version") != DETAIL_INVENTORY_SCHEMA
-        or inventory.get("scope") != "c111a_development_fixture_only"
+        or inventory.get("scope") != "c111b_development_fixture_only"
         or inventory.get("formal_eligible") is not False
         or inventory.get("root_recipe_id") != ROOT_RECIPE_ID
     ):
@@ -192,6 +191,11 @@ def _assert_detail_inventory(
         for adornment in payload.get("surface_adornment_programs", [])
         if isinstance(adornment, Mapping)
     }
+    adornment_program_zones = {
+        str(adornment.get("target_zone_id"))
+        for adornment in payload.get("surface_adornment_programs", [])
+        if isinstance(adornment, Mapping)
+    }
     items = inventory.get("items")
     if not isinstance(items, list):
         raise AssertionError("C111_DETAIL_INVENTORY_ITEMS_INVALID")
@@ -258,6 +262,7 @@ def _assert_detail_inventory(
                 "shape_operation_suffix",
                 "material_zone_id",
                 "adornment_program_id",
+                "surface_program_zone_id",
             }
             mapping_keys = set(mapping)
             if len(mapping_keys) != 1 or not mapping_keys <= known_keys:
@@ -288,6 +293,13 @@ def _assert_detail_inventory(
             ):
                 raise AssertionError(
                     f"C111_DETAIL_INVENTORY_ADORNMENT_MISSING:{detail_id}"
+                )
+            if (
+                "surface_program_zone_id" in mapping
+                and mapping["surface_program_zone_id"] not in adornment_program_zones
+            ):
+                raise AssertionError(
+                    f"C111_DETAIL_INVENTORY_SURFACE_ZONE_MISSING:{detail_id}"
                 )
         if detail.get("importance") == "critical" and status == "unresolved":
             critical_unresolved.add(detail_id)
@@ -361,7 +373,7 @@ def _compile(
     executor: RestrictedGeometryExecutor,
     payload: Mapping[str, Any],
     profile_id: str,
-) -> tuple[bytes, Mapping[str, Any]]:
+) -> tuple[bytes, Mapping[str, Any], str]:
     fixture = _mapping(
         payload.get("forge_visual_program_fixture"),
         "PV002_FORGE_VISUAL_FIXTURE_INVALID",
@@ -382,6 +394,7 @@ def _compile(
             "shape_program_canonical_json": payload["shape_program_canonical_json"],
             "shape_program_sha256": payload["shape_program_sha256"],
             "surface_adornment_programs": fixture["surface_adornment_programs"],
+            "surface_layer_input": payload["surface_layer_input"],
         }
     )
     try:
@@ -395,7 +408,70 @@ def _compile(
     glb = base64.b64decode(result.glb_base64, validate=True)
     if hashlib.sha256(glb).hexdigest() != result.glb_sha256:
         raise AssertionError(f"C111_{profile_id.upper()}_GLB_HASH_INVALID")
-    return glb, result.readback
+    if result.artifact_handle is None:
+        raise AssertionError(f"C111_{profile_id.upper()}_ARTIFACT_HANDLE_INVALID")
+    return glb, result.readback, result.artifact_handle
+
+
+def _assert_production_fixed_views(
+    executor: RestrictedGeometryExecutor,
+    *,
+    artifact_handle: str,
+    shape_program_sha256: str,
+    inventory: Mapping[str, Any],
+    verify_expected: bool = True,
+) -> Mapping[str, str]:
+    compiled = _mapping(
+        inventory.get("compiled_evidence"),
+        "C111_DETAIL_INVENTORY_COMPILED_EVIDENCE_INVALID",
+    )
+    fixed_views = compiled.get("fixed_views")
+    if not isinstance(fixed_views, list):
+        raise AssertionError("C111_DETAIL_INVENTORY_FIXED_VIEWS_INVALID")
+    expected = {
+        str(view.get("view_id")): str(view.get("sha256"))
+        for view in fixed_views
+        if isinstance(view, Mapping)
+    }
+    request = RestrictedGeometryExecutionRequest.model_validate(
+        {
+            "schema_version": "RestrictedGeometryExecutionRequest@1",
+            "protocol_version": "forgecad.restricted-geometry/1",
+            "execution_id": "exec_c111a_production_fixed_views",
+            "idempotency_key": "idem_c111a_production_fixed_views",
+            "cancellation_id": "cancel_c111a_production_fixed_views",
+            "cancellation_token": "token_c111a_production_fixed_views",
+            "action": "render",
+            "timeout_ms": 120_000,
+            "artifact_handle": artifact_handle,
+            "shape_program_sha256": shape_program_sha256,
+            "render": {
+                "width": 640,
+                "height": 640,
+                "view_profile": "convergence_eight",
+                "exploded_parts": [],
+            },
+        }
+    )
+    try:
+        rendered = executor.execute(request)
+    except RestrictedGeometryBoundaryError as exc:
+        raise AssertionError(f"C111_PRODUCTION_FIXED_VIEWS_REJECTED:{exc.code}") from None
+    actual = rendered.render_view_sha256
+    if actual is None:
+        raise AssertionError("C111_PRODUCTION_FIXED_VIEWS_RESULT_INVALID")
+    if verify_expected and actual != expected:
+        raise AssertionError(
+            "C111_PRODUCTION_FIXED_VIEWS_HASH_DRIFT:"
+            + json.dumps(
+                {
+                    "actual": actual,
+                    "expected": expected,
+                },
+                sort_keys=True,
+            )
+        )
+    return actual
 
 
 def _assert_forge_visual_program_fixture(
@@ -443,18 +519,31 @@ def _assert_forge_visual_program_fixture(
         not isinstance(parts, list)
         or len(parts) != 10
         or not isinstance(materials, list)
-        or len(materials) != 47
+        or len(materials) != 48
         or not isinstance(surfaces, list)
         or len(surfaces) != 6
         or not isinstance(details, list)
         or len(details) != 27
     ):
         raise AssertionError("PV002_FORGE_VISUAL_PROGRAM_COUNTS_INVALID")
+    surface_layer_input = _mapping(
+        payload.get("surface_layer_input"),
+        "PV002_SURFACE_LAYER_INPUT_INVALID",
+    )
+    surface_layer_lowering = _mapping(
+        surface_layer_input.get("lowering"),
+        "PV002_SURFACE_LAYER_LOWERING_INVALID",
+    )
+    lowered_program_ids = {
+        str(item.get("program_id"))
+        for item in surface_layer_lowering.get("adornments", [])
+        if isinstance(item, Mapping)
+    }
     if {
         str(surface.get("surface_program_id"))
         for surface in surfaces
         if isinstance(surface, Mapping)
-    } != REQUIRED_SURFACE_PROGRAM_IDS:
+    } != REQUIRED_SURFACE_PROGRAM_IDS | lowered_program_ids:
         raise AssertionError("PV002_FORGE_VISUAL_SURFACE_LINEAGE_INVALID")
     bound = [
         detail
@@ -510,7 +599,7 @@ def _assert_candidate(payload: Mapping[str, Any]) -> Mapping[str, Any]:
         raise AssertionError("C111_CONNECTION_COUNT_INVALID")
     if not isinstance(operations, list) or not 120 <= len(operations) <= 220:
         raise AssertionError("C111_OPERATION_BUDGET_INVALID")
-    if not isinstance(outputs, list) or not 80 <= len(outputs) <= 96:
+    if not isinstance(outputs, list) or not 80 <= len(outputs) <= 110:
         raise AssertionError("C111_OUTPUT_BUDGET_INVALID")
     operation_ids = {
         str(item.get("operation_id"))
@@ -593,6 +682,21 @@ def _assert_readback(
         raise AssertionError(
             f"C111_{profile_id.upper()}_SURFACE_PROGRAM_LINEAGE_INVALID:{sorted(dynamic_program_ids)}"
         )
+    retained = [
+        texture_set
+        for texture_set in texture_sets
+        if isinstance(texture_set, Mapping)
+        and isinstance(texture_set.get("surface_layer_lowering"), Mapping)
+    ]
+    if len(retained) != 1:
+        raise AssertionError(f"C111_{profile_id.upper()}_RETAINED_SURFACE_MISSING")
+    retained_maps = retained[0].get("maps")
+    if not isinstance(retained_maps, list) or {
+        item.get("texture_role")
+        for item in retained_maps
+        if isinstance(item, Mapping)
+    } != {"base_color", "metallic_roughness", "normal", "occlusion", "emissive"}:
+        raise AssertionError(f"C111_{profile_id.upper()}_RETAINED_PBR_INCOMPLETE")
 
 
 def _artifact_directory(name: str) -> Path:
@@ -604,6 +708,7 @@ def _artifact_directory(name: str) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifact-dir")
+    parser.add_argument("--print-current-evidence", action="store_true")
     args = parser.parse_args()
     payload = _rust_dump()
     candidate = _assert_candidate(payload)
@@ -614,8 +719,12 @@ def main() -> int:
         detail_inventory,
     )
     executor = RestrictedGeometryExecutor(environment={})
-    preview_glb, preview = _compile(executor, payload, "interactive_preview")
-    production_glb, production = _compile(executor, payload, "production_concept")
+    preview_glb, preview, _ = _compile(executor, payload, "interactive_preview")
+    production_glb, production, production_artifact_handle = _compile(
+        executor,
+        payload,
+        "production_concept",
+    )
     shape_hash = str(payload["shape_program_sha256"])
     _assert_readback(
         preview,
@@ -631,6 +740,28 @@ def main() -> int:
     )
     if int(production["triangle_count"]) <= int(preview["triangle_count"]):
         raise AssertionError("C111_LOD_DETAIL_ORDER_INVALID")
+    if args.print_current_evidence:
+        fixed_views = _assert_production_fixed_views(
+            executor,
+            artifact_handle=production_artifact_handle,
+            shape_program_sha256=shape_hash,
+            inventory=detail_inventory,
+            verify_expected=False,
+        )
+        print(
+            json.dumps(
+                {
+                    "shape_program_sha256": production["shape_program_sha256"],
+                    "production_glb_sha256": production["glb_sha256"],
+                    "production_triangles": production["triangle_count"],
+                    "production_primitives": production["primitive_count"],
+                    "fixed_views": fixed_views,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 0
     expected_production = _mapping(
         forge_visual_fixture.get("expected_production"),
         "PV002_EXPECTED_PRODUCTION_INVALID",
@@ -650,6 +781,12 @@ def main() -> int:
         payload,
         candidate,
         production,
+    )
+    _assert_production_fixed_views(
+        executor,
+        artifact_handle=production_artifact_handle,
+        shape_program_sha256=shape_hash,
+        inventory=detail_inventory,
     )
     destination = None
     if args.artifact_dir:

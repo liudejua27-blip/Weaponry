@@ -5,6 +5,8 @@
 
 PV001 增量真值：`ForgeVisualProgram@1` 只是 DeepSeek 可编写、Rust 可校验的设计源信封和 lowering 输入，不是 Project、Version、Snapshot、ShapeProgram、AssemblyGraph、材质、GLB 或质量的替代真值。它在用户确认前不得移动 Snapshot；lowering 只引用/规范化既有受限合同，最终版本、质量和导出仍必须来自真实 GLB readback。默认工作台不再消费 neural candidate；历史远程 Provider receipt 也不能自动升级为当前资产。
 
+2026-07-27 DraftCandidate 增量边界：Core 已提供 `DraftCandidate@1` 的可恢复暂存、严格确认和确认后导出合同；暂存不得创建 `AgentAssetVersion`、移动 `ActiveDesignSnapshot`、发布 Quality 或成为 Export source。只有对同一 candidate/program/GLB lineage 完成 production readback 的显式确认事务，才可原子创建版本、质量与 Snapshot。当前该合同尚未接入正式 `SingleResultDecision` bridge，运行时初始候选仍经 legacy-named `BlockoutCandidate` 提交，已存在资产的修改仍经 ChangeSet；因此 `DraftCandidate@1` 是待接线的 Core 边界，不是当前 UI/运行时第二真值，更不能与旧候选并行写入。
+
 2026-07-15 增量真值：G819 已将 ShapeProgram 操作接受/拒绝收敛到单一 manifest；Q003 已将质量与导出的 triangle、bounds、hash、operation/output/material 证据收敛到当次 `GeometryCompileReadback@1`。G825 再把每个有序 ShapeProgram node 的输入/结果/参数/provenance hash、runtime/kernel version 和 CSG surface/material 来源收敛到同次 GLB 回读的不可变 `feature_history`；该历史是资产内容的派生证据，不是第二个 Project/Version/FeatureGraph 真值。旧估算报告和缺少 Feature History 的新编译均不是当前资产质量真值。
 
 D005 增量真值：Style Token 和语义比例 Recipe 是版本化只读目录，不保存当前参数值。可用选项每次从当前活动 `AgentAssetVersion` 的 AssemblyGraph、G808 binding 和同一 ShapeProgram 的 G826 GLB readback 重新解析；当前比例值来自 AssemblyGraph transform。点击配方仍创建普通 ChangeSet preview，只有 confirm 创建不可变子版本并更新 Snapshot。配方选择本身不写 localStorage/Snapshot，也不能扩大路径、范围、步长或 G819 operation manifest。

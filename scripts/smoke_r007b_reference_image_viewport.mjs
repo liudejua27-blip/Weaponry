@@ -206,7 +206,7 @@ async function main() {
   // loader or mutate the dependency model.
   const gltfEffect = boundedSlice(
     viewport,
-    'useEffect(() => {\n    const runtime = runtimeRef.current\n    if (!runtime) return\n    restoreModuleGraphPresentation(runtime, propsRef.current)',
+    'useEffect(() => {\n    const runtime = runtimeRef.current\n    if (!runtime) return\n    if (props.referenceImage)',
     '\n\n  useEffect(() => {',
     'RESULT_GLB_LOAD_EFFECT',
   )

@@ -1,7 +1,7 @@
 {
   "schema_version": "C111GoldenSurfaceVisualDetailInventory@1",
-  "inventory_id": "inventory_c111_robotic_arm_iteration_70",
-  "scope": "c111a_development_fixture_only",
+  "inventory_id": "inventory_c111_robotic_arm_iteration_71",
+  "scope": "c111b_development_fixture_only",
   "formal_eligible": false,
   "root_recipe_id": "recipe_c111_arm_golden_surface",
   "registry_id": "registry_c111_golden_surface_robotic_arm_v1",
@@ -15,43 +15,43 @@
     "reason": "The authorized target screenshot was rediscovered outside the repository; only its filename and digest are frozen here."
   },
   "compiled_evidence": {
-    "iteration": 70,
-    "shape_program_sha256": "5b0040ea399b1938d7b97f7f5a3c0d9e5c2f8340862d9bb68d73071c20b8457d",
-    "production_glb_sha256": "af2bda0ff7c180970ef6eb1750ba3d6e88c062cfd16db8d28313c8914b66d037",
-    "production_triangles": 124376,
-    "production_primitives": 152,
+    "iteration": 71,
+    "shape_program_sha256": "229a8e3692c76319ff4e0f0fa710f7f22e0b5a629985aa769700689d3cf36a9c",
+    "production_glb_sha256": "985a6918e36a7c93516c1fe30b21cb93a19a72039aae23109d23b186fc18cc29",
+    "production_triangles": 138248,
+    "production_primitives": 157,
     "fixed_views": [
       {
         "view_id": "iso",
-        "sha256": "19a97cd551be63e331a0c02bc537854ae7931cf5e0459db0ce1397a3e6ff7715"
+        "sha256": "1bc58102dc81f22f937cbd007f9f7f15f7ffefde547a3fe047e79d1b0abe072f"
       },
       {
         "view_id": "front",
-        "sha256": "31291e6dbcb1cde71e0cd6bbe5df8f04532eead492008e2de30607b961e4f5d9"
+        "sha256": "1c5bac5c61b1012a6d4a7553dc1ecaabd2754d035edb48defe8091c1ae19aa21"
       },
       {
         "view_id": "back",
-        "sha256": "17ec76045c83a2144261c4dee6585622fb0896fe162ea2fc048b400ece258aee"
+        "sha256": "f04823c16836896da550796d8f612de3ab0eefe3de50162d94f59731797fe9fc"
       },
       {
         "view_id": "left",
-        "sha256": "fb1535c7cdec6d7344252ffa9bf1eeab0380f4018444754ede7640549d7747aa"
+        "sha256": "5d9f9d9bcaa62f09ae77c62cea4d91776d716adea5f86ccc64c496c404af22dc"
       },
       {
         "view_id": "right",
-        "sha256": "5d686041b0d8c5b446307ba6292d30d4b86545c8f3c4bc4580108750f5261821"
+        "sha256": "697f8f63d40650286030fe0caf0492e69392b4e3ae2e0090fd3709cc7bbec996"
       },
       {
         "view_id": "top",
-        "sha256": "32be69b70c53302bb0e49e6163ea3a5a9c1b289dbda4b11bd4f9bf97d2738dd3"
+        "sha256": "a7b38842363d1ffef20329fc4519b3311b19bccdc08c711a2b60f45dda2f1ed1"
       },
       {
         "view_id": "gripper_iso",
-        "sha256": "ba76b3ac3ac28a45fa347f0ef82cc87752a5d92dc4f292a538913638f3785d7d"
+        "sha256": "17dd7f56a569505d0604aa4511b4f387206b0e4709af16040dcbe75a636ddc67"
       },
       {
         "view_id": "gripper_front",
-        "sha256": "34bad2a98f16e66e111327a6ef4b235ebf47c3a3a6f50a6f79de6d64b5b7d1e8"
+        "sha256": "3ce556686f5e5d59a47d156152678ef71f37b7c0274ffb7aa9dc583402da5714"
       }
     ]
   },
@@ -418,6 +418,12 @@
       "maps_to": [
         {
           "shape_operation_suffix": "_plinth_guard_array"
+        },
+        {
+          "shape_operation_suffix": "_plinth_service_panel"
+        },
+        {
+          "material_zone_id": "zone_arm_base_service"
         }
       ],
       "evidence": [
@@ -425,9 +431,9 @@
         "back",
         "iso"
       ],
-      "status": "unresolved",
-      "visual_assessment": "insufficient",
-      "finding": "Corner guards are rendered, but the prior service-panel operations were not outputs and have been removed from the truth contract. A visible maintenance cover remains missing."
+      "status": "readback_verified",
+      "visual_assessment": "partial",
+      "finding": "C111B adds a dedicated beveled aluminum maintenance cover as a real Shape output and stable service-panel Material Zone alongside the existing corner guards. Its final target-image readability remains subject to the fixed-view visual gate."
     },
     {
       "detail_id": "meso_wrist_revolve_and_guard",
@@ -672,7 +678,7 @@
       "expected_visual_effect": "Longitudinal lines emphasize arm direction and panel curvature.",
       "maps_to": [
         {
-          "adornment_program_id": "adorn_c111_link_flowline"
+          "surface_program_zone_id": "zone_arm_link_armor"
         },
         {
           "material_zone_id": "zone_arm_link_signal"
@@ -775,14 +781,18 @@
       "confidence": "high",
       "basis": "observed",
       "expected_visual_effect": "Sparse identifiers, warning marks and service labels establish believable product scale.",
-      "maps_to": [],
+      "maps_to": [
+        {
+          "surface_program_zone_id": "zone_arm_link_armor"
+        }
+      ],
       "evidence": [
         "iso",
         "front"
       ],
-      "status": "unresolved",
-      "visual_assessment": "missing",
-      "finding": "No stable decal or warning-label output is present in iteration 47."
+      "status": "readback_verified",
+      "visual_assessment": "partial",
+      "finding": "C111B seals a narrow warning stripe and deterministic A-01 panel label into the retained link-armor Surface Layer; the same lowering is consumed by the five-channel GLB material and verified during readback."
     },
     {
       "detail_id": "micro_edge_wear_and_surface_variation",
@@ -793,14 +803,18 @@
       "confidence": "medium",
       "basis": "inferred",
       "expected_visual_effect": "Very restrained edge wear and roughness variation prevent a uniformly new plastic appearance.",
-      "maps_to": [],
+      "maps_to": [
+        {
+          "surface_program_zone_id": "zone_arm_link_armor"
+        }
+      ],
       "evidence": [
         "iso",
         "gripper_iso"
       ],
-      "status": "unresolved",
-      "visual_assessment": "missing",
-      "finding": "No reviewed wear or localized roughness-variation program is present."
+      "status": "readback_verified",
+      "visual_assessment": "partial",
+      "finding": "C111B retains restrained edge wear and a 90-degree directional linear-brush roughness mask on the link-armor zone; exact lowering and five PBR map hashes are preserved in GLB provenance."
     },
     {
       "detail_id": "micro_texture_resolution_and_vertex_channels",
@@ -822,7 +836,7 @@
           "adornment_program_id": "adorn_c111_link_groove"
         },
         {
-          "adornment_program_id": "adorn_c111_link_flowline"
+          "surface_program_zone_id": "zone_arm_link_armor"
         },
         {
           "adornment_program_id": "adorn_c111_gripper_chevron"
@@ -841,10 +855,7 @@
   ],
   "unresolved_summary": {
     "critical_detail_ids": [],
-    "noncritical_missing_detail_ids": [
-      "micro_warning_labels_and_decals",
-      "micro_edge_wear_and_surface_variation"
-    ],
+    "noncritical_missing_detail_ids": [],
     "reference_source_unavailable": false,
     "human_benchmark_evidence": false,
     "blocks_single_result_display": false

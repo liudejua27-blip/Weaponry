@@ -107,7 +107,7 @@ allowed_tools:
 approval_before:
   - confirm_change_set
 limits:
-  max_tool_calls: 12
+  max_tool_calls: 20
   max_wall_time_seconds: 120
 ```
 

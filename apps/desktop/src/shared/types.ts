@@ -139,7 +139,15 @@ export type CreateAgentThreadRequest = {
   title?: string
   provider_id?: string
 }
-export type StartAgentTurnRequest = { client_request_id: string; message: string }
+export type StartAgentTurnRequest = {
+  client_request_id: string
+  message: string
+  clarification_domain_pack_id?: string | null
+  multimodal_context?: {
+    request: unknown
+    visual_evidence_graph: unknown
+  }
+}
 export type CreateAgentApprovalRequest = {
   client_request_id: string
   turn_id: string

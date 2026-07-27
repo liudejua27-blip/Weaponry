@@ -5,7 +5,7 @@
 
 ForgeCAD 当前软件仍是轻量通用机械概念 3D Agent 的本机 Alpha。F026 已把旧三方向 UI 收敛为 Codex 式单结果工作台；V003 现在会让 Rust Agent 每个 Turn 只完成一次完整合成，并且只在真实编译/readback、四视图同源、Brief、比例、部件 role、五通道 PBR、Recipe 可编辑性和来源 Gate 全部通过后显示一个正式结果。交互反馈继续使用 `interactive_preview`；当前机械臂黄金路径的正式结果、质量、展示、下载和导出使用 1024×1024 五通道 PBR 的 `production_concept`。这不等于软件已经正式发布，也不等于模型外观已通过 M108B 独立真人 `4/5`。
 
-2026-07-26 起，默认路线按 ADR-0019 回到程序化视觉生成：DeepSeek 通过严格 typed 工具编写和修改三维视觉程序，Rust 校验并降级到 ShapeProgram、AssemblyGraph、材质区和表面程序。工作台不再要求 FAL API Key，也没有默认远程神经 Image-to-3D 入口；打开、创建、修改和导出不会因此产生 FAL 费用。当前执行内草稿已接入 production GLB 编译、PBR readback、精确八视图、最多两次 typed 局部修复和唯一未保存 preview；失败不会生成结果或资产版本。但真实 DeepSeek 联网生成、preview→confirm、三轮自然语言修改、重启/资产包和收藏级视觉验收仍未完成，所以普通用户还不能把这条开发链当作已经交付的自由生成产品。
+2026-07-27 起，默认路线按 ADR-0019 使用程序化视觉生成：DeepSeek 通过严格 typed 工具提交紧凑的视觉架构、比例、材质和表面语言，Rust 将其降级到 ForgeVisualProgram、ShapeProgram、AssemblyGraph、材质区和表面程序。工作台不再要求 FAL API Key，也没有默认远程神经 Image-to-3D 入口；打开、创建、修改和导出不会因此产生 FAL 费用。当前开发 Gate 已接入 production GLB/PBR readback、精确八视图、最多两次 typed 局部修复、唯一 preview，以及同一资产三次修改、确认、撤销/重做、重启、GLB 和六成员资产包。真实 DeepSeek 已在机械臂黄金路径完成一次从原始紧凑意图到 GLB、确认、Snapshot 和导出的完整生命周期；20 条盲测、跨类别自由生成与收藏级真人视觉验收仍未完成，所以普通用户还不能把它理解为已经交付的自由生成产品。
 
 每次明确领域的 Agent Turn 现在会在服务端通过受限产品工具完成一个候选的构建、真实 GLB 回读、四视图渲染和 13 项硬门检查。失败时不会展示或保存模型；只有两个可确定性修复的表面问题能在同一设计意图下最多原位修复两次。通过后界面只显示一个未保存结果，用户选择“确认保存”才创建资产版本；“换一个思路”应开启新 Turn，而不是让用户在三个方向中筛选。
 
@@ -46,12 +46,12 @@ script/build_and_run.sh --verify
 2. 填写当前模型名称 `deepseek-v4-pro`（质量优先）或 `deepseek-v4-flash`（速度优先）；不要再为新配置使用即将弃用的 `deepseek-chat` / `deepseek-reasoner` 别名；
 3. 填写 API Key；
 4. 选择“保存并连接”；
-5. 等待界面确认 metadata、Keychain、Agent 重启和本地 capability 均已就绪；
+5. 等待界面确认 metadata、本机私密凭据、Agent 运行时和本地 capability 均已就绪；
 6. 使用“测试连接（会联网）”执行一次真实 Provider 检查。
 
-macOS Tauri 运行时把 API Key 保存到系统 Keychain。普通打开工作台只读取不含密钥的 Provider metadata，Keychain 读取次数为 0，也不应要求输入 macOS 登录密码；用户主动点击一次“测试连接”时只读取一个短生命周期凭据快照，一次真实 Turn 也只读取一个快照，并在 preflight、预算检查和后续工具请求间复用，Turn 成功、失败或取消后立即释放。当前 V4 Agent Turn 显式使用思考模式和 Agent 级 `max` 强度；界面只显示步骤与最终结果，不显示或保存隐藏推理。保存/清除配置仍会按需访问 Keychain。仅写入 metadata 或 Keychain 不代表已经连接；只有新 Agent 进程的 capability 为 `ready` 时，界面才允许真实连接测试。测试或普通模型请求期间可以选择“取消本次模型请求”。取消、鉴权失败、余额不足、限流、服务错误、超时、空内容、非法 JSON 或 Schema 不符都不会创建计划、资产版本或导出，也不会静默改用离线结果冒充成功。
+macOS 本机 Alpha 把 API Key 保存到 `~/Library/Application Support/ForgeCAD/secrets/provider/` 下的代际凭据文件：目录权限为 `0700`，凭据和 metadata 为 `0600`，不使用 macOS Keychain，因此频繁重建 Alpha 也不会反复索要系统密码。普通打开工作台只读取不含密钥的 Provider metadata；主动“测试连接”或真实 Turn 才读取一个短生命周期凭据快照，并在 preflight、预算检查和后续工具请求间复用，终态后释放并 zeroize。当前 V4 Agent Turn 显式使用思考模式和 Agent 级 `max` 强度；界面只显示步骤与最终结果，不显示或保存隐藏推理。仅保存凭据不代表已经连接；只有 metadata、凭据和 capability 全部就绪后才可测试。取消、鉴权失败、余额不足、限流、服务错误、超时、空内容、非法 JSON 或 Schema 不符都不会创建计划、资产版本或导出，也不会静默改用离线结果冒充成功。
 
-开发构建在执行任何 live acceptance 前必须先通过 `npm run desktop:macos-stable-identity-require`。当前 ad-hoc 重建包没有稳定证书、TeamIdentifier 和指定要求，二进制变化后 macOS 可能把它视为新的请求者并再次显示钥匙串授权；这属于应用身份授权，不表示登录密码已被 ForgeCAD 修改。验收启动器会在不读取 Keychain 的前提下提前拒绝这种包，错误为 `LIVE_STABLE_APP_IDENTITY_REQUIRED`；Rust Keychain backend 也会在任何 secret read/write/delete 前做同一稳定身份检查，因此 ad-hoc 包点击保存或测试只会返回稳定身份错误，不会再弹系统密码框。最终阶段配置稳定的本机 Apple Development 签名后，只进行一次“保存并连接/测试连接”授权；不要为临时 ad-hoc 构建选择“始终允许”，也不要扩大 Keychain 项的应用访问范围。不要把密钥写进项目文件、终端命令、截图或聊天记录。浏览器开发预览不提供 Keychain，开发者应按 [开发与调试](DEVELOPMENT.md) 使用本机 secret file。
+从历史 Keychain 版本升级时，界面会显示 `PROVIDER_CREDENTIAL_MIGRATION_REQUIRED`，并要求重新输入一次 Key；旧 Keychain 项不会被 ad-hoc 新包读取或删除。这一迁移取代了之前的 `PROVIDER_STABLE_APP_IDENTITY_REQUIRED`开发阻断。正式对外发布仍需要签名/公证与更高级别的凭据迁移设计，但不阻断当前本机 Alpha 验证。不要把密钥写进项目文件、终端命令、截图或聊天记录。
 
 未配置大模型时仍可查看、编辑和导出已经保存的设计，但不能把 legacy 离线 Planner 的输出当作 V003 正式生成结果。仓库中的 `offline_deterministic` 只用于 Rust 合同和开发回归；它证明生命周期与 Gate，不代表面向用户的模型质量或真实联网生成。
 
@@ -158,7 +158,9 @@ macOS Tauri 运行时把 API Key 保存到系统 Keychain。普通打开工作�
 - 记录可见轮廓/比例/材质区提示与不确定性，不声称恢复背面、内部结构、尺寸或功能；
 - 当项目已有一个当前可编辑 ForgeCAD 资产时，可用已审阅 Recipe 生成一个受限重建预览；确认才创建新版本，取消不改变 head。
 
-若项目尚无可编辑基准，工作台会保存证据，但不开放重建预览；初始生成将由 V003 单次合成路径接管。R007B 已用单图、多视图 contact sheet 和严格 GLB readback 三类证据验证：参考会形成不同的受限分析、Recipe/Material Zone/A005 计划与新 GLB，并可在同一 packaged 工作台、同一 renderer 中复现“只读参考→新结果”。这证明参考驱动的工程闭环已经接通，但 manifest 明确标记 `visual_fidelity_validated=false`；软件仍不能保证新模型达到参考图的外观质量或相似度。
+若项目尚无可编辑基准，工作台会保存证据，但不开放重建预览；初始生成将由 V003 单次合成路径接管。R007B 已用单图、多视图 contact sheet 和严格 GLB readback 三类证据验证受限重建工程链。PV006A–PV006B 进一步提供文字、参考角色、活动模型、局部选择和锁定的 Rust 合同，以及独立视觉理解服务：保存图片后可选择轮廓、结构、材质、表面、局部、风格或多视图角色，在明确点击“提取视觉证据”后读取已封存图片；可取消，迟到结果会丢弃，结果只显示为宏观/中频/微观的可见、推断或未知证据。
+
+视觉服务的 Base URL、模型和 Key 在抽屉内显式配置，只保存到权限受限的本机私密文件，不写项目、日志或 Git，也不使用 macOS 钥匙串。安全保存后只显示“已配置·未验证”；只有一次真实图片分析成功后才显示“已验证”，不会把本地保存成功冒充为服务连接成功。“提取视觉证据”仍是零版本副作用；分析成功后可再点击“使用这些证据生成 3D/继续修改”，将 Rust-normalized request+graph 绑定到一个原生 Agent Turn。Rust 会在任何 Turn 写入前重读 sealed evidence；DeepSeek 只需提交每条 claim 的处置和紧凑视觉意图，Rust 再将其绑定到真实派生 program detail。候选编译后，视觉服务还会比较 sealed 参考像素与同一 GLB 的确切八张候选图；它只能提交逐条视觉判断，最终相似度、修复目标和是否放行由 Rust 计算。失败结果可在同一意图内最多修复两次；只有最新比较、GLB readback 和八视图门全部通过才显示唯一预览，确认前不创建版本。真实 DeepSeek 已完成一次机械臂意图→GLB→唯一预览→确认→Snapshot→导出；该证据尚未包含 20 条多模态盲测和真人视觉门，因此仍不能保证新模型达到参考图的外观质量或相似度。
 
 ## 8. 检查和导出
 
@@ -172,7 +174,7 @@ macOS Tauri 运行时把 API Key 保存到系统 Keychain。普通打开工作�
 这些检查不包含精确网格碰撞、结构强度、空气动力学、车辆安全或机器人动力学。
 编译或 GLB 回读失败时，界面应显示检查不可用，不会用旧估算数字代替。
 
-当前 Agent 资产正式支持的用户导出目标是 GLB；另外支持从当前资产生成四视图概念 PNG，以及条件满足时的透明背景爆炸概念 PNG。Agent 下载抽屉不会显示 OBJ、MP4 或源包；这些仅属于旧 Concept 的只读兼容路径，不应作为新 Agent 资产能力使用。PNG 和图包不会创建版本，也不改变质量、选择或 Snapshot。
+当前 Agent 资产正式支持的用户导出目标是 GLB；工作台另外支持四视图概念 PNG，以及条件满足时的透明背景爆炸概念 PNG。PV005 后端已经提供绑定活动版本的六成员 Forge 资产包（GLB、WebP、转台 MP4、manifest、质量、许可），但下载抽屉尚未增加该入口；本机也必须存在代码允许的 FFmpeg，否则明确失败。OBJ 与工程源包仍不属于新 Agent 资产能力。PNG 和资产包生成不会创建新设计版本，也不改变质量、选择或 Snapshot。
 
 导出前只检查工作台当前 `ActiveDesignSnapshot` 显示的 Agent 资产版本。Agent 路径的版本、选择、质量和导出已由同一 Snapshot 绑定；如果界面报告版本冲突或 `legacy_concept_read_only`，停止导出并记录问题，不要手工切换版本号。
 

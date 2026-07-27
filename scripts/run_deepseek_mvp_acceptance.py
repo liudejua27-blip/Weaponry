@@ -3,8 +3,8 @@
 
 No argument, missing confirmation, or invalid caller-owned output path is a
 zero-network dry-run.  A live run only launches the already-built macOS app;
-the app itself resolves the existing credential through Rust's Keychain store.
-This script never reads a Keychain, Provider configuration, secret file, or
+the app itself resolves the existing credential through Rust's private store.
+This script never reads Provider configuration, a credential file, or an
 environment API key, and it never prints the process environment.
 """
 
@@ -30,9 +30,6 @@ from smoke_packaged_tauri_alpha import (
     _stop_desktop_and_listener,
     _wait_for_native_health,
 )
-from macos_stable_app_identity import inspect_stable_app_identity
-
-
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "ForgeCADDeepSeekMvpAcceptanceLaunch@1"
 REPORT_SCHEMA_VERSION = "ForgeCADDeepSeekMvpAcceptance@1"
@@ -123,7 +120,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--foreground-launch",
         action="store_true",
-        help="launch the release binary directly so macOS Keychain authorization is visible",
+        help="launch the release binary directly for foreground diagnostics",
     )
     return parser
 
@@ -331,11 +328,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if not APP_BINARY.is_file():
             raise AcceptanceError("LIVE_APP_NOT_BUILT")
-        if not inspect_stable_app_identity(APP_BUNDLE).ready:
-            # Fail before launching the app. An ad-hoc rebuild has a different
-            # Keychain code requirement and can produce repeated password
-            # prompts even after the user previously selected Always Allow.
-            raise AcceptanceError("LIVE_STABLE_APP_IDENTITY_REQUIRED")
         if _listener_pid() is not None:
             raise AcceptanceError("LIVE_PORT_8000_OCCUPIED")
         output.parent.mkdir(parents=True, exist_ok=True)

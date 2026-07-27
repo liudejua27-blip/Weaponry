@@ -9,20 +9,27 @@ import {
   Cube,
   CursorClick,
   Export,
-  FloppyDisk,
   FolderOpen,
   GridFour,
   House,
-  MagnifyingGlass,
-  Plus,
   Ruler,
   SelectionAll,
-  Star,
   Sparkle,
   X,
 } from '@phosphor-icons/react'
-import { ForgeApiError, forgeApi, mapActiveDesignError } from '../../shared/api/forgeApi'
-import type { ActiveDesignNavigation, AgentAssetChangeSet, AgentAssetQualityReport, AgentAssetRenderView, AgentAssetVersion, AgentComponentCandidate, AgentMaterialPreset, AgentPartEditOperation, AgentStructureSuggestion, AgentThreadSummary, AgentTurn, AssemblyDeltaProgram, MechanicalConceptPlan } from '../../shared/types'
+import { ForgeApiError, forgeApi } from '../../shared/api/forgeApi'
+import type {
+  AgentAssetChangeSet,
+  AgentAssetRenderView,
+  AgentComponentCandidate,
+  AgentMaterialPreset,
+  AgentPartEditOperation,
+  AgentStructureSuggestion,
+  AgentThreadSummary,
+  AgentTurn,
+  AssemblyDeltaProgram,
+  MechanicalConceptPlan,
+} from '../../shared/types'
 import { useRuntime } from '../../app/providers/RuntimeProvider'
 import {
   getProviderConfig as getTauriProviderConfig,
@@ -44,11 +51,21 @@ import { WorkbenchComposer } from './WorkbenchComposer'
 import { WorkbenchSidebar } from './WorkbenchSidebar'
 import { selectAgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation'
 import { selectAgentPlanSourcePresentation } from './agentPlanSourcePresentation'
+import { deriveCandidatePreviewQuality } from './candidatePreviewQualityLogic.js'
 import { MODULE_CATEGORY_LABELS } from './ComponentDrawer'
 import { MaterialDrawer } from './MaterialDrawer'
 import { WorkbenchDrawerStack } from './WorkbenchDrawerStack'
 import { WorkbenchInspectorRail } from './WorkbenchInspectorRail'
 import { displayPartRole } from './partRoleLabels.js'
+import {
+  loadAgentAssetDisplayViews,
+  restoreAgentAssetBlockoutPreviewWithProductionFallback,
+  restoreAgentAssetBlockoutPreview,
+  previewAgentAssetChangeSet,
+  previewSurfaceAdornment,
+  previewReferenceGuidedRebuild,
+} from './agentBlockoutDisplayLoader.js'
+import { previewAgentDirection as previewAgentDirectionRequest } from './agentDirectionPreviewLoader.js'
 import {
   activeDesignCanSelectParts,
   activeDesignPartDisplay,
@@ -57,7 +74,12 @@ import {
   activeDesignSelectedPartId,
 } from './activeDesignMachine'
 import { useWorkbenchLifecycle } from './useWorkbenchLifecycle'
-import { parseAgentTurnPresentation, type AgentClarification, type AgentClarificationOption } from './agentConversationState'
+import {
+  claimAgentTurnSubmission,
+  parseAgentTurnPresentation,
+  releaseAgentTurnSubmission,
+  type AgentClarificationOption,
+} from './agentConversationState'
 import { useAgentConversationPresentation } from './useAgentConversationPresentation'
 import { useAgentBlockoutDisplay } from './useAgentBlockoutDisplay'
 import { useAgentAssetWorkspace } from './useAgentAssetWorkspace'
@@ -77,33 +99,45 @@ import { useAgentMaterialCatalogPresentation } from './useAgentMaterialCatalogPr
 import { useAgentMaterialFilterPresentation } from './useAgentMaterialFilterPresentation'
 import { useAgentMaterialPreselectionPresentation } from './useAgentMaterialPreselectionPresentation'
 import { resolveAgentMaterialDisplayId } from './agentMaterialPreselectionPresentationState'
+import { createAgentTurnEventCollector } from './agentTurnEventStream'
 import {
   SurfaceAdornmentDrawer,
   type SurfaceAdornmentAdapter,
-  type SurfaceAdornmentDraft,
   type SurfaceAdornmentTarget,
 } from './SurfaceAdornmentDrawer'
 import {
-  ReferenceEvidenceDrawer,
+  buildAgentPartEditOperations,
+  errorText,
+  inferImportDomainPack,
+  qualityStatusLabel,
+  referenceRebuildFailureMessage,
+} from './cadWorkbenchPanelLogic.js'
+import { ReferenceEvidenceDrawer } from './ReferenceEvidenceDrawer'
+import {
   readReferenceRebuildComparisonPlan,
   readReferenceRebuildExactLineage,
+  loadReferenceEvidenceHistory,
   type ReferenceEvidenceAdapter,
-  type ReferenceEvidenceHistoryEntry,
   type ReferenceEvidenceRecord,
   type ReferenceEvidenceTarget,
-} from './ReferenceEvidenceDrawer'
+} from './referenceEvidenceDrawerLogic.js'
+import { buildConversationThreadSummary } from './conversationThreadPresentation.js'
+import { projectLegacyGraphSelectionNodes } from './legacyGraphProjection.js'
 import {
   compatibleQuickMaterialPresets,
   createQuickMaterialPreviewOperation,
 } from './agentMaterialQuickActions'
 import { useComponentCatalogPresentation } from './useComponentCatalogPresentation'
 import { useConceptWorkbench } from './useConceptWorkbench'
-import { isProviderExecutionError, providerCheckPresentation } from './providerConnectionPresentation'
+import { providerCheckPresentation } from './providerConnectionPresentation'
+import { arrayBufferToBase64, downloadBase64File, downloadBlobFile } from './cadWorkbenchPanelFileUtils'
 import {
   initialViewportDockPresentationState,
   viewportDockPresentationReducer,
 } from './viewportDockState'
+import { resolveAgentTurnRecordFailure } from './agentTurnRecordFailure.js'
 import './cad-workbench.css'
+import type { MultimodalDesignRequest, VisualEvidenceGraph } from '../../shared/tauri/visionEvidence.js'
 
 type Tool = 'select' | 'move' | 'rotate' | 'scale' | 'orbit' | 'measure' | 'section'
 type CameraView = 'iso' | 'front' | 'top' | 'right'
@@ -157,40 +191,6 @@ const DEFAULT_CONCEPT_BRIEF = '一台结构清晰、比例协调、适合继续�
  * Rust conflict actionable for a zero-basis user, while preserving every other
  * backend error verbatim for diagnosis.
  */
-function referenceRebuildFailureMessage(error: unknown): string {
-  if (error instanceof ForgeApiError && error.code === 'REFERENCE_REBUILD_C106_BASE_REQUIRED') {
-    return '请先生成并确认机械臂生产基准，再使用参考重建；当前设计没有变化。'
-  }
-  return error instanceof Error ? error.message : '参考引导重建预览失败；当前设计没有变化。'
-}
-
-function compileSurfaceAdornmentDraft(draft: SurfaceAdornmentDraft) {
-  const intensity: 'subtle' | 'balanced' | 'pronounced' = draft.intensity === 'bold'
-    ? 'pronounced'
-    : draft.intensity
-  const coverage = {
-    center: 'center_band', edge: 'edge_band', full: 'full_zone', symmetric: 'symmetric_pair',
-  }[draft.coverage] as 'center_band' | 'edge_band' | 'full_zone' | 'symmetric_pair'
-  if (draft.kind === 'streamline') {
-    return { kind: 'flowline' as const, motif: 'double_flowline' as const, intensity, coverage }
-  }
-  if (draft.kind === 'texture') {
-    return {
-      kind: 'micro_surface' as const,
-      motif: draft.motif === 'parallel' ? 'parallel_groove' as const : 'hex_microgrid' as const,
-      intensity,
-      coverage,
-    }
-  }
-  return {
-    kind: 'normal_relief' as const,
-    motif: draft.motif === 'radial' || draft.motif === 'technical_mark'
-      ? 'chevron_relief' as const
-      : 'parallel_groove' as const,
-    intensity,
-    coverage,
-  }
-}
 const DEFAULT_HIDDEN_NODE_IDS = ['node_storage']
 const CONCEPT_FAMILY_SUGGESTIONS = [
   ['冰原探索车', '一台适合冰原探索的紧凑未来概念车，四轮独立悬挂、分层外壳、耐候材料'],
@@ -221,6 +221,8 @@ const TOOL_ITEMS: Array<{
   { id: 'measure', label: '测量', icon: Ruler, implemented: true },
   { id: 'section', label: '截面', icon: SelectionAll, implemented: true },
 ]
+
+const VIEWPORT_TOOLBAR_ITEMS = TOOL_ITEMS.filter((tool) => tool.id === 'select' || tool.id === 'orbit' || tool.id === 'measure')
 
 export function CadWorkbenchPanel() {
   const concept = useConceptWorkbench()
@@ -265,6 +267,7 @@ export function CadWorkbenchPanel() {
     agentClarification,
     agentPlan,
   } = agentConversationState
+  const agentTurnSubmissionRef = useRef(false)
   const {
     agentBlockoutDisplay,
     openBlockoutProject,
@@ -354,6 +357,10 @@ export function CadWorkbenchPanel() {
     segmentation: agentBlockoutSegmentation,
   } = agentBlockoutDisplay
   const blockoutPreviewPresentation = selectAgentBlockoutPreviewPresentation(agentBlockoutDisplay)
+  const candidatePreviewQuality = useMemo(
+    () => deriveCandidatePreviewQuality(agentKernelItems),
+    [agentKernelItems],
+  )
   const agentPlanSourcePresentation = selectAgentPlanSourcePresentation(agentPlan)
   const [cameraView, setCameraView] = useState<CameraView>('iso')
   const [lightPreset, setLightPreset] = useState<LightPreset>('cad_neutral')
@@ -658,57 +665,20 @@ export function CadWorkbenchPanel() {
         },
       })
       if (blockoutDisplayRequestId !== null) {
-        void api.loadAgentAssetPreviewGlb(version.asset_version_id).then((preview) => {
-          const previewKind = preview.artifactProfileId === 'external_reference'
-            ? 'external_reference'
-            : 'compiled_agent_preview_pbr'
-          if (!setBlockoutGlb(projectId, blockoutDisplayRequestId, preview.glb, previewKind)) return
-          if (preview.artifactProfileId === 'external_reference') return
-          setAssistantNote('已加载轻量编辑预览；生产级概念工件正在按需生成，完成后会在同一视口中替换。')
-          void api.loadAgentAssetProductionGlb(version.asset_version_id).then((production) => {
-            if (production.artifactProfileId !== 'production_concept') {
-              throw new Error('Production GLB response did not use the production concept profile')
-            }
-            if (!setBlockoutGlb(
-              projectId,
-              blockoutDisplayRequestId,
-              production.glb,
-              'compiled_agent_production_pbr',
-            )) return
-            setAssistantNote(`生产级概念工件已加载：${production.triangleCount.toLocaleString()} 三角形、512×512 PBR 纹理；当前仍是可编辑概念资产，不是制造 CAD。`)
-          }).catch(() => {
-            if (!isCurrentActiveDesignRequest(requestId)) return
-            setAssistantNote('生产级概念工件暂未加载；同源轻量预览仍可编辑，正式质量检查和下载不会使用该预览冒充最终结果。')
-          })
-        }).catch(async () => {
-          if (isImportedReference || !isCurrentActiveDesignRequest(requestId)) {
-            if (!setBlockoutGlb(projectId, blockoutDisplayRequestId, null, null)) return
-            setAssistantNote('导入参考模型的原始 GLB 不可读取；不会影响其他项目版本。')
-            return
-          }
-          // A confirmed asset may already own a valid production object even
-          // when its lightweight preview object is stale or unavailable. Do
-          // not strand the one real viewport in an empty state: independently
-          // request the production artifact and keep all existing profile,
-          // readback and request-id checks. This is a display recovery path,
-          // not an export fallback or a second geometry truth.
-          try {
-            const production = await api.loadAgentAssetProductionGlb(version.asset_version_id)
-            if (production.artifactProfileId !== 'production_concept') {
-              throw new Error('Production GLB response did not use the production concept profile')
-            }
-            if (!setBlockoutGlb(
-              projectId,
-              blockoutDisplayRequestId,
-              production.glb,
-              'compiled_agent_production_pbr',
-            )) return
-            setAssistantNote(`轻量预览不可用，已直接加载生产级概念工件：${production.triangleCount.toLocaleString()} 三角形、512×512 PBR 纹理。`)
-          } catch {
-            if (!setBlockoutGlb(projectId, blockoutDisplayRequestId, null, null)) return
-            setAssistantNote('当前 Agent 资产的预览与生产 PBR GLB 均不可读取；视口已明确回退为参数外观，没有继续显示旧材质。')
-          }
-        })
+        void loadAgentAssetDisplayViews(
+          api,
+          {
+            projectId,
+            requestId,
+            isCurrentActiveDesignRequest,
+            isCurrentDisplayRequest: () => isCurrentActiveDesignRequest(requestId),
+            setAssistantNote,
+            setBlockoutGlb,
+          },
+          version.asset_version_id,
+          blockoutDisplayRequestId,
+          isImportedReference,
+        )
       }
       return response.data
     } catch (caught) {
@@ -874,6 +844,10 @@ export function CadWorkbenchPanel() {
         setProviderConfig(config)
         setProviderBaseUrl(config.base_url)
         setProviderModel(config.model)
+        if (config.failure_code === 'PROVIDER_CREDENTIAL_MIGRATION_REQUIRED') {
+          setProviderSetupOpen(true)
+          setAssistantNote('本机 Alpha 已改用不触发系统密码弹窗的私密凭据存储；请重新输入一次 DeepSeek API Key 完成迁移。')
+        }
       })
       .catch((caught) => {
         setAssistantNote(`无法读取模型服务配置：${errorText(caught)}。当前不会假定 DeepSeek 已配置。`)
@@ -885,12 +859,12 @@ export function CadWorkbenchPanel() {
     // selection is reconciled only against the returned legacy graph; it never
     // becomes the Agent Snapshot selection.
     if (!concept.graphRecord) return
-    const nodes = concept.graphRecord?.graph.nodes ?? []
+    const { selectionNodes, overlayNodeIds } = projectLegacyGraphSelectionNodes(concept.graphRecord.graph.nodes)
     reconcileLegacyModuleGraphSelection(
-      nodes.map((node) => ({ nodeId: node.node_id, moduleId: node.module_id, locked: Boolean(node.locked) })),
+      selectionNodes,
       concept.graphRecord.graph.root_node_id,
     )
-    reconcileLegacyModuleGraphOverlayNodes(nodes.map((node) => node.node_id))
+    reconcileLegacyModuleGraphOverlayNodes(overlayNodeIds)
   }, [
     concept.graphRecord,
     legacyModuleGraphOverlayContextKey,
@@ -1109,15 +1083,9 @@ export function CadWorkbenchPanel() {
         setAssistantNote('这个对话不属于当前项目，未切换工作台。')
         return
       }
-      const lastTurn = thread.turns.at(-1)
-      const items = thread.turns.flatMap((turn) => turn.items).sort((left, right) => left.sequence - right.sequence)
-      const presentation = lastTurn
-        ? parseAgentTurnPresentation(lastTurn.items, lastTurn.request_text)
-        : { clarification: null, plan: null }
-      if (!receiveAgentTurn(projectId, requestId, thread.thread_id, items, presentation)) return
-      setAssistantNote(lastTurn
-        ? `已打开“${thread.title}”；当前 3D 与 Snapshot 保持不变。`
-        : `已打开“${thread.title}”；这个对话还没有消息。`)
+      const threadSummary = buildConversationThreadSummary(thread)
+      if (!receiveAgentTurn(projectId, requestId, thread.thread_id, threadSummary.items, threadSummary.presentation)) return
+      setAssistantNote(threadSummary.assistantNote)
     } catch (caught) {
       if (!isCurrentAgentConversationRequest(projectId, requestId)) return
       setAssistantNote(`对话记录加载失败：${errorText(caught)}`)
@@ -1152,11 +1120,19 @@ export function CadWorkbenchPanel() {
     }
   }, [activeDesignSnapshot?.active_design.source, concept.closeLegacyDetails, concept.legacyDetailsEnabled])
 
-  const recordAgentTurn = useCallback(async (message: string, clarificationDomainPackId?: string): Promise<AgentTurnRecordResult> => {
-    const projectId = concept.project?.project_id ?? null
-    const { requestId } = startAgentConversationRequest(projectId)
-    dispatchSingleResultDecision({ type: 'request_started', projectId, requestId, detail: 'Agent 正在构建并检查 3D 结果。' })
+  const recordAgentTurn = useCallback(async (
+    message: string,
+    clarificationDomainPackId?: string,
+    multimodalContext?: { request: MultimodalDesignRequest; graph: VisualEvidenceGraph },
+  ): Promise<AgentTurnRecordResult> => {
+    if (!claimAgentTurnSubmission(agentTurnSubmissionRef)) {
+      return { recorded: false, clarification: false, cancelled: true, failed: false, plan: null, decision: null }
+    }
     try {
+      const projectId = concept.project?.project_id ?? null
+      const { requestId } = startAgentConversationRequest(projectId)
+      dispatchSingleResultDecision({ type: 'request_started', projectId, requestId, detail: 'Agent 正在构建并检查 3D 结果。' })
+      try {
       let threadId = agentThreadId
       if (!threadId) {
         const created = await api.createAgentThread({
@@ -1169,30 +1145,32 @@ export function CadWorkbenchPanel() {
           return { recorded: false, clarification: false, cancelled: true, failed: false, plan: null, decision: null }
         }
       }
-      const afterSequence = agentKernelItems.reduce(
-        (latest, item) => Math.max(latest, item.sequence),
-        0,
+      const eventCollector = createAgentTurnEventCollector({
+        existingKernelItems: agentKernelItems,
+        projectId,
+        requestId,
+        threadId,
+        isCurrentRequest: isCurrentAgentConversationRequest,
+        setActiveProviderTurnId,
+        parseAgentTurnPresentation,
+        receiveAgentTurn,
+        message,
+      })
+      const unsubscribeThreadEvents = api.subscribeAgentThreadEvents(
+        threadId,
+        { onEvent: eventCollector.onEvent },
+        eventCollector.afterSequence,
       )
-      const streamedItems = new Map<number, (typeof agentKernelItems)[number]>()
-      const unsubscribeThreadEvents = api.subscribeAgentThreadEvents(threadId, {
-        onEvent: (event) => {
-          if (!isCurrentAgentConversationRequest(projectId, requestId)) return
-          streamedItems.set(event.item.sequence, event.item)
-          const items = [...streamedItems.values()].sort((left, right) => left.sequence - right.sequence)
-          setActiveProviderTurnId(event.turn_id)
-          receiveAgentTurn(
-            projectId,
-            requestId,
-            threadId,
-            items,
-            parseAgentTurnPresentation(items, message),
-          )
-        },
-      }, afterSequence)
       const turnPromise = api.startAgentTurn(threadId, {
         client_request_id: `agent-turn-${Date.now()}`,
         message,
         ...(clarificationDomainPackId ? { clarification_domain_pack_id: clarificationDomainPackId } : {}),
+        ...(multimodalContext ? {
+          multimodal_context: {
+            request: multimodalContext.request,
+            visual_evidence_graph: multimodalContext.graph,
+          },
+        } : {}),
       })
       let turn: AgentTurn
       try {
@@ -1277,37 +1255,21 @@ export function CadWorkbenchPanel() {
       setAssistantNote(missingDecisionError)
       return { recorded: true, clarification: false, cancelled: false, failed: true, plan: null, decision: null }
     } catch (caught) {
-      if (!isCurrentAgentConversationRequest(projectId, requestId)) {
-        return { recorded: false, clarification: false, cancelled: true, failed: false, plan: null, decision: null }
+      return resolveAgentTurnRecordFailure({
+        caught,
+        projectId,
+        requestId,
+        message,
+        clarificationOptions: DEFAULT_AGENT_CLARIFICATION_OPTIONS,
+        isCurrentRequest: isCurrentAgentConversationRequest,
+        receiveAgentClarification,
+        setAssistantNote,
+        dispatchSingleResultDecision,
+        markKernelUnavailable: markAgentKernelUnavailable,
+      })
       }
-      if (caught instanceof ForgeApiError && (caught.code === 'DOMAIN_AMBIGUOUS' || caught.code === 'DOMAIN_UNSUPPORTED')) {
-        const clarification: AgentClarification = {
-          status: caught.code === 'DOMAIN_AMBIGUOUS' ? 'ambiguous' : 'unsupported',
-          kind: 'domain',
-          question: caught.message,
-          options: DEFAULT_AGENT_CLARIFICATION_OPTIONS,
-          originalMessage: message,
-        }
-        if (!receiveAgentClarification(projectId, requestId, clarification)) {
-          return { recorded: false, clarification: false, cancelled: true, failed: false, plan: null, decision: null }
-        }
-        dispatchSingleResultDecision({ type: 'request_cancelled', projectId, requestId })
-        setAssistantNote(caught.message)
-        return { recorded: false, clarification: true, cancelled: false, failed: false, plan: null, decision: null }
-      }
-      if (caught instanceof ForgeApiError && isProviderExecutionError(caught.code)) {
-        const networkCall = caught.details.network_call_made === true ? 'true' : 'false'
-        setAssistantNote(`模型请求失败：${caught.message}（${caught.code}，network_call_made=${networkCall}）。不会切换到离线 Planner；已保存资产没有变化。`)
-        dispatchSingleResultDecision({ type: 'request_failed', projectId, requestId, error: caught.message })
-        return { recorded: false, clarification: false, cancelled: false, failed: true, plan: null, decision: null }
-      }
-      // The compatibility planner remains usable when the new kernel is not
-      // available yet (for example while an older local Agent is running).
-      if (!markAgentKernelUnavailable(projectId, requestId)) {
-        return { recorded: false, clarification: false, cancelled: true, failed: false, plan: null, decision: null }
-      }
-      dispatchSingleResultDecision({ type: 'request_cancelled', projectId, requestId })
-      return { recorded: false, clarification: false, cancelled: false, failed: false, plan: null, decision: null }
+    } finally {
+      releaseAgentTurnSubmission(agentTurnSubmissionRef)
     }
   }, [agentKernelItems, agentThreadId, api, clearAgentAssetWorkspace, clearBlockoutDisplay, concept.project?.name, concept.project?.project_id, hydrateBlockoutDisplay, isCurrentAgentConversationRequest, markAgentKernelUnavailable, parseAgentTurnPresentation, receiveAgentClarification, receiveAgentTurn, startAgentConversationRequest])
 
@@ -1325,50 +1287,36 @@ export function CadWorkbenchPanel() {
     }
   }, [activeProviderCheckId, activeProviderTurnId, api])
 
-  const previewAgentDirection = useCallback(async (
-    directionId: string,
-    variationIndex = 0,
-    requestedProfile = presentationProfile,
-    planOverride?: MechanicalConceptPlan,
-  ) => {
-    const plan = planOverride ?? agentPlan
-    if (!plan) return
-    const projectId = concept.project?.project_id ?? null
-    const requestId = startDirectionPreview(projectId, directionId, variationIndex)
-    setAssistantNote('正在构建当前唯一展示结果…')
-    try {
-      const result = await api.buildAgentBlockout({
-        client_request_id: `agent-blockout-${Date.now()}`,
-        plan,
-        direction_id: directionId,
-        variation_index: variationIndex,
-        presentation_profile: requestedProfile,
-      })
-      if (!receiveBlockoutBuild(projectId, requestId, result.glb_base64, result.shape_program)) return
-      clearAgentAssetWorkspace()
-      setAgentAssetChangeSet(null)
-      setAgentCandidateSelectedPartId(null)
-      try {
-        const segmentation = await api.segmentAgentBlockout({
-          client_request_id: `agent-segment-${Date.now()}`,
-          plan,
-          direction_id: directionId,
-          variant_id: result.variant_id,
-          variation_index: result.variation_index,
-          presentation_profile: result.presentation_profile,
-          artifact_id: result.artifact_id,
-        })
-        if (!receiveSegmentation(projectId, requestId, segmentation)) return
-      } catch {
-        if (!failSegmentation(projectId, requestId)) return
-      }
-      if (!isCurrentDirectionPreview(projectId, requestId)) return
-      setAssistantNote(`${requestedProfile === 'showcase' ? '展示模型' : '快速草图'}已生成 ${result.triangle_count.toLocaleString()} 个展示面；确认前不会写入正式版本。`)
-    } catch {
-      if (!failDirectionPreview(projectId, requestId)) return
-      setAssistantNote('blockout 预览生成失败；当前设计仍未写入版本。')
-    }
-  }, [agentPlan, api, clearAgentAssetWorkspace, concept.project?.project_id, failDirectionPreview, failSegmentation, isCurrentDirectionPreview, presentationProfile, receiveBlockoutBuild, receiveSegmentation, startDirectionPreview])
+  const previewAgentDirection = useCallback(
+    (
+      directionId: string,
+      variationIndex = 0,
+      requestedProfile = presentationProfile,
+      planOverride?: MechanicalConceptPlan,
+    ) => previewAgentDirectionRequest(
+      api,
+      {
+        startDirectionPreview,
+        receiveBlockoutBuild,
+        clearAgentAssetWorkspace,
+        resetDirectionDraftSelections: () => {
+          setAgentAssetChangeSet(null)
+          setAgentCandidateSelectedPartId(null)
+        },
+        receiveSegmentation,
+        failSegmentation,
+        isCurrentDirectionPreview,
+        failDirectionPreview,
+        setAssistantNote,
+      },
+      concept.project?.project_id ?? null,
+      directionId,
+      variationIndex,
+      requestedProfile,
+      planOverride ?? agentPlan,
+    ),
+    [agentPlan, api, clearAgentAssetWorkspace, concept.project?.project_id, failDirectionPreview, failSegmentation, isCurrentDirectionPreview, presentationProfile, receiveBlockoutBuild, receiveSegmentation, startDirectionPreview],
+  )
 
   const commitAgentBlockout = useCallback(async () => {
     if (!agentBlockoutSegmentation) return
@@ -1583,64 +1531,26 @@ export function CadWorkbenchPanel() {
     if (!agentAssetVersion || agentAssetPreviewInFlightRef.current) return
     const operations = Array.isArray(operation) ? operation : [operation]
     const projectId = concept.project?.project_id ?? null
-    let previewChangeSetId: string | null = null
-    let displayRequestId: number | null = null
     agentAssetPreviewInFlightRef.current = true
     setAssistantNote('正在预览部件修改…')
     try {
-      const proposed = await api.proposeAgentAssetChangeSet(agentAssetVersion.asset_version_id, {
-        client_request_id: `agent-asset-change-${Date.now()}`,
+      const preview = await previewAgentAssetChangeSet(
+        api,
+        setBlockoutShapeProgram,
+        setBlockoutGlb,
+        projectId,
+        agentAssetVersion.asset_version_id,
+        agentAssetVersion.shape_program,
         summary,
         operations,
-      })
-      previewChangeSetId = proposed.change_set_id
-      const preview = await api.previewAgentAssetChangeSet(proposed.change_set_id, `agent-asset-preview-${Date.now()}`)
-      if (!preview.preview) {
-        throw new Error('ChangeSet preview did not return an Agent asset candidate')
+      )
+      if (!preview) {
+        setAgentAssetChangeSet(null)
+        setAssistantNote('真实 PBR 模型预览失败；已取消本次 ChangeSet，当前资产版本没有变化。')
+      } else {
+        setAgentAssetChangeSet(preview)
+        setAssistantNote(`已生成“${summary}”的真实 PBR 模型预览；确认后才会创建新版本。`)
       }
-      displayRequestId = setBlockoutShapeProgram(projectId, preview.preview.shape_program)
-      if (displayRequestId === null) {
-        throw new Error('ChangeSet preview no longer belongs to the open project')
-      }
-      const compiled = await api.exportAgentAssetChangeSetPreviewGlb(preview.change_set_id)
-      if (
-        compiled.baseAssetVersionId !== agentAssetVersion.asset_version_id
-        || !compiled.sha256?.match(/^[a-f0-9]{64}$/)
-        || !Number.isInteger(compiled.triangleCount)
-        || (compiled.triangleCount ?? 0) <= 0
-      ) {
-        throw new Error('ChangeSet preview GLB metadata does not match the active asset version')
-      }
-      if (!setBlockoutGlb(projectId, displayRequestId, compiled.glb, 'compiled_agent_preview_pbr')) {
-        throw new Error('ChangeSet preview display was superseded by a newer request')
-      }
-      setAgentAssetChangeSet(preview)
-      setAssistantNote(`已生成“${summary}”的真实 PBR 模型预览；确认后才会创建新版本。`)
-    } catch {
-      if (previewChangeSetId) {
-        await api.rejectAgentAssetChangeSet(previewChangeSetId, `agent-asset-preview-cleanup-${Date.now()}`).catch(() => undefined)
-      }
-      setAgentAssetChangeSet(null)
-      const stillOwnsPreviewDisplay = displayRequestId !== null
-        && setBlockoutGlb(projectId, displayRequestId, null, null)
-      if (stillOwnsPreviewDisplay) {
-        const restoreRequestId = setBlockoutShapeProgram(projectId, agentAssetVersion.shape_program)
-        if (restoreRequestId !== null) {
-          await api.loadAgentAssetPreviewGlb(agentAssetVersion.asset_version_id)
-            .then((preview) => {
-              setBlockoutGlb(
-                projectId,
-                restoreRequestId,
-                preview.glb,
-                preview.artifactProfileId === 'external_reference'
-                  ? 'external_reference'
-                  : 'compiled_agent_preview_pbr',
-              )
-            })
-            .catch(() => undefined)
-        }
-      }
-      setAssistantNote('真实 PBR 模型预览失败；已取消本次 ChangeSet，当前资产版本没有变化。')
     } finally {
       agentAssetPreviewInFlightRef.current = false
     }
@@ -1655,35 +1565,7 @@ export function CadWorkbenchPanel() {
       setAssistantNote('当前机械臂版本已经变化；这条修改已安全丢弃，请重新描述一次。')
       return
     }
-    const operations = delta.operations.map((operation, index) => {
-      const operationId = `op_${operation.operation_id.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 112)}_${index}`
-      if (operation.op === 'add_reviewed_recipe') {
-        return {
-          operation_id: operationId,
-          op: operation.op,
-          part_id: operation.parent_part_id,
-          new_part_id: operation.new_part_id,
-          parent_connector_id: operation.parent_connector_id,
-          child_connector_id: operation.child_connector_id,
-          recipe_id: operation.recipe_id,
-          slot_id: operation.slot_id,
-          transform: operation.transform,
-        } as unknown as AgentPartEditOperation
-      }
-      if (operation.op === 'set_joint_pose') {
-        return {
-          operation_id: operationId,
-          op: operation.op,
-          part_id: operation.part_id,
-          joint_id: operation.joint_id,
-          pose: operation.pose,
-        } as unknown as AgentPartEditOperation
-      }
-      return {
-        ...operation,
-        operation_id: operationId,
-      } as unknown as AgentPartEditOperation
-    })
+    const operations = buildAgentPartEditOperations(delta)
     await previewAgentAssetEdit(operations, delta.summary)
   }, [agentAssetVersion, previewAgentAssetEdit, setAssistantNote])
 
@@ -1775,73 +1657,17 @@ export function CadWorkbenchPanel() {
       }
     },
     preview: async (target, draft) => {
-      if (!agentAssetVersion || target.assetVersionId !== agentAssetVersion.asset_version_id) {
-        return { status: 'unavailable' as const, message: '当前模型已切换，请重新选择部件。' }
-      }
-      const projectId = concept.project?.project_id ?? null
-      let changeSetId: string | null = null
-      let displayRequestId: number | null = null
-      let failureStage = 'SURFACE_ADORNMENT_PROPOSE_FAILED'
-      try {
-        const clientRequestId = `surface-adornment-${Date.now()}`
-        const proposed = await api.proposeSurfaceAdornmentPreview(target.assetVersionId, {
-          client_request_id: clientRequestId,
-          part_id: target.partId,
-          material_zone_id: target.materialZoneId,
-          ...compileSurfaceAdornmentDraft(draft),
-        })
-        changeSetId = proposed.change_set_id
-        failureStage = 'SURFACE_ADORNMENT_CHANGE_SET_PREVIEW_FAILED'
-        const preview = await api.previewAgentAssetChangeSet(
-          proposed.change_set_id,
-          `surface-adornment-preview-${Date.now()}`,
-        )
-        if (!preview.preview) throw new Error('外观细节预览没有返回可验证模型。')
-        failureStage = 'SURFACE_ADORNMENT_VIEWPORT_STAGE_FAILED'
-        displayRequestId = setBlockoutShapeProgram(projectId, preview.preview.shape_program)
-        if (displayRequestId === null) throw new Error('当前项目已切换。')
-        failureStage = 'SURFACE_ADORNMENT_PREVIEW_GLB_FAILED'
-        const compiled = await api.exportAgentAssetChangeSetPreviewGlb(preview.change_set_id)
-        failureStage = 'SURFACE_ADORNMENT_PREVIEW_GLB_IDENTITY_FAILED'
-        if (
-          compiled.baseAssetVersionId !== target.assetVersionId
-          || !compiled.sha256?.match(/^[a-f0-9]{64}$/)
-          || !Number.isInteger(compiled.triangleCount)
-          || (compiled.triangleCount ?? 0) <= 0
-        ) {
-          throw new Error('外观细节 GLB 与当前模型版本不一致。')
-        }
-        failureStage = 'SURFACE_ADORNMENT_VIEWPORT_COMMIT_FAILED'
-        if (!setBlockoutGlb(projectId, displayRequestId, compiled.glb, 'compiled_agent_preview_pbr')) {
-          throw new Error('外观细节预览已被更新的请求取代。')
-        }
-        setAgentAssetChangeSet(preview)
-        return {
-          status: 'preview_ready' as const,
-          changeSetId: preview.change_set_id,
-          summary: '已在同一个 3D 视口中加载真实 PBR 外观细节预览；保留后才创建新版本。',
-        }
-      } catch (caught) {
-        if (changeSetId) {
-          await api.rejectAgentAssetChangeSet(
-            changeSetId,
-            `surface-adornment-cleanup-${Date.now()}`,
-          ).catch(() => undefined)
-        }
-        if (caught instanceof ForgeApiError && caught.code === 'SURFACE_ADORNMENT_SKILL_DISABLED') {
-          return { status: 'activation_required' as const, message: caught.message }
-        }
-        if (displayRequestId !== null) setBlockoutGlb(projectId, displayRequestId, null, null)
-        return {
-          status: 'failed' as const,
-          message: caught instanceof Error ? caught.message : '外观细节预览失败；当前版本没有变化。',
-          errorCode: caught instanceof ForgeApiError
-            ? caught.code
-            : typeof caught === 'object' && caught !== null && 'code' in caught && typeof caught.code === 'string'
-              ? caught.code
-              : failureStage,
-        }
-      }
+      return previewSurfaceAdornment(
+        api,
+        {
+          isCurrentAsset: (assetVersionId) => Boolean(agentAssetVersion?.asset_version_id === assetVersionId),
+          setBlockoutShapeProgram,
+          setBlockoutGlb,
+          setAgentAssetChangeSet,
+        },
+        target,
+        draft,
+      )
     },
     retain: async (changeSetId) => {
       try {
@@ -1872,14 +1698,14 @@ export function CadWorkbenchPanel() {
       setAgentAssetChangeSet(null)
       const projectId = concept.project?.project_id ?? null
       if (agentAssetVersion) {
-        const requestId = setBlockoutShapeProgram(projectId, agentAssetVersion.shape_program)
-        if (requestId !== null) {
-          await api.loadAgentAssetPreviewGlb(agentAssetVersion.asset_version_id)
-            .then((preview) => {
-              setBlockoutGlb(projectId, requestId, preview.glb, 'compiled_agent_preview_pbr')
-            })
-            .catch(() => undefined)
-        }
+        await restoreAgentAssetBlockoutPreview(
+          api,
+          setBlockoutShapeProgram,
+          setBlockoutGlb,
+          projectId,
+          agentAssetVersion.asset_version_id,
+          agentAssetVersion.shape_program,
+        )
       }
       if (projectId) await refreshActiveDesign(projectId).catch(() => undefined)
     },
@@ -1951,94 +1777,25 @@ export function CadWorkbenchPanel() {
       }
     },
     previewRebuild: async (target, evidence: ReferenceEvidenceRecord) => {
-      const epoch = referenceEvidenceRequestEpochRef.current
-      let changeSetId: string | null = null
-      try {
-        if (!target.baseAssetVersionId) {
-          return {
-            status: 'unavailable' as const,
-            message: '请先生成并确认机械臂生产基准，再使用参考重建；当前设计没有变化。',
-          }
-        }
-        const proposed = await api.proposeReferenceGuidedRebuildPreview(target.projectId, {
-          client_request_id: `reference-rebuild-${Date.now()}`,
-          evidence_id: evidence.evidenceId,
-          domain_pack_id: target.domainPackId ?? 'pack_robotic_arm_concept',
-          base_asset_version_id: target.baseAssetVersionId,
-        })
-        changeSetId = proposed.changeSet.change_set_id
-        const draftLineage = readReferenceRebuildExactLineage(proposed.planRead, {
-          evidenceId: evidence.evidenceId,
-          sourceObjectSha256: evidence.contentSha256,
-        })
-        if (
-          proposed.planRead.reference_guided_rebuild_plan.project_id !== target.projectId
-          || !draftLineage
-          || draftLineage.status !== 'draft'
-        ) {
-          throw new Error('参考重建计划没有返回可验证的冻结证据谱系。')
-        }
-        const preview = await api.previewAgentAssetChangeSet(changeSetId, `reference-rebuild-preview-${Date.now()}`)
-        if (!preview.preview) throw new Error('参考引导重建没有返回可验证的 ShapeProgram 预览。')
-        const planRead = await api.getReferenceGuidedRebuildPlan(target.projectId, draftLineage.rebuildPlanId)
-        const lineage = readReferenceRebuildExactLineage(planRead, {
-          evidenceId: evidence.evidenceId,
-          sourceObjectSha256: evidence.contentSha256,
-          previewChangeSetId: changeSetId,
-        })
-        if (
-          planRead.reference_guided_rebuild_plan.project_id !== target.projectId
-          || !lineage
-          || lineage.status !== 'previewed'
-          || lineage.rebuildPlanId !== draftLineage.rebuildPlanId
-        ) {
-          throw new Error('参考重建预览与冻结证据谱系不一致，已拒绝此次预览。')
-        }
-        const compiled = await api.exportAgentAssetChangeSetPreviewGlb(changeSetId)
-        if (!compiled.sha256?.match(/^[a-f0-9]{64}$/) || !Number.isInteger(compiled.triangleCount) || (compiled.triangleCount ?? 0) <= 0) {
-          throw new Error('参考引导重建预览没有返回可验证 GLB。')
-        }
-        if (epoch !== referenceEvidenceRequestEpochRef.current) {
-          await api.rejectAgentAssetChangeSet(changeSetId, `reference-rebuild-late-reject-${Date.now()}`).catch(() => undefined)
-          return { status: 'unavailable' as const, message: '参考预览已过期并被取消；当前设计没有变化。' }
-        }
-        // The read-only reference image/GLB is only a transient A/B display.
-        // The preview itself must replace it in the same renderer so the
-        // reference pixels can never be mistaken for generated geometry.
-        replaceReferenceViewport(null)
-        const displayRequestId = setBlockoutShapeProgram(target.projectId, preview.preview.shape_program)
-        if (displayRequestId === null || !setBlockoutGlb(target.projectId, displayRequestId, compiled.glb, 'compiled_agent_preview_pbr')) {
-          await api.rejectAgentAssetChangeSet(changeSetId, `reference-rebuild-display-reject-${Date.now()}`).catch(() => undefined)
-          return { status: 'unavailable' as const, message: '当前项目已切换；参考预览已取消。' }
-        }
-        setAgentAssetChangeSet(preview)
-        referenceRebuildPlanByChangeSetRef.current.set(changeSetId, {
-          projectId: target.projectId,
-          baseAssetVersionId: target.baseAssetVersionId,
-          evidenceId: evidence.evidenceId,
-          sourceObjectSha256: evidence.contentSha256,
-          rebuildPlanId: lineage.rebuildPlanId,
-        })
-        return {
-          status: 'preview_ready' as const,
-          changeSetId,
-          summary: '已在同一个 3D 视口加载新的可编辑机械臂重建预览；参考源仍保持只读，保留后才创建版本。',
-          // R007B only renders the three existing plan lists if a compatible
-          // response exposes them. A ChangeSet-only response must not invent
-          // evidence, intended changes, or unknown geometry in the UI.
-          comparison: readReferenceRebuildComparisonPlan(planRead) ?? undefined,
-          lineage,
-        }
-      } catch (caught) {
-        if (changeSetId) {
-          await api.rejectAgentAssetChangeSet(changeSetId, `reference-rebuild-cleanup-${Date.now()}`).catch(() => undefined)
-          referenceRebuildPlanByChangeSetRef.current.delete(changeSetId)
-        }
-        return {
-          status: 'failed' as const,
-          message: referenceRebuildFailureMessage(caught),
-        }
-      }
+      return previewReferenceGuidedRebuild(
+        api,
+        {
+          setBlockoutShapeProgram,
+          setBlockoutGlb,
+          setAgentAssetChangeSet,
+          replaceReferenceViewport: () => replaceReferenceViewport(null),
+          setPlanBinding: (changeSetId, binding) => {
+            referenceRebuildPlanByChangeSetRef.current.set(changeSetId, binding)
+          },
+          deletePlanBinding: (changeSetId) => {
+            referenceRebuildPlanByChangeSetRef.current.delete(changeSetId)
+          },
+          resolveFailureMessage: referenceRebuildFailureMessage,
+          currentEpoch: () => referenceEvidenceRequestEpochRef.current,
+        },
+        target,
+        evidence,
+      )
     },
     retain: async (changeSetId) => {
       const binding = referenceRebuildPlanByChangeSetRef.current.get(changeSetId)
@@ -2108,46 +1865,20 @@ export function CadWorkbenchPanel() {
           // win the display request and leave the confirmed V3 viewport
           // empty. This still consumes the exact Rust-owned version objects;
           // it creates no second renderer or geometry truth.
-          const displayRequestId = setBlockoutShapeProgram(
+          const restoreResult = await restoreAgentAssetBlockoutPreviewWithProductionFallback(
+            api,
+            setBlockoutShapeProgram,
+            setBlockoutGlb,
             projectId,
+            confirmed.asset_version.asset_version_id,
             confirmed.asset_version.shape_program,
           )
-          if (displayRequestId !== null) {
-            try {
-              const production = await api.loadAgentAssetProductionGlb(
-                confirmed.asset_version.asset_version_id,
-              )
-              if (production.artifactProfileId !== 'production_concept') {
-                throw new Error('Production GLB response did not use the production concept profile')
-              }
-              if (!setBlockoutGlb(
-                projectId,
-                displayRequestId,
-                production.glb,
-                'compiled_agent_production_pbr',
-              )) {
-                retainedDisplaySummary = ' 当前项目已切换，结果保留在原项目。'
-              }
-            } catch {
-              try {
-                const preview = await api.loadAgentAssetPreviewGlb(
-                  confirmed.asset_version.asset_version_id,
-                )
-                if (!setBlockoutGlb(
-                  projectId,
-                  displayRequestId,
-                  preview.glb,
-                  'compiled_agent_preview_pbr',
-                )) {
-                  retainedDisplaySummary = ' 当前项目已切换，结果保留在原项目。'
-                } else {
-                  retainedDisplaySummary = ' 生产工件暂不可用，当前明确显示同源轻量预览。'
-                }
-              } catch {
-                setBlockoutGlb(projectId, displayRequestId, null, null)
-                retainedDisplaySummary = ' 新版本已保存，但其 PBR 视图暂不可读取；没有继续显示旧版本。'
-              }
-            }
+          if (restoreResult === 'project_switched') {
+            retainedDisplaySummary = ' 当前项目已切换，结果保留在原项目。'
+          } else if (restoreResult === 'preview') {
+            retainedDisplaySummary = ' 生产工件暂不可用，当前明确显示同源轻量预览。'
+          } else if (restoreResult === 'unreadable') {
+            retainedDisplaySummary = ' 新版本已保存，但其 PBR 视图暂不可读取；没有继续显示旧版本。'
           }
         }
         setAgentAssetChangeSet(null)
@@ -2194,46 +1925,7 @@ export function CadWorkbenchPanel() {
       }
     },
     loadHistory: async (target) => {
-      const index = await api.listProjectReferenceEvidence(target.projectId)
-      const plans = await Promise.all(index.reference_guided_rebuild_plans.map(async (plan) => {
-        const read = await api.getReferenceGuidedRebuildPlan(target.projectId, plan.rebuild_plan_id)
-        return read
-      }))
-      const planByEvidenceId = new Map(plans.map((read) => [
-        read.reference_guided_rebuild_plan.evidence_id,
-        read,
-      ]))
-      return index.reference_evidence.map((record): ReferenceEvidenceHistoryEntry => {
-        const read = planByEvidenceId.get(record.evidence_id)
-        const plan = read?.reference_guided_rebuild_plan
-        const lineage = read && plan?.project_id === target.projectId
-          ? readReferenceRebuildExactLineage(read, {
-            evidenceId: record.evidence_id,
-            sourceObjectSha256: record.source_object_sha256,
-          })
-          : null
-        return {
-          evidence: {
-            evidenceId: record.evidence_id,
-            contentSha256: record.source_object_sha256,
-            kind: record.kind,
-            fileName: record.source_file_name,
-            sourceStatement: record.source_statement,
-            licenseStatement: record.license_statement,
-            missingViews: record.missing_views,
-            uncertainties: record.observations?.uncertainties ?? [],
-            referenceClass: record.reference_class,
-          },
-          comparison: plan ? {
-            retainedEvidence: plan.retained_evidence,
-            intendedDifferences: plan.intended_differences,
-            unresolvedUncertainties: plan.unresolved_uncertainties,
-          } : null,
-          rebuildPlanId: plan?.rebuild_plan_id ?? null,
-          resultAssetVersionId: read?.reference_result_pair?.result_asset_version_id ?? null,
-          lineage,
-        }
-      })
+      return loadReferenceEvidenceHistory(api, target.projectId)
     },
     loadContent: async (target, evidence) => {
       const content = await api.loadReferenceEvidenceContent(target.projectId, evidence.evidenceId)
@@ -2367,13 +2059,22 @@ export function CadWorkbenchPanel() {
   }, [activeAgentAssetVersion, activeDesignState.snapshotEtag, api, clearAgentAssetWorkspaceQuality, refreshActiveDesign])
 
   const submitAssistantInstruction = async () => {
-    return submitAssistantInstructionWithText(chatInput.trim() || DEFAULT_CONCEPT_BRIEF)
+    const instruction = chatInput.trim()
+    if (!instruction) {
+      setAssistantNote('请先在输入框描述想生成的 3D 概念，再发送给 Agent。')
+      return
+    }
+    return submitAssistantInstructionWithText(instruction)
   }
 
-  const submitAssistantInstructionWithText = async (requestedText: string, clarificationDomainPackId?: string) => {
+  const submitAssistantInstructionWithText = async (
+    requestedText: string,
+    clarificationDomainPackId?: string,
+    multimodalContext?: { request: MultimodalDesignRequest; graph: VisualEvidenceGraph },
+  ) => {
     const instruction = requestedText.trim() || DEFAULT_CONCEPT_BRIEF
     setAssistantNote(`正在解释 Brief：“${instruction}”`)
-    const kernelResult = await recordAgentTurn(instruction, clarificationDomainPackId)
+    const kernelResult = await recordAgentTurn(instruction, clarificationDomainPackId, multimodalContext)
     if (kernelResult.cancelled) return
     if (kernelResult.failed) {
       setChatInput('')
@@ -2441,7 +2142,7 @@ export function CadWorkbenchPanel() {
 
   const saveProvider = useCallback(async () => {
     if (!providerApiKey.trim()) {
-      setAssistantNote('请填写 API Key；密钥只会保存到 macOS Keychain，不会写入项目。')
+      setAssistantNote('请填写 API Key；密钥只会保存到本机权限受限的私密文件，不会写入项目。')
       return
     }
     setProviderSaving(true)
@@ -2455,12 +2156,12 @@ export function CadWorkbenchPanel() {
       setProviderApiKey('')
       void checkService()
       if (saved.metadata_status !== 'valid' || saved.secret_status !== 'available') {
-        setAssistantNote(`配置尚未启用：${saved.failure_code ?? 'Provider metadata 或 Keychain 未通过验证'}。没有发起 DeepSeek 请求。`)
+        setAssistantNote(`配置尚未启用：${saved.failure_code ?? 'Provider metadata 或私密凭据未通过验证'}。没有发起 DeepSeek 请求。`)
       } else if (saved.supervisor_status !== 'running' || saved.capability_status !== 'ready') {
         setAssistantNote(`密钥已安全保存，但 Agent 尚未载入新配置：${saved.failure_code ?? '本地 capability 不匹配'}。没有发起 DeepSeek 请求，请先修复服务状态。`)
       } else {
         setProviderSetupOpen(false)
-        setAssistantNote('模型服务配置、Keychain、Agent 重启和本地 capability 均已验证；尚未发起收费请求，可点击“测试连接”。')
+        setAssistantNote('模型服务配置、私密凭据、Agent 重启和本地 capability 均已验证；尚未发起收费请求，可点击“测试连接”。')
       }
     } catch (caught) {
       setAssistantNote(`模型服务配置失败：${errorText(caught)}`)
@@ -2719,6 +2420,8 @@ export function CadWorkbenchPanel() {
               agentKernelItems={agentKernelItems}
               agentKernelUnavailable={agentKernelUnavailable}
               agentPlan={agentPlan}
+              candidatePreviewPresent={Boolean(agentBlockoutGlbBase64 || agentBlockoutShapeProgram)}
+              candidatePreviewQuality={candidatePreviewQuality}
             />
             {singleResultDecisionPresentation.presentation.state === 'processing' ? (
               <GenerationResultCard
@@ -2870,6 +2573,15 @@ export function CadWorkbenchPanel() {
                 setReferenceEvidenceOpen(false)
               }}
               onMessage={setAssistantNote}
+              visionContext={{
+                instruction: chatInput,
+                activeAssetVersionId: activeAgentAssetVersion?.asset_version_id ?? null,
+                selectedPartId: selectedAgentPart?.part_id ?? null,
+                selectedMaterialZoneId: selectedMaterialZoneId || null,
+                onUseEvidence: async ({ instruction, request, graph }) => {
+                  await submitAssistantInstructionWithText(instruction, undefined, { request, graph })
+                },
+              }}
             />
             <small className="planner-boundary">所有生成和调整都只影响虚构、非功能展示组件；预览确认前不会写入版本。</small>
           </section>
@@ -2932,7 +2644,7 @@ export function CadWorkbenchPanel() {
               ><X size={18} /></button>
             )}
             <div className="viewport-toolbar" aria-label="CAD 视口工具">
-              {TOOL_ITEMS.filter((tool) => tool.id === 'select' || tool.id === 'orbit' || tool.id === 'measure').map((tool) => (
+              {VIEWPORT_TOOLBAR_ITEMS.map((tool) => (
                 <IconButton
                   key={tool.id}
                   icon={tool.icon}
@@ -3146,48 +2858,4 @@ function IconButton({
       <Icon size={17} />
     </button>
   )
-}
-
-function qualityStatusLabel(status?: 'passed' | 'warning' | 'failed' | 'not_run') {
-  if (!status || status === 'not_run') return '未运行'
-  return ({ passed: '通过', warning: '需复核', failed: '失败' } as const)[status]
-}
-
-function downloadBase64File(encoded: string, filename: string, mime: string): void {
-  const bytes = Uint8Array.from(window.atob(encoded), (character) => character.charCodeAt(0))
-  downloadBlobFile(new Blob([bytes], { type: mime }), filename)
-}
-
-function downloadBlobFile(blob: Blob, filename: string): void {
-  const objectUrl = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = filename
-  anchor.style.display = 'none'
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  const chunkSize = 0x8000
-  let binary = ''
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)))
-  }
-  return window.btoa(binary)
-}
-
-function inferImportDomainPack(fileName: string): 'pack_future_weapon_prop' | 'pack_vehicle_concept' | 'pack_aircraft_concept' | 'pack_robotic_arm_concept' {
-  const value = fileName.toLowerCase()
-  if (/(car|vehicle|truck|auto|汽车|车辆|载具)/.test(value)) return 'pack_vehicle_concept'
-  if (/(plane|aircraft|drone|jet|飞机|飞行|无人机)/.test(value)) return 'pack_aircraft_concept'
-  if (/(arm|robot|joint|机械臂|机器人|关节)/.test(value)) return 'pack_robotic_arm_concept'
-  return 'pack_future_weapon_prop'
-}
-
-function errorText(caught: unknown): string {
-  return caught instanceof Error ? caught.message : String(caught)
 }
