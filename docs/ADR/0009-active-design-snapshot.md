@@ -4,6 +4,7 @@
 - 日期：2026-07-13
 - 决策者：项目维护者
 - 取代：任何由旧 Concept hook、Agent asset hook 和 localStorage 拼接“当前设计”的做法
+- 2026-07-29 适用性：继续作为 ADR-0022 通用资产的唯一 Project/Version/Selection/Quality/Export 状态合同
 
 ## 背景
 

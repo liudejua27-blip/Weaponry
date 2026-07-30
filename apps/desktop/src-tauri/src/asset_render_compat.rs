@@ -384,6 +384,8 @@ pub(crate) fn forge_asset_package_response(
     project_id: &str,
     asset_version_id: &str,
     source_glb: &[u8],
+    delivery_glb: Option<&[u8]>,
+    game_delivery_receipt: Option<&Value>,
     quality_report: &Value,
     turntable_views: &BTreeMap<String, Vec<u8>>,
     max_response_bytes: usize,
@@ -399,6 +401,8 @@ pub(crate) fn forge_asset_package_response(
         "turntable_315",
     ];
     if source_glb.is_empty()
+        || matches!(delivery_glb, Some(bytes) if bytes.is_empty())
+        || (delivery_glb.is_some() != game_delivery_receipt.is_some())
         || turntable_views.len() != TURNTABLE_VIEWS.len()
         || TURNTABLE_VIEWS
             .iter()
@@ -415,6 +419,17 @@ pub(crate) fn forge_asset_package_response(
     let thumbnail = webp_thumbnail(&frames[0])?;
     let turntable = encode_turntable_mp4(&frames)?;
     let source_artifact_sha256 = sha256_hex(source_glb);
+    // The visual source is the quality/readback truth. When a sealed game
+    // delivery exists, `asset.glb` deliberately contains that delivery instead
+    // of silently re-exporting LOD0. The manifest binds both hashes so a game
+    // consumer can prove which inspected source produced the delivery bytes.
+    let artifact_glb = delivery_glb.unwrap_or(source_glb);
+    let artifact_profile = if delivery_glb.is_some() {
+        "game_delivery"
+    } else {
+        "production_concept"
+    };
+    let artifact_glb_sha256 = sha256_hex(artifact_glb);
     let quality_bytes = canonical_json(quality_report).into_bytes();
     let license_bytes = canonical_json(&json!({
         "schema_version":"ForgeAssetLicenseMetadata@1",
@@ -426,11 +441,20 @@ pub(crate) fn forge_asset_package_response(
         "non_engineering_notice":"visual_concept_only_not_engineering_or_manufacturing_data"
     }))
     .into_bytes();
-    let package_id = format!("package_{}", &source_artifact_sha256[..24]);
+    let is_game_delivery = delivery_glb.is_some();
+    let package_id = if is_game_delivery {
+        format!(
+            "package_{}_{}",
+            &source_artifact_sha256[..16],
+            &artifact_glb_sha256[..16]
+        )
+    } else {
+        format!("package_{}", &source_artifact_sha256[..24])
+    };
     let mut payloads = vec![
         (
             "asset.glb".to_string(),
-            source_glb.to_vec(),
+            artifact_glb.to_vec(),
             "model/gltf-binary",
         ),
         ("thumbnail.webp".to_string(), thumbnail, "image/webp"),
@@ -458,11 +482,14 @@ pub(crate) fn forge_asset_package_response(
         })
         .collect::<Vec<_>>();
     let manifest_bytes = canonical_json(&json!({
-        "schema_version":"ForgeAssetPackageManifest@1",
+        "schema_version":if is_game_delivery { "ForgeAssetPackageManifest@2" } else { "ForgeAssetPackageManifest@1" },
         "package_id":package_id,
         "project_id":project_id,
         "asset_version_id":asset_version_id,
         "source_artifact_sha256":source_artifact_sha256,
+        "artifact_profile":artifact_profile,
+        "artifact_glb_sha256":artifact_glb_sha256,
+        "game_asset_delivery":game_delivery_receipt,
         "members":manifest_members,
         "manifest_identity":"bound_by_outer_ForgeAssetPackage@1_descriptor",
     }))
@@ -474,11 +501,17 @@ pub(crate) fn forge_asset_package_response(
     ));
     payloads.sort_by(|left, right| left.0.cmp(&right.0));
     let descriptor = ForgeAssetPackage {
-        schema_version: "ForgeAssetPackage@1".into(),
+        schema_version: if is_game_delivery {
+            "ForgeAssetPackage@2".into()
+        } else {
+            "ForgeAssetPackage@1".into()
+        },
         package_id: package_id.clone(),
         project_id: project_id.to_string(),
         asset_version_id: asset_version_id.to_string(),
         source_artifact_sha256: source_artifact_sha256.clone(),
+        artifact_profile: is_game_delivery.then(|| "game_delivery".into()),
+        delivery_artifact_sha256: is_game_delivery.then(|| artifact_glb_sha256.clone()),
         files: payloads
             .iter()
             .map(|(relative_path, bytes, media_type)| ForgeAssetPackageFile {
@@ -526,6 +559,14 @@ pub(crate) fn forge_asset_package_response(
             (
                 "X-ForgeCAD-Source-GLB-SHA256".into(),
                 source_artifact_sha256,
+            ),
+            (
+                "X-ForgeCAD-Artifact-Profile".into(),
+                artifact_profile.into(),
+            ),
+            (
+                "X-ForgeCAD-GLB-SHA256".into(),
+                artifact_glb_sha256,
             ),
             ("X-ForgeCAD-Manifest-SHA256".into(), manifest_sha256),
         ],
@@ -923,6 +964,59 @@ mod tests {
             .collect()
     }
 
+    fn package_views() -> BTreeMap<String, Vec<u8>> {
+        [
+            "turntable_000",
+            "turntable_045",
+            "turntable_090",
+            "turntable_135",
+            "turntable_180",
+            "turntable_225",
+            "turntable_270",
+            "turntable_315",
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, view_id)| {
+            let image = image::RgbaImage::from_pixel(
+                64,
+                64,
+                image::Rgba([24 + index as u8, 72, 128, 255]),
+            );
+            let mut encoded = Cursor::new(Vec::new());
+            image::DynamicImage::ImageRgba8(image)
+                .write_to(&mut encoded, image::ImageFormat::Png)
+                .unwrap();
+            (view_id.to_string(), encoded.into_inner())
+        })
+        .collect()
+    }
+
+    fn stored_zip_entries(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
+        fn u16_at(bytes: &[u8], offset: usize) -> u16 {
+            u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap())
+        }
+        fn u32_at(bytes: &[u8], offset: usize) -> u32 {
+            u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
+        }
+        let mut entries = BTreeMap::new();
+        let mut cursor = 0_usize;
+        while bytes.get(cursor..cursor + 4) == Some(&0x0403_4b50_u32.to_le_bytes()) {
+            assert_eq!(u16_at(bytes, cursor + 8), 0);
+            let size = usize::try_from(u32_at(bytes, cursor + 18)).unwrap();
+            let name_len = usize::from(u16_at(bytes, cursor + 26));
+            let extra_len = usize::from(u16_at(bytes, cursor + 28));
+            let name_start = cursor + 30;
+            let data_start = name_start + name_len + extra_len;
+            let name = std::str::from_utf8(&bytes[name_start..name_start + name_len])
+                .unwrap()
+                .to_string();
+            entries.insert(name, bytes[data_start..data_start + size].to_vec());
+            cursor = data_start + size;
+        }
+        entries
+    }
+
     #[test]
     fn route_parser_is_bounded_and_requires_package_fingerprint() {
         assert_eq!(
@@ -1035,5 +1129,60 @@ mod tests {
             serde_json::from_str::<Value>(&manifest).unwrap()["schema_version"],
             "AgentAssetRenderPackage@1"
         );
+    }
+
+    #[test]
+    fn game_delivery_package_exports_delivery_but_seals_visual_source_lineage() {
+        let source = b"glTF-visual-source-lod0";
+        let delivery = b"glTF-game-delivery-with-lods-collision-and-sockets";
+        let receipt = json!({
+            "schema_version":"GameAssetDeliveryReadback@1",
+            "source_glb_sha256":sha256_hex(source),
+            "delivery_glb_sha256":sha256_hex(delivery),
+            "profile_id":"game_asset_profile_test"
+        });
+        let response = forge_asset_package_response(
+            "project_game_delivery",
+            "assetver_game_delivery",
+            source,
+            Some(delivery),
+            Some(&receipt),
+            &json!({"schema_version":"QualityReport@1","status":"passed"}),
+            &package_views(),
+            8 * 1024 * 1024,
+        )
+        .unwrap();
+        assert!(response.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("x-forgecad-artifact-profile") && value == "game_delivery"
+        }));
+        assert!(response.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("x-forgecad-glb-sha256") && value == &sha256_hex(delivery)
+        }));
+        let ProtocolHttpBody::Base64 { data } = response.body else {
+            panic!("ForgeAssetPackage must be a ZIP transport");
+        };
+        let entries = stored_zip_entries(&BASE64.decode(data).unwrap());
+        assert_eq!(entries["asset.glb"], delivery);
+        let manifest: Value = serde_json::from_slice(&entries["manifest.json"]).unwrap();
+        assert_eq!(manifest["artifact_profile"], "game_delivery");
+        assert_eq!(manifest["source_artifact_sha256"], sha256_hex(source));
+        assert_eq!(manifest["artifact_glb_sha256"], sha256_hex(delivery));
+        assert_eq!(manifest["game_asset_delivery"], receipt);
+    }
+
+    #[test]
+    fn package_rejects_unpaired_game_delivery_bytes_and_receipt() {
+        let error = forge_asset_package_response(
+            "project_game_delivery",
+            "assetver_game_delivery",
+            b"glTF-source",
+            Some(b"glTF-delivery"),
+            None,
+            &json!({}),
+            &package_views(),
+            8 * 1024 * 1024,
+        )
+        .unwrap_err();
+        assert_eq!(error.status, 409);
     }
 }

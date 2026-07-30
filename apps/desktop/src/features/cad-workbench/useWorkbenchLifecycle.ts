@@ -8,7 +8,6 @@ import type { ActiveDesignSnapshot } from '../../shared/types.js'
 import {
   activeDesignMachineReducer,
   initialActiveDesignMachineState,
-  type ActiveDesignMachineState,
   type ActiveDesignOperation,
 } from './activeDesignMachine.js'
 import {

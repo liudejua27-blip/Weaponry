@@ -160,6 +160,13 @@ def ref_to_ts(ref: str) -> str:
         return pascal_case(ref.rsplit("/", 1)[-1])
     if ref.startswith("common.schema.json#/$defs/"):
         return pascal_case(ref.rsplit("/", 1)[-1])
+    # Product contracts may intentionally reuse a named local definition from
+    # an earlier versioned schema (for example VisualConvergence@2 retaining
+    # the exact @1 ledger/view rows while narrowing its repair ceiling). The
+    # generator emits every schema's $defs into one TypeScript module, so the
+    # referenced definition is a concrete exported type rather than unknown.
+    if ".schema.json#/$defs/" in ref:
+        return pascal_case(ref.rsplit("/", 1)[-1])
     if ref.endswith(".schema.json"):
         return pascal_case(ref.replace(".schema.json", ""))
     return "unknown"

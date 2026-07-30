@@ -996,12 +996,12 @@ def _surface_adornment_height(
     )
 
 
-def _render_surface_adornment_texture_set_bytes(
+def _render_surface_adornment_texture_set_bytes_scalar(
     program: Mapping[str, object],
     *,
     artifact_profile_id: GeometryArtifactProfileId,
 ) -> Mapping[str, bytes]:
-    """Bake A005's closed detail grammar into five complete PBR map bytes."""
+    """Reference A005 renderer retained for frozen-byte regression tests."""
 
     normalized = normalize_surface_adornment_program(program)
     base_index, _canonical_material = builtin_visual_material_binding(
@@ -1071,6 +1071,222 @@ def _render_surface_adornment_texture_set_bytes(
         role: _png_rgb(rows_by_role[role], width=width, height=height)
         for role in SUPPORTED_PBR_ROLES
     }
+
+
+def _smooth_step_grid(edge0: float, edge1: float, value: np.ndarray) -> np.ndarray:
+    if edge0 >= edge1:
+        raise ValueError("surface adornment mask edges are invalid")
+    amount = np.clip((value - edge0) / (edge1 - edge0), 0.0, 1.0)
+    return amount * amount * (3.0 - 2.0 * amount)
+
+
+def _surface_adornment_coverage_mask_grid(
+    coverage: str,
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    shape = np.broadcast_shapes(u.shape, v.shape)
+    if coverage == "full_zone":
+        return np.ones(shape, dtype=np.float64)
+    if coverage == "center_band":
+        return 1.0 - _smooth_step_grid(0.18, 0.34, np.abs(u - 0.5))
+    if coverage == "edge_band":
+        distance = np.minimum(
+            np.minimum(u, 1.0 - u),
+            np.minimum(v, 1.0 - v),
+        )
+        return 1.0 - _smooth_step_grid(0.08, 0.22, distance)
+    if coverage == "symmetric_pair":
+        left = 1.0 - _smooth_step_grid(0.08, 0.22, np.abs(u - 0.27))
+        right = 1.0 - _smooth_step_grid(0.08, 0.22, np.abs(u - 0.73))
+        return np.maximum(left, right)
+    raise ValueError("surface adornment coverage is invalid")
+
+
+def _surface_adornment_height_grid(
+    program: Mapping[str, object],
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    u = x / width
+    v = y / height
+    seed = int(program["seed"])
+    phase = (seed % 4096) / 4096.0 * math.tau
+    motif = str(program["motif"])
+    if motif == "parallel_groove":
+        base = np.sin(math.tau * (14.0 * u + 0.9 * v) + phase)
+        base += 0.26 * np.sin(
+            math.tau * (28.0 * u + 1.8 * v) + phase * 1.7
+        )
+    elif motif == "chevron_relief":
+        diagonal = np.abs((u - 0.5) * 2.0)
+        base = np.sin(math.tau * (11.0 * v + 5.0 * diagonal) + phase)
+        base += 0.18 * np.sin(
+            math.tau * (22.0 * v - 7.0 * diagonal) + phase * 0.7
+        )
+    elif motif == "double_flowline":
+        curve_a = v - (0.31 + 0.12 * np.sin(math.tau * u + phase))
+        curve_b = v - (0.69 - 0.12 * np.sin(math.tau * u + phase))
+        base = (
+            np.cos(math.tau * 16.0 * curve_a)
+            + np.cos(math.tau * 16.0 * curve_b)
+        ) * 0.52
+    elif motif == "hex_microgrid":
+        base = (
+            np.cos(math.tau * 13.0 * u + phase)
+            + np.cos(math.tau * (6.5 * u + 11.258 * v) + phase)
+            + np.cos(math.tau * (6.5 * u - 11.258 * v) + phase)
+        ) / 3.0
+    else:
+        raise ValueError("surface adornment motif is invalid")
+    kind = str(program["kind"])
+    if kind == "normal_relief":
+        kind_scale = 1.25
+    elif kind == "pattern":
+        kind_scale = 0.78
+    elif kind == "flowline":
+        kind_scale = 0.94
+    elif kind == "micro_surface":
+        kind_scale = 0.48
+        base += _smooth_periodic_noise_extent_grid(
+            x,
+            y,
+            seed + 131,
+            8,
+            width=width,
+            height=height,
+        ) * 0.16
+    else:
+        raise ValueError("surface adornment kind is invalid")
+    intensity_scale = {
+        "subtle": 1.6,
+        "balanced": 3.2,
+        "pronounced": 5.4,
+    }[str(program["intensity"])]
+    return (
+        base
+        * kind_scale
+        * intensity_scale
+        * _surface_adornment_coverage_mask_grid(
+            str(program["coverage"]), u, v
+        )
+    )
+
+
+def _render_surface_adornment_texture_set_bytes_vectorized(
+    program: Mapping[str, object],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> Mapping[str, bytes]:
+    """Bake A005's closed grammar in bounded vectorized production passes."""
+
+    normalized = normalize_surface_adornment_program(program)
+    base_index, _canonical_material = builtin_visual_material_binding(
+        str(normalized["base_material"])
+    )
+    material = builtin_material_properties(base_index)
+    width = (
+        PRODUCTION_TEXTURE_WIDTH
+        if artifact_profile_id == "production_concept"
+        else TEXTURE_WIDTH
+    )
+    height = (
+        PRODUCTION_TEXTURE_HEIGHT
+        if artifact_profile_id == "production_concept"
+        else TEXTURE_HEIGHT
+    )
+    x = np.arange(width, dtype=np.int64)[None, :]
+    y = np.arange(height, dtype=np.int64)[:, None]
+    heights = _surface_adornment_height_grid(
+        normalized, x, y, width=width, height=height
+    )
+    base = np.asarray(material["base"], dtype=np.float64)
+    emissive = np.asarray(material["emissive"], dtype=np.float64)
+    base_metallic = int(material["metallic"])
+    base_roughness = int(material["roughness"])
+    kind = str(normalized["kind"])
+    intensity = str(normalized["intensity"])
+    normal_scale = {
+        "subtle": 2.2,
+        "balanced": 3.6,
+        "pronounced": 5.2,
+    }[intensity]
+    colour_shift = np.rint(
+        heights
+        * (
+            1.3
+            if kind == "pattern"
+            else 0.2
+            if kind == "micro_surface"
+            else 0.42
+        )
+    )
+    roughness_shift = np.rint(
+        heights * (2.2 if kind == "micro_surface" else 1.7)
+    )
+    metallic_shift = np.rint(heights * 0.25)
+    left = np.roll(heights, 1, axis=1)
+    right = np.roll(heights, -1, axis=1)
+    above = np.roll(heights, 1, axis=0)
+    below = np.roll(heights, -1, axis=0)
+    occlusion_channel = _uint8_channel(
+        250 - np.maximum(0.0, -heights) * 1.1
+    )
+    arrays = {
+        "base_color": np.stack(
+            [
+                _uint8_channel(base[channel] + colour_shift)
+                for channel in range(3)
+            ],
+            axis=-1,
+        ),
+        "metallic_roughness": np.stack(
+            (
+                np.full((height, width), 255, dtype=np.uint8),
+                _uint8_channel(base_roughness + roughness_shift),
+                _uint8_channel(base_metallic + metallic_shift),
+            ),
+            axis=-1,
+        ),
+        "normal": np.stack(
+            (
+                _uint8_channel(128 - (right - left) * normal_scale),
+                _uint8_channel(128 + (below - above) * normal_scale),
+                np.full((height, width), 254, dtype=np.uint8),
+            ),
+            axis=-1,
+        ),
+        "occlusion": np.repeat(occlusion_channel[:, :, None], 3, axis=2),
+        "emissive": np.stack(
+            [
+                _uint8_channel(emissive[channel] + heights * 0.4)
+                if emissive[channel]
+                else np.zeros((height, width), dtype=np.uint8)
+                for channel in range(3)
+            ],
+            axis=-1,
+        ),
+    }
+    return {
+        role: _png_rgb_array(arrays[role]) for role in SUPPORTED_PBR_ROLES
+    }
+
+
+def _render_surface_adornment_texture_set_bytes(
+    program: Mapping[str, object],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> Mapping[str, bytes]:
+    if artifact_profile_id == "production_concept":
+        return _render_surface_adornment_texture_set_bytes_vectorized(
+            program, artifact_profile_id=artifact_profile_id
+        )
+    return _render_surface_adornment_texture_set_bytes_scalar(
+        program, artifact_profile_id=artifact_profile_id
+    )
 
 
 @lru_cache(maxsize=32)

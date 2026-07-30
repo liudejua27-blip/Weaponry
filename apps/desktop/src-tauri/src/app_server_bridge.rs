@@ -7,7 +7,7 @@ use std::{
     str,
     sync::{Arc, Mutex, OnceLock, Weak},
     task::{Context, Poll},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -21,16 +21,19 @@ use forgecad_app_server::{
     recipe_preview_output_contract, recipe_preview_shape_program_role, ActionLoopConfig, AppServer,
     AppServerConfig, CancellationToken, CompositeRequestHandler, HandlerFuture,
     LifecyclePersistencePort, LifecyclePortError, LifecyclePortErrorKind, LifecyclePortFuture,
-    NativeAgentRuntime, NativeAgentRuntimeConfig, NativeNotificationSink, NativePreviewArtifact,
-    NativeProductToolExecutor, NativeProductToolExecutorConfig, NotificationFuture,
-    ProductToolCancelFuture, ProductToolExecutorPort, ProductToolPortError,
+    NativeAgentRuntime, NativeAgentRuntimeConfig, NativeCandidatePbrCaptureUpload,
+    NativeNotificationSink, NativePreviewArtifact, NativeProductToolExecutor,
+    NativeProductToolExecutorConfig, NativeUniversalVisualComparisonAuthorizationScope,
+    NotificationFuture, ProductToolCancelFuture, ProductToolExecutorPort, ProductToolPortError,
     ProductToolPortErrorKind, ProductToolPortFuture, ProductToolRegistry, ProviderClient,
     ProviderToolCall, RecipePreviewOutputContract, RequestHandler, RestrictedGeometryError,
     RestrictedGeometryErrorKind, RestrictedGeometryFuture, RestrictedGeometryInput,
     RestrictedGeometryOutput, RestrictedGeometryPort, RestrictedGeometryReadback,
-    RestrictedQualityProfile, RestrictedRenderViewProfile, SystemRuntimeIdentityClock,
-    VisualReferenceComparisonProviderPort,
+    RestrictedQualityProfile, RestrictedRenderViewProfile, RestrictedSurfaceLayerInput,
+    SystemRuntimeIdentityClock, VisualReferenceComparisonProviderPort,
 };
+#[cfg(test)]
+use forgecad_app_server::{E005OfflineHarnessRequest, E005RunStatus};
 use forgecad_app_server_protocol::{
     valid_stable_id, AppServerCursor, CompatHttpRequest, CompatHttpResponse, CursorPhase,
     LifecyclePersistenceCommand, LifecyclePersistenceResult, ProductToolExecutionRequest,
@@ -46,6 +49,8 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tauri::{http, AppHandle, Emitter, State};
 
+#[cfg(test)]
+use forgecad_core::SurfaceLayerProgram;
 use forgecad_core::{
     canonical_json as core_canonical_json, materialize_assembly_delta,
     normalize_persisted_shape_program, semantic_sha256, verify_forgecad_glb, AgentAssetChangeSet,
@@ -74,6 +79,7 @@ const RESTRICTED_GEOMETRY_CAPABILITY_HEADER: &str = "X-ForgeCAD-Restricted-Geome
 const MAX_RESTRICTED_GEOMETRY_REQUEST_BYTES: usize = 2 * 1024 * 1024;
 const MAX_RESTRICTED_GEOMETRY_RESPONSE_BYTES: usize = 128 * 1024 * 1024;
 const MAX_RESTRICTED_GEOMETRY_GLB_BYTES: usize = 64 * 1024 * 1024;
+const MAX_CANDIDATE_PBR_CAPTURE_WIRE_BYTES: usize = 128 * 1024 * 1024;
 const MAX_RESTRICTED_GEOMETRY_VIEW_BYTES: usize = 16 * 1024 * 1024;
 const LIVE_ACCEPTANCE_BUDGET_OVERRIDE: &str = "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE_BUDGET_OVERRIDE";
 const LIVE_ACCEPTANCE_ENABLE: &str = "FORGECAD_DEEPSEEK_DELTA_ACCEPTANCE";
@@ -175,6 +181,7 @@ struct BridgeInner {
     server: Arc<AppServer>,
     adapter: Arc<CompatibilityAdapter<LoopbackHttpPort>>,
     port: Arc<LoopbackHttpPort>,
+    native_runtime: NativeAgentRuntime,
     native_product_tools: Option<Arc<NativeProductToolExecutor>>,
     native_notifications: BridgeNativeNotificationSink,
     connections: Mutex<HashMap<String, tauri::async_runtime::JoinHandle<()>>>,
@@ -424,6 +431,7 @@ impl AppServerBridge {
                 error.message
             )
         })?;
+        let native_runtime = native.clone();
         let fallback: Arc<dyn RequestHandler> = adapter.clone();
         let handler: Arc<dyn RequestHandler> =
             Arc::new(CompositeRequestHandler::new(native, fallback));
@@ -441,6 +449,7 @@ impl AppServerBridge {
                 server,
                 adapter,
                 port,
+                native_runtime,
                 native_product_tools,
                 native_notifications,
                 connections: Mutex::new(HashMap::new()),
@@ -493,6 +502,176 @@ impl AppServerBridge {
             })?
             .consume_preview(preview_id, turn_id)
             .map_err(|error| error.message)
+    }
+
+    pub(crate) fn issue_candidate_pbr_capture(
+        &self,
+        execution_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<forgecad_core::CandidatePbrCaptureSession, String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
+            })?
+            .issue_candidate_pbr_capture_session(execution_id, project_id, turn_id)
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) fn candidate_pbr_capture_glb(
+        &self,
+        session_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<Vec<u8>, String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
+            })?
+            .candidate_pbr_capture_artifact(session_id, project_id, turn_id)
+            .map(|artifact| artifact.glb_bytes)
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) fn candidate_pbr_capture_projection_camera_bindings(
+        &self,
+        session_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<Vec<forgecad_core::ProjectionCameraBinding>, String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
+            })?
+            .candidate_pbr_capture_projection_camera_bindings(session_id, project_id, turn_id)
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) fn submit_candidate_pbr_capture(
+        &self,
+        session_id: &str,
+        uploads: Vec<NativeCandidatePbrCaptureUpload>,
+    ) -> Result<forgecad_app_server::NativeCandidatePbrCaptureEvidence, String> {
+        let executor = self.inner.native_product_tools.as_ref().ok_or_else(|| {
+            "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
+        })?;
+        let accepted = executor
+            .submit_candidate_pbr_capture(session_id, uploads)
+            .map_err(|error| error.message)?;
+        let adopted = executor
+            .adopt_candidate_pbr_capture_evidence(&accepted.execution_id, &accepted.turn_id)
+            .map_err(|error| error.message)?;
+        if adopted != accepted.evidence {
+            return Err("Candidate PBR evidence changed during Rust-owned adoption.".into());
+        }
+        Ok(accepted)
+    }
+
+    pub(crate) fn pending_universal_visual_comparison_authorization(
+        &self,
+        execution_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<Option<NativeUniversalVisualComparisonAuthorizationScope>, String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool visual authorization is unavailable in this bridge."
+                    .to_string()
+            })?
+            .universal_visual_comparison_authorization_scope(execution_id, project_id, turn_id)
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) fn bind_universal_visual_comparison_authorization(
+        &self,
+        execution_id: &str,
+        project_id: &str,
+        turn_id: &str,
+        authorization_id: &str,
+        authorization_binding_sha256: &str,
+    ) -> Result<NativeUniversalVisualComparisonAuthorizationScope, String> {
+        self.inner
+            .native_product_tools
+            .as_ref()
+            .ok_or_else(|| {
+                "Native Product Tool visual authorization is unavailable in this bridge."
+                    .to_string()
+            })?
+            .bind_universal_visual_comparison_authorization(
+                execution_id,
+                project_id,
+                turn_id,
+                authorization_id,
+                authorization_binding_sha256,
+            )
+            .map_err(|error| error.message)
+    }
+
+    pub(crate) async fn resume_candidate_pbr_capture(
+        &self,
+        execution_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<forgecad_app_server::NativeCandidatePbrCaptureResume, String> {
+        let executor = self.inner.native_product_tools.as_ref().ok_or_else(|| {
+            "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
+        })?;
+        if executor
+            .universal_visual_comparison_authorization_scope(execution_id, project_id, turn_id)
+            .map_err(|error| error.message)?
+            .is_some()
+        {
+            let candidate_glb_sha256 = executor
+                .adopted_candidate_pbr_capture_glb_sha256(execution_id, project_id, turn_id)
+                .map_err(|error| error.message)?;
+            return Ok(forgecad_app_server::NativeCandidatePbrCaptureResume {
+                schema_version: "NativeCandidatePbrCaptureResume@1".into(),
+                execution_id: execution_id.into(),
+                project_id: project_id.into(),
+                turn_id: turn_id.into(),
+                candidate_glb_sha256,
+                status: "authorization_required".into(),
+                hard_gate_passed: false,
+                preview_id: None,
+                single_result_decision: None,
+                visual_repair_target_projection: None,
+            });
+        }
+        let candidate_glb_sha256 = executor
+            .adopted_candidate_pbr_capture_glb_sha256(execution_id, project_id, turn_id)
+            .map_err(|error| error.message)?;
+        let resumed = self
+            .inner
+            .native_runtime
+            .resume_candidate_pbr_capture(execution_id, project_id, turn_id, &candidate_glb_sha256)
+            .await
+            .map_err(|error| error.message)?;
+        let preview_id = resumed
+            .single_result_decision
+            .as_ref()
+            .and_then(|decision| decision.pointer("/preview/preview_id"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        Ok(forgecad_app_server::NativeCandidatePbrCaptureResume {
+            schema_version: "NativeCandidatePbrCaptureResume@1".into(),
+            execution_id: resumed.execution_id,
+            project_id: resumed.project_id,
+            turn_id: resumed.turn_id,
+            candidate_glb_sha256: resumed.candidate_glb_sha256,
+            status: resumed.status.clone(),
+            hard_gate_passed: resumed.status == "preview_ready",
+            preview_id,
+            single_result_decision: resumed.single_result_decision,
+            visual_repair_target_projection: None,
+        })
     }
 
     /// Runs packaged acceptance through the exact production compatibility
@@ -947,6 +1126,218 @@ pub fn forgecad_protocol_disconnect(
     Ok(json!({"closed": closed}))
 }
 
+/// The WebView receives only the data necessary to render one exact candidate
+/// inside its existing PBR viewport. The Rust-issued nonce deliberately does
+/// not cross this boundary: submission is keyed by its one-time session ID and
+/// Rust rebuilds every candidate/render/hash field itself.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForgecadCandidatePbrCaptureIssueRequest {
+    pub execution_id: String,
+    pub project_id: String,
+    pub turn_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgecadCandidatePbrCaptureIssueResult {
+    pub schema_version: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub turn_id: String,
+    pub candidate_glb_sha256: String,
+    pub shape_program_sha256: String,
+    pub compile_readback_sha256: String,
+    pub artifact_profile_id: String,
+    pub render_manifest_sha256: String,
+    pub expected_renderer_id: String,
+    pub expires_at_unix_ms: u64,
+    pub required_view_ids: Vec<String>,
+    pub max_view_bytes: u64,
+    pub max_total_bytes: u64,
+    pub capture_width_px: u32,
+    pub capture_height_px: u32,
+    pub projection_camera_bindings: Vec<forgecad_core::ProjectionCameraBinding>,
+    pub glb_base64: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForgecadCandidatePbrCaptureSubmitRequest {
+    pub session_id: String,
+    pub captures: Vec<ForgecadCandidatePbrCaptureView>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForgecadCandidatePbrCaptureView {
+    pub schema_version: String,
+    pub view_id: String,
+    pub camera_pose_sha256: String,
+    pub projection_camera_binding_sha256: String,
+    pub png_base64: String,
+    pub auxiliary_png_base64: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgecadCandidatePbrCaptureSubmitResult {
+    pub schema_version: String,
+    pub session_id: String,
+    pub candidate_glb_sha256: String,
+    pub renderer_id: String,
+    pub render_manifest_sha256: String,
+    pub capture_sha256: String,
+    pub view_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForgecadCandidatePbrCaptureResumeRequest {
+    pub execution_id: String,
+    pub project_id: String,
+    pub turn_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgecadCandidatePbrCaptureResumeResult {
+    pub schema_version: String,
+    pub execution_id: String,
+    pub project_id: String,
+    pub turn_id: String,
+    pub candidate_glb_sha256: String,
+    pub status: String,
+    pub hard_gate_passed: bool,
+    pub preview_id: Option<String>,
+    pub single_result_decision: Option<Value>,
+    pub visual_repair_target_projection: Option<Value>,
+}
+
+#[tauri::command]
+pub fn forgecad_candidate_pbr_capture_issue(
+    request: ForgecadCandidatePbrCaptureIssueRequest,
+    state: State<'_, AppServerBridge>,
+) -> Result<ForgecadCandidatePbrCaptureIssueResult, String> {
+    let session = state.issue_candidate_pbr_capture(
+        &request.execution_id,
+        &request.project_id,
+        &request.turn_id,
+    )?;
+    let glb_bytes = state.candidate_pbr_capture_glb(
+        &session.session_id,
+        &request.project_id,
+        &request.turn_id,
+    )?;
+    let projection_camera_bindings = state.candidate_pbr_capture_projection_camera_bindings(
+        &session.session_id,
+        &request.project_id,
+        &request.turn_id,
+    )?;
+    Ok(ForgecadCandidatePbrCaptureIssueResult {
+        schema_version: session.schema_version,
+        session_id: session.session_id,
+        project_id: session.project_id,
+        turn_id: session.turn_id,
+        candidate_glb_sha256: session.candidate_glb_sha256,
+        shape_program_sha256: session.shape_program_sha256,
+        compile_readback_sha256: session.compile_readback_sha256,
+        artifact_profile_id: session.artifact_profile_id,
+        render_manifest_sha256: session.render_manifest_sha256,
+        expected_renderer_id: session.expected_renderer_id,
+        expires_at_unix_ms: session.expires_at_unix_ms,
+        required_view_ids: session.required_view_ids,
+        max_view_bytes: session.max_view_bytes,
+        max_total_bytes: session.max_total_bytes,
+        capture_width_px: session.capture_width_px,
+        capture_height_px: session.capture_height_px,
+        projection_camera_bindings,
+        glb_base64: BASE64.encode(glb_bytes),
+    })
+}
+
+#[tauri::command]
+pub fn forgecad_candidate_pbr_capture_submit(
+    request: ForgecadCandidatePbrCaptureSubmitRequest,
+    state: State<'_, AppServerBridge>,
+) -> Result<ForgecadCandidatePbrCaptureSubmitResult, String> {
+    if request.captures.len() > 8
+        || request
+            .captures
+            .iter()
+            .try_fold(0_usize, |total, capture| {
+                total
+                    .checked_add(capture.png_base64.len())
+                    .and_then(|value| value.checked_add(capture.auxiliary_png_base64.len()))
+            })
+            .filter(|total| *total <= MAX_CANDIDATE_PBR_CAPTURE_WIRE_BYTES)
+            .is_none()
+    {
+        return Err(
+            "Candidate PBR capture payload exceeds the bounded transient wire budget.".into(),
+        );
+    }
+    let uploads = request
+        .captures
+        .into_iter()
+        .map(|capture| {
+            BASE64
+                .decode(capture.png_base64.as_bytes())
+                .and_then(|png_bytes| {
+                    BASE64
+                        .decode(capture.auxiliary_png_base64.as_bytes())
+                        .map(|auxiliary_png_bytes| (png_bytes, auxiliary_png_bytes))
+                })
+                .map(|(png_bytes, auxiliary_png_bytes)| NativeCandidatePbrCaptureUpload {
+                    schema_version: capture.schema_version,
+                    view_id: capture.view_id,
+                    camera_pose_sha256: capture.camera_pose_sha256,
+                    projection_camera_binding_sha256: capture.projection_camera_binding_sha256,
+                    png_bytes,
+                    auxiliary_png_bytes,
+                })
+                .map_err(|_| "Candidate PBR capture contains invalid base64 PNG bytes.".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let evidence = state.submit_candidate_pbr_capture(&request.session_id, uploads)?;
+    Ok(ForgecadCandidatePbrCaptureSubmitResult {
+        schema_version: evidence.schema_version,
+        session_id: evidence.evidence.session_id,
+        candidate_glb_sha256: evidence.evidence.candidate_glb_sha256,
+        renderer_id: evidence.evidence.renderer_id,
+        render_manifest_sha256: evidence.evidence.render_manifest_sha256,
+        capture_sha256: evidence.evidence.capture_sha256,
+        view_ids: evidence
+            .evidence
+            .views
+            .into_iter()
+            .map(|view| view.view_id)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn forgecad_candidate_pbr_capture_resume(
+    request: ForgecadCandidatePbrCaptureResumeRequest,
+    state: State<'_, AppServerBridge>,
+) -> Result<ForgecadCandidatePbrCaptureResumeResult, String> {
+    let resumed = state
+        .resume_candidate_pbr_capture(&request.execution_id, &request.project_id, &request.turn_id)
+        .await?;
+    Ok(ForgecadCandidatePbrCaptureResumeResult {
+        schema_version: resumed.schema_version,
+        execution_id: resumed.execution_id,
+        project_id: resumed.project_id,
+        turn_id: resumed.turn_id,
+        candidate_glb_sha256: resumed.candidate_glb_sha256,
+        status: resumed.status,
+        hard_gate_passed: resumed.hard_gate_passed,
+        preview_id: resumed.preview_id,
+        single_result_decision: resumed.single_result_decision,
+        visual_repair_target_projection: resumed.visual_repair_target_projection,
+    })
+}
+
 #[derive(Clone)]
 struct LoopbackHttpPort {
     inner: Arc<LoopbackHttpPortInner>,
@@ -1000,6 +1391,13 @@ impl RestrictedGeometryArtifactCache {
                 self.total_bytes = self.total_bytes.saturating_sub(evicted.glb_bytes.len());
             }
         }
+    }
+
+    fn remove(&mut self, key: &str) -> Option<CompiledRestrictedGeometry> {
+        self.order.retain(|item| item != key);
+        let removed = self.entries.remove(key)?;
+        self.total_bytes = self.total_bytes.saturating_sub(removed.glb_bytes.len());
+        Some(removed)
     }
 }
 
@@ -1283,6 +1681,13 @@ struct RestrictedGeometryCompileRequest<'a> {
     surface_adornment_programs: &'a [SurfaceAdornmentProgram],
     #[serde(skip_serializing_if = "Option::is_none")]
     surface_layer_input: Option<&'a forgecad_app_server::RestrictedSurfaceLayerInput>,
+    /// UAS@2 may bind up to eight independently sealed material zones.  Keep
+    /// the legacy singular field for C111/A005 fixtures, but never silently
+    /// discard the category-open plural lowering on the sidecar wire.
+    #[serde(skip_serializing_if = "<[forgecad_app_server::RestrictedSurfaceLayerInput]>::is_empty")]
+    surface_layer_inputs: &'a [forgecad_app_server::RestrictedSurfaceLayerInput],
+    #[serde(skip_serializing_if = "<[forgecad_core::ReferenceCameraUvRasterBake]>::is_empty")]
+    reference_uv_evidence_bakes: &'a [forgecad_core::ReferenceCameraUvRasterBake],
 }
 
 #[derive(Debug, Serialize)]
@@ -1333,6 +1738,10 @@ struct RestrictedGeometryExecutionResponse {
     #[serde(default)]
     exploded_part_ids: Vec<String>,
     exploded_unavailable_reason: Option<String>,
+    #[serde(default)]
+    fragment_cache_hit_operation_ids: Vec<String>,
+    #[serde(default)]
+    fragment_cache_miss_operation_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1425,6 +1834,8 @@ struct CompiledRestrictedGeometry {
     glb_sha256: String,
     glb_bytes: Vec<u8>,
     readback: RestrictedGeometryReadback,
+    fragment_cache_hit_operation_ids: Vec<String>,
+    fragment_cache_miss_operation_ids: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -1815,7 +2226,9 @@ impl LoopbackHttpPort {
             profile_sketch: None,
             section_set: None,
             surface_adornment_programs: native_surface_adornment_programs(&version)?,
-            surface_layer_input: None,
+            surface_layer_input: native_surface_layer_input(&version)?,
+            surface_layer_inputs: Vec::new(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "production_concept".into(),
@@ -1968,7 +2381,9 @@ impl LoopbackHttpPort {
             profile_sketch: None,
             section_set: None,
             surface_adornment_programs: native_surface_adornment_programs(&version)?,
-            surface_layer_input: None,
+            surface_layer_input: native_surface_layer_input(&version)?,
+            surface_layer_inputs: Vec::new(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::TurntableEight,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "production_concept".into(),
@@ -2002,6 +2417,18 @@ impl LoopbackHttpPort {
             )
             .into());
         }
+        let game_delivery = rust_core
+            .verified_game_delivery_for_package(asset_version_id)
+            .map_err(native_blockout_core_error)?;
+        if let Some(delivery) = game_delivery.as_ref() {
+            if delivery.source_sha256 != object.sha256 {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "PACKAGE_GAME_DELIVERY_SOURCE_DRIFT",
+                    "Game delivery no longer binds to this quality-checked visual source.",
+                )
+                .into());
+            }
+        }
         let quality_value = serde_json::to_value(&quality).map_err(|_| {
             NativeBlockoutCompatError::unavailable(
                 "PACKAGE_QUALITY_SERIALIZATION_FAILED",
@@ -2012,6 +2439,18 @@ impl LoopbackHttpPort {
             &version.project_id,
             asset_version_id,
             &stored_glb,
+            game_delivery.as_ref().map(|artifact| artifact.delivery_bytes.as_slice()),
+            game_delivery
+                .as_ref()
+                .map(|artifact| serde_json::to_value(&artifact.receipt))
+                .transpose()
+                .map_err(|_| {
+                    NativeBlockoutCompatError::unavailable(
+                        "PACKAGE_GAME_DELIVERY_SERIALIZATION_FAILED",
+                        "Game delivery receipt could not be serialized into the package.",
+                    )
+                })?
+                .as_ref(),
             &quality_value,
             &rendered.views,
             MAX_RAW_COMPAT_BODY_BYTES,
@@ -2142,12 +2581,6 @@ impl LoopbackHttpPort {
         // consumed transient bytes. native_commit_blockout checks the sealed
         // repository bundle before consulting this transient candidate.
         if let Some(artifact) = artifact {
-            let provenance = artifact.formal_provenance.as_ref().ok_or_else(|| {
-                NativeBlockoutCompatError::conflict(
-                    "SINGLE_RESULT_PROVENANCE_REQUIRED",
-                    "Only a trusted V003 preview can be confirmed.",
-                )
-            })?;
             let presentation_profile = match artifact.readback.artifact_profile_id.as_str() {
                 "interactive_preview" => "quick_sketch",
                 "production_concept" => "showcase",
@@ -2158,22 +2591,56 @@ impl LoopbackHttpPort {
                     ))
                 }
             };
-            let candidate = NativeBlockoutCompatCandidate {
-                artifact_id: artifact_id.clone(),
-                preview_id: artifact.preview_id.clone(),
-                turn_id: artifact.turn_id.clone(),
-                build_client_request_id: provenance.decision.decision_id.clone(),
-                build_request_sha256: provenance.decision_sha256.clone(),
-                plan_id: provenance.plan_id.clone(),
-                direction_id: provenance.direction_id.clone(),
-                variant_id: "variant_single_result".into(),
-                variation_index: 0,
-                presentation_profile: presentation_profile.into(),
-                domain_pack_id: provenance.domain_pack_id.clone(),
-                project_id: Some(provenance.project_id.clone()),
-                expires_at_unix_ms: artifact.expires_at_unix_ms,
-                segment_idempotency: HashMap::new(),
-                segment_idempotency_order: VecDeque::new(),
+            let candidate = if let Some(provenance) = artifact.formal_provenance.as_ref() {
+                NativeBlockoutCompatCandidate {
+                    artifact_id: artifact_id.clone(),
+                    preview_id: artifact.preview_id.clone(),
+                    turn_id: artifact.turn_id.clone(),
+                    build_client_request_id: provenance.decision.decision_id.clone(),
+                    build_request_sha256: provenance.decision_sha256.clone(),
+                    plan_id: provenance.plan_id.clone(),
+                    direction_id: provenance.direction_id.clone(),
+                    variant_id: "variant_single_result".into(),
+                    variation_index: 0,
+                    presentation_profile: presentation_profile.into(),
+                    domain_pack_id: provenance.domain_pack_id.clone(),
+                    project_id: Some(provenance.project_id.clone()),
+                    expires_at_unix_ms: artifact.expires_at_unix_ms,
+                    segment_idempotency: HashMap::new(),
+                    segment_idempotency_order: VecDeque::new(),
+                }
+            } else if let Some(provenance) = artifact.universal_preview_provenance.as_ref() {
+                artifact.universal_asset_source_v2.as_ref().ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "UNIVERSAL_PREVIEW_SOURCE_REQUIRED",
+                        "Category-open confirmation requires the exact UAS@2 source.",
+                    )
+                })?;
+                NativeBlockoutCompatCandidate {
+                    artifact_id: artifact_id.clone(),
+                    preview_id: artifact.preview_id.clone(),
+                    turn_id: artifact.turn_id.clone(),
+                    build_client_request_id: format!(
+                        "universal_{}",
+                        &provenance.source_sha256[..24]
+                    ),
+                    build_request_sha256: provenance.source_sha256.clone(),
+                    plan_id: format!("plan_universal_{}", &provenance.request_sha256[..24]),
+                    direction_id: provenance.direction_id.clone(),
+                    variant_id: "variant_universal_asset".into(),
+                    variation_index: 0,
+                    presentation_profile: presentation_profile.into(),
+                    domain_pack_id: "pack_unclassified".into(),
+                    project_id: Some(provenance.project_id.clone()),
+                    expires_at_unix_ms: artifact.expires_at_unix_ms,
+                    segment_idempotency: HashMap::new(),
+                    segment_idempotency_order: VecDeque::new(),
+                }
+            } else {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "SINGLE_RESULT_PROVENANCE_REQUIRED",
+                    "Only a trusted V003 or category-open UAS@2 preview can be confirmed.",
+                ));
             };
             let evicted = self
                 .inner
@@ -2323,7 +2790,9 @@ impl LoopbackHttpPort {
             profile_sketch: None,
             section_set: None,
             surface_adornment_programs: native_surface_adornment_programs(version)?,
-            surface_layer_input: None,
+            surface_layer_input: native_surface_layer_input(version)?,
+            surface_layer_inputs: Vec::new(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: profile_id.into(),
@@ -3047,7 +3516,9 @@ impl LoopbackHttpPort {
             profile_sketch: None,
             section_set: None,
             surface_adornment_programs: preview.surface_adornment_programs.clone(),
-            surface_layer_input: None,
+            surface_layer_input: preview.surface_layer_input.clone(),
+            surface_layer_inputs: preview.surface_layer_inputs.clone(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "production_concept".into(),
@@ -3107,7 +3578,9 @@ impl LoopbackHttpPort {
             profile_sketch: None,
             section_set: None,
             surface_adornment_programs: preview.surface_adornment_programs.clone(),
-            surface_layer_input: None,
+            surface_layer_input: preview.surface_layer_input.clone(),
+            surface_layer_inputs: preview.surface_layer_inputs.clone(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: RestrictedQualityProfile {
                 profile_id: "interactive_preview".into(),
@@ -3135,6 +3608,16 @@ impl LoopbackHttpPort {
         // See the production conversion above: this derived profile is not
         // the exact GLB referenced by SingleResultDecision@1.
         downgraded.formal_provenance = None;
+        // A UAS@2 source seals the production GLB that passed the universal
+        // visual route. The temporary interactive companion is retained only
+        // for the legacy candidate-bundle format, so it must not carry stale
+        // source/capture/comparison provenance for a different GLB.
+        downgraded.universal_preview_provenance = None;
+        downgraded.universal_asset_source_v2 = None;
+        downgraded.visual_source_glb_bytes = None;
+        downgraded.candidate_pbr_capture_evidence = None;
+        downgraded.visual_reference_comparison_input = None;
+        downgraded.visual_reference_comparison_report = None;
         downgraded
             .validate()
             .map_err(native_blockout_product_tool_error)?;
@@ -3212,6 +3695,27 @@ impl LoopbackHttpPort {
             &sha256_hex(input.client_request_id.as_bytes())[..24]
         );
         let quality_report_id = native_blockout_quality_report_id(&asset_version_id);
+        if let Some(existing) = repository
+            .read_game_delivery_candidate_bundle(
+                &input.artifact_id,
+                &asset_version_id,
+                &quality_report_id,
+            )
+            .map_err(native_blockout_core_error)?
+        {
+            if existing.version.project_id != project_id
+                || existing.version.artifact_id != input.artifact_id
+                || existing.version.summary != input.summary
+            {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "IDEMPOTENCY_CONFLICT",
+                    "Idempotency-Key was reused with a different game-delivery commit request.",
+                ));
+            }
+            let response = native_blockout_asset_version_payload(&existing.version)?;
+            self.best_effort_cleanup_replayed_blockout(&input.artifact_id);
+            return Ok(response);
+        }
         if let Some(existing) = repository
             .read_candidate_bundle(&input.artifact_id, &asset_version_id, &quality_report_id)
             .map_err(native_blockout_core_error)?
@@ -3305,6 +3809,19 @@ impl LoopbackHttpPort {
                     "Blockout candidate is missing, expired, or already consumed.",
                 )
             })?;
+        let game_visual_source_glb = preview
+            .universal_asset_source_v2
+            .as_ref()
+            .and_then(|source| source.game_asset_delivery.as_ref())
+            .map(|_| {
+                preview.visual_source_glb_bytes.clone().ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "UNIVERSAL_GAME_DELIVERY_SOURCE_REQUIRED",
+                        "Game delivery confirmation requires the sealed visual-source LOD0 GLB.",
+                    )
+                })
+            })
+            .transpose()?;
         if cancellation.is_cancelled() {
             return Err(native_blockout_cancelled());
         }
@@ -3314,9 +3831,15 @@ impl LoopbackHttpPort {
         if cancellation.is_cancelled() {
             return Err(native_blockout_cancelled());
         }
-        let production_preview = self
-            .native_production_blockout_preview(&preview, cancellation.clone())
-            .await?;
+        let production_preview = if game_visual_source_glb.is_some() {
+            // The formal preview is the delivery GLB, but its readback and
+            // quality belong to the separately sealed visual LOD0 source.
+            // Do not recompile either side during confirmation.
+            preview.clone()
+        } else {
+            self.native_production_blockout_preview(&preview, cancellation.clone())
+                .await?
+        };
         if preview.shape_program != production_preview.shape_program
             || preview.assembly != production_preview.assembly
             || preview.readback.shape_program_sha256
@@ -3337,20 +3860,33 @@ impl LoopbackHttpPort {
             "interactive_preview",
             &interactive_preview.shape_program,
         )?;
+        let production_glb_bytes = game_visual_source_glb
+            .as_deref()
+            .unwrap_or(&production_preview.glb_bytes);
         let production_verified = native_verified_geometry_readback(
-            &production_preview.glb_bytes,
+            production_glb_bytes,
             &production_preview.readback,
             "production_concept",
             &production_preview.shape_program,
         )?;
         if interactive_verified.glb_sha256 != interactive_preview.glb_sha256
-            || production_verified.glb_sha256 != production_preview.glb_sha256
+            || production_verified.glb_sha256
+                != game_visual_source_glb
+                    .as_ref()
+                    .map(|bytes| sha256_hex(bytes))
+                    .unwrap_or_else(|| production_preview.glb_sha256.clone())
         {
             return Err(NativeBlockoutCompatError::conflict(
                 "RESTRICTED_GEOMETRY_READBACK_MISMATCH",
                 "Canonical GLB identity does not match the restricted geometry result.",
             ));
         }
+        // Revalidate the exact carrier immediately before persistence.  The
+        // Rust write boundary must not rely on a downstream geometry executor
+        // to reject duplicate globally-owned Material Zones.
+        production_preview
+            .validate()
+            .map_err(native_blockout_product_tool_error)?;
         let (parts, mut assembly_graph, material_bindings) =
             native_blockout_parts_and_graph(&production_preview, Some(project_id))?;
         if !production_preview.surface_adornment_programs.is_empty() {
@@ -3393,6 +3929,80 @@ impl LoopbackHttpPort {
                         )
                     })?,
                 );
+        }
+        if let Some(source) = &production_preview.universal_asset_source {
+            source.validate().map_err(native_blockout_core_error)?;
+            let revision = production_preview
+                .forge_visual_program_revision
+                .as_ref()
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "UNIVERSAL_ASSET_SOURCE_PROVENANCE_INVALID",
+                        "Universal source provenance requires a ForgeVisualProgram revision.",
+                    )
+                })?;
+            if source.procedural_source != *revision {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "UNIVERSAL_ASSET_SOURCE_PROVENANCE_INVALID",
+                    "Universal source provenance does not match the converged visual program.",
+                ));
+            }
+            let source_sha256 =
+                forgecad_core::semantic_sha256(source).map_err(native_blockout_core_error)?;
+            let graph = assembly_graph.as_object_mut().ok_or_else(|| {
+                NativeBlockoutCompatError::conflict(
+                    "UNIVERSAL_ASSET_SOURCE_PROVENANCE_INVALID",
+                    "Universal source provenance requires an object AssemblyGraph.",
+                )
+            })?;
+            graph.insert(
+                "universal_asset_source".into(),
+                serde_json::to_value(source).map_err(|_| {
+                    NativeBlockoutCompatError::conflict(
+                        "UNIVERSAL_ASSET_SOURCE_PROVENANCE_INVALID",
+                        "Universal source provenance could not be persisted.",
+                    )
+                })?,
+            );
+            graph.insert(
+                "universal_asset_source_sha256".into(),
+                Value::String(source_sha256),
+            );
+        }
+        if let Some(source) = &production_preview.universal_asset_source_v2 {
+            source.validate().map_err(native_blockout_core_error)?;
+            let source_sha256 =
+                forgecad_core::semantic_sha256(source).map_err(native_blockout_core_error)?;
+            let graph = assembly_graph.as_object_mut().ok_or_else(|| {
+                NativeBlockoutCompatError::conflict(
+                    "UNIVERSAL_ASSET_SOURCE_V2_PROVENANCE_INVALID",
+                    "UAS@2 provenance requires an object AssemblyGraph.",
+                )
+            })?;
+            graph.insert(
+                "universal_asset_source_v2".into(),
+                serde_json::to_value(source).map_err(|_| {
+                    NativeBlockoutCompatError::conflict(
+                        "UNIVERSAL_ASSET_SOURCE_V2_PROVENANCE_INVALID",
+                        "UAS@2 provenance could not be persisted.",
+                    )
+                })?,
+            );
+            graph.insert(
+                "universal_asset_source_v2_sha256".into(),
+                Value::String(source_sha256),
+            );
+            if let Some(provenance) = &production_preview.universal_preview_provenance {
+                graph.insert(
+                    "universal_preview_provenance".into(),
+                    serde_json::to_value(provenance).map_err(|_| {
+                        NativeBlockoutCompatError::conflict(
+                            "UNIVERSAL_PREVIEW_PROVENANCE_INVALID",
+                            "Category-open preview provenance could not be persisted.",
+                        )
+                    })?,
+                );
+            }
         }
         if let Some(binding) = &production_preview.multimodal_program_evidence_binding {
             let revision = production_preview
@@ -3439,7 +4049,7 @@ impl LoopbackHttpPort {
                 .visual_reference_comparison_report
                 .as_ref(),
         ) {
-            if input.glb_sha256 != production_preview.glb_sha256 || !report.passed {
+            if input.glb_sha256 != production_verified.glb_sha256 || !report.passed {
                 return Err(NativeBlockoutCompatError::conflict(
                     "VISUAL_REFERENCE_COMPARISON_PROVENANCE_INVALID",
                     "Only a passed reference comparison for the exact production GLB may be persisted.",
@@ -3675,7 +4285,10 @@ impl LoopbackHttpPort {
             shape_program: production_preview.shape_program.clone(),
             assembly_graph: assembly_graph.clone(),
             material_bindings: material_bindings.clone(),
-            glb_sha256: production_preview.glb_sha256.clone(),
+            // `production_glb` remains the exact visual LOD0 source even
+            // when the user-facing formal preview is a derived game delivery
+            // GLB. Quality, editable source and PBR evidence all bind here.
+            glb_sha256: production_verified.glb_sha256.clone(),
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
         };
@@ -3721,15 +4334,28 @@ impl LoopbackHttpPort {
                 hook();
             }
         }
-        repository
-            .commit_candidate_bundle(
-                persisted_candidate,
-                &production_preview.glb_bytes,
-                &interactive_preview.glb_bytes,
-                &version,
-                &quality,
-            )
-            .map_err(native_blockout_core_error)?;
+        if let Some(visual_source_glb) = game_visual_source_glb.as_deref() {
+            repository
+                .commit_game_delivery_candidate_bundle(
+                    persisted_candidate,
+                    visual_source_glb,
+                    &production_preview.glb_bytes,
+                    &interactive_preview.glb_bytes,
+                    &version,
+                    &quality,
+                )
+                .map_err(native_blockout_core_error)?;
+        } else {
+            repository
+                .commit_candidate_bundle(
+                    persisted_candidate,
+                    &production_preview.glb_bytes,
+                    &interactive_preview.glb_bytes,
+                    &version,
+                    &quality,
+                )
+                .map_err(native_blockout_core_error)?;
+        }
 
         // Transient Product Tool state is not authoritative after the bundle
         // commit. Cleanup is deliberately best effort and cannot make an
@@ -3918,8 +4544,15 @@ impl LoopbackHttpPort {
         ) {
             return Err(RestrictedGeometryCallError::InvalidResponse);
         }
-        let body = serde_json::to_vec(request)
+        // The sealed Rust surface-layer hash is computed from the exact
+        // `serde_json::Value` representation of f32 fields.  Plain
+        // `Serialize` can shorten those values on the wire (for example
+        // `0.2199999988` to `0.22`) and make the Python boundary reject an
+        // otherwise valid Rust-owned lowering.  Send the same canonical JSON
+        // bytes that Rust used for the seal instead of a second float format.
+        let request_value = serde_json::to_value(request)
             .map_err(|_| RestrictedGeometryCallError::InvalidResponse)?;
+        let body = canonical_json(&request_value).into_bytes();
         if body.len() > MAX_RESTRICTED_GEOMETRY_REQUEST_BYTES {
             return Err(RestrictedGeometryCallError::InvalidResponse);
         }
@@ -4088,11 +4721,13 @@ impl LoopbackHttpPort {
             return Err(restricted_geometry_invalid_response());
         }
         let cache_key = restricted_geometry_compile_cache_key(input, &shape_program_sha256)?;
+        let compile_started = Instant::now();
         let compiled = if let Ok(mut cache) = self.inner.geometry_cache.lock() {
             cache.get(&cache_key)
         } else {
             None
         };
+        let compile_cache_hit = compiled.is_some();
         let compiled = if let Some(compiled) = compiled {
             compiled
         } else {
@@ -4115,6 +4750,8 @@ impl LoopbackHttpPort {
                 section_set: input.section_set.as_ref(),
                 surface_adornment_programs: &input.surface_adornment_programs,
                 surface_layer_input: input.surface_layer_input.as_ref(),
+                surface_layer_inputs: &input.surface_layer_inputs,
+                reference_uv_evidence_bakes: &input.reference_uv_evidence_bakes,
             };
             let compile_response = self
                 .post_restricted_geometry_phase(
@@ -4132,11 +4769,16 @@ impl LoopbackHttpPort {
                 &shape_program_sha256,
             )?;
             if let Ok(mut cache) = self.inner.geometry_cache.lock() {
-                cache.insert(cache_key, compiled.clone());
+                cache.insert(cache_key.clone(), compiled.clone());
             }
             compiled
         };
 
+        let compile_duration_ms = u64::try_from(compile_started.elapsed().as_millis())
+            .unwrap_or(u64::MAX)
+            .min(240_000);
+
+        let render_started = Instant::now();
         let render_identity =
             self.next_restricted_geometry_identity("render", &shape_program_sha256);
         let render_request = RestrictedGeometryRenderRequest {
@@ -4161,17 +4803,43 @@ impl LoopbackHttpPort {
             .post_restricted_geometry_phase(
                 &render_request,
                 &render_identity,
-                cancellation,
+                cancellation.clone(),
                 RESTRICTED_GEOMETRY_RENDER_TIMEOUT_MS,
             )
-            .await
-            .map_err(restricted_geometry_port_error)?;
+            .await;
+        let render_response = match render_response {
+            Ok(response) => response,
+            Err(RestrictedGeometryCallError::Rejected { code, .. })
+                if compile_cache_hit && code == "GEOMETRY_ARTIFACT_HANDLE_UNAVAILABLE" =>
+            {
+                if let Ok(mut cache) = self.inner.geometry_cache.lock() {
+                    cache.remove(&cache_key);
+                }
+                // The Rust cache may outlive the disposable Python executor.
+                // One boxed retry recompiles the same hash-sealed input and
+                // cannot recurse again because the stale entry was removed.
+                return Box::pin(self.build_restricted_geometry(input, cancellation)).await;
+            }
+            Err(error) => return Err(restricted_geometry_port_error(error)),
+        };
         let (views, view_sha256, renderer_id) = validate_restricted_geometry_render_response(
             render_response,
             &render_identity.execution_id,
             &compiled,
             input.render_view_profile,
         )?;
+        let render_duration_ms = u64::try_from(render_started.elapsed().as_millis())
+            .unwrap_or(u64::MAX)
+            .min(240_000);
+        let (fragment_cache_hit_operation_ids, fragment_cache_miss_operation_ids) =
+            if compile_cache_hit {
+                (Vec::new(), Vec::new())
+            } else {
+                (
+                    compiled.fragment_cache_hit_operation_ids.clone(),
+                    compiled.fragment_cache_miss_operation_ids.clone(),
+                )
+            };
         let output = RestrictedGeometryOutput {
             schema_version: "RestrictedGeometryOutput@1".into(),
             topology_hash: compiled.shape_program_sha256.clone(),
@@ -4181,6 +4849,15 @@ impl LoopbackHttpPort {
             views,
             view_sha256,
             renderer_id,
+            execution_evidence: forgecad_app_server::RestrictedGeometryExecutionEvidence {
+                schema_version: "RestrictedGeometryExecutionEvidence@1".into(),
+                compile_cache_key_sha256: cache_key,
+                compile_cache_hit,
+                compile_duration_ms,
+                render_duration_ms,
+                fragment_cache_hit_operation_ids,
+                fragment_cache_miss_operation_ids,
+            },
         };
         output.validate(input)?;
         Ok(output)
@@ -4541,6 +5218,41 @@ fn validate_restricted_geometry_compile_response(
         .as_ref()
         .and_then(Value::as_object)
         .ok_or_else(restricted_geometry_invalid_response)?;
+    let expected_operation_ids = input
+        .shape_program
+        .get("operations")
+        .and_then(Value::as_array)
+        .ok_or_else(restricted_geometry_invalid_response)?
+        .iter()
+        .map(|operation| {
+            operation
+                .get("operation_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .ok_or_else(restricted_geometry_invalid_response)
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let fragment_hit_ids = response
+        .fragment_cache_hit_operation_ids
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let fragment_miss_ids = response
+        .fragment_cache_miss_operation_ids
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if fragment_hit_ids.len() != response.fragment_cache_hit_operation_ids.len()
+        || fragment_miss_ids.len() != response.fragment_cache_miss_operation_ids.len()
+        || !fragment_hit_ids.is_disjoint(&fragment_miss_ids)
+        || fragment_hit_ids
+            .union(&fragment_miss_ids)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            != expected_operation_ids
+    {
+        return Err(restricted_geometry_invalid_response());
+    }
     let artifact_profile = readback
         .get("artifact_profile")
         .and_then(Value::as_object)
@@ -4630,6 +5342,8 @@ fn validate_restricted_geometry_compile_response(
             visual_texture_map_count,
             visual_texture_provenance_verified,
         },
+        fragment_cache_hit_operation_ids: response.fragment_cache_hit_operation_ids,
+        fragment_cache_miss_operation_ids: response.fragment_cache_miss_operation_ids,
     })
 }
 
@@ -5597,6 +6311,25 @@ fn native_blockout_parts_and_graph(
     if let (Some(project_id), Some(graph)) = (project_id, graph.as_object_mut()) {
         graph.insert("project_id".into(), Value::String(project_id.to_string()));
     }
+    if let Some(surface_layer_input) = preview.surface_layer_input.as_ref() {
+        graph
+            .as_object_mut()
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::invalid(
+                    "SURFACE_LAYER_PROVENANCE_INVALID",
+                    "Retained surface-layer provenance requires an AssemblyGraph object.",
+                )
+            })?
+            .insert(
+                "surface_layer_input".into(),
+                serde_json::to_value(surface_layer_input).map_err(|_| {
+                    NativeBlockoutCompatError::invalid(
+                        "SURFACE_LAYER_PROVENANCE_INVALID",
+                        "Retained surface-layer provenance could not be persisted.",
+                    )
+                })?,
+            );
+    }
     Ok((parts, graph, material_bindings))
 }
 
@@ -5934,10 +6667,31 @@ fn native_recipe_blockout_parts_and_graph(
     // The C105 graph is already schema-validated by the native preview
     // carrier.  Do not inject project/candidate fields here: Project ownership
     // lives on AgentAssetVersion and candidate identity lives in the candidate
-    // metadata/Part facts, while the graph must remain byte-for-byte faithful
-    // to the reviewed Recipe expansion.
+    // metadata/Part facts.  The exact retained surface seal is product
+    // provenance, so it is added to the graph without rewriting the reviewed
+    // Recipe expansion facts.
+    let mut persisted_graph = recipe_graph.clone();
+    if let Some(surface_layer_input) = preview.surface_layer_input.as_ref() {
+        persisted_graph
+            .as_object_mut()
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::invalid(
+                    "SURFACE_LAYER_PROVENANCE_INVALID",
+                    "Retained surface-layer provenance requires an AssemblyGraph object.",
+                )
+            })?
+            .insert(
+                "surface_layer_input".into(),
+                serde_json::to_value(surface_layer_input).map_err(|_| {
+                    NativeBlockoutCompatError::invalid(
+                        "SURFACE_LAYER_PROVENANCE_INVALID",
+                        "Retained surface-layer provenance could not be persisted.",
+                    )
+                })?,
+            );
+    }
     let _ = project_id;
-    Ok((parts, recipe_graph.clone(), material_bindings))
+    Ok((parts, persisted_graph, material_bindings))
 }
 
 fn native_blockout_vec3(
@@ -6273,7 +7027,7 @@ fn native_surface_adornment_programs(
         ));
     }
     let mut programs = Vec::with_capacity(raw.len());
-    let mut targets = BTreeSet::new();
+    let mut target_zones = BTreeSet::new();
     for value in raw {
         let program: SurfaceAdornmentProgram =
             serde_json::from_value(value.clone()).map_err(|_| {
@@ -6283,18 +7037,51 @@ fn native_surface_adornment_programs(
                 )
             })?;
         program.validate().map_err(native_blockout_core_error)?;
-        if !targets.insert((
-            program.target_part_id.clone(),
-            program.target_zone_id.clone(),
-        )) {
+        if !target_zones.insert(program.target_zone_id.clone()) {
             return Err(NativeBlockoutCompatError::conflict(
                 "SURFACE_ADORNMENT_TARGET_DUPLICATE",
-                "An asset version may contain only one active adornment per Part and Material Zone.",
+                "An asset version may contain only one active adornment per Material Zone.",
             ));
         }
         programs.push(program);
     }
     Ok(programs)
+}
+
+fn native_surface_layer_input(
+    version: &AgentAssetVersion,
+) -> Result<Option<RestrictedSurfaceLayerInput>, NativeBlockoutCompatError> {
+    let Some(raw) = version.assembly_graph.get("surface_layer_input") else {
+        return Ok(None);
+    };
+    let input: RestrictedSurfaceLayerInput = serde_json::from_value(raw.clone()).map_err(|_| {
+        NativeBlockoutCompatError::conflict(
+            "SURFACE_LAYER_PROVENANCE_INVALID",
+            "Asset version contains malformed retained surface-layer provenance.",
+        )
+    })?;
+    input.validate().map_err(|_| {
+        NativeBlockoutCompatError::conflict(
+            "SURFACE_LAYER_PROVENANCE_INVALID",
+            "Asset version contains invalid retained surface-layer provenance.",
+        )
+    })?;
+    Ok(Some(input))
+}
+
+fn native_surface_layer_owned_zones(
+    version: &AgentAssetVersion,
+) -> Result<BTreeSet<String>, NativeBlockoutCompatError> {
+    Ok(native_surface_layer_input(version)?
+        .map(|input| {
+            input
+                .lowering()
+                .adornments()
+                .iter()
+                .map(|program| program.target_zone_id.clone())
+                .collect()
+        })
+        .unwrap_or_default())
 }
 
 fn native_change_set_apply(
@@ -6386,6 +7173,10 @@ fn native_change_set_apply(
     for operation in &change_set.operations {
         native_apply_change_set_operation(repository, base, change_set, &mut preview, operation)?;
     }
+    // Force the persisted carrier through the same global Material Zone and
+    // retained SurfaceLayer validators used by subsequent readback/compile.
+    let _ = native_surface_adornment_programs(&preview)?;
+    let _ = native_surface_layer_input(&preview)?;
     if preview.parts == base.parts
         && preview.shape_program == base.shape_program
         && preview.assembly_graph == base.assembly_graph
@@ -6620,7 +7411,6 @@ fn native_apply_change_set_operation(
             )?;
         }
         "apply_material_preset" => {
-            let operation_id = native_change_set_part_operation_id(preview, part_id)?;
             let (_, _, zones) = native_change_set_base_part_facts(base, part_id)?;
             let material_id = native_change_set_operation_string(operation, "material_id")?;
             let zone_id = operation
@@ -6640,13 +7430,7 @@ fn native_apply_change_set_operation(
                 ));
             }
             native_change_set_clear_surface_adornment(preview, part_id, zone_id)?;
-            native_change_set_apply_material(
-                preview,
-                part_id,
-                &operation_id,
-                zone_id,
-                material_id,
-            )?;
+            native_change_set_apply_material(preview, part_id, zone_id, material_id)?;
         }
         "apply_surface_adornment" => {
             let value = operation.get("surface_adornment_program").ok_or_else(|| {
@@ -8423,6 +9207,40 @@ fn native_change_set_part_operation_id(
     Ok(matches[0].to_string())
 }
 
+fn native_change_set_zone_operation_ids(
+    version: &AgentAssetVersion,
+    zone_id: &str,
+) -> Result<Vec<String>, NativeBlockoutCompatError> {
+    let matches = version
+        .shape_program
+        .get("operations")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|operation| {
+            operation.pointer("/args/zone_id").and_then(Value::as_str) == Some(zone_id)
+        })
+        .filter_map(|operation| {
+            operation
+                .get("operation_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .collect::<Vec<_>>();
+    if matches.is_empty()
+        || matches
+            .iter()
+            .any(|operation_id| !operation_id.starts_with("op_") || !valid_stable_id(operation_id))
+        || matches.iter().collect::<BTreeSet<_>>().len() != matches.len()
+    {
+        return Err(NativeBlockoutCompatError::conflict(
+            "CHANGE_SET_MATERIAL_BINDING_AMBIGUOUS",
+            "Material Zone does not map to a stable set of sealed ShapeProgram outputs.",
+        ));
+    }
+    Ok(matches)
+}
+
 fn native_change_set_base_part_facts(
     base: &AgentAssetVersion,
     part_id: &str,
@@ -8769,27 +9587,23 @@ fn native_change_set_apply_parameter(
 fn native_change_set_apply_material(
     preview: &mut AgentAssetVersion,
     part_id: &str,
-    operation_id: &str,
     zone_id: &str,
     material_id: &str,
 ) -> Result<(), NativeBlockoutCompatError> {
-    let operation = native_change_set_shape_operation_mut(preview, operation_id)?;
-    let args = operation
-        .get_mut("args")
-        .and_then(Value::as_object_mut)
-        .ok_or_else(|| {
-            NativeBlockoutCompatError::conflict(
-                "CHANGE_SET_GEOMETRY_BINDING_MISSING",
-                "ShapeProgram operation has no bounded argument object.",
-            )
-        })?;
-    if args.get("zone_id").and_then(Value::as_str) != Some(zone_id) {
-        return Err(NativeBlockoutCompatError::conflict(
-            "CHANGE_SET_MATERIAL_BINDING_AMBIGUOUS",
-            "Material Zone does not map to one sealed ShapeProgram output.",
-        ));
+    let operation_ids = native_change_set_zone_operation_ids(preview, zone_id)?;
+    for operation_id in operation_ids {
+        let operation = native_change_set_shape_operation_mut(preview, &operation_id)?;
+        let args = operation
+            .get_mut("args")
+            .and_then(Value::as_object_mut)
+            .ok_or_else(|| {
+                NativeBlockoutCompatError::conflict(
+                    "CHANGE_SET_GEOMETRY_BINDING_MISSING",
+                    "ShapeProgram operation has no bounded argument object.",
+                )
+            })?;
+        args.insert("material_id".into(), Value::String(material_id.to_string()));
     }
-    args.insert("material_id".into(), Value::String(material_id.to_string()));
     preview.material_bindings.insert(
         format!("{part_id}:{zone_id}"),
         Value::String(material_id.to_string()),
@@ -8804,7 +9618,7 @@ fn native_change_set_base_material(
 ) -> Result<String, NativeBlockoutCompatError> {
     if let Some(program) = native_surface_adornment_programs(version)?
         .into_iter()
-        .find(|program| program.target_part_id == part_id && program.target_zone_id == zone_id)
+        .find(|program| program.target_zone_id == zone_id)
     {
         return Ok(program.base_material);
     }
@@ -8815,26 +9629,32 @@ fn native_change_set_base_material(
     {
         return Ok(material_id.to_string());
     }
-    let operation_id = native_change_set_part_operation_id(version, part_id)?;
-    version
+    let operation_ids = native_change_set_zone_operation_ids(version, zone_id)?;
+    let material_ids = version
         .shape_program
         .get("operations")
         .and_then(Value::as_array)
-        .and_then(|operations| {
-            operations.iter().find(|operation| {
-                operation.get("operation_id").and_then(Value::as_str) == Some(operation_id.as_str())
-            })
+        .into_iter()
+        .flatten()
+        .filter(|operation| {
+            operation
+                .get("operation_id")
+                .and_then(Value::as_str)
+                .is_some_and(|operation_id| operation_ids.iter().any(|value| value == operation_id))
         })
-        .and_then(|operation| operation.get("args"))
-        .and_then(|args| args.get("material_id"))
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-        .ok_or_else(|| {
-            NativeBlockoutCompatError::conflict(
-                "SURFACE_ADORNMENT_BASE_MATERIAL_MISSING",
-                "Selected Material Zone has no committed visual base material.",
-            )
+        .filter_map(|operation| {
+            operation
+                .pointer("/args/material_id")
+                .and_then(Value::as_str)
         })
+        .collect::<BTreeSet<_>>();
+    if material_ids.len() != 1 {
+        return Err(NativeBlockoutCompatError::conflict(
+            "SURFACE_ADORNMENT_BASE_MATERIAL_MISSING",
+            "Selected Material Zone does not have one committed visual base material.",
+        ));
+    }
+    Ok((*material_ids.iter().next().unwrap()).to_owned())
 }
 
 fn native_change_set_apply_surface_adornment(
@@ -8842,6 +9662,12 @@ fn native_change_set_apply_surface_adornment(
     program: &SurfaceAdornmentProgram,
     material_id: &str,
 ) -> Result<(), NativeBlockoutCompatError> {
+    if native_surface_layer_owned_zones(preview)?.contains(&program.target_zone_id) {
+        return Err(NativeBlockoutCompatError::conflict(
+            "SURFACE_LAYER_ZONE_OWNED",
+            "A retained Design Surface owns this Material Zone; remove or edit that surface through its own bounded workflow.",
+        ));
+    }
     let graph = preview.assembly_graph.as_object_mut().ok_or_else(|| {
         NativeBlockoutCompatError::conflict(
             "ASSEMBLY_GRAPH_INVALID",
@@ -8864,11 +9690,13 @@ fn native_change_set_apply_surface_adornment(
             "Surface appearance provenance could not be sealed.",
         )
     })?;
+    // The restricted geometry compiler owns Material Zones globally and
+    // accepts at most one adornment per zone.  A persisted visual-program
+    // asset can project one reviewed Recipe Part into several ShapeProgram
+    // output Parts, so Part IDs are not a safe replacement key here.
     if let Some(existing) = adornments.iter_mut().find(|existing| {
-        existing.get("target_part_id").and_then(Value::as_str)
-            == Some(program.target_part_id.as_str())
-            && existing.get("target_zone_id").and_then(Value::as_str)
-                == Some(program.target_zone_id.as_str())
+        existing.get("target_zone_id").and_then(Value::as_str)
+            == Some(program.target_zone_id.as_str())
     }) {
         *existing = serialized;
     } else {
@@ -8889,9 +9717,15 @@ fn native_change_set_apply_surface_adornment(
 
 fn native_change_set_clear_surface_adornment(
     preview: &mut AgentAssetVersion,
-    part_id: &str,
+    _part_id: &str,
     zone_id: &str,
 ) -> Result<(), NativeBlockoutCompatError> {
+    if native_surface_layer_owned_zones(preview)?.contains(zone_id) {
+        return Err(NativeBlockoutCompatError::conflict(
+            "SURFACE_LAYER_ZONE_OWNED",
+            "A retained Design Surface owns this Material Zone and cannot be cleared by an independent material edit.",
+        ));
+    }
     let Some(adornments) = preview
         .assembly_graph
         .get_mut("surface_adornments")
@@ -8899,10 +9733,8 @@ fn native_change_set_clear_surface_adornment(
     else {
         return Ok(());
     };
-    adornments.retain(|existing| {
-        existing.get("target_part_id").and_then(Value::as_str) != Some(part_id)
-            || existing.get("target_zone_id").and_then(Value::as_str) != Some(zone_id)
-    });
+    adornments
+        .retain(|existing| existing.get("target_zone_id").and_then(Value::as_str) != Some(zone_id));
     Ok(())
 }
 
@@ -10985,6 +11817,7 @@ mod tests {
         TamperedGlbHash,
         ErrorEnvelope,
         BlockUntilCancelled,
+        StaleCachedHandleOnce,
     }
 
     #[derive(Debug, Clone)]
@@ -11153,6 +11986,30 @@ mod tests {
                 let _ = write_fake_json_response(&mut stream, 200, &response);
             }
             Some("render") => {
+                if scenario == FakeGeometryScenario::StaleCachedHandleOnce {
+                    let render_count = state
+                        .lock()
+                        .unwrap()
+                        .request_bodies
+                        .iter()
+                        .filter(|request| request["action"] == "render")
+                        .count();
+                    if render_count == 2 {
+                        let _ = write_fake_json_response(
+                            &mut stream,
+                            422,
+                            &json!({
+                                "error": {
+                                    "code": "GEOMETRY_ARTIFACT_HANDLE_UNAVAILABLE",
+                                    "message": "The cached artifact handle belonged to a previous executor.",
+                                    "recoverable": true,
+                                    "details": {}
+                                }
+                            }),
+                        );
+                        return;
+                    }
+                }
                 let response = fake_geometry_render_response(&body, &state);
                 let _ = write_fake_json_response(&mut stream, 200, &response);
             }
@@ -11446,6 +12303,12 @@ mod tests {
                     operation["operation_id"].as_str() == Some(operation_id)
                 })
             });
+        let operation_ids = request["shape_program"]["operations"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|operation| operation["operation_id"].as_str())
+            .collect::<Vec<_>>();
         let profile_height_scale = output_operation
             .and_then(|operation| {
                 operation["args"]["profile_scale"][1]
@@ -11505,6 +12368,8 @@ mod tests {
             "glb_byte_size": glb.len(),
             "triangle_count": triangle_count,
             "bounds_mm": bounds_mm,
+            "fragment_cache_hit_operation_ids": [],
+            "fragment_cache_miss_operation_ids": operation_ids,
             "readback": {
                 "schema_version": "GeometryCompileReadback@2",
                 "runtime_manifest_version": "ShapeProgramRuntimeManifest@1",
@@ -11662,6 +12527,8 @@ mod tests {
             section_set: None,
             surface_adornment_programs: Vec::new(),
             surface_layer_input: None,
+            surface_layer_inputs: Vec::new(),
+            reference_uv_evidence_bakes: Vec::new(),
             render_view_profile: RestrictedRenderViewProfile::WorkbenchFour,
             quality_profile: forgecad_app_server::RestrictedQualityProfile {
                 profile_id: "interactive_preview".into(),
@@ -11969,6 +12836,251 @@ mod tests {
         assert!(state.request_bodies[0].get("style_recipe").is_none());
         assert!(state.request_bodies[0].get("provider_key").is_none());
         assert!(state.request_bodies[1].get("glb_base64").is_none());
+    }
+
+    #[test]
+    fn restricted_geometry_port_preserves_uas_multi_zone_surface_lowerings_on_the_wire() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let port = restricted_geometry_test_port(&backend.endpoint);
+        let surface: SurfaceLayerProgram = serde_json::from_value(json!({
+            "schema_version": "SurfaceLayerProgram@1",
+            "program_id": "surface_layer_bridge_plural",
+            "target_part_id": "part_bridge_primary",
+            "target_zone_id": "zone_primary",
+            "target_part_role": "primary_shell",
+            "material_zone_id": "zone_primary",
+            "base_material": "mat_graphite",
+            "vector_paths": [],
+            "decal_layers": [],
+            "normal_relief_layers": [{
+                "layer_id": "relief_bridge_plural",
+                "motif": "parallel_groove",
+                "intensity": "subtle",
+                "coverage": "center_band",
+                "seed": 7
+            }],
+            "roughness_masks": [],
+            "emissive_masks": [],
+            "symmetry": {"mode": "none", "center_uv": [0.5, 0.5]},
+            "uv_frame": {
+                "frame_id": "uvframe_bridge_plural",
+                "u_min": 0.0,
+                "u_max": 1.0,
+                "v_min": 0.0,
+                "v_max": 1.0,
+                "rotation_degrees": 0.0
+            },
+            "quality_profile": "interactive_preview",
+            "execution": "lower_to_a005_and_retain",
+            "skill_id": "skill_first_party_surface_adornment",
+            "skill_version": 2,
+            "skill_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "generator": "surface_layer_v1",
+            "non_functional_only": true
+        }))
+        .unwrap();
+        let input = restricted_geometry_test_input()
+            .with_surface_layer_programs(&[surface])
+            .unwrap();
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(port.build_compile_render(input, CancellationToken::new()))
+            .unwrap();
+
+        let state = backend.state.lock().unwrap();
+        assert!(state.request_bodies[0].get("surface_layer_input").is_none());
+        assert_eq!(
+            state.request_bodies[0]["surface_layer_inputs"]
+                .as_array()
+                .map(Vec::len),
+            Some(1),
+            "the sidecar must receive UAS@2 plural zone lowerings rather than silently dropping them"
+        );
+    }
+
+    #[test]
+    fn vp204_recompiles_once_when_a_cached_sidecar_handle_is_stale() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::StaleCachedHandleOnce);
+        let port = restricted_geometry_test_port(&backend.endpoint);
+        let input = restricted_geometry_test_input();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let first = runtime
+            .block_on(port.build_compile_render(input.clone(), CancellationToken::new()))
+            .unwrap();
+        assert!(!first.execution_evidence.compile_cache_hit);
+
+        let recovered = runtime
+            .block_on(port.build_compile_render(input.clone(), CancellationToken::new()))
+            .unwrap();
+        recovered.validate(&input).unwrap();
+        assert!(!recovered.execution_evidence.compile_cache_hit);
+        assert_eq!(recovered.glb_sha256, first.glb_sha256);
+
+        let state = backend.state.lock().unwrap();
+        let actions = state
+            .request_bodies
+            .iter()
+            .filter_map(|request| request["action"].as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actions,
+            [
+                "compile_readback",
+                "render",
+                "render",
+                "compile_readback",
+                "render"
+            ]
+        );
+        assert_eq!(state.request_failures, 0);
+    }
+
+    #[test]
+    fn e005_offline_receipt_uses_native_executor_production_geometry_port_once() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let port = Arc::new(restricted_geometry_test_port(&backend.endpoint));
+        let geometry: Arc<dyn RestrictedGeometryPort> = port;
+        let executor = NativeProductToolExecutor::with_embedded_catalog(
+            Arc::new(ProductToolRegistry::forgecad_v1().unwrap()),
+            geometry,
+            NativeProductToolExecutorConfig::default(),
+        )
+        .unwrap();
+        let task_set: Value = serde_json::from_str(include_str!(
+            "../../../../packages/concept-spec/fixtures/e005-unseen-mechanical-hard-surface-task-set.json"
+        ))
+        .unwrap();
+        let source: Value = serde_json::from_str(include_str!(
+            "../../../../packages/concept-spec/fixtures/e005-harness-sensor-pod-source.json"
+        ))
+        .unwrap();
+        let request = E005OfflineHarnessRequest {
+            task_set_sha256: forgecad_app_server::E005_TASK_SET_SHA256.into(),
+            task_id: "e005_enclosure_sensor_pod".into(),
+            task_payload: task_set["tasks"][0].clone(),
+            source: Some(source),
+            patch: None,
+        };
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let receipt = runtime
+            .block_on(
+                executor
+                    .e005_offline_harness()
+                    .execute(request.clone(), CancellationToken::new()),
+            )
+            .unwrap();
+        assert_eq!(receipt.status, E005RunStatus::PassedWithoutPatch);
+        assert_eq!(receipt.authoring_count, 1);
+        assert_eq!(receipt.patch_count, 0);
+        assert!(!receipt.distribution_eligible);
+        assert_eq!(receipt.network_provider_calls, 0);
+        assert_eq!(receipt.billable_cost_microusd, 0);
+        assert_eq!(
+            receipt.runtime_manifest_version.as_deref(),
+            Some("ShapeProgramRuntimeManifest@1")
+        );
+        assert!(receipt.vp204_session_sha256.is_some());
+        assert!(receipt.vp204_receipt_sha256.is_some());
+        assert!(receipt.gate_outcome_sha256.is_some());
+        assert!(receipt.compile_readback_sha256.is_some());
+        assert!(receipt.restricted_geometry_evidence_sha256.is_some());
+
+        let replay = runtime
+            .block_on(
+                executor
+                    .e005_offline_harness()
+                    .execute(request, CancellationToken::new()),
+            )
+            .unwrap();
+        assert_eq!(replay.status, E005RunStatus::PassedWithoutPatch);
+        assert_eq!(replay.source_program_sha256, receipt.source_program_sha256);
+        assert_eq!(replay.shape_program_sha256, receipt.shape_program_sha256);
+        assert_eq!(replay.glb_sha256, receipt.glb_sha256);
+        assert_eq!(replay.fixed_view_sha256, receipt.fixed_view_sha256);
+        assert!(replay.phase_receipts.as_ref().unwrap().iter().any(|phase| {
+            phase.phase == forgecad_core::VisualProgramPhaseV2::CompileReadback
+                && phase.cache == forgecad_core::VisualProgramCacheDispositionV2::Hit
+        }));
+
+        let state = backend.state.lock().unwrap();
+        assert_eq!(
+            state.requested_paths,
+            [
+                "POST /api/v1/internal/geometry/execute",
+                "POST /api/v1/internal/geometry/execute",
+                "POST /api/v1/internal/geometry/execute"
+            ]
+        );
+        assert_eq!(state.request_bodies[0]["action"], "compile_readback");
+        assert_eq!(state.request_bodies[1]["action"], "render");
+        assert_eq!(state.request_bodies[2]["action"], "render");
+        assert_eq!(state.request_failures, 0);
+    }
+
+    #[test]
+    #[ignore = "requires a live restricted geometry sidecar started by the E005 smoke"]
+    fn e005_offline_receipt_runs_through_live_restricted_sidecar() {
+        let endpoint = env::var("FORGECAD_E005_SIDECAR_ENDPOINT")
+            .expect("E005 live sidecar endpoint must be provided by the smoke");
+        let capability = env::var("FORGECAD_E005_SIDECAR_CAPABILITY")
+            .expect("E005 live sidecar capability must be provided by the smoke");
+        let port = Arc::new(
+            LoopbackHttpPort::new(LocalAgentEndpoint::parse(&endpoint).unwrap(), capability)
+                .unwrap(),
+        );
+        let geometry: Arc<dyn RestrictedGeometryPort> = port;
+        let executor = NativeProductToolExecutor::with_embedded_catalog(
+            Arc::new(ProductToolRegistry::forgecad_v1().unwrap()),
+            geometry,
+            NativeProductToolExecutorConfig::default(),
+        )
+        .unwrap();
+        let task_set: Value = serde_json::from_str(include_str!(
+            "../../../../packages/concept-spec/fixtures/e005-unseen-mechanical-hard-surface-task-set.json"
+        ))
+        .unwrap();
+        let source: Value = serde_json::from_str(include_str!(
+            "../../../../packages/concept-spec/fixtures/e005-harness-sensor-pod-source.json"
+        ))
+        .unwrap();
+        let receipt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(executor.e005_offline_harness().execute(
+                E005OfflineHarnessRequest {
+                    task_set_sha256: forgecad_app_server::E005_TASK_SET_SHA256.into(),
+                    task_id: "e005_enclosure_sensor_pod".into(),
+                    task_payload: task_set["tasks"][0].clone(),
+                    source: Some(source),
+                    patch: None,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        receipt.validate().unwrap();
+        println!(
+            "E005_RUN_RECEIPT_JSON={}",
+            serde_json::to_string(&receipt).unwrap()
+        );
+        assert_eq!(
+            receipt.status,
+            E005RunStatus::PassedWithoutPatch,
+            "live restricted-sidecar receipt: {receipt:?}"
+        );
+        assert_eq!(receipt.triangle_count, Some(100));
+        assert_eq!(receipt.phase_receipts.as_ref().unwrap().len(), 8);
+        assert_eq!(receipt.network_provider_calls, 0);
+        assert!(!receipt.distribution_eligible);
     }
 
     #[test]
@@ -14535,7 +15647,7 @@ mod tests {
         assert_eq!(rejected.status, 409);
         assert_eq!(
             compat_json(&rejected)["error"]["code"],
-            "BLOCKOUT_PROJECT_ALREADY_INITIALIZED"
+            "FORGE_VISUAL_PROGRAM_REVISION_REQUIRED"
         );
         let restart_snapshot = reopened_core
             .repository()
@@ -15336,7 +16448,11 @@ mod tests {
         assert_eq!(rendered_json["views"].as_array().unwrap().len(), 4);
         assert_eq!(rendered_json["exploded_view_available"], false);
         let render_set_sha256 = rendered_json["render_set_sha256"].as_str().unwrap();
-        assert_eq!(backend.state.lock().unwrap().requested_paths.len(), 10);
+        assert_eq!(
+            backend.state.lock().unwrap().requested_paths.len(),
+            9,
+            "Snapshot-bound production GLB should reuse the compile cache and issue only one render request",
+        );
 
         let package = execute_get(&format!(
             "/api/v1/agent/asset-versions/{asset_version_id}:render-package?width=128&height=128&render_set_sha256={render_set_sha256}"
@@ -15349,7 +16465,11 @@ mod tests {
             panic!("render package must be binary");
         };
         assert!(BASE64.decode(data).unwrap().starts_with(b"PK\x03\x04"));
-        assert_eq!(backend.state.lock().unwrap().requested_paths.len(), 12);
+        assert_eq!(
+            backend.state.lock().unwrap().requested_paths.len(),
+            10,
+            "render-package should reuse the compile cache and issue only one additional render request",
+        );
 
         drop(bridge);
         drop(rust_core);
@@ -15678,6 +16798,102 @@ mod tests {
             legacy_v1.canonical_sha256().unwrap(),
             "a v1 hash must not be substituted into a v2-sealed preview"
         );
+        let replacement_program: SurfaceAdornmentProgram =
+            serde_json::from_value(sealed_program.clone()).unwrap();
+        let mut projected_part_preview = base.clone();
+        let mut recipe_owned_program = replacement_program.clone();
+        recipe_owned_program.target_part_id = "part_recipe_semantic_owner".into();
+        projected_part_preview.assembly_graph["surface_adornments"] = json!([recipe_owned_program]);
+        assert_eq!(
+            native_change_set_base_material(
+                &projected_part_preview,
+                &replacement_program.target_part_id,
+                &replacement_program.target_zone_id,
+            )
+            .unwrap(),
+            replacement_program.base_material,
+            "Material Zone identity must preserve the retained base material even when Part provenance changes",
+        );
+        native_change_set_apply_surface_adornment(
+            &mut projected_part_preview,
+            &replacement_program,
+            "mat_a005_projected_part_test",
+        )
+        .unwrap();
+        let projected_adornments = projected_part_preview.assembly_graph["surface_adornments"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            projected_adornments.len(),
+            1,
+            "a ShapeProgram output Part must replace the Recipe-owned adornment for the same global Material Zone"
+        );
+        assert_eq!(
+            projected_adornments[0]["target_part_id"],
+            replacement_program.target_part_id
+        );
+        let retained_surface: SurfaceLayerProgram = serde_json::from_value(json!({
+            "schema_version": "SurfaceLayerProgram@1",
+            "program_id": "surface_layer_changeset_zone_owner",
+            "target_part_id": replacement_program.target_part_id,
+            "target_zone_id": replacement_program.target_zone_id,
+            "target_part_role": "link_armor",
+            "material_zone_id": replacement_program.target_zone_id,
+            "base_material": replacement_program.base_material,
+            "vector_paths": [{
+                "path_id": "path_changeset_zone_owner",
+                "closed": false,
+                "commands": [
+                    {"kind": "move", "points": [[0.1, 0.2]]},
+                    {"kind": "line", "points": [[0.8, 0.7]]}
+                ]
+            }],
+            "decal_layers": [],
+            "normal_relief_layers": [{
+                "layer_id": "relief_changeset_zone_owner",
+                "motif": "parallel_groove",
+                "intensity": "subtle",
+                "coverage": "center_band",
+                "seed": 11
+            }],
+            "roughness_masks": [],
+            "emissive_masks": [],
+            "symmetry": {"mode": "none", "center_uv": [0.5, 0.5]},
+            "uv_frame": {
+                "frame_id": "uvframe_changeset_zone_owner",
+                "u_min": 0.0,
+                "u_max": 1.0,
+                "v_min": 0.0,
+                "v_max": 1.0,
+                "rotation_degrees": 0.0
+            },
+            "quality_profile": "interactive_preview",
+            "execution": "lower_to_a005_and_retain",
+            "skill_id": "skill_first_party_surface_adornment",
+            "skill_version": 2,
+            "skill_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "generator": "surface_layer_v1",
+            "non_functional_only": true
+        }))
+        .unwrap();
+        let retained_input = RestrictedSurfaceLayerInput::from_program(&retained_surface).unwrap();
+        let mut layer_owned_preview = projected_part_preview.clone();
+        layer_owned_preview.assembly_graph["surface_layer_input"] =
+            serde_json::to_value(retained_input).unwrap();
+        let apply_error = native_change_set_apply_surface_adornment(
+            &mut layer_owned_preview,
+            &replacement_program,
+            "mat_a005_layer_owned_test",
+        )
+        .unwrap_err();
+        assert_eq!(apply_error.code, "SURFACE_LAYER_ZONE_OWNED");
+        let clear_error = native_change_set_clear_surface_adornment(
+            &mut layer_owned_preview,
+            &replacement_program.target_part_id,
+            &replacement_program.target_zone_id,
+        )
+        .unwrap_err();
+        assert_eq!(clear_error.code, "SURFACE_LAYER_ZONE_OWNED");
         assert!(
             adornment_preview.material_bindings[&format!("{part_id}:{material_zone_id}")]
                 .as_str()

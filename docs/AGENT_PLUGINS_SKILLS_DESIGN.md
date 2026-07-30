@@ -1,6 +1,6 @@
 # ForgeCAD 插件与 Skill 操作设计
 
-版本：2026-07-15
+版本：2026-07-29
 目标：零基础用户不安装插件；开发者按任务选择 Codex 插件/Skill；产品内 Skill 由 Agent 自动调用
 
 ## 1. 三层概念不能混用
@@ -11,7 +11,7 @@
 | ForgeCAD 内置 Skill | 产品内 Agent | 是，作为版本化策略 | 把自然语言意图路由到受限 CAD 工具 |
 | 外部扩展 | 专业团队 | P0 否 | 未来 DCC、团队审批或云存储适配 |
 
-用户首次启动只配置大模型 Provider，不选择 Skill、Mode、Agent、MCP、几何内核或 pipeline。ADR-0019 的默认程序化视觉路线不要求 FAL、神经 3D 服务或本地 GPU；这些历史 adapter 维持默认关闭。
+用户首次启动只配置 DeepSeek 文本服务和按需配置千问视觉服务，不选择 Skill、Mode、Agent、MCP、几何内核或 pipeline。ADR-0022 的类别开放入口由产品自动形成 `SubjectProfile → RepresentationPlan`；ADR-0023 禁止第三方聚合图像/网格 AI Provider，产品不提供这类 adapter。
 
 ## 2. 后续 Codex 的插件/Skill 选用表
 
@@ -58,7 +58,7 @@
 
 | Skill | 用户说法示例 | 内部行为 | 永久修改 |
 | --- | --- | --- | --- |
-| `start_design` | “做一辆适合冰原探索的未来车” | 澄清领域、单次完整合成、真实硬门与最多两次同意图原位修复；只展示通过的唯一结果 | 确认后建版本 |
+| `start_design` | “根据这张图片做同类外观的 3D 对象” | 理解对象与视觉特征、选择可用表示、单次完整合成与最多一次同意图 typed patch；只展示通过的唯一结果 | 确认后建版本 |
 | `refine_profile` | “让外壳更圆润，前端收得更紧” | 只修改 Recipe 已声明的 ProfileSketch/section 参数并生成预览 | 确认后建版本 |
 | `segment_model` | “把它拆成可以分别改的部件” | 生成分件建议和 AssemblyGraph 预览 | 确认后建版本 |
 | `modify_selection` | “把我选中的部分短一点、厚一点” | 读取选择、参数范围和锁定状态，形成 ChangeSet | 确认后建版本 |
@@ -70,9 +70,9 @@
 | `prepare_export` | “导出一个可继续使用的模型” | 说明用途、检查活动版本、生成 GLB | 生成导出工件 |
 | `explain_design` | “这个模型由什么组成” | 总结当前版本、部件、材质和已知限制 | 否 |
 
-首版只有一个 Orchestrator。不要为四领域创建四个聊天 Agent；领域差异属于 Domain Pack，而不是四套状态和 UI。
+首版只有一个 Orchestrator。不要按对象类别创建多套聊天 Agent；类别差异进入 `SubjectProfile`、可选知识包和表示能力路由，而不是多套状态、UI 或准入白名单。
 
-单次合成不是用户可选的三个方向，也不是资产版本。`start_design` 必须调用 runtime/readback 硬门；仅当失败报告限定为可修复字段时，才可最多执行两次保持同一 Brief、Domain Pack、核心 Recipe/轮廓意图和 provenance 的原位修复。通过的唯一结果才可展示，没有通过时明确失败。用户说“换一个思路”会开启新 Turn，而不是展开或比较其他完整模型。
+单次合成不是用户可选的三个方向，也不是资产版本。`start_design` 必须调用 runtime/readback 硬门；仅当失败报告限定为可修复字段时，才可最多执行一次保持同一 Brief、SubjectProfile、核心表示意图和 provenance 的 typed 原位 patch。通过的唯一结果才可展示，没有通过时明确失败。用户说“换一个思路”会开启新 Turn，而不是展开或比较其他完整模型。
 
 ## 5. 产品内 Skill 合同
 
@@ -121,7 +121,7 @@ Skill allowed_tools
 ∩ 当前 Turn 权限/批准
 ```
 
-工具再读取或产生其他命名空间的值时，必须分别验证：ShapeProgram operation 逐项属于 `ShapeProgramRuntimeManifest@1`，Recipe/Material 分别属于已审阅目录并与领域兼容；任何一项失败都稳定拒绝。`evaluate_candidate` 在当前注册表中只评估一次尝试的硬证据，绝不选择“最佳候选”；V003 的最多两次同意图修复是该单次序列的有界 policy，不是额外完整合成或选择工具。
+工具再读取或产生其他命名空间的值时，必须分别验证：ShapeProgram operation 逐项属于 `ShapeProgramRuntimeManifest@1`，Recipe/Material 分别属于已审阅目录并与领域兼容；任何一项失败都稳定拒绝。`evaluate_candidate` 在当前注册表中只评估一次尝试的硬证据，绝不选择“最佳候选”；V003 的最多两次同意图修复仅保留为 legacy 回归 policy。类别开放产品链只能进行一次 author 和最多一次 typed patch，不是额外完整合成或选择工具。
 
 任何一层不允许都必须返回稳定拒绝，不能让模型改用同义工具、文本命令或隐藏 fallback。
 
@@ -195,7 +195,7 @@ Mode、Skill、Tool、Schema、Connector、GLB 和 Provider pipeline 默认隐�
 
 ## 9. P0 不安装
 
-- TripoSR、Stable Fast 3D、Hunyuan3D、TRELLIS、ComfyUI；
+- TripoSR、Stable Fast 3D、Hunyuan3D、TRELLIS、ComfyUI 或第三方远程 Mesh API；
 - Blender/Unity 插件；
 - 通用 MCP 市场、远程自动化扩展和多 Agent 框架；
 - 云向量数据库和任意代码执行插件。
@@ -206,8 +206,8 @@ Mode、Skill、Tool、Schema、Connector、GLB 和 Provider pipeline 默认隐�
 
 每个核心 Skill 至少覆盖：
 
-- 四领域各 20 条正常中文 Brief；
-- 20 条含糊/未知领域输入，必须进入单问题澄清；
+- 八类冻结分布的正常中文 Brief，类别结果分别报告；
+- 20 条含糊/未知对象输入，必须澄清或形成带不确定性的 SubjectProfile，不能回退模板；
 - 20 条非法 ShapeProgram、越权工具和路径输入；
 - 取消、超时、断线和重启恢复；
 - 连续 10 次局部修改后的版本、选择、质量和导出一致性；

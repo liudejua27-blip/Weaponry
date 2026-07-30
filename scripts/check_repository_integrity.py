@@ -34,7 +34,6 @@ REQUIRED_PATHS = (
     "docs/COMPATIBILITY_MIGRATION.md",
     "docs/PRODUCTION_RELEASE_CHECKLIST.md",
     "docs/DISASTER_RECOVERY.md",
-    "docs/legacy/README.md",
     "docs/CODEX_HANDOFF.md",
     "docs/CODEX_EXECUTION_PLAN.md",
     "docs/CODEX_TASK_INDEX.md",

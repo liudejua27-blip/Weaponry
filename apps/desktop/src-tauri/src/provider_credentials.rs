@@ -29,6 +29,8 @@ use crate::deepseek_provider::{
 
 pub const DEFAULT_PROVIDER_BASE_URL: &str = "https://api.deepseek.com";
 pub const DEFAULT_PROVIDER_MODEL: &str = "deepseek-v4-pro";
+const ALLOWED_PROVIDER_HOST: &str = "api.deepseek.com";
+const ALLOWED_PROVIDER_MODEL_PREFIX: &str = "deepseek-";
 
 const LEGACY_KEYCHAIN_ACCOUNT: &str = "default";
 const METADATA_MAX_BYTES: u64 = 64 * 1024;
@@ -582,6 +584,12 @@ fn validate_provider_endpoint_model(base_url: &str, model: &str) -> Result<(), S
     {
         return Err("API Base URL 必须是有效的生产 HTTPS 地址。".to_string());
     }
+    if parsed
+        .host_str()
+        .is_none_or(|host| !host.eq_ignore_ascii_case(ALLOWED_PROVIDER_HOST))
+    {
+        return Err("设计 Provider 只允许 DeepSeek 官方 API 端点。".to_string());
+    }
     if model.is_empty()
         || model.len() > MODEL_MAX_BYTES
         || model
@@ -589,6 +597,12 @@ fn validate_provider_endpoint_model(base_url: &str, model: &str) -> Result<(), S
             .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
     {
         return Err("Model 不能为空且不能超过 160 个字符。".to_string());
+    }
+    if !model
+        .to_ascii_lowercase()
+        .starts_with(ALLOWED_PROVIDER_MODEL_PREFIX)
+    {
+        return Err("设计 Provider 只允许 deepseek-* 模型族。".to_string());
     }
     Ok(())
 }
@@ -910,8 +924,8 @@ mod tests {
     fn save_tuple(store: &ProviderCredentialStore, suffix: &str) {
         store
             .save(
-                format!("https://{suffix}.example.test"),
-                format!("model-{suffix}"),
+                format!("https://api.deepseek.com/{suffix}"),
+                format!("deepseek-{suffix}"),
                 Zeroizing::new(format!("key-{suffix}")),
             )
             .unwrap();
@@ -944,8 +958,8 @@ mod tests {
         assert_eq!(
             test.snapshot(),
             Some((
-                "https://one.example.test".to_string(),
-                "model-one".to_string(),
+                "https://api.deepseek.com/one".to_string(),
+                "deepseek-one".to_string(),
                 "key-one".to_string()
             ))
         );
@@ -953,8 +967,8 @@ mod tests {
         assert_eq!(
             test.snapshot(),
             Some((
-                "https://two.example.test".to_string(),
-                "model-two".to_string(),
+                "https://api.deepseek.com/two".to_string(),
+                "deepseek-two".to_string(),
                 "key-two".to_string()
             ))
         );
@@ -1041,16 +1055,16 @@ mod tests {
         assert!(test
             .store
             .save(
-                "https://new.example.test".to_string(),
-                "model-new".to_string(),
+                "https://api.deepseek.com/new".to_string(),
+                "deepseek-new".to_string(),
                 Zeroizing::new("key-new".to_string()),
             )
             .is_err());
         assert_eq!(
             test.snapshot(),
             Some((
-                "https://old.example.test".to_string(),
-                "model-old".to_string(),
+                "https://api.deepseek.com/old".to_string(),
+                "deepseek-old".to_string(),
                 "key-old".to_string()
             ))
         );
@@ -1059,16 +1073,16 @@ mod tests {
         assert!(test
             .store
             .save(
-                "https://new.example.test".to_string(),
-                "model-new".to_string(),
+                "https://api.deepseek.com/new".to_string(),
+                "deepseek-new".to_string(),
                 Zeroizing::new("key-new".to_string()),
             )
             .is_err());
         assert_eq!(
             test.snapshot(),
             Some((
-                "https://old.example.test".to_string(),
-                "model-old".to_string(),
+                "https://api.deepseek.com/old".to_string(),
+                "deepseek-old".to_string(),
                 "key-old".to_string()
             ))
         );
@@ -1108,14 +1122,14 @@ mod tests {
             for _ in 0..300 {
                 let _guard = reader_store.lock().unwrap();
                 let snapshot = reader_store.load_snapshot_locked().unwrap().unwrap();
-                let host = reqwest::Url::parse(&snapshot.base_url)
+                let generation = reqwest::Url::parse(&snapshot.base_url)
                     .unwrap()
-                    .host_str()
+                    .path_segments()
+                    .and_then(|mut segments| segments.next_back())
                     .unwrap()
-                    .trim_end_matches(".example.test")
                     .to_string();
-                assert_eq!(snapshot.model, format!("model-{host}"));
-                assert_eq!(snapshot.api_key.as_str(), format!("key-{host}"));
+                assert_eq!(snapshot.model, format!("deepseek-{generation}"));
+                assert_eq!(snapshot.api_key.as_str(), format!("key-{generation}"));
             }
         });
         barrier.wait();
@@ -1158,11 +1172,27 @@ mod tests {
     }
 
     #[test]
+    fn provider_policy_rejects_non_deepseek_endpoint_or_model_family() {
+        assert!(validate_provider_config_input(
+            "https://example.test/v1",
+            "deepseek-v4-pro",
+            "test-key"
+        )
+        .is_err());
+        assert!(validate_provider_config_input(
+            "https://api.deepseek.com",
+            "qwen-plus",
+            "test-key"
+        )
+        .is_err());
+    }
+
+    #[test]
     fn valid_legacy_snapshot_loads_as_one_tuple_and_migrates_on_save() {
         let test = TestStore::new();
         let legacy = ProviderConfigMetadata {
-            base_url: "https://legacy.example.test".to_string(),
-            model: "model-legacy".to_string(),
+            base_url: "https://api.deepseek.com/legacy".to_string(),
+            model: "deepseek-legacy".to_string(),
             configured: true,
             storage: "test-keychain".to_string(),
             credential_id: None,
@@ -1183,8 +1213,8 @@ mod tests {
         assert_eq!(
             test.snapshot(),
             Some((
-                "https://legacy.example.test".to_string(),
-                "model-legacy".to_string(),
+                "https://api.deepseek.com/legacy".to_string(),
+                "deepseek-legacy".to_string(),
                 "key-legacy".to_string()
             ))
         );

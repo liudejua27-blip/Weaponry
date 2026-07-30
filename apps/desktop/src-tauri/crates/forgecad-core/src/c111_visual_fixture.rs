@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::{
     c111_golden_surface_adornment_programs, lower_forge_visual_program, semantic_sha256,
@@ -20,6 +21,7 @@ use crate::{
     RecipeExpansionPolicy, RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
     SurfaceAdornmentProgram, VisualDetailBinding, VisualDetailBindingKind,
     VisualDetailInventoryItem, VisualDetailLevel, VisualDetailStatus,
+    VisualReferenceAcceptancePolicy,
 };
 
 pub const C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION: &str =
@@ -27,6 +29,11 @@ pub const C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION: &str =
 
 const C111_ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
 const C111_DOMAIN_PACK_ID: &str = "pack_robotic_arm_concept";
+const C111_VISUAL_PROGRAM_ID: &str = "visual_program_c111_robotic_arm_iteration_70";
+const C111B_VISUAL_ACCEPTANCE_CONTRACT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../../../packages/concept-spec/fixtures/c111b-visual-acceptance-contract.json"
+));
 const C111_DETAIL_INVENTORY: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../../../packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json"
@@ -101,6 +108,96 @@ pub fn reviewed_c111_draft_visual_program() -> CoreResult<ForgeVisualProgram> {
     .program;
     program.stage = ForgeVisualProgramStage::Draft;
     Ok(program)
+}
+
+/// Resolve the frozen C111B comparison policy only for the reviewed C111
+/// program family. Later VisualAcceptanceContract runtime work may replace
+/// this bounded bridge; unrelated programs retain the generic Core policy.
+pub fn c111b_visual_reference_acceptance_policy(
+    program: &ForgeVisualProgram,
+) -> CoreResult<Option<VisualReferenceAcceptancePolicy>> {
+    if program.program_id != C111_VISUAL_PROGRAM_ID || program.domain_pack_id != C111_DOMAIN_PACK_ID
+    {
+        return Ok(None);
+    }
+    Ok(Some(c111b_visual_reference_acceptance_policy_for_domain(
+        &program.domain_pack_id,
+    )?))
+}
+
+/// Resolves the same frozen policy at explicit user-authorization time,
+/// before the Agent has authored its reviewed C111 program. Only the C111
+/// robotic-arm domain is eligible; runtime comparison still re-resolves the
+/// policy from the exact program and rejects any hash drift.
+pub fn c111b_visual_reference_acceptance_policy_for_domain(
+    domain_pack_id: &str,
+) -> CoreResult<VisualReferenceAcceptancePolicy> {
+    if domain_pack_id != C111_DOMAIN_PACK_ID {
+        return Err(invalid(
+            "C111B visual comparison authorization is limited to the reviewed robotic-arm domain",
+        ));
+    }
+    let contract: Value = serde_json::from_str(C111B_VISUAL_ACCEPTANCE_CONTRACT)
+        .map_err(|_| invalid("C111B visual acceptance contract is invalid JSON"))?;
+    let contract = object(&contract, "C111B visual acceptance contract")?;
+    if contract.get("schema_version").and_then(Value::as_str)
+        != Some("C111BVisualAcceptanceContract@2")
+        || contract.get("status").and_then(Value::as_str) != Some("frozen")
+        || contract.get("formal_eligible").and_then(Value::as_bool) != Some(false)
+        || contract.get("root_recipe_id").and_then(Value::as_str) != Some(C111_ROOT_RECIPE_ID)
+    {
+        return Err(invalid(
+            "C111B visual acceptance contract identity is not the reviewed frozen fixture",
+        ));
+    }
+    let claims = array(
+        contract
+            .get("claims")
+            .ok_or_else(|| invalid("C111B visual acceptance claims are missing"))?,
+        "C111B visual acceptance claims",
+    )?;
+    let minimum = |level: &str| -> CoreResult<u16> {
+        let claim = claims
+            .iter()
+            .find(|claim| claim.get("level").and_then(Value::as_str) == Some(level))
+            .ok_or_else(|| invalid(format!("C111B {level} claim is missing")))?;
+        if claim.get("critical").and_then(Value::as_bool) != Some(true)
+            || claim.get("not_visible_allowed").and_then(Value::as_bool) != Some(false)
+        {
+            return Err(invalid(format!(
+                "C111B {level} claim must remain critical and visible"
+            )));
+        }
+        let minimum = claim
+            .get("minimum_similarity_bps")
+            .and_then(Value::as_u64)
+            .and_then(|value| u16::try_from(value).ok())
+            .filter(|value| *value <= 10_000)
+            .ok_or_else(|| invalid(format!("C111B {level} minimum is invalid")))?;
+        Ok(minimum)
+    };
+    let policy = VisualReferenceAcceptancePolicy {
+        schema_version: "VisualReferenceAcceptancePolicy@1".into(),
+        policy_id: string(
+            contract
+                .get("contract_id")
+                .ok_or_else(|| invalid("C111B contract_id is missing"))?,
+            "C111B contract_id",
+        )?
+        .into(),
+        source_contract_sha256: Some(format!(
+            "{:x}",
+            Sha256::digest(C111B_VISUAL_ACCEPTANCE_CONTRACT.as_bytes())
+        )),
+        critical_minimum_bps: 0,
+        macro_minimum_bps: minimum("macro")?,
+        meso_minimum_bps: minimum("meso")?,
+        micro_minimum_bps: minimum("micro")?,
+        critical_requires_matched: false,
+        critical_not_visible_allowed: false,
+    };
+    policy.validate()?;
+    Ok(policy)
 }
 
 fn object<'a>(value: &'a Value, field: &str) -> CoreResult<&'a serde_json::Map<String, Value>> {
@@ -464,7 +561,7 @@ pub fn build_c111_forge_visual_program_fixture(
 
     let program = ForgeVisualProgram {
         schema_version: "ForgeVisualProgram@1".into(),
-        program_id: "visual_program_c111_robotic_arm_iteration_70".into(),
+        program_id: C111_VISUAL_PROGRAM_ID.into(),
         domain_pack_id: "pack_robotic_arm_concept".into(),
         title: "未来工业机械臂收藏品黄金路径".into(),
         stage,
@@ -538,7 +635,7 @@ pub fn build_c111_forge_visual_program_fixture(
 
     Ok(C111ForgeVisualProgramFixture {
         schema_version: C111_FORGE_VISUAL_PROGRAM_FIXTURE_SCHEMA_VERSION.into(),
-        fixture_id: "fixture_pv002_c111_robotic_arm_iteration_70".into(),
+        fixture_id: "fixture_pv002_c111_robotic_arm_iteration_79".into(),
         registry_id: registry.registry_id().into(),
         registry_sha256: registry.registry_sha256().into(),
         inventory_id: string(

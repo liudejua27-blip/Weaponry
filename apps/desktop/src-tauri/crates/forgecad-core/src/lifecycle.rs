@@ -102,7 +102,7 @@ impl LifecycleStore {
     pub fn recover_orphaned_turns(&self, updated_at: &str) -> CoreResult<Vec<String>> {
         self.repository.write(|transaction| {
             let mut statement = transaction.prepare(
-                "SELECT turn_id, thread_id FROM agent_turns WHERE status IN ('queued', 'running', 'waiting_for_approval', 'waiting_for_clarification') ORDER BY created_at, turn_id",
+                "SELECT turn_id, thread_id FROM agent_turns WHERE status IN ('queued', 'running', 'waiting_for_capture', 'waiting_for_approval', 'waiting_for_clarification') ORDER BY created_at, turn_id",
             )?;
             let rows = statement
                 .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
@@ -469,6 +469,49 @@ fn apply(
                 None,
             )
         }
+        LifecyclePersistenceOperation::SetTurnWaitingForCapture { turn } => {
+            let thread = require_cas(connection, command, &turn.thread_id)?;
+            let current = thread
+                .turns
+                .iter()
+                .find(|item| item.turn_id == turn.turn_id)
+                .ok_or_else(|| CoreError::not_found("lifecycle Turn"))?;
+            if !matches!(
+                current.status,
+                AgentTurnStatus::Running | AgentTurnStatus::WaitingForCapture
+            ) {
+                return Err(conflict(
+                    "LIFECYCLE_CAPTURE_WAIT_TRANSITION_INVALID",
+                    "Only a running or already capture-waiting Turn may retain same-renderer PBR capture state.",
+                ));
+            }
+            let mut expected = current.clone();
+            expected.status = AgentTurnStatus::WaitingForCapture;
+            expected.updated_at = turn.updated_at.clone();
+            if &expected != turn {
+                return Err(conflict(
+                    "LIFECYCLE_CAPTURE_WAIT_IDENTITY_DRIFT",
+                    "Capture wait may change only the Turn status and updated_at.",
+                ));
+            }
+            connection.execute(
+                "UPDATE agent_turns SET status='waiting_for_capture', updated_at=? WHERE turn_id=?",
+                params![turn.updated_at, turn.turn_id],
+            )?;
+            connection.execute(
+                "UPDATE agent_threads SET status='active', last_turn_id=?, updated_at=? WHERE thread_id=?",
+                params![turn.turn_id, turn.updated_at, turn.thread_id],
+            )?;
+            applied(
+                connection,
+                command,
+                &turn.thread_id,
+                Some(&turn.turn_id),
+                None,
+                None,
+                None,
+            )
+        }
         LifecyclePersistenceOperation::ReplayItems {
             thread_id,
             after_sequence,
@@ -814,6 +857,10 @@ fn valid_terminal_transition(current: &AgentTurnStatus, target: &AgentTurnStatus
                 AgentTurnStatus::WaitingForClarification,
                 AgentTurnStatus::Cancelled
             )
+            | (
+                AgentTurnStatus::WaitingForCapture,
+                AgentTurnStatus::Completed | AgentTurnStatus::Failed | AgentTurnStatus::Cancelled
+            )
     )
 }
 
@@ -945,6 +992,20 @@ mod tests {
                 },
             ))
             .unwrap();
+        let mut waiting = turn.clone();
+        waiting.status = AgentTurnStatus::WaitingForCapture;
+        waiting.updated_at = "2026-07-17T00:00:02Z".into();
+        waiting.items.push(item.clone());
+        let waiting_persisted = store
+            .execute_lifecycle(command(
+                "cmd_wait_capture",
+                '0',
+                Some(appended.revision),
+                LifecyclePersistenceOperation::SetTurnWaitingForCapture {
+                    turn: waiting.clone(),
+                },
+            ))
+            .unwrap();
         let mut terminal = turn;
         terminal.status = AgentTurnStatus::Completed;
         terminal.updated_at = "2026-07-17T00:00:03Z".into();
@@ -960,7 +1021,7 @@ mod tests {
             .execute_lifecycle(command(
                 "cmd_terminal",
                 'd',
-                Some(appended.revision),
+                Some(waiting_persisted.revision),
                 LifecyclePersistenceOperation::SetTurnTerminal {
                     turn: terminal.clone(),
                 },

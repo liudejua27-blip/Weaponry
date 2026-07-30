@@ -11,11 +11,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     component_recipes::{ExpandedComponentCandidate, RecipeRegistry, RecipeSurfaceAdornmentSlot},
+    semantic_sha256,
     surface_layers::{
         DecalLayer, EmissiveMask, NormalReliefLayer, RoughnessMask, SurfaceLayerProgram,
         SurfaceSymmetry, UvFrame,
     },
-    semantic_sha256, CoreError, CoreResult,
+    CoreError, CoreResult,
 };
 
 const DOMAINS: &[&str] = &[
@@ -56,6 +57,7 @@ const G819_OPERATIONS: &[&str] = &[
     "subtract",
     "bevel_approx",
     "surface_panel",
+    "lattice_deform",
 ];
 // C106 is intentionally an exact, reviewed first-party allowlist.  New
 // Recipe IDs do not gain an A005 surface allowance merely by sharing a prefix

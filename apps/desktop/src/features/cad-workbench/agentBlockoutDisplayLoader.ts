@@ -1,6 +1,6 @@
 import { ForgeApiError, type AgentAssetGlbBinary, type AgentAssetChangeSetPreviewGlb } from '../../shared/api/forgeApi'
 import type { AgentAssetChangeSet, AgentPartEditOperation } from '../../shared/types'
-import { type AgentBlockoutGlbPayload } from './agentBlockoutDisplayState'
+import { type AgentBlockoutGlbKind, type AgentBlockoutGlbPayload } from './agentBlockoutDisplayState'
 import { compileSurfaceAdornmentDraft } from './cadWorkbenchPanelLogic.js'
 import {
   readReferenceRebuildComparisonPlan,
@@ -27,8 +27,8 @@ type BlockoutShapeSetter = (projectId: string | null, shapeProgram: Record<strin
 type BlockoutGlbSetter = (
   projectId: string | null,
   requestId: number,
-  glbBase64: AgentBlockoutGlbPayload,
-  glbKind: 'external_reference' | 'compiled_agent_preview_pbr' | 'compiled_agent_production_pbr' | null,
+  glbBase64: AgentBlockoutGlbPayload | null,
+  glbKind: AgentBlockoutGlbKind | null,
 ) => boolean
 
 export type BlockoutDisplayAgentApi = BlockoutDisplayGlbLoader
@@ -37,7 +37,7 @@ export type BlockoutDisplayProjectState = {
   projectId: string | null
   requestId: number
   isCurrentActiveDesignRequest: (requestId: number) => boolean
-  setBlockoutGlb: (projectId: string | null, requestId: number, glbBase64: AgentBlockoutGlbPayload, glbKind: 'external_reference' | 'compiled_agent_preview_pbr' | 'compiled_agent_production_pbr' | null) => boolean
+  setBlockoutGlb: (projectId: string | null, requestId: number, glbBase64: AgentBlockoutGlbPayload | null, glbKind: AgentBlockoutGlbKind | null) => boolean
   setAssistantNote: (note: string) => void
   isCurrentDisplayRequest: () => boolean
 }
@@ -317,7 +317,7 @@ export async function previewReferenceGuidedRebuild(
     const proposed = await api.proposeReferenceGuidedRebuildPreview(target.projectId, {
       client_request_id: `reference-rebuild-${Date.now()}`,
       evidence_id: evidence.evidenceId,
-      domain_pack_id: target.domainPackId ?? 'pack_robotic_arm_concept',
+      domain_pack_id: target.domainPackId ?? 'pack_unclassified',
       base_asset_version_id: target.baseAssetVersionId,
     })
     changeSetId = proposed.changeSet.change_set_id
@@ -417,6 +417,7 @@ export async function previewSurfaceAdornment(
   let failureStage = 'SURFACE_ADORNMENT_PROPOSE_FAILED'
 
   try {
+    setSurfaceAdornmentQaStage('propose_requested')
     const proposed = await api.proposeSurfaceAdornmentPreview(
       target.assetVersionId,
       {
@@ -428,19 +429,23 @@ export async function previewSurfaceAdornment(
     )
 
     changeSetId = proposed.change_set_id
+    setSurfaceAdornmentQaStage('proposed')
     failureStage = 'SURFACE_ADORNMENT_CHANGE_SET_PREVIEW_FAILED'
 
     const preview = await api.previewAgentAssetChangeSet(proposed.change_set_id, `surface-adornment-preview-${Date.now()}`)
     if (!preview.preview) {
       throw new Error('外观细节预览没有返回可验证模型。')
     }
+    setSurfaceAdornmentQaStage('change_set_previewed')
 
     failureStage = 'SURFACE_ADORNMENT_VIEWPORT_STAGE_FAILED'
     displayRequestId = callbacks.setBlockoutShapeProgram(target.projectId, preview.preview.shape_program)
     if (displayRequestId === null) throw new Error('当前项目已切换。')
 
     failureStage = 'SURFACE_ADORNMENT_PREVIEW_GLB_FAILED'
+    setSurfaceAdornmentQaStage('preview_glb_requested')
     const compiled = await api.exportAgentAssetChangeSetPreviewGlb(preview.change_set_id)
+    setSurfaceAdornmentQaStage('preview_glb_ready')
 
     failureStage = 'SURFACE_ADORNMENT_PREVIEW_GLB_IDENTITY_FAILED'
     if (
@@ -456,6 +461,7 @@ export async function previewSurfaceAdornment(
     if (!callbacks.setBlockoutGlb(target.projectId, displayRequestId, compiled.glb, 'compiled_agent_preview_pbr')) {
       throw new Error('外观细节预览已被更新的请求取代。')
     }
+    setSurfaceAdornmentQaStage('viewport_committed')
 
     callbacks.setAgentAssetChangeSet(preview)
     return {
@@ -464,6 +470,7 @@ export async function previewSurfaceAdornment(
       summary: '已在同一个 3D 视口中加载真实 PBR 外观细节预览；保留后才创建新版本。',
     }
   } catch (caught) {
+    setSurfaceAdornmentQaStage(`failed_${failureStage.toLowerCase()}`)
     if (changeSetId) {
       await api.rejectAgentAssetChangeSet(changeSetId, `surface-adornment-cleanup-${Date.now()}`).catch(() => undefined)
     }
@@ -485,4 +492,9 @@ export async function previewSurfaceAdornment(
           : failureStage,
     }
   }
+}
+
+function setSurfaceAdornmentQaStage(stage: string): void {
+  if (typeof document === 'undefined' || !document.documentElement.dataset.forgecadC111bPhase) return
+  document.documentElement.dataset.qaSurfaceAdornmentStage = stage
 }

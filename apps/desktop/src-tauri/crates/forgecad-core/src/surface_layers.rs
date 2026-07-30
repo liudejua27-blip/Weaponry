@@ -33,6 +33,21 @@ const PART_ROLES: &[&str] = &[
     "cable_harness",
     "end_effector_form",
     "surface_trim",
+    // Category-open UAS@2 hard-surface sources do not share the historical
+    // robotic-arm role taxonomy. These are exterior visual roles only: they
+    // cannot introduce a mechanism, dimension, material recipe, or geometry
+    // operation, and are consumed solely by the retained PBR layer compiler.
+    "primary_shell",
+    "secondary_shell",
+    "armor_panel",
+    "mechanical_core",
+    "sensor_housing",
+    "structural_frame",
+    "exterior_panel",
+    "decorative_panel",
+    "accent_trim",
+    "enclosure",
+    "body_shell",
 ];
 const COVERAGES: &[&str] = &["full_zone", "center_band", "edge_band", "symmetric_pair"];
 

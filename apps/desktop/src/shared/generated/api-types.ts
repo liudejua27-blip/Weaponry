@@ -431,7 +431,7 @@ export type AgentTurn = {
   "turn_id": string
   "thread_id": string
   "request_text": string
-  "status": "queued" | "running" | "waiting_for_approval" | "waiting_for_clarification" | "completed" | "failed" | "cancelled"
+  "status": "queued" | "running" | "waiting_for_capture" | "waiting_for_approval" | "waiting_for_clarification" | "completed" | "failed" | "cancelled"
   "error_code"?: string | null
   "error_message"?: string | null
   "usage"?: Record<string, unknown>
@@ -1409,6 +1409,7 @@ export type GeometryVisualTextureSetReadback = {
   "surface_layer_lowering"?: Record<string, unknown> | null
   "surface_layer_lowering_sha256"?: string | null
   "surface_layer_retained_layers_sha256"?: string | null
+  "reference_uv_evidence"?: Record<string, unknown> | null
 }
 
 export type HTTPValidationError = {
@@ -1771,6 +1772,12 @@ export type ModuleGraphValidationResponse = {
   "graph_sha256": string
   "issues"?: Array<ModuleGraphValidationIssue>
   "job_id"?: string | null
+}
+
+export type MultimodalTurnContextInput = {
+  "request": Record<string, unknown>
+  "visual_evidence_graph": Record<string, unknown>
+  "visual_reference_comparison_authorization_id"?: string | null
 }
 
 export type NavigateActiveDesignRequest = {
@@ -2155,6 +2162,8 @@ export type StartAgentTurnRequest = {
   "client_request_id": string
   "message": string
   "clarification_domain_pack_id"?: "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept" | null
+  "author_context"?: UniversalAuthorContextInput | null
+  "multimodal_context"?: MultimodalTurnContextInput | null
 }
 
 export type TargetOptions = {
@@ -2167,6 +2176,17 @@ export type Transform = {
   "position": Array<number>
   "rotation": Array<number>
   "scale": Array<number>
+}
+
+export type UniversalAuthorContextInput = {
+  "references"?: Array<UniversalAuthorReferenceInput>
+  "visual_evidence_graph"?: Record<string, unknown> | null
+}
+
+export type UniversalAuthorReferenceInput = {
+  "evidence_id": string
+  "role": string
+  "view_hint"?: string | null
 }
 
 export type UpdateModuleAssetCatalogMetadataRequest = {

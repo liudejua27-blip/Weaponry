@@ -16,13 +16,15 @@ use std::{
 };
 
 use forgecad_app_server::{
-    CancellationToken, EphemeralReasoning, ProviderClient, ProviderError, ProviderEventSink,
-    ProviderFinishReason, ProviderFuture, ProviderHealthCheck, ProviderMessage, ProviderPreflight,
-    ProviderRequest, ProviderRequestBudgetPolicy, ProviderResponse, ProviderRole,
-    ProviderStreamEvent, ProviderToolCall, ProviderUsage, PRODUCT_TOOL_DEFINITION_COUNT,
+    CancellationToken, EphemeralReasoning, PreparedProviderRequest, ProviderClient, ProviderError,
+    ProviderEventSink, ProviderFinishReason, ProviderFuture, ProviderHealthCheck, ProviderMessage,
+    ProviderPreflight, ProviderRequest, ProviderRequestBudgetPolicy, ProviderRequestCommitment,
+    ProviderResponse, ProviderRole, ProviderStreamEvent, ProviderToolCall, ProviderUsage,
+    PRODUCT_TOOL_DEFINITION_COUNT,
 };
 use reqwest::{header, redirect, Client, Url};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 const MAX_BASE_URL_BYTES: usize = 2_048;
@@ -214,14 +216,12 @@ impl DeepSeekThinkingMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeepSeekReasoningEffort {
     High,
-    Max,
 }
 
 impl DeepSeekReasoningEffort {
     fn as_api_value(self) -> &'static str {
         match self {
             Self::High => "high",
-            Self::Max => "max",
         }
     }
 }
@@ -231,8 +231,11 @@ fn thinking_policy_for_model(
 ) -> (DeepSeekThinkingMode, Option<DeepSeekReasoningEffort>) {
     match model {
         // Preserve the Provider's documented compatibility behavior until
-        // these aliases are removed. New ForgeCAD configuration defaults to a
-        // current V4 model and therefore takes the Agent-oriented max path.
+        // these aliases are removed.  Interactive ForgeCAD requests use the
+        // documented regular-request `high` effort.  The first visual author
+        // request is separately non-thinking; larger formal budgets expand
+        // token/cost limits at the Action Loop boundary without changing the
+        // user-facing interactive reasoning profile.
         "deepseek-chat" => (DeepSeekThinkingMode::Disabled, None),
         "deepseek-reasoner" => (
             DeepSeekThinkingMode::Enabled,
@@ -240,7 +243,7 @@ fn thinking_policy_for_model(
         ),
         _ => (
             DeepSeekThinkingMode::Enabled,
-            Some(DeepSeekReasoningEffort::Max),
+            Some(DeepSeekReasoningEffort::High),
         ),
     }
 }
@@ -309,6 +312,7 @@ pub struct DeepSeekHttpRequest {
     endpoint: Url,
     authorization: SecretText,
     body: Arc<[u8]>,
+    remote_idempotency_key: Option<String>,
 }
 
 impl DeepSeekHttpRequest {
@@ -321,6 +325,11 @@ impl DeepSeekHttpRequest {
     pub fn endpoint_path(&self) -> &str {
         self.endpoint.path()
     }
+
+    #[cfg(test)]
+    pub fn remote_idempotency_key(&self) -> Option<&str> {
+        self.remote_idempotency_key.as_deref()
+    }
 }
 
 impl fmt::Debug for DeepSeekHttpRequest {
@@ -331,6 +340,10 @@ impl fmt::Debug for DeepSeekHttpRequest {
             .field("endpoint", &"[REDACTED]")
             .field("authorization", &"[REDACTED]")
             .field("body_bytes", &self.body.len())
+            .field(
+                "has_remote_idempotency_key",
+                &self.remote_idempotency_key.is_some(),
+            )
             .finish()
     }
 }
@@ -407,15 +420,16 @@ impl DeepSeekHttpTransport for ReqwestDeepSeekTransport {
             if cancellation.is_cancelled() {
                 return Err(ProviderError::cancelled(false));
             }
-            let mut response = client
+            let mut builder = client
                 .post(request.endpoint)
                 .header(header::AUTHORIZATION, request.authorization.expose())
                 .header(header::ACCEPT, "text/event-stream")
                 .header(header::CONTENT_TYPE, "application/json")
-                .body(request.body.to_vec())
-                .send()
-                .await
-                .map_err(map_reqwest_error)?;
+                .body(request.body.to_vec());
+            if let Some(remote_idempotency_key) = request.remote_idempotency_key {
+                builder = builder.header("Idempotency-Key", remote_idempotency_key);
+            }
+            let mut response = builder.send().await.map_err(map_reqwest_error)?;
             let status = response.status().as_u16();
             let retry_after_ms = parse_retry_after_ms(response.headers());
             let content_type = response
@@ -552,6 +566,83 @@ impl DeepSeekProviderClient {
             config,
         }
     }
+
+    fn stream_prepared(
+        &self,
+        request: ProviderRequest,
+        credentials: ValidatedCredentials,
+        http_request: DeepSeekHttpRequest,
+        cancellation: CancellationToken,
+        events: ProviderEventSink,
+    ) -> ProviderFuture<ProviderResponse> {
+        let transport = self.transport.clone();
+        let timeout = self.config.request_timeout;
+        let thinking_enabled =
+            thinking_policy_for_request(&credentials.model, request.require_tool_call).0
+                == DeepSeekThinkingMode::Enabled;
+        let parser = Arc::new(Mutex::new(DeepSeekSseParser::new(
+            &self.config,
+            thinking_enabled,
+        )));
+        let parser_for_chunks = parser.clone();
+        let event_sink = Arc::new(Mutex::new(events));
+        let event_sink_for_chunks = event_sink.clone();
+        let cancellation_for_transport = cancellation.clone();
+
+        Box::pin(async move {
+            event_sink
+                .lock()
+                .expect("DeepSeek event sink mutex poisoned")(
+                ProviderStreamEvent::NetworkRequestStarted,
+            );
+            let transport_future = transport.post_sse(
+                http_request,
+                cancellation_for_transport,
+                Box::new(move |chunk| {
+                    let emitted = parser_for_chunks
+                        .lock()
+                        .expect("DeepSeek SSE parser mutex poisoned")
+                        .feed(chunk)?;
+                    let mut sink = event_sink_for_chunks
+                        .lock()
+                        .expect("DeepSeek event sink mutex poisoned");
+                    for event in emitted {
+                        sink(event);
+                    }
+                    Ok(())
+                }),
+            );
+            let meta = await_transport(transport_future, cancellation, timeout).await?;
+            if !(200..300).contains(&meta.status) {
+                return Err(ProviderError::from_http_status(
+                    meta.status,
+                    meta.retry_after_ms,
+                ));
+            }
+            if !meta
+                .content_type
+                .as_deref()
+                .is_some_and(is_event_stream_content_type)
+            {
+                return Err(remote_schema_error(
+                    "Provider response was not a bounded SSE stream.",
+                ));
+            }
+
+            let (mut response, final_events) = parser
+                .lock()
+                .expect("DeepSeek SSE parser mutex poisoned")
+                .finish()?;
+            let mut sink = event_sink
+                .lock()
+                .expect("DeepSeek event sink mutex poisoned");
+            for event in final_events {
+                sink(event);
+            }
+            response.network_call_made = meta.network_call_made;
+            response.validate()
+        })
+    }
 }
 
 impl fmt::Debug for DeepSeekProviderClient {
@@ -606,29 +697,39 @@ impl ProviderClient for DeepSeekProviderClient {
     ) -> Result<ProviderRequestBudgetPolicy, ProviderError> {
         let credentials = self.load_credentials()?;
         let http_request = build_http_request(request, &credentials, &self.config)?;
-        // One input token per serialized byte plus a reviewed Provider-side
-        // framing allowance is deliberately conservative. This path performs
-        // credential/request validation only and never polls the transport.
-        let body_bytes = u64::try_from(http_request.body.len()).map_err(|_| {
-            local_schema_error("Provider request size exceeded the reviewed accounting bound.")
-        })?;
-        let input_tokens_upper_bound = body_bytes
-            .checked_add(PROVIDER_INPUT_FRAMING_OVERHEAD_BYTES)
-            .ok_or_else(|| {
-                local_schema_error("Provider request size exceeded the reviewed accounting bound.")
-            })?;
-        ProviderRequestBudgetPolicy {
-            input_tokens_upper_bound,
-            input_cost_ceiling_microusd: cost_for_tokens(
-                input_tokens_upper_bound,
-                self.config.pricing.input_microusd_per_million_tokens,
-            ),
-            output_microusd_per_million_tokens: self
-                .config
-                .pricing
-                .output_microusd_per_million_tokens,
-        }
-        .validate()
+        budget_policy_for_http_request(&http_request, &self.config)
+    }
+
+    fn request_commitment(
+        &self,
+        request: &ProviderRequest,
+    ) -> Result<ProviderRequestCommitment, ProviderError> {
+        let credentials = self.load_credentials()?;
+        let http_request = build_http_request(request, &credentials, &self.config)?;
+        commitment_for_http_request(&http_request, &credentials.model, &self.config)
+    }
+
+    fn prepare_request(
+        &self,
+        request: ProviderRequest,
+    ) -> Result<PreparedProviderRequest, ProviderError> {
+        let credentials = self.load_credentials()?;
+        let http_request = build_http_request(&request, &credentials, &self.config)?;
+        let commitment =
+            commitment_for_http_request(&http_request, &credentials.model, &self.config)?;
+        let client = Self::from_turn_snapshot(
+            credentials.clone(),
+            self.transport.clone(),
+            self.config.clone(),
+        );
+        PreparedProviderRequest::new(
+            commitment,
+            move |remote_idempotency_key, cancellation, events| {
+                let mut http_request = http_request;
+                http_request.remote_idempotency_key = Some(remote_idempotency_key);
+                client.stream_prepared(request, credentials, http_request, cancellation, events)
+            },
+        )
     }
 
     fn stream(
@@ -648,78 +749,31 @@ impl ProviderClient for DeepSeekProviderClient {
             Ok(request) => request,
             Err(error) => return Box::pin(async move { Err(error) }),
         };
-        let transport = self.transport.clone();
-        let timeout = self.config.request_timeout;
-        let thinking_enabled =
-            thinking_policy_for_request(&credentials.model, request.require_tool_call).0
-                == DeepSeekThinkingMode::Enabled;
-        let parser = Arc::new(Mutex::new(DeepSeekSseParser::new(
-            &self.config,
-            thinking_enabled,
-        )));
-        let parser_for_chunks = parser.clone();
-        let event_sink = Arc::new(Mutex::new(events));
-        let event_sink_for_chunks = event_sink.clone();
-        let cancellation_for_transport = cancellation.clone();
+        self.stream_prepared(request, credentials, http_request, cancellation, events)
+    }
 
-        Box::pin(async move {
-            // This event is emitted only after credentials and the complete
-            // request body passed local validation. It deliberately means
-            // "network attempt started", not "the Provider responded"; the
-            // Action Loop uses it to preserve conservative network truth when
-            // an outer cancellation or wall-time limit drops this future.
-            event_sink
-                .lock()
-                .expect("DeepSeek event sink mutex poisoned")(
-                ProviderStreamEvent::NetworkRequestStarted,
-            );
-            let transport_future = transport.post_sse(
-                http_request,
-                cancellation_for_transport,
-                Box::new(move |chunk| {
-                    let emitted = parser_for_chunks
-                        .lock()
-                        .expect("DeepSeek SSE parser mutex poisoned")
-                        .feed(chunk)?;
-                    let mut sink = event_sink_for_chunks
-                        .lock()
-                        .expect("DeepSeek event sink mutex poisoned");
-                    for event in emitted {
-                        sink(event);
-                    }
-                    Ok(())
-                }),
-            );
-            let meta = await_transport(transport_future, cancellation, timeout).await?;
-            if !(200..300).contains(&meta.status) {
-                return Err(ProviderError::from_http_status(
-                    meta.status,
-                    meta.retry_after_ms,
-                ));
-            }
-            if !meta
-                .content_type
-                .as_deref()
-                .is_some_and(is_event_stream_content_type)
-            {
-                return Err(remote_schema_error(
-                    "Provider response was not a bounded SSE stream.",
-                ));
-            }
-
-            let (mut response, final_events) = parser
-                .lock()
-                .expect("DeepSeek SSE parser mutex poisoned")
-                .finish()?;
-            let mut sink = event_sink
-                .lock()
-                .expect("DeepSeek event sink mutex poisoned");
-            for event in final_events {
-                sink(event);
-            }
-            response.network_call_made = meta.network_call_made;
-            response.validate()
-        })
+    fn stream_idempotent(
+        &self,
+        request: ProviderRequest,
+        remote_idempotency_key: String,
+        expected_request_sha256: String,
+        cancellation: CancellationToken,
+        events: ProviderEventSink,
+    ) -> ProviderFuture<ProviderResponse> {
+        let prepared = match self.prepare_request(request) {
+            Ok(prepared) => prepared,
+            Err(error) => return Box::pin(async move { Err(error) }),
+        };
+        if prepared.commitment().request_sha256 != expected_request_sha256 {
+            return Box::pin(async {
+                Err(ProviderError::schema_mismatch_with_code(
+                    "PROVIDER_REQUEST_COMMITMENT_MISMATCH",
+                    "Provider request changed after its budget reservation.",
+                    false,
+                ))
+            });
+        }
+        prepared.dispatch(remote_idempotency_key, cancellation, events)
     }
 
     fn check(
@@ -754,14 +808,22 @@ impl ProviderClient for DeepSeekProviderClient {
                 context_digest: "0".repeat(64),
                 messages: vec![ProviderMessage {
                     role: ProviderRole::User,
-                    content: "Return OK.".into(),
+                    // The probe must fit the normal text mode: it does not
+                    // exercise Product Tools or consume a visual-authoring
+                    // budget.  Ask for one short deterministic reply rather
+                    // than permitting a long thinking response.
+                    content: "Reply with exactly: OK".into(),
                     tool_call_id: None,
                     tool_calls: Vec::new(),
                     ephemeral_reasoning: None,
                 }],
                 tools: Vec::new(),
                 require_tool_call: false,
-                max_output_tokens: 8,
+                // V4 accepts an ordinary bounded text completion here.  A
+                // 64-token allowance avoids the production 400 observed
+                // when the old eight-token probe was coupled with thinking
+                // mode, while remaining negligible beside a real design turn.
+                max_output_tokens: 64,
             },
             cancellation,
             Box::new(|_| {}),
@@ -1010,7 +1072,59 @@ fn build_http_request(
         endpoint: credentials.endpoint.clone(),
         authorization: SecretText::new(format!("Bearer {}", credentials.api_key.expose())),
         body: Arc::from(body),
+        remote_idempotency_key: None,
     })
+}
+
+fn budget_policy_for_http_request(
+    request: &DeepSeekHttpRequest,
+    config: &DeepSeekProviderConfig,
+) -> Result<ProviderRequestBudgetPolicy, ProviderError> {
+    // One input token per serialized byte plus a reviewed Provider-side
+    // framing allowance is deliberately conservative. This path performs
+    // request accounting only and never polls the transport.
+    let body_bytes = u64::try_from(request.body.len()).map_err(|_| {
+        local_schema_error("Provider request size exceeded the reviewed accounting bound.")
+    })?;
+    let input_tokens_upper_bound = body_bytes
+        .checked_add(PROVIDER_INPUT_FRAMING_OVERHEAD_BYTES)
+        .ok_or_else(|| {
+            local_schema_error("Provider request size exceeded the reviewed accounting bound.")
+        })?;
+    ProviderRequestBudgetPolicy {
+        input_tokens_upper_bound,
+        input_cost_ceiling_microusd: cost_for_tokens(
+            input_tokens_upper_bound,
+            config.pricing.input_microusd_per_million_tokens,
+        ),
+        output_microusd_per_million_tokens: config.pricing.output_microusd_per_million_tokens,
+    }
+    .validate()
+}
+
+fn commitment_for_http_request(
+    request: &DeepSeekHttpRequest,
+    model: &str,
+    config: &DeepSeekProviderConfig,
+) -> Result<ProviderRequestCommitment, ProviderError> {
+    ProviderRequestCommitment {
+        request_sha256: sha256_hex(&request.body),
+        pricing_snapshot_sha256: sha256_hex(
+            format!(
+                "DeepSeekPricingSnapshot@1\n{}\n{}\n{}",
+                model,
+                config.pricing.input_microusd_per_million_tokens,
+                config.pricing.output_microusd_per_million_tokens,
+            )
+            .as_bytes(),
+        ),
+        budget_policy: budget_policy_for_http_request(request, config)?,
+    }
+    .validate()
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn provider_message_json(
@@ -1914,13 +2028,13 @@ mod tests {
     }
 
     #[test]
-    fn current_v4_models_use_explicit_max_thinking_and_legacy_aliases_stay_compatible() {
+    fn current_v4_models_use_interactive_high_thinking_and_legacy_aliases_stay_compatible() {
         for model in ["deepseek-v4-flash", "deepseek-v4-pro"] {
             assert_eq!(
                 thinking_policy_for_model(model),
                 (
                     DeepSeekThinkingMode::Enabled,
-                    Some(DeepSeekReasoningEffort::Max)
+                    Some(DeepSeekReasoningEffort::High)
                 )
             );
         }
@@ -1943,7 +2057,7 @@ mod tests {
             thinking_policy_for_request("deepseek-v4-pro", false),
             (
                 DeepSeekThinkingMode::Enabled,
-                Some(DeepSeekReasoningEffort::Max)
+                Some(DeepSeekReasoningEffort::High)
             )
         );
     }
@@ -1992,7 +2106,7 @@ mod tests {
                 ]
             );
             assert_eq!(body["thinking"], json!({"type": "enabled"}));
-            assert_eq!(body["reasoning_effort"], "max");
+            assert_eq!(body["reasoning_effort"], "high");
             assert_eq!(body["tool_choice"], "auto");
             let encoded = String::from_utf8(captured.body().to_vec()).unwrap();
             assert!(!encoded.contains("base_url"));
@@ -2505,6 +2619,76 @@ mod tests {
     }
 
     #[test]
+    fn prepare_once_binds_exact_body_budget_and_remote_idempotency_key() {
+        block_on(async {
+            let provider_request = request(0);
+            let transport = Arc::new(FakeHttpTransport::new(vec![sse_script(&stop_stream("OK"))]));
+            let client = DeepSeekProviderClient::new(
+                source(Some(credentials())),
+                transport.clone(),
+                config(),
+            )
+            .unwrap();
+
+            let prepared = client.prepare_request(provider_request).unwrap();
+            let commitment = prepared.commitment().clone();
+            assert_eq!(transport.calls.load(Ordering::SeqCst), 0);
+            assert!(transport.requests.lock().unwrap().is_empty());
+
+            prepared
+                .dispatch(
+                    "e005_reservation_0001".into(),
+                    CancellationToken::new(),
+                    Box::new(|_| {}),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(transport.calls.load(Ordering::SeqCst), 1);
+            let requests = transport.requests.lock().unwrap();
+            assert_eq!(requests.len(), 1);
+            assert_eq!(sha256_hex(requests[0].body()), commitment.request_sha256);
+            assert_eq!(
+                requests[0].remote_idempotency_key(),
+                Some("e005_reservation_0001")
+            );
+            assert_eq!(
+                commitment.budget_policy,
+                budget_policy_for_http_request(&requests[0], &config()).unwrap()
+            );
+        });
+    }
+
+    #[test]
+    fn idempotent_dispatch_rejects_commitment_tamper_before_transport() {
+        block_on(async {
+            let transport = Arc::new(FakeHttpTransport::new(Vec::new()));
+            let client = DeepSeekProviderClient::new(
+                source(Some(credentials())),
+                transport.clone(),
+                config(),
+            )
+            .unwrap();
+
+            let error = client
+                .stream_idempotent(
+                    request(0),
+                    "e005_reservation_0001".into(),
+                    "f".repeat(64),
+                    CancellationToken::new(),
+                    Box::new(|_| {}),
+                )
+                .await
+                .unwrap_err();
+
+            assert_eq!(error.code, "PROVIDER_REQUEST_COMMITMENT_MISMATCH");
+            assert!(!error.network_call_made);
+            assert_eq!(transport.calls.load(Ordering::SeqCst), 0);
+            assert!(transport.requests.lock().unwrap().is_empty());
+        });
+    }
+
+    #[test]
     fn request_budget_policy_fails_closed_without_credentials_and_never_uses_transport() {
         let transport = Arc::new(FakeHttpTransport::new(Vec::new()));
         let client =
@@ -2625,6 +2809,9 @@ mod tests {
             let body = body.as_object().unwrap();
             assert!(!body.contains_key("tools"));
             assert!(!body.contains_key("tool_choice"));
+            assert_eq!(body.get("max_tokens"), Some(&json!(64)));
+            assert_eq!(body.get("thinking"), Some(&json!({"type":"enabled"})));
+            assert_eq!(body.get("reasoning_effort"), Some(&json!("high")));
             assert!(!client
                 .cancel("cancel_1".into(), "token_1".into())
                 .await

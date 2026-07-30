@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-production-review-v1.schema.json",
+  "title": "E005ProductionReviewV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_program_sha256", "surface_plan_sha256", "surface_adornment_sha256", "restricted_geometry_input_sha256", "surface_adornment_count", "glb_sha256", "normalized_geometry_sha256", "fixed_view_sha256", "fixed_views", "compile_readback_sha256", "restricted_geometry_evidence_sha256", "artifact_profile_id", "material_zone_count", "visual_texture_set_count", "visual_texture_map_count", "visual_texture_provenance_verified", "lower_duration_ms", "compile_duration_ms", "render_duration_ms", "elapsed_ms"],
+  "properties": {
+    "schema_version": {"const": "E005ProductionReview@1"},
+    "source_program_sha256": {"$ref": "#/$defs/hash"},
+    "surface_plan_sha256": {"$ref": "#/$defs/hash"},
+    "surface_adornment_sha256": {"$ref": "#/$defs/hash"},
+    "restricted_geometry_input_sha256": {"$ref": "#/$defs/hash"},
+    "surface_adornment_count": {"type": "integer", "minimum": 1, "maximum": 32},
+    "glb_sha256": {"$ref": "#/$defs/hash"},
+    "normalized_geometry_sha256": {"$ref": "#/$defs/hash"},
+    "fixed_view_sha256": {"$ref": "#/$defs/hash"},
+    "fixed_views": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turntable_000", "turntable_045", "turntable_090", "turntable_135", "turntable_180", "turntable_225", "turntable_270", "turntable_315"],
+      "properties": {
+        "turntable_000": {"$ref": "#/$defs/hash"},
+        "turntable_045": {"$ref": "#/$defs/hash"},
+        "turntable_090": {"$ref": "#/$defs/hash"},
+        "turntable_135": {"$ref": "#/$defs/hash"},
+        "turntable_180": {"$ref": "#/$defs/hash"},
+        "turntable_225": {"$ref": "#/$defs/hash"},
+        "turntable_270": {"$ref": "#/$defs/hash"},
+        "turntable_315": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "compile_readback_sha256": {"$ref": "#/$defs/hash"},
+    "restricted_geometry_evidence_sha256": {"$ref": "#/$defs/hash"},
+    "artifact_profile_id": {"const": "production_concept"},
+    "material_zone_count": {"type": "integer", "minimum": 1, "maximum": 512},
+    "visual_texture_set_count": {"type": "integer", "minimum": 1, "maximum": 32},
+    "visual_texture_map_count": {"type": "integer", "minimum": 5, "maximum": 160},
+    "visual_texture_provenance_verified": {"const": true},
+    "lower_duration_ms": {"type": "integer", "minimum": 0, "maximum": 240000},
+    "compile_duration_ms": {"type": "integer", "minimum": 0, "maximum": 240000},
+    "render_duration_ms": {"type": "integer", "minimum": 0, "maximum": 240000},
+    "elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 240000}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

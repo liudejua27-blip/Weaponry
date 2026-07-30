@@ -2862,6 +2862,7 @@
             "enum": [
               "queued",
               "running",
+              "waiting_for_capture",
               "waiting_for_approval",
               "waiting_for_clarification",
               "completed",
@@ -8840,6 +8841,18 @@
             "title": "Material Zone Ids",
             "type": "array"
           },
+          "reference_uv_evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Uv Evidence"
+          },
           "schema_version": {
             "const": "VisualTextureSet@1",
             "default": "VisualTextureSet@1",
@@ -8993,7 +9006,7 @@
             "type": "string"
           },
           "glb_base64": {
-            "maxLength": 44739244,
+            "maxLength": 67108864,
             "minLength": 16,
             "title": "Glb Base64",
             "type": "string"
@@ -11159,6 +11172,39 @@
           "graph_sha256"
         ],
         "title": "ModuleGraphValidationResponse",
+        "type": "object"
+      },
+      "MultimodalTurnContextInput": {
+        "additionalProperties": false,
+        "properties": {
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "visual_evidence_graph": {
+            "additionalProperties": true,
+            "title": "Visual Evidence Graph",
+            "type": "object"
+          },
+          "visual_reference_comparison_authorization_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Reference Comparison Authorization Id"
+          }
+        },
+        "required": [
+          "request",
+          "visual_evidence_graph"
+        ],
+        "title": "MultimodalTurnContextInput",
         "type": "object"
       },
       "NavigateActiveDesignRequest": {
@@ -13480,6 +13526,16 @@
       "StartAgentTurnRequest": {
         "additionalProperties": false,
         "properties": {
+          "author_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UniversalAuthorContextInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "clarification_domain_pack_id": {
             "anyOf": [
               {
@@ -13504,10 +13560,20 @@
             "type": "string"
           },
           "message": {
-            "maxLength": 8000,
+            "maxLength": 200000,
             "minLength": 1,
             "title": "Message",
             "type": "string"
+          },
+          "multimodal_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MultimodalTurnContextInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -13581,6 +13647,70 @@
           "scale"
         ],
         "title": "Transform",
+        "type": "object"
+      },
+      "UniversalAuthorContextInput": {
+        "additionalProperties": false,
+        "properties": {
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/UniversalAuthorReferenceInput"
+            },
+            "maxItems": 12,
+            "title": "References",
+            "type": "array"
+          },
+          "visual_evidence_graph": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Evidence Graph"
+          }
+        },
+        "title": "UniversalAuthorContextInput",
+        "type": "object"
+      },
+      "UniversalAuthorReferenceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 9,
+            "pattern": "^refevid_[A-Za-z0-9_.:-]+$",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          },
+          "view_hint": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View Hint"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "role"
+        ],
+        "title": "UniversalAuthorReferenceInput",
         "type": "object"
       },
       "UpdateModuleAssetCatalogMetadataRequest": {

@@ -199,7 +199,7 @@ function readFailure(value: unknown): SingleResultFailedDecision['failure'] | nu
     || typeof value.message !== 'string'
     || !Number.isInteger(value.repair_attempts_used)
     || (value.repair_attempts_used as number) < 0
-    || (value.repair_attempts_used as number) > 2
+    || (value.repair_attempts_used as number) > 1
   ) return null
   return { code: value.code, message: value.message, repair_attempts_used: value.repair_attempts_used as number }
 }

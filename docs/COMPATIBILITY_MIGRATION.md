@@ -1,7 +1,9 @@
 # ForgeCAD 兼容迁移计划
 
-版本：2026-07-13
-目标：从 Weapon/Concept 双运行时迁移到通用机械 Agent 单一真值
+版本：2026-07-29
+目标：从 Weapon/Concept 双运行时迁移到类别开放的通用 3D Agent 单一真值
+
+ADR-0022 不要求删除现有机械数据或 Domain Pack。它新增的迁移轴是：当前 `DomainInference/unsupported` 准入逻辑逐步迁移为 `SubjectProfile/RepresentationPlan` 能力路由，同时保持旧项目只读、版本 ID、hash、Snapshot 和导出真值稳定。
 
 ## 1. 迁移原则
 
@@ -29,7 +31,7 @@
 ### M0：文档和能力冻结
 
 - 主文档只描述当前 Agent；
-- legacy 资料移入 `docs/legacy/`；
+- 旧操作文档从当前树删除，必要兼容事实只保留在本文件；详细历史从 Git 与版本化机器合同读取；
 - 能力—Gate 矩阵区分新旧证据；
 - 禁止新增旧 API 产品功能。
 
@@ -49,7 +51,7 @@ S007 已完成 legacy 兼容 UI 只读、显式转换授权和确认 Agent 资�
 - 旧 ModuleGraph 进入只读兼容视图；
 - 删除格式驱动的隐式版本切换。
 
-退出条件：四领域 E2E 和版本一致性通过。
+历史机械兼容退出条件：四领域 E2E 和版本一致性通过。通用产品退出还需 U002–U005 的类别开放入口、混合表示和跨类别质量证据；两类证据分别记录。
 
 ### M3：写路径迁移
 
@@ -94,6 +96,17 @@ S007 已完成 legacy 兼容 UI 只读、显式转换授权和确认 Agent 资�
 | Concept ChangeSet | AgentAsset ChangeSet | 不迁移活动预览，只迁移已确认结果 |
 | Concept Quality | Legacy evidence | 不附着到新版本，转换后重新检查 |
 | Concept Export | Legacy artifact | 保留 hash，只读下载，不作为新导出 |
+
+## 4.1 当前兼容参考
+
+旧文档已从当前树清理，但以下运行时事实仍存在，直到 M5/M6 退出：
+
+- 旧 API：`POST/GET /api/weapons`、`GET /api/weapons/{weapon_id}`、旧 interpretation/recast/skill graph、Patch、Job、Asset、Provider Settings、`generate-3d` 与 `export-unity`；机器合同只以 `packages/weapon-spec/generated/openapi.json` 为准；
+- 旧数据：Weapon、Job、Asset、CreativeWeaponGraph/SkillGraph、Concept Project/Version、ModuleGraph、Concept ChangeSet、Quality 与 Export 表；不得原地改名、共用版本号或把旧质量报告附着到 Agent 资产；
+- 旧回归命令：`r1:create-weapon-gate`、`r1:generate3d-gate`、`r1:worker-gate`、`r1:patch-gate`、`r1:unity-export-gate`、`r2:gate`、`r3:workbench-gate`、`r4:planner-gate`、`r5:quality-gate`；它们只证明兼容未被破坏，不替代 G1–G7、Agent E2E、packaged sidecar 或真实 Provider 评测；
+- ComfyUI、本地神经 3D 和 Unity 的旧操作说明不恢复到当前文档；必须追溯时只从 Git 历史读取，并在隔离环境执行。
+
+所有旧视觉结果仍只属于非功能概念资产。删除兼容端点或表前必须完成 M5/M6、旧库副本转换、备份恢复和只读回放验证。
 
 ## 5. 回滚
 

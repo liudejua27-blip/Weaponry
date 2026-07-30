@@ -1,0 +1,58 @@
+{
+  "schema_version": "ForgeVisualGeometryProgram@2",
+  "program_id": "visual_e005_harness_sensor_pod",
+  "domain": "e005_harness_only_not_formal_evidence",
+  "units": "millimeter",
+  "seed": 500501,
+  "materials": [
+    {"material_id": "mat_shell", "base_material_id": "mat_graphite"},
+    {"material_id": "mat_optical", "base_material_id": "mat_aluminum"},
+    {"material_id": "mat_service", "base_material_id": "mat_signal_red"}
+  ],
+  "profiles": [
+    {
+      "profile_id": "profile_window",
+      "points": [[-0.82, -0.56], [0.82, -0.56], [0.96, -0.35], [0.96, 0.35], [0.82, 0.56], [-0.82, 0.56], [-0.96, 0.35], [-0.96, -0.35]],
+      "resample_count": 8
+    }
+  ],
+  "section_sets": [],
+  "nodes": [
+    {"kind": "box", "node_id": "node_lower_shell", "size": [760.0, 520.0, 360.0], "position": [0.0, 0.0, 0.0]},
+    {"kind": "box", "node_id": "node_upper_shell", "size": [620.0, 440.0, 180.0], "position": [0.0, 0.0, 270.0]},
+    {"kind": "part", "node_id": "node_lower_shell_part", "input_node_id": "node_lower_shell", "part_id": "part_lower_shell", "role": "protective_shell_lower"},
+    {"kind": "material_zone", "node_id": "node_lower_shell_zone", "input_node_id": "node_lower_shell_part", "zone_id": "zone_shell_lower", "material_id": "mat_shell"},
+    {"kind": "part", "node_id": "node_upper_shell_part", "input_node_id": "node_upper_shell", "part_id": "part_upper_shell", "role": "protective_shell_upper"},
+    {"kind": "material_zone", "node_id": "node_upper_shell_zone", "input_node_id": "node_upper_shell_part", "zone_id": "zone_shell_upper", "material_id": "mat_shell"},
+    {"kind": "extrude", "node_id": "node_optical_window", "profile_id": "profile_window", "profile_scale": [190.0, 130.0], "height": 48.0, "position": [0.0, -284.0, 40.0], "cap_start": true, "cap_end": true},
+    {"kind": "part", "node_id": "node_window_part", "input_node_id": "node_optical_window", "part_id": "part_optical_window", "role": "optical_window"},
+    {"kind": "material_zone", "node_id": "node_window_zone", "input_node_id": "node_window_part", "zone_id": "zone_optical", "material_id": "mat_optical"},
+    {"kind": "box", "node_id": "node_service_cover", "size": [360.0, 32.0, 220.0], "position": [0.0, 276.0, 20.0]},
+    {"kind": "part", "node_id": "node_cover_part", "input_node_id": "node_service_cover", "part_id": "part_service_cover", "role": "maintenance_cover"},
+    {"kind": "material_zone", "node_id": "node_cover_zone", "input_node_id": "node_cover_part", "zone_id": "zone_service_cover", "material_id": "mat_service"},
+    {"kind": "box", "node_id": "node_mount_foot_left", "size": [120.0, 140.0, 72.0], "position": [-250.0, 0.0, -216.0]},
+    {"kind": "box", "node_id": "node_mount_foot_center", "size": [120.0, 140.0, 72.0], "position": [0.0, 0.0, -216.0]},
+    {"kind": "box", "node_id": "node_mount_foot_right", "size": [120.0, 140.0, 72.0], "position": [250.0, 0.0, -216.0]},
+    {"kind": "union", "node_id": "node_mount_assembly", "input_node_ids": ["node_mount_foot_left", "node_mount_foot_center", "node_mount_foot_right"]},
+    {"kind": "part", "node_id": "node_mount_part", "input_node_id": "node_mount_assembly", "part_id": "part_mounting_feet", "role": "mounting_interface"},
+    {"kind": "material_zone", "node_id": "node_mount_zone", "input_node_id": "node_mount_part", "zone_id": "zone_mount", "material_id": "mat_shell"}
+  ],
+  "outputs": [
+    {"output_id": "output_shell_lower", "node_id": "node_lower_shell_zone"},
+    {"output_id": "output_shell_upper", "node_id": "node_upper_shell_zone"},
+    {"output_id": "output_window", "node_id": "node_window_zone"},
+    {"output_id": "output_service_cover", "node_id": "node_cover_zone"},
+    {"output_id": "output_mounts", "node_id": "node_mount_zone"}
+  ],
+  "budgets": {
+    "schema_version": "GeometryProgramBudget@1",
+    "max_profiles": 4,
+    "max_section_sets": 1,
+    "max_nodes": 24,
+    "max_parts": 8,
+    "max_materials": 8,
+    "max_outputs": 8,
+    "max_operations": 32,
+    "triangle_budget": 100000
+  }
+}

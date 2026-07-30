@@ -1,6 +1,6 @@
 {
   "schema_version": "C111GoldenSurfaceVisualDetailInventory@1",
-  "inventory_id": "inventory_c111_robotic_arm_iteration_71",
+  "inventory_id": "inventory_c111_robotic_arm_iteration_79",
   "scope": "c111b_development_fixture_only",
   "formal_eligible": false,
   "root_recipe_id": "recipe_c111_arm_golden_surface",
@@ -15,43 +15,43 @@
     "reason": "The authorized target screenshot was rediscovered outside the repository; only its filename and digest are frozen here."
   },
   "compiled_evidence": {
-    "iteration": 71,
-    "shape_program_sha256": "229a8e3692c76319ff4e0f0fa710f7f22e0b5a629985aa769700689d3cf36a9c",
-    "production_glb_sha256": "985a6918e36a7c93516c1fe30b21cb93a19a72039aae23109d23b186fc18cc29",
-    "production_triangles": 138248,
-    "production_primitives": 157,
+    "iteration": 79,
+    "shape_program_sha256": "5b799601c34cf082b338abc9269630866e945d819f5223f7b967c6f16d15bbdb",
+    "production_glb_sha256": "48ccc5c6a725936d43cb731ed5e20b93f10ef751712ed79469ea406318160b6b",
+    "production_triangles": 120660,
+    "production_primitives": 184,
     "fixed_views": [
       {
         "view_id": "iso",
-        "sha256": "1bc58102dc81f22f937cbd007f9f7f15f7ffefde547a3fe047e79d1b0abe072f"
+        "sha256": "9b42be2d463ef4e9ea4dfb342596f6f752e1023c8aee8a932c392a5fe6a14d8d"
       },
       {
         "view_id": "front",
-        "sha256": "1c5bac5c61b1012a6d4a7553dc1ecaabd2754d035edb48defe8091c1ae19aa21"
+        "sha256": "a4a802dcc06812703bb392bec2299f00a6564b84603bab9cb4f8d8616c0c11df"
       },
       {
         "view_id": "back",
-        "sha256": "f04823c16836896da550796d8f612de3ab0eefe3de50162d94f59731797fe9fc"
+        "sha256": "25249aece3ecbe49ed726649a5f40e3ba7b355ec15868dbd7da3cf02c7adff62"
       },
       {
         "view_id": "left",
-        "sha256": "5d9f9d9bcaa62f09ae77c62cea4d91776d716adea5f86ccc64c496c404af22dc"
+        "sha256": "875f4ac4a1d48d67358db27c5b2fb0e5e7a6683fcd646b6287fff45d87400c76"
       },
       {
         "view_id": "right",
-        "sha256": "697f8f63d40650286030fe0caf0492e69392b4e3ae2e0090fd3709cc7bbec996"
+        "sha256": "f540867786c2c9a12e237b9882368667023a233764d440e57fd06d17862d3986"
       },
       {
         "view_id": "top",
-        "sha256": "a7b38842363d1ffef20329fc4519b3311b19bccdc08c711a2b60f45dda2f1ed1"
+        "sha256": "9c4cd63b719c566d8cbbfaad58b1abb8733e18de41b14991ddfbe792e8596249"
       },
       {
         "view_id": "gripper_iso",
-        "sha256": "17dd7f56a569505d0604aa4511b4f387206b0e4709af16040dcbe75a636ddc67"
+        "sha256": "159b474f5a53137d98e56374682c71eb732915ff97e25715d53d1959fa4f094b"
       },
       {
         "view_id": "gripper_front",
-        "sha256": "3ce556686f5e5d59a47d156152678ef71f37b7c0274ffb7aa9dc583402da5714"
+        "sha256": "c6fc66df0ebc7a9c1f1e64a8944cbdcec285848409aefe00789d81e7ae1fdbad"
       }
     ]
   },

@@ -1,6 +1,6 @@
 # ForgeCAD Agent：GitHub 参考、采用边界与目标架构
 
-版本：2026-07-17
+版本：2026-07-30
 状态：参考决策；不是依赖清单
 
 2026-07-14 已再次用 GitHub connector 核验 `openai/codex` 的 app-server/skill loader、`KittyCAD/modeling-app` 的场景/状态结构、`KhronosGroup/glTF` 的材质扩展以及 `donmccurdy/glTF-Transform` 的 inspect/validate/优化入口；同时阅读 DeepSeek 与 Claude Code 官方文档。ADR-0014 把长期目标改为 Rust-first ForgeCAD app-server。K001–K003 已依次落地 Codex 式 initialize/JSON-RPC/通知/取消/背压/cursor replay、Rust-owned Agent/Provider/Product Tool 生命周期，以及 Rust-owned Project/Version/Snapshot/ChangeSet/Quality/Export/SQLite/CAS/对象库。Python 现在只执行受限几何，不拥有产品状态或持久化权限。该采用不 fork、不整套复制，也不等同于许可证、release、安全公告或二进制来源审计。
@@ -26,9 +26,13 @@
 | [glTF Transform](https://github.com/donmccurdy/glTF-Transform) | Node/Web glTF 2.0 读写、优化和可复现变换，MIT | 导出后的 prune/dedup/压缩评估 | 在几何生成前引入第二权威模型 | 导出管线候选 |
 | [Khronos glTF](https://github.com/KhronosGroup/glTF) | glTF 2.0 定义 metallic-roughness、normal/occlusion/emissive；Khronos 扩展提供 clearcoat 与 KTX2/BasisU | 视觉材质互操作、汽车漆涂层、GPU 纹理压缩和 readback 合同 | 把格式/扩展支持冒充纹理已生效或真实材料 | 高真实度材质合同参考 |
 | [Khronos glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) | 对 glTF 2.0/GLB、引用、buffer、image 和 extension 输出 JSON 报告 | Agent GLB 与导入 GLB 的标准合规门 | 只验证格式就声称模型质量通过 | 验证门候选 |
-| [img2threejs](https://github.com/img2threejs/img2threejs) commit `ffe0ace9cfcb8686fd8473371ccbf0ffc2e906e0` | Apache-2.0 的 Agent Skill；以结构化雕刻规格、detail inventory、固定 build passes、参考/渲染比较、多角度检查和有界修复生成程序化 Three.js `THREE.Group`；GLB/稳定产品状态不是其当前交付真值 | 采用“AI 编写视觉程序”、三层细节清单、确定性优先 Gate、阶段化收敛、单比较图和停止策略，并映射到 ForgeVisualProgram/R007/C111/A005/V003 | 不安装为产品运行时，不执行其任意 TypeScript，不以 `THREE.Group` 取代 Rust/ShapeProgram/GLB/Snapshot，不以单图推断隐藏结构 | 高价值方法参考；ADR-0019，当前无依赖 |
+| [img2threejs](https://github.com/img2threejs/img2threejs) commit [`9a8ecf129a58c1b557a1f03f7727f6295672cd51`](https://github.com/img2threejs/img2threejs/commit/9a8ecf129a58c1b557a1f03f7727f6295672cd51)（2026-07-30 逐文件复核） | 当前是安装到 Claude Code/Codex/OpenCode 的 Skill 加确定性 Python 脚本，不是自带 Provider、浏览器执行器或安全沙箱的独立图片→3D 产品。宿主 Agent 负责读图、填 `ObjectSculptSpec`、修改 TypeScript 和浏览器截图；生成器仍以有限 `geometry_for()` 分支输出一个 `THREE.Group` factory，遇到 schema 已允许但尚未实现的 primitive 会显式报错。其真正成熟的资产是图片准入、部件/`detailInventory`、八个 build pass、固定相机二维比较、PBR 纹理约束和 bounded correction-loop；人物路径会替换为固定 humanoid component tree，角色、生物、环境、多物体场景、glTF exporter 和 Web UI 仍不是已完成的通用重建能力。更关键的是，`solve_camera_pose.py` 自述为启发式默认相机，`bake_projected_texture.py` 自述只输出 descriptor、不会采样、投影或 UV 栅格化像素；二者不能作为已完成照片投影的证据。README 标称的 token/cycle 是设计预算，不能当未见质量的实测保证；部分 showcase 仍是手工程序化重建。 | 采用开放读图准入、对象/部件分解、macro/meso/micro inventory、topology class、silhouette-first、fixed-camera comparison、de-light/投影/PBR、廉价二维诊断和平台期/振荡/预算停止策略；将多阶段质量意图压缩进一次高信息密度 author、本地编译和最多一次真实视觉 patch。 | 不执行宿主 Agent 任意 TypeScript，不复制 5–8 次模型串行写码，不把 humanoid template、手写 showcase 或截图/SSIM/pHash 当通用几何真值，不让 VLM 自报分数推进版本。 | ADR-0022 的核心开放视觉过程参考，当前无运行时依赖；ForgeCAD 的升级价值是受限可编辑 IR、单一资产真值、真实 GLB/PBR/readback、版本/恢复与按 capability 诚实限流，而不是声称上游已经完成通用重建。 |
 
-观察事实来自各项目当前默认分支；“借鉴/不套用/决策”是 ForgeCAD 的产品推断，不是上游项目承诺。
+观察事实来自表中注明的核验版本或当日默认分支；“借鉴/不套用/决策”是 ForgeCAD 的产品推断，不是上游项目承诺。快速变化的上游必须在采用前重新锁定 commit 和测试快照。
+
+`img2threejs` 本次核验的一手入口：[README 的宿主 Agent/当前输出边界](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/README.md#L57-L70)、[ROADMAP 的场景/导出/Web 路线](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/ROADMAP.md#L63-L71)、[受限 primitive 生成器](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage3_build/generate_threejs_factory.py#L14-L49)、[固定相机捕获协议](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/grimoire/feedback/render_capture.md#L1-L27)、[确定性二维比较](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage4_review/divine_eye.py#L1-L23) 和 [correction-loop 停止条件](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage4_review/correction_loop.py#L27-L118)。
+
+采用结论：`img2threejs` 最值得学习的不是 Three.js 文件格式，而是“视觉 Agent 不先问类别许可，先把可观察对象拆成可执行的形体、细节、相机和材质计划”。Forge Studio 在此基础上增加 `SubjectProfile/RepresentationPlan/UniversalAssetSource`，让程序化、形变与本地混合表示共享一个资产真值，并由千问验收、DeepSeek author；这就是“升级款”的核心，而不是把上游 Skill 原样塞入产品运行时。
 
 ## 2. 不应作为主线的项目
 

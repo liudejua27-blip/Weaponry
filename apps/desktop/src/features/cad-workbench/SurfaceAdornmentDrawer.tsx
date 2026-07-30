@@ -28,7 +28,7 @@ export type SurfaceAdornmentPreviewResponse =
 
 export type SurfaceAdornmentRetainResponse =
   | { status: 'retained'; summary: string }
-  | { status: 'unavailable' | 'failed'; message: string }
+  | { status: 'unavailable' | 'failed'; message: string; errorCode?: string }
 
 export const surfaceAdornmentPreviewEndpoint = (assetVersionId: string) =>
   `/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}/surface-adornments:preview`
@@ -231,11 +231,17 @@ export function SurfaceAdornmentDrawer({
     const token = ++requestTokenRef.current
     setStatus('processing')
     setDetail('正在保留外观细节…')
+    setErrorCode('')
     const response = await adapter.retain(changeSetId).catch((caught): SurfaceAdornmentRetainResponse => ({
-      status: 'failed', message: caught instanceof Error ? caught.message : '保留外观细节失败；当前设计没有变化。',
+      status: 'failed',
+      message: caught instanceof Error ? caught.message : '保留外观细节失败；当前设计没有变化。',
+      errorCode: typeof caught === 'object' && caught !== null && 'code' in caught && typeof caught.code === 'string'
+        ? caught.code
+        : 'SURFACE_ADORNMENT_CONFIRM_REJECTED',
     }))
     if (token !== requestTokenRef.current) return
     if (response.status !== 'retained') {
+      setErrorCode(response.errorCode ?? 'SURFACE_ADORNMENT_CONFIRM_REJECTED')
       setStatus('failed')
       setDetail(response.message)
       onMessage?.(response.message)
@@ -248,7 +254,17 @@ export function SurfaceAdornmentDrawer({
   }
 
   return (
-    <section ref={dialogRef} className="surface-adornment-drawer" role="dialog" aria-modal="true" aria-label="添加外观细节" onKeyDown={onKeyDown}>
+    <section
+      ref={dialogRef}
+      className="surface-adornment-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="添加外观细节"
+      data-adornment-state={unavailable ? 'unavailable' : status}
+      data-target-part-id={target?.partId}
+      data-target-material-zone-id={target?.materialZoneId}
+      onKeyDown={onKeyDown}
+    >
       <header>
         <div><strong>添加外观细节</strong><small>只细化外观，不提供制造或性能结论。</small></div>
         <button ref={closeButtonRef} type="button" aria-label="关闭添加外观细节" onClick={close}>关闭</button>
@@ -268,14 +284,14 @@ export function SurfaceAdornmentDrawer({
           </div>
           <SurfaceAdornmentDesignSurface draft={draft} target={target} />
           {status === 'activation_required' ? (
-            <button type="button" className="surface-adornment-primary" onClick={() => void enableAndPreview()}>启用外观细节能力</button>
+            <button type="button" className="surface-adornment-primary" data-adornment-action="enable" onClick={() => void enableAndPreview()}>启用外观细节能力</button>
           ) : status !== 'preview_ready' ? (
-            <button type="button" className="surface-adornment-primary" disabled={status === 'processing'} onClick={() => void runPreview()}>{status === 'processing' ? '正在处理…' : '预览外观细节'}</button>
+            <button type="button" className="surface-adornment-primary" data-adornment-action="preview" disabled={status === 'processing'} onClick={() => void runPreview()}>{status === 'processing' ? '正在处理…' : '预览外观细节'}</button>
           ) : null}
           {status === 'preview_ready' && (
             <div className="surface-adornment-actions">
-              <button type="button" onClick={close}>取消</button>
-              <button type="button" className="surface-adornment-primary" onClick={() => void retain()}>保留</button>
+              <button type="button" data-adornment-action="cancel" onClick={close}>取消</button>
+              <button type="button" className="surface-adornment-primary" data-adornment-action="retain" onClick={() => void retain()}>保留</button>
             </div>
           )}
         </>

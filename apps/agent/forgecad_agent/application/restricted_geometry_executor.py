@@ -23,12 +23,13 @@ import json
 import math
 import multiprocessing
 import os
+import pickle
 import re
 import secrets
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
@@ -49,6 +50,8 @@ MAX_RESTRICTED_GEOMETRY_CANCELLATION_TOMBSTONES = 128
 MAX_RESTRICTED_GEOMETRY_ARTIFACTS = 16
 MAX_RESTRICTED_GEOMETRY_ARTIFACT_BYTES = 128 * 1024 * 1024
 RESTRICTED_GEOMETRY_ARTIFACT_TTL_SECONDS = 300.0
+MAX_RESTRICTED_GEOMETRY_FRAGMENT_CACHE_ENTRIES = 1024
+MAX_RESTRICTED_GEOMETRY_FRAGMENT_CACHE_BYTES = 32 * 1024 * 1024
 
 _ID_PATTERN = r"^[A-Za-z0-9_.\-]{1,160}$"
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
@@ -236,6 +239,13 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
     )
     # A sealed Rust lowering, never a second Python authoring surface.
     surface_layer_input: Optional[dict[str, Any]] = None
+    # UAS@2 can retain several independently sealed material zones. The
+    # singular field remains only for legacy fixtures and may not be mixed.
+    surface_layer_inputs: list[dict[str, Any]] = Field(default_factory=list, max_length=8)
+    # Reference pixels are an optional, sealed decoration of an existing
+    # retained Design Surface. They are not a generic image import or a second
+    # geometry source; the native Rust caller must construct their lineage.
+    reference_uv_evidence_bakes: list[dict[str, Any]] = Field(default_factory=list, max_length=8)
     artifact_handle: Optional[str] = Field(
         default=None,
         pattern=_ARTIFACT_HANDLE_PATTERN,
@@ -278,14 +288,26 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
                 item["program_id"] for item in self.surface_adornment_programs
             ]:
                 raise ValueError("surface adornment programs must preserve canonical identity")
-            if self.surface_layer_input is not None:
-                sealed_surface = _normalize_surface_layer_input(self.surface_layer_input)
-                lowered = sealed_surface["lowering"]["adornments"]
+            if self.surface_layer_input is not None and self.surface_layer_inputs:
+                raise ValueError("cannot mix legacy and multi-zone surface layer inputs")
+            sealed_surfaces = (
+                [_normalize_surface_layer_input(self.surface_layer_input)]
+                if self.surface_layer_input is not None
+                else [_normalize_surface_layer_input(item) for item in self.surface_layer_inputs]
+            )
+            if sealed_surfaces:
+                lowered = [
+                    adornment
+                    for sealed_surface in sealed_surfaces
+                    for adornment in sealed_surface["lowering"]["adornments"]
+                ]
                 if any(item not in normalized for item in lowered):
                     raise ValueError(
                         "surface layer input must retain every exact Rust-lowered A005 adornment"
                     )
                 layer_zones = {item["target_zone_id"] for item in lowered}
+                if len(layer_zones) != len(sealed_surfaces):
+                    raise ValueError("surface layer inputs cannot target duplicate material zones")
                 if any(
                     item["target_zone_id"] in layer_zones and item not in lowered
                     for item in normalized
@@ -293,6 +315,21 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
                     raise ValueError(
                         "surface layer input must be the only visual program for its material zone"
                     )
+            reference_bakes = [
+                _normalize_reference_uv_evidence_bake(item)
+                for item in self.reference_uv_evidence_bakes
+            ]
+            if reference_bakes and not sealed_surfaces:
+                raise ValueError("reference UV evidence requires a sealed retained surface layer")
+            sealed_zones = {
+                item["lowering"]["adornments"][0]["target_zone_id"]
+                for item in sealed_surfaces
+            }
+            bake_zones = [item["target_material_zone_id"] for item in reference_bakes]
+            if any(zone not in sealed_zones for zone in bake_zones):
+                raise ValueError("reference UV evidence must target an exact sealed retained surface layer")
+            if len(bake_zones) != len(set(bake_zones)):
+                raise ValueError("reference UV evidence cannot target the same material zone twice")
         else:
             if (
                 self.artifact_handle is None
@@ -310,6 +347,8 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
                 or self.section_set is not None
                 or self.surface_adornment_programs
                 or self.surface_layer_input is not None
+                or self.surface_layer_inputs
+                or self.reference_uv_evidence_bakes
             ):
                 raise ValueError("render accepts only an opaque compiled artifact handle")
         return self
@@ -359,6 +398,14 @@ class RestrictedGeometryExecutionResult(RestrictedGeometryApiModel):
     renderer_id: Optional[Literal["forgecad-agent-software-raster@1"]] = None
     exploded_part_ids: list[str] = Field(default_factory=list, max_length=512)
     exploded_unavailable_reason: Optional[str] = Field(default=None, max_length=500)
+    fragment_cache_hit_operation_ids: list[str] = Field(
+        default_factory=list,
+        max_length=1024,
+    )
+    fragment_cache_miss_operation_ids: list[str] = Field(
+        default_factory=list,
+        max_length=1024,
+    )
 
     @model_validator(mode="after")
     def validate_result_payload(self) -> "RestrictedGeometryExecutionResult":
@@ -435,6 +482,8 @@ class RestrictedGeometryExecutor:
         self._idempotency_index: dict[str, str] = {}
         self._cancellation_tombstones: OrderedDict[str, str] = OrderedDict()
         self._artifacts: OrderedDict[str, _ArtifactRecord] = OrderedDict()
+        self._operation_fragment_cache: OrderedDict[str, Any] = OrderedDict()
+        self._operation_fragment_cache_bytes = 0
 
     def execute(
         self,
@@ -489,19 +538,34 @@ class RestrictedGeometryExecutor:
                     "render": request.render.model_dump(mode="json") if request.render else {},
                 }
             else:
-                sealed_surface = (
-                    _normalize_surface_layer_input(request.surface_layer_input)
+                sealed_surfaces = (
+                    [_normalize_surface_layer_input(request.surface_layer_input)]
                     if request.surface_layer_input is not None
-                    else None
+                    else [
+                        _normalize_surface_layer_input(item)
+                        for item in request.surface_layer_inputs
+                    ]
                 )
+                reference_bakes = [
+                    _normalize_reference_uv_evidence_bake(item)
+                    for item in request.reference_uv_evidence_bakes
+                ]
                 worker_payload = {
                     "action": "compile_readback",
                     "artifact_profile_id": request.artifact_profile_id,
                     "shape_program": request.shape_program,
                     "surface_adornment_programs": request.surface_adornment_programs,
+                    "operation_fragment_cache": dict(
+                        self._operation_fragment_cache
+                    ),
+                    "reference_uv_evidence_bakes": reference_bakes,
                 }
-                if sealed_surface is not None:
-                    worker_payload["surface_layer_lowering"] = sealed_surface["lowering"]
+                if request.surface_layer_input is not None:
+                    worker_payload["surface_layer_lowering"] = sealed_surfaces[0]["lowering"]
+                elif sealed_surfaces:
+                    worker_payload["surface_layer_lowerings"] = [
+                        sealed_surface["lowering"] for sealed_surface in sealed_surfaces
+                    ]
                 if canonical_profile_sketch is not None:
                     worker_payload["profile_sketch"] = canonical_profile_sketch
                 if canonical_section_set is not None:
@@ -839,6 +903,13 @@ class RestrictedGeometryExecutor:
         if request.action == "compile_readback":
             glb = payload.pop("glb_bytes", None)
             readback = payload.get("readback")
+            fragment_cache = payload.pop("operation_fragment_cache", None)
+            fragment_cache_hit_operation_ids = payload.pop(
+                "fragment_cache_hit_operation_ids", None
+            )
+            fragment_cache_miss_operation_ids = payload.pop(
+                "fragment_cache_miss_operation_ids", None
+            )
             if not isinstance(glb, bytes) or not isinstance(readback, dict):
                 raise RestrictedGeometryBoundaryError(
                     "GEOMETRY_EXECUTOR_RESULT_INVALID",
@@ -922,6 +993,28 @@ class RestrictedGeometryExecutor:
                     "The compile readback did not match the requested artifact profile.",
                     status_code=503,
                 )
+            expected_operation_ids = [
+                str(operation.get("operation_id", ""))
+                for operation in (request.shape_program or {}).get("operations", [])
+                if isinstance(operation, dict)
+            ]
+            if (
+                not isinstance(fragment_cache, dict)
+                or not isinstance(fragment_cache_hit_operation_ids, list)
+                or not isinstance(fragment_cache_miss_operation_ids, list)
+                or any(not isinstance(item, str) for item in fragment_cache_hit_operation_ids)
+                or any(not isinstance(item, str) for item in fragment_cache_miss_operation_ids)
+                or set(fragment_cache_hit_operation_ids)
+                & set(fragment_cache_miss_operation_ids)
+                or set(fragment_cache_hit_operation_ids)
+                | set(fragment_cache_miss_operation_ids)
+                != set(expected_operation_ids)
+            ):
+                raise RestrictedGeometryBoundaryError(
+                    "GEOMETRY_FRAGMENT_CACHE_EVIDENCE_INVALID",
+                    "The compiler returned invalid operation-fragment cache evidence.",
+                    status_code=503,
+                )
             handle = "geomart_" + secrets.token_urlsafe(32)
             now = time.monotonic()
             artifact = _ArtifactRecord(
@@ -949,8 +1042,11 @@ class RestrictedGeometryExecutor:
                 bounds_mm=artifact.bounds_mm,
                 readback=readback,
                 glb_base64=base64.b64encode(glb).decode("ascii"),
+                fragment_cache_hit_operation_ids=fragment_cache_hit_operation_ids,
+                fragment_cache_miss_operation_ids=fragment_cache_miss_operation_ids,
             )
             self._store_artifact_locked(artifact)
+            self._store_operation_fragments_locked(fragment_cache)
             return result
 
         artifact = self._artifact_for_render(request)
@@ -1039,6 +1135,41 @@ class RestrictedGeometryExecutor:
             > MAX_RESTRICTED_GEOMETRY_ARTIFACT_BYTES
         ):
             self._artifacts.popitem(last=False)
+
+    def _store_operation_fragments_locked(self, fragments: Mapping[str, Any]) -> None:
+        from forgecad_agent.application.geometry_worker import (
+            GeometryOperationFragment,
+        )
+
+        retained: OrderedDict[str, Any] = OrderedDict()
+        retained_bytes = 0
+        for fragment_sha256, fragment in fragments.items():
+            if (
+                not isinstance(fragment_sha256, str)
+                or re.fullmatch(_SHA256_PATTERN, fragment_sha256) is None
+                or not isinstance(fragment, GeometryOperationFragment)
+                or fragment.fragment_sha256 != fragment_sha256
+                or re.fullmatch(_ID_PATTERN, fragment.operation_id) is None
+            ):
+                raise RestrictedGeometryBoundaryError(
+                    "GEOMETRY_FRAGMENT_CACHE_EVIDENCE_INVALID",
+                    "The compiler returned an invalid bounded operation fragment.",
+                    status_code=503,
+                )
+            encoded_bytes = len(pickle.dumps(fragment, protocol=5))
+            if encoded_bytes > MAX_RESTRICTED_GEOMETRY_FRAGMENT_CACHE_BYTES:
+                continue
+            while retained and (
+                len(retained) >= MAX_RESTRICTED_GEOMETRY_FRAGMENT_CACHE_ENTRIES
+                or retained_bytes + encoded_bytes
+                > MAX_RESTRICTED_GEOMETRY_FRAGMENT_CACHE_BYTES
+            ):
+                _old_key, old_fragment = retained.popitem(last=False)
+                retained_bytes -= len(pickle.dumps(old_fragment, protocol=5))
+            retained[fragment_sha256] = fragment
+            retained_bytes += encoded_bytes
+        self._operation_fragment_cache = retained
+        self._operation_fragment_cache_bytes = retained_bytes
 
     def _prune_artifacts_locked(self) -> None:
         now = time.monotonic()
@@ -1441,9 +1572,14 @@ def _execute_worker_payload(
         from forgecad_agent.application.geometry_worker import compile_shape_program
 
         surface_layer_lowering = payload.get("surface_layer_lowering")
-        if surface_layer_lowering is not None:
-            _compile_retained_surface_layer_pbr(
-                surface_layer_lowering,
+        surface_layer_lowerings = payload.get("surface_layer_lowerings", ())
+        if surface_layer_lowering is not None and surface_layer_lowerings:
+            raise ValueError("cannot mix legacy and multi-zone surface layer lowerings")
+        if surface_layer_lowering is not None or surface_layer_lowerings:
+            _compile_retained_surface_layer_pbrs(
+                (surface_layer_lowering,)
+                if surface_layer_lowering is not None
+                else surface_layer_lowerings,
                 artifact_profile_id=payload["artifact_profile_id"],
                 surface_adornment_programs=payload.get("surface_adornment_programs", ()),
             )
@@ -1458,13 +1594,23 @@ def _execute_worker_payload(
             artifact_profile_id=payload["artifact_profile_id"],
             surface_adornment_programs=payload.get("surface_adornment_programs", ()),
             surface_layer_lowering=surface_layer_lowering,
+            surface_layer_lowerings=surface_layer_lowerings,
+            reference_uv_evidence_bakes=payload.get("reference_uv_evidence_bakes", ()),
             cancel_check=cancel_check,
+            operation_fragment_cache=payload.get("operation_fragment_cache"),
         )
         if cancel_check():
             raise InterruptedError("cancelled")
         return {
             "glb_bytes": compiled.glb_bytes,
             "readback": compiled.readback.model_dump(mode="json"),
+            "operation_fragment_cache": compiled.operation_fragment_cache,
+            "fragment_cache_hit_operation_ids": list(
+                compiled.fragment_cache_hit_operation_ids
+            ),
+            "fragment_cache_miss_operation_ids": list(
+                compiled.fragment_cache_miss_operation_ids
+            ),
         }
     if action == "render":
         from forgecad_agent.application.agent_rendering import (
@@ -1554,8 +1700,32 @@ def _normalize_surface_layer_input(value: object) -> dict[str, object]:
     }
 
 
-def _compile_retained_surface_layer_pbr(
-    lowering: object,
+def _normalize_reference_uv_evidence_bake(value: object) -> dict[str, object]:
+    """Normalize one sealed, bounded reference-pixel bake DTO.
+
+    The field carries no path, URL, runtime code or Provider credential.  It
+    is intentionally still rejected unless the request also supplies the
+    Rust-lowered retained Design Surface that it decorates.
+    """
+
+    from forgecad_agent.application.reference_uv_projection import (
+        CAMERA_RASTER_SCHEMA_VERSION,
+        ReferenceCameraUvRasterBake,
+        ReferenceUvEvidenceBake,
+    )
+
+    if not isinstance(value, Mapping):
+        raise ValueError("reference UV evidence input must be an object")
+    normalized = (
+        ReferenceCameraUvRasterBake.from_value(value)
+        if value.get("schema_version") == CAMERA_RASTER_SCHEMA_VERSION
+        else ReferenceUvEvidenceBake.from_value(value)
+    )
+    return normalized.as_dict(include_source_bytes=True)
+
+
+def _compile_retained_surface_layer_pbrs(
+    lowerings: Sequence[object],
     *,
     artifact_profile_id: object,
     surface_adornment_programs: object,
@@ -1579,32 +1749,39 @@ def _compile_retained_surface_layer_pbr(
         normalize_surface_adornment_program,
     )
 
-    normalized = normalize_surface_layer_lowering(lowering)
+    if not lowerings or len(lowerings) > 8:
+        raise ValueError("surface layer retained compiler requires one to eight lowerings")
+    normalized_layers = [normalize_surface_layer_lowering(lowering) for lowering in lowerings]
     supplied = [
         normalize_surface_adornment_program(item)
         for item in surface_adornment_programs
     ]
-    lowered = normalized["adornments"]
+    lowered = [
+        adornment for normalized in normalized_layers for adornment in normalized["adornments"]
+    ]
     if any(item not in supplied for item in lowered):
         raise ValueError("surface layer retained compiler lost its Rust-lowered A005 binding")
     layer_zones = {item["target_zone_id"] for item in lowered}
+    if len(layer_zones) != len(normalized_layers):
+        raise ValueError("surface layer retained compiler received duplicate material zones")
     if any(
         item["target_zone_id"] in layer_zones and item not in lowered
         for item in supplied
     ):
         raise ValueError("surface layer retained compiler received a conflicting zone adornment")
-    texture_set = surface_layer_visual_texture_set(
-        normalized,
-        artifact_profile_id=artifact_profile_id,
-    )
-    for texture_map in texture_set.maps:
-        texture_bytes = surface_layer_visual_texture_png_bytes(
+    for normalized in normalized_layers:
+        texture_set = surface_layer_visual_texture_set(
             normalized,
             artifact_profile_id=artifact_profile_id,
-            texture_role=texture_map.texture_role,
         )
-        if hashlib.sha256(texture_bytes).hexdigest() != texture_map.sha256:
-            raise ValueError("surface layer retained compiler hash mismatch")
+        for texture_map in texture_set.maps:
+            texture_bytes = surface_layer_visual_texture_png_bytes(
+                normalized,
+                artifact_profile_id=artifact_profile_id,
+                texture_role=texture_map.texture_role,
+            )
+            if hashlib.sha256(texture_bytes).hexdigest() != texture_map.sha256:
+                raise ValueError("surface layer retained compiler hash mismatch")
 
 
 def _stable_geometry_error_code(error: BaseException) -> str:

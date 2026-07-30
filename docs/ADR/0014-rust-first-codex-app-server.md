@@ -4,7 +4,7 @@
 - 日期：2026-07-16
 - 决策者：项目维护者
 - 取代：`AGENT_GITHUB_REFERENCE_ARCHITECTURE.md` 中“长期保留 FastAPI 作为 Agent API/状态所有者”和“不采用完整 Rust 运行时”的目标结论
-- 补充：ADR-0009 的单一状态真值、ADR-0010 的 Codex 式工作台、ADR-0011 的 3D 机械设计系统
+- 适用性：继续承载 ADR-0009 单一状态真值、Codex 式单结果工作台和受限 3D 编译器的 Rust 所有权；已清理的早期 ADR 只从 Git 追溯
 
 ## 背景
 

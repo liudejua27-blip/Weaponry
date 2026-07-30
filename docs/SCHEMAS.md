@@ -1,8 +1,8 @@
 # ForgeCAD Schema Contract
 
-版本：2026-07-18
+版本：2026-07-29
 
-Schema 是桌面端、本地 Agent、领域包、组件库、材质库、几何 worker 和导出的稳定边界。所有 JSON 必须包含 `schema_version`，并在写入不可变对象前验证。
+Schema 是桌面端、本地 Agent、可选知识包、组件库、材质库、表示执行器和导出的稳定边界。所有 JSON 必须包含 `schema_version`，并在写入不可变对象前验证。ADR-0022 的通用目标不允许复用或改义既有机械 Schema；U002–U004 使用新增版本化合同并保留当前 Alpha 兼容读取。
 
 ## 1. 当前已实现合同
 
@@ -10,12 +10,12 @@ Schema 是桌面端、本地 Agent、领域包、组件库、材质库、几何 
 
 ```text
 packages/weapon-spec/      legacy Weapon/Unity runtime
-packages/concept-spec/     当前通用机械概念 Agent 工作台
+packages/concept-spec/     当前 Agent 工作台与未来通用资产合同的唯一包
 ```
 
 D005 新增 `MechanicalStyleToken@1`、`DomainSemanticProportionRecipe@1` 与 `ResolvedSemanticProportionOptions@1`；A004 新增 Pydantic/OpenAPI `ForgeCADProductToolRegistry@1`、`ProductToolManifest` 与持久化 Tool Item 使用的 `AgentActionToolEvent@1`。K001 新增代码所有的 `ForgeCADAppServerProtocolManifest@1`，冻结 `forgecad.app-server/1`、JSON-RPC 方法/通知、能力、队列/帧限制、canonical hash、显式 method+segment compatibility 路由白名单与只读资源边界。旧 K001 manifest 的 `state_owner=python_compatibility_adapter` 和 `persistent_state_writers=[python_fastapi]` 作为历史迁移 fixture 保持字节稳定；K003 当前所有权由 initialize 的 Rust owner、SQLite ownership marker 和 packaged/layered Gate 证明。这些合同均已进入生成类型、固定 fixture 或任务 Gate。
 
-当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。PV008 新增默认 Provider 输入 `ForgeVisualAuthoringIntent@1`，只承载视觉架构、比例、材质与表面语言；Rust Core 将其确定性降级为 PV001 的 `ForgeVisualProgram@1`，后者把设计 Token、Part、ShapeProgram、AssemblyGraph、材质/表面绑定、三层细节清单与双档 Profile 封装为可校验的设计源信封。PV003 再新增 `ForgeVisualProgramRevision@1`、`ForgeVisualProgramInspection@1` 和 `ForgeVisualPatch@1`，以 revision/hash 和显式 typed operation 管理草稿。PV004 通过 `DesignBuildLedger@1` 与 `VisualConvergenceReport@1` 把动态草稿绑定到 production GLB、八视图和最多两次修复。PV005 将精确 revision 作为现有不可变 AssetVersion 的 provenance 恢复，不创建第二版本链；内部 `replace_forge_visual_program` ChangeSet 只接受 Rust 已收敛 preview，公共 API 不接受该 operation。PV006A 新增 `MultimodalDesignRequest@1`、`VisualEvidenceGraph@1` 和 `MultimodalProgramEvidenceBinding@1`，把文字/参考/活动模型/选择/锁定与视觉 claim 逐条绑定到同一程序细节，不保存原图、URL、路径、密钥或 Provider 任意 payload。PV006C 新增 `VisualReferenceComparisonInput@1` 与 `VisualReferenceComparisonReport@1`：前者只保存参考/程序/GLB/八视图 hash，后者保存 Provider 逐 claim assessment 和 Rust 派生的三层分数、失败码、修复目标及 pass/fail；像素只存在于传输边界。`ForgeAssetPackage@1` 继续要求六个 canonical member，内嵌 manifest 不自引用自身 hash，外层 Rust descriptor 绑定全部六项。当前 Gate 已证明本地确定性 Action Loop、受限 worker、多模态合同、独立 Vision Evidence Provider、原生 Turn exact-lineage、claim→program Detail 绑定和离线八视图比较→确认/导出组合 E2E；2026-07-27 还以真实 DeepSeek `provider_authoring_ir` 完成 program→GLB→唯一预览→确认→Snapshot→导出。该证据不证明收藏级视觉质量或任意类别自由生成。
+当前 Concept 合同包括兼容的 `WeaponConceptSpec@1`、`ModuleGraph@1`、Module Asset/Pack、ChangeSet、Quality、Export，以及已落地的 `DomainPackManifest@1`、`DomainInferenceResult@1`、`ConceptScopeDecision@1`、`VisualIntentMapping@1`、`MechanicalConceptSpec@1`、`AssemblyGraph@1`、`MaterialPreset@1`、`MaterialTextureObject@1`、`EditableParameterBinding@1`、`AgentAssetVersion@1`、`AgentAssetChangeSet@1`、`AgentComponent@1` 和 `AgentStructureSuggestion@1`。PV008 新增默认 Provider 输入 `ForgeVisualAuthoringIntent@1`，只承载视觉架构、比例、材质与表面语言；Rust Core 将其确定性降级为 PV001 的 `ForgeVisualProgram@1`，后者把设计 Token、Part、ShapeProgram、AssemblyGraph、材质/表面绑定、三层细节清单与双档 Profile 封装为可校验的设计源信封。PV003 再新增 `ForgeVisualProgramRevision@1`、`ForgeVisualProgramInspection@1` 和 `ForgeVisualPatch@1`，以 revision/hash 和显式 typed operation 管理草稿。历史 PV004 `VisualConvergenceReport@1` 只供 V003/C111 回归读取；当前产品通过 `DesignBuildLedger@1` 与 `VisualConvergenceReport@2` 把动态草稿绑定到 production GLB、八视图和最多一次 typed patch。PV005 将精确 revision 作为现有不可变 AssetVersion 的 provenance 恢复，不创建第二版本链；内部 `replace_forge_visual_program` ChangeSet 只接受 Rust 已收敛 preview，公共 API 不接受该 operation。PV006A 新增 `MultimodalDesignRequest@1`、`VisualEvidenceGraph@1` 和 `MultimodalProgramEvidenceBinding@1`，把文字/参考/活动模型/选择/锁定与视觉 claim 逐条绑定到同一程序细节，不保存原图、URL、路径、密钥或 Provider 任意 payload。PV006C 当前使用 `VisualReferenceComparisonInput@2` 与 `VisualReferenceComparisonReport@2`：Input@2 在参考/程序/GLB/八视图 hash 之外新增 Rust-owned `VisualReferenceAcceptancePolicy@1`，阈值与来源合同 hash 一并进入 input hash，Provider 和前端都不能选择或降低政策；Report 保存 Provider 逐 claim assessment 和 Rust 派生的三层分数、失败码、修复目标及 pass/fail，像素只存在于传输边界。C111B 受控桥从冻结 `C111BVisualAcceptanceContract@2` 原始字节解析 `7600/6500/5000` 与 `not_visible=false`；v2 还将 0-call 生成预算和需显式授权、最多 3 次、`100000 microusd` 硬上限的视觉比较预算分离，并要求专用 comparison report，其他程序继续使用通用政策。`ForgeAssetPackage@1` 继续要求六个 canonical member，内嵌 manifest 不自引用自身 hash，外层 Rust descriptor 绑定全部六项。当前 Gate 已证明本地确定性 Action Loop、受限 worker、多模态合同、独立 Vision Evidence Provider、原生 Turn exact-lineage、claim→program Detail 绑定和离线八视图比较→确认/导出组合 E2E；2026-07-27 还以真实 DeepSeek `provider_authoring_ir` 完成 program→GLB→唯一预览→确认→Snapshot→导出。该证据不证明收藏级视觉质量或任意类别自由生成。
 
 生成与漂移检查：
 
@@ -24,7 +24,38 @@ npm run contracts:types:generate
 npm run contracts:types:check
 ```
 
-## 2. 目标通用机械合同
+## 2. ADR-0022 通用合同
+
+U002 合同已进入 JSON Schema、生成 TypeScript/Python registry、OpenAPI overlay、Rust validator 和 focused Gate：
+
+| Schema | 当前作用 |
+| --- | --- |
+| `UniversalAuthorRequest@1` | Rust 从真实 Turn/Project/Snapshot、sealed references、选择/锁定和 capability manifest 构造；前端与 Provider不能自报这些真值 |
+| `SubjectProfile@1` | 开放文本类别、身份、部件树、轮廓、负空间、姿态、材质、macro/meso/micro、视图、遮挡和不确定性 |
+| `VisualFeatureContract@1` | 每个特征的显著性、证据区域、`observed/inferred/hidden/conflicting`、影响部件、几何/PBR 通道和最低验收视图；无证据不得 observed |
+| `RepresentationPlan@1` | 逐部件绑定 `procedural/deformable/mesh_seed/hybrid` 与代码所有 capability ID，并封存 request/profile/feature/capability hash |
+| `RepresentationLimitation@1` | `needs_more_views/representation_unavailable/quality_limited/provider_unavailable`、受影响部件、缺失 capability、建议视图和可重试性 |
+| `UniversalAuthorOutcome@1` | `executable/limitation/clarification_required` 判别联合；U002 仅允许验证后的机械臂程序化 executable |
+| `VisualEvidenceGraph@2` | 绑定 universal request/profile 与 sealed evidence region；`@1` 只保留 E005/C111 回归 |
+
+`ReferenceEvidence@1` 与创建请求新增 `pack_unclassified`；空项目参考图不再默认机械臂 Pack。通用校验要求同 Project、正确 semantic hash 与 sealed lineage，不要求证据命中某个 Domain Pack。
+
+U003 合同也已进入 JSON Schema、生成类型、Rust validator/builder 与 focused Gate：
+
+| Schema | 当前作用 |
+| --- | --- |
+| `ReferenceCameraHypothesis@1` | 记录相机模型、参数来源、重投影证据、置信度和 unresolved fields；无拟合证据不得写 solved 参数 |
+| `VisualDetailClaim@2` | 把 macro/meso/micro 细节绑定到 evidence、Part/Zone、几何/PBR channel、轮廓影响和最低验收视图 |
+| `AppearanceEvidenceBundle@1` | 记录 sealed evidence、mask/region 与可选派生 evidence 的算法/hash；派生物必须明确 `evidence_only` |
+| `MaterialZoneAppearance@1` | 记录基础材质、finish/coating、三层细节、磨损、可选投影层、来源 claim 和不确定性 |
+| `UniversalAssetSource@1` | Rust 派生的统一 source envelope；当前只允许已验证程序化机械臂分支 executable，并可封存编译产物 exact-lineage |
+| `ForgeVisualProgramRevision@1` | 将现有程序化 revision 作为可复用 Schema 引入通用 source；不是新的程序或版本头 |
+
+U003 中的 projection 是受限合同而非照片恢复声明：projection layer 必须同时引用有效 camera、派生 evidence 和未观测 texel mask；当前参考相机保持 unresolved，真实 UV rasterization/PBR recovery 与 deformable/local-hybrid 执行归 U004。
+
+ADR-0023 后，`RepresentationPlan@1` 既有 `mesh_seed` 枚举和 `Neural3DGenerationRequest@1`/remote-job 数据只作 schema/database 兼容；capability registry 保持 unavailable，主程序没有对应 Tauri command、凭据、网络 adapter、恢复或 UI。U004 新的 deformable/local-hybrid 合同必须另行冻结并进入 `UniversalAssetSource`、Part/Zone、fixed-output-view、confirm/version lineage，不能复用旧 DTO 冒充已实现。
+
+## 3. 当前机械/Agent 合同
 
 | Schema | 作用 |
 | --- | --- |
@@ -38,12 +69,29 @@ npm run contracts:types:check
 | `ShapeProgram@1` | 受控程序化几何操作；未知或缺执行器在任一运行时入口以 `UNSUPPORTED_RUNTIME_OPERATION` 拒绝 |
 | `ForgeVisualAuthoringIntent@1` | 默认 DeepSeek Provider 的紧凑编译输入；只选择视觉架构、比例、材质和表面语言，禁止 Shape operation、内部 ID、URL、路径、密钥与任意代码；Rust 将其降级为完整视觉程序，不持久化为第二版本链 |
 | `ForgeVisualProgram@1` | Rust Core 生成并严格校验的程序化视觉设计信封；兼容内部测试/迁移的完整 typed authoring，默认 Provider 不直接编写其低层图；Detail 使用 `part_id + kind + target_id` 的多绑定表达同一细节落到多个 Shape/Material/Surface 输出，合法实例可复用 zone id；降级后仍以既有资产和 GLB 合同为真值 |
+| `ForgeVisualProgram@2` / `ProgramBudget@1` / `ForgeVisualProgramLowering@2` / `ForgeVisualSourceMap@1` | VP201 新增的独立高自由度设计源切片；v1 保持兼容且不得静默解释为 v2。实现参数 kind/unit、primitive/transform/Part/Material Zone typed linear DAG、受控 box/cylinder、reviewed material alias→compiled base、ShapeProgram-compatible ID/seed/role、静态预算、canonical source/source-map hash、compiler version 和到 `ShapeProgram@1` 的 Rust lowering；restricted worker/GLB readback smoke 通过真实 source-map join 验证 |
+| `ForgeVisualComposition@1` / `ExpansionBudget@1` / `ExpandedVisualDAG@1` | VP202 的独立纯数据组合源和可重建派生缓存；不改变或静默重解释 VP201 source。支持 typed 词法绑定、纯宏、有界/嵌套 repeat，完整宏图递归/孤儿检查和分配前静态预算；DAG 封存 compiler/ID algorithm、source/expanded/lineage/DAG hash、预算证据及 output/Part/Zone/node lineage，再原样进入未放宽的 VP201 validator/lowering。不是第二资产真值，不含脚本、表达式、URL/path、网络或动态 import |
+| `ForgeVisualGeometryProgram@2` / `GeometryProgramBudget@1` / `ExpandedVisualGeometryDAG@1` / `ForgeVisualGeometryLowering@1` | VP203 的高层几何 v2 前端与可重建 identity-expanded DAG；支持 reviewed box、line-profile→extrude/revolve、loft section set、sweep path、union/subtract、mirror、array、Part/Material Zone。Rust 在 worker 前验证 ID/引用、逆时针非自交轮廓、统一截面采样/顺序/cap、路径零长/平面交叉、boolean operand/depth、axis/count 和静态 cardinality/operation/triangle 预算；lowering 只生成现有 `ShapeProgram@1` operation。source/expanded/DAG/ShapeProgram/source-map hash 与 feature-history/face-zone readback join 被 Gate 验证；直接源的 macro/instance lineage 为空，VP202 保持宏展开权威 |
+| `ForgeVisualGeometryPatch@1` / `GeometryIncrementalPlan@1` | VP204 的单意图 typed patch 与可重建依赖计划。patch 以 expected source hash 绑定，只允许位置、extrude/revolve/loft/sweep/array 和 material base 的版本化字段；未知字段、整图替换、stale base、重复 target、类型错配和第二 patch 在 worker 前拒绝。计划分别列出 source node、Shape operation 和 output 的 reused/invalidated ID；restricted compiler 另以 operation+input/profile+artifact-profile semantic hash 复用未变的真实几何 primitive fragment，变化图仍重新装配并 readback 整个 GLB |
+| `ForgeVisualAuthorSource@1` / `ForgeVisualAuthorBudget@1` / `ForgeVisualAuthorLowering@1` / `ForgeVisualAuthorSurfacePlan@1` | E005-R1 正式紧凑作者合同。它嵌入并复用已验证的 `ForgeVisualGeometryProgram@2` 模板，不建立第二几何执行器；新增 typed parameter、macro output、bounded repeat、唯一 rigid Part root/parent、typed Surface profile 与 detail-motif semantic kind。Rust 先验证参数 kind/unit、ID/引用、单 root/无环、Surface→Macro→Output→Material join 和展开预算，再以 hash-stable instance ID 展开回 VP203，生成 ShapeProgram、AssemblyGraph、Surface plan、跨工件 lineage 和 semantic-density evidence。正式 Provider schema 会内联 geometry-template schema，policy hash绑定 source/compiler/ID algorithm；R1 不接受 unified visual patch，等待 R2 版本化合同 |
+| `E005VisualPatchProposal@1` / `E005VisualPatch@1` / `E005VisualPatchResult@1` | E005-R2 的单次联合视觉响应与 Rust 密封 patch。Provider 在同一次响应中返回 claim assessments 和 ephemeral proposal；proposal 只绑定 exact source/comparison-input，不能预写尚未由 Rust 生成的 report hash。Rust 先派生 `VisualReferenceComparisonReport@2`，再补入 exact report SHA 形成不可变 `E005VisualPatch@1`；`accept` 必须零 claim/零 operation，`typed_visual_patch` 必须精确等于 Rust repair claim IDs 且最多 8 个受限参数、实例 transform/repeat、模板 primitive position 或 Surface tuning 修改。SurfacePlan 已逐展开 zone 进入受限 A005/PBR，`set_surface_tuning` 会改变 PBR input identity；stale source、重复 target、whole-source replacement、未知字段和越界值仍拒绝 |
+| `E005ProductionReview@1` | E005-R3 同源 production 合同证据。它不创建新资产真值：从 R2 exact final `ForgeVisualAuthorSource@1` 重建 ShapeProgram 与 SurfacePlan，把最多 32 个唯一 Material Zone 编译成 Rust-owned `SurfaceAdornmentProgram@1`，以 `production_concept`/640px/TurntableEight 只编译一次。证据绑定 source/surface/adornment/完整 RestrictedGeometryInput hash、production GLB、normalized geometry、readback、八视图、每 zone 五张 PBR map/provenance，以及 lower/compile/render/total 时间；正式 run receipt 通过 evidence + semantic hash 从 preview 升级到 production。当前 fixture 为 11 zones/11 sets/55 maps；跨重启 handoff 和真实四模态仍未完成 |
+| `E005VisualReviewEvidence@1` | R2 的 hash-only durable evidence：初始/最终 source、初始 GLB、初始 TurntableEight map/hash、comparison input/report、Provider response、sealed patch、visual call/build 计数与 final VLM recheck truth。accept 必须同 source、1 build、1 visual call、`recheck=true`；typed patch 必须 source 改变、2 builds、1 visual call、`recheck=false` 且状态为 `patched_pending_visual_confirmation`。图片 bytes 只存在于内存 transport，不进入该合同 |
+| `E005VisualSession@1` / `E005VisualSessionReceipt@1` | R2 真实会话证据，不复用 VP204 名称冒充视觉链。Session 绑定初始/最终 source、sealed visual patch、review evidence 和 receipt hash；receipt 绑定 task/request、source/expanded/ShapeProgram、最终 GLB/归一化几何/TurntableEight、compile/readback、comparison report、真实 provider usage 与 8 或 13 个连续 phase。accept 记录一次 compile/render；typed patch 明确记录初始与补丁后两次 compile/render，不伪造补丁后 VLM recheck |
+| `VisualProgramAuthoringSession@1` / `VisualProgramExecutionReceipt@1` / `VisualProgramGateOutcome@1` / `RestrictedGeometryExecutionEvidence@1` | VP204 的 Rust-owned 单 author/最多单 patch 状态与执行证据。session 绑定 revision/parent/source/expanded/ShapeProgram/GLB hash；receipt 对连续阶段、输入/输出 hash、cache disposition、operation-fragment hit/miss ID、Provider/token/cost 和最终状态做 hash sealing。成功必须经过 author/validate/expand/lower/compile_readback/render/evaluate，preview 仅在 Gate pass 后出现；failed/cancelled 不得提升 GLB。restricted execution evidence 记录实际完整程序 cache key/hit、fragment hit/miss 与 compile/render 时间，sidecar 句柄失效仅允许淘汰后同输入重编译一次 |
+| `E005UnseenTaskSet@1` | 冻结的 30 条未见机械硬表面文字分布预检合同；固定 6 个 morphology family、文字/图片文字描述、must-show/must-not-show、允许操作族、variation axes、一次 author/最多一次 patch 和 70%/85%/32s/70s/105s 阈值。当前 schema 没有 sealed 图片、多视图或活动资产引用，不能冒充 image-to-3D 正式输入；R3 必须升级后才可运行正式视觉分布 |
+| `E005AuthorSourceManifest@1` | 冻结 task 与可选 v2 authored source 的逐条绑定。`unavailable` 必须是 `not_authorized` 且不得携带 source/hash；`authored` 必须携带通过 `ForgeVisualGeometryProgram@2` 的 source 与 canonical hash，并明确区分离线 fixture 和 live Provider。task 缺失、重复、乱序、跨 task-set 或 hash 不一致均拒绝，禁止用 C111/VP203 模板静默补位 |
+| `E005ProviderRunAuthorization@1` | E005 整批正式 Provider 的显式 preflight：精确 task-set、Provider/model、source policy、pricing/disclosure hash、有效期，以及 30 author + 30 patch + 60 total、输入/输出 token、可变成本、批次/单次时间上限。未授权 fixture 所有额度为 0；授权 binding hash 必须按 canonical scope 重算，整机模板恒为 forbidden。Rust/SQLite 0045 已落成原子 reserve/dispatch/settle/recover；R2 visual prepare-once 使用同一 `Patch` 额度并预网络匹配 Provider/model/pricing，禁止再进入 0044 双重计费。0046 batch substrate 与 0047 Author→visual checkpoint/recovery 均已通过；R3、真实图片任务和 main/startup 未完成，禁止正式授权运行 |
+| `E005RunReceipt@1` | receipt 绑定 run/source mode、精确 task/request、formal Provider authorization、VP204 session 或 R2 `E005VisualSession@1`、compile/readback/restricted evidence、几何计数/包围盒、调用/token/cost usage、逐 phase hash/cache/fragment IDs 和运行 profile。两类 session hash 互斥，R2 不得伪写 VP204 hash。成功还绑定 patch 后最终 source、与 source 顺序/ID 无关的 semantic structure、与材质/元数据/primitive 顺序/平移/轴交换/统一缩放无关的最终三角几何 hash 和 structural descriptor；not-run/失败不得携带成功产物。R2 accept/typed-patch 正式 writer 与篡改拒绝 focused Gate 已通过；未运行真实 Provider/30 题 |
+| `E005StructuralDifferenceMatrix@1` | 将 30 份正式 receipt 展开为 30 entries 和固定 435 对比较，分别绑定 entry/comparison 集 hash。每对只有 semantic structure 与 normalized final geometry 同时不同才通过；同结构参数变体与材质/尺度/序列化 clone 均产生稳定 failure code。Distribution report 只能使用 validator 派生的 435/435 结果，不能自报布尔值 |
+| `E005HumanReviewBundle@1` | 绑定同一 30 receipt、四固定视图及 90 个 blind packet hash；严格要求 3 个互异 reviewer commitment、每人 30 task、每 task 3 人、真人且未参与实现、禁用 Agent/VLM 代评。七个 1–5 维度的中位数派生 overall 和首轮/一次 patch 内质量计数。当前只有 not-run fixture 与合成防篡改自测，真实 blind packet 内容合同和 90 份真人评分尚未运行 |
+| `E005DistributionReport@1` | 聚合 validator 从实际 receipt、Provider authorization、结构矩阵和真人 bundle 重算 count、hash、failure histogram、nearest-rank timing 与 `formal_eligible`。30/30 lineage、435/435 结构差异、3×30 真人、首轮 21/30、一次 patch 内 26/30 和 32s/70s/105s 任一缺失都为 false；当前正式运行和真人评审均为 0 |
 | `MultimodalDesignRequest@1` | 一个 Turn 的文字意图、sealed reference 角色、活动资产、Part/Material Zone/归一化区域选择与 preservation locks；引用 exact `ReferenceEvidence@1` semantic hash，不携带图片字节或路径 |
 | `VisualEvidenceGraph@1` | 独立视觉 Provider 的有界输出；每条 claim 明确 `observed | inferred | unknown`、宏观/中频/微观层级、目标域、置信度和来源，缺失视角不能冒充观察 |
 | `MultimodalProgramEvidenceBinding@1` | 请求/证据图/`ForgeVisualProgram@1` 三重 hash 绑定；每条 claim 必须处置为真实 bound detail、显式 unresolved detail 或 evaluation-only，不创建第二资产/版本真值 |
 | `ForgeVisualProgramRevision@1` / `ForgeVisualProgramInspection@1` / `ForgeVisualPatch@1` | PV003 执行内草稿的 revision/hash/parent lineage、有界 inspect 与 10 类 typed patch operation；支持 geometry 和 material/surface 保持锁，不直接创建资产版本 |
 | `DesignBuildLedger@1` | PV004 固定 silhouette→structure→form→material→surface→lighting→optimization 七阶段，以连续 input/output SHA-256 绑定同一 program revision 到最终 GLB |
-| `VisualConvergenceInput@1` / `VisualConvergenceReport@1` | 绑定真实 GLB readback、PBR/面来源、macro/meso/micro 细节、同一 GLB/renderer 的八视图与最多两次同意图修复；未通过不得准备单一结果 |
+| `VisualConvergenceInput@2` / `VisualConvergenceReport@2` | 当前产品合同：绑定真实 GLB readback、PBR/面来源、macro/meso/micro 细节、同一 GLB/renderer 的八视图与最多一次同意图 typed patch；未通过不得准备单一结果。`@1` 仅供 V003/C111 回归读取 |
 | `ProfileSketch@1` | 受限二维 line/quadratic/cubic 轮廓、闭合/绕序、孔洞、规范 bounds 与统一重采样声明 |
 | `ProfileSectionSet@1` | 沿一个主轴排序的 2–12 个截面引用、有限 scale/twist/cap 与统一重采样策略 |
 | `GeometryCompileReadback@1` | 同一次 ShapeProgram 编译后从 GLB 回读的 hash、triangle、bounds、mesh/primitive/material、operation/output role，以及 normal/UV0/tangent、稳定 face→part/zone 与 edge-finish 事实 |
@@ -71,7 +119,7 @@ npm run contracts:types:check
 | `AgentThread@1` | 设计会话 |
 | `AgentTurn@1` | 一次用户请求和预算/状态 |
 | `AgentItem@1` | 消息、计划、工具、预览、澄清、批准和工件 |
-| `ForgeCADProductToolRegistry@1` | 代码所有、不可动态扩展的 13 项产品工具清单，包含稳定 ID、输入/输出 Schema 和审批策略 |
+| `ForgeCADProductToolRegistry@1` | 代码所有、不可动态扩展的 native 产品工具清单；U002 runtime 为 17 项并以 `author_universal_asset` 作为唯一首轮工具，冻结兼容 fixture 保持 16 项；两者都不能由 Provider动态扩展 |
 | `AgentActionToolEvent@1` | 同一 Turn 的 tool call/result 公开事实：call/tool ID、状态、耗时、幂等键、失败类别与审批策略；不含隐藏推理 |
 | `ForgeCADAppServerProtocolManifest@1` | K001 桌面协议 manifest：`forgecad.app-server/1` initialize、JSON-RPC 方法/通知、能力、limits、cursor/canonical hash、显式 compatibility route allowlist 与 `forgecad-resource` 只读无状态边界；fixture 内 owner 是 K001 历史迁移快照，K003 当前由 Rust core 单写 |
 | `ApprovalRequest@1` | 永久副作用确认 |
@@ -106,7 +154,7 @@ G820 新增的 `ProfileSketch@1` 只接受 normalized `[-1,1]` 坐标、最多 6
 
 G821 让现有 `profile` 通过 `profile_input_id` 与二维 `profile_scale` 消费上述 canonical payload；`extrude` 增加受限 `cap_start/cap_end`，`revolve` 增加受限 seam cap 与 `8..64` radial segments。旧 `args.points` 仍按原合同执行，不能混入新参数。G822 新增唯一 manifest 中的 `loft`：必须引用一个 `profile_section_set`，使用二维 `cross_section_scale`、有界 `axis_length` 和当前唯一 `linear` continuity；不允许 operation input、孔洞 Loft、自由控制网格或相邻截面超过 45° 的翻转风险。G823 新增唯一 manifest 中的 `sweep`：必须引用一个 closed/hole-free `profile_sketch`，并声明 2–32 点有界 path、open/closed、有限 twist 和显式 cap；闭合路径禁止 cap/twist，零长度、过短段、frame 翻转和明显自交会拒绝。G826 使 `GeometryCompileReadback@1` 从真实 GLB accessor/index 回读 UV0/normal/tangent、UV bounds、closed/boundary/non-manifold/degenerate、Loft/Sweep side/seam/cap/trim ranges，以及 `primitive_id`、`part_instance_id` 和 Material Zone face set。每个三角面写出 `_FORGECAD_FACE_ID` 与 `_FORGECAD_SOURCE_FACE_ID` 顶点属性，因而顶点/索引重排不能丢失面身份；缺失/非单位/非正交 tangent、UV 退化、空 zone、重复 primitive/zone、range 未覆盖或预算超限均使 readback 失败。`bevel_approx` 只记录 `bevel_approximation + xz_perimeter + radius_ratio <= 0.25 + subdivisions <= 3`，不表示精确 fillet。
 
-## 3. DomainPackManifest@1
+## 4. DomainPackManifest@1
 
 必需字段：
 
@@ -131,7 +179,7 @@ matched_terms: recognized/ambiguous 的词表命中；unsupported 为空
 
 它是计划前的纯分类结果，不能创建 Project、Plan、Blockout、Version、质量或导出记录。四领域中英关键词/同义词 fixture 位于 `packages/concept-spec/fixtures/domain-inference-keywords.json`。D001 只冻结合同；旧运行时的默认武器回退将在 D002 替换。
 
-## 4. MechanicalConceptSpec@1（G2 当前字段）
+## 5. MechanicalConceptSpec@1（G2 当前字段）
 
 ```text
 schema_version
@@ -153,7 +201,7 @@ blockout | segmented_concept | editable_asset
 
 Spec 表达视觉设计约束，不保存工程制造结论。
 
-## 5. AssemblyGraph@1（G2 当前字段）
+## 6. AssemblyGraph@1（G2 当前字段）
 
 ```text
 graph_id / concept_id / root_part_id
@@ -173,7 +221,7 @@ component_recipe_instances[]?  // 仅 Recipe-backed 资产；legacy 图安全视
 
 不变量：node ID 唯一；root 存在；无环；parent/child 双向一致；geometry source 已注册；Connector/Joint 引用存在；Material Zone ID 在 Part 内唯一；锁定节点不能被普通 ChangeSet 修改。
 
-## 6. ShapeProgram@1（G3 合同，受限概念几何运行时已扩展）
+## 7. ShapeProgram@1（G3 合同，受限概念几何运行时已扩展）
 
 ```text
 schema_version / units / seed
@@ -189,19 +237,19 @@ metadata
 
 不变量：`additionalProperties=false`；有限数值；引用有序无环；禁止代码、路径和 URL；operation、深度、array、bounds 和 triangle budget 有硬上限；canonical JSON 和 runtime version 进入 hash。
 
-### 6.1 EditableParameterBinding@1（G808–G811；受限步进 UI）
+### 7.1 EditableParameterBinding@1（G808–G811；受限步进 UI）
 
 每个 `BlockoutPartCandidate` 可选携带最多六个 `editable_parameter_bindings`。每项都必须包含 `editparam_` 稳定 ID、当前执行器已认识的六个 position/scale 数值路径之一、零基础用户可读的显示名称、`millimeter` 或 `ratio`、默认值、最小/最大值和正步长。Pydantic 同时校验有限数值、范围、单位-路径匹配、缩放 `0.1..10`、位置 `-100000..100000`，以及同一 Part 内 ID/路径唯一；旧资产没有该字段时安全默认为空。
 
 它不运行表达式、代码、URL 或路径，不增加新的 ChangeSet path，也不代表工程尺寸、制造参数或现实武器功能。G809 已使既有 `set_part_parameter` 在非空声明存在时按该 Part 的路径、范围和步长校验；G810 使四领域新 blockout 的单一 `box`/`wedge` 输出生成三条 `scale.x/y/z` 声明（`0.6..1.4`、步长 `0.1`），而重复 role 与当前 cylinder/capsule 输出保持空声明，避免假装为独立参数。历史资产的空列表仅保留原六路径和全局概念边界兼容，绝不开放任意参数。G811 的桌面控件只读取当前 AssetVersion 的 AssemblyGraph 值或该绑定的声明默认值，并以一个声明步长创建 preview；它不保存本地参数草稿，确认仍由既有 preview→confirm 创建版本。
 
-### 6.2 MechanicalStyleToken / DomainSemanticProportionRecipe（D005）
+### 7.2 MechanicalStyleToken / DomainSemanticProportionRecipe（D005）
 
 `MechanicalStyleToken@1` 只保存版本、中文名称、离散比例/边缘/表面/细节/对称/材质调色板/灯光语言、允许领域和 builtin 来源。`DomainSemanticProportionRecipe@1` 将普通语言意图绑定到 `primary_form`、`cabin_form`、`upper_link_form` 等有限语义部件槽，以及唯一的 `transform.scale.x/y/z` 路径和 `-1|+1` 声明步长；它不包含 mm、自由表达式或 ShapeProgram operation。
 
 `ResolvedSemanticProportionOptions@1` 是活动资产的只读派生结果，绑定 asset/part/domain、runtime manifest、ShapeProgram/GLB hash、锁定状态与选项。每个选项都带真实 G808 binding 的 current/target/min/max/step/unit，以及 G826 readback 的非空 `source_operation_ids`。解析失败返回明确 `unavailable_message`，不能静默猜测。该对象不进入 Snapshot 或 localStorage，也不替代 ChangeSet。
 
-### 6.3 EditableComponentRecipe@1（C105，in progress）
+### 7.3 EditableComponentRecipe@1（C105，已实现的机械兼容目录）
 
 `EditableComponentRecipeRegistry@1` 是代码所有的 first-party 视觉目录，而不是用户可写模板市场。每项 `EditableComponentRecipe@1` 必须同时声明：唯一 Recipe ID/version、受限 `ShapeProgram@1` template、Profile/ProfileSectionSet canonical input、feature→operation 映射、G808/D005 parameter binding、局部正交 connector/pivot、Material Zone/目录材质、child slot、允许领域、三角预算，以及 source/review/license。当前目录的 `source_kind=forgecad_first_party`、`reviewer_kind=forgecad_internal`、`license_id=ForgeCAD-Internal-Visual-Only`、`redistributable=false` 都是强制边界：它们只描述非功能概念外观，不可作为第三方素材再分发、工程材料或制造资料。
 
@@ -218,7 +266,7 @@ Recipe 展开、canonical hash、child graph/connector 校验和 AssemblyGraph/p
 
 当前四领域的低复杂度 Recipe/GLB fixture 仅用来验证 C105 合同、展开和跨语言 readback 线路；它们不是 M108B 的 Recipe-backed production visual kit，也没有满足独立真人逐领域 `4/5` 或“生产级概念资产”结论。
 
-## 7. MaterialPreset 与 Binding
+## 8. MaterialPreset 与 Binding
 
 `MaterialPreset@1` 保留旧 payload 的必需字段，并支持完整的视觉 PBR 扩展：
 
@@ -237,7 +285,7 @@ visual_tags[] / source? / license? / version?
 
 MaterialBinding 只把 `node_id + material_zone_id` 绑定到 `material_id`，可附带颜色和纹理缩放 override。它不修改几何，也不推断真实材料工程属性。
 
-## 8. DesignChangeSet@2
+## 9. DesignChangeSet@2
 
 操作白名单：
 
@@ -252,12 +300,12 @@ set_material_binding
 
 ChangeSet 必须包含 before/after 引用、目标节点、锁定检查、preview artifact、actor、Provider provenance、instruction 和结果 Version。确认前不得修改正式 Graph。
 
-## 9. Agent 合同
+## 10. Agent 合同
 
 Turn 状态：
 
 ```text
-queued | running | waiting_for_approval | waiting_for_clarification | completed | failed | cancelled
+queued | running | waiting_for_capture | waiting_for_approval | waiting_for_clarification | completed | failed | cancelled
 ```
 
 Item 类型：
@@ -293,7 +341,7 @@ revision / updated_at
 
 `ActiveDesignPartDisplay@1` 包含当前 `project_id`、`asset_version_id`、去重的 `locked_part_ids`/`hidden_part_ids` 与可选 `isolated_part_id`。Pydantic 语义校验会拒绝跨 Project 引用、与活动 Agent version 不一致的 preview/quality/export/part_display、legacy state 中的 Agent part selection 或 part display，以及任一额外字段。S002 已提供 Snapshot 数据库表、repository 和 revision CAS；S003 已提供 GET/select/legacy-rebuild hand-off API 与 revision/ETag；S004–S008 已提供 desktop reducer、Agent 工作台接入、legacy 只读转换、质量/导出绑定和不可变回退/前进；C104 为 part display 增加同一 CAS 边界和稳定 part ID 归一化。
 
-## 10. 兼容迁移
+## 11. 兼容迁移
 
 `WeaponConceptSpec@1` 和 `ModuleGraph@1` 通过显式 compatibility adapter 转换到目标合同：
 
@@ -305,7 +353,7 @@ Module material slots → Material Zone + Binding
 
 转换结果必须记录 source schema、source object hash 和 adapter version。不得覆盖原 JSON、原 Version 或当前数据库记录。
 
-## 11. 版本与发布规则
+## 12. 版本与发布规则
 
 - Schema 字符串使用 `<Name>@<major>`；
 - 可选字段和兼容 enum 扩展可以在实现版本内推进；

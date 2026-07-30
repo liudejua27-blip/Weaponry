@@ -1,7 +1,7 @@
 import type { AgentMaterialPreset, AgentPartEditOperation } from '../../shared/types.js'
 
 export function compatibleQuickMaterialPresets(
-  presets: AgentMaterialPreset[],
+  presets: readonly AgentMaterialPreset[],
   activeDomain: string | null,
   limit = 5,
 ): AgentMaterialPreset[] {

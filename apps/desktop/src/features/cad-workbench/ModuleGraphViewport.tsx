@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
@@ -8,17 +8,45 @@ import type { ModuleAssetRecord, ModuleGraphRecord, QualityFinding, Transform } 
 import { buildShapeProgramPreview } from './shapeProgramPreview.js'
 import type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
 import { validateCandidateGeometry, type CandidateGeometryMesh } from './candidatePreviewValidation.js'
+import {
+  WORKBENCH_PBR_CAMERA_EVENT,
+  WORKBENCH_PBR_CAPTURE_EVENT,
+  WORKBENCH_PBR_LIGHT_EVENT,
+  WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+  WORKBENCH_PBR_RENDERER_ID,
+  WORKBENCH_PBR_CAPTURE_HEIGHT_PX,
+  WORKBENCH_PBR_CAPTURE_WIDTH_PX,
+  WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
+  WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
+  WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX,
+  WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX,
+  sha256Hex,
+  type WorkbenchPbrAuxiliaryPass,
+  type WorkbenchPbrProjectionCameraBinding,
+} from './workbenchPbrCapture.js'
 
 export type { ViewportMeasurementPoint } from './viewportMeasurementPresentation.js'
 
 type CameraView = 'iso' | 'front' | 'top' | 'right'
+type QaCameraView = CameraView
+  | 'back'
+  | 'left'
+  | 'gripper_iso'
+  | 'gripper_front'
+  | 'turntable_000'
+  | 'turntable_045'
+  | 'turntable_090'
+  | 'turntable_135'
+  | 'turntable_180'
+  | 'turntable_225'
+  | 'turntable_270'
+  | 'turntable_315'
 type LightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
 type TransformTool = 'none' | 'translate' | 'rotate' | 'scale'
 type BlockoutGlbKind =
   | 'compiled_agent_pbr'
   | 'compiled_agent_preview_pbr'
   | 'compiled_agent_production_pbr'
-  | 'neural_visual_candidate_pbr'
   | 'external_reference'
   | null
 type Graph = NonNullable<ModuleGraphRecord>['graph']
@@ -103,6 +131,8 @@ const FORGECAD_PBR_DEFAULT_ENVIRONMENT_INTENSITY = 0.45
 // response is fulfilled immediately after this renderer has drawn a frame.
 // This keeps preserveDrawingBuffer disabled for normal interactive rendering.
 const FORGECAD_QA_VIEWPORT_CAPTURE_EVENT = 'forgecad:qa-capture-viewport@1'
+const FORGECAD_QA_VIEWPORT_CAMERA_EVENT = 'forgecad:qa-set-camera-view@1'
+const FORGECAD_QA_VIEWPORT_LIGHT_EVENT = 'forgecad:qa-set-light-preset@1'
 let viewportRendererGeneration = 0
 let activeViewportContexts = 0
 
@@ -148,6 +178,8 @@ type ModuleGraphViewportProps = {
   onDropModule: (nodeId: string, moduleId: string) => void
   onTransformCommit: (nodeId: string, transform: Transform) => void
   onMeasurePoint: (point: ViewportMeasurementPoint) => void
+  /** Exposes the one existing renderer host for bounded PBR evidence capture. */
+  onPbrCaptureViewportChange?: (viewport: HTMLDivElement | null) => void
 }
 
 type ViewportRuntime = {
@@ -182,6 +214,7 @@ type ViewportRuntime = {
   modulesById: Map<string, ModuleAssetRecord>
   activeBlockoutPreview: {
     source: THREE.Object3D
+    sourceGlbSha256: string | null
     displayScale: number
     displayDiagonalMm: number
     sourceBoundsMm: number[]
@@ -195,11 +228,32 @@ type QaViewportCapture = {
   width: number
   height: number
   pixels: Uint8Array
+  origin: 'top_left'
+  cameraPoseSha256?: string
+  auxiliaryPixels: Uint8Array
+  auxiliaryWidth: number
+  auxiliaryHeight: number
+  auxiliaryPassIds: readonly WorkbenchPbrAuxiliaryPass[]
 }
 
 type QaViewportCaptureRequest = {
   viewport: HTMLElement
   resolve: (capture: QaViewportCapture) => void
+  reject: (error: Error) => void
+}
+
+type QaViewportCameraRequest = {
+  viewport: HTMLElement
+  view: QaCameraView
+  projectionCameraBinding?: WorkbenchPbrProjectionCameraBinding
+  resolve: () => void
+  reject: (error: Error) => void
+}
+
+type QaViewportLightRequest = {
+  viewport: HTMLElement
+  preset: LightPreset
+  resolve: () => void
   reject: (error: Error) => void
 }
 
@@ -214,6 +268,166 @@ function studioEnvironmentIdFromEmbedded(value: unknown): ForgecadStudioEnvironm
     ...expected.manifest,
     environment_sha256: expected.sha256,
   }) ? typedId : null
+}
+
+const AUXILIARY_PBR_PASSES = ['silhouette', 'normal', 'depth', 'part_id', 'material_id'] as const
+
+/**
+ * Captures deterministic diagnostic buffers with the already-mounted Three.js
+ * renderer.  These are deliberately auxiliary to the user-visible beauty
+ * frame: Qwen receives only colour-managed PBR beauty PNGs, while Rust binds
+ * this contact sheet as local proof that the same GLB rendered silhouette,
+ * normals, depth and stable mesh/material segmentation.
+ */
+function captureAuxiliaryPbrPasses(runtime: ViewportRuntime): {
+  pixels: Uint8Array
+  width: number
+  height: number
+  passIds: readonly WorkbenchPbrAuxiliaryPass[]
+} {
+  const active = runtime.activeBlockoutPreview
+  if (!active) throw new Error('WORKBENCH_PBR_AUXILIARY_CAPTURE_REQUIRES_BLOCKOUT')
+  const { renderer, scene, camera } = runtime
+  const width = WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX
+  const height = WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX
+  const target = new THREE.WebGLRenderTarget(width, height, {
+    depthBuffer: true,
+    stencilBuffer: false,
+    type: THREE.UnsignedByteType,
+  })
+  const contact = new Uint8Array(
+    WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX * WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX * 4,
+  )
+  const previous = {
+    target: renderer.getRenderTarget(),
+    overrideMaterial: scene.overrideMaterial,
+    background: scene.background,
+    moduleVisible: runtime.moduleRoot.visible,
+    referenceVisible: runtime.referenceImageRoot.visible,
+    qualityVisible: runtime.qualityRoot.visible,
+    gridVisible: runtime.grid.visible,
+    axesVisible: runtime.axes.visible,
+    floorVisible: runtime.displayFloor.visible,
+  }
+  const hidden: Array<{ object: THREE.Object3D; visible: boolean }> = []
+  const swapped: Array<{ mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; temporary: THREE.Material[] }> = []
+  const clear = new THREE.Color(0x000000)
+  try {
+    runtime.moduleRoot.visible = false
+    runtime.referenceImageRoot.visible = false
+    runtime.qualityRoot.visible = false
+    runtime.grid.visible = false
+    runtime.axes.visible = false
+    runtime.displayFloor.visible = false
+    active.source.traverse((object) => {
+      if (object.userData.forgecadAgentEdgeOverlay || object.userData.forgecadConnectorMarker) {
+        hidden.push({ object, visible: object.visible })
+        object.visible = false
+      }
+    })
+    scene.background = clear
+    for (const [index, passId] of AUXILIARY_PBR_PASSES.entries()) {
+      scene.overrideMaterial = null
+      if (passId === 'silhouette') {
+        scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff })
+      } else if (passId === 'normal') {
+        scene.overrideMaterial = new THREE.MeshNormalMaterial()
+      } else if (passId === 'depth') {
+        scene.overrideMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking })
+      } else {
+        active.source.traverse((object) => {
+          if (!isMeshObject(object) || !object.userData.agentBlockout) return
+          const original = object.material
+          const originalMaterials = Array.isArray(original) ? original : [original]
+          const temporary = originalMaterials.map((material, materialIndex) => new THREE.MeshBasicMaterial({
+            color: stablePassColor(passId === 'part_id'
+              ? meshPartIdentity(object)
+              : meshMaterialIdentity(material, materialIndex)),
+          }))
+          swapped.push({ mesh: object, material: original, temporary })
+          object.material = Array.isArray(original) ? temporary : temporary[0]
+        })
+      }
+      renderer.setRenderTarget(target)
+      renderer.setClearColor(clear, 1)
+      renderer.clear(true, true, true)
+      renderer.render(scene, camera)
+      const passPixels = new Uint8Array(width * height * 4)
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, passPixels)
+      copyFlippedRgbaTile(contact, passPixels, index, width, height)
+      if (swapped.length > 0) {
+        for (const item of swapped.splice(0)) {
+          item.mesh.material = item.material
+          item.temporary.forEach((material) => material.dispose())
+        }
+      }
+      if (scene.overrideMaterial) {
+        scene.overrideMaterial.dispose()
+        scene.overrideMaterial = null
+      }
+    }
+  } finally {
+    for (const item of swapped) {
+      item.mesh.material = item.material
+      item.temporary.forEach((material) => material.dispose())
+    }
+    scene.overrideMaterial = previous.overrideMaterial
+    scene.background = previous.background
+    runtime.moduleRoot.visible = previous.moduleVisible
+    runtime.referenceImageRoot.visible = previous.referenceVisible
+    runtime.qualityRoot.visible = previous.qualityVisible
+    runtime.grid.visible = previous.gridVisible
+    runtime.axes.visible = previous.axesVisible
+    runtime.displayFloor.visible = previous.floorVisible
+    hidden.forEach(({ object, visible }) => { object.visible = visible })
+    renderer.setRenderTarget(previous.target)
+    target.dispose()
+  }
+  return {
+    pixels: contact,
+    width: WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
+    height: WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
+    passIds: AUXILIARY_PBR_PASSES,
+  }
+}
+
+function copyFlippedRgbaTile(target: Uint8Array, source: Uint8Array, tileIndex: number, width: number, height: number): void {
+  const column = tileIndex % 3
+  const row = Math.floor(tileIndex / 3)
+  for (let y = 0; y < height; y += 1) {
+    const sourceOffset = (height - 1 - y) * width * 4
+    const targetOffset = ((row * height + y) * WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX + column * width) * 4
+    target.set(source.subarray(sourceOffset, sourceOffset + width * 4), targetOffset)
+  }
+}
+
+function stablePassColor(identity: string): THREE.ColorRepresentation {
+  let value = 2166136261
+  for (let index = 0; index < identity.length; index += 1) {
+    value ^= identity.charCodeAt(index)
+    value = Math.imul(value, 16777619)
+  }
+  const red = ((value >>> 16) & 0x7f) + 0x40
+  const green = ((value >>> 8) & 0x7f) + 0x40
+  const blue = (value & 0x7f) + 0x40
+  return (red << 16) | (green << 8) | blue
+}
+
+function meshPartIdentity(mesh: THREE.Mesh): string {
+  return typeof mesh.userData.forgecad_part_role === 'string'
+    ? mesh.userData.forgecad_part_role
+    : typeof mesh.userData.forgecad_part_instance_id === 'string'
+      ? mesh.userData.forgecad_part_instance_id
+      : mesh.uuid
+}
+
+function meshMaterialIdentity(material: THREE.Material, materialIndex: number): string {
+  const metadata = material.userData
+  return typeof metadata.forgecad_texture_material_id === 'string'
+    ? metadata.forgecad_texture_material_id
+    : typeof metadata.forgecad_visual_texture_set_id === 'string'
+      ? metadata.forgecad_visual_texture_set_id
+      : `${material.name || material.uuid}_${materialIndex}`
 }
 
 export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
@@ -233,6 +447,10 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
   const [blockoutEmbeddedPbrMaterialCount, setBlockoutEmbeddedPbrMaterialCount] = useState(0)
   const [referenceImageLoadState, setReferenceImageLoadState] = useState<'empty' | 'loading' | 'ready' | 'failed'>('empty')
   const [referenceImageLoadMessage, setReferenceImageLoadMessage] = useState('')
+  const setViewportHost = useCallback((host: HTMLDivElement | null) => {
+    hostRef.current = host
+    props.onPbrCaptureViewportChange?.(host)
+  }, [props.onPbrCaptureViewportChange])
 
   // Renderer, Scene and camera exist for the lifetime of the panel only. Selection,
   // overlay and wireframe updates below never destroy the WebGL context.
@@ -269,6 +487,10 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     scene.userData.forgecadVisualEnvironment = FORGECAD_STUDIO_MANIFEST.environment_id
     host.dataset.visualEnvironmentId = FORGECAD_STUDIO_MANIFEST.environment_id
     host.dataset.visualEnvironmentSha256 = FORGECAD_STUDIO_ENVIRONMENT_SHA256
+    host.dataset.pbrRendererId = WORKBENCH_PBR_RENDERER_ID
+    host.dataset.pbrRenderManifestSha256 = WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+    host.dataset.outputColorSpace = 'srgb'
+    host.dataset.toneMapping = 'aces_filmic'
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = false
@@ -293,12 +515,15 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     keyLight.shadow.camera.top = 360
     keyLight.shadow.camera.bottom = -360
     scene.add(keyLight)
+    scene.add(keyLight.target)
     const rimLight = new THREE.DirectionalLight(neutralLighting.rim.color, neutralLighting.rim.intensity)
     rimLight.position.set(...neutralLighting.rim.position)
     scene.add(rimLight)
+    scene.add(rimLight.target)
     const warmRimLight = new THREE.DirectionalLight(neutralLighting.warm_rim.color, neutralLighting.warm_rim.intensity)
     warmRimLight.position.set(...neutralLighting.warm_rim.position)
     scene.add(warmRimLight)
+    scene.add(warmRimLight.target)
     const displayFloor = new THREE.Mesh(
       new THREE.CircleGeometry(1, 96),
       new THREE.ShadowMaterial({
@@ -346,11 +571,36 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     let pendingQaCapture: QaViewportCaptureRequest | null = null
     const render = () => {
       frame = 0
+      const capture = pendingQaCapture
+      const captureRestore = capture
+        ? {
+            pixelRatio: renderer.getPixelRatio(),
+            width: host.clientWidth,
+            height: host.clientHeight,
+            cameraView: host.dataset.cameraView,
+          }
+        : null
+      if (capture) {
+        // Evidence resolution must not depend on the user's panel size or
+        // device pixel ratio. This briefly resizes the existing renderer's
+        // drawing buffer only; it never creates a second WebGL context.
+        renderer.setPixelRatio(1)
+        renderer.setSize(WORKBENCH_PBR_CAPTURE_WIDTH_PX, WORKBENCH_PBR_CAPTURE_HEIGHT_PX, false)
+        camera.aspect = 1
+        camera.updateProjectionMatrix()
+        const active = runtime.activeBlockoutPreview
+        const view = captureRestore?.cameraView
+        if (active && isQaCameraView(view)) {
+          active.source.updateMatrixWorld(true)
+          runtime.blockoutRoot.updateMatrixWorld(true)
+          frameBlockoutCameraToBounds(runtime, view, qaCameraBoundsForView(active.source, view))
+          if (host.dataset.lightPreset === 'soft_studio') positionSoftStudioLightsForCamera(runtime)
+        }
+      }
       renderer.render(scene, camera)
       // The default WebGL framebuffer is allowed to be cleared after
       // presentation because preserveDrawingBuffer stays false.  Read it in
       // this exact render callback instead of later from the QA module.
-      const capture = pendingQaCapture
       if (capture) {
         pendingQaCapture = null
         try {
@@ -360,14 +610,70 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
           if (width < 320 || height < 240 || width * height > 8_400_000) {
             throw new Error('QA_V3_VIEWPORT_SCREENSHOT_CANVAS_INVALID')
           }
-          const pixels = new Uint8Array(width * height * 4)
-          context.readPixels(0, 0, width, height, context.RGBA, context.UNSIGNED_BYTE, pixels)
-          if (context.getError() !== context.NO_ERROR) {
-            throw new Error('QA_V3_VIEWPORT_SCREENSHOT_READBACK_FAILED')
-          }
-          capture.resolve({ width, height, pixels })
+          // Capture the same colour-managed canvas image the user sees. Raw
+          // `gl.readPixels` from WKWebView's default framebuffer can expose
+          // linear backing values even though the composited canvas is sRGB;
+          // writing those bytes directly to PNG made a readable model appear
+          // almost black in packaged evidence. This detached 2D canvas creates
+          // no second WebGL renderer/context and is released after this frame.
+          const raster = document.createElement('canvas')
+          raster.width = width
+          raster.height = height
+          const rasterContext = raster.getContext('2d', { willReadFrequently: true })
+          if (!rasterContext) throw new Error('QA_V3_VIEWPORT_SCREENSHOT_CONTEXT_UNAVAILABLE')
+          rasterContext.drawImage(renderer.domElement, 0, 0, width, height)
+          const image = rasterContext.getImageData(0, 0, width, height)
+          const auxiliary = captureAuxiliaryPbrPasses(runtime)
+          const poseFacts = canonicalJson({
+            schema_version: 'WorkbenchPbrCameraPose@1',
+            renderer_id: WORKBENCH_PBR_RENDERER_ID,
+            render_manifest_sha256: WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+            source_glb_sha256: host.dataset.blockoutGlbSha256 ?? '',
+            view_id: host.dataset.cameraView ?? '',
+            capture_width_px: width,
+            capture_height_px: height,
+            camera_world_matrix: camera.matrixWorld.elements.map(roundPbrEvidenceNumber),
+            camera_projection_matrix: camera.projectionMatrix.elements.map(roundPbrEvidenceNumber),
+            controls_target: controls.target.toArray().map(roundPbrEvidenceNumber),
+            frame_ndc: host.dataset.blockoutFrameNdc ?? '',
+          })
+          void sha256Hex(new TextEncoder().encode(poseFacts))
+            .then((cameraPoseSha256) => capture.resolve({
+              width,
+              height,
+              pixels: new Uint8Array(image.data),
+              origin: 'top_left',
+              cameraPoseSha256,
+              auxiliaryPixels: auxiliary.pixels,
+              auxiliaryWidth: auxiliary.width,
+              auxiliaryHeight: auxiliary.height,
+              auxiliaryPassIds: auxiliary.passIds,
+            }))
+            .catch((error: unknown) => capture.reject(
+              error instanceof Error ? error : new Error('WORKBENCH_PBR_CAMERA_POSE_HASH_FAILED'),
+            ))
         } catch (error) {
           capture.reject(error instanceof Error ? error : new Error('QA_V3_VIEWPORT_SCREENSHOT_READBACK_FAILED'))
+        } finally {
+          // Restore the interactive presentation using the same camera slot.
+          // A follow-up scheduled frame returns the user-visible canvas to
+          // its responsive dimensions without changing the candidate GLB.
+          renderer.setPixelRatio(captureRestore!.pixelRatio)
+          renderer.setSize(captureRestore!.width, captureRestore!.height, false)
+          camera.aspect = Math.max(captureRestore!.width, 1) / Math.max(captureRestore!.height, 1)
+          camera.updateProjectionMatrix()
+          const active = runtime.activeBlockoutPreview
+          if (active && isQaCameraView(captureRestore!.cameraView)) {
+            active.source.updateMatrixWorld(true)
+            runtime.blockoutRoot.updateMatrixWorld(true)
+            frameBlockoutCameraToBounds(
+              runtime,
+              captureRestore!.cameraView,
+              qaCameraBoundsForView(active.source, captureRestore!.cameraView),
+            )
+            if (host.dataset.lightPreset === 'soft_studio') positionSoftStudioLightsForCamera(runtime)
+          }
+          scheduleRender()
         }
       }
       host.dataset.rendererGeometries = String(renderer.info.memory.geometries)
@@ -433,6 +739,64 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       scheduleRender()
     }
     host.addEventListener(FORGECAD_QA_VIEWPORT_CAPTURE_EVENT, onQaViewportCapture)
+    host.addEventListener(WORKBENCH_PBR_CAPTURE_EVENT, onQaViewportCapture)
+
+    const onQaViewportCamera = (event: Event) => {
+      const request = event instanceof CustomEvent
+        ? event.detail as QaViewportCameraRequest | undefined
+        : undefined
+      if (!request || request.viewport !== host || !isQaCameraView(request.view)) return
+      try {
+        const active = runtime.activeBlockoutPreview
+        if (!active) throw new Error('QA_C111B_CAMERA_REQUIRES_READY_BLOCKOUT')
+        active.source.updateMatrixWorld(true)
+        runtime.blockoutRoot.updateMatrixWorld(true)
+        const bounds = qaCameraBoundsForView(active.source, request.view)
+        const frameNdc = request.projectionCameraBinding
+          ? frameBlockoutCameraFromRustProjectionBinding(
+            runtime,
+            active,
+            request.view,
+            request.projectionCameraBinding,
+            bounds,
+          )
+          : frameBlockoutCameraToBounds(runtime, request.view, bounds)
+        if (host.dataset.lightPreset === 'soft_studio') {
+          positionSoftStudioLightsForCamera(runtime)
+          recordPresentationRuntimeFacts(runtime)
+        }
+        host.dataset.cameraView = request.view
+        host.dataset.qaCameraView = request.view
+        host.dataset.blockoutFrameNdc = JSON.stringify(frameNdc)
+        runtime.scheduleRender()
+        request.resolve()
+      } catch (error) {
+        request.reject(error instanceof Error ? error : new Error('QA_C111B_CAMERA_FAILED'))
+      }
+    }
+    host.addEventListener(FORGECAD_QA_VIEWPORT_CAMERA_EVENT, onQaViewportCamera)
+    host.addEventListener(WORKBENCH_PBR_CAMERA_EVENT, onQaViewportCamera)
+
+    const onQaViewportLight = (event: Event) => {
+      const request = event instanceof CustomEvent
+        ? event.detail as QaViewportLightRequest | undefined
+        : undefined
+      if (!request || request.viewport !== host || !isLightPreset(request.preset)) return
+      try {
+        // Keep capture lighting on the existing renderer without changing the
+        // Rust-owned render-preset state or rehydrating/clearing the imported
+        // external reference.  This is QA presentation plumbing only.
+        applyLightPreset(runtime, request.preset)
+        host.dataset.lightPreset = request.preset
+        host.dataset.qaLightPreset = request.preset
+        runtime.scheduleRender()
+        request.resolve()
+      } catch (error) {
+        request.reject(error instanceof Error ? error : new Error('QA_C111B_LIGHT_FAILED'))
+      }
+    }
+    host.addEventListener(FORGECAD_QA_VIEWPORT_LIGHT_EVENT, onQaViewportLight)
+    host.addEventListener(WORKBENCH_PBR_LIGHT_EVENT, onQaViewportLight)
 
     const onTransformDragging = (event: { value: unknown }) => {
       controls.enabled = event.value !== true
@@ -506,7 +870,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     renderer.domElement.addEventListener('pointerdown', selectAtPointer)
     renderer.domElement.addEventListener('dragover', allowModuleDrop)
     renderer.domElement.addEventListener('drop', dropModule)
-    controls.addEventListener('change', scheduleRender)
+    const onControlsChange = () => {
+      if ((host.dataset.qaLightPreset ?? propsRef.current.lightPreset) === 'soft_studio') {
+        positionSoftStudioLightsForCamera(runtime)
+      }
+      scheduleRender()
+    }
+    controls.addEventListener('change', onControlsChange)
     const resize = () => {
       const width = host.clientWidth
       const height = host.clientHeight
@@ -527,6 +897,11 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     return () => {
       cancelAnimationFrame(frame)
       host.removeEventListener(FORGECAD_QA_VIEWPORT_CAPTURE_EVENT, onQaViewportCapture)
+      host.removeEventListener(WORKBENCH_PBR_CAPTURE_EVENT, onQaViewportCapture)
+      host.removeEventListener(FORGECAD_QA_VIEWPORT_CAMERA_EVENT, onQaViewportCamera)
+      host.removeEventListener(WORKBENCH_PBR_CAMERA_EVENT, onQaViewportCamera)
+      host.removeEventListener(FORGECAD_QA_VIEWPORT_LIGHT_EVENT, onQaViewportLight)
+      host.removeEventListener(WORKBENCH_PBR_LIGHT_EVENT, onQaViewportLight)
       if (pendingQaCapture) {
         pendingQaCapture.reject(new Error('QA_V3_VIEWPORT_SCREENSHOT_VIEWPORT_DISPOSED'))
         pendingQaCapture = null
@@ -537,7 +912,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       transformControls.removeEventListener('mouseUp', onTransformCommit)
       transformControls.detach()
       transformControls.dispose()
-      controls.removeEventListener('change', scheduleRender)
+      controls.removeEventListener('change', onControlsChange)
       renderer.domElement.removeEventListener('pointerdown', selectAtPointer)
       renderer.domElement.removeEventListener('dragover', allowModuleDrop)
       renderer.domElement.removeEventListener('drop', dropModule)
@@ -755,7 +1130,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     }
     setBlockoutLoadState('loading')
     let cancelled = false
-    const attachPreview = (source: THREE.Object3D, message: string) => {
+    const attachPreview = (source: THREE.Object3D, sourceGlbSha256: string | null, message: string) => {
       if (cancelled) {
         disposeObject(source)
         return
@@ -795,6 +1170,12 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // bounds. A failed replacement must not strand the shared renderer in
       // an empty state.
       restoreModuleGraphPresentation(runtime, propsRef.current)
+      // The restore helper re-enables the legacy ModuleGraph so it can remain
+      // a safe fallback if this replacement fails. Once the replacement is
+      // valid, the blockout must own the single viewport; otherwise a hidden
+      // legacy root can leak into runtime evidence and, when populated, into
+      // the rendered image.
+      runtime.moduleRoot.visible = false
       runtime.blockoutRoot.add(source)
       const embeddedEnvironmentId = source.userData.forgecadVisualEnvironmentId
       applyStudioEnvironment(
@@ -830,10 +1211,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       fitPreviewShadowCamera(runtime, framedSize)
       runtime.activeBlockoutPreview = {
         source,
+        sourceGlbSha256,
         displayScale: fitScale,
         displayDiagonalMm: framedDiagonal,
         sourceBoundsMm: sourceSize.toArray(),
       }
+      const host = runtime.renderer.domElement.parentElement
+      if (host instanceof HTMLElement) host.dataset.blockoutGlbSha256 = sourceGlbSha256 ?? ''
       refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
       setBlockoutLoadState('ready')
       setBlockoutLoadMessage(message)
@@ -848,23 +1232,23 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       // make the PBR/readback promise unverifiable in the workbench.
       const externalReference = props.blockoutGlbKind === 'external_reference'
       const productionConcept = props.blockoutGlbKind === 'compiled_agent_production_pbr'
-      const neuralVisualCandidate = props.blockoutGlbKind === 'neural_visual_candidate_pbr'
       setBlockoutLoadMessage(
         externalReference
           ? '正在加载只读外部参考 GLB…'
           : productionConcept
             ? '正在加载生产概念工件档 PBR GLB…'
-            : neuralVisualCandidate
-              ? '正在加载神经生成 PBR 候选 GLB…'
             : '正在加载同源轻量 PBR 预览…',
       )
-      void import('three/examples/jsm/loaders/GLTFLoader.js')
-        .then(({ GLTFLoader }) => new Promise<THREE.Object3D>((resolve, reject) => {
+      const sourceGlbPayload = typeof blockoutGlbPayload === 'string'
+        ? base64ToArrayBuffer(blockoutGlbPayload)
+        : blockoutGlbPayload.slice(0)
+      void Promise.all([
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+        sha256Hex(sourceGlbPayload),
+      ])
+        .then(([{ GLTFLoader }, sourceGlbSha256]) => new Promise<{ source: THREE.Object3D; sourceGlbSha256: string }>((resolve, reject) => {
           const loader = new GLTFLoader()
-          const glbPayload = typeof blockoutGlbPayload === 'string'
-            ? base64ToArrayBuffer(blockoutGlbPayload)
-            : blockoutGlbPayload.slice(0)
-          loader.parse(glbPayload, '', (gltf) => {
+          loader.parse(sourceGlbPayload, '', (gltf) => {
             const source = gltf.scene ?? gltf.scenes[0]
             if (!source) {
               reject(new Error('导入 GLB 没有 scene'))
@@ -942,18 +1326,20 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
                 ? ['视觉环境摘要缺失；已使用工作台默认灯光，继续显示候选。']
                 : []),
             ]
-            resolve(source)
+            resolve({ source, sourceGlbSha256 })
           }, reject)
         }))
-        .then((source) => {
+        .then(({ source, sourceGlbSha256 }) => {
           if (cancelled) {
             disposeObject(source)
             return
           }
           const hasEmbeddedPbr = Number(source.userData.forgecadEmbeddedPbrMaterialCount ?? 0) > 0
+          source.userData.forgecadSourceGlbSha256 = sourceGlbSha256
           setBlockoutRenderSource(externalReference ? 'external_reference' : 'glb_pbr')
           attachPreview(
             source,
+            sourceGlbSha256,
             externalReference
               ? hasEmbeddedPbr
                 ? '外部参考 GLB 已按完整嵌入 PBR 加载（只读）'
@@ -992,6 +1378,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
               lockedAgentPartIds: props.lockedAgentPartIds,
             },
           ),
+          null,
           'Agent ShapeProgram 参数外观预览已加载；等待同源 PBR GLB',
         )
       } catch (error) {
@@ -1103,7 +1490,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
     <div className="weapon-viewport-shell">
       <div
         className="weapon-viewport"
-        ref={hostRef}
+        ref={setViewportHost}
         aria-label="真实 ModuleGraph 三维视口"
         data-load-state={loadState}
         data-preview-mode={props.ghostPreview ? 'ghost' : 'committed'}
@@ -1461,6 +1848,64 @@ function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView):
   recordPresentationRuntimeFacts(runtime)
 }
 
+function isQaCameraView(value: unknown): value is QaCameraView {
+  return value === 'iso'
+    || value === 'front'
+    || value === 'back'
+    || value === 'left'
+    || value === 'right'
+    || value === 'top'
+    || value === 'gripper_iso'
+    || value === 'gripper_front'
+    || value === 'turntable_000'
+    || value === 'turntable_045'
+    || value === 'turntable_090'
+    || value === 'turntable_135'
+    || value === 'turntable_180'
+    || value === 'turntable_225'
+    || value === 'turntable_270'
+    || value === 'turntable_315'
+}
+
+function isLightPreset(value: unknown): value is LightPreset {
+  return value === 'cad_neutral' || value === 'soft_studio' || value === 'concept_contrast'
+}
+
+function qaCameraBoundsForView(source: THREE.Object3D, view: QaCameraView): THREE.Box3 {
+  const fullBounds = new THREE.Box3().setFromObject(source)
+  if (!view.startsWith('gripper')) return fullBounds
+  const gripperBounds = new THREE.Box3()
+  const meshBounds: Array<{ bounds: THREE.Box3; featureId: string; partRole: string }> = []
+  source.traverse((child) => {
+    if (!isMeshObject(child)) return
+    const featureId = typeof child.userData.forgecad_feature_node_id === 'string'
+      ? child.userData.forgecad_feature_node_id
+      : ''
+    const partRole = typeof child.userData.forgecad_part_role === 'string'
+      ? child.userData.forgecad_part_role
+      : ''
+    const bounds = new THREE.Box3().setFromObject(child)
+    if (!bounds.isEmpty()) meshBounds.push({ bounds, featureId, partRole })
+    if (!featureId.includes('gripper') && partRole !== 'end_effector_form') return
+    gripperBounds.union(bounds)
+  })
+  if (gripperBounds.isEmpty() && meshBounds.length > 0) {
+    // Some GLB importers keep primitive extras on the parser rather than on
+    // each Three.js child.  The C111 arm's end effector is the left-most
+    // authored cluster; use that deterministic geometry fallback only when
+    // the semantic primitive lineage is unavailable.
+    const ordered = [...meshBounds].sort((left, right) => (
+      left.bounds.getCenter(new THREE.Vector3()).x - right.bounds.getCenter(new THREE.Vector3()).x
+    ))
+    const fallbackCount = Math.max(1, Math.ceil(ordered.length * 0.2))
+    ordered.slice(0, fallbackCount).forEach(({ bounds }) => gripperBounds.union(bounds))
+  }
+  if (gripperBounds.isEmpty()) throw new Error('QA_C111B_GRIPPER_BOUNDS_UNAVAILABLE')
+  const size = gripperBounds.getSize(new THREE.Vector3())
+  gripperBounds.expandByScalar(Math.max(size.length() * 0.08, 4))
+  return gripperBounds
+}
+
 function restoreModuleGraphPresentation(runtime: ViewportRuntime, props: ModuleGraphViewportProps): void {
   runtime.activeBlockoutPreview = null
   const disposedCount = runtime.blockoutRoot.children.length
@@ -1482,6 +1927,7 @@ function restoreModuleGraphPresentation(runtime: ViewportRuntime, props: ModuleG
   const host = runtime.renderer.domElement.parentElement
   if (host instanceof HTMLElement) {
     host.dataset.presentationSource = 'module_graph'
+    host.dataset.blockoutGlbSha256 = ''
     host.dataset.blockoutReplacementGeneration = String(runtime.blockoutReplacementGeneration)
     host.dataset.disposedBlockoutAssetCount = String(runtime.disposedBlockoutAssetCount)
   }
@@ -1493,6 +1939,19 @@ function recordPresentationRuntimeFacts(runtime: ViewportRuntime): void {
   if (!(host instanceof HTMLElement)) return
   const shadowCamera = runtime.keyLight.shadow.camera
   host.dataset.presentationRuntimeFacts = canonicalJson({
+    presentation_calibration: {
+      tone_mapping_exposure: runtime.renderer.toneMappingExposure,
+      environment_intensity: runtime.scene.environmentIntensity,
+      hemisphere_intensity: runtime.hemisphereLight.intensity,
+      ambient_intensity: runtime.ambientLight.intensity,
+      key_intensity: runtime.keyLight.intensity,
+      rim_intensity: runtime.rimLight.intensity,
+      warm_rim_intensity: runtime.warmRimLight.intensity,
+      key_position: runtime.keyLight.position.toArray(),
+      rim_position: runtime.rimLight.position.toArray(),
+      warm_rim_position: runtime.warmRimLight.position.toArray(),
+      light_target: runtime.keyLight.target.position.toArray(),
+    },
     module_root_visible: runtime.moduleRoot.visible,
     blockout_root_visible: runtime.blockoutRoot.visible,
     axes_visible: runtime.axes.visible,
@@ -1699,22 +2158,36 @@ function applyAgentBlockoutMeshVisualState(mesh: THREE.Mesh, props: ModuleGraphV
 function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
   const recordEnvironment = () => {
     const host = runtime.renderer.domElement.parentElement
-    if (host instanceof HTMLElement) recordAppliedVisualEnvironment(runtime, host)
+    if (host instanceof HTMLElement) {
+      recordAppliedVisualEnvironment(runtime, host)
+      recordPresentationRuntimeFacts(runtime)
+    }
   }
   if (preset === 'soft_studio') {
+    // Keep the same single-renderer soft-studio preset, but leave enough
+    // mid-tone energy for graphite, rubber and recessed joint surfaces to
+    // remain readable at the frozen C111B capture scale.  The former recipe
+    // preserved silhouette but collapsed most dark PBR zones into the
+    // background, so it could not expose the meso/micro acceptance claims.
+    runtime.renderer.toneMappingExposure = 1.04
+    runtime.scene.environmentIntensity = 1.22
+    runtime.hemisphereLight.intensity = 1.42
+    runtime.ambientLight.intensity = 0.46
     runtime.keyLight.color.set('#e8f2ff')
-    runtime.keyLight.intensity = 4.2
-    runtime.keyLight.position.set(100, 150, 120)
+    runtime.keyLight.intensity = 6.2
     runtime.rimLight.color.set('#6ea9d9')
-    runtime.rimLight.intensity = 1.8
-    runtime.rimLight.position.set(-110, 70, -80)
+    runtime.rimLight.intensity = 2.45
     runtime.warmRimLight.color.set('#ffad86')
-    runtime.warmRimLight.intensity = 0.4
-    runtime.warmRimLight.position.set(70, -10, -150)
+    runtime.warmRimLight.intensity = 0.55
+    positionSoftStudioLightsForCamera(runtime)
     recordEnvironment()
     return
   }
   if (preset === 'concept_contrast') {
+    runtime.renderer.toneMappingExposure = 0.92
+    runtime.scene.environmentIntensity = 1.08
+    runtime.hemisphereLight.intensity = 0.92
+    runtime.ambientLight.intensity = 0.24
     runtime.keyLight.color.set('#ffffff')
     runtime.keyLight.intensity = 7
     runtime.keyLight.position.set(150, 210, 100)
@@ -1728,6 +2201,10 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
     return
   }
   const neutral = activeStudioManifest(runtime).cad_neutral_lighting
+  runtime.renderer.toneMappingExposure = activeStudioManifest(runtime).tone_mapping_exposure
+  runtime.scene.environmentIntensity = 1
+  runtime.hemisphereLight.intensity = neutral.hemisphere.intensity
+  runtime.ambientLight.intensity = neutral.ambient.intensity
   runtime.keyLight.color.set(neutral.key.color)
   runtime.keyLight.intensity = neutral.key.intensity
   runtime.keyLight.position.set(...neutral.key.position)
@@ -1740,6 +2217,34 @@ function applyLightPreset(runtime: ViewportRuntime, preset: LightPreset) {
   recordEnvironment()
 }
 
+function positionSoftStudioLightsForCamera(runtime: ViewportRuntime): void {
+  // Directional-light intensity is view-independent only when its direction
+  // follows the framed camera. Fixed world-space lights made the back/side QA
+  // views collapse near-black even though the same production GLB and PBR
+  // materials were loaded correctly. Keep one renderer and one immutable GLB;
+  // move only the presentation lights around the current OrbitControls target.
+  runtime.camera.updateMatrixWorld(true)
+  const target = runtime.controls.target.clone()
+  const towardCamera = runtime.camera.position.clone().sub(target).normalize()
+  const right = new THREE.Vector3().setFromMatrixColumn(runtime.camera.matrixWorld, 0).normalize()
+  const up = new THREE.Vector3().setFromMatrixColumn(runtime.camera.matrixWorld, 1).normalize()
+  const distance = Math.max(runtime.camera.position.distanceTo(target), 120)
+  const offset = (forward: number, horizontal: number, vertical: number) => target.clone()
+    .addScaledVector(towardCamera, distance * forward)
+    .addScaledVector(right, distance * horizontal)
+    .addScaledVector(up, distance * vertical)
+
+  runtime.keyLight.target.position.copy(target)
+  runtime.rimLight.target.position.copy(target)
+  runtime.warmRimLight.target.position.copy(target)
+  runtime.keyLight.position.copy(offset(0.9, 0.62, 0.72))
+  runtime.rimLight.position.copy(offset(-0.5, -0.78, 0.42))
+  runtime.warmRimLight.position.copy(offset(-0.32, 0.72, -0.12))
+  runtime.keyLight.target.updateMatrixWorld(true)
+  runtime.rimLight.target.updateMatrixWorld(true)
+  runtime.warmRimLight.target.updateMatrixWorld(true)
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (value && typeof value === 'object') {
@@ -1749,6 +2254,13 @@ function canonicalJson(value: unknown): string {
       .join(',')}}`
   }
   return JSON.stringify(value) ?? 'null'
+}
+
+function roundPbrEvidenceNumber(value: number): number {
+  // Matrix values are deterministic for one renderer/camera input but native
+  // float representation can differ in insignificant low bits. Six decimal
+  // places retain framing and projection facts without platform noise.
+  return Number(value.toFixed(6))
 }
 
 function activeStudioEnvironmentId(runtime: ViewportRuntime): ForgecadStudioEnvironmentId {
@@ -1768,6 +2280,7 @@ function applyStudioEnvironment(runtime: ViewportRuntime, environmentId: Forgeca
   const neutral = manifest.cad_neutral_lighting
   runtime.scene.userData.forgecadVisualEnvironment = environmentId
   runtime.renderer.toneMappingExposure = manifest.tone_mapping_exposure
+  runtime.scene.environmentIntensity = 1
   runtime.scene.background = new THREE.Color(neutral.background)
   if (runtime.scene.fog instanceof THREE.Fog) runtime.scene.fog.color.set(neutral.background)
   runtime.hemisphereLight.color.set(neutral.hemisphere.sky)
@@ -2028,13 +2541,7 @@ function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, v
   // Keep the assembled concept prominent like a CAD presentation viewport;
   // the old distance left too much empty grid around compact module packs.
   const distance = Math.max(size * FORGECAD_STUDIO_MANIFEST.camera_views.iso.distance_ratio, 1)
-  const direction: Record<CameraView, THREE.Vector3> = {
-    // In the exported Y-up coordinate system, positive Y is above the prop.
-    // Keep a prominent depth component while opening the X/Y angle enough to
-    // show the top rails and lower display grip on first launch.
-    iso: new THREE.Vector3(...FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction), front: new THREE.Vector3(0, 0.08, 1), top: new THREE.Vector3(0, 1, 0.001), right: new THREE.Vector3(1, 0.08, 0),
-  }
-  camera.position.copy(center).add(direction[view].normalize().multiplyScalar(distance))
+  camera.position.copy(center).add(cameraDirectionForView(view).normalize().multiplyScalar(distance))
   camera.near = Math.max(distance / 1000, 0.001)
   camera.far = Math.max(distance * 20, 100)
   camera.updateProjectionMatrix()
@@ -2046,21 +2553,16 @@ function frameCamera(camera: THREE.PerspectiveCamera, controls: OrbitControls, v
 
 function frameBlockoutCameraToBounds(
   runtime: ViewportRuntime,
-  view: CameraView,
+  view: QaCameraView,
   bounds: THREE.Box3,
 ): BlockoutFrameNdcFacts {
   const { camera, controls } = runtime
   const center = bounds.getCenter(new THREE.Vector3())
   const size = bounds.getSize(new THREE.Vector3())
   const corners = boxCorners(bounds)
-  const direction: Record<CameraView, THREE.Vector3> = {
-    iso: new THREE.Vector3(...FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction),
-    front: new THREE.Vector3(0, 0.08, 1),
-    top: new THREE.Vector3(0, 1, 0.001),
-    right: new THREE.Vector3(1, 0.08, 0),
-  }
+  const direction = cameraDirectionForView(view)
   controls.target.copy(center)
-  camera.position.copy(center).add(direction[view].normalize())
+  camera.position.copy(center).add(direction.normalize())
   controls.update()
   camera.updateMatrixWorld(true)
 
@@ -2095,14 +2597,100 @@ function frameBlockoutCameraToBounds(
     runtime.scene.fog.far = runtime.scene.fog.near + Math.max(520, distance * 1.5)
   }
 
+  return blockoutFrameNdcFacts(camera, corners, center)
+}
+
+/**
+ * Applies a Rust-issued camera in the existing display coordinate system.
+ * GLB source metres become workbench millimetres and the presentation-only
+ * uniform fit scale cancels out of clip coordinates. The browser therefore
+ * renders a code-owned camera but never supplies projection truth back to
+ * Rust for UV rasterization.
+ */
+function frameBlockoutCameraFromRustProjectionBinding(
+  runtime: ViewportRuntime,
+  active: NonNullable<ViewportRuntime['activeBlockoutPreview']>,
+  view: QaCameraView,
+  binding: WorkbenchPbrProjectionCameraBinding,
+  bounds: THREE.Box3,
+): BlockoutFrameNdcFacts {
+  if (
+    binding.schemaVersion !== 'ProjectionCameraBinding@1'
+    || binding.algorithmId !== 'forgecad.turntable_projection_camera'
+    || binding.algorithmVersion !== '1'
+    || binding.viewId !== view
+    || binding.candidateGlbSha256.toLowerCase() !== active.sourceGlbSha256?.toLowerCase()
+    || binding.verticalFovMillidegrees !== 38000
+    || binding.frameTargetNdcMillionths !== 840000
+    || binding.worldToClipRowMajor.length !== 16
+    || !binding.worldToClipRowMajor.every(Number.isFinite)
+    || ![...binding.sourceBoundsMeters, ...binding.cameraPositionMeters, ...binding.cameraTargetMeters, binding.nearMeters, binding.farMeters].every(Number.isFinite)
+    || binding.nearMeters <= 0
+    || binding.farMeters <= binding.nearMeters
+    || !binding.sourceBoundsMeters.every((value, axis) => Math.abs(value * 1000 - Number(active.sourceBoundsMm[axis])) <= 0.01)
+  ) throw new Error('WORKBENCH_PBR_CAPTURE_CAMERA_BINDING_INVALID')
+  const scale = GLB_METERS_TO_WORKBENCH_MILLIMETERS * active.displayScale
+  const { camera, controls, scene } = runtime
+  const target = new THREE.Vector3(...binding.cameraTargetMeters).multiplyScalar(scale)
+  const position = new THREE.Vector3(...binding.cameraPositionMeters).multiplyScalar(scale)
+  const size = bounds.getSize(new THREE.Vector3())
+  camera.fov = binding.verticalFovMillidegrees / 1000
+  camera.position.copy(position)
+  camera.near = binding.nearMeters * scale
+  camera.far = binding.farMeters * scale
+  camera.updateProjectionMatrix()
+  controls.target.copy(target)
+  controls.minDistance = Math.max(size.length() * 0.05, 0.01)
+  controls.maxDistance = Math.max(size.length() * 10, 10)
+  controls.update()
+  camera.updateMatrixWorld(true)
+  const distance = camera.position.distanceTo(target)
+  if (scene.fog instanceof THREE.Fog) {
+    scene.fog.near = Math.max(300, distance + size.length())
+    scene.fog.far = scene.fog.near + Math.max(520, distance * 1.5)
+  }
+  return blockoutFrameNdcFacts(camera, boxCorners(bounds), target)
+}
+
+function blockoutFrameNdcFacts(
+  camera: THREE.PerspectiveCamera,
+  corners: readonly THREE.Vector3[],
+  target: THREE.Vector3,
+): BlockoutFrameNdcFacts {
   const projected = corners.map((corner) => corner.clone().project(camera))
   return {
     minX: Math.min(...projected.map((point) => point.x)),
     maxX: Math.max(...projected.map((point) => point.x)),
     minY: Math.min(...projected.map((point) => point.y)),
     maxY: Math.max(...projected.map((point) => point.y)),
-    cameraDistanceMm: distance,
+    cameraDistanceMm: camera.position.distanceTo(target),
   }
+}
+
+function cameraDirectionForView(view: QaCameraView): THREE.Vector3 {
+  // These extra views are deliberately an internal evidence bridge.  They do
+  // not become additional user-facing render-preset state or a second
+  // renderer; they only position the existing workbench camera for a frozen
+  // C111B capture contract.
+  const directions: Record<QaCameraView, THREE.Vector3> = {
+    iso: new THREE.Vector3(...FORGECAD_STUDIO_MANIFEST.camera_views.iso.direction),
+    front: new THREE.Vector3(0, 0.08, 1),
+    back: new THREE.Vector3(0, 0.08, -1),
+    left: new THREE.Vector3(-1, 0.08, 0),
+    right: new THREE.Vector3(1, 0.08, 0),
+    top: new THREE.Vector3(0, 1, 0.001),
+    turntable_000: new THREE.Vector3(0, 0.12, 1),
+    turntable_045: new THREE.Vector3(0.707, 0.18, 0.707),
+    turntable_090: new THREE.Vector3(1, 0.12, 0),
+    turntable_135: new THREE.Vector3(0.707, 0.18, -0.707),
+    turntable_180: new THREE.Vector3(0, 0.12, -1),
+    turntable_225: new THREE.Vector3(-0.707, 0.18, -0.707),
+    turntable_270: new THREE.Vector3(-1, 0.12, 0),
+    turntable_315: new THREE.Vector3(-0.707, 0.18, 0.707),
+    gripper_iso: new THREE.Vector3(-0.75, 0.45, 1.2),
+    gripper_front: new THREE.Vector3(0, 0.12, 1),
+  }
+  return directions[view].clone()
 }
 
 function boxCorners(bounds: THREE.Box3): THREE.Vector3[] {

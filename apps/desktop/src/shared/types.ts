@@ -71,6 +71,7 @@ export type AgentThreadStatus = 'idle' | 'active' | 'error' | 'archived'
 export type AgentTurnStatus =
   | 'queued'
   | 'running'
+  | 'waiting_for_capture'
   | 'waiting_for_approval'
   | 'waiting_for_clarification'
   | 'completed'
@@ -143,9 +144,14 @@ export type StartAgentTurnRequest = {
   client_request_id: string
   message: string
   clarification_domain_pack_id?: string | null
+  author_context?: {
+    references: Array<{ evidence_id: string; role: string; view_hint?: string }>
+    visual_evidence_graph?: unknown
+  }
   multimodal_context?: {
     request: unknown
     visual_evidence_graph: unknown
+    visual_reference_comparison_authorization_id?: string
   }
 }
 export type CreateAgentApprovalRequest = {

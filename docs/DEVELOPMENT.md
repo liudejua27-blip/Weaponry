@@ -1,7 +1,9 @@
 # ForgeCAD 本机开发与调试
 
-版本：2026-07-18
+版本：2026-07-29
 适用对象：桌面、Agent、合同和测试开发者
+
+当前开发基线仍以机械 Alpha 为主；类别开放目标按 U002–U005 实施。开发者不得通过删除四领域 fixture、放宽 `unsupported`、执行任意模型代码或把目标字段塞入旧 Schema 来“快速支持通用类别”。新合同必须进入 `packages/concept-spec`、Rust validator、生成类型、负向测试和单一资产真值。
 
 ## 1. 环境要求
 
@@ -154,25 +156,16 @@ npm run desktop:deepseek-mvp-acceptance -- \
 
 真实验收只检查一次未确认的生成 Turn、一次取消和一次本地 fail-closed 路径；每个临时项目必须保持无 ActiveDesignSnapshot/资产写入。报告只含运行编号哈希、状态、token 汇总和固定错误码，不含 Key、端点、模型名、Prompt 或 Provider 原始响应。它不证明 C106 的视觉质量、R007B 的参考重建质量或 M108B 的真人评审；这些仍由离线黄金路径和正式视觉基准分别验证。
 
-### 显式视觉 Provider 验收（默认绝不联网）
+### AI Provider 主权 Gate（零联网）
 
-本节是 ADR-0018/N004 的历史实验验收入口。ADR-0019 后它不属于默认工作台、程序化视觉 MVP 或发布 Gate；普通开发和用户生成不需要 FAL Key，也不应执行下面的 live 命令。
-
-`desktop:n004-live-acceptance` 只验证 Forge Studio 视觉链：DeepSeek Brief→Fal Flux 2 概念图→Hunyuan3D v3.1 Pro PBR GLB→Rust CAS/readback→远程任务 Completed。无参数时只输出 dry-run，保证 `network_calls_made=0`、`credential_reads=0`、`app_launched=false`。真实运行要求已在原生工作台保存 FAL Key、至少有一个活动项目、关闭其他 CAD 工作台进程，并构建当前 `.app`。Python 启动器不读取任何 Key、Provider 响应、PNG 或 GLB。
+ADR-0023 后运行时 AI 只允许 DeepSeek 与千问；旧远程图像/网格 live 命令和凭据入口已删除。开发和 CI 必须运行：
 
 ```bash
-npm run desktop:n004-live-acceptance
-
-# 仅在操作者明确接受一次远程图像和神经 3D 费用后执行。
-npm run desktop:n004-live-acceptance -- \
-  --confirm-live-provider \
-  --accept-network \
-  --confirmation I_UNDERSTAND_THIS_MAY_INCUR_VISUAL_PROVIDER_COST \
-  --run-id live_20260726_visual_acceptance \
-  --output /absolute/path/visual-provider-acceptance.json
+npm run release:ai-provider-policy
+npm run agent:u004-sovereign-provider-gate
 ```
 
-Rust 报告只保留 concept/GLB SHA-256、GLB 字节数、三角形/网格/材质数、PBR channel、UV0/tangent 和终态。启动器要求至少 `base_color + normal + roughness + metallic`、全部 primitive UV0、真实远程 Completed，并拒绝任何 Prompt、响应、端点、Key 或 Base64 字节字段。该报告仍不证明八视角美术 4/5；它只关闭 N004 的真实 Provider/PBR readback 部分。
+该 Gate 扫描主程序、工作台、transport 和脚本，要求旧远程 Mesh 文件保持删除，并验证 DeepSeek `api.deepseek.com + deepseek-*` 与千问 `aliyuncs.com + qwen*` allowlist。它不联网、不读取 Key，也不证明两家模型的真实质量；真实 DeepSeek/千问调用仍需逐次授权和独立验收。
 
 ## 5. 当前核心验证
 

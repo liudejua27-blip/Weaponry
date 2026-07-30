@@ -1,6 +1,6 @@
 type LegacyGraphNode = {
   node_id: string
-  module_id: string
+  module_id?: string | null
   locked?: boolean
 }
 
@@ -23,7 +23,7 @@ export function projectLegacyGraphSelectionNodes(nodes: readonly LegacyGraphNode
     const node = nodes[index]
     selectionNodes[index] = {
       nodeId: node.node_id,
-      moduleId: node.module_id,
+      moduleId: node.module_id ?? '',
       locked: Boolean(node.locked),
     }
     overlayNodeIds[index] = node.node_id

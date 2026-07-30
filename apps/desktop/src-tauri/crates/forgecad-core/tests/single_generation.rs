@@ -178,7 +178,7 @@ fn a_nonrepairable_failure_cannot_be_hidden_by_another_repairable_failure() {
 }
 
 #[test]
-fn repairs_are_same_intent_limited_to_two_and_cannot_escape_failed_field_scope() {
+fn repairs_are_same_intent_limited_to_one_and_cannot_escape_failed_field_scope() {
     let initial = initial();
     let mut session = SingleGenerationSession::begin(initial.clone()).unwrap();
     let first_report = report(
@@ -231,31 +231,11 @@ fn repairs_are_same_intent_limited_to_two_and_cannot_escape_failed_field_scope()
             None,
         )
         .unwrap();
-    let second_repair = repair(
-        session.current_attempt(),
-        &second_report,
-        "attempt_repair_2",
-        vec!["material_coverage"],
-    );
-    session.apply_repair(second_repair, &second_report).unwrap();
-
-    let third_report = report(
-        session.current_attempt().attempt_id.as_str(),
-        vec![check("material_coverage", VerificationOutcome::Fail, true)],
-    );
-    session
-        .record_gate_report(
-            third_report,
-            "decision_failed".into(),
-            "Could not complete the single result.".into(),
-            None,
-        )
-        .unwrap();
     let SingleGenerationSessionState::Failed(decision) = session.state() else {
-        panic!("two repairs is the hard limit")
+        panic!("one repair is the hard limit")
     };
-    assert_eq!(decision.failure.as_ref().unwrap().repair_attempts_used, 2);
-    assert_eq!(session.repair_attempts().len(), 2);
+    assert_eq!(decision.failure.as_ref().unwrap().repair_attempts_used, 1);
+    assert_eq!(session.repair_attempts().len(), 1);
 }
 
 #[test]
@@ -283,7 +263,7 @@ fn repair_rejects_brief_or_recipe_intent_drift() {
 }
 
 #[test]
-fn third_repair_is_rejected_after_the_two_repair_budget_is_consumed() {
+fn second_failed_gate_is_terminal_after_the_one_repair_budget_is_consumed() {
     let initial = initial();
     let mut session = SingleGenerationSession::begin(initial.clone()).unwrap();
     let first_gate = report(
@@ -322,50 +302,11 @@ fn third_repair_is_rejected_after_the_two_repair_budget_is_consumed() {
             None,
         )
         .unwrap();
-    let second_parent = session.current_attempt().clone();
-    session
-        .apply_repair(
-            repair(
-                &second_parent,
-                &second_gate,
-                "attempt_repair_second",
-                vec!["render"],
-            ),
-            &second_gate,
-        )
-        .unwrap();
-
-    // A subsequent failed report terminally fails the session instead of
-    // opening a third repair slot; it also cannot expose a preview.
-    let exhausted_gate = report(
-        session.current_attempt().attempt_id.as_str(),
-        vec![check("render", VerificationOutcome::Fail, true)],
-    );
-    session
-        .record_gate_report(
-            exhausted_gate,
-            "decision_terminal".into(),
-            "Repair budget exhausted.".into(),
-            None,
-        )
-        .unwrap();
-    assert!(matches!(
-        session.state(),
-        SingleGenerationSessionState::Failed(_)
-    ));
-    let rejected = repair(
-        session.current_attempt(),
-        &first_gate,
-        "attempt_repair_third",
-        vec!["render"],
-    );
-    assert_eq!(
-        session
-            .apply_repair(rejected, &first_gate)
-            .unwrap_err()
-            .code(),
-        "REPAIR_ATTEMPT_STATE_INVALID"
-    );
+    let SingleGenerationSessionState::Failed(decision) = session.state() else {
+        panic!("the second failed gate must be terminal after one repair")
+    };
+    assert!(decision.preview.is_none());
+    assert_eq!(decision.failure.as_ref().unwrap().repair_attempts_used, 1);
 }
 
 #[test]

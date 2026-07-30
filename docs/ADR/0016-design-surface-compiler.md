@@ -3,8 +3,8 @@
 - 状态：Accepted（分阶段实现）
 - 日期：2026-07-18
 - 决策者：项目维护者
-- 补充：ADR-0011 的轮廓/特征/组件配方路线、ADR-0014 的 Rust-first 所有权和 ADR-0015 的双档工件/视觉验收拆分
-- 取代：ADR-0011 中“生成多个完整候选后评分选最佳”的目标策略；V003 改为单次完整合成与最多两次同意图原位修复
+- 适用性：继续承载轮廓/特征/组件配方、ADR-0014 Rust-first 所有权和 ADR-0015 工件/视觉验收拆分；已清理的早期 ADR 只从 Git 追溯
+- 当前覆盖：单次完整合成；ADR-0021/0022 的 v2 路线最多一次同意图 typed patch，旧 V003 两次修复只作 Alpha 兼容回归
 
 ## 背景
 
@@ -38,7 +38,7 @@ HTML/React/SVG/GSAP 只是设计语言的编辑器和过渡层，不是上述三
 → RestrictedGeometryExecutor 执行 Loft / Sweep / Revolve / CSG
 → A005 烘焙表面图案、流线与五通道 PBR
 → GLB 真实 readback / quality hard gate
-→ 同一候选最多两次原位修复
+→ legacy V003/C111：同一候选最多两次原位修复；类别开放产品链：最多一次 typed patch
 → 只展示一个通过结果
 → preview → confirm 创建不可变子版本
 ```

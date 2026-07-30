@@ -2,6 +2,8 @@
 
 This document is the release-facing license ledger for Wushen Forge. It does not replace full legal review, but it gives the release gate a concrete inventory to check.
 
+ADR-0023 limits runtime AI providers to DeepSeek and Qwen. Deformable, local-hybrid, texture/projection, DCC runtimes, template bodies, texture corpora and generated-output licenses remain subject to this ledger. Third-party hosted image or mesh AI services are not eligible runtime dependencies. DeepSeek/Qwen commercial terms, input/output rights, retention and enterprise-deployment terms must be recorded before production release.
+
 ## Release Commands
 
 ```text
@@ -61,10 +63,11 @@ These projects are referenced by the product design or supported as external ada
 | Phosphor Icons for React | CAD 工作台图标 | Automated | `@phosphor-icons/react@2.1.10`，MIT；由 `package-lock.json` 固定并进入 npm license gate。 |
 | Khronos glTF-Validator | 开发/CI GLB 标准合规检查 | Automated dev dependency | `gltf-validator@2.0.0-dev.3.10`，Apache-2.0；锁定在 `package-lock.json`，只读取原始 GLB 并输出报告，不成为资产或运行时真值。 |
 | glTF Transform core/extensions | M108 GLB reader/writer 采用边界评估 | Automated dev dependency, evaluation-only | `@gltf-transform/core@4.4.1`、`@gltf-transform/extensions@4.4.1`，MIT；锁定在 `package-lock.json`，仅对四份原始 showcase GLB 进行受扩展注册的读写和拒绝决策验证。评估确认标准读取阶段仍保留 Part/zone/material 映射，但 writer 会删除 ForgeCAD 真实 readback 必需的显式默认 PBR 参数；该写出必须被拒绝，不能替换不可变编译 GLB，也不打包进桌面运行时。 |
+| meshopt | 本地游戏资产 LOD 拓扑简化 | Integrated Core dependency, product delivery pending | `meshopt@0.6.2`，MIT OR Apache-2.0；Rust FFI 绑定在桌面 Core 内构建，不使用 Node、浏览器脚本或远程服务。受限 Core compiler 会把 position/normal/UV-aware LOD1/2 index accessors 写入专用 GLB 并逐层重算 readback；未启用 `EXT_meshopt_compression`。collision、socket 和 LOD0 实测 UV density 已有 Core readback；app-server/runtime/export 接线与产品放行仍未完成，因此不构成已交付游戏资产。 |
 
 ## Reference-only GitHub projects
 
-OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider 和 JSCAD 当前只作为设计/架构参考，不是 ForgeCAD 的安装依赖或派生代码，因此不因“被引用”进入产品 SBOM。glTF-Validator 与 glTF Transform core/extensions 已作为开发/CI 依赖列入上表，但都不打包进入桌面运行时。若后续实际复制、链接、安装或打包其他参考代码，必须先在本台账增加固定版本、许可证、NOTICE、二进制来源和传递依赖，再修改 lockfile。
+OpenAI Codex、OpenCode、goose、Zoo Design Studio、Aider、JSCAD 和 img2threejs 当前只作为设计/架构参考，不是 ForgeCAD 的安装依赖或派生代码，因此不因“被引用”进入产品 SBOM。glTF-Validator 与 glTF Transform core/extensions 已作为开发/CI 依赖列入上表，但都不打包进入桌面运行时。若后续实际复制、链接、安装或打包其他参考代码，必须先在本台账增加固定版本、许可证、NOTICE、二进制来源和传递依赖，再修改 lockfile。
 
 参考用途和采用门见 [AGENT_GITHUB_REFERENCE_ARCHITECTURE.md](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)。
 

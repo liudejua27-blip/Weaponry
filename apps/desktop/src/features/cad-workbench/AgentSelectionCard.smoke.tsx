@@ -237,4 +237,13 @@ export function runAgentSelectionCardSmoke(): void {
 
   const locked = findHostButton(AgentSelectionCard({ ...props, isSelectedPartLocked: true }), '减小 长度比例')
   assert(locked?.props.disabled, 'locked part must disable declared parameter controls')
+
+  const staleActiveVersion = { ...assetVersion, asset_version_id: 'asset_smoke_newer', version_no: 2 }
+  const staleAdornment = findHostButton(AgentSelectionCard({
+    ...props,
+    activeAgentAssetVersion: staleActiveVersion,
+    onOpenSurfaceAdornment: () => undefined,
+    surfaceAdornmentDisabled: false,
+  }), '添加外观细节')
+  assert(staleAdornment?.props.disabled, 'durable edits must remain disabled when the displayed candidate version is not the active Snapshot version')
 }

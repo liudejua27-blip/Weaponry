@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-distribution-report-v1.schema.json",
+  "title": "E005DistributionReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "task_set_sha256",
+    "provider_authorization_sha256",
+    "total_receipt_count",
+    "run_count",
+    "not_run_count",
+    "first_pass_success_count",
+    "patched_success_count",
+    "failed_count",
+    "cancelled_count",
+    "human_review_complete_count",
+    "human_review_receipt_count",
+    "human_review_bundle_sha256",
+    "independent_reviewers_per_task_minimum",
+    "first_pass_human_quality_count",
+    "within_one_patch_human_quality_count",
+    "lineage_complete_count",
+    "structural_matrix_sha256",
+    "structural_pair_count",
+    "structurally_distinct_pair_count",
+    "structural_difference_matrix_pass",
+    "formal_eligible",
+    "failure_histogram",
+    "receipts_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "E005DistributionReport@1"},
+    "report_id": {"$ref": "#/$defs/id"},
+    "task_set_sha256": {"$ref": "#/$defs/hash"},
+    "provider_authorization_sha256": {"$ref": "#/$defs/hash"},
+    "total_receipt_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "run_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "not_run_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "first_pass_success_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "patched_success_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "failed_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "cancelled_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "human_review_complete_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "human_review_receipt_count": {"type": "integer", "minimum": 0, "maximum": 90},
+    "human_review_bundle_sha256": {"$ref": "#/$defs/hash"},
+    "independent_reviewers_per_task_minimum": {"type": "integer", "minimum": 0, "maximum": 3},
+    "first_pass_human_quality_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "within_one_patch_human_quality_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "lineage_complete_count": {"type": "integer", "minimum": 0, "maximum": 30},
+    "structural_matrix_sha256": {"$ref": "#/$defs/hash"},
+    "structural_pair_count": {"type": "integer", "minimum": 0, "maximum": 435},
+    "structurally_distinct_pair_count": {"type": "integer", "minimum": 0, "maximum": 435},
+    "structural_difference_matrix_pass": {"type": "boolean"},
+    "p50_ms": {"type": "integer", "minimum": 0, "maximum": 900000},
+    "p90_ms": {"type": "integer", "minimum": 0, "maximum": 900000},
+    "max_ms": {"type": "integer", "minimum": 0, "maximum": 900000},
+    "formal_eligible": {"type": "boolean"},
+    "failure_histogram": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 30}
+    },
+    "receipts_sha256": {"$ref": "#/$defs/hash"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"formal_eligible": {"const": true}}, "required": ["formal_eligible"]},
+      "then": {
+        "required": ["p50_ms", "p90_ms", "max_ms"],
+        "properties": {
+          "total_receipt_count": {"const": 30},
+          "run_count": {"const": 30},
+          "not_run_count": {"const": 0},
+          "human_review_complete_count": {"const": 30},
+          "human_review_receipt_count": {"const": 90},
+          "independent_reviewers_per_task_minimum": {"const": 3},
+          "first_pass_human_quality_count": {"minimum": 21},
+          "within_one_patch_human_quality_count": {"minimum": 26},
+          "lineage_complete_count": {"const": 30},
+          "structural_pair_count": {"const": 435},
+          "structurally_distinct_pair_count": {"const": 435},
+          "structural_difference_matrix_pass": {"const": true},
+          "p50_ms": {"maximum": 32000},
+          "p90_ms": {"maximum": 70000},
+          "max_ms": {"maximum": 105000}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.@-]{3,128}$"},
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

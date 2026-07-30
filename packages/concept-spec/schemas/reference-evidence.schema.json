@@ -10,7 +10,7 @@
     "evidence_id": { "type": "string", "pattern": "^refevid_[a-z0-9_\\-]+$" },
     "project_id": { "type": "string", "pattern": "^(prj|project)_[a-z0-9_\\-]+$" },
     "kind": { "enum": ["image", "glb"] },
-    "domain_pack_id": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] },
+    "domain_pack_id": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept", "pack_unclassified"] },
     "source_file_name": { "type": "string", "minLength": 1, "maxLength": 180 },
     "source_media_type": { "enum": ["image/png", "image/jpeg", "image/webp", "model/gltf-binary"] },
     "source_object_sha256": { "$ref": "common.schema.json#/$defs/sha256" },

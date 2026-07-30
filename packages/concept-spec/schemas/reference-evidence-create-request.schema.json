@@ -18,7 +18,7 @@
     "license_statement": { "type": "string", "minLength": 1, "maxLength": 800 },
     "missing_views": { "type": "array", "maxItems": 6, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
     "user_notes": { "type": "string", "maxLength": 1200 },
-    "domain_pack_id": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept"] }
+    "domain_pack_id": { "enum": ["pack_future_weapon_prop", "pack_vehicle_concept", "pack_aircraft_concept", "pack_robotic_arm_concept", "pack_unclassified"] }
   },
   "allOf": [
     { "if": { "properties": { "kind": { "const": "image" } } }, "then": { "required": ["file_name", "media_type", "content_base64", "domain_pack_id"], "not": { "required": ["imported_asset_version_id"] } } },

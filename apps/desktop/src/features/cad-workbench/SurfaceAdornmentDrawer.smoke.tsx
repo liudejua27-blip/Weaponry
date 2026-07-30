@@ -1,4 +1,5 @@
 import {
+  SurfaceAdornmentDrawer,
   SurfaceAdornmentDesignSurface,
   unavailableSurfaceAdornmentAdapter,
   type SurfaceAdornmentAdapter,
@@ -23,6 +24,7 @@ export async function runSurfaceAdornmentDrawerSmoke(): Promise<void> {
   assert(
     designSurface.includes('<svg')
       && designSurface.includes('surface-adornment-design-surface')
+      && designSurface.includes('data-material-zone-id="zone_primary"')
       && designSurface.includes('data-surface-truth="editor_only"')
       && designSurface.includes('SVG 只编辑轮廓/图层')
       && designSurface.includes('真实 PBR 与 GLB'),
@@ -38,6 +40,21 @@ export async function runSurfaceAdornmentDrawerSmoke(): Promise<void> {
     async retain(changeSetId) { retainedPreview = changeSetId; return { status: 'retained', summary: '已保留。' } },
     async cancel(changeSetId) { cancelledPreview = changeSetId },
   }
+  const drawer = renderToStaticMarkup(
+    <SurfaceAdornmentDrawer
+      open
+      target={target}
+      adapter={mock}
+      onClose={() => undefined}
+    />,
+  )
+  assert(
+    drawer.includes('data-adornment-state="editing"')
+      && drawer.includes('data-target-part-id="part_arm_shell"')
+      && drawer.includes('data-target-material-zone-id="zone_primary"')
+      && drawer.includes('data-adornment-action="preview"'),
+    'A005 drawer must expose stable semantic state, target and action attributes without relying on localized button text',
+  )
   const preview = await mock.preview(target, draft)
   assert(previewTarget === 'project_surface_smoke:part_arm_shell:zone_primary', 'preview adapter must receive the saved asset target and stable zone')
   assert(preview.status === 'preview_ready' && preview.changeSetId === 'changeset_surface_smoke', 'a real adapter must identify a server-owned ChangeSet before the UI can retain it')

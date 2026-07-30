@@ -5,8 +5,9 @@
 use forgecad_core::{
     build_c111_forge_visual_program_fixture, build_c111_structural_detail_contract,
     builtin_surface_adornment_manifest_v3, c111_golden_surface_adornment_programs,
-    c111_golden_surface_layer_program, ComponentRecipeRef, RecipeExpander, RecipeExpansionPolicy,
-    RecipeInstantiationRequest, RecipeRegistry, RecipeValidator,
+    c111_golden_surface_layer_program, c111b_visual_reference_acceptance_policy,
+    ComponentRecipeRef, RecipeExpander, RecipeExpansionPolicy, RecipeInstantiationRequest,
+    RecipeRegistry, RecipeValidator,
 };
 use serde_json::json;
 
@@ -72,6 +73,10 @@ fn main() {
     let structural_detail_contract_sha256 =
         forgecad_core::semantic_sha256(&structural_detail_contract)
             .expect("C111B structural detail contract hash");
+    let visual_reference_acceptance_policy =
+        c111b_visual_reference_acceptance_policy(&forge_visual_program_fixture.program)
+            .expect("C111B visual reference policy fixture")
+            .expect("C111B visual reference policy identity");
     let candidate_value = serde_json::to_value(candidate).expect("C111A candidate JSON");
     let skill = builtin_surface_adornment_manifest_v3();
     skill.validate().expect("C111A A005 v3 manifest");
@@ -95,6 +100,7 @@ fn main() {
             "surface_layer_program": surface_layer_program,
             "structural_detail_contract": structural_detail_contract,
             "structural_detail_contract_sha256": structural_detail_contract_sha256,
+            "visual_reference_acceptance_policy": visual_reference_acceptance_policy,
             "surface_layer_input": {
                 "schema_version": "RestrictedSurfaceLayerInput@1",
                 "lowering": surface_layer_lowering,

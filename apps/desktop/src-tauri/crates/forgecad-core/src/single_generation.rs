@@ -17,7 +17,10 @@ pub const SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION: &str = "SingleGenerationAtte
 pub const GENERATION_GATE_REPORT_SCHEMA_VERSION: &str = "GenerationGateReport@1";
 pub const REPAIR_ATTEMPT_SCHEMA_VERSION: &str = "RepairAttempt@1";
 pub const SINGLE_RESULT_DECISION_SCHEMA_VERSION: &str = "SingleResultDecision@1";
-pub const MAX_SAME_INTENT_REPAIR_ATTEMPTS: usize = 2;
+/// A generation may spend its one repair opportunity only after a failed
+/// hard gate. More retries turn a lightweight authoring product into an
+/// unbounded prompt-and-rerender loop.
+pub const MAX_SAME_INTENT_REPAIR_ATTEMPTS: usize = 1;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -477,7 +480,7 @@ impl SingleResultDecision {
                 if usize::from(failure.repair_attempts_used) > MAX_SAME_INTENT_REPAIR_ATTEMPTS {
                     return Err(invalid(
                         "SINGLE_RESULT_REPAIR_COUNT_INVALID",
-                        "A failed result cannot report more than two same-intent repairs.",
+                        "A failed result cannot report more than one same-intent repair.",
                     ));
                 }
                 Ok(())
@@ -635,7 +638,7 @@ impl SingleGenerationSession {
         if self.repair_attempts.len() >= MAX_SAME_INTENT_REPAIR_ATTEMPTS {
             return Err(CoreError::conflict(
                 "REPAIR_ATTEMPT_LIMIT_REACHED",
-                "A V003 synthesis permits at most two same-intent repair attempts.",
+                "A V003 synthesis permits at most one same-intent repair attempt.",
             ));
         }
         repair.validate_against(&self.current_attempt, parent_report)?;

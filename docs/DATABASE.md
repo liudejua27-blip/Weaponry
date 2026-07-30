@@ -1,9 +1,11 @@
 # ForgeCAD 当前数据与持久化
 
-版本：2026-07-13
+版本：2026-07-29
 状态：当前 Agent 表、legacy 共存和已知恢复边界
 
 ForgeCAD 使用 SQLite 保存元数据和版本关系，使用内容寻址对象目录保存大文件。当前 Agent 数据与旧 Weapon/Concept 数据共存在同一个 Library；不得把两套版本号合并解释。
+
+ADR-0022 的 `SubjectProfile/RepresentationPlan/UniversalAssetSource` 不建立独立生产表或第二版本头。U002 outcome 保留在 Rust-owned Turn/Item；U003 完整 source 随临时候选/preview 流转，用户确认后以 source 对象和 semantic hash 写入同一 `AgentAssetVersion` 的 AssemblyGraph provenance，并继续由现有 Version/Snapshot 指向活动真值。U004 应优先复用 CAS source object 与该 provenance，而不是为每种表示创建第二套 Project/head/version 表。任何迁移都不得把参考像素、Provider 原文、密钥或任意文件路径写入 SQLite。
 
 ## 1. Library 结构
 
@@ -32,6 +34,16 @@ Provider API Key、Keychain、secret file、缓存、WAL/SHM 和临时输出不�
 迁移 `0032_agent_provider_conversations.sql` 为 `agent_turns` 增加脱敏的 context/fingerprint 合同字段，并新增 `agent_thread_memory_summaries`。后者只保存已覆盖的 sequence、最多 4,000 字符的确定性摘要、领域/快照指纹和合同版本；它可以删除或重建，绝不是 Project、AgentAssetVersion、Selection、Quality、Export 或 Snapshot 真值。Provider HTTP 不在其 SQLite 事务中执行。
 
 迁移 `0033_agent_provider_budget.sql` 增加按 UTC 日期和 Provider 汇总的本机预算账本，只保存预算、已结算/预留微元与未计量次数；不保存 API Key、完整 prompt、模型输出、思维链或远端账单。DeepSeek usage 缺失会保留可审计的未计量状态并停止同日后续联网调用。
+
+迁移 `0044_visual_reference_comparison_budget.sql` 单独保存 C111B 参考图视觉比较的短期授权和逐调用预留。`visual_reference_comparison_authorizations` 将授权绑定到一个活动 Project、`MultimodalDesignRequest` SHA、`VisualEvidenceGraph` SHA、Rust 验收政策 SHA、最多 3 次调用和 `100000 microusd` 总上限；第一次预留再绑定 app-server 实际 Turn。`visual_reference_comparison_reservations` 在网络调用前以 `BEGIN IMMEDIATE` 原子预留保守费用上限，并把完成、Provider 失败、取消或超时结算为 `accounted | released`。表中不保存 Key、prompt、图片字节、URL、Provider 原文或远端账单；`accounted_cost_ceiling_microusd` 是硬停用的保守上限，不冒充实际账单。
+
+迁移 `0045_e005_provider_budget.sql` 为 E005 正式 30 条未见分布建立独立批次账本。`e005_provider_run_authorizations` 保存 canonical `E005ProviderRunAuthorization@1`、Provider/model、policy/pricing/disclosure hash、30 author/30 patch/60 total、输入/输出 token、成本和 deadline 上限；`e005_provider_authorized_tasks` 固定正式 task-set 的 30 个 task payload hash；`e005_provider_call_reservations` 保存逐 task/kind/request 的 reserve→dispatching→accounted/released 状态和首次 canonical settlement evidence/hash。复合外键、aggregate/time/state CHECK 与 Rust readback 同时防止 SQL 列和 canonical JSON 分叉；settlement evidence 还逐字段绑定 output source/gate hash，Patch 在资格判断前重验该不可变证据。Patch 只接受同任务 repairable author 的精确 source/gate hash。同一 reservation 仅允许一次 dispatch；持久化 dispatching 后的超时、取消、传输失败或崩溃恢复均按预留上限 accounted；启动恢复将遗留 reserved 释放。表中不保存 Key、prompt、图片、Provider 原文或实际账单，且该迁移本身不构成联网授权。
+
+迁移 `0046_e005_formal_batch_checkpoint.sql` 只保存正式批次编排检查点，不扩大 Provider 权限。`e005_formal_batches` 将一个 batch 唯一绑定一个 0045 authorization；`e005_formal_batch_tasks` 固定 30 个 task/hash/ordinal，并只允许 `pending | running | receipt_sealed | reconciliation_required`。Core 每次只 claim 一个 task；正式 receipt 以 canonical JSON/hash 原子封存，exact replay 幂等、冲突 replay 拒绝。启动时必须先完成 0045 Provider reservation recovery，再恢复 batch：未产生 network-attempted reservation 的 running task 可回 pending；任何 dispatching/accounted 或网络不确定 task 都进入 `reconciliation_required`，不得自动 retry。该迁移不保存图片、GLB、Key、Prompt 或 Provider 原文；R1–R3 质量前置门通过前不接 main/startup 付费命令。
+
+迁移 `0047_e005_visual_review_checkpoint.sql` 保存 Author 已 accounted 到唯一 visual `Patch` 调用之间的恢复真值。表中只有通过 Rust lowering 的紧凑 Author source、0045 账本重验过的 canonical evidence/hash、实际 token/成本 usage 与最终 visual evidence hash；不保存图片字节、GLB bytes、Key、Prompt 或 Provider 原文。恢复顺序固定为 0045→0047→0046：没有尝试 visual 时任务可回 pending 且协调器必须跳过 Author；只要 visual reservation 进入 dispatching/accounted/未知，检查点与 batch 就进入 `reconciliation_required`，绝不自动重发。
+
+迁移 `0048_agent_turn_waiting_for_capture.sql` 扩展 `agent_turns.status` 为 `waiting_for_capture`。它重建 SQLite CHECK 约束并保留所有 Turn、Item、Approval 以及 `0032` 的脱敏 Provider-context 字段。该状态只表示当前进程仍持有一个已封存的同工作台 PBR capture continuation；捕获证据本身、图像字节、nonce 和 Provider 请求不落库。重启恢复会把任何非终态 Turn 显式标为 `AGENT_RUNTIME_RESTARTED`，不会从文本或旧截图猜测续跑。
 
 ## 3. Agent 资产表
 
@@ -119,7 +131,7 @@ S003/S007 已提供 Snapshot GET、Agent part selection、legacy Agent-rebuild �
 
 `0023` 只新增表和索引，不修改 Concept、Agent asset、head 或对象内容。迁移脚本处于 SQLite 事务中，失败时自动 rollback；若需要回退应用版本，旧应用会忽略新表，Snapshot 行保持不动。生产环境不得通过删除 `active_design_snapshots` 回滚；应先验证备份，再使用兼容应用只读打开旧数据。
 
-旧 Weapon/Concept 表的历史用途见 [legacy 数据兼容说明](legacy/DATABASE_WEAPON_COMPATIBILITY.md)。
+旧 Weapon/Concept 表的维护、映射和退出顺序见 [兼容迁移计划](COMPATIBILITY_MIGRATION.md)；字段级历史以 migrations、生成 OpenAPI 和 Git 为准。
 
 ## 8. 发布前数据门
 

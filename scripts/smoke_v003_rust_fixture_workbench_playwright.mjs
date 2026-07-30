@@ -99,12 +99,71 @@ try {
   assert(await page.locator('[data-generation-state="ready"]').count() === 1, 'fixture page must render one ready result card')
   assert(await page.locator('[data-variant-rank]').count() === 0, 'fixture page must not restore direction/ranking cards')
   assert(await page.locator('.weapon-viewport canvas').count() === 1, 'loading the formal preview must not mount a second renderer canvas')
+  // The normal desktop shell gives the central stage an explicit grid track.
+  // Headless Vite uses a document-only host, where that parent can collapse
+  // after the conversation card grows. Give the existing renderer host a
+  // deterministic test viewport instead of accepting a zero-sized canvas.
+  await page.evaluate(() => {
+    const stage = document.querySelector('.cad-center-stage')
+    const shell = document.querySelector('.viewport-shell')
+    if (!(stage instanceof HTMLElement) || !(shell instanceof HTMLElement)) {
+      throw new Error('V003 fixture viewport layout is missing')
+    }
+    if (shell.getBoundingClientRect().width === 0 || shell.getBoundingClientRect().height === 0) {
+      stage.style.width = '960px'
+      stage.style.height = '720px'
+      stage.style.minWidth = '960px'
+      stage.style.minHeight = '720px'
+      shell.style.width = '960px'
+      shell.style.height = '640px'
+      shell.style.minWidth = '960px'
+      shell.style.minHeight = '640px'
+    }
+  })
   await page.waitForFunction(() => document.querySelector('.weapon-viewport canvas')?.getBoundingClientRect().width > 0, null, { timeout: TIMEOUT })
   await page.waitForFunction(
     () => document.querySelector('.weapon-viewport')?.getAttribute('data-blockout-load-state') === 'ready',
     null,
     { timeout: TIMEOUT },
   )
+  const gpuAuxiliaryCapture = await page.evaluate(async () => {
+    const viewport = document.querySelector('.weapon-viewport')
+    if (!(viewport instanceof HTMLElement)) throw new Error('U004 workbench viewport is missing')
+    const capture = await new Promise((resolveCapture, rejectCapture) => {
+      viewport.dispatchEvent(new CustomEvent('forgecad:workbench-pbr-capture@1', {
+        detail: { viewport, resolve: resolveCapture, reject: rejectCapture },
+      }))
+    })
+    if (!capture || typeof capture !== 'object') throw new Error('U004 GPU capture payload is missing')
+    const value = capture
+    if (
+      value.auxiliaryWidth !== 960
+      || value.auxiliaryHeight !== 640
+      || value.auxiliaryPixels?.byteLength !== 960 * 640 * 4
+      || value.auxiliaryPassIds?.join(',') !== 'silhouette,normal,depth,part_id,material_id'
+    ) throw new Error('U004 GPU auxiliary capture contract drifted')
+    const tiles = []
+    for (let tile = 0; tile < 5; tile += 1) {
+      const column = tile % 3
+      const row = Math.floor(tile / 3)
+      let nonBlack = 0
+      const colours = new Set()
+      for (let y = 0; y < 320; y += 16) {
+        for (let x = 0; x < 320; x += 16) {
+          const offset = ((row * 320 + y) * 960 + column * 320 + x) * 4
+          const red = value.auxiliaryPixels[offset]
+          const green = value.auxiliaryPixels[offset + 1]
+          const blue = value.auxiliaryPixels[offset + 2]
+          if (red !== 0 || green !== 0 || blue !== 0) nonBlack += 1
+          colours.add(`${red},${green},${blue}`)
+        }
+      }
+      if (nonBlack < 4 || colours.size < 2) throw new Error(`U004 GPU auxiliary pass ${tile} is blank or uniform`)
+      tiles.push({ non_black_samples: nonBlack, distinct_sample_colours: colours.size })
+    }
+    return { width: value.auxiliaryWidth, height: value.auxiliaryHeight, pass_ids: value.auxiliaryPassIds, tiles }
+  })
+  assert(gpuAuxiliaryCapture.tiles.length === 5, 'workbench must produce five auxiliary GPU pass tiles')
   assert(
     !consoleEvents.some((event) => event.type === 'error' && event.text.includes('THREE.GLTFLoader')),
     'formal preview must decode its embedded PBR textures in the rendered workbench',
@@ -134,7 +193,8 @@ try {
         source: state.fixture.source,
         prompt_domain: 'robotic_arm_concept',
         fixture_domain: 'fixture-defined; not asserted as C106',
-        assertions: ['one_ready_result_card', 'single_canvas', 'decoded_pbr_preview', 'frozen_rust_binary_preview', 'result_card_confirm'],
+        assertions: ['one_ready_result_card', 'single_canvas', 'decoded_pbr_preview', 'gpu_auxiliary_pass_bundle', 'frozen_rust_binary_preview', 'result_card_confirm'],
+        gpu_auxiliary_capture: gpuAuxiliaryCapture,
         preview_gets: state.previewGets,
         confirms: state.confirms,
       }, null, 2)}\n`),
@@ -144,20 +204,22 @@ try {
   console.log(JSON.stringify({
     ok: true, task: 'FGC-V003', validation: 'playwright_rendered_workbench',
     source: state.fixture.source,
-    assertions: ['one_ready_result_card', 'single_canvas', 'decoded_pbr_preview', 'frozen_rust_binary_preview', 'result_card_confirm'],
+    assertions: ['one_ready_result_card', 'single_canvas', 'decoded_pbr_preview', 'gpu_auxiliary_pass_bundle', 'frozen_rust_binary_preview', 'result_card_confirm'],
+    gpu_auxiliary_capture: gpuAuxiliaryCapture,
     artifact_profile_id: preview.artifact_profile_id,
     evidence_dir: evidenceDir ?? null,
   }, null, 2))
 } finally {
   if (browser) await browser.close().catch(() => undefined)
   if (vite) await stop(vite)
-  if (proxy) await new Promise((resolveClose) => proxy.close(resolveClose))
+  if (proxy) await closeServer(proxy)
   if (python) await stop(python)
   await rm(temporary, { recursive: true, force: true })
 }
 
 function createFixtureProxy({ pythonBase, state }) {
-  return createServer(async (request, response) => {
+  const sockets = new Set()
+  const server = createServer(async (request, response) => {
     try {
       if (request.method === 'OPTIONS') {
         response.writeHead(204, corsHeaders())
@@ -177,6 +239,17 @@ function createFixtureProxy({ pythonBase, state }) {
       return json(response, 200, { frame: success(frame.id, result) })
     } catch (error) { return json(response, 500, { error: error instanceof Error ? error.message : String(error) }) }
   })
+  // Browser fetch keep-alive sockets can otherwise survive until their idle
+  // timeout and leave this hermetic visual Gate running after every asserted
+  // GPU capture/confirmation already completed. They are test transport
+  // resources, never product state; force-closing them only during teardown
+  // makes the runner's completion evidence deterministic.
+  server.on('connection', (socket) => {
+    sockets.add(socket)
+    socket.once('close', () => sockets.delete(socket))
+  })
+  server.__forgecadFixtureSockets = sockets
+  return server
 }
 
 async function fixtureHttp(input, state, pythonBase) {
@@ -244,6 +317,22 @@ function corsHeaders() { return { 'access-control-allow-origin': '*', 'access-co
 function json(response, status, value) { response.writeHead(status, { ...corsHeaders(), 'content-type': 'application/json' }); response.end(JSON.stringify(value)) }
 async function requestJson(request) { const chunks = []; for await (const chunk of request) chunks.push(chunk); const raw = Buffer.concat(chunks).toString('utf8'); return raw ? JSON.parse(raw) : {} }
 function listen(server, port) { return new Promise((resolveListen) => server.listen(port, '127.0.0.1', resolveListen)) }
+async function closeServer(server) {
+  server.closeIdleConnections?.()
+  server.closeAllConnections?.()
+  for (const socket of server.__forgecadFixtureSockets ?? []) socket.destroy()
+  await new Promise((resolveClose) => {
+    const timeout = setTimeout(() => {
+      server.closeAllConnections?.()
+      for (const socket of server.__forgecadFixtureSockets ?? []) socket.destroy()
+      resolveClose()
+    }, 2_000)
+    server.close(() => {
+      clearTimeout(timeout)
+      resolveClose()
+    })
+  })
+}
 function drain(child) { child.stdout?.on('data', () => undefined); child.stderr?.on('data', () => undefined) }
 async function waitForHttp(url, child, label) { const started = Date.now(); while (Date.now() - started < TIMEOUT) { if (child.exitCode !== null) throw new Error(`${label} exited before readiness`); try { if ((await fetch(url)).ok) return } catch {} await new Promise((resolveWait) => setTimeout(resolveWait, 100)) } throw new Error(`${label} did not become ready`) }
 async function waitForProjectId(base) { const started = Date.now(); while (Date.now() - started < TIMEOUT) { const response = await fetch(`${base}/api/v1/projects`); if (response.ok) { const payload = await response.json(); const id = payload.items?.[0]?.project_id; if (typeof id === 'string') return id } await new Promise((resolveWait) => setTimeout(resolveWait, 100)) } throw new Error('workbench did not create an isolated project') }

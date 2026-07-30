@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use crate::{semantic_sha256, CoreError, CoreResult};
+use crate::{semantic_sha256, CoreError, CoreResult, SurfaceLayerLowering};
 
 const GLB_JSON_CHUNK: u32 = 0x4e4f_534a;
 const GLB_BINARY_CHUNK: u32 = 0x004e_4942;
@@ -39,6 +39,147 @@ pub struct ForgeCadGlbReadback {
     pub surface_provenance_present: bool,
     pub visual_texture_set_count: u64,
     pub visual_texture_map_count: u64,
+}
+
+/// Returns a material-, metadata-, primitive-order-, translation-, axis- and
+/// uniform-scale-independent digest of the final triangle geometry. The
+/// descriptor intentionally keeps tessellation and triangle connectivity so a
+/// byte-different GLB cannot pass E005 structural evidence by changing only
+/// materials, serialization order or global presentation transforms.
+pub fn normalized_geometry_sha256(bytes: &[u8]) -> CoreResult<String> {
+    let chunks = parse_glb(bytes)?;
+    let document: Value = serde_json::from_slice(chunks.json).map_err(|_| {
+        invalid(
+            "FORGECAD_GLB_JSON_INVALID",
+            "Binary glTF JSON chunk cannot be decoded.",
+        )
+    })?;
+    let accessors = required_array(&document, "accessors", "GLB has no accessors.")?;
+    let views = required_array(&document, "bufferViews", "GLB has no buffer views.")?;
+    let meshes = required_array(&document, "meshes", "GLB has no meshes.")?;
+    let mut triangles = Vec::<[[f64; 3]; 3]>::new();
+    let mut minimum = [f64::INFINITY; 3];
+    let mut maximum = [f64::NEG_INFINITY; 3];
+    for mesh in meshes {
+        let primitives = mesh
+            .get("primitives")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                invalid(
+                    "FORGECAD_GLB_GEOMETRY_INVALID",
+                    "GLB mesh has no triangle primitives.",
+                )
+            })?;
+        for primitive in primitives {
+            let index_accessor = primitive
+                .get("indices")
+                .and_then(Value::as_u64)
+                .and_then(|index| accessors.get(index as usize))
+                .ok_or_else(|| {
+                    invalid(
+                        "FORGECAD_GLB_GEOMETRY_INVALID",
+                        "GLB primitive index accessor is invalid.",
+                    )
+                })?;
+            let position_accessor = primitive
+                .pointer("/attributes/POSITION")
+                .and_then(Value::as_u64)
+                .and_then(|index| accessors.get(index as usize))
+                .ok_or_else(|| {
+                    invalid(
+                        "FORGECAD_GLB_GEOMETRY_INVALID",
+                        "GLB primitive POSITION accessor is invalid.",
+                    )
+                })?;
+            let indices = read_index_accessor(index_accessor, views, chunks.binary)?;
+            let positions = read_position_accessor(position_accessor, views, chunks.binary)?;
+            for position in &positions {
+                for axis in 0..3 {
+                    minimum[axis] = minimum[axis].min(position[axis] as f64);
+                    maximum[axis] = maximum[axis].max(position[axis] as f64);
+                }
+            }
+            for triangle in indices.chunks_exact(3) {
+                let mut points = [[0.0; 3]; 3];
+                for (corner, index) in triangle.iter().enumerate() {
+                    let position = positions.get(*index as usize).ok_or_else(|| {
+                        invalid(
+                            "FORGECAD_GLB_GEOMETRY_INVALID",
+                            "GLB triangle index exceeds POSITION data.",
+                        )
+                    })?;
+                    points[corner] = [position[0] as f64, position[1] as f64, position[2] as f64];
+                }
+                triangles.push(points);
+            }
+        }
+    }
+    if triangles.is_empty() {
+        return Err(invalid(
+            "FORGECAD_GLB_GEOMETRY_INVALID",
+            "GLB has no triangles for normalized geometry evidence.",
+        ));
+    }
+    let center = [
+        (minimum[0] + maximum[0]) * 0.5,
+        (minimum[1] + maximum[1]) * 0.5,
+        (minimum[2] + maximum[2]) * 0.5,
+    ];
+    let scale = (0..3)
+        .map(|axis| maximum[axis] - minimum[axis])
+        .fold(0.0_f64, f64::max);
+    if !scale.is_finite() || scale <= f64::EPSILON {
+        return Err(invalid(
+            "FORGECAD_GLB_GEOMETRY_INVALID",
+            "GLB normalized geometry scale is invalid.",
+        ));
+    }
+    let permutations = [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ];
+    let mut candidate_hashes = Vec::with_capacity(48);
+    for permutation in permutations {
+        for sign_bits in 0..8 {
+            let mut normalized_triangles = Vec::with_capacity(triangles.len());
+            for triangle in &triangles {
+                let mut normalized_points = triangle
+                    .iter()
+                    .map(|position| {
+                        let mut point = [0_i64; 3];
+                        for axis in 0..3 {
+                            let sign = if sign_bits & (1 << axis) == 0 {
+                                1.0
+                            } else {
+                                -1.0
+                            };
+                            point[axis] = (((position[permutation[axis]]
+                                - center[permutation[axis]])
+                                / scale)
+                                * sign
+                                * 1_000_000.0)
+                                .round() as i64;
+                        }
+                        point
+                    })
+                    .collect::<Vec<_>>();
+                normalized_points.sort_unstable();
+                normalized_triangles.push(normalized_points);
+            }
+            normalized_triangles.sort_unstable();
+            candidate_hashes.push(semantic_sha256(&normalized_triangles)?);
+        }
+    }
+    candidate_hashes.into_iter().min().ok_or_else(|| {
+        invalid(
+            "FORGECAD_GLB_GEOMETRY_INVALID",
+            "GLB normalized geometry evidence could not be derived.",
+        )
+    })
 }
 
 pub fn verify_forgecad_glb(
@@ -500,10 +641,12 @@ fn validate_used_pbr_materials(
                     .and_then(Value::as_bool)
                     == Some(true)
         });
-        if !builtin_identity && !adornment_identity {
+        let surface_layer_identity =
+            surface_layer_material_identity(profile_id, material, texture_set_id);
+        if !builtin_identity && !adornment_identity && !surface_layer_identity {
             return Err(invalid(
                 "FORGECAD_TEXTURE_CONTRACT_STALE",
-                "Used material does not match the current built-in or A005 texture-set identity.",
+                "Used material does not match the current built-in, A005, or retained surface-layer texture-set identity.",
             ));
         }
         let slots = BTreeMap::from([
@@ -560,6 +703,91 @@ fn validate_used_pbr_materials(
         }
     }
     Ok((used_materials.len() as u64, map_count))
+}
+
+/// Validate the material identity emitted for a Rust-sealed
+/// `SurfaceLayerLowering@1`.
+///
+/// The retained layer is a visual-only replacement for the exact A005 zone;
+/// it is not an arbitrary material namespace.  The Python capability boundary
+/// renders the five maps, while this Rust readback verifies the lowering,
+/// source-derived IDs, canonical hashes, base-material binding, and profile
+/// suffix before the shared image/hash checks below are allowed to pass.
+fn surface_layer_material_identity(
+    profile_id: &str,
+    material: &Value,
+    texture_set_id: &str,
+) -> bool {
+    let Some(lowering_value) = material.pointer("/extras/forgecad_surface_layer_lowering") else {
+        return false;
+    };
+    let Ok(lowering) = serde_json::from_value::<SurfaceLayerLowering>(lowering_value.clone())
+    else {
+        return false;
+    };
+    if lowering.validate().is_err() {
+        return false;
+    }
+    let Some(first_adornment) = lowering.adornments.first() else {
+        return false;
+    };
+    let Some(base_material_id) = surface_layer_base_material_id(&first_adornment.base_material)
+    else {
+        return false;
+    };
+    let texture_suffix = if profile_id == "production_concept" {
+        "sl1d"
+    } else {
+        "sl1p"
+    };
+    let expected_texture_set_id = format!(
+        "vtexset_surface_layer_{}_{}",
+        &lowering.source_program_sha256[..32],
+        texture_suffix
+    );
+    let expected_material_id = format!(
+        "mat_surface_layer_{}",
+        &lowering.source_program_sha256[..32]
+    );
+    let lowering_sha256 = semantic_sha256(&lowering).ok();
+    texture_set_id == expected_texture_set_id
+        && material
+            .pointer("/extras/forgecad_texture_material_id")
+            .and_then(Value::as_str)
+            == Some(expected_material_id.as_str())
+        && material
+            .pointer("/extras/forgecad_base_material_id")
+            .and_then(Value::as_str)
+            == Some(base_material_id)
+        && material
+            .pointer("/extras/forgecad_surface_layer_lowering_sha256")
+            .and_then(Value::as_str)
+            == lowering_sha256.as_deref()
+        && material
+            .pointer("/extras/forgecad_surface_layer_retained_layers_sha256")
+            .and_then(Value::as_str)
+            == Some(lowering.retained_layers_sha256.as_str())
+        && material
+            .pointer("/extras/forgecad_visual_only")
+            .and_then(Value::as_bool)
+            == Some(true)
+}
+
+/// Match the Python visual-texture binding used by the reviewed authored
+/// material catalog.  Surface-layer lowering accepts only this preset list,
+/// but several authored IDs share one canonical GLB material slot.
+fn surface_layer_base_material_id(material_id: &str) -> Option<&'static str> {
+    match material_id {
+        "mat_graphite" | "mat_painted_steel" | "mat_powder_coat" => Some("mat_primary"),
+        "mat_aluminum" => Some("mat_aluminum"),
+        "mat_signal_red" => Some("mat_signal_red"),
+        "mat_composite" => Some("mat_composite"),
+        "mat_dark_glass" => Some("mat_dark_glass"),
+        "mat_emissive_blue" => Some("mat_emissive_blue"),
+        "mat_rubber" => Some("mat_rubber"),
+        "mat_automotive_paint" => Some("mat_automotive_paint"),
+        _ => None,
+    }
 }
 
 fn validate_texture_image(
@@ -1094,7 +1322,74 @@ fn invalid(code: &'static str, message: impl Into<String>) -> CoreError {
 
 #[cfg(test)]
 mod tests {
-    use super::triangle_edges_are_closed;
+    use super::{normalized_geometry_sha256, triangle_edges_are_closed};
+    use serde_json::json;
+
+    fn triangle_glb(positions: [[f32; 3]; 3], label: &str) -> Vec<u8> {
+        let mut binary = Vec::new();
+        for position in positions {
+            for value in position {
+                binary.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        for index in [0_u16, 1, 2] {
+            binary.extend_from_slice(&index.to_le_bytes());
+        }
+        let declared_binary_length = binary.len();
+        while binary.len() % 4 != 0 {
+            binary.push(0);
+        }
+        let mut document = serde_json::to_vec(&json!({
+            "asset": {"version": "2.0", "generator": label},
+            "buffers": [{"byteLength": declared_binary_length}],
+            "bufferViews": [
+                {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+                {"buffer": 0, "byteOffset": 36, "byteLength": 6}
+            ],
+            "accessors": [
+                {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3"},
+                {"bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR"}
+            ],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}]
+        }))
+        .unwrap();
+        while document.len() % 4 != 0 {
+            document.push(b' ');
+        }
+        let total_length = 12 + 8 + document.len() + 8 + binary.len();
+        let mut glb = Vec::with_capacity(total_length);
+        glb.extend_from_slice(&0x4654_6c67_u32.to_le_bytes());
+        glb.extend_from_slice(&2_u32.to_le_bytes());
+        glb.extend_from_slice(&(total_length as u32).to_le_bytes());
+        glb.extend_from_slice(&(document.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x4e4f_534a_u32.to_le_bytes());
+        glb.extend_from_slice(&document);
+        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x004e_4942_u32.to_le_bytes());
+        glb.extend_from_slice(&binary);
+        glb
+    }
+
+    #[test]
+    fn normalized_geometry_ignores_metadata_translation_axis_and_uniform_scale() {
+        let base = triangle_glb([[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 1.0, 0.0]], "base");
+        let transformed = triangle_glb(
+            [[10.0, -4.0, 3.0], [10.0, -4.0, 9.0], [10.0, -1.0, 3.0]],
+            "different metadata",
+        );
+        assert_eq!(
+            normalized_geometry_sha256(&base).unwrap(),
+            normalized_geometry_sha256(&transformed).unwrap()
+        );
+        let changed_aspect = triangle_glb(
+            [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            "changed",
+        );
+        assert_ne!(
+            normalized_geometry_sha256(&base).unwrap(),
+            normalized_geometry_sha256(&changed_aspect).unwrap()
+        );
+    }
 
     #[test]
     fn closed_manifold_readback_welds_split_normal_vertices() {

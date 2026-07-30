@@ -1,5 +1,7 @@
 import { ForgeApiError } from '../../shared/api/forgeApi'
 import type { AgentClarification, AgentClarificationOption } from './agentConversationState'
+import type { CandidatePbrCapturePendingPresentation } from './agentConversationState'
+import type { SingleResultDecisionPresentationAction } from './singleResultDecisionPresentationState'
 import { isProviderExecutionError } from './providerConnectionPresentation'
 
 type AgentTurnRecordFailureResult = {
@@ -9,25 +11,20 @@ type AgentTurnRecordFailureResult = {
   failed: boolean
   plan: null
   decision: null
+  candidatePbrCapturePending: CandidatePbrCapturePendingPresentation | null
 }
 
 type ResolveAgentTurnFailureOptions = {
   caught: unknown
   projectId: string | null
-  requestId: string
+  requestId: number
   message: string
   clarificationOptions: readonly AgentClarificationOption[]
-  isCurrentRequest: (projectId: string | null, requestId: string) => boolean
-  receiveAgentClarification: (projectId: string | null, requestId: string, clarification: AgentClarification) => boolean
+  isCurrentRequest: (projectId: string | null, requestId: number) => boolean
+  receiveAgentClarification: (projectId: string | null, requestId: number, clarification: AgentClarification) => boolean
   setAssistantNote: (note: string) => void
-  dispatchSingleResultDecision: (action: {
-    type: 'request_cancelled' | 'request_failed'
-    projectId: string | null
-    requestId: string
-    detail?: string
-    error?: string
-  }) => void
-  markKernelUnavailable: (projectId: string | null, requestId: string) => boolean
+  dispatchSingleResultDecision: (action: Extract<SingleResultDecisionPresentationAction, { type: 'request_cancelled' | 'request_failed' }>) => void
+  markKernelUnavailable: (projectId: string | null, requestId: number) => boolean
 }
 
 const FAILED_REQUEST_REJECTED: AgentTurnRecordFailureResult = {
@@ -37,6 +34,7 @@ const FAILED_REQUEST_REJECTED: AgentTurnRecordFailureResult = {
   failed: false,
   plan: null,
   decision: null,
+  candidatePbrCapturePending: null,
 }
 
 const CANCELED_BY_USER: AgentTurnRecordFailureResult = {
@@ -46,6 +44,7 @@ const CANCELED_BY_USER: AgentTurnRecordFailureResult = {
   failed: false,
   plan: null,
   decision: null,
+  candidatePbrCapturePending: null,
 }
 
 export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOptions): AgentTurnRecordFailureResult {
@@ -69,7 +68,7 @@ export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOp
       status: caught.code === 'DOMAIN_AMBIGUOUS' ? 'ambiguous' : 'unsupported',
       kind: 'domain',
       question: caught.message,
-      options: clarificationOptions,
+      options: [...clarificationOptions],
       originalMessage: message,
     }
     if (!receiveAgentClarification(projectId, requestId, clarification)) {
@@ -84,6 +83,7 @@ export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOp
       failed: false,
       plan: null,
       decision: null,
+      candidatePbrCapturePending: null,
     }
   }
 
@@ -98,6 +98,7 @@ export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOp
       failed: true,
       plan: null,
       decision: null,
+      candidatePbrCapturePending: null,
     }
   }
 
@@ -114,6 +115,7 @@ export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOp
       failed: true,
       plan: null,
       decision: null,
+      candidatePbrCapturePending: null,
     }
   }
 

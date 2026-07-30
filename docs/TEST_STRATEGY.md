@@ -1,6 +1,6 @@
 # ForgeCAD 测试策略
 
-版本：2026-07-17
+版本：2026-07-29
 状态：生产级测试目标与当前差距
 
 ## 1. 测试原则
@@ -11,6 +11,9 @@
 4. 每个版本操作都验证源版本、目标版本和不可变父版本；
 5. 安全失败必须发生在执行、联网或写盘之前；
 6. 绿色 CI 只对其 commit 和实际执行的命令有效。
+7. 工程正确性、视觉相似度、独立真人质量和商业单位经济是四类证据，不能互相替代；
+8. 开发模型、VLM 或实现作者的评分不能代替独立真人。
+9. 类别开放由未知对象不模板回退、表示能力路由和跨类别分布证明；四领域/E005 只能作为机械回归，不能替代 U005。
 
 ## 2. 测试层级
 
@@ -30,7 +33,7 @@ npm run desktop:tauri-check
 
 需要从脚本式 smoke 中拆出可定位的单元测试：
 
-- Domain Pack 分类、含糊/未知领域的零写入屏障和后续澄清；
+- 当前 Domain Pack 分类、含糊/未知领域的零写入屏障和后续澄清回归；U002 后增加 SubjectProfile/RepresentationPlan 与 typed limitation；
 - ShapeProgram validator；
 - AssemblyGraph 环、孤儿、Joint 和 Connector；
 - ChangeSet 状态机和 stale base；
@@ -145,7 +148,9 @@ ADR-0011 的几何子链必须逐项建立独立 Gate。G820 已覆盖合同。`
 
 `FGC-A003` 已由 `npm run agent:a003-provider-gateway-smoke`、`npm run desktop:a003-provider-connection-smoke` 和 Rust `cargo test` 覆盖 Provider metadata/私密凭据/capability preflight、实际网络调用标记、SSE stream、普通 Turn 与 `provider:check` 取消、usage/cache、DeepSeek 400/401/402/422/429/500/503、网络/超时、空内容、非法 JSON、Schema 错误、脱敏、重启读取以及“真实 Provider 失败不得进入 legacy Planner”。本机 Alpha 使用 Rust-owned、generation-bound 的私密文件：目录 0700、key 0600、原子替换且拒绝 symlink；普通启动只读 metadata，显式连接检查与真实 Turn 各读取一次短生命周期快照，terminal 后 zeroize。旧 `macos-keychain` metadata 不自动读取，固定返回 `PROVIDER_CREDENTIAL_MIGRATION_REQUIRED` 并要求用户显式重存一次；当前 Alpha 因而不依赖 ad-hoc 签名 identity，也不触发系统钥匙串密码弹窗。UI smoke 固定 `secret_status=not_checked` 的未授权展示。该 Gate 使用本机 fake Provider，不构成真实四领域模型质量或账单证据。`FGC-F025` 已由 `npm run desktop:f025-legacy-isolation-smoke` 覆盖 Agent-active/legacy-read-only 两条路径、显式延迟读取、迟到响应失效、只读旧信息、Agent-only 质量/导出与单视口/父层行数预算，并聚合 F001/F006/T002；T003/r3/typecheck/build 继续独立回归。`FGC-D005` 必须覆盖四领域语义比例/Style Token 配方、范围/步长、预览取消/确认与越界拒绝；不得出现自由工程尺寸。
 
-ADR-0010 已将 `FGC-V002` 标记为 superseded，不再为三方向解释/重混增加 Gate。`FGC-A004` 已由 `npm run agent:a004-action-loop-smoke` 覆盖 13 项代码所有 Tool Registry、正常 plan→build→GLB readback→四视图→evaluate→preview、输入 Schema/G819 拒绝、12 次上限、取消/timeout/Provider 断线、重复 ID、stale Snapshot 和审批前零永久资产副作用。F026/A005 专属 Gate 保持不变。ADR-0016 将 R007 拆为 R007A/R007B；`npm run agent:r007-gate` 已聚合 Python 只读合同、直接/已导入 GLB、Rust HTTP、原生 ChangeSet preview→confirm/reject、参考/plan/Snapshot 重启读回、F026、typecheck 和 contracts。R007B 的 packaged producer/validator 已覆盖 `single_image`、`multi_view_contact_sheet`、`strict_glb_readback` 三类不同 analysis/plan/effect/result、缺失视角 capability ceiling、源/结果 hash 分离、原对象只读和同一真实工作台唯一 renderer 的 reference/result 捕获；当前证据为 `output/r007b-packaged-workbench-evidence-current-20260719/manifest.json`。该 Gate 明确保持 `visual_fidelity_validated=false`、`formal_eligible=false`，图片路径不做联网反搜或隐藏几何推断。`FGC-V003` 必须覆盖一次完整 synthesis、真实编译/readback/概念渲染硬门、最多两次同意图原位修复、无结果与零版本副作用，并断言方向卡数为 0、单一结果卡为 1；不得生成多个完整模型、评分比较或把兼容适配结果伪装为唯一结果。
+ADR-0010 已将 `FGC-V002` 标记为 superseded，不再为三方向解释/重混增加 Gate。`FGC-A004` 已由 `npm run agent:a004-action-loop-smoke` 覆盖 13 项代码所有 Tool Registry、正常 plan→build→GLB readback→四视图→evaluate→preview、输入 Schema/G819 拒绝、12 次上限、取消/timeout/Provider 断线、重复 ID、stale Snapshot 和审批前零永久资产副作用。F026/A005 专属 Gate 保持不变。ADR-0016 将 R007 拆为 R007A/R007B；`npm run agent:r007-gate` 已聚合 Python 只读合同、直接/已导入 GLB、Rust HTTP、原生 ChangeSet preview→confirm/reject、参考/plan/Snapshot 重启读回、F026、typecheck 和 contracts。R007B 的 packaged producer/validator 已覆盖 `single_image`、`multi_view_contact_sheet`、`strict_glb_readback` 三类不同 analysis/plan/effect/result、缺失视角 capability ceiling、源/结果 hash 分离、原对象只读和同一真实工作台唯一 renderer 的 reference/result 捕获；当前证据为 `output/r007b-packaged-workbench-evidence-current-20260719/manifest.json`。该 Gate 明确保持 `visual_fidelity_validated=false`、`formal_eligible=false`，图片路径不做联网反搜或隐藏几何推断。当前类别开放产品 Gate 必须覆盖一次完整 author、真实编译/readback/同工作台 PBR 八视图硬门、最多一次同意图 typed patch、无结果与零版本副作用，并断言方向卡数为 0、单一结果卡为 1；不得生成多个完整模型、评分比较或把兼容适配结果伪装为唯一结果。旧 V003 的两次修复测试只作为回归读取。
+
+U002 在 A004 冻结兼容清单之外增加代码所有的第 17 项 runtime 工具 `author_universal_asset`。`agent:u002-universal-author-contract-gate` 与 `desktop:u002-universal-author-workbench-smoke` 必须覆盖八类开放 profile、跨合同 hash、伪 observed/未知 capability/Provider 自报 executable 拒绝、机械臂正路径、未支持表示零 worker/版本副作用、无四领域选择器和活动资产保留；R3 继续覆盖 Snapshot、导出与重启。
 
 ADR-0015 已将旧 `FGC-M108` 拆为 `FGC-M108A` 与 `FGC-M108B`；`agent:m108-*` 保留历史命名兼容，但测试结论必须分开记录。
 
@@ -155,11 +160,19 @@ M108A production 只为实际使用材质惰性生成 `_builtin_v4`/`_v4_` 五�
 
 `npm run desktop:m108-workbench-renderer-smoke` 从当前源码生成 production kit，在同一真实工作台和唯一 renderer/context 中依次加载。它校验 metre→millimetre、520 mm fit、环境 recipe hash、PBR 色彩空间、真实 bounds、安全取景、调试辅助隐藏、损坏 GLB 恢复，以及 production 上限：geometries 72、textures 48、draw calls 96、triangles 24,000、实际 PBR texture 35、RGBA8 完整 mip-chain 估算纹理显存 64 MiB。当前检查点四领域为 7,308/68、9,148/78、8,116/96、13,704/53（triangles/draw calls）。preview 的 T003 预算必须独立保持；不得为了 production 全局放宽编辑档。R3/F009 还须用 display request token 拒绝迟到替换，并区分 `compiled_agent_pbr`、`production_concept` 与只读 `external_reference`。
 
+2026-07-28 external-reference smoke 的 GLB fixture 通过显式参考导入入口，因此运行时事实应为 `ready/external_reference`，不是 confirmed Agent asset 的 `glb_pbr`；它仍只证明同一工作台的 PBR 采样、取景、环境和失败保留策略。C111B 的独立开发 capture 记录在 `output/c111b-workbench-capture/capture-manifest.json`，不得替代授权比较或真人门。`desktop:c111b-packaged-agent-webgl` 已用真实 packaged `.app` 在 run `c111b_c0cc…faf8` 证明同资产 `Agent→V1→A005 V2→Snapshot→visible export→8 views→new-process restart→same export/8 views`，并记录 V2 `755dae1d…a289d8`、138,248/157/14、12 complete PBR、single renderer/context/canvas、六阶段 Rust metrics、0 network/credential 和 billable 0。production A005/SurfaceLayer 烘焙的向量化回归必须冻结五通道 PNG SHA，并额外证明完整 C111 production GLB bytes/hash、triangle/primitive 不变；当前 exact-equivalence benchmark 为 `103.174s→22.504s`、`35,964,044` bytes、GLB `5a134d6d…a72a`。compiler-only benchmark 不能替代真实 packaged Agent Turn 时间；控制台锁定仍必须 preflight fail-closed，但当前控制台已解锁并完成新 run。V2 hash 必须作为 action-derived lineage 从 initial 传给 restart，不能误用冻结 V1 hash。120s 生成 Gate 只读取 Rust terminal 六阶段 Turn，不读取后续人工 A005、导出或 restart wall time；该 PASS 不替代 sealed `ReferenceEvidence` comparison 或真人评分。`desktop:task-d-packaged-visual-program-smoke` 仍是另一资产/software-raster supporting Gate。
+
+最新 run `c111b_4ad12339eca842b2993cf2d320498416` 已替代此前 run：V2 `af9f5605…54fa`、Snapshot r5、initial/restart 16 captures exact-match、工程链与显示像素可读性 PASS。冻结合同将 `120s` 绑定到六阶段 Agent Turn；实测 `94.402s <= 120s`，生成性能 Gate PASS。initial `220.240s`、restart `20.262s`、total `240.502s` 是完整 QA workflow wall time，必须作为独立响应速度指标保留，不能拿它覆盖合同定义。`smoke_c111b_packaged_webgl.py` 从 frozen fixture 读取目标并硬断言 Turn 总时长。Turn lower `93.989s` 仍是主要优化基线。固定视图捕获现使用显示域 sRGB 回执，Rust 与 Python 都要求每张 96×96 样本前景覆盖 ≥100 bps、中位亮度 ≥24、可读前景 ≥5000 bps；初次八视图分别达到中位亮度 `34–52`、可读前景 `7251–8868 bps`，重启逐张 hash/指标完全一致。该门只证明画面可读，不证明与授权参考相似或达到真人 `4/5`。
+
+C111B reference policy 必须由 Rust 从冻结 `C111BVisualAcceptanceContract@2` fixture 原始字节解析，不允许在 Provider prompt、WebView 或测试中复制可变阈值。v2 将离线生成链的 0 网络/0 可变成本与视觉比较预算分离：视觉比较必须有显式用户授权和调用前预算预留，每个候选最多 3 次调用，总可变成本硬上限 `100000 microusd`；没有授权时仍严格 0 网络。`VisualReferenceComparisonInput@2` 必须携带 `VisualReferenceAcceptancePolicy@1` 和 source contract SHA；Gate 覆盖 7600/6500/5000 边界、关键 `not_visible`、policy tamper 导致 report lineage 失败，以及非 C111 program 保持通用政策。`agent:pv006c-evidence-context-gate` 继续覆盖 sealed evidence 像素读取、exact candidate eight views、Provider assessment-only、Rust 派生 pass/fail、最多两次 repair、confirm/Snapshot/export 和 adapter。离线 fake Provider PASS 只证明合同；没有当前 Project sealed evidence 与真实 comparison report 时仍写 `NOT RUN`。
+
+运行时预算 Gate 还必须覆盖 0044 迁移、授权幂等冲突、过期、request/graph/policy/Project 漂移、第一次实际 Turn 绑定、跨 Turn 拒绝、唯一活动预留、预网络释放、网络尝试保守记账、三次累计恰好 `100000 microusd`、第四次预网络拒绝，以及 Provider future timeout/drop 的保守 settlement。production 网络结果若没有 `VisualReferenceComparisonBudgetEvidence@1`，`VisualReferenceComparisonReport@2` 必须拒绝；离线 fake Provider 可省略 budget evidence，但不得把它冒充真实网络报告。
+
 M108A 自动 Gate 通过只允许结论“生产概念工件管线已验证”。它不证明固定 showcase 的比例、完整部件语言或表面细节达到生产级视觉基线。
 
-`FGC-M108B` 的 K003/C105 前置已经满足，但正式评审必须使用 `EditableComponentRecipe@1` 实例化的四领域 production fixture，每领域至少 3 份，记录 Recipe/child slot/connector/pivot/局部变换/语义比例/Material Zone/provenance，并先通过 M108A/Q003/G826。当前 `prepare_m108_visual_benchmark.py` 仍生成固定 showcase，因此只属于 M108B preflight，不能作为正式退出资产。M108B 现因独立真人门未完成而 `blocked`，不成为用户明确重排的 F026 → A005 → R007 → V003 实现前置。
+`FGC-M108B` 保留为 PV007 逐领域晋级后的跨领域正式基准；M108A/C111B/PV007 任一依赖未完成时保持 `blocked`。正式评审必须使用 `EditableComponentRecipe@1` 实例化的四领域 production fixture，每领域至少 3 份，记录 Recipe/child slot/connector/pivot/局部变换/语义比例/Material Zone/provenance，并先通过 M108A/Q003/G826。当前 `prepare_m108_visual_benchmark.py` 仍生成固定 showcase，因此只属于 M108B preflight，不能作为正式退出资产。ADR-0020 只把该门后移，不降低四领域或真人阈值；第一机械硬表面商业切片先由 C111B/E004/PV006 证明。
 
-M108B 的独立真人协议见 `evidence/M108_VISUAL_BENCHMARK_PROTOCOL.md`：至少三位未参与实现的真人，在同一 ForgeCAD `production_concept`、固定环境、非 ghost/xray 视口中评分；每个领域的 `proportion`、`material_readability`、`surface_detail` 中位数分别不少于 `4/5`。`validate_m108_visual_benchmark_scores.py` 不得生成分数；正式版本还必须拒绝缺少 Recipe-backed manifest/provenance 的 kit。Codex/代理审查、自动截图、跨领域总分或选择性隐藏截图都不能补齐真人证据。M108B 通过前，用户指南不得宣称生产级概念资产基线、照片级保证或普遍视觉质量。
+保留的 M108B 回归协议要求：至少三位未参与实现的真人，在同一 ForgeCAD `production_concept`、固定环境、非 ghost/xray 视口中评分；每个领域的 `proportion`、`material_readability`、`surface_detail` 中位数分别不少于 `4/5`。`validate_m108_visual_benchmark_scores.py` 不得生成分数，正式版本必须拒绝缺少 Recipe-backed manifest/provenance 的 kit。该旧四领域协议只作为 U005 的机械回归子集；Codex/代理审查、自动截图、跨领域总分或选择性隐藏截图都不能补齐真人证据。
 
 M108 评分合同中的“至少五套”按至少五个不同 material index、texture-set ID 和规范 texture material 计算；重复 authored alias 不计数。production map 必须为 512×512 v4 完整五通道。工作台 renderer line 属性必须存在、为非负安全整数且等于 0，属性删除或改名不能通过默认值伪装。
 
@@ -250,22 +263,81 @@ F005 没有独立的后端 smoke：`WorkbenchDrawerStack` 只负责四类抽屉�
 
 当前尚未进入该层。
 
-## 3. 真实 Provider 评测
+### L6：冻结视觉分布与商业验证
 
-离线 deterministic 结果和 fake HTTP 只验证协议。`FGC-E001` 已冻结、`FGC-E002` 已实现 [真实 Provider 四领域评测合同](AGENT_PROVIDER_EVALUATION.md)：每个领域 20 条正常 Brief（总计最多 80 次 Provider 请求），另有 20 条含糊/越界安全停止条目在本地预检；默认 dry-run 零网络、零费用、零资产/Snapshot 写入。`npm run agent:e001-provider-evaluation-dry-run`、`npm run agent:e001-provider-evaluation-contract-smoke`、`npm run agent:e002-provider-evaluation-runner-smoke` 和 `npm run desktop:deepseek-mvp-acceptance-smoke` 只证明合同、fixture、Rust 私密凭据所有权、授权/预算/脱敏边界，不证明模型质量。Python 的旧 `macos-keychain` 评测路径已 fail-closed；真实 macOS 单 Turn/取消验收仅能通过显式 opt-in 的 Rust-native 命令执行。
+L6 不进入普通 CI；它使用冻结未见任务、真实授权输入、当前发布候选和独立参与者验证产品，而不是验证某个函数。
 
-未来四领域真实 Provider run 必须由用户逐次授权，且在执行器验证 `--confirm-live-provider`、正值且不超过 100 元的 `--confirmed-budget-cny` 与唯一 `--evaluation-run-id` 后才可发起。浏览器开发仍使用默认 environment/0600 secret-file 配置；Python 不读取任何桌面私密凭据。原生 macOS 的单 Turn/取消连通性验收则需 Rust-native 命令额外验证 `--accept-network`、固定确认语、`live_...` 运行编号和绝对输出路径；launcher 不读取 secret，只有应用内 Rust 在显式 Turn 中读取一次 generation。DeepSeek V4 focused contract 需覆盖：当前 V4 model 显式 `thinking=enabled + reasoning_effort=max`；同 Turn thinking Tool Call 完整续传；缺少 reasoning continuation 在 follow-up 前拒绝；跨 Turn 只发送安全最终消息；最终 usage 的 cache hit/miss 原样汇总；请求体无 sampling penalty 和 `Cache-Control: no-store`。2026-07-20 的 Keychain acceptance 属于历史失败证据；2026-07-27 本机 Alpha 已迁移到私密文件，不再以 app identity 或钥匙串授权作为前置门。Provider 未返回完整 token 使用量、预算中断或任何失败时，报告仍不得作为合格模型证据。记录：
+ADR-0022 的当前正式目标是 U005 八类跨类别分布；每类单独报告，不以总体平均掩盖失败。以下 30 条机械硬表面 E005/PV006 规则保留为 procedural regression 子集，覆盖纯文字、单图、多视图和已有资产局部修改；既有 PV006 的 20 条门保持原阈值。每条先冻结 `VisualAcceptanceContract` 或等价 manifest，再记录：
+
+- macro 轮廓/比例/负空间；
+- meso 部件层级/连接/壳体过渡；
+- micro 倒角/紧固/线束/Decal/磨损；
+- PBR zone、UV/tangent、五通道消费和材质逻辑；
+- 同一 GLB 的固定八视图和跨视图一致性；
+- Part/选择/修改/版本/导出/重启的资产可用性；
+- 调用、token/图片用量、缓存、修复次数、端到端时间、估算成本和失败类别；
+- 三位未参与实现的独立真人评分。
+
+ADR-0021 的目标阈值均为 `target`：首次真人 `≥4/5` 至少 70%，一次 typed patch 后至少 85%；无 patch P50 ≤32 秒/P90 ≤70 秒，一次 patch 后 P90 ≤105 秒；严重回归 `<10%`；可变成本不高于实收收入 25%。商业层另验证至少 5 家付费设计伙伴和第 4 周不少于 50% 的核心闭环周留存。未真实招募、收费和运行时必须标记 `NOT RUN`，不得用问卷意向或内部演示补齐。
+
+`FGC-E005` 使用 `npm run agent:e005-unseen-distribution-gate`。合同层必须冻结 30 条 task-set SHA，并验证 source manifest 恰好逐条覆盖、无重复/乱序/跨集合/hash 漂移。没有显式 `E005ProviderRunAuthorization@1` 或 authored v2 source 时，每条只能生成 `not_run/E005_PROVIDER_UNAUTHORIZED|E005_SOURCE_UNAVAILABLE` receipt，author/patch/network/cost 均为 0，且不得出现 source、GLB、固定视图或时间字段。授权合同必须绑定精确 Provider/model/source policy/pricing/disclosure、30+30/60 调用上限和 token/成本/时间预算；schema、账本和测试 PASS 均不等于用户授权真实调用。
+
+同一 Gate 运行 Core 的 E005 原子预算测试。正式调用必须先在 0045 账本原子 reserve，再由唯一 worker 原子取得一次 dispatch，最后 settle；公开 API 不接受外部 now/deadline。只有 reserved 状态可以按 pre-dispatch release，dispatching 状态的成功、超时、取消、传输失败和重启恢复必须保守 accounted；启动恢复还必须释放遗留 reserved。首次 settlement evidence/after-counters/output source/gate hash 必须持久化，其他任务完成后的重放仍返回完全相同内容；Patch 资格判断必须先重验该证据，不能直接信任可变 SQL 输出列。测试必须证明第 31 次 author、第 31 次 patch/第 61 次 total、并发重复 dispatch、非冻结 task/hash、跨 Provider/model、SQL/canonical JSON/output hash 漂移、过期、单次/批次 deadline、token/cost 超限和非 repairable patch 全部 fail closed；首轮通过不可 patch，同任务每种 call kind 最多一次。账本测试不得联网或读取凭据。正式 runner 还必须从实际请求内部计算 request SHA/token/成本，不能信任上层自报。
+
+正路径测试由 Python 启动真实 restricted uvicorn sidecar，再由被忽略的桌面 Rust test 使用生产 `NativeProductToolExecutor`/`LoopbackHttpPort` 执行 E005，输出唯一 `E005RunReceipt@1`，最后回到 Python JSON Schema 校验；假 HTTP backend 只做端口回归，不可替代这条 live Gate。focused adapter/port tests还必须覆盖预取消零几何调用、timeout 稳定码、无 source patch 拒绝、精确 replay 只重渲染/full-cache hit，以及一个 repairable hard Gate 后至多一次 typed patch 与 operation fragment hit/miss。
+
+正式 30 题前还必须通过三个质量前置门。E005-R1 已通过。E005-R2 Gate 必须证明：唯一 visual call 同时接收 exact sealed reference bytes 与同一 GLB/renderer 的 TurntableEight，返回 assessments + ephemeral proposal；Rust 派生 report 后才能密封 patch。accept 总计 1 geometry build；typed patch 总计 2 builds、1 visual call、0 final visual recheck，并明确标记待视觉确认；参考/候选任一字节或 hash 交换必须在 Provider 前失败。SurfacePlan 已接入受限 A005/PBR 后，Gate 必须证明每个展开 zone 恰有一套五通道纹理、provenance 通过，`set_surface_tuning` 改变 PBR input identity；只检查 GLB/manifold/bounds 不算视觉 patch。formal-call 子门还必须证明 exact body prepare-once、同一 0045 `Patch` reservation、无 0044 双重预算、同 authorization/provider/model/pricing、1 Author + 1 visual、真实 usage 上界、reservation ID 只进入 idempotency header，以及 identity drift 预网络失败。formal recovery 子门要求 Author 已 accounted 后的 AwaitingVisualReview checkpoint、重启不重发 Author、visual dispatching/未知状态进入 reconciliation、真实 `E005VisualSession@1`/final receipt 与篡改拒绝；这些现已由 0047 和 R2 focused fixture 通过。
+
+`npm run agent:e005-r3-production-review-contract-gate` 是 R3 的合同子门：同一 R2 final source 必须只增加一次 `production_concept`、640×640、TurntableEight 编译；`E005ProductionReview@1` 绑定 source、SurfacePlan、全部 adornments、完整 RestrictedGeometryInput、production GLB/normalized geometry/readback、11 sets/55 maps 五通道 PBR、八视图和 lower/compile/render/total 时间；production receipt upgrade 保持 1 Author + 1 visual，不增加第三次 Provider/VLM。当前 Gate 覆盖 8 Core R2、9 app-server R2、3 app-server R3 与 generated contracts。它仍不是 R3 done：真实 repository-backed 单图/多视图/当前资产输入、completed-visual→production 跨重启、Author/visual Provider 等完整 wall-clock、main/startup 和正式 sidecar/renderer 四模态证据尚未完成；图片文字描述只能作预检。
+
+0046 batch checkpoint 测试必须证明：按 ordinal 最多一个 task 为 running；未产生 network-attempted reservation 的任务可在 Provider recovery 后回 pending；任何 dispatching/accounted/网络不确定任务都进入 `reconciliation_required` 且不可自动 retry；receipt canonical JSON/hash 与 authorization/task 原子封存，exact replay 幂等、冲突 replay 拒绝。该 substrate PASS 只证明恢复安全，不授权也不触发正式 Provider run。
+
+结构自由度不得由 GLB hash 或 report 布尔值自报。成功 receipt 必须从 patch 后最终 source 生成顺序/ID 无关的 canonical semantic graph，并从最终 GLB 生成忽略材质、metadata、primitive 顺序、平移、轴交换与统一缩放的三角几何 hash；435 对中任一同 semantic structure 或同 normalized geometry 都失败。对抗测试至少覆盖材质/metadata、平移/轴交换/统一缩放、source node/output 重排不变，以及真实依赖边和非等比形状变化可见。
+
+真人质量必须由 `E005HumanReviewBundle@1` 从同一 receipt/fixed-view hash 派生：3 个互异真人 commitment、每人 30 条、每条 3 人、共 90 份，七维中位数 `>=4/5` 才通过。blind packet 内容还需单独保证隐藏 Provider、实现来源和任务身份；只有 packet hash 而无生成/内容检查不能进入正式评审。聚合器从 authorization、receipts、matrix、human bundle 重算计数和 `formal_eligible`；30/30 lineage、435/435、三人逐任务、首轮 21/30、一次 patch 内 26/30 和 32s/70s/105s 任一缺失均为 false。离线 fixture、合成 self-test、自动/VLM 评价和硬门成功不得计入真人质量通过。
+
+## 3. ADR-0022 通用能力 Gate
+
+### U002：类别开放理解与路由
+
+- 纯文本、sealed 单图、多视图和当前资产进入同一 author request；
+- 至少覆盖机械、角色、生物、植物、家具、建筑/环境、载具和混合对象的 SubjectProfile fixture；
+- 未知类别不产生 `unsupported domain`，真正含糊才澄清；缺 capability 返回 typed limitation；
+- C111/机械臂/武器模板回退、跨 Project evidence、伪观察和未声明 capability 在 worker/Provider 前拒绝；
+- 没有 executable representation 时零资产版本、零 Snapshot、零导出副作用。
+
+### U003/U004：统一资产源、本地混合表示与 Provider 主权
+
+- `UniversalAssetSource` 的各分支共享 source hash、CAS、版本头、readback 和导出；
+- camera hypothesis、detail claim、appearance evidence、Material Zone appearance 与 projection compiler 有正负 fixture；
+- deformable/local-hybrid 不得绕过格式、拓扑、预算、Part/Zone 和 GLB readback；
+- DeepSeek/千问关闭、超时或失败后，既有项目仍能打开、检查和导出；第三个 Provider 必须预网络拒绝。
+
+U004A 必须通过 `agent:u004-sovereign-provider-gate`：旧远程 Mesh adapter/credential/command/UI/live probe 文件保持删除；DeepSeek 凭据拒绝非官方 host 与非 `deepseek-*` 模型，千问凭据拒绝非官方域与非 `qwen*` 模型；desktop typecheck/build 与 F026 单视口继续通过。U004 后续每个本地表示还必须覆盖重复/悬空 part/feature、能力越权、非法参数、取消/超时、编译失败、迟到结果和版本/Snapshot/Quality/Export 零副作用。该 Gate 只证明 Provider 边界，不证明视觉质量或 capability 晋级。
+
+### U005：跨类别正式质量
+
+- 八类任务分别报告身份保持、轮廓、结构、材质、跨视图、可编辑性、首轮/一次 patch、时间、成本和真人评分；
+- 不允许用总体平均掩盖任一类别失败；投影纹理不得在 clay/map-stripped、grazing-light 或 ID-buffer 视图中掩盖错误几何；
+- 自动事实门、视觉 Provider、真人盲评和商业指标分别记录；未运行保持 `NOT RUN`。
+
+## 4. 真实 Provider 评测
+
+离线 deterministic 结果和 fake HTTP 只验证协议。`FGC-E001` 已冻结、`FGC-E002` 已实现 [Provider 与视觉组合评测合同](AGENT_PROVIDER_EVALUATION.md) 中的历史四领域 Planner 合同：每个领域 20 条正常 Brief（总计最多 80 次 Provider 请求），另有 20 条含糊/越界安全停止条目在本地预检；默认 dry-run 零网络、零费用、零资产/Snapshot 写入。`npm run agent:e001-provider-evaluation-dry-run`、`npm run agent:e001-provider-evaluation-contract-smoke`、`npm run agent:e002-provider-evaluation-runner-smoke` 和 `npm run desktop:deepseek-mvp-acceptance-smoke` 只证明合同、fixture、Rust 私密凭据所有权、授权/预算/脱敏边界，不证明当前单一结果的模型质量。Python 的旧 `macos-keychain` 评测路径已 fail-closed；真实 macOS 单 Turn/取消验收仅能通过显式 opt-in 的 Rust-native 命令执行。
+
+真实 Provider run 必须由用户逐次授权，并由执行器验证正值成本上限、唯一 evaluation run ID、请求/图片/token 上限、wall time、最多一次 v2 typed patch 和停止条件后才可发起。浏览器开发仍使用默认 environment/0600 secret-file 配置；Python 不读取任何桌面私密凭据。原生 macOS 单 Turn/取消连通性只通过显式 opt-in Rust-native 命令执行。具体 Provider/model capability、请求字段、价格和 reasoning 续传合同必须在执行当天依据官方资料和 preflight 冻结到 run report，不能从本文件旧模型名推断。2026-07-20 的 Keychain acceptance 属于历史失败证据；2026-07-27 本机 Alpha 已迁移到私密文件，不再以 app identity 或钥匙串授权作为前置门。Provider 未返回完整用量、预算中断或任何失败时，报告仍不得作为合格模型证据。记录：
 
 - 领域识别准确率；
 - 结构化输出成功率；
 - 完整外观率；
 - 首次预览时间；
 - token、费用和超时；
-- 人工选择率和失败原因。
+- 独立真人评分、修复前后变化和失败原因；
+- 缓存命中、修复次数、端到端时间和估算可变成本。
 
 真实评测必须显式授权费用，密钥、Base URL、模型内部 ID、原始 Prompt/Response 不进入工件。模型或 Prompt 变更后重新基线；旧 R4 Weapon 评测不得代替此基线。
 
-## 4. 非功能测试
+## 5. 非功能测试
 
 - 前端 bundle 预算和懒加载；T003 当前以 1.2 MB 最大 JS、1.4 MB 总 JS、150 kB CSS 为 Alpha 门禁，后续拆分任务应逐步收紧而非放宽；
 - G801 wedge/capsule 几何必须验证 GLB header、bounds、triangle readback、重复生成字节一致，并保持 non-functional-only 边界；
@@ -283,7 +355,7 @@ F005 没有独立的后端 smoke：`WorkbenchDrawerStack` 只负责四类抽屉�
 - 键盘、焦点、屏幕阅读器状态通知和最小字号；
 - API Key、路径越界和日志脱敏。
 
-## 5. CI 必需检查
+## 6. CI 必需检查
 
 每个 PR 至少执行：
 
@@ -309,7 +381,7 @@ cargo audit --file apps/desktop/src-tauri/Cargo.lock --json
 
 发布分支额外执行 sidecar 构建、安装 E2E、许可证/SBOM、备份恢复和真实 Provider 基线（如本次版本改变 Provider 行为）。
 
-## 6. 失败处理
+## 7. 失败处理
 
 - flaky 测试同样阻断，不能自动重跑后忽略首次失败；
 - 修复产品错误时补回归测试；

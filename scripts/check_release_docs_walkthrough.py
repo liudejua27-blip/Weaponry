@@ -69,7 +69,7 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "box`/`cylinder",
         "ActiveDesignSnapshot",
         "广泛多客户端并发 E2E",
-        "docs/legacy/README.md",
+        "docs/COMPATIBILITY_MIGRATION.md",
         "docs/DOCUMENTATION_MAP.md",
         "docs/DOCUMENTATION_STATUS.md",
     ],
@@ -89,9 +89,9 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
     ],
     "docs/PRODUCT_DEFINITION.md": [
         "当前实现是本机 Alpha",
-        "工作台提供四个面向零基础用户的选项",
+        "四领域选项只保留 legacy 兼容测试",
         "目标状态下",
-        "legacy/README.md",
+        "COMPATIBILITY_MIGRATION.md",
     ],
     "docs/DESIGN.md": [
         "ActiveDesignSnapshot",
@@ -116,7 +116,7 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "POST /api/v1/agent/blockouts:commit",
         "POST /api/v1/agent/asset-versions/{asset_version_id}:export",
         "Idempotency-Key",
-        "legacy/API_WEAPON_COMPATIBILITY.md",
+        "COMPATIBILITY_MIGRATION.md",
     ],
     "docs/OPERATIONS.md": [
         "USER_GUIDE.md",
@@ -184,13 +184,9 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "agent_imported_glbs.object_path",
         "不能保证复制外部导入 GLB 对象",
     ],
-    "docs/legacy/README.md": [
-        "不是 ForgeCAD 通用机械 Agent 的主产品路径",
-        "API_WEAPON_COMPATIBILITY.md",
-    ],
     "docs/CODEX_HANDOFF.md": [
         "先刷新，不盲信快照",
-        "FGC-S001",
+        "FGC-U002 done",
         "desktop:r3-concept-workbench-smoke",
         "release:packaging-readiness",
         "agent_imported_glbs.object_path",
@@ -258,6 +254,27 @@ DOC_REQUIREMENTS: dict[str, list[str]] = {
         "P0 永远禁止",
         "P0 不安装",
     ],
+    "docs/ADR/0020-lightweight-appearance-first-3d-agent.md": [
+        "状态：Accepted",
+        "不训练基础 3D 模型",
+        "ActiveDesignSnapshot",
+        "FGC-C111B",
+        "可变推理与存储成本",
+    ],
+    "docs/ADR/0021-high-freedom-visual-program-max.md": [
+        "状态：Accepted",
+        "ForgeVisualProgram@2",
+        "ExpandedVisualDAG@1",
+        "一次 author",
+        "FGC-VP201",
+    ],
+    "docs/LUNA_GOAL_EXECUTION_GUIDE.md": [
+        "Luna 是开发执行者",
+        "任何一轮只允许一个任务为 `in_progress`",
+        "VisualAcceptanceContract",
+        "PASS/FAIL/KNOWN FAIL/NOT RUN",
+        "当前只领取并推进任务索引中的 FGC-U002",
+    ],
 }
 
 DELETED_DOCS = [
@@ -274,6 +291,32 @@ DELETED_DOCS = [
     "docs/PROMPT_QUALITY_SET.md",
     "docs/UNITY_IMPORT_SMOKE.md",
     "workflows/comfyui/README.md",
+    "docs/legacy/README.md",
+    "docs/legacy/API_WEAPON_COMPATIBILITY.md",
+    "docs/legacy/DATABASE_WEAPON_COMPATIBILITY.md",
+    "docs/legacy/OPERATIONS_WEAPON_COMPATIBILITY.md",
+    "docs/ADR/0001-product-pivot.md",
+    "docs/ADR/0002-cad-kernel.md",
+    "docs/ADR/0003-feature-graph-security.md",
+    "docs/ADR/0004-third-party-and-distribution.md",
+    "docs/ADR/0005-legacy-data-and-config-migration.md",
+    "docs/ADR/0006-weapon-first-product-scope.md",
+    "docs/ADR/0007-weapon-concept-first-dual-track.md",
+    "docs/ADR/0008-general-mechanical-concept-agent.md",
+    "docs/ADR/0010-agent-selected-realistic-workbench.md",
+    "docs/ADR/0011-3d-mechanical-design-system.md",
+    "docs/ADR/0012-csg-kernel-benchmark-no-adoption.md",
+    "docs/ADR/0018-visual-first-neural-3d-mvp.md",
+    "docs/evidence/M108_VISUAL_BENCHMARK_PROTOCOL.md",
+    "docs/evidence/P0_CURRENT_READINESS_AUDIT.md",
+    "docs/evidence/R0_BASELINE.md",
+    "docs/evidence/R1_FOUNDATION.md",
+    "docs/evidence/R2_CONCEPT_CONTRACTS.md",
+    "docs/evidence/R3_CONCEPT_WORKBENCH.md",
+    "docs/evidence/R4_CONCEPT_PLANNER.md",
+    "docs/evidence/R5_PRESENTATION_DELIVERY.md",
+    "docs/evidence/R6_PACKAGING_READINESS.md",
+    "docs/evidence/REPOSITORY_INTEGRITY.md",
 ]
 
 FORBIDDEN_USER_GUIDE_CLAIMS = [
@@ -389,7 +432,7 @@ def _extract_npm_script_refs(text: str) -> set[str]:
 def _check_codex_task_index() -> dict[str, Any]:
     text = (ROOT / "docs/CODEX_TASK_INDEX.md").read_text(encoding="utf-8")
     rows = re.findall(
-        r"^\| (FGC-([A-Z][0-9]{3})) \| ([a-z_]+) \| ([^|]+) \|",
+        r"^\| (FGC-([A-Z]{1,2}[0-9]{3}[A-Z]?)) \| ([a-z_]+) \| ([^|]+) \|",
         text,
         flags=re.MULTILINE,
     )
@@ -406,7 +449,7 @@ def _check_codex_task_index() -> dict[str, Any]:
     short_ids = set(short_statuses)
     missing_dependencies: dict[str, list[str]] = {}
     for task_id, _, status, dependency_cell in rows:
-        dependencies = sorted(set(re.findall(r"\b([A-Z][0-9]{3})\b", dependency_cell)))
+        dependencies = sorted(set(re.findall(r"\b([A-Z]{1,2}[0-9]{3}[A-Z]?)\b", dependency_cell)))
         missing = [dependency for dependency in dependencies if dependency not in short_ids]
         if missing:
             missing_dependencies[task_id] = missing
@@ -416,10 +459,22 @@ def _check_codex_task_index() -> dict[str, Any]:
                 issues.setdefault("ready_with_unresolved_dependencies", {})[task_id] = unresolved
     if missing_dependencies:
         issues["missing_dependencies"] = missing_dependencies
+    in_progress = sorted(task_id for task_id, _, status, _ in rows if status == "in_progress")
+    if len(in_progress) > 1:
+        issues["multiple_in_progress_tasks"] = in_progress
     actual_ready = {task_id for task_id, _, status, _ in rows if status == "ready"}
-    if not actual_ready:
+    # A claimed atomic task is intentionally no longer `ready`. During that
+    # interval the table may have no ready row, but it must have exactly one
+    # in-progress row whose dependencies are already done.
+    if not actual_ready and not in_progress:
         issues["no_ready_tasks"] = True
-    if len(rows) < 40:
+    for task_id in in_progress:
+        row = next(row for row in rows if row[0] == task_id)
+        dependencies = sorted(set(re.findall(r"\b([A-Z]{1,2}[0-9]{3}[A-Z]?)\b", row[3])))
+        unresolved = [dependency for dependency in dependencies if short_statuses.get(dependency) != "done"]
+        if unresolved:
+            issues.setdefault("in_progress_with_unresolved_dependencies", {})[task_id] = unresolved
+    if len(rows) < 12:
         issues["task_count_too_small"] = len(rows)
     return issues
 

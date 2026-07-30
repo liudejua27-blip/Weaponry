@@ -1,11 +1,11 @@
-# ForgeCAD 首批领域包设计
+# ForgeCAD 机械 Domain Pack 兼容与知识增强设计
 
-版本：2026-07-15
-状态：G2 通用合同与四个最小本地 registry manifest 已落地；G3 轻量 ShapeProgram worker、G5 分件候选/基础 mount Connector/机械臂 revolute Joint 和 G6 AgentAssetVersion 已生成四领域 48 个确定性 blockout 变体/候选图并可进入基础编辑；AgentComponent 注册/同角色替换、声明式 Connector 对齐和受限 GLB 导出已接入；G6.5 可安全导入任意领域的自包含 GLB 作为参考模型；前端变体目录、碰撞/运动学、外部 GLB 自动重建/深度分件和正式资产目录仍待后续。
+版本：2026-07-29
+状态：当前四个机械 Pack 的实现与回归说明；ADR-0022 后它们不再是产品入口 allowlist、永久范围或安全边界
 
 ## 1. 定位
 
-ForgeCAD Core 负责 Agent、ShapeProgram、分层装配、版本、材质、检查、渲染和导出。领域包只提供某类机械概念的语义，不复制工作台或创建独立 Mode。
+ForgeCAD Core 负责 Agent、资产源、分层装配、版本、材质、检查、渲染和导出。Domain Pack 只为特定类别提供可选术语、角色、材质、组件和评测增强，不复制工作台、不创建独立 Mode，也不决定输入能否进入 Agent。
 
 首批领域包：
 
@@ -16,7 +16,7 @@ aircraft_concept
 robotic_arm_concept
 ```
 
-用户不需要选择领域包。Agent 根据 Brief 推断，无法判断时用一句普通问题确认。`DomainInferenceResult@1` 和四领域关键词/同义词 fixture 规定结果只能是 `recognized`、`ambiguous` 或 `unsupported`。D002 在新 Turn 路径接入该合同；D003 已将后两态变成一个等待澄清的 Turn/Item 和四个面向用户的选项。该分支不会回退到未来武器包，也不会写入 Plan、Blockout、版本或资产。
+用户不需要选择领域包。U002 产品主路径先形成 `SubjectProfile@1` 和 `RepresentationPlan@1`；未知类别本身不等于不允许生成，没有可执行表示时返回 typed limitation。`DomainInferenceResult@1`、四领域关键词/同义词 fixture 和 D003 四选一只保留兼容测试，不再是新项目准入器。Domain Pack 只能在 profile 形成后提供可选知识提示，不能覆盖对象身份、选择 capability 或触发模板。当前与目标都禁止回退到未来武器、机械臂或其他默认模板。
 
 ## 2. DomainPackManifest@1
 

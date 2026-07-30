@@ -176,6 +176,10 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
         default=None,
         pattern=r"^[a-f0-9]{64}$",
     )
+    # A bounded reference-pixel receipt may only decorate a retained Design
+    # Surface.  It preserves the source/camera/mask lineage without turning a
+    # GLB readback into a second asset truth or retaining source image bytes.
+    reference_uv_evidence: Optional[Dict[str, Any]] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -280,6 +284,8 @@ class GeometryVisualTextureSetReadback(StrictApiModel):
             raise ValueError("retained surface layer readback must include lowering and both hashes together")
         if self.surface_adornment is not None and self.surface_layer_lowering is not None:
             raise ValueError("visual texture readback cannot mix A005 and retained surface layer provenance")
+        if self.reference_uv_evidence is not None and self.surface_layer_lowering is None:
+            raise ValueError("reference UV evidence readback requires a retained surface layer")
         return self
 
 

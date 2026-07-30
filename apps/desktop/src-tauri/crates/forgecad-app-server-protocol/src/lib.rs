@@ -69,6 +69,7 @@ pub const NOTIFICATION_THREAD_CREATED: &str = "thread/created";
 pub const NOTIFICATION_THREAD_UPDATED: &str = "thread/updated";
 pub const NOTIFICATION_THREAD_ARCHIVED: &str = "thread/archived";
 pub const NOTIFICATION_TURN_STARTED: &str = "turn/started";
+pub const NOTIFICATION_TURN_WAITING_FOR_CAPTURE: &str = "turn/waiting_for_capture";
 pub const NOTIFICATION_ITEM_UPDATED: &str = "item/updated";
 pub const NOTIFICATION_APPROVAL_CREATED: &str = "approval/created";
 pub const NOTIFICATION_APPROVAL_RESOLVED: &str = "approval/resolved";

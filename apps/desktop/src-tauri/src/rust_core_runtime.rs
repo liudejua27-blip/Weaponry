@@ -2416,6 +2416,21 @@ impl RustCoreRuntime {
                 Some(format!("{asset_version_id}.glb")),
             );
         }
+        if let Some(artifact) = self.game_delivery_artifact(asset_version_id)? {
+            let mut headers = game_delivery_headers(&artifact);
+            headers.push((
+                "Content-Disposition".into(),
+                format!("attachment; filename=\"{asset_version_id}.glb\""),
+            ));
+            return Ok(CompatHttpResponse {
+                schema_version: HTTP_COMPAT_RESPONSE_SCHEMA_VERSION.into(),
+                status: 200,
+                headers,
+                body: ProtocolHttpBody::Base64 {
+                    data: BASE64_STANDARD.encode(&artifact.delivery_bytes),
+                },
+            });
+        }
         let artifact = self.production_artifact(asset_version_id)?;
         let mut headers = artifact_headers(&artifact);
         headers.push((
@@ -2453,6 +2468,30 @@ impl RustCoreRuntime {
                     "exported_at":utc_now_timestamp(),
                 }),
                 external_glb_export_headers(&artifact),
+            );
+        }
+        if let Some(artifact) = self.game_delivery_artifact(asset_version_id)? {
+            return json_response(
+                200,
+                json!({
+                    "schema_version": "AgentAssetExport@2",
+                    "asset_version_id": asset_version_id,
+                    "format": "glb",
+                    "glb_base64": BASE64_STANDARD.encode(&artifact.delivery_bytes),
+                    "artifact_profile_id": "game_delivery",
+                    "artifact_profile_sha256": Value::Null,
+                    "shape_program_sha256": artifact.visual_source.shape_program_sha256,
+                    "glb_sha256": artifact.delivery_object.sha256,
+                    "glb_byte_size": artifact.delivery_object.byte_size,
+                    "triangle_count": artifact.delivery_readback.lod.lods.first().map(|lod| lod.triangle_count).unwrap_or_default(),
+                    "bounds_mm": artifact.visual_source.bounds_mm,
+                    "readback_status": "passed",
+                    "readback_triangle_count": artifact.visual_source.triangle_count,
+                    "visual_source_lod0_glb_sha256": artifact.visual_source.object.sha256,
+                    "game_asset_delivery": artifact.delivery_readback,
+                    "exported_at": now_timestamp(),
+                }),
+                game_delivery_export_headers(&artifact),
             );
         }
         let artifact = self.production_artifact(asset_version_id)?;
@@ -2621,6 +2660,115 @@ impl RustCoreRuntime {
         }
         production_artifact_from_readback(version, quality, object, bytes)
     }
+
+    /// Returns the executable game artifact only when it is cryptographically
+    /// tied back to the active, quality-bound visual LOD0 source. A missing or
+    /// malformed game receipt is a conflict rather than a fallback to source
+    /// bytes, because callers explicitly requested a game-ready asset.
+    fn game_delivery_artifact(
+        &self,
+        asset_version_id: &str,
+    ) -> CoreResult<Option<GameDeliveryArtifact>> {
+        let version = self
+            .repository
+            .version(asset_version_id)?
+            .ok_or_else(|| CoreError::not_found("AgentAssetVersion"))?;
+        let source_value = version
+            .assembly_graph
+            .get("universal_asset_source_v2")
+            .cloned();
+        let Some(source_value) = source_value else {
+            return Ok(None);
+        };
+        let source: forgecad_core::UniversalAssetSourceV2 =
+            serde_json::from_value(source_value).map_err(|_| {
+                CoreError::conflict(
+                    "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                    "Game delivery source provenance could not be decoded from the asset.",
+                )
+            })?;
+        source.validate()?;
+        let Some(receipt) = source.game_asset_delivery.as_ref() else {
+            return Ok(None);
+        };
+        let profile = source.game_asset_profile.as_ref().ok_or_else(|| {
+            CoreError::conflict(
+                "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                "A game delivery receipt requires the sealed game asset profile.",
+            )
+        })?;
+        let visual_source = self.production_artifact(asset_version_id)?;
+        let visual_source_alias = self
+            .repository
+            .object_for_reference(&ObjectReference {
+                reference_kind: "asset_version".into(),
+                owner_id: asset_version_id.into(),
+                role: "visual_source_lod0_glb".into(),
+            })?
+            .ok_or_else(|| {
+                CoreError::conflict(
+                    "GAME_DELIVERY_VISUAL_SOURCE_REQUIRED",
+                    "Game delivery requires the explicit visual-source LOD0 object role.",
+                )
+            })?;
+        let delivery_object = self
+            .repository
+            .object_for_reference(&ObjectReference {
+                reference_kind: "asset_version".into(),
+                owner_id: asset_version_id.into(),
+                role: "game_delivery_glb".into(),
+            })?
+            .ok_or_else(|| {
+                CoreError::conflict(
+                    "GAME_DELIVERY_OBJECT_REQUIRED",
+                    "Game delivery source has no immutable delivery GLB object role.",
+                )
+            })?;
+        if visual_source_alias.sha256 != visual_source.object.sha256
+            || visual_source_alias.byte_size != visual_source.object.byte_size
+            || delivery_object.extension != "glb"
+        {
+            return Err(CoreError::conflict(
+                "GAME_DELIVERY_OBJECT_DRIFT",
+                "Game delivery object roles differ from the quality-bound visual source.",
+            ));
+        }
+        let delivery_bytes = self.repository.read_object(&delivery_object.sha256)?;
+        let bindings = forgecad_core::derive_game_asset_delivery_bindings(&source)?;
+        let delivery_readback = forgecad_core::verify_game_asset_delivery_glb(
+            &visual_source.bytes,
+            &delivery_bytes,
+            profile,
+            &bindings,
+        )?;
+        if delivery_readback != *receipt
+            || delivery_readback.source_glb_sha256 != visual_source.object.sha256
+            || delivery_readback.delivery_glb_sha256 != delivery_object.sha256
+        {
+            return Err(CoreError::conflict(
+                "GAME_DELIVERY_RECEIPT_DRIFT",
+                "Game delivery bytes no longer match the sealed source/profile receipt.",
+            ));
+        }
+        Ok(Some(GameDeliveryArtifact {
+            visual_source,
+            delivery_object,
+            delivery_bytes,
+            delivery_readback,
+        }))
+    }
+
+    /// Returns immutable game delivery bytes only after the runtime has
+    /// independently revalidated their source/profile/receipt lineage. This
+    /// is intentionally narrower than a generic object read so the asset
+    /// package route cannot accidentally package an unverified second GLB.
+    pub(crate) fn verified_game_delivery_for_package(
+        &self,
+        asset_version_id: &str,
+    ) -> CoreResult<Option<GameDeliveryPackageArtifact>> {
+        self.game_delivery_artifact(asset_version_id)
+            .map(|artifact| artifact.map(GameDeliveryPackageArtifact::from))
+    }
 }
 
 #[derive(Debug)]
@@ -2631,6 +2779,31 @@ struct ProductionArtifact {
     shape_program_sha256: String,
     triangle_count: u64,
     bounds_mm: Vec<f64>,
+}
+
+#[derive(Debug)]
+struct GameDeliveryArtifact {
+    visual_source: ProductionArtifact,
+    delivery_object: ObjectRecord,
+    delivery_bytes: Vec<u8>,
+    delivery_readback: forgecad_core::GameAssetDeliveryReadback,
+}
+
+#[derive(Debug)]
+pub(crate) struct GameDeliveryPackageArtifact {
+    pub(crate) delivery_bytes: Vec<u8>,
+    pub(crate) source_sha256: String,
+    pub(crate) receipt: forgecad_core::GameAssetDeliveryReadback,
+}
+
+impl From<GameDeliveryArtifact> for GameDeliveryPackageArtifact {
+    fn from(artifact: GameDeliveryArtifact) -> Self {
+        Self {
+            delivery_bytes: artifact.delivery_bytes,
+            source_sha256: artifact.visual_source.object.sha256,
+            receipt: artifact.delivery_readback,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -3398,6 +3571,45 @@ fn artifact_headers(artifact: &ProductionArtifact) -> Vec<(String, String)> {
 
 fn production_glb_export_headers(artifact: &ProductionArtifact) -> Vec<(String, String)> {
     artifact_headers(artifact)
+        .into_iter()
+        .filter(|(name, _)| !name.eq_ignore_ascii_case("content-type"))
+        .collect()
+}
+
+fn game_delivery_headers(artifact: &GameDeliveryArtifact) -> Vec<(String, String)> {
+    vec![
+        ("Cache-Control".into(), "no-store".into()),
+        ("Content-Type".into(), "model/gltf-binary".into()),
+        (
+            "ETag".into(),
+            format!("\"{}\"", artifact.delivery_object.sha256),
+        ),
+        ("X-ForgeCAD-Artifact-Profile".into(), "game_delivery".into()),
+        (
+            "X-ForgeCAD-GLB-SHA256".into(),
+            artifact.delivery_object.sha256.clone(),
+        ),
+        (
+            "X-ForgeCAD-GLB-Byte-Size".into(),
+            artifact.delivery_object.byte_size.to_string(),
+        ),
+        (
+            "X-ForgeCAD-Source-GLB-SHA256".into(),
+            artifact.visual_source.object.sha256.clone(),
+        ),
+        (
+            "X-ForgeCAD-Game-Profile-SHA256".into(),
+            artifact.delivery_readback.game_asset_profile_sha256.clone(),
+        ),
+        (
+            "X-ForgeCAD-Game-Bindings-SHA256".into(),
+            artifact.delivery_readback.bindings_sha256.clone(),
+        ),
+    ]
+}
+
+fn game_delivery_export_headers(artifact: &GameDeliveryArtifact) -> Vec<(String, String)> {
+    game_delivery_headers(artifact)
         .into_iter()
         .filter(|(name, _)| !name.eq_ignore_ascii_case("content-type"))
         .collect()

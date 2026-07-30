@@ -1,0 +1,13 @@
+{
+  "schema_version": "U002OpenSubjectProfileSet@1",
+  "fixtures": [
+    {"fixture_id":"mechanical_product","identity_label":"桌面机械臂","category":"desktop robotic arm","traits":["articulated_chain","joint","end_effector"],"representation":"procedural","capability_id":"procedural.robotic_arm_visual_v1","expected_outcome":"executable"},
+    {"fixture_id":"character","identity_label":"穿风衣的侦探角色","category":"human character","traits":["biped","garment"],"representation":"deformable","capability_id":"deformable.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"animal_creature","identity_label":"写实家猫","category":"domestic cat","traits":["quadruped","fur"],"representation":"deformable","capability_id":"deformable.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"plant","identity_label":"枝叶繁茂的盆栽","category":"potted plant","traits":["branching","foliage"],"representation":"hybrid","capability_id":"hybrid.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"furniture","identity_label":"软包休闲椅","category":"upholstered lounge chair","traits":["rigid_frame","soft_surface"],"representation":"hybrid","capability_id":"hybrid.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"architecture_environment","identity_label":"山谷中的玻璃住宅","category":"architectural environment","traits":["building","terrain"],"representation":"hybrid","capability_id":"hybrid.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"vehicle","identity_label":"复古电动摩托车","category":"electric motorcycle","traits":["vehicle","wheels"],"representation":"mesh_seed","capability_id":"mesh_seed.generic_v1","expected_outcome":"limitation"},
+    {"fixture_id":"mixed_object","identity_label":"藤蔓覆盖的机械生物","category":"biomechanical creature","traits":["organic","mechanical","mixed"],"representation":"hybrid","capability_id":"hybrid.generic_v1","expected_outcome":"limitation"}
+  ]
+}

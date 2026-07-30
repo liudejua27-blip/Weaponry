@@ -1,9 +1,11 @@
 # ForgeCAD 当前 Agent API
 
-版本：2026-07-18
+版本：2026-07-29
 状态：`/api/v1/agent` compatibility 产品合同 + K001–K003 Rust 协议、Agent/Provider/Tool 与产品状态合同
 
-本文只描述通用机械概念 Agent 的 `/api/v1/agent` 集成边界。旧 Weapon、Patch、ComfyUI、神经 3D 和 Unity 路由仍可能由兼容启动链挂载，完整生成 OpenAPI 快照包含两代路由；它们的说明位于 [legacy API 说明](legacy/API_WEAPON_COMPATIBILITY.md)，不得作为新工作台集成入口。
+本文描述当前 Alpha 的 `/api/v1/agent` 与 Rust native 集成边界。现有 HTTP/domain-pack 路由仍是机械兼容目录；U002 已在 native `turn/start` 和 Product Tool 层实现类别开放合同，不复制第二套 REST 产品状态。生产 Python `create_app` 只挂载 restricted geometry；旧 Weapon、Patch、ComfyUI、神经 3D 和 Unity 路由只能由显式命名的 test-only legacy oracle 直接构造，不能由启动环境切回产品运行时。其最小维护边界统一收录在 [兼容迁移计划](COMPATIBILITY_MIGRATION.md)，不得作为新工作台集成入口。
+
+当前迁移边界：`SubjectProfile@1`、`VisualFeatureContract@1`、`RepresentationPlan@1`、typed universal outcome 与 `UniversalAssetSource@1` 已实现。Provider 只能提交 U002 outcome；Rust 从通过校验的合同和当前程序化 revision 派生 source，工具响应只暴露 source hash/count 摘要，完整 source 随 candidate/preview 和确认版本 provenance 保留。`DomainInferenceResult/unsupported` 和四个 Pack 只服务兼容测试；未知类别进入 capability 路由或 typed limitation，不能静默回退 C111/机械臂。任何迁移都不得改变 Rust-owned Snapshot、版本、预算、secret 和受限执行边界。
 
 完整机器合同由生成的 OpenAPI 和 Schema 文件负责：
 
@@ -41,9 +43,15 @@ K001 只完成协议和传输；K002 迁移 Agent 生命周期；K003 已完成�
 
 ### 1.2 K002 Rust Agent 生命周期
 
-K002 已冻结 native request methods：`thread/create|list|read|archive`、`turn/start|read|cancel`、`item/list|read`、`approval/create|read|resolve`、`provider/preflight|check|cancel` 与 `product-tools/list|execute`；对应通知为 `thread/created|updated|archived`、`turn/started|completed|failed|cancelled`、`item/started|completed` 和 `approval/created|resolved`。Rust app-server 单一拥有 Context Builder、DeepSeek SSE/thinking Tool Call、13 项代码所有 Product Tool、approval policy、12 次调用/时间/token/费用预算、取消树、usage/cache 与脱敏 trace。
+K002 已冻结 native request methods：`thread/create|list|read|archive`、`turn/start|read|cancel`、`item/list|read`、`approval/create|read|resolve`、`provider/preflight|check|cancel` 与 `product-tools/list|execute`；对应通知为 `thread/created|updated|archived`、`turn/started|completed|failed|cancelled`、`item/started|completed` 和 `approval/created|resolved`。U002 runtime registry 在冻结的 16 项兼容 fixture 上代码所有地增加唯一首轮工具 `author_universal_asset`，当前 native 共 17 项；fixture 不作为动态扩展源。Rust app-server 单一拥有 Context Builder、DeepSeek SSE/thinking Tool Call、approval policy、12 次调用/时间/token/费用预算、取消树、usage/cache 与脱敏 trace。
 
 Python 只接收带每进程 capability token 的 restricted geometry 请求；sidecar 环境不会继承任意 Provider credential，Python 请求不含 Provider Key、原始 `reasoning_content`、会话决策、数据库/对象库路径或 Snapshot 写令牌。SQLite 和产品状态由 Rust core 单写；native lifecycle cursor 仍不能当成 Snapshot revision。
+
+### 1.3 U003 统一资产源边界
+
+`author_universal_asset` 的 executable 机械臂结果会由 Rust 创建 planned `UniversalAssetSource@1`，而不是接收 Provider 自报 source。`build_forge_visual_program` 成功后将 exact ShapeProgram、GLB、语义/编译 readback、artifact profile、renderer 和固定视图 hash 封存到 compiled source；preview 读取时会重算并逐项核对这些绑定。确认仍只创建同一 `AgentAssetVersion`/Snapshot 链，source 进入 AssemblyGraph provenance，不新增 `UniversalAssetVersion` API、数据库头或前端写接口。
+
+当前 API 不提供任意 camera、projection、shader、脚本、URL 或文件路径输入。没有拟合证据的参考相机保持 unresolved；真实相机求解、纹理投影、deformable/local-hybrid 仍不可执行。旧 Tauri-native `generate_visual_asset`、concept-image 与 neural-3D submit/poll/cancel 命令已删除，不属于兼容 API；旧数据库 remote-job 记录只能读取，不能恢复网络任务。AI Provider 配置只允许 DeepSeek 文本与千问视觉，前端不能自报 hash、rights、capability 或 executable 状态。
 
 ## 2. 通用请求规则
 
@@ -90,17 +98,19 @@ K003 后，生产桌面统一使用 Rust native `thread/list`、`thread/read`、
 
 ### 3.1 多轮 Provider 上下文
 
-Native `turn/start` 使用版本化请求体和稳定 business idempotency key。Rust app-server 在本地范围预检通过后，按固定顺序编译 Provider 上下文：版本化安全/输出合同、已绑定领域包、可丢弃的 ThreadMemorySummary、最近四组完整用户/助手消息，以及当前 `ActiveDesignSnapshot` 的只读摘要和新请求。Project、Version、Selection、Quality、Export 的真值不会转移到 ThreadMemory。
+Native `turn/start` 使用版本化请求体和稳定 business idempotency key。U002 的轻量 `author_context` 只允许 evidence ID、角色、视图提示和视觉证据图；前端不能提交 Project、Snapshot、活动版本、选择、锁定、readback 或 capability hash。Rust 重读真实 Turn/Project/Snapshot 与 sealed evidence，构造并 hash-seal `UniversalAuthorRequest@1`。旧 `multimodal_context` 暂作兼容输入并归一化/并行绑定，不能覆盖上述真值。
 
-同一 Thread 已生成设计方向后，后续未重复写出“汽车/飞机/机械臂”等类别的普通语言微调会使用该已持久化领域绑定；明确要求切换到另一领域返回 `THREAD_DOMAIN_CHANGE_REQUIRES_NEW_THREAD`。每个 Thread 同时只允许一个 `queued/running` Provider Turn，返回 `THREAD_TURN_IN_PROGRESS` 时应等待或读取现有 Turn，不应创建并发请求。
+新项目 Action Loop 首轮只广告 `author_universal_asset`。Provider 一次提交 `SubjectProfile + VisualFeatureContract + RepresentationPlan + UniversalAuthorOutcome`；Rust 校验 request/profile/feature/plan/capability 的全部 hash 和证据状态。只有验证后的机械臂计划可携带 `ForgeVisualAuthoringIntent@1` 进入现有 lowering；limitation/clarification 正常完成 Turn 但不调用 worker或创建版本/Snapshot/Quality/Export。活动资产先走同一表示计划，再进入 inspect→最多一次 typed patch。每个 Thread 同时只允许一个 `queued/running` Provider Turn。
 
-Turn 的 `usage` 可返回 `latency_ms`、`prompt_tokens`、`completion_tokens`、`total_tokens`、`prompt_cache_hit_tokens`、`prompt_cache_miss_tokens`、`estimated_cost_cny`、`budget_reservation_cny`、`routing_mode`、`context_hash`、`prompt_contract_version`、`network_call_made`、`provider_phase`、`provider_attempt` 和 `fallback_used=false`。它不返回 Key、Base URL、请求头、完整 Prompt、完整 Response 或 `reasoning_content`。K002 只接受 13 项代码所有的 ForgeCAD Product Tool Calls；动态工具、重复 call ID、Schema/G819 非法参数、越权审批、shell/URL/路径与超预算请求都稳定拒绝。
+Turn 的 `usage` 可返回 `latency_ms`、`prompt_tokens`、`completion_tokens`、`total_tokens`、`prompt_cache_hit_tokens`、`prompt_cache_miss_tokens`、`estimated_cost_cny`、`budget_reservation_cny`、`routing_mode`、`context_hash`、`prompt_contract_version`、`network_call_made`、`provider_phase`、`provider_attempt` 和 `fallback_used=false`。它不返回 Key、Base URL、请求头、完整 Prompt、完整 Response 或 `reasoning_content`。动态工具、重复 call ID、Schema/G819 非法参数、Provider 自报 executable、越权审批、shell/URL/路径与超预算请求都稳定拒绝；universal schema 错误最多一次零几何修正。
 
 ## 4. 领域、材质和 Provider
 
+本节的 Domain Pack API 是当前兼容知识目录，不是目标产品的类别准入 API。
+
 | 方法与路径 | 当前用途 |
 | --- | --- |
-| `GET /api/v1/agent/domain-packs` | 返回四个最小领域包 manifest |
+| `GET /api/v1/agent/domain-packs` | 返回当前四个机械知识/回归 pack manifest；不代表目标只允许四类输入 |
 | `GET /api/v1/agent/materials` | 返回 13 个六类视觉材质预设及 `MaterialPreset@1` PBR/来源元数据；纹理字段只返回内部 asset ID，并附对象存在性/来源摘要 |
 | `POST /api/v1/agent/material-textures` | 在显式请求下登记 PNG/JPEG/WebP 视觉纹理对象；仅接受原始 base64，不接受 URL、data URI 或文件路径；必须带 `Idempotency-Key` |
 | `GET /api/v1/agent/material-textures` | 按用途、来源或关键词检索已登记的纹理对象；返回相对内容寻址路径和对象存在性，不返回绝对路径 |
@@ -111,6 +121,8 @@ Turn 的 `usage` 可返回 `latency_ms`、`prompt_tokens`、`completion_tokens`�
 | `POST /api/v1/agent/provider-checks/{check_id}/cancel` | Rust 拥有；Python 生产路径返回 `410` |
 
 Provider 配置由 Tauri supervisor 注入本地 Agent。API Key 不属于 Project、Thread、Item、SQLite、导出或错误响应。
+
+桌面多模态路径另有 Tauri 命令 `authorize_visual_reference_comparison`。它只在用户点击“授权比较并生成 3D/继续修改”后执行，重读当前 Project 的 sealed evidence，校验 request+graph，固定 C111B Rust policy，并签发 15 分钟的 `visauth_` 授权；请求必须明确提交 3 次和 `100000 microusd` 两个不可放宽的上限。授权 ID 随 `turn/start.multimodal_context` 进入 Rust app-server，但不进入 Provider projection。生产 comparison Provider 只能经 `BudgetedVisualReferenceComparisonProvider`：每次先由 CoreRepository 原子预留，再允许网络适配器执行；缺授权、过期、Project/request/graph/policy 漂移、跨 Turn 复用、活动预留或预算耗尽都返回预网络失败。WebView 的布尔值或按钮状态不是授权真值。
 
 DeepSeek 适配器使用 SSE，并在请求中启用最终 usage 块。当前 `deepseek-v4-flash` / `deepseek-v4-pro` Agent 请求显式发送 `thinking.type=enabled` 与 `reasoning_effort=max`，不发送 thinking 模式下无效的 temperature/top-p/penalty 参数，也不使用 `/beta` strict Tool Call。A004 的 thinking Tool Call 会把同一子轮 assistant 的 `content + reasoning_content + tool_calls` 原样放回下一请求；缺少必需 `reasoning_content` 会在下一次网络请求前 fail closed。跨 Turn 的持久化上下文只含用户消息和最终 assistant 内容，不保存历史 Tool Call transcript，因此隐藏推理仍不进入 Agent Item、SQLite、资产、日志或用户可见摘要。Action Loop 最多 12 次调用、单次并发，只能使用 13 个已注册 ForgeCAD 产品工具；重复 call ID、stale Snapshot、Schema/G819 拒绝、超时或取消都会停止候选流程。固定 Provider 错误为 `DEEPSEEK_INVALID_REQUEST`（400）、`DEEPSEEK_AUTH_FAILED`（401/403）、`DEEPSEEK_BALANCE_EXHAUSTED`（402）、`DEEPSEEK_INVALID_PARAMETERS`（422）、`DEEPSEEK_RATE_LIMITED`（429）、`DEEPSEEK_SERVER_ERROR`（500）、`DEEPSEEK_SERVER_BUSY`（503），另有 `PROVIDER_NETWORK_ERROR`、`PROVIDER_TIMEOUT`、`PROVIDER_EMPTY_CONTENT`、`PROVIDER_INVALID_JSON`、`PROVIDER_SCHEMA_MISMATCH` 和 `PROVIDER_CANCELLED`。这些失败不自动重试，也不回退为 deterministic success。
 

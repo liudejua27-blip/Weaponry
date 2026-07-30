@@ -223,6 +223,31 @@ const CORE_MIGRATIONS: &[Migration] = &[
         "draft_candidate_delivery_boundary",
         "0043_draft_candidate_delivery_boundary.sql"
     ),
+    legacy_migration!(
+        "0044",
+        "visual_reference_comparison_budget",
+        "0044_visual_reference_comparison_budget.sql"
+    ),
+    legacy_migration!(
+        "0045",
+        "e005_provider_budget",
+        "0045_e005_provider_budget.sql"
+    ),
+    legacy_migration!(
+        "0046",
+        "e005_formal_batch_checkpoint",
+        "0046_e005_formal_batch_checkpoint.sql"
+    ),
+    legacy_migration!(
+        "0047",
+        "e005_visual_review_checkpoint",
+        "0047_e005_visual_review_checkpoint.sql"
+    ),
+    legacy_migration!(
+        "0048",
+        "agent_turn_waiting_for_capture",
+        "0048_agent_turn_waiting_for_capture.sql"
+    ),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -455,6 +480,7 @@ mod tests {
         assert!(versions.contains("0040"));
         assert!(versions.contains("0041"));
         assert!(versions.contains("0042"));
+        assert!(versions.contains("0048"));
         for table in [
             "projects",
             "agent_asset_versions",
@@ -476,6 +502,11 @@ mod tests {
             "reference_surface_analyses",
             "reference_rebuild_result_lineage",
             "visual_remote_jobs",
+            "visual_reference_comparison_authorizations",
+            "visual_reference_comparison_reservations",
+            "e005_provider_run_authorizations",
+            "e005_provider_authorized_tasks",
+            "e005_provider_call_reservations",
         ] {
             let exists: bool = connection
                 .query_row(

@@ -1,6 +1,6 @@
 # ForgeCAD Module Naming Standard
 
-> 当前 `ForgeCADModuleNaming@1` 已实现范围是 Weapon Concept reference pack。通用机械目标保留稳定 ID 原则，但角色由 Domain Pack 定义，未来汽车、飞机和机械臂不得硬塞进九个武器 category。新通用命名版本应随 `AssemblyGraph@1` 一起冻结；当前已注册 ID 不重命名。
+> 当前 `ForgeCADModuleNaming@1` 已实现范围是 Weapon Concept reference pack。ADR-0022 的通用产品只继承稳定 ID 和不可变引用原则；任何机械、角色、生物、植物或环境资产都不得硬塞进九个武器 category。新通用命名版本应随 `UniversalAssetSource/AssemblyGraph` 冻结；当前已注册 ID 不重命名。
 
 版本：`ForgeCADModuleNaming@1`
 

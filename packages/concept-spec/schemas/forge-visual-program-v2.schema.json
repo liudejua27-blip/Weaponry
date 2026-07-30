@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/forge-visual-program-v2.schema.json",
+  "title": "ForgeVisualProgramV2",
+  "description": "ADR-0021 typed visual design source. VP201 permits only bounded primitive nodes and contains no executable code, URL, path, network or dynamic import capability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "program_id", "domain", "units", "seed", "parameters", "materials", "nodes", "outputs", "budgets"],
+  "properties": {
+    "schema_version": { "const": "ForgeVisualProgram@2" },
+    "program_id": { "type": "string", "pattern": "^visual_[a-z0-9_-]+$", "maxLength": 128 },
+    "domain": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "units": { "const": "millimeter" },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "parameters": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["parameter_id", "kind", "unit", "default", "minimum", "maximum", "allowed_values"],
+        "properties": {
+          "parameter_id": { "type": "string", "pattern": "^param_[a-z0-9_-]+$", "maxLength": 128 },
+          "kind": { "enum": ["number", "integer", "boolean", "enum", "length", "angle", "ratio", "color"] },
+          "unit": { "enum": ["unitless", "count", "boolean", "enum_value", "millimeter", "radian", "ratio", "linear_rgb"] },
+          "default": {},
+          "minimum": { "type": ["number", "null"] },
+          "maximum": { "type": ["number", "null"] },
+          "allowed_values": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "maxLength": 96 } }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "number" } } }, "then": { "properties": { "unit": { "const": "unitless" } } } },
+          { "if": { "properties": { "kind": { "const": "integer" } } }, "then": { "properties": { "unit": { "const": "count" } } } },
+          { "if": { "properties": { "kind": { "const": "boolean" } } }, "then": { "properties": { "unit": { "const": "boolean" } } } },
+          { "if": { "properties": { "kind": { "const": "enum" } } }, "then": { "properties": { "unit": { "const": "enum_value" } } } },
+          { "if": { "properties": { "kind": { "const": "length" } } }, "then": { "properties": { "unit": { "const": "millimeter" } } } },
+          { "if": { "properties": { "kind": { "const": "angle" } } }, "then": { "properties": { "unit": { "const": "radian" } } } },
+          { "if": { "properties": { "kind": { "const": "ratio" } } }, "then": { "properties": { "unit": { "const": "ratio" } } } },
+          { "if": { "properties": { "kind": { "const": "color" } } }, "then": { "properties": { "unit": { "const": "linear_rgb" } } } }
+        ]
+      }
+    },
+    "materials": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["material_id", "base_material_id"],
+        "properties": {
+          "material_id": { "type": "string", "pattern": "^mat_[a-z0-9_-]+$", "maxLength": 128 },
+          "base_material_id": {
+            "enum": ["mat_primary", "mat_graphite", "mat_painted_steel", "mat_powder_coat", "mat_aluminum", "mat_signal_red", "mat_composite", "mat_abs_matte", "mat_carbon_composite", "mat_rubber", "mat_rubber_tire", "mat_dark_glass", "mat_clear_glass", "mat_emissive_blue", "mat_automotive_paint"]
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "node_id", "size"],
+            "properties": {
+              "kind": { "const": "box" },
+              "node_id": { "$ref": "#/$defs/nodeId" },
+              "size": { "$ref": "#/$defs/scalarVector3" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "node_id", "radius", "height"],
+            "properties": {
+              "kind": { "const": "cylinder" },
+              "node_id": { "$ref": "#/$defs/nodeId" },
+              "radius": { "$ref": "#/$defs/scalar" },
+              "height": { "$ref": "#/$defs/scalar" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "node_id", "input_node_id", "position", "rotation"],
+            "properties": {
+              "kind": { "const": "transform" },
+              "node_id": { "$ref": "#/$defs/nodeId" },
+              "input_node_id": { "$ref": "#/$defs/nodeId" },
+              "position": { "$ref": "#/$defs/scalarVector3" },
+              "rotation": { "$ref": "#/$defs/scalarVector3" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "node_id", "input_node_id", "part_id", "role"],
+            "properties": {
+              "kind": { "const": "part" },
+              "node_id": { "$ref": "#/$defs/nodeId" },
+              "input_node_id": { "$ref": "#/$defs/nodeId" },
+              "part_id": { "type": "string", "pattern": "^part_[a-z0-9_-]+$", "maxLength": 128 },
+              "role": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{1,63}$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "node_id", "input_node_id", "zone_id", "material_id"],
+            "properties": {
+              "kind": { "const": "material_zone" },
+              "node_id": { "$ref": "#/$defs/nodeId" },
+              "input_node_id": { "$ref": "#/$defs/nodeId" },
+              "zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_-]+$", "maxLength": 128 },
+              "material_id": { "type": "string", "pattern": "^mat_[a-z0-9_-]+$", "maxLength": 128 }
+            }
+          }
+        ]
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["output_id", "node_id"],
+        "properties": {
+          "output_id": { "type": "string", "pattern": "^output_[a-z0-9_-]+$", "maxLength": 128 },
+          "node_id": { "$ref": "#/$defs/nodeId" }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "max_nodes", "max_parts", "max_materials", "max_outputs", "max_primitives", "triangle_budget"],
+      "properties": {
+        "schema_version": { "const": "ProgramBudget@1" },
+        "max_nodes": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "max_parts": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "max_materials": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "max_outputs": { "type": "integer", "minimum": 1, "maximum": 128 },
+        "max_primitives": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "triangle_budget": { "type": "integer", "minimum": 100, "maximum": 100000 }
+      }
+    }
+  },
+  "$defs": {
+    "nodeId": { "type": "string", "pattern": "^node_[a-z0-9_-]+$", "maxLength": 128 },
+    "scalar": {
+      "anyOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["parameter_id"],
+          "properties": {
+            "parameter_id": { "type": "string", "pattern": "^param_[a-z0-9_-]+$", "maxLength": 128 }
+          }
+        }
+      ]
+    },
+    "scalarVector3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/scalar" }
+    }
+  }
+}

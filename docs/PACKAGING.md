@@ -1,8 +1,8 @@
 # Desktop Packaging
 
-This document defines the production packaging contract for ForgeCAD.
+This document defines the production packaging contract for Forge Studio / ForgeCAD.
 
-The packaged product is a desktop Agent for fictional mechanical concept assets and non-manufacturing descriptions. The first domain packs cover future weapon props, vehicles, aircraft and robotic arms. A packaged build must not enable real-world weapon blueprints, manufacturing dimensions, material recipes, fabrication processes, structural certification or assembly instructions.
+The target packaged product is a category-open desktop Agent for non-functional visual 3D assets. The current Alpha remains mechanically focused; the four mechanical domain packs are regression/knowledge packages, not a permanent input allowlist. Packaging must preserve the capability sandbox: no arbitrary generated code, shell, filesystem path, URL/network, secret access, unbounded resources, or unauthorized paid calls. It must not enable real-world weapon blueprints, manufacturing dimensions, material recipes, fabrication processes, structural certification, medical claims, or assembly instructions.
 
 ## Current Status
 

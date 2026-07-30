@@ -121,3 +121,29 @@ export async function cancelVisualEvidenceAnalysis(clientRequestId: string): Pro
     clientRequestId,
   })
 }
+
+export type VisualReferenceComparisonAuthorization = {
+  authorizationId: string
+  authorizationBindingSha256: string
+  expiresAtUnixMs: number
+  maximumCalls: 3
+  maximumVariableCostMicrousd: 100000
+}
+
+export async function authorizeVisualReferenceComparison(
+  clientRequestId: string,
+  request: MultimodalDesignRequest,
+  visualEvidenceGraph: VisualEvidenceGraph,
+): Promise<VisualReferenceComparisonAuthorization> {
+  if (!isTauriRuntime()) throw new Error('参考图视觉比较授权只在 Forge Studio 桌面端可用。')
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<VisualReferenceComparisonAuthorization>('authorize_visual_reference_comparison', {
+    input: {
+      client_request_id: clientRequestId,
+      request,
+      visual_evidence_graph: visualEvidenceGraph,
+      maximum_calls: 3,
+      maximum_variable_cost_microusd: 100000,
+    },
+  })
+}

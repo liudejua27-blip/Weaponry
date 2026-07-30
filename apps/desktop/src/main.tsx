@@ -5,12 +5,14 @@ import { RuntimeProvider } from './app/providers/RuntimeProvider'
 import { runPackagedK001ProbeOnce } from './shared/api/packagedK001Probe'
 import { runPackagedK002ProbeOnce } from './shared/api/packagedK002Probe'
 import { runPackagedArmWebviewQaOnce } from './shared/api/packagedArmWebviewQa'
+import { runPackagedC111BWebglQaOnce } from './shared/api/packagedC111BWebglQa'
 import './styles.css'
 
 void (async () => {
   await runPackagedK001ProbeOnce()
   await runPackagedK002ProbeOnce()
   await runPackagedArmWebviewQaOnce()
+  await runPackagedC111BWebglQaOnce()
 })()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

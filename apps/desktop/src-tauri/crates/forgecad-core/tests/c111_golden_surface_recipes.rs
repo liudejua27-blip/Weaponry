@@ -11,6 +11,23 @@ use forgecad_core::{
 use std::collections::{BTreeMap, BTreeSet};
 
 const ROOT_RECIPE_ID: &str = "recipe_c111_arm_golden_surface";
+const C111_REVIEWED_ITERATION: u64 = 79;
+const C111_REVIEWED_OPERATION_COUNT: usize = 204;
+const C111_OUTPUT_BUDGET: usize = 128;
+const C111B_GRIPPER_STRUCTURE_SUFFIXES: [&str; 12] = [
+    "_gripper_knuckle_a",
+    "_gripper_distal_knuckle_a",
+    "_gripper_finger_a_armor",
+    "_gripper_finger_a_pad",
+    "_gripper_knuckle_b",
+    "_gripper_distal_knuckle_b",
+    "_gripper_finger_b_armor",
+    "_gripper_finger_b_pad",
+    "_gripper_knuckle_c",
+    "_gripper_distal_knuckle_c",
+    "_gripper_finger_c_armor",
+    "_gripper_finger_c_panel",
+];
 const DETAIL_INVENTORY: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../../../packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json"
@@ -31,15 +48,34 @@ fn pv002_c111_forge_visual_program_preserves_truth_and_seals_complete_inventory(
         build_c111_forge_visual_program_fixture(&candidate, &registry, &programs, &inventory)
             .unwrap();
 
+    assert_eq!(
+        inventory["compiled_evidence"]["iteration"].as_u64(),
+        Some(C111_REVIEWED_ITERATION)
+    );
     assert_eq!(fixture.program.stage, ForgeVisualProgramStage::Sealed);
     assert_eq!(fixture.program.parts.len(), 10);
-    assert_eq!(
-        fixture.program.geometry_graph["outputs"]
-            .as_array()
-            .unwrap()
-            .len(),
-        101
+    let geometry_outputs = fixture.program.geometry_graph["outputs"]
+        .as_array()
+        .unwrap();
+    assert!(
+        geometry_outputs.len() <= C111_OUTPUT_BUDGET,
+        "iteration {} exported {} outputs, above the lightweight budget of {}",
+        C111_REVIEWED_ITERATION,
+        geometry_outputs.len(),
+        C111_OUTPUT_BUDGET
     );
+    let geometry_output_ids = geometry_outputs
+        .iter()
+        .map(|output| output["output_id"].as_str().expect("geometry output id"))
+        .collect::<BTreeSet<_>>();
+    let owned_output_ids = fixture
+        .program
+        .parts
+        .iter()
+        .flat_map(|part| part.geometry_output_ids.iter().map(String::as_str))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(geometry_output_ids.len(), geometry_outputs.len());
+    assert_eq!(owned_output_ids, geometry_output_ids);
     assert_eq!(fixture.program.surface_graph.len(), 6);
     assert_eq!(fixture.program.detail_inventory.len(), 27);
     assert_eq!(fixture.fixed_views.len(), 8);
@@ -154,6 +190,7 @@ fn pv004_c111_real_glb_lineage_closes_fixed_build_and_eight_view_contract() {
             pbr_channels_complete: true,
         },
         fixed_views,
+        fixed_view_profile: forgecad_core::VisualFixedViewProfile::LegacyC111,
         detail_coverage: VisualDetailCoverage {
             macro_bound: bound_count(VisualDetailLevel::Macro),
             meso_bound: bound_count(VisualDetailLevel::Meso),
@@ -229,8 +266,19 @@ fn c111_golden_surface_registry_is_independent_and_expands_one_reviewed_arm() {
     assert_eq!(parts.len(), 10);
     assert_eq!(connections.len(), 9);
     assert_eq!(candidate.component_recipe_instances.len(), 10);
-    assert_eq!(operations.len(), 200);
-    assert_eq!(outputs.len(), 101);
+    assert_eq!(operations.len(), C111_REVIEWED_OPERATION_COUNT);
+    assert!(
+        outputs.len() <= C111_OUTPUT_BUDGET,
+        "iteration {} exported {} outputs, above the lightweight budget of {}",
+        C111_REVIEWED_ITERATION,
+        outputs.len(),
+        C111_OUTPUT_BUDGET
+    );
+    let output_ids = outputs
+        .iter()
+        .map(|output| output["output_id"].as_str().expect("shape output id"))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(output_ids.len(), outputs.len());
     assert!(connections
         .iter()
         .all(|connection| connection["status"] == "connected"));
@@ -467,6 +515,130 @@ fn c111b_structural_detail_contract_is_exact_and_fails_closed() {
             "wear",
         ])
     );
+    let cable_lineage = contract
+        .lineages
+        .iter()
+        .find(|lineage| lineage.detail_class == "cable_clamps")
+        .unwrap();
+    assert!(
+        cable_lineage
+            .geometry_output_ids
+            .iter()
+            .filter(|output_id| {
+                output_id.ends_with("_cable_a") || output_id.ends_with("_cable_b")
+            })
+            .count()
+            >= 2
+    );
+    assert!(
+        cable_lineage
+            .geometry_output_ids
+            .iter()
+            .filter(|output_id| output_id.contains("_cable_clamp_"))
+            .count()
+            >= 2
+    );
+    let gripper_lineage = contract
+        .lineages
+        .iter()
+        .find(|lineage| lineage.detail_class == "gripper_hinges")
+        .unwrap();
+    assert_eq!(
+        gripper_lineage.geometry_output_ids.len(),
+        C111B_GRIPPER_STRUCTURE_SUFFIXES.len()
+    );
+    for required_suffix in C111B_GRIPPER_STRUCTURE_SUFFIXES {
+        assert_eq!(
+            gripper_lineage
+                .geometry_output_ids
+                .iter()
+                .filter(|output_id| output_id.ends_with(required_suffix))
+                .count(),
+            1,
+            "iteration {} must retain exactly one {required_suffix} output",
+            C111_REVIEWED_ITERATION
+        );
+    }
+
+    let mut duplicate_lineage_output = contract.clone();
+    let cable_lineage = duplicate_lineage_output
+        .lineages
+        .iter_mut()
+        .find(|lineage| lineage.detail_class == "cable_clamps")
+        .unwrap();
+    cable_lineage
+        .geometry_output_ids
+        .push(cable_lineage.geometry_output_ids[0].clone());
+    let error = duplicate_lineage_output
+        .validate(&fixture.program, &surface_layer)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    let mut one_clamp = fixture.program.clone();
+    let retained_clamp_id = one_clamp.geometry_graph["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|output| {
+            output["output_id"]
+                .as_str()
+                .filter(|output_id| output_id.contains("_cable_clamp_"))
+        })
+        .unwrap()
+        .to_owned();
+    for part in &mut one_clamp.parts {
+        part.geometry_output_ids.retain(|output_id| {
+            !output_id.contains("_cable_clamp_") || output_id == &retained_clamp_id
+        });
+    }
+    one_clamp.geometry_graph["outputs"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|output| {
+            output["output_id"].as_str().is_none_or(|output_id| {
+                !output_id.contains("_cable_clamp_") || output_id == retained_clamp_id
+            })
+        });
+    let error =
+        build_c111_structural_detail_contract(&one_clamp, &programs, &surface_layer).unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+    assert!(error
+        .to_string()
+        .contains("at least 2 distinct clamp outputs"));
+
+    let mut one_rubber_cable = fixture.program.clone();
+    let retained_rubber_output_id = one_rubber_cable.geometry_graph["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|output| {
+            output["output_id"]
+                .as_str()
+                .filter(|output_id| output_id.ends_with("_cable_a"))
+        })
+        .unwrap()
+        .to_owned();
+    for part in &mut one_rubber_cable.parts {
+        part.geometry_output_ids.retain(|output_id| {
+            output_id == &retained_rubber_output_id
+                || (!output_id.ends_with("_cable_a") && !output_id.ends_with("_cable_b"))
+        });
+    }
+    one_rubber_cable.geometry_graph["outputs"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|output| {
+            output["output_id"].as_str().is_none_or(|output_id| {
+                output_id == retained_rubber_output_id
+                    || (!output_id.ends_with("_cable_a") && !output_id.ends_with("_cable_b"))
+            })
+        });
+    let error = build_c111_structural_detail_contract(&one_rubber_cable, &programs, &surface_layer)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+    assert!(error
+        .to_string()
+        .contains("at least 2 distinct rubber cable outputs"));
 
     let mut missing_panel = fixture.program.clone();
     for part in &mut missing_panel.parts {
@@ -490,6 +662,106 @@ fn c111b_structural_detail_contract_is_exact_and_fails_closed() {
         .roughness_masks
         .retain(|mask| mask.motif != "edge_wear");
     let error = build_c111_structural_detail_contract(&fixture.program, &programs, &missing_wear)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    for required_suffix in C111B_GRIPPER_STRUCTURE_SUFFIXES {
+        let mut missing_gripper_detail = fixture.program.clone();
+        for part in &mut missing_gripper_detail.parts {
+            part.geometry_output_ids
+                .retain(|output_id| !output_id.ends_with(required_suffix));
+        }
+        missing_gripper_detail.geometry_graph["outputs"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|output| {
+                !output["output_id"]
+                    .as_str()
+                    .is_some_and(|output_id| output_id.ends_with(required_suffix))
+            });
+        let error = build_c111_structural_detail_contract(
+            &missing_gripper_detail,
+            &programs,
+            &surface_layer,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.code(),
+            "C111_STRUCTURAL_DETAIL_MISSING",
+            "missing {required_suffix} must fail closed"
+        );
+    }
+
+    let mut wrong_cable_material = fixture.program.clone();
+    wrong_cable_material.geometry_graph["operations"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|operation| {
+            operation["operation_id"]
+                .as_str()
+                .is_some_and(|operation_id| operation_id.ends_with("_cable_b"))
+        })
+        .unwrap()["args"]["material_id"] = serde_json::json!("mat_aluminum");
+    let error =
+        build_c111_structural_detail_contract(&wrong_cable_material, &programs, &surface_layer)
+            .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    let mut detached_contact = fixture.program.clone();
+    detached_contact.geometry_graph["operations"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|operation| {
+            operation["operation_id"]
+                .as_str()
+                .is_some_and(|operation_id| operation_id.ends_with("_gripper_finger_c_panel"))
+        })
+        .unwrap()["inputs"] = serde_json::json!([]);
+    let error = build_c111_structural_detail_contract(&detached_contact, &programs, &surface_layer)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    let mut non_mesh_contact = fixture.program.clone();
+    non_mesh_contact.geometry_graph["outputs"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|output| {
+            output["output_id"]
+                .as_str()
+                .is_some_and(|output_id| output_id.ends_with("_gripper_finger_a_pad"))
+        })
+        .unwrap()["kind"] = serde_json::json!("profile");
+    let error = build_c111_structural_detail_contract(&non_mesh_contact, &programs, &surface_layer)
+        .unwrap_err();
+    assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
+
+    let mut detached_clamp = fixture.program.clone();
+    let detached_clamp_operation_id = detached_clamp.geometry_graph["outputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|output| {
+            output["output_id"]
+                .as_str()
+                .filter(|output_id| output_id.contains("_cable_clamp_"))
+                .and_then(|_| output["operation_id"].as_str())
+        })
+        .unwrap()
+        .to_owned();
+    detached_clamp.geometry_graph["operations"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|operation| {
+            operation["operation_id"]
+                .as_str()
+                .is_some_and(|operation_id| operation_id == detached_clamp_operation_id)
+        })
+        .unwrap()["inputs"] = serde_json::json!([]);
+    let error = build_c111_structural_detail_contract(&detached_clamp, &programs, &surface_layer)
         .unwrap_err();
     assert_eq!(error.code(), "C111_STRUCTURAL_DETAIL_MISSING");
 }

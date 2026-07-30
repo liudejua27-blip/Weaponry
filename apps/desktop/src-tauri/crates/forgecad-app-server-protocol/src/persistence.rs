@@ -51,6 +51,9 @@ pub enum LifecyclePersistenceOperation {
     SetTurnTerminal {
         turn: AgentTurn,
     },
+    SetTurnWaitingForCapture {
+        turn: AgentTurn,
+    },
     ReplayItems {
         thread_id: String,
         #[serde(default)]
@@ -158,6 +161,14 @@ impl LifecyclePersistenceCommand {
                 ) {
                     return Err(RpcError::invalid_params(
                         "Set-turn-terminal persistence requires completed, failed or cancelled status.",
+                    ));
+                }
+            }
+            LifecyclePersistenceOperation::SetTurnWaitingForCapture { turn } => {
+                turn.validate()?;
+                if turn.status != AgentTurnStatus::WaitingForCapture {
+                    return Err(RpcError::invalid_params(
+                        "Set-turn-waiting-for-capture persistence requires waiting_for_capture status.",
                     ));
                 }
             }

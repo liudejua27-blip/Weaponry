@@ -1,6 +1,6 @@
 # ForgeCAD 故障恢复手册
 
-版本：2026-07-13
+版本：2026-07-29
 适用对象：开发与发布维护人员
 
 ## 1. 恢复目标
@@ -11,6 +11,8 @@
 - 内容寻址对象；
 - Project、Agent Thread、AgentAssetVersion、ChangeSet 和组件；
 - 审计与导出引用。
+
+U003 已要求确认版本的 AssemblyGraph provenance 包含 `UniversalAssetSource` 和 semantic hash；备份/恢复必须把它与现有 AgentAssetVersion、GLB/readback 和 Snapshot 一起校验，不能只恢复模型字节。U004 实现后，清单还必须包含受检 deformable/local-hybrid source 与 Appearance evidence 派生对象；它们必须继续通过 CAS 引用进入同一 AgentAssetVersion，而不是建立独立资产头。当前这些 U004 对象尚未实现，不得在恢复报告中伪造。旧 remote-job 数据只可备份读取，恢复流程不得重新发起远程 Mesh 请求。
 
 API Key、Keychain、Provider secret file、WAL/SHM 临时文件和缓存不进入 Library 备份。
 

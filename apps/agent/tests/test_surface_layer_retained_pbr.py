@@ -120,6 +120,32 @@ def test_retained_surface_layers_bake_all_five_pbr_channels_deterministically(pr
     assert max(pixel[2] for pixel in _png_pixels(payloads["emissive"])[2]) > 0
 
 
+def test_vectorized_retained_production_bake_preserves_frozen_bytes() -> None:
+    lowering = _lowering()
+    texture_set = surface_layer_visual_texture_set(
+        lowering,
+        artifact_profile_id="production_concept",
+    )
+    expected = {
+        "base_color": "7e7baadf247d617b7b401b420d33dfaf3fec195825622ff454380a3ead118bc5",
+        "metallic_roughness": "ccc0553798f5c729b2ad573b9e5c6a4f5cccd3b57a5118990deae13aeba58cd9",
+        "normal": "a548d30122c6d7c007091d7bedfc80d74919290c423a82c52e6d2245a5e65628",
+        "occlusion": "893c9201f20d5af18d0aedfb9daba0e756bedef820ff17639ee6a3580e6177ea",
+        "emissive": "92106c39944909ea830b01f50f01897600402ffe19b3e09513efe50c8219eb12",
+    }
+
+    assert {
+        item.texture_role: hashlib.sha256(
+            surface_layer_visual_texture_png_bytes(
+                lowering,
+                artifact_profile_id="production_concept",
+                texture_role=item.texture_role,
+            )
+        ).hexdigest()
+        for item in texture_set.maps
+    } == expected
+
+
 def test_retained_lowering_rejects_untrusted_or_noncanonical_input() -> None:
     lowering = _lowering()
     assert normalize_surface_layer_lowering(lowering)["retained_layers_sha256"] == lowering["retained_layers_sha256"]

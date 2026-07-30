@@ -34,6 +34,7 @@ pub struct ValidatedMultimodalActionContext {
     request: MultimodalDesignRequest,
     graph: VisualEvidenceGraph,
     evidence: Vec<ReferenceEvidence>,
+    visual_reference_comparison_authorization_id: Option<String>,
     context_digest: String,
 }
 
@@ -44,6 +45,10 @@ impl std::fmt::Debug for ValidatedMultimodalActionContext {
             .field("request_id", &self.request.request_id)
             .field("graph_id", &self.graph.graph_id)
             .field("claim_count", &self.graph.claims.len())
+            .field(
+                "has_visual_reference_comparison_authorization",
+                &self.visual_reference_comparison_authorization_id.is_some(),
+            )
             .field("context_digest", &self.context_digest)
             .finish()
     }
@@ -55,6 +60,31 @@ impl ValidatedMultimodalActionContext {
         graph: VisualEvidenceGraph,
         evidence: &[ReferenceEvidence],
     ) -> Result<Self, MultimodalActionContextError> {
+        Self::new_with_visual_reference_authorization(request, graph, evidence, None)
+    }
+
+    pub fn new_with_visual_reference_authorization(
+        request: MultimodalDesignRequest,
+        graph: VisualEvidenceGraph,
+        evidence: &[ReferenceEvidence],
+        visual_reference_comparison_authorization_id: Option<String>,
+    ) -> Result<Self, MultimodalActionContextError> {
+        if visual_reference_comparison_authorization_id
+            .as_deref()
+            .is_some_and(|value| {
+                !value.starts_with("visauth_")
+                    || value.len() <= "visauth_".len()
+                    || value.len() > 160
+                    || !value.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':')
+                    })
+            })
+        {
+            return Err(MultimodalActionContextError::invalid(
+                "MULTIMODAL_ACTION_VISUAL_AUTHORIZATION_REJECTED",
+                "Visual comparison authorization ID is malformed.",
+            ));
+        }
         request.validate_with_evidence(evidence).map_err(|error| {
             MultimodalActionContextError::invalid(
                 "MULTIMODAL_ACTION_REQUEST_REJECTED",
@@ -92,6 +122,7 @@ impl ValidatedMultimodalActionContext {
                 "schema_version": "MultimodalActionContext@1",
                 "request_sha256": request_sha256,
                 "graph_sha256": graph_sha256,
+                "visual_reference_comparison_authorization_id": visual_reference_comparison_authorization_id,
             }))
             .as_bytes(),
         );
@@ -99,6 +130,7 @@ impl ValidatedMultimodalActionContext {
             request,
             graph,
             evidence: evidence.to_vec(),
+            visual_reference_comparison_authorization_id,
             context_digest,
         })
     }
@@ -120,6 +152,10 @@ impl ValidatedMultimodalActionContext {
 
     pub fn context_digest(&self) -> &str {
         &self.context_digest
+    }
+
+    pub fn visual_reference_comparison_authorization_id(&self) -> Option<&str> {
+        self.visual_reference_comparison_authorization_id.as_deref()
     }
 
     /// This projection contains only validated semantic evidence. It never

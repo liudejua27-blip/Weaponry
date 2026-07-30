@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/representation-limitation.schema.json",
+  "title": "RepresentationLimitation",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "code", "message", "affected_part_ids", "missing_capability_ids", "suggested_views", "retryable"],
+  "properties": {
+    "schema_version": { "const": "RepresentationLimitation@1" },
+    "code": { "enum": ["needs_more_views", "representation_unavailable", "quality_limited", "provider_unavailable"] },
+    "message": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "affected_part_ids": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+    "missing_capability_ids": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+    "suggested_views": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+    "retryable": { "type": "boolean" }
+  }
+}

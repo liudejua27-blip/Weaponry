@@ -16,6 +16,7 @@ export type WorkbenchInspectorRailProps = {
   agentAssetVersion: AgentAssetVersion | null
   agentQualityReport: AgentAssetQualityReport | null
   selectedAgentPartId: string | null
+  selectedAgentPart: AgentAssetVersion['parts'][number] | null
   materialEditor: ReactNode
   legacyDetailsOpen: boolean
   legacyVersion: ConceptVersionDetail | null
@@ -35,6 +36,7 @@ export function WorkbenchInspectorRail({
   agentAssetVersion,
   agentQualityReport,
   selectedAgentPartId,
+  selectedAgentPart,
   materialEditor,
   legacyDetailsOpen,
   legacyVersion,
@@ -45,7 +47,8 @@ export function WorkbenchInspectorRail({
   onSelectLegacyNode,
 }: WorkbenchInspectorRailProps) {
   if (mode === 'agent') {
-    const selectedPart = agentAssetVersion?.parts.find((part) => part.part_id === selectedAgentPartId) ?? null
+    const selectedPart = selectedAgentPart
+      ?? (agentAssetVersion?.parts.find((part) => part.part_id === selectedAgentPartId) ?? null)
     return (
       <aside className="cad-right-rail" data-testid="agent-asset-inspector">
         <section className="cad-panel properties-panel">

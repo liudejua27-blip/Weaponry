@@ -514,6 +514,7 @@ mod tests {
                     client_request_id: "client_turn_1".into(),
                     message: "继续细化完整外观".into(),
                     clarification_domain_pack_id: None,
+                    author_context: None,
                     multimodal_context: None,
                 },
             },

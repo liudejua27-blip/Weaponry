@@ -486,6 +486,8 @@ mod tests {
         let program = visual_program("设计一台非功能展示用机械臂".into()).unwrap();
         let revision = forgecad_core::ForgeVisualProgramRevision::author(&program)
             .expect("visual E2E payload must satisfy the Rust-owned contract");
+        let lowering = forgecad_core::lower_forge_visual_program(&program)
+            .expect("visual E2E payload must lower to the persisted ShapeProgram truth");
         assert_eq!(
             revision.program.program_id,
             "visual_program_mvp_robotic_arm"
@@ -497,10 +499,15 @@ mod tests {
             revision.program.geometry_graph["outputs"]
                 .as_array()
                 .map(Vec::len),
-            Some(96)
+            Some(101)
         );
         assert_eq!(revision.program.surface_graph.len(), 6);
         assert_eq!(revision.program.detail_inventory.len(), 27);
+        assert_eq!(
+            forgecad_core::semantic_sha256(&lowering.shape_program).unwrap(),
+            "f7077b747530d660b0bfb2c91f10610e9626d4a071b05ad6d9f8dc2da274d3ef",
+            "packaged C111B readback must freeze the VisualProgram lowering SHA, not the pre-lowering Recipe expansion SHA"
+        );
         assert_eq!(
             revision.program.stage,
             forgecad_core::ForgeVisualProgramStage::Draft

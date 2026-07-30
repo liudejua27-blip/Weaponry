@@ -26,12 +26,11 @@ SSE_SUBSCRIPTION_SCHEMA = "ForgeCADSseSubscription@1"
 SSE_UNSUBSCRIBE_SCHEMA = "ForgeCADSseUnsubscribe@1"
 SSE_NOTIFICATION_SCHEMA = "ForgeCADSseNotification@1"
 
-# A 47 MiB binary leaves bounded room for base64 padding plus the JSON-RPC
-# envelope inside a 64 MiB frame.  This is deliberately larger than the old
-# 1 MiB JSON default so M108A production GLB/render artifacts can cross the
-# temporary bridge.  Neither request nor response bodies are persisted here.
+# A 56 MiB request body leaves bounded room for the C111B 34 MB production GLB
+# after its base64 envelope, while remaining below the 64 MiB app-server frame
+# ceiling. Neither request nor response bodies are persisted here.
 MAX_FRAME_BYTES = 64 * 1024 * 1024
-MAX_RAW_BODY_BYTES = 47 * 1024 * 1024
+MAX_RAW_BODY_BYTES = 56 * 1024 * 1024
 DEFAULT_EVENT_QUEUE_CAPACITY = 128
 MAX_EVENT_QUEUE_CAPACITY = 4096
 MAX_IN_FLIGHT_REQUESTS = 32

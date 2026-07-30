@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   analyzeVisualEvidence,
+  authorizeVisualReferenceComparison,
   cancelVisualEvidenceAnalysis,
   clearVisionEvidenceProviderConfig,
   getVisionEvidenceProviderConfig,
@@ -52,7 +53,7 @@ export function buildMultimodalDesignRequest(input: BuildRequestInput): Multimod
     request_id: input.requestId,
     project_id: input.target.projectId,
     turn_id: input.turnId,
-    domain_pack_id: input.target.domainPackId ?? 'pack_unknown_concept',
+    domain_pack_id: input.target.domainPackId ?? 'pack_unclassified',
     instruction: input.instruction.trim(),
     reference_inputs: input.evidences.map((evidence) => ({
       evidence_id: evidence.evidenceId,
@@ -97,6 +98,7 @@ export type VisionEvidencePanelProps = {
     instruction: string
     request: MultimodalDesignRequest
     graph: VisualEvidenceGraph
+    visualReferenceComparisonAuthorizationId: string
   }) => Promise<void>
 }
 
@@ -219,7 +221,6 @@ export function VisionEvidencePanel({
 
   const validation = validateVisionEvidenceSelection(role, selectedEvidences, instruction)
   const selectedRole = ROLE_OPTIONS.find((item) => item.value === role) ?? ROLE_OPTIONS[0]
-
   const toggleEvidence = (evidenceId: string) => {
     if (analysisBusy || generationBusy) return
     setSelectedIds((current) => {
@@ -332,12 +333,20 @@ export function VisionEvidencePanel({
   const useEvidence = async () => {
     if (!onUseEvidence || !graph || !analyzedRequest || analysisBusy || generationBusy) return
     setGenerationBusy(true)
-    setDetail('正在将已验证证据绑定到同一个 Rust Agent Turn…')
+    setDetail('正在由 Rust 封存短期视觉比较授权与费用上限…')
     try {
+      const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+      const authorization = await authorizeVisualReferenceComparison(
+        `vision_compare_auth_${suffix}`,
+        analyzedRequest,
+        graph,
+      )
+      setDetail('授权已绑定当前项目、请求、证据图与验收政策；正在启动同一个 Rust Agent Turn…')
       await onUseEvidence({
         instruction: analyzedRequest.instruction,
         request: analyzedRequest,
         graph,
+        visualReferenceComparisonAuthorizationId: authorization.authorizationId,
       })
       setDetail('证据已交给 Agent；只有生成、GLB 回读和质量门通过才会出现唯一预览。')
     } catch (caught) {
@@ -351,8 +360,8 @@ export function VisionEvidencePanel({
     <section className="vision-evidence-panel" aria-label="视觉证据分析">
       <header>
         <div>
-          <strong>视觉模型 · 只读证据分析</strong>
-          <small>视觉模型只描述图片；Rust 校验来源、置信度和未知项，不允许 Provider 直接修改几何。</small>
+          <strong>千问视觉 · 只读证据分析</strong>
+          <small>千问只描述图片和评估候选视图；Rust 校验来源、置信度和未知项，不允许模型直接修改几何。</small>
         </div>
         <span className={connectionVerified ? 'configured' : ''}>
           {visionConnectionLabel(Boolean(config?.configured), connectionVerified)}
@@ -360,11 +369,11 @@ export function VisionEvidencePanel({
       </header>
 
       <details className="vision-provider-config" open={!config?.configured}>
-        <summary>视觉理解服务配置</summary>
-        <label><span>OpenAI 兼容 Base URL</span><input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} disabled={configBusy || analysisBusy} placeholder="https://…/compatible-mode/v1" /></label>
-        <label><span>视觉模型</span><input value={model} onChange={(event) => setModel(event.target.value)} disabled={configBusy || analysisBusy} placeholder="qwen3.7-plus" /></label>
+        <summary>千问视觉服务配置</summary>
+        <label><span>千问 Base URL</span><input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} disabled={configBusy || analysisBusy} placeholder="https://….aliyuncs.com/…/v1" /></label>
+        <label><span>千问模型</span><input value={model} onChange={(event) => setModel(event.target.value)} disabled={configBusy || analysisBusy} placeholder="qwen3.7-plus" /></label>
         <label><span>API Key</span><input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} disabled={configBusy || analysisBusy} autoComplete="off" placeholder={config?.configured ? '输入新密钥以替换当前配置' : '仅保存到本机私密文件'} /></label>
-        <small>不写入项目、日志或 Git；不使用 macOS 钥匙串，因此不会出现系统密码弹窗。</small>
+        <small>运行时只接受 qwen 模型族和 aliyuncs.com 官方 HTTPS 端点；密钥不写入项目、日志或 Git。</small>
         <div className="reference-evidence-actions">
           {config?.configured && <button type="button" onClick={() => void clearConfig()} disabled={configBusy || analysisBusy}>清除密钥</button>}
           <button type="button" className="reference-evidence-primary" onClick={() => void saveConfig()} disabled={configBusy || analysisBusy || !apiKey.trim() || !baseUrl.trim() || !model.trim()}>{configBusy ? '正在保存…' : config?.configured ? '替换配置' : '安全保存'}</button>
@@ -427,8 +436,9 @@ export function VisionEvidencePanel({
           {onUseEvidence && analyzedRequest && (
             <div className="reference-evidence-actions">
               <button type="button" className="reference-evidence-primary" disabled={generationBusy || analysisBusy} onClick={() => void useEvidence()}>
-                {generationBusy ? 'Agent 正在生成…' : activeAssetVersionId ? '使用这些证据继续修改' : '使用这些证据生成 3D'}
+                {generationBusy ? 'Agent 正在生成…' : activeAssetVersionId ? '授权比较并继续修改' : '授权比较并生成 3D'}
               </button>
+              <small>点击即授权本次同一意图最多 3 次视觉比较；可变费用硬上限为 US$0.10。Rust 会在每次网络调用前原子预留，超限直接停止。</small>
             </div>
           )}
         </section>

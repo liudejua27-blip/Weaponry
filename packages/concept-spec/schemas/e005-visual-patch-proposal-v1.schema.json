@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-visual-patch-proposal-v1.schema.json",
+  "title": "E005VisualPatchProposalV1",
+  "description": "Ephemeral Provider proposal returned with the one E005-R2 visual comparison. Rust adds the derived comparison report hash before any mutation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "patch_id", "decision", "expected_source_sha256", "comparison_input_sha256", "repair_claim_ids", "operations"],
+  "properties": {
+    "schema_version": {"const": "E005VisualPatchProposal@1"},
+    "patch_id": {"type": "string", "pattern": "^visualpatch_[a-z0-9_-]+$", "maxLength": 128},
+    "decision": {"enum": ["accept", "typed_visual_patch"]},
+    "expected_source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "comparison_input_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "repair_claim_ids": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"type": "string", "pattern": "^vclaim_[A-Za-z0-9_.:\\-]+$", "maxLength": 160}},
+    "operations": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/operation"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"decision": {"const": "accept"}}},
+      "then": {"properties": {"repair_claim_ids": {"maxItems": 0}, "operations": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"decision": {"const": "typed_visual_patch"}}},
+      "then": {"properties": {"repair_claim_ids": {"minItems": 1}, "operations": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": -100000, "maximum": 100000},
+        {"type": "number", "minimum": -100000, "maximum": 100000},
+        {"type": "number", "minimum": -100000, "maximum": 100000}
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "parameter_id", "value"],
+          "properties": {"op": {"const": "set_parameter_default"}, "parameter_id": {"type": "string", "pattern": "^param_[a-z0-9_-]+$"}, "value": {}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "instance_id", "position"],
+          "properties": {"op": {"const": "set_instance_position"}, "instance_id": {"type": "string", "pattern": "^instance_[a-z0-9_-]+$"}, "position": {"$ref": "#/$defs/vec3"}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "instance_id", "rotation"],
+          "properties": {"op": {"const": "set_instance_rotation"}, "instance_id": {"type": "string", "pattern": "^instance_[a-z0-9_-]+$"}, "rotation": {"$ref": "#/$defs/vec3"}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "instance_id", "step"],
+          "properties": {"op": {"const": "set_repeat_step"}, "instance_id": {"type": "string", "pattern": "^instance_[a-z0-9_-]+$"}, "step": {"$ref": "#/$defs/vec3"}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "binding_id", "edge_wear", "micro_detail"],
+          "properties": {"op": {"const": "set_surface_tuning"}, "binding_id": {"type": "string", "pattern": "^surface_[a-z0-9_-]+$"}, "edge_wear": {"type": "number", "minimum": 0, "maximum": 1}, "micro_detail": {"type": "number", "minimum": 0, "maximum": 1}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["op", "node_id", "position"],
+          "properties": {"op": {"const": "set_template_node_position"}, "node_id": {"type": "string", "pattern": "^node_[a-z0-9_-]+$"}, "position": {"$ref": "#/$defs/vec3"}}
+        }
+      ]
+    }
+  }
+}

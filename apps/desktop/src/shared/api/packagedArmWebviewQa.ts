@@ -72,6 +72,7 @@ type QaViewportPixels = {
   width: number
   height: number
   pixels: Uint8Array
+  origin?: 'top_left' | 'bottom_left'
 }
 
 type QaViewportCaptureRequest = {
@@ -687,7 +688,7 @@ async function captureRenderedViewportScreenshot(
   // ModuleGraphViewport owns the only renderer/context.  Request its pixels
   // through the QA-only same-realm event so readPixels runs immediately after
   // renderer.render(), before a browser may discard the default framebuffer.
-  const { width, height, pixels } = await requestRenderedViewportPixels(viewport)
+  const { width, height, pixels, origin } = await requestRenderedViewportPixels(viewport)
   if (width < 320 || height < 240 || width * height > 8_400_000) {
     throw new Error('QA_V3_VIEWPORT_SCREENSHOT_CANVAS_INVALID')
   }
@@ -700,7 +701,9 @@ async function captureRenderedViewportScreenshot(
   const rowBytes = width * 4
   for (let sourceY = 0; sourceY < height; sourceY += 1) {
     const sourceOffset = sourceY * rowBytes
-    const targetOffset = (height - sourceY - 1) * rowBytes
+    const targetOffset = origin === 'top_left'
+      ? sourceY * rowBytes
+      : (height - sourceY - 1) * rowBytes
     image.data.set(pixels.subarray(sourceOffset, sourceOffset + rowBytes), targetOffset)
   }
   context.putImageData(image, 0, 0)

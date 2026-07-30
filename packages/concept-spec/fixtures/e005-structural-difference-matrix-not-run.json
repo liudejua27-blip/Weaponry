@@ -1,0 +1,15 @@
+{
+  "schema_version": "E005StructuralDifferenceMatrix@1",
+  "matrix_id": "e005_structural_matrix_not_run_v1",
+  "task_set_sha256": "471c592b5f328f6e899b430b49eb042d3c6955f498b14fd1d2558a0934e18dde",
+  "run_receipts_sha256": "f1670f86b6f33551148f795780c48d699bc1a797ebbbc34d0808e071920b242f",
+  "status": "not_run",
+  "entry_count": 0,
+  "entries": [],
+  "entries_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "pair_count": 0,
+  "comparisons": [],
+  "comparisons_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "structurally_distinct_pair_count": 0,
+  "matrix_pass": false
+}

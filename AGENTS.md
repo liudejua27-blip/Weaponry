@@ -4,11 +4,21 @@
 
 ## 1. 产品定义
 
-ForgeCAD 是面向零基础用户的轻量通用机械概念 3D Agent。首批领域包是未来武器概念道具、汽车、飞机和机械臂。
+ForgeCAD / Forge Studio 是面向零基础用户的轻量、类别开放、外观优先、可编辑通用 3D Agent。用户上传什么对象的授权图片并描述什么对象，系统就以该对象为目标生成，不再用机械硬表面、四个 Domain Pack 或固定关键词白名单限制输入类别。
+
+2026-07-28 的历史决策 ADR-0020 曾把第一商业路线收敛为机械硬表面；其轻量化、成本和单一真值约束继续有效，类别范围与实施优先级已由 ADR-0022 取代。默认不训练基础 3D 模型、不建设常驻 GPU 集群、不要求用户安装 CUDA/大权重；可选视觉/神经 Provider 不能创建第二产品真值。
+
+2026-07-29 已接受 ADR-0021：下一主线改为高自由度 `ForgeVisualProgram@2`。C111B 冻结为未通过正式视觉/真人门的回归资产，不再要求先反复优化同一机械臂才建设语言。默认一次 author + 最多一次 typed patch；Rust 负责 schema、类型、静态预算、展开、lowering、readback 与版本真值。禁止用整机模板数量或任意 Three.js/JavaScript 执行伪装自由度。
+
+2026-07-29 已接受 ADR-0022：产品目标升级为通用参考条件 3D Agent。机械硬表面保留为当前最成熟的表示路径和回归分布，不再是产品类别上限。运行时从 Domain allowlist 改为 `SubjectProfile → RepresentationPlan → UniversalAssetSource` 能力路由；程序化、形变和本地混合表示进入同一 Rust-owned 真值链。解除的是创作类别边界，不是任意代码、文件、网络、密钥或资源权限。
+
+2026-07-29 已接受 ADR-0023：运行时 AI Provider 永久限定为 DeepSeek 与千问。当前 DeepSeek 编写受限设计程序，千问负责授权参考图理解和候选视觉比较；Rust 与本地受限执行器负责真正的 GLB/PBR 编译、readback 和版本真值。禁止 Fal、远程 Hunyuan Mesh API 或任何第三个 AI Provider；旧远程 Mesh Seed 合同只可兼容读取，不能拥有命令、凭据、网络、恢复或 UI 入口。
 
 当前是本机 Alpha，不是生产软件。不得把目标设计、legacy Weapon/Unity 证据或确定性 smoke 描述成已经完成的通用产品能力。
 
-未来武器结果仅限虚构游戏美术资产、影视道具和非功能展示模型。不得增加现实武器制造图、功能机构、制造尺寸、材料配方、加工步骤或性能建议。汽车、飞机和机械臂同样不提供安全、适航、结构、动力学或认证结论。
+U004 当前按质量优先执行：在通用类别未通过真人视觉门前，优先完整主体、身份/轮廓/结构/PBR 保真和最强本地受检表示，不以降低面数、跳过必要参考分析或减少质量步骤换取更快结果；不能用第三方远程 Mesh API 兜底。
+
+任何类别均可作为合法的非功能性视觉资产目标。未来武器结果仅限虚构游戏美术资产、影视道具和非功能展示模型；不得增加现实武器制造图、功能机构、制造尺寸、材料配方、加工步骤或性能建议。汽车、飞机、建筑、角色和机械同样不提供安全、适航、结构、医疗、动力学或认证结论。
 
 ## 2. 必读顺序
 
@@ -24,7 +34,9 @@ ForgeCAD 是面向零基础用户的轻量通用机械概念 3D Agent。首批�
 8. `docs/DESIGN.md`：目标架构；
 9. 与任务直接相关的 API、Schema、测试或操作文档。
 
-`docs/legacy/` 只用于兼容和迁移。不得从 legacy 文档推导新产品功能。
+使用 Luna 或其他长程模型进入 Goal 模式时，在上述第 5 项后完整阅读 `docs/LUNA_GOAL_EXECUTION_GUIDE.md`、`docs/ADR/0022-universal-reference-conditioned-3d-agent.md`、`docs/ADR/0021-high-freedom-visual-program-max.md` 和 `docs/ADR/0020-lightweight-appearance-first-3d-agent.md`。Luna 是开发执行者，不是 ForgeCAD 运行时 Provider、Skill 或资产真值；Goal/聊天摘要不能替代任务索引、Git、Gate 和 handoff。
+
+旧 Weapon/Concept 的最小兼容事实统一位于 `docs/COMPATIBILITY_MIGRATION.md`；旧操作文档已从当前树删除。不得从 Git 历史或兼容合同推导新产品功能。
 
 需要外部参考、插件或 Skill 时，先读 `docs/AGENT_GITHUB_REFERENCE_ARCHITECTURE.md` 和 `docs/AGENT_PLUGINS_SKILLS_DESIGN.md`。不得整套复制通用 Agent/CAD 项目，也不得让零基础用户安装开发 Skill、本地神经 3D 或 DCC 插件。
 
@@ -44,7 +56,11 @@ ForgeCAD 是面向零基础用户的轻量通用机械概念 3D Agent。首批�
 
 不得跳过 1–4 直接增加大型 UI、更多导出格式或复杂几何。
 
-`FGC-S001`–`FGC-S008`、`FGC-D001`–`FGC-D003`、`FGC-T001`–`FGC-T003`、`FGC-B001`–`FGC-B002`、`FGC-P001`、`FGC-P007`、`FGC-F001`–`FGC-F006`、`FGC-F026`、`FGC-G801`–`FGC-G808`、`FGC-R001`–`FGC-R002`、`FGC-R007A`–`FGC-R007B`、`FGC-M101`–`FGC-M107`、`FGC-M108A`、`FGC-C101`–`FGC-C108`、`FGC-K001`–`FGC-K003`、`FGC-A005`、`FGC-V003` 已完成。A005 提供 Rust-owned Skill 生命周期、受限 `SurfaceAdornmentProgram@1`、ChangeSet preview→confirm、128/1024 两档五通道 PBR 和单视口 UI；它不增加 ShapeProgram operation 或任意执行能力。R007A 将授权图片/GLB封装为 Rust-owned 只读证据；R007B 已用单图、多视图 contact sheet、严格 GLB readback 三类 exact-lineage packaged 工作台证据完成参考→Design Surface/Recipe/Material Zone/A005→新 GLB 的工程闭环，但明确不证明视觉相似度。V003 由 Rust 执行一次完整 synthesis、13 项 code-owned v2 Gate 和最多两次同意图原位修复，只产生一个未保存 `SingleResultDecision@1`；用户确认才创建原子资产版本。K003 已让 Rust app-server/core 单一拥有 Agent 与产品状态；Python 只保留 capability-gated `RestrictedGeometryExecutor`。C108 已将 service-display 深化为 19,776-triangle preview 与 101,248-triangle/120-primitive/1K PBR production，并完成 packaged 唯一结果→A005 V2→Snapshot/导出→重启恢复；实际截图仍未达到目标图。`FGC-M108B` 仍为 `blocked`：四领域正式 production Recipe kit 和三位独立真人逐领域 `4/5` 未完成；M109 的 2K/压缩纹理与设备分级继续等待它。F026 已完成 Codex 式 shell 和单 renderer `docked | focus`，并移除三方向 UI。不得把 C104/G808 擅自扩展为工程装配约束、自由参数或新几何能力。
+当前产品任务顺序由 ADR-0022 冻结为 `FGC-U001 → U002 → U003 → U004 → U005`。同一时刻只领取一个任务。VP201–VP204 和 E005-R1/R2 已完成或正在形成的合同保留为 procedural hard-surface substrate 与回归证据；E005 不再阻塞类别开放 author/router。C111B 的 fixture、Gate 和 evidence 必须继续回归，但不得把它写成通用质量已通过。
+
+`FGC-S001`–`FGC-S008`、`FGC-D001`–`FGC-D003`、`FGC-T001`–`FGC-T003`、`FGC-B001`–`FGC-B002`、`FGC-P001`、`FGC-P007`、`FGC-F001`–`FGC-F006`、`FGC-F026`、`FGC-G801`–`FGC-G808`、`FGC-R001`–`FGC-R002`、`FGC-R007A`–`FGC-R007B`、`FGC-M101`–`FGC-M107`、`FGC-M108A`、`FGC-C101`–`FGC-C108`、`FGC-K001`–`FGC-K003`、`FGC-A005`、`FGC-V003` 已完成。A005 提供 Rust-owned Skill 生命周期、受限 `SurfaceAdornmentProgram@1`、ChangeSet preview→confirm、128/1024 两档五通道 PBR 和单视口 UI；它不增加 ShapeProgram operation 或任意执行能力。R007A 将授权图片/GLB封装为 Rust-owned 只读证据；R007B 已用单图、多视图 contact sheet、严格 GLB readback 三类 exact-lineage packaged 工作台证据完成参考→Design Surface/Recipe/Material Zone/A005→新 GLB 的工程闭环，但明确不证明视觉相似度。V003 的“两次修复”仅作为冻结回归路径保留；当前类别开放产品链固定为一次 author 和最多一次同意图 typed patch，只产生一个未保存 `SingleResultDecision@1`；用户确认才创建原子资产版本。K003 已让 Rust app-server/core 单一拥有 Agent 与产品状态；Python 只保留 capability-gated `RestrictedGeometryExecutor`。C108 已将 service-display 深化为 19,776-triangle preview 与 101,248-triangle/120-primitive/1K PBR production，并完成 packaged 唯一结果→A005 V2→Snapshot/导出→重启恢复；实际截图仍未达到目标图。`FGC-M108B` 仍为 `blocked`：四领域正式 production Recipe kit 和三位独立真人逐领域 `4/5` 未完成；M109 的 2K/压缩纹理与设备分级继续等待它。F026 已完成 Codex 式 shell 和单 renderer `docked | focus`，并移除三方向 UI。不得把 C104/G808 擅自扩展为工程装配约束、自由参数或新几何能力。
+
+`FGC-VP201`–`FGC-VP204`、`FGC-E005-R1`、`FGC-U001`、文档清理任务 `FGC-U001A`、`FGC-U002`、`FGC-U003` 与 Provider 主权切片 `FGC-U004A` 已完成；E005-R2/R3 已形成的 sealed reference、视觉 patch、预算、恢复、PBR 和 receipt Core 保留为通用链可复用底座，但真实四模态输入、完整阶段计时和正式真人门仍未完成。当前唯一 `in_progress` 是 `FGC-U004`：扩展 DeepSeek/千问驱动的受限设计语言、本地 deformable/procedural/hybrid 表示和 Appearance Compiler。旧 `mesh_seed.generic_v1` 只作 schema 兼容并保持 unavailable。除经过对象一致性验证的机械臂程序化 capability 外，universal author 的其他类别仍返回 typed limitation。E005 后续工作降为 procedural hard-surface 回归子基准。
 
 ## 4. 任务粒度
 
@@ -82,11 +98,12 @@ ForgeCAD 是面向零基础用户的轻量通用机械概念 3D Agent。首批�
 ## 6. 架构约束
 
 - Core 使用通用 Project、Assembly、Part、Shape、Material、Joint、Version 和 Tool；
-- 领域语义进入版本化 Domain Pack；
+- 对象语义进入 `SubjectProfile`，执行选择进入 `RepresentationPlan`；Domain Pack 只提供可选知识，不得成为输入 allowlist；
 - ShapeProgram 不执行任意 Python、JavaScript、shell、URL 或文件路径；
 - 所有永久修改先 preview，再 confirm，再创建不可变子版本；
 - 一个工作台只能有一个 WebGL renderer/context；
 - Provider Key 只进入 Keychain 或权限受限的 secret file；
+- AI Provider 只允许 DeepSeek 与千问；新增或恢复其他 Provider 必须 fail closed；
 - 大文件进入内容寻址对象库，不进入事件和日志；
 - 新 API 使用 `/api/v1/agent`，legacy API 只读或显式转换。
 

@@ -4,7 +4,8 @@
 - 日期：2026-07-25
 - 决策者：项目维护者
 - 补充：ADR-0014 的 Rust-first 所有权、ADR-0015 的工件/视觉验收拆分、ADR-0016 的 Design Surface Compiler
-- 外部方法参考：[`hoainho/img2threejs`](https://github.com/hoainho/img2threejs) commit `c9077d5ecce834f6802d6742b4a5b2c682d6279d`，Apache-2.0；当前只参考方法，不引入依赖或上游运行时
+- 外部方法参考：当时核验的 `img2threejs` commit `c9077d5ecce834f6802d6742b4a5b2c682d6279d`，Apache-2.0；2026-07-27 当前上游已迁移到 [`img2threejs/img2threejs`](https://github.com/img2threejs/img2threejs)，本 ADR 仍只记录当时采用的方法，不引入依赖或上游运行时
+- 2026-07-30 适用性更新：其 V003 两次修复规则只保留为 legacy 回归；类别开放产品链由 ADR-0021/0022 定义为一次 author 和最多一次 typed patch，`VisualConvergence@2` 不接受第二次 repair。
 
 ## 1. 决策摘要
 

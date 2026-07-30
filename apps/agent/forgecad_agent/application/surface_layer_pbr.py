@@ -22,6 +22,8 @@ import zlib
 from functools import lru_cache
 from typing import Mapping, Sequence
 
+import numpy as np
+
 from .agent_models import VisualTextureMap, VisualTextureSet
 from .visual_texture_sets import (
     GeometryArtifactProfileId,
@@ -245,7 +247,11 @@ def normalize_surface_layer_lowering(value: Mapping[str, object]) -> dict[str, o
 
 def surface_layer_material_id(lowering: Mapping[str, object]) -> str:
     normalized = normalize_surface_layer_lowering(lowering)
-    return f"mat_surface_layer_{normalized['source_program_sha256'][:32]}"
+    # One source program may intentionally compile several Material Zones.
+    # Material identity must therefore bind the complete sealed lowering, not
+    # merely the source revision, or glTF/readback will collapse distinct PBR
+    # zones into one material row.
+    return f"mat_surface_layer_{surface_layer_lowering_sha256(normalized)[:32]}"
 
 
 def surface_layer_lowering_sha256(lowering: Mapping[str, object]) -> str:
@@ -410,7 +416,7 @@ def _emissive_mask(mask: Mapping[str, object], u: float, v: float) -> float:
     return pattern * _coverage(str(mask["coverage"]), u, v) * float(mask["intensity_milli"]) / 1000
 
 
-def _render_bytes(lowering: Mapping[str, object], *, artifact_profile_id: GeometryArtifactProfileId) -> Mapping[str, bytes]:
+def _render_bytes_scalar(lowering: Mapping[str, object], *, artifact_profile_id: GeometryArtifactProfileId) -> Mapping[str, bytes]:
     normalized = normalize_surface_layer_lowering(lowering)
     retained = normalized["retained_layers"]
     adornments = normalized["adornments"]
@@ -460,6 +466,349 @@ def _render_bytes(lowering: Mapping[str, object], *, artifact_profile_id: Geomet
     return {role: _png_rgb(rows[role], width=width, height=height) for role in SUPPORTED_PBR_ROLES}
 
 
+def _uint8_channel(value: np.ndarray | float) -> np.ndarray:
+    return np.clip(np.rint(value), 0, 255).astype(np.uint8)
+
+
+def _png_rgb_array(value: np.ndarray) -> bytes:
+    height, width, channels = value.shape
+    if channels != 3 or value.dtype != np.uint8:
+        raise ValueError("retained PBR texture array must be uint8 RGB")
+    return _png_rgb(
+        tuple(value[row].tobytes() for row in range(height)),
+        width=width,
+        height=height,
+    )
+
+
+def _coverage_grid(
+    coverage: str,
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    shape = np.broadcast_shapes(u.shape, v.shape)
+    if coverage == "full_zone":
+        return np.ones(shape, dtype=np.float64)
+    if coverage == "center_band":
+        return np.clip(1 - (np.abs(u - 0.5) - 0.14) / 0.20, 0.0, 1.0)
+    if coverage == "edge_band":
+        distance = np.minimum(
+            np.minimum(u, 1 - u),
+            np.minimum(v, 1 - v),
+        )
+        return np.clip((0.22 - distance) / 0.14, 0.0, 1.0)
+    pair = np.maximum.reduce(
+        (
+            np.zeros(shape, dtype=np.float64),
+            1 - np.abs(u - 0.27) / 0.16,
+            1 - np.abs(u - 0.73) / 0.16,
+        )
+    )
+    return np.minimum(1.0, pair)
+
+
+def _apply_frame_grid(
+    u: np.ndarray,
+    v: np.ndarray,
+    frame: Mapping[str, object],
+) -> tuple[np.ndarray, np.ndarray]:
+    x = (u - float(frame["u_min"])) / (
+        float(frame["u_max"]) - float(frame["u_min"])
+    )
+    y = (v - float(frame["v_min"])) / (
+        float(frame["v_max"]) - float(frame["v_min"])
+    )
+    radians = math.radians(float(frame["rotation_degrees"]))
+    dx, dy = x - 0.5, y - 0.5
+    return (
+        0.5 + dx * math.cos(radians) - dy * math.sin(radians),
+        0.5 + dx * math.sin(radians) + dy * math.cos(radians),
+    )
+
+
+def _symmetry_sample_grids(
+    u: np.ndarray,
+    v: np.ndarray,
+    symmetry: Mapping[str, object],
+) -> tuple[tuple[np.ndarray, np.ndarray], ...]:
+    center = symmetry["center_uv"]
+    cx, cy = float(center[0]), float(center[1])
+    mode = symmetry["mode"]
+    samples = [(u, v)]
+    if mode == "mirror_u":
+        samples.append((2 * cx - u, v))
+    elif mode == "mirror_v":
+        samples.append((u, 2 * cy - v))
+    elif mode in {"radial_2", "radial_4"}:
+        samples.append((2 * cx - u, 2 * cy - v))
+        if mode == "radial_4":
+            samples.extend(
+                (
+                    (cx - (v - cy), cy + (u - cx)),
+                    (cx + (v - cy), cy - (u - cx)),
+                )
+            )
+    return tuple(samples)
+
+
+def _vector_mask_grid(
+    u: np.ndarray,
+    v: np.ndarray,
+    segments: Sequence[tuple[tuple[float, float], tuple[float, float]]],
+) -> np.ndarray:
+    shape = np.broadcast_shapes(u.shape, v.shape)
+    if not segments:
+        return np.zeros(shape, dtype=np.float64)
+    distance = np.full(shape, np.inf, dtype=np.float64)
+    for (ax, ay), (bx, by) in segments:
+        dx, dy = bx - ax, by - ay
+        length_squared = dx * dx + dy * dy
+        if length_squared <= 1e-12:
+            candidate = np.hypot(u - ax, v - ay)
+        else:
+            amount = np.clip(
+                ((u - ax) * dx + (v - ay) * dy) / length_squared,
+                0.0,
+                1.0,
+            )
+            candidate = np.hypot(
+                u - (ax + amount * dx),
+                v - (ay + amount * dy),
+            )
+        distance = np.minimum(distance, candidate)
+    return np.clip(1 - distance / 0.018, 0.0, 1.0)
+
+
+def _decal_mask_grid(
+    decal: Mapping[str, object],
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    anchor = decal["anchor_uv"]
+    scale = float(decal["scale_milli"]) / 1000.0
+    x = (u - float(anchor[0])) / scale
+    y = (v - float(anchor[1])) / scale
+    motif = decal["motif"]
+    if motif == "chevron_mark":
+        present = (
+            np.abs(np.abs(x) - (0.28 + np.abs(y) * 0.55)) < 0.09
+        ) & (np.abs(y) < 0.42)
+    elif motif == "hex_badge":
+        present = np.maximum(np.abs(x), np.abs(y) * 1.15 + np.abs(x) * 0.5) < 0.42
+    elif motif == "warning_stripe":
+        stripe = np.trunc((x - y) * 11).astype(np.int64)
+        present = (np.abs(x) < 0.46) & (np.abs(y) < 0.25) & (stripe % 2 == 0)
+    else:
+        token_hash = sum(ord(character) for character in str(decal["text_token"]))
+        token = np.trunc((x + 0.5) * 9).astype(np.int64)
+        present = (
+            (np.abs(x) < 0.46)
+            & (np.abs(y) < 0.22)
+            & ((token + token_hash) % 3 != 0)
+        )
+    return present.astype(np.float64) * float(decal["opacity_milli"]) / 1000.0
+
+
+def _relief_height_grid(
+    adornments: Sequence[Mapping[str, object]],
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    total = np.zeros(np.broadcast_shapes(u.shape, v.shape), dtype=np.float64)
+    for adornment in adornments:
+        phase = (int(adornment["seed"]) % 4096) / 4096 * math.tau
+        if adornment["motif"] == "parallel_groove":
+            wave = np.sin(math.tau * (14 * u + 0.9 * v) + phase)
+        else:
+            wave = np.sin(
+                math.tau * (11 * v + 5 * np.abs((u - 0.5) * 2)) + phase
+            )
+        scale = {
+            "subtle": 1.6,
+            "balanced": 3.2,
+            "pronounced": 5.4,
+        }[str(adornment["intensity"])]
+        total += wave * scale * _coverage_grid(
+            str(adornment["coverage"]), u, v
+        )
+    return total
+
+
+def _roughness_mask_grid(
+    mask: Mapping[str, object],
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    phase = (int(mask["seed"]) % 4096) / 4096 * math.tau
+    if mask["motif"] == "linear_brush":
+        pattern = (np.sin(math.tau * (34 * v + 1.2 * u) + phase) + 1) / 2
+    elif mask["motif"] == "edge_wear":
+        distance = np.minimum(
+            np.minimum(u, 1 - u),
+            np.minimum(v, 1 - v),
+        )
+        pattern = 1 - distance / 0.16
+    else:
+        pattern = (
+            np.sin(math.tau * 16 * u + phase)
+            * np.sin(math.tau * 16 * v + phase)
+            + 1
+        ) / 2
+    return (
+        np.clip(pattern, 0.0, 1.0)
+        * _coverage_grid(str(mask["coverage"]), u, v)
+        * float(mask["intensity_milli"])
+        / 1000
+    )
+
+
+def _emissive_mask_grid(
+    mask: Mapping[str, object],
+    u: np.ndarray,
+    v: np.ndarray,
+) -> np.ndarray:
+    phase = (int(mask["seed"]) % 4096) / 4096 * math.tau
+    if mask["motif"] == "double_flowline":
+        a = np.abs(v - (0.32 + 0.10 * np.sin(math.tau * u + phase)))
+        b = np.abs(v - (0.68 - 0.10 * np.sin(math.tau * u + phase)))
+        pattern = np.maximum(0.0, 1 - np.minimum(a, b) / 0.028)
+    elif mask["motif"] == "dot_array":
+        pattern = np.maximum(
+            0.0, np.cos(math.tau * 9 * u) * np.cos(math.tau * 6 * v)
+        )
+    else:
+        pattern = ((np.abs(u - 0.5) < 0.35) & (np.abs(v - 0.5) < 0.10)).astype(
+            np.float64
+        )
+    return (
+        pattern
+        * _coverage_grid(str(mask["coverage"]), u, v)
+        * float(mask["intensity_milli"])
+        / 1000
+    )
+
+
+def _render_bytes_vectorized(
+    lowering: Mapping[str, object],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> Mapping[str, bytes]:
+    normalized = normalize_surface_layer_lowering(lowering)
+    retained = normalized["retained_layers"]
+    adornments = normalized["adornments"]
+    base_index, _ = builtin_visual_material_binding(
+        str(adornments[0]["base_material"])
+    )
+    material = builtin_material_properties(base_index)
+    width = (
+        PRODUCTION_TEXTURE_WIDTH
+        if artifact_profile_id == "production_concept"
+        else TEXTURE_WIDTH
+    )
+    height = (
+        PRODUCTION_TEXTURE_HEIGHT
+        if artifact_profile_id == "production_concept"
+        else TEXTURE_HEIGHT
+    )
+    raw_u = np.arange(width, dtype=np.float64)[None, :] / width
+    raw_v = np.arange(height, dtype=np.float64)[:, None] / height
+    u, v = _apply_frame_grid(raw_u, raw_v, retained["uv_frame"])
+    samples = _symmetry_sample_grids(u, v, retained["symmetry"])
+    paths = _path_segments(retained["vector_paths"])
+    vector = np.maximum.reduce(
+        [_vector_mask_grid(sample_u, sample_v, paths) for sample_u, sample_v in samples]
+    )
+    relief = sum(
+        (_relief_height_grid(adornments, sample_u, sample_v) for sample_u, sample_v in samples),
+        start=np.zeros(np.broadcast_shapes(u.shape, v.shape), dtype=np.float64),
+    ) / len(samples)
+    decals = [
+        (
+            decal,
+            np.maximum.reduce(
+                [
+                    _decal_mask_grid(decal, sample_u, sample_v)
+                    for sample_u, sample_v in samples
+                ]
+            ),
+        )
+        for decal in retained["decal_layers"]
+    ]
+    roughness = sum(
+        (
+            _roughness_mask_grid(mask, u, v)
+            for mask in retained["roughness_masks"]
+        ),
+        start=np.zeros(np.broadcast_shapes(u.shape, v.shape), dtype=np.float64),
+    )
+    emissions = [
+        (mask, _emissive_mask_grid(mask, u, v))
+        for mask in retained["emissive_masks"]
+    ]
+    base = np.asarray(material["base"], dtype=np.float64)
+    base_roughness = int(material["roughness"])
+    base_metallic = int(material["metallic"])
+    accent = np.zeros((height, width, 3), dtype=np.float64)
+    for decal, amount in decals:
+        color = np.asarray(_COLOR_TOKENS[str(decal["color_token"])], dtype=np.float64)
+        accent += (color - base)[None, None, :] * amount[:, :, None]
+    colour_shift = relief * 0.42 + vector * 18
+    base_color = np.stack(
+        [
+            _uint8_channel(
+                base[channel] + accent[:, :, channel] + colour_shift
+            )
+            for channel in range(3)
+        ],
+        axis=-1,
+    )
+    metallic_roughness = np.stack(
+        (
+            np.full((height, width), 255, dtype=np.uint8),
+            _uint8_channel(base_roughness - roughness * 65 + relief * 1.5),
+            _uint8_channel(base_metallic + vector * 5),
+        ),
+        axis=-1,
+    )
+    normal = np.stack(
+        (
+            _uint8_channel(128 - np.cos(math.tau * 14 * u) * relief * 3.2),
+            _uint8_channel(128 + np.cos(math.tau * 11 * v) * relief * 2.6),
+            np.full((height, width), 254, dtype=np.uint8),
+        ),
+        axis=-1,
+    )
+    occlusion_channel = _uint8_channel(
+        252 - np.maximum(0.0, -relief) * 1.2 - vector * 20
+    )
+    emission = np.zeros((height, width, 3), dtype=np.float64)
+    for mask, amount in emissions:
+        color = np.asarray(_COLOR_TOKENS[str(mask["color_token"])], dtype=np.float64)
+        emission += color[None, None, :] * amount[:, :, None]
+    arrays = {
+        "base_color": base_color,
+        "metallic_roughness": metallic_roughness,
+        "normal": normal,
+        "occlusion": np.repeat(occlusion_channel[:, :, None], 3, axis=2),
+        "emissive": _uint8_channel(emission),
+    }
+    return {
+        role: _png_rgb_array(arrays[role]) for role in SUPPORTED_PBR_ROLES
+    }
+
+
+def _render_bytes(
+    lowering: Mapping[str, object],
+    *,
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> Mapping[str, bytes]:
+    if artifact_profile_id == "production_concept":
+        return _render_bytes_vectorized(
+            lowering, artifact_profile_id=artifact_profile_id
+        )
+    return _render_bytes_scalar(lowering, artifact_profile_id=artifact_profile_id)
+
+
 @lru_cache(maxsize=16)
 def _cached_bytes(artifact_profile_id: GeometryArtifactProfileId, canonical: str) -> Mapping[str, bytes]:
     return _render_bytes(json.loads(canonical), artifact_profile_id=artifact_profile_id)
@@ -469,7 +818,7 @@ def surface_layer_visual_texture_set(lowering: Mapping[str, object], *, artifact
     normalized = normalize_surface_layer_lowering(lowering)
     canonical = _canonical_json(normalized)
     payloads = _cached_bytes(artifact_profile_id, canonical)
-    suffix = normalized["source_program_sha256"][:32]
+    suffix = surface_layer_lowering_sha256(normalized)[:32]
     texture_suffix = "sl1p" if artifact_profile_id == "interactive_preview" else "sl1d"
     # Surface layers coexist with built-in and A005 material rows in one GLB.
     # Their contract version therefore has to match the artifact profile's

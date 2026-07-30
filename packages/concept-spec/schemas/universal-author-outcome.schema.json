@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/universal-author-outcome.schema.json",
+  "title": "UniversalAuthorOutcome",
+  "description": "Discriminated universal author result. limitation and clarification variants contain no executable geometry payload.",
+  "oneOf": [
+    { "$ref": "#/$defs/executable" },
+    { "$ref": "#/$defs/limitation" },
+    { "$ref": "#/$defs/clarification" }
+  ],
+  "$defs": {
+    "base_contracts": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": "UniversalAuthorOutcome@1" },
+        "request": { "$ref": "universal-author-request.schema.json" },
+        "subject_profile": { "$ref": "subject-profile.schema.json" },
+        "visual_feature_contract": { "$ref": "visual-feature-contract.schema.json" },
+        "representation_plan": { "$ref": "representation-plan.schema.json" }
+      }
+    },
+    "executable": {
+      "type": "object", "additionalProperties": false,
+      "required": ["outcome", "schema_version", "request", "subject_profile", "visual_feature_contract", "representation_plan", "executable_payload"],
+      "properties": {
+        "outcome": { "const": "executable" },
+        "schema_version": { "const": "UniversalAuthorOutcome@1" },
+        "request": { "$ref": "universal-author-request.schema.json" },
+        "subject_profile": { "$ref": "subject-profile.schema.json" },
+        "visual_feature_contract": { "$ref": "visual-feature-contract.schema.json" },
+        "representation_plan": { "$ref": "representation-plan.schema.json" },
+        "executable_payload": { "type": "object" }
+      }
+    },
+    "limitation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["outcome", "schema_version", "request", "subject_profile", "visual_feature_contract", "representation_plan", "limitation"],
+      "properties": {
+        "outcome": { "const": "limitation" },
+        "schema_version": { "const": "UniversalAuthorOutcome@1" },
+        "request": { "$ref": "universal-author-request.schema.json" },
+        "subject_profile": { "$ref": "subject-profile.schema.json" },
+        "visual_feature_contract": { "$ref": "visual-feature-contract.schema.json" },
+        "representation_plan": { "$ref": "representation-plan.schema.json" },
+        "limitation": { "$ref": "representation-limitation.schema.json" }
+      }
+    },
+    "clarification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["outcome", "schema_version", "request", "reason", "questions"],
+      "properties": {
+        "outcome": { "const": "clarification_required" },
+        "schema_version": { "const": "UniversalAuthorOutcome@1" },
+        "request": { "$ref": "universal-author-request.schema.json" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "questions": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string", "minLength": 1, "maxLength": 320 } }
+      }
+    }
+  }
+}

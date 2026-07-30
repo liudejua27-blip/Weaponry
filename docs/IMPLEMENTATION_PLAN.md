@@ -1,13 +1,14 @@
-# ForgeCAD 通用机械概念 3D Agent 实施计划
+# ForgeCAD 历史机械纵向切片实施计划
 
-版本：2026-07-12
-原则：先完成通用 Core 和四领域最小纵向切片，再扩展资产数量或工程能力
+版本：2026-07-29
+状态：兼容实施基线；当前产品终点与任务顺序已由 ADR-0022、`CODEX_EXECUTION_PLAN.md` 和 `CODEX_TASK_INDEX.md` 取代
+原则：保留已完成的通用 Core 与四领域机械回归，不把它们当成通用产品类别上限
 
-后续 Codex 的具体领取顺序、任务 ID 和交付模板以 [CODEX_EXECUTION_PLAN.md](CODEX_EXECUTION_PLAN.md) 与 [CODEX_TASK_INDEX.md](CODEX_TASK_INDEX.md) 为准；本文件保留产品里程碑和退出条件。
+后续 Codex 的具体领取顺序、任务 ID 和交付模板以 [CODEX_EXECUTION_PLAN.md](CODEX_EXECUTION_PLAN.md) 与 [CODEX_TASK_INDEX.md](CODEX_TASK_INDEX.md) 为准；本文件只保留 G0–G8 机械纵向切片的历史实现结构。目标通用链为 `SubjectProfile → RepresentationPlan → UniversalAssetSource`，不从本文推导当前类别开放能力。
 
 ## 1. 产品退出目标
 
-零基础用户只配置大模型 API，即可完成：
+以下是历史机械纵向切片的退出目标，不是当前通用产品的完整退出条件：
 
 ```text
 描述未来武器道具、汽车、飞机或机械臂创意

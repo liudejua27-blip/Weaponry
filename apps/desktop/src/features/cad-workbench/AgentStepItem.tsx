@@ -15,6 +15,7 @@ const ITEM_TYPE_LABELS: Record<AgentItemType, string> = {
 const TOOL_STAGE_LABELS: Record<string, string> = {
   infer_product_domain: '识别设计对象',
   author_forge_visual_program: '生成受限设计稿',
+  author_universal_asset: '理解对象并规划表示',
   patch_forge_visual_program: '应用局部修复',
   build_candidate_geometry: '构建候选模型',
   compile_readback_candidate: '核验 GLB 回读',
@@ -55,7 +56,7 @@ export function agentItemPreview(item: AgentItem): string {
  * Provider reasoning, prompt text, raw tool arguments, and raw results stay
  * out of the workbench UI.
  */
-export function agentProcessSteps(items: AgentItem[]): AgentProcessStep[] {
+export function agentProcessSteps(items: readonly AgentItem[]): AgentProcessStep[] {
   const calls = new Map<string, AgentItem>()
   const completedCallIds = new Set<string>()
   const steps: AgentProcessStep[] = []
@@ -149,8 +150,9 @@ function repairCount(payload: RecordValue): number | null {
   const result = resultValue(payload)
   const convergence = result ? asRecord(result.visual_convergence_report) : null
   const repair = result ? asRecord(result.repair) : null
+  if (convergence?.schema_version !== 'VisualConvergenceReport@2') return null
   const count = convergence?.repair_attempt_count ?? repair?.repair_number
-  return typeof count === 'number' && Number.isInteger(count) && count >= 0 && count <= 2 ? count : null
+  return typeof count === 'number' && Number.isInteger(count) && count >= 0 && count <= 1 ? count : null
 }
 
 function completedEvidence(payload: RecordValue): string | null {

@@ -9,12 +9,6 @@ const COVERAGE_BY_DRAFT: Record<SurfaceAdornmentDraft['coverage'], 'center_band'
   symmetric: 'symmetric_pair',
 }
 
-const QUALITY_STATUS_LABELS = {
-  passed: '通过',
-  warning: '需复核',
-  failed: '失败',
-} as const
-
 const PACK_VEHICLE_RE = /(car|vehicle|truck|auto|汽车|车辆|载具)/
 const PACK_AIRCRAFT_RE = /(plane|aircraft|drone|jet|飞机|飞行|无人机)/
 const PACK_ARM_RE = /(arm|robot|joint|机械臂|机器人|关节)/
@@ -86,11 +80,6 @@ export function referenceRebuildFailureMessage(error: unknown): string {
     return '请先生成并确认机械臂生产基准，再使用参考重建；当前设计没有变化。'
   }
   return error instanceof Error ? error.message : '参考引导重建预览失败；当前设计没有变化。'
-}
-
-export function qualityStatusLabel(status?: 'passed' | 'warning' | 'failed' | 'not_run') {
-  if (!status || status === 'not_run') return '未运行'
-  return QUALITY_STATUS_LABELS[status]
 }
 
 export function inferImportDomainPack(fileName: string): 'pack_future_weapon_prop' | 'pack_vehicle_concept' | 'pack_aircraft_concept' | 'pack_robotic_arm_concept' {

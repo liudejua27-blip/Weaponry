@@ -1,6 +1,7 @@
 //! Code-owned Product Tool registry and restricted executor boundary.
 //!
-//! K002/PV003 can invoke only these sixteen code-owned planning, visual-source
+//! K002/U002 can invoke only these seventeen code-owned understanding,
+//! planning, visual-source
 //! and candidate tools. Permanent Product writes remain outside the registry
 //! and require an explicit approval path owned by product core.
 
@@ -33,7 +34,8 @@ pub const MAX_PRODUCT_TOOL_CALLS: u32 = 20;
 /// Provider adapters use this bound so adding a code-owned tool cannot leave
 /// the transport on a stale, smaller limit that rejects the native registry
 /// before any network request is made.
-pub const PRODUCT_TOOL_DEFINITION_COUNT: usize = 16;
+pub const PRODUCT_TOOL_DEFINITION_COUNT: usize = 17;
+const K002_FIXTURE_TOOL_DEFINITION_COUNT: usize = 16;
 
 /// Provider input is deliberately narrower for a confirmed robotic-arm
 /// continuation than for an initial synthesis.  This is a presentation/input
@@ -171,6 +173,17 @@ pub trait ProductToolExecutorPort: Send + Sync + 'static {
         _execution_id: &str,
         _turn_id: &str,
         _context: crate::ValidatedMultimodalActionContext,
+    ) -> Result<(), ProductToolPortError> {
+        Ok(())
+    }
+
+    /// Binds the category-open request and its exact sealed evidence before
+    /// the Provider can call author_universal_asset.
+    fn bind_execution_universal_author_context(
+        &self,
+        _execution_id: &str,
+        _turn_id: &str,
+        _context: crate::ValidatedUniversalAuthorContext,
     ) -> Result<(), ProductToolPortError> {
         Ok(())
     }
@@ -330,6 +343,18 @@ impl ProductToolRegistry {
                 ));
             }
         }
+        let universal = universal_author_tool_definition();
+        order.insert(0, universal.name.clone());
+        if definitions
+            .insert(universal.name.clone(), universal)
+            .is_some()
+        {
+            return Err(ProductToolRegistryError::new(
+                "PRODUCT_TOOL_DUPLICATE",
+                ProductToolRegistryErrorKind::DuplicateTool,
+                "Universal author tool name is already occupied.",
+            ));
+        }
         let registry = Self { definitions, order };
         registry.validate_registry()?;
         Ok(registry)
@@ -353,6 +378,7 @@ impl ProductToolRegistry {
             .map(|definition| ProviderToolDefinition {
                 name: definition.name.clone(),
                 description: match definition.name.as_str() {
+                    "author_universal_asset" => "Understand the actual requested subject without a category allowlist. Return exactly one UniversalAuthorOutcome@1 containing the Rust-sealed request, SubjectProfile@1, VisualFeatureContract@1 and RepresentationPlan@1. Use executable only for a code-owned available capability; otherwise return a typed limitation with no geometry. For procedural.generic_hard_surface_v1, executable_payload must be one ForgeVisualGeometryProgram@2 with domain generic_hard_surface, one output per declared subject part, and no mechanical-arm/C111 fallback.".into(),
                     "author_forge_visual_program" => "Author one compact ForgeVisualAuthoringIntent@1. Choose the robotic-arm visual architecture, silhouette language, materials, surface motifs, detail density and pose; Rust derives every ShapeProgram operation, Part, Material Zone, Surface Program and Detail binding.".into(),
                     "patch_forge_visual_program" => "Patch only the current ForgeVisualProgram revision. A replace_geometry_graph operation must carry a complete ShapeProgram@1, including schema_version, program_id, units, seed, triangle_budget, parameters, operations, outputs, and non_functional_only. Reuse earlier operation IDs for non-primitive inputs; radial_array is never inputs=[].".into(),
                     _ => definition.description.clone(),
@@ -393,6 +419,20 @@ impl ProductToolRegistry {
             .expect("code-owned registry must expose the visual patch tool");
         definition.input_schema = compact_forge_visual_repair_patch_schema();
         definition.description = "Repair one Rust-projected current row only. Use exactly one or more typed local upsert operations: upsert_geometry_operation, upsert_material_binding, upsert_surface_binding, or upsert_detail_inventory_item. Do not replace geometry/material/surface/detail graphs, set title/tokens/export profile, inspect, author, or build. Reuse only IDs supplied by visual_repair_target_projection.".into();
+        definition
+    }
+
+    /// The UAS@2 route deliberately shares the candidate-only Product Tool
+    /// identity with the legacy patch tool, but exposes only VP204's bounded
+    /// geometry patch language after a failed generic PBR comparison.
+    pub fn universal_hard_surface_repair_provider_definition(&self) -> ProviderToolDefinition {
+        let mut definition = self
+            .provider_definitions_for_mode(ProviderToolInputMode::InitialSynthesis)
+            .into_iter()
+            .find(|definition| definition.name == "patch_forge_visual_program")
+            .expect("code-owned registry must expose the visual patch tool");
+        definition.input_schema = compact_universal_hard_surface_repair_patch_schema();
+        definition.description = "Repair the current UAS@2 generic hard-surface source with exactly one bounded ForgeVisualGeometryPatch@1. Use only the Rust-projected source hash and stable node/material IDs. Do not author a new object, replace a graph, call an arm tool, or add code, paths, URLs, dimensions, or unknown fields.".into();
         definition
     }
 
@@ -572,20 +612,26 @@ impl ProductToolRegistry {
         // whitelist reach the native executor. Enforce the same projection at
         // the request boundary before sealing the full registry identity.
         if definition.name == "patch_forge_visual_program" {
-            let provider_definition = self
-                .provider_definitions_for_mode(input_mode)
-                .into_iter()
-                .find(|candidate| candidate.name == definition.name)
-                .expect("every registry tool must have a Provider projection");
-            validate_json_schema(&provider_definition.input_schema, &arguments_value).map_err(
-                |message| {
-                    ProductToolRegistryError::new(
-                        "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
-                        ProductToolRegistryErrorKind::InvalidArguments,
-                        message,
-                    )
-                },
-            )?;
+            // Validate each self-contained schema separately. Wrapping the
+            // two contracts in an outer `anyOf` would rebase the VP204
+            // schema's root-local `#/$defs` references and reject valid
+            // source-bound geometry patches before native execution.
+            let forge_visual_error =
+                validate_json_schema(&compact_forge_visual_patch_schema(), &arguments_value).err();
+            let universal_error = validate_json_schema(
+                &compact_universal_hard_surface_repair_patch_schema(),
+                &arguments_value,
+            )
+            .err();
+            if forge_visual_error.is_some() && universal_error.is_some() {
+                return Err(ProductToolRegistryError::new(
+                    "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID",
+                    ProductToolRegistryErrorKind::InvalidArguments,
+                    universal_error
+                        .or(forge_visual_error)
+                        .unwrap_or_else(|| "patch does not match any reviewed contract".into()),
+                ));
+            }
         }
         validate_json_schema(&definition.input_schema, &arguments_value).map_err(|message| {
             ProductToolRegistryError::new(
@@ -682,11 +728,11 @@ impl ProductToolRegistry {
     }
 
     fn validate_registry(&self) -> Result<(), ProductToolRegistryError> {
-        if self.definitions.len() != 16 {
+        if self.definitions.len() != PRODUCT_TOOL_DEFINITION_COUNT {
             return Err(ProductToolRegistryError::new(
                 "PRODUCT_TOOL_REGISTRY_INCOMPLETE",
                 ProductToolRegistryErrorKind::InvalidSchema,
-                "ForgeCAD Product Tool registry must contain exactly sixteen tools.",
+                "ForgeCAD Product Tool registry does not match the code-owned tool count.",
             ));
         }
         let mut ids = BTreeSet::new();
@@ -750,10 +796,54 @@ fn compact_shape_program_provider_schema() -> Value {
     shape_object.insert(
         "description".into(),
         Value::String(
-            "Complete ShapeProgram@1. box/wedge/cylinder/capsule/profile/loft/sweep use inputs=[]; extrude/revolve require one earlier profile; mirror requires one earlier mesh and non-zero axis; array requires one earlier mesh, count>=2, spacing>0 and non-zero axis; radial_array requires one earlier mesh, count>=2, radius>0, 0<angle<=2*pi and non-zero axis; bevel_approx/surface_panel require one earlier box or bevel_approx; union/subtract require 2-8 earlier non-profile meshes and boolean depth is at most 8.".into(),
+            "Complete ShapeProgram@1. box/wedge/cylinder/capsule/profile/loft/sweep use inputs=[]; extrude/revolve require one earlier profile; mirror requires one earlier mesh and non-zero axis; array requires one earlier mesh, count>=2, spacing>0 and non-zero axis; radial_array requires one earlier mesh, count>=2, radius>0, 0<angle<=2*pi and non-zero axis; bevel_approx/surface_panel require one earlier box or bevel_approx; lattice_deform requires one earlier mesh plus exactly eight non-zero bounded 2x2x2 corner offsets; union/subtract require 2-8 earlier non-profile meshes and boolean depth is at most 8.".into(),
         ),
     );
     shape_program
+}
+
+fn universal_author_tool_definition() -> ProductToolDefinition {
+    let input_schema = json!({
+        "type": "object",
+        "properties": {
+            "outcome": {"type": "object"},
+            "legacy_evidence_dispositions": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                    "type": "object",
+                    "required": ["claim_id", "disposition", "reason"],
+                    "properties": {
+                        "claim_id": {"type": "string"},
+                        "disposition": {"enum": ["bound", "unresolved", "evaluation_only"]},
+                        "reason": {"type": "string"}
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["outcome"],
+        "additionalProperties": false
+    });
+    let output_schema = json!({
+        "type": "object",
+        "required": ["schema_version", "outcome"],
+        "properties": {
+            "schema_version": {"enum": ["UniversalAuthorOutcome@1"]},
+            "outcome": {"enum": ["executable", "limitation", "clarification_required"]}
+        },
+        "additionalProperties": true
+    });
+    ProductToolDefinition {
+        tool_id: "forgecad.universal_asset.author.v1".into(),
+        name: "author_universal_asset".into(),
+        description: "Understand any subject, bind visual acceptance requirements and select only code-owned representation capabilities. Unsupported execution returns a typed limitation without geometry side effects.".into(),
+        approval_policy: ProductToolApprovalPolicy::CandidateOnly,
+        input_schema_sha256: schema_digest(&input_schema),
+        output_schema_sha256: schema_digest(&output_schema),
+        input_schema,
+        output_schema,
+    }
 }
 
 fn compact_forge_visual_program_author_schema() -> Value {
@@ -987,6 +1077,40 @@ fn compact_forge_visual_patch_schema() -> Value {
         ]
     });
     schema
+}
+
+fn compact_universal_hard_surface_repair_patch_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["patch"],
+        "properties":{"patch":{
+            "type":"object",
+            "additionalProperties":false,
+            "required":["schema_version","patch_id","expected_source_sha256","operations"],
+            "properties":{
+                "schema_version":{"const":"ForgeVisualGeometryPatch@1"},
+                "patch_id":{"type":"string","minLength":7,"maxLength":96},
+                "expected_source_sha256":{"type":"string","minLength":64,"maxLength":64},
+                "operations":{"type":"array","minItems":1,"maxItems":8,"items":{
+                    "type":"object","additionalProperties":false,"required":["op"],
+                    "properties":{
+                        "op":{"enum":["set_node_position","set_extrude_height","set_revolve_angle","set_loft_axis_length","set_sweep_profile_scale","set_array","set_material_base"]},
+                        "node_id":{"type":"string","minLength":6,"maxLength":96},
+                        "material_id":{"type":"string","minLength":5,"maxLength":96},
+                        "base_material_id":{"type":"string","minLength":5,"maxLength":96},
+                        "position":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-100000,"maximum":100000}},
+                        "height":{"type":"number","exclusiveMinimum":0,"maximum":100000},
+                        "angle":{"type":"number","exclusiveMinimum":0,"maximum":6.283185307179586},
+                        "axis_length":{"type":"number","exclusiveMinimum":0,"maximum":100000},
+                        "profile_scale":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","exclusiveMinimum":0,"maximum":100000}},
+                        "count":{"type":"integer","minimum":2,"maximum":64},
+                        "spacing":{"type":"number","exclusiveMinimum":0,"maximum":100000}
+                    }
+                }}
+            }
+        }}
+    })
 }
 
 /// Provider schema for a failed visual-convergence repair. Unlike the normal
@@ -1269,7 +1393,7 @@ fn validate_fixture_header_and_manifest(
     if fixture.schema_version != "K002ProductToolRegistryFixture@1"
         || fixture.fixture_id != "k002_shared_a004_product_tool_registry"
         || fixture.registry_schema_version != PRODUCT_TOOL_REGISTRY_SCHEMA_VERSION
-        || fixture.tools.len() != PRODUCT_TOOL_DEFINITION_COUNT
+        || fixture.tools.len() != K002_FIXTURE_TOOL_DEFINITION_COUNT
         || !canonicalization_valid
     {
         return Err(ProductToolRegistryError::new(
@@ -1651,13 +1775,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_has_exactly_sixteen_code_owned_non_permanent_tools() {
+    fn registry_has_exactly_seventeen_code_owned_non_permanent_tools() {
         let registry = ProductToolRegistry::default();
-        assert_eq!(registry.definitions().count(), 16);
+        assert_eq!(
+            registry.definitions().count(),
+            PRODUCT_TOOL_DEFINITION_COUNT
+        );
         assert!(registry.definitions().all(|definition| {
             definition.approval_policy != ProductToolApprovalPolicy::UserConfirmationRequired
         }));
         assert!(registry.definition("compile_readback_candidate").is_ok());
+        assert!(registry.definition("author_universal_asset").is_ok());
         assert!(registry.definition("inspect_forge_visual_program").is_ok());
         assert!(registry.definition("author_forge_visual_program").is_ok());
         assert!(registry.definition("patch_forge_visual_program").is_ok());
@@ -1997,12 +2125,20 @@ mod tests {
             .as_str()
             .unwrap()
             .starts_with("visualprog_provider_ir_"));
+        let reviewed_output_count = forgecad_core::reviewed_c111_draft_visual_program()
+            .unwrap()
+            .geometry_graph["outputs"]
+            .as_array()
+            .unwrap()
+            .len();
+        assert!(reviewed_output_count >= 96);
         assert_eq!(
             request.validated_arguments.value["program"]["geometry_graph"]["outputs"]
                 .as_array()
                 .unwrap()
                 .len(),
-            96
+            reviewed_output_count,
+            "Provider input normalization must retain the complete reviewed substrate"
         );
     }
 

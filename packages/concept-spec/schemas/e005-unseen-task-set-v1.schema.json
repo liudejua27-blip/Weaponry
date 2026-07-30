@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-unseen-task-set-v1.schema.json",
+  "title": "E005UnseenTaskSetV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "task_set_id", "frozen_date", "authoring_policy", "quality_thresholds", "tasks"],
+  "properties": {
+    "schema_version": {"const": "E005UnseenTaskSet@1"},
+    "task_set_id": {"$ref": "#/$defs/id"},
+    "frozen_date": {"type": "string", "format": "date"},
+    "authoring_policy": {"type": "object", "additionalProperties": false, "required": ["full_author_maximum", "typed_patch_maximum", "provider_network_requires_explicit_authorization"], "properties": {"full_author_maximum": {"const": 1}, "typed_patch_maximum": {"const": 1}, "provider_network_requires_explicit_authorization": {"const": true}}},
+    "quality_thresholds": {"type": "object", "additionalProperties": false, "required": ["first_pass_human_4_of_5_minimum_bps", "patched_human_4_of_5_minimum_bps", "no_patch_p50_maximum_ms", "no_patch_p90_maximum_ms", "patched_p90_maximum_ms"], "properties": {"first_pass_human_4_of_5_minimum_bps": {"const": 7000}, "patched_human_4_of_5_minimum_bps": {"const": 8500}, "no_patch_p50_maximum_ms": {"const": 32000}, "no_patch_p90_maximum_ms": {"const": 70000}, "patched_p90_maximum_ms": {"const": 105000}}},
+    "tasks": {"type": "array", "minItems": 30, "maxItems": 30, "items": {"$ref": "#/$defs/task"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9_]{3,96}$"},
+    "text": {"type": "string", "minLength": 4, "maxLength": 1000},
+    "task": {"type": "object", "additionalProperties": false, "required": ["task_id", "morphology_family", "input_mode", "prompt", "image_description", "must_show", "must_not_show", "allowed_operation_families", "variation_axes", "source"], "properties": {
+      "task_id": {"$ref": "#/$defs/id"},
+      "morphology_family": {"enum": ["enclosure_chassis", "articulated_tool", "mobility_module", "aerial_mechanical", "industrial_machine", "fictional_prop"]},
+      "input_mode": {"enum": ["text_only", "text_plus_image_description"]},
+      "prompt": {"$ref": "#/$defs/text"},
+      "image_description": {"type": ["string", "null"], "minLength": 4, "maxLength": 1000},
+      "must_show": {"type": "array", "minItems": 3, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+      "must_not_show": {"type": "array", "minItems": 2, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+      "allowed_operation_families": {"type": "array", "minItems": 2, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["box", "extrude", "revolve", "loft", "sweep", "boolean", "mirror", "array"]}},
+      "variation_axes": {"type": "array", "minItems": 2, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+      "source": {"const": "project_authored_original"}
+    }}
+  }
+}

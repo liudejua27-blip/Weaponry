@@ -1,9 +1,11 @@
 # ForgeCAD 视觉材质系统
 
-版本：2026-07-16
+版本：2026-07-29
 状态：G6 预览、Agent asset ChangeSet 绑定和 Agent GLB 回读切片已实现；M101–M107 已完成视觉合同、目录、受控纹理对象摘要、Material Zone 检视/选择/绑定、领域筛选与 Snapshot/CAS 持久化；G826 已补齐真实 GLB 的 UV0/tangent 与稳定 face→part/zone readback。M108 正在执行：源码侧已有同源内置 128×128 五通道 PBR、真实 zone→material/role 绑定、实际使用扩展检查、受限 bevel readback 和固定工作室环境；当前 `builtin_v3` 使用材质专属、多尺度、周期连续的细微 roughness/normal 表面，消除 v2 在真实工作台中仍可见的宽条纹、波纹和棋盘感，并由 readback 与代码清单逐字节核对。汽车漆是独立 coated/clearcoat 纹理集，不再别名到 aluminum。旧 `builtin` v1 与 `builtin_v2` 只作为不可变历史 GLB 的精确回读清单保留，新生成资产只写 v3。基础 cylinder/capsule 已使用固定 24 段，真实工作台会核对 GLB bounds 并保证完整模型进入 NDC 安全区。后端聚合、Khronos Validator 与真实工作台环境/GPU Gate 已进入 CI；tracked macOS arm64 packaged 回归继续覆盖 PBR readback、CSG、undo/redo、导出和重启。优化/压缩平台采用、其他平台 packaged sidecar、正式安装发布与独立人工视觉基准仍未完成。P0 是视觉 PBR 材质，不是工程材料数据库。
 
 ## 1. 用户体验
+
+当前 13 个预设和 `allowed_domains` 筛选属于机械 Alpha。U003 已加入 `MaterialZoneAppearance@1`、`AppearanceEvidenceBundle@1` 与受限 projection layer 合同，使当前程序化 Material Zone、三层 detail claim、证据状态和最终 GLB/PBR readback 共享 source lineage；Domain Pack 只提供建议，不能使角色、生物、植物或未知对象无法使用合法材质。当前没有真实相机拟合、UV rasterization、de-light 或照片 PBR 恢复；无证据相机保持 unresolved，任何启发式派生物必须标为 `evidence_only`，不得称为真实材质真值。
 
 零基础用户可以直接说：
 

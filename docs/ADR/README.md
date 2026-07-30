@@ -1,23 +1,29 @@
-# 架构决策记录
+# ForgeCAD 当前架构决策
 
-- [ADR-0001：产品转向](0001-product-pivot.md)
-- [ADR-0002：CAD 内核](0002-cad-kernel.md)
-- [ADR-0003：FeatureGraph 安全](0003-feature-graph-security.md)
-- [ADR-0004：第三方与分发](0004-third-party-and-distribution.md)
-- [ADR-0005：旧数据与配置迁移](0005-legacy-data-and-config-migration.md)
-- [ADR-0006：武器优先产品范围修订](0006-weapon-first-product-scope.md)（部分取代 ADR-0001 第 6 项）
-- [ADR-0007：Weapon Concept Pack 优先与双轨架构](0007-weapon-concept-first-dual-track.md)（已由 ADR-0008 取代其产品范围，历史保留）
-- [ADR-0008：通用机械概念 3D Agent 与首批四领域包](0008-general-mechanical-concept-agent.md)（取代 ADR-0007 的单一首包范围）
-- [ADR-0009：ActiveDesignSnapshot 作为工作台唯一状态合同](0009-active-design-snapshot.md)
-- [ADR-0010：Agent 自动选择单一最佳方案、Codex 式工作台与视觉真实度管线](0010-agent-selected-realistic-workbench.md)
-- [ADR-0011：以轮廓、特征与组件配方构建 3D 机械设计系统](0011-3d-mechanical-design-system.md)
-- [ADR-0012：G824 布尔内核 benchmark 暂不采用候选](0012-csg-kernel-benchmark-no-adoption.md)
-- [ADR-0013：选择 Manifold Python 作为唯一生产 CSG 实现](0013-adopt-manifold-python-csg.md)（取代 ADR-0012 的不采用结论；允许领取 G825）
-- [ADR-0014：Rust-first ForgeCAD app-server 与受限几何执行器](0014-rust-first-codex-app-server.md)（K001 协议/传输已落地，K002/K003 所有权迁移待完成；取代长期保留 FastAPI 状态所有权的目标结论）
-- [ADR-0015：拆分生产概念工件管线与生产级视觉验收](0015-split-production-artifact-and-visual-acceptance.md)（取代 ADR-0014 中“完整 M108 退出后才开始 K001”的依赖结论）
-- [ADR-0016：ForgeCAD Design Surface Compiler](0016-design-surface-compiler.md)（将平面设计升级为轮廓/截面/材质区/表面细节语言，并取代多完整候选评比策略）
-- [ADR-0017：Codex 式三维设计工作区与视觉收敛编译](0017-codex-design-workspace-visual-convergence.md)（在 Rust-first/Design Surface Compiler 上增加可迭代设计工作区、形态语言、细节清单和确定性优先的视觉收敛方法）
-- [ADR-0018：视觉优先的远程神经 3D MVP](0018-visual-first-neural-3d-mvp.md)（已由 ADR-0019 取代其默认主生成路线；历史 Provider 工程证据保留）
-- [ADR-0019：AI 编写三维视觉程序的默认 MVP](0019-programmatic-visual-program-mvp.md)（以 ForgeVisualProgram、Rust 安全降低、程序化几何/表面编译和连续语言修改取代必需的远程神经 3D）
+版本：2026-07-29
+状态：当前决策索引
 
-Accepted ADR 的修改应通过新增 superseding ADR 完成，不直接抹掉历史决策。
+当前树只保留仍影响产品、运行时、资产真值或发布边界的 ADR。已经完全被取代的 ADR-0001–0008、0010–0012 和 0018 已从当前文档树清理；需要追溯时使用 Git 历史，不再让旧路线与当前产品并列出现。
+
+## 当前决策
+
+- [ADR-0009：ActiveDesignSnapshot 唯一状态合同](0009-active-design-snapshot.md)
+- [ADR-0013：Manifold Python 唯一生产 CSG](0013-adopt-manifold-python-csg.md)
+- [ADR-0014：Rust-first app-server 与受限几何执行器](0014-rust-first-codex-app-server.md)
+- [ADR-0015：生产工件与真人视觉验收拆分](0015-split-production-artifact-and-visual-acceptance.md)
+- [ADR-0016：Design Surface Compiler](0016-design-surface-compiler.md)
+- [ADR-0017：三维设计工作区与视觉收敛](0017-codex-design-workspace-visual-convergence.md)
+- [ADR-0019：程序化视觉默认 MVP](0019-programmatic-visual-program-mvp.md)
+- [ADR-0020：小团队轻量、外观优先与成本纪律](0020-lightweight-appearance-first-3d-agent.md)
+- [ADR-0021：高自由度 Visual Program 与 1+1](0021-high-freedom-visual-program-max.md)
+- [ADR-0022：类别开放通用参考条件 3D Agent](0022-universal-reference-conditioned-3d-agent.md)
+- [ADR-0023：DeepSeek / 千问唯一 AI Provider](0023-deepseek-qwen-only-ai-provider-policy.md)
+
+ADR-0022 是最高产品范围决策；ADR-0023 是当前运行时 AI Provider 最高边界；ADR-0020/0021 只继续拥有轻量化、成本、typed program、一次 author + 最多一次 patch、单一真值和验收纪律。当前能力仍以 `USER_GUIDE.md` 和能力矩阵为准，目标 ADR 不能冒充实现。
+
+## 维护规则
+
+1. 新决策必须写明取代范围、实施任务、迁移和 Gate；
+2. 已完全取代且不再参与当前架构的 ADR 从工作树删除，由 Git 保存历史；
+3. 当前 ADR 不记录聊天进度、长命令输出或一次性截图；
+4. 代码事实、任务状态和用户能力分别归 `DESIGN.md`、`CODEX_TASK_INDEX.md` 与 `USER_GUIDE.md`。

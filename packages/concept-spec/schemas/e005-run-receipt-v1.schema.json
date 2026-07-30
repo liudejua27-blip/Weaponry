@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-run-receipt-v1.schema.json",
+  "title": "E005RunReceiptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "task_set_sha256",
+    "task_id",
+    "status",
+    "run_mode",
+    "distribution_eligible",
+    "author_source_mode",
+    "task_payload_sha256",
+    "request_sha256",
+    "authoring_count",
+    "patch_count",
+    "network_provider_calls",
+    "billable_cost_microusd",
+    "failure_codes",
+    "human_review_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "E005RunReceipt@1"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "task_set_sha256": {"$ref": "#/$defs/hash"},
+    "task_id": {"$ref": "#/$defs/id"},
+    "status": {"enum": ["not_run", "passed_without_patch", "passed_after_patch", "failed", "cancelled"]},
+    "run_mode": {"enum": ["offline_deterministic", "formal_provider"]},
+    "distribution_eligible": {"type": "boolean"},
+    "author_source_mode": {"enum": ["missing", "offline_authored_v2", "provider_authored_v2"]},
+    "task_payload_sha256": {"$ref": "#/$defs/hash"},
+    "request_sha256": {"$ref": "#/$defs/hash"},
+    "authoring_count": {"type": "integer", "minimum": 0, "maximum": 1},
+    "patch_count": {"type": "integer", "minimum": 0, "maximum": 1},
+    "provider_authorization_id": {"$ref": "#/$defs/id"},
+    "provider_authorization_sha256": {"$ref": "#/$defs/hash"},
+    "provider_call_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {"$ref": "e005-provider-budget-evidence-v1.schema.json"}
+    },
+    "provider_call_evidence_sha256": {"$ref": "#/$defs/hash"},
+    "visual_review_evidence": {"$ref": "e005-visual-review-evidence-v1.schema.json"},
+    "production_review_evidence": {"$ref": "e005-production-review-v1.schema.json"},
+    "production_review_evidence_sha256": {"$ref": "#/$defs/hash"},
+    "source_program_sha256": {"$ref": "#/$defs/hash"},
+    "expanded_program_sha256": {"$ref": "#/$defs/hash"},
+    "shape_program_sha256": {"$ref": "#/$defs/hash"},
+    "structural_descriptor_sha256": {"$ref": "#/$defs/hash"},
+    "semantic_structure_sha256": {"$ref": "#/$defs/hash"},
+    "normalized_geometry_sha256": {"$ref": "#/$defs/hash"},
+    "topology_signature_sha256": {"$ref": "#/$defs/hash"},
+    "operation_sequence_sha256": {"$ref": "#/$defs/hash"},
+    "profile_signature_sha256": {"$ref": "#/$defs/hash"},
+    "part_zone_signature_sha256": {"$ref": "#/$defs/hash"},
+    "glb_sha256": {"$ref": "#/$defs/hash"},
+    "fixed_view_sha256": {"$ref": "#/$defs/hash"},
+    "fixed_views": {"oneOf": [{"$ref": "#/$defs/workbench_views"}, {"$ref": "#/$defs/turntable_views"}]},
+    "vp204_session_sha256": {"$ref": "#/$defs/hash"},
+    "vp204_receipt_sha256": {"$ref": "#/$defs/hash"},
+    "visual_session_sha256": {"$ref": "#/$defs/hash"},
+    "visual_session_receipt_sha256": {"$ref": "#/$defs/hash"},
+    "gate_outcome_sha256": {"$ref": "#/$defs/hash"},
+    "compile_readback_sha256": {"$ref": "#/$defs/hash"},
+    "restricted_geometry_evidence_sha256": {"$ref": "#/$defs/hash"},
+    "artifact_profile_id": {"$ref": "#/$defs/id"},
+    "runtime_manifest_version": {"$ref": "#/$defs/id"},
+    "triangle_count": {"type": "integer", "minimum": 1, "maximum": 200000},
+    "bounds_mm": {
+      "type": "array",
+      "items": {"type": "number", "exclusiveMinimum": 0, "maximum": 100000},
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "mesh_count": {"type": "integer", "minimum": 1, "maximum": 4096},
+    "primitive_count": {"type": "integer", "minimum": 1, "maximum": 4096},
+    "material_count": {"type": "integer", "minimum": 1, "maximum": 256},
+    "usage": {"$ref": "#/$defs/usage"},
+    "phase_receipts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/phase_receipt"}
+    },
+    "elapsed_ms": {"type": "integer", "minimum": 0, "maximum": 900000},
+    "network_provider_calls": {"type": "integer", "minimum": 0, "maximum": 2},
+    "billable_cost_microusd": {"type": "integer", "minimum": 0},
+    "failure_codes": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/failure_code"}
+    },
+    "human_review_status": {"enum": ["not_run", "pending", "complete"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"run_mode": {"const": "offline_deterministic"}}, "required": ["run_mode"]},
+      "then": {
+        "properties": {"distribution_eligible": {"const": false}},
+        "not": {
+          "anyOf": [
+            {"required": ["provider_authorization_id"]},
+            {"required": ["provider_authorization_sha256"]},
+            {"required": ["provider_call_evidence"]},
+            {"required": ["provider_call_evidence_sha256"]},
+            {"required": ["visual_review_evidence"]},
+            {"required": ["production_review_evidence"]},
+            {"required": ["production_review_evidence_sha256"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {"properties": {"run_mode": {"const": "formal_provider"}}, "required": ["run_mode"]},
+      "then": {
+        "required": ["provider_authorization_id", "provider_authorization_sha256", "provider_call_evidence", "provider_call_evidence_sha256"],
+        "properties": {
+          "distribution_eligible": {"const": true},
+          "author_source_mode": {"const": "provider_authored_v2"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"patch_count": {"const": 1}}, "required": ["patch_count"]},
+      "then": {"properties": {"authoring_count": {"const": 1}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "not_run"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "authoring_count": {"const": 0},
+          "patch_count": {"const": 0},
+          "distribution_eligible": {"const": false},
+          "author_source_mode": {"const": "missing"},
+          "network_provider_calls": {"const": 0},
+          "billable_cost_microusd": {"const": 0},
+          "failure_codes": {"minItems": 1},
+          "human_review_status": {"const": "not_run"}
+        },
+        "not": {
+          "anyOf": [
+            {"required": ["source_program_sha256"]},
+            {"required": ["expanded_program_sha256"]},
+            {"required": ["shape_program_sha256"]},
+            {"required": ["structural_descriptor_sha256"]},
+            {"required": ["semantic_structure_sha256"]},
+            {"required": ["normalized_geometry_sha256"]},
+            {"required": ["topology_signature_sha256"]},
+            {"required": ["operation_sequence_sha256"]},
+            {"required": ["profile_signature_sha256"]},
+            {"required": ["part_zone_signature_sha256"]},
+            {"required": ["glb_sha256"]},
+            {"required": ["fixed_view_sha256"]},
+            {"required": ["fixed_views"]},
+            {"required": ["vp204_session_sha256"]},
+            {"required": ["vp204_receipt_sha256"]},
+            {"required": ["visual_session_sha256"]},
+            {"required": ["visual_session_receipt_sha256"]},
+            {"required": ["gate_outcome_sha256"]},
+            {"required": ["compile_readback_sha256"]},
+            {"required": ["restricted_geometry_evidence_sha256"]},
+            {"required": ["visual_review_evidence"]},
+            {"required": ["artifact_profile_id"]},
+            {"required": ["runtime_manifest_version"]},
+            {"required": ["triangle_count"]},
+            {"required": ["bounds_mm"]},
+            {"required": ["mesh_count"]},
+            {"required": ["primitive_count"]},
+            {"required": ["material_count"]},
+            {"required": ["usage"]},
+            {"required": ["phase_receipts"]},
+            {"required": ["elapsed_ms"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "passed_without_patch"}}, "required": ["status"]},
+      "then": {
+        "required": ["source_program_sha256", "expanded_program_sha256", "shape_program_sha256", "structural_descriptor_sha256", "semantic_structure_sha256", "normalized_geometry_sha256", "topology_signature_sha256", "operation_sequence_sha256", "profile_signature_sha256", "part_zone_signature_sha256", "glb_sha256", "fixed_view_sha256", "fixed_views", "gate_outcome_sha256", "compile_readback_sha256", "restricted_geometry_evidence_sha256", "artifact_profile_id", "runtime_manifest_version", "triangle_count", "bounds_mm", "mesh_count", "primitive_count", "material_count", "usage", "phase_receipts", "elapsed_ms"],
+        "properties": {
+          "authoring_count": {"const": 1},
+          "patch_count": {"const": 0},
+          "failure_codes": {"maxItems": 0},
+          "author_source_mode": {"enum": ["offline_authored_v2", "provider_authored_v2"]}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "passed_after_patch"}}, "required": ["status"]},
+      "then": {
+        "required": ["source_program_sha256", "expanded_program_sha256", "shape_program_sha256", "structural_descriptor_sha256", "semantic_structure_sha256", "normalized_geometry_sha256", "topology_signature_sha256", "operation_sequence_sha256", "profile_signature_sha256", "part_zone_signature_sha256", "glb_sha256", "fixed_view_sha256", "fixed_views", "gate_outcome_sha256", "compile_readback_sha256", "restricted_geometry_evidence_sha256", "artifact_profile_id", "runtime_manifest_version", "triangle_count", "bounds_mm", "mesh_count", "primitive_count", "material_count", "usage", "phase_receipts", "elapsed_ms"],
+        "properties": {
+          "authoring_count": {"const": 1},
+          "patch_count": {"const": 1},
+          "failure_codes": {"maxItems": 0},
+          "author_source_mode": {"enum": ["offline_authored_v2", "provider_authored_v2"]}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["failed", "cancelled"]}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "failure_codes": {"minItems": 1},
+          "human_review_status": {"const": "not_run"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {"enum": ["passed_without_patch", "passed_after_patch"]},
+          "run_mode": {"const": "offline_deterministic"}
+        },
+        "required": ["status", "run_mode"]
+      },
+      "then": {"properties": {"human_review_status": {"const": "not_run"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {"enum": ["passed_without_patch", "passed_after_patch"]},
+          "run_mode": {"const": "formal_provider"}
+        },
+        "required": ["status", "run_mode"]
+      },
+      "then": {"properties": {"human_review_status": {"enum": ["pending", "complete"]}}}
+    },
+    {
+      "if": {
+        "properties": {"status": {"enum": ["passed_without_patch", "passed_after_patch"]}},
+        "required": ["status", "visual_review_evidence"]
+      },
+      "then": {
+        "required": ["visual_session_sha256", "visual_session_receipt_sha256"],
+        "not": {"anyOf": [{"required": ["vp204_session_sha256"]}, {"required": ["vp204_receipt_sha256"]}]}
+      }
+    },
+    {
+      "if": {
+        "properties": {"status": {"enum": ["passed_without_patch", "passed_after_patch"]}},
+        "required": ["status"],
+        "not": {"required": ["visual_review_evidence"]}
+      },
+      "then": {
+        "required": ["vp204_session_sha256", "vp204_receipt_sha256"],
+        "not": {"anyOf": [{"required": ["visual_session_sha256"]}, {"required": ["visual_session_receipt_sha256"]}]}
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.@-]{3,128}$"},
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "workbench_views": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["front", "iso", "side", "top"],
+      "properties": {
+        "front": {"$ref": "#/$defs/hash"},
+        "iso": {"$ref": "#/$defs/hash"},
+        "side": {"$ref": "#/$defs/hash"},
+        "top": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "turntable_views": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turntable_000", "turntable_045", "turntable_090", "turntable_135", "turntable_180", "turntable_225", "turntable_270", "turntable_315"],
+      "properties": {
+        "turntable_000": {"$ref": "#/$defs/hash"},
+        "turntable_045": {"$ref": "#/$defs/hash"},
+        "turntable_090": {"$ref": "#/$defs/hash"},
+        "turntable_135": {"$ref": "#/$defs/hash"},
+        "turntable_180": {"$ref": "#/$defs/hash"},
+        "turntable_225": {"$ref": "#/$defs/hash"},
+        "turntable_270": {"$ref": "#/$defs/hash"},
+        "turntable_315": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "failure_code": {"enum": ["E005_SOURCE_UNAVAILABLE", "E005_PROVIDER_UNAUTHORIZED", "E005_AUTHORING_FAILED", "E005_SCHEMA_INVALID", "E005_EXPANSION_FAILED", "E005_LOWERING_FAILED", "E005_COMPILE_FAILED", "E005_READBACK_FAILED", "E005_RENDER_FAILED", "E005_HARD_GATE_FAILED", "E005_PATCH_FAILED", "E005_CANCELLED", "E005_TIMEOUT", "E005_INTERNAL_ERROR"]},
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "product_tool_calls", "input_tokens", "output_tokens", "prompt_cache_hit_tokens", "prompt_cache_miss_tokens", "estimated_cost_microusd"],
+      "properties": {
+        "provider_requests": {"type": "integer", "minimum": 0, "maximum": 2},
+        "product_tool_calls": {"type": "integer", "minimum": 0, "maximum": 32},
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "prompt_cache_hit_tokens": {"type": "integer", "minimum": 0},
+        "prompt_cache_miss_tokens": {"type": "integer", "minimum": 0},
+        "estimated_cost_microusd": {"type": "integer", "minimum": 0}
+      }
+    },
+    "phase_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "phase", "duration_ms", "input_sha256", "output_sha256", "cache"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 32},
+        "phase": {"enum": ["author", "validate", "expand", "lower", "compile_readback", "render", "evaluate", "patch", "preview"]},
+        "duration_ms": {"type": "integer", "minimum": 0, "maximum": 240000},
+        "input_sha256": {"$ref": "#/$defs/hash"},
+        "output_sha256": {"$ref": "#/$defs/hash"},
+        "cache": {"enum": ["hit", "miss", "not_applicable"]},
+        "fragment_cache_hit_operation_ids": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "fragment_cache_miss_operation_ids": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    }
+  }
+}

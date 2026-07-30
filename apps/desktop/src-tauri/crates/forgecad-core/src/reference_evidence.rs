@@ -1918,12 +1918,13 @@ pub(crate) fn valid_domain_pack(value: &str) -> CoreResult<()> {
             | "pack_vehicle_concept"
             | "pack_aircraft_concept"
             | "pack_robotic_arm_concept"
+            | "pack_unclassified"
     ) {
         Ok(())
     } else {
         Err(CoreError::invalid_data(
             "DOMAIN_PACK_INVALID",
-            "Reference evidence must use a registered visual Domain Pack.",
+            "Reference evidence must use a registered visual Domain Pack or pack_unclassified.",
         ))
     }
 }

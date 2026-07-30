@@ -668,6 +668,7 @@ mod tests {
             brief_id: "brief_1".into(),
             concept_reference_id: "reference_1".into(),
             concept_reference_sha256: sha('a'),
+            additional_views: vec![],
             quality_tier: VisualQualityTier::StandardAsset,
             backend_preferences: vec![Neural3DBackend::Pixal3d, Neural3DBackend::Trellis2],
             idempotency_key: idempotency_key.into(),

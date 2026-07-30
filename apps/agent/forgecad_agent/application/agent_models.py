@@ -19,6 +19,7 @@ AgentThreadStatus = Literal["idle", "active", "error", "archived"]
 AgentTurnStatus = Literal[
     "queued",
     "running",
+    "waiting_for_capture",
     "waiting_for_approval",
     "waiting_for_clarification",
     "completed",
@@ -48,10 +49,37 @@ class CreateAgentThreadRequest(StrictApiModel):
     provider_id: str = Field(default="deterministic_kernel", min_length=1, max_length=120)
 
 
+class UniversalAuthorReferenceInput(StrictApiModel):
+    evidence_id: str = Field(min_length=9, max_length=160, pattern=r"^refevid_[A-Za-z0-9_.:-]+$")
+    role: str = Field(min_length=1, max_length=80)
+    view_hint: Optional[str] = Field(default=None, min_length=1, max_length=80)
+
+
+class UniversalAuthorContextInput(StrictApiModel):
+    references: List[UniversalAuthorReferenceInput] = Field(default_factory=list, max_length=12)
+    visual_evidence_graph: Optional[Dict[str, Any]] = None
+
+
+class MultimodalTurnContextInput(StrictApiModel):
+    request: Dict[str, Any]
+    visual_evidence_graph: Dict[str, Any]
+    visual_reference_comparison_authorization_id: Optional[str] = Field(default=None, max_length=160)
+
+
 class StartAgentTurnRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
-    message: str = Field(min_length=1, max_length=8000)
+    message: str = Field(min_length=1, max_length=200_000)
     clarification_domain_pack_id: Optional[DomainPackId] = None
+    author_context: Optional[UniversalAuthorContextInput] = None
+    multimodal_context: Optional[MultimodalTurnContextInput] = None
+
+    @model_validator(mode="after")
+    def validate_author_context_boundary(self) -> "StartAgentTurnRequest":
+        if self.clarification_domain_pack_id is not None and (
+            self.author_context is not None or self.multimodal_context is not None
+        ):
+            raise ValueError("clarification cannot carry author or multimodal context")
+        return self
 
 
 class ResolveAgentApprovalRequest(StrictApiModel):
@@ -1231,7 +1259,7 @@ class ImportAgentGlbRequest(StrictApiModel):
     project_id: str = Field(min_length=1, max_length=160)
     domain_pack_id: str = Field(pattern=r"^pack_[a-z0-9_\-]+$")
     file_name: str = Field(min_length=1, max_length=180)
-    glb_base64: str = Field(min_length=16, max_length=44_739_244)
+    glb_base64: str = Field(min_length=16, max_length=67_108_864)
     summary: str = Field(default="导入 GLB 参考模型", min_length=1, max_length=500)
 
 

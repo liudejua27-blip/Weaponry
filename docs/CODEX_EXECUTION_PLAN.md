@@ -1,355 +1,215 @@
-# ForgeCAD Codex 执行总计划
+# ForgeCAD 收敛执行计划
 
-版本：2026-07-19
-状态：后续实现工作的权威顺序
+版本：2026-07-29
+状态：当前唯一实施顺序；历史里程碑从 Git/ADR/evidence 查询
 
-执行前先阅读 [DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)。本计划定义目标顺序，不等同于当前用户能力；当前能力以 USER_GUIDE 和 Gate 矩阵为准。
+## 1. 产品终点
 
-## 1. 最终目标
+Forge Studio 的产品终点是类别开放的通用参考条件 3D Agent：
 
-零基础用户打开唯一 CAD 工作台，用一句话描述未来武器概念道具、汽车、飞机、机械臂或后续机械领域；Agent 帮助用户完成：
+> 非专业创作者和小型内容团队上传合法参考并描述目标对象；千问理解图片与验收外观，DeepSeek 编写受限设计程序，Agent 按部件选择程序化、形变或本地混合表示；Rust 校验、编译、版本化和恢复；结果是一个可编辑、可回读、可继续修改的 GLB/PBR，或者一份诚实的能力/视图不足诊断。
 
-```text
-创意理解
-→ 一次完整合成、真实编译/readback 硬门与最多两次同意图原位修复
-→ 只展示通过硬门的唯一完整外观及轻量运行的生产级概念 3D/概念视图
-→ 自动分件候选
-→ 可编辑 Agent 资产
-→ 部件比例、姿态、替换和材质
-→ 检查、版本和用途导出
-```
+机械硬表面是当前最成熟的程序化回归路径，不再是入口类别边界。角色、有机物、布料、毛发和环境等进入通用 `SubjectProfile`，再按可用表示执行；没有合适表示时返回 typed limitation，不得回退到机械臂模板。工程 B-Rep、制造和认证仍不是本产品目标。
 
-软件默认不安装本地神经 3D 模型、CUDA、ComfyUI 或模型权重。
+本计划以 [ADR-0022](ADR/0022-universal-reference-conditioned-3d-agent.md) 为产品范围最高决策，同时继承 ADR-0020 的小团队成本约束和 ADR-0021 的高自由度/`1 + 1` 路线：不训练基础 3D 模型、不建设常驻 GPU 集群、不要求用户安装 CUDA/大权重，不通过反复调用模型优化同一对象。全部表示只能进入同一 Rust-owned 真值链。
 
-## 2. 当前基线
+Luna 或其他长程开发模型按 [LUNA_GOAL_EXECUTION_GUIDE](LUNA_GOAL_EXECUTION_GUIDE.md) 执行本计划。开发模型不是产品 Provider，Goal 状态也不能替代任务索引和 Gate。
 
-当前已有 G1–G7 最小纵向切片：Agent Kernel、通用合同、ShapeProgram validator、box/cylinder Worker、legacy 三方向 Planner、四领域 48 个后端 blockout 变体、分件候选、AgentAssetVersion、受限 ChangeSet、13 个六类视觉材质、项目内组件、GLB 导出/readback 和只读 GLB 参考导入。F026 已移除三方向 UI；过渡期只允许第一条文本方向通过兼容适配器编译/展示一个 3D 结果，48 变体目录不是已实现用户能力。
+## 2. 已完成基础
 
-当前生产阻断：
+以下阶段只保留为依赖基线，不再并行扩展：
 
-- Agent Snapshot 的核心编辑、不可变回退/前进、重启和并发 CAS 矩阵已完成；
-- 含糊/不支持领域已经在服务端安全停止，并已由 D003 持久化 clarification Item 和单问题 UI；四领域真实 Provider truth set 仍未完成；
-- 工作台核心 E2E 已通过，任务级 CAS 竞争已有 smoke；尚未拆成广泛多客户端压力和原生安装场景；
-- 几何造型单一；
-- Agent 四视图 PNG、条件式爆炸概念图、只含当前 PNG/manifest 的 R004 ZIP，以及 R005 的直接 GLB/概念图下载 UI 已提供；本机 `.app` 启动已通过，但原生 WebView 点击下载仍受当前自动化会话的 macOS 辅助功能授权阻断；仍无转台视频或工程渲染；
-- `FGC-M101` 已完成 MaterialPreset@1 的视觉 PBR 字段和旧 payload 迁移；`FGC-M102` 已完成 13 个六类视觉材质预设；`FGC-M103` 已完成受控纹理对象、来源/许可证边界和参数回退；`FGC-M104` 已完成 Material Zone UI 检视、六类筛选、关键词搜索和真实纹理回退摘要；`FGC-M105` 已完成稳定 zone 选择、部件槽绑定和带 zone 的 ChangeSet 预览；`FGC-M106` 已完成基于真实 `allowed_domains` 的四领域兼容筛选；`FGC-M107` 已完成 Material Zone 选择的 Snapshot 持久化、CAS、重启和 undo/redo 保留；`FGC-C103` 已完成 AssemblyGraph/ShapeProgram 事实驱动的只读拆分/合并建议和受限 ChangeSet 预览确认；`FGC-C104` 已完成 Snapshot 持久化的部件锁定、隐藏与单独查看，锁定会阻止相关 ChangeSet，显示状态不创建资产版本或第二 renderer；`FGC-G808` 已完成受限 Part 参数映射的 JSON/Pydantic/OpenAPI 合同，`FGC-G809` 已使非空声明在既有 ChangeSet 中强制路径/范围/步长并冻结旧资产六路径兼容，`FGC-G810` 已让四领域新 blockout 的真实单一 box/wedge 输出生成有界比例声明，`FGC-G811` 已将真实声明接到当前 AssetVersion 的零基础步进控件；四项均不开放自由参数、单位换算或新几何执行；
-- `FGC-Q002` 已冻结 `GET /active-design` 的兼容初始化边界，并将质量检查收紧为 Snapshot ETag + Idempotency-Key 的重放写入；广泛多客户端压力仍未覆盖；
-- Material Zone UI 已把纹理存在性、来源摘要、参数回退、稳定 zone 选择和领域兼容筛选呈现给零基础用户；当前确定性 blockout 多数只有一个 zone，zone 选择的 Snapshot 重启持久化和更多正式资产槽位仍未完成；
-- 备份已覆盖 `agent_imported_glbs.object_path`，恢复 smoke 已通过 API 回读 Agent head、Snapshot 与 export source/version；
-- macOS arm64 packaged sidecar 已为非空并通过 K001 程序化 WebView/重启 cursor 链；Intel macOS、Windows x64 与 Linux x64 sidecar 仍为空，正式跨平台发布继续 blocked；
-- 真实 Provider truth set 未完成。
+| 历史阶段 | 当前结果 |
+| --- | --- |
+| S1 ActiveDesignSnapshot | S001–S008 已建立活动版本、选择、质量、预览和导出单一真值 |
+| S2 领域澄清 | D001–D003 已实现 `recognized / ambiguous / unsupported` 和单问题澄清 |
+| S3 状态机/E2E/CI | T001–T003、F001–F026 已覆盖当前工作台拆分、单 renderer 和核心 E2E |
+| G8 轻量几何扩展 | G801–G826、Q003 已实现受限 Profile/Extrude/Revolve/Loft/Sweep/CSG/PBR/readback |
+| V1 多视图概念渲染 | R001–R005 已实现当前 Agent GLB 的固定视图和概念图包 |
+| R1 sidecar、恢复、安装和发布 | macOS arm64 本机 Alpha 和恢复有证据；跨平台 sidecar/签名/公证仍 blocked |
+| Rust-first | K001–K003 已完成产品状态、Provider、SQLite/CAS 所有权迁移 |
+| 程序化视觉 MVP 工程链 | PV001–PV005、PV006A/B、PV008 已完成机械臂工程闭环 |
 
-## 3. 依赖主链
+这些完成项不证明视觉质量或任意类别自由生成。
+
+## 3. 当前依赖主链
 
 ```text
-S0 文档与合同冻结（已完成）
-  ↓
-S1 ActiveDesignSnapshot
-  ↓
-S2 领域澄清 + 版本/选择/质量/导出统一
-  ↓
-S3 工作台状态机 + E2E + CI
-  ↓
-G8 轻量几何扩展
-  ↓
-V1 多视图概念渲染
-  ↓
-M1 材质与组件扩展
-  ↓
-R1 sidecar、恢复、安装和发布
+VP201–VP204 已完成的 procedural typed-program 底座
+→ U001 通用产品/文档/任务决策
+→ U002 SubjectProfile + VisualFeatureContract + RepresentationPlan
+→ U003 UniversalAssetSource + component/detail/material/projection
+→ U004A DeepSeek/千问唯一 AI Provider（已完成）
+→ U004 procedural + deformable + local hybrid 统一执行/readback
+→ U005 跨类别真实未见集 + 1+1 时间/成本 + 独立真人门
+→ 付费设计伙伴验证
+→ 打包、质量驱动的算子/Provider 扩展和交付优化
 ```
 
-后续任务必须遵守该依赖。并行工作只能发生在不共享数据合同、迁移或同一前端状态文件的任务之间。
+同一时刻只领取 `CODEX_TASK_INDEX.md` 中一个任务。VP201–VP204、U001、U001A、U002、U003 和 U004A 已完成；U004 当前为唯一 `in_progress`。U002 已建立 Rust-sealed 通用 author request、开放对象理解、视觉验收和逐部件表示规划，并切断未知对象到 C111/机械臂的默认回退；U003 已建立 Rust 派生的统一资产源、外观证据合同及当前程序化结果的 GLB/readback/固定视图 exact-lineage。U004A 已删除 Fal/Hunyuan 远程生成运行时，并用代码 Gate 把 AI Provider 固定为 DeepSeek 与千问。U004 接下来扩展本地 procedural/deformable/local-hybrid 和 Appearance Compiler；兼容 `mesh_seed.generic_v1` 保持 unavailable。E005 保留为 hard-surface regression substrate。C111B 的工程、时间和显示可读性 Gate 保留为回归；其 reference comparison 与真人门仍未通过，不得改写为完成。
 
-当前领取规则：`FGC-R002`–`FGC-R006`、`FGC-R007A`–`FGC-R007B`、`FGC-M101`–`FGC-M108A`、`FGC-M109A`、`FGC-C101`–`FGC-C108`、`FGC-C110A`–`FGC-C110B`、`FGC-G808`–`FGC-G826`、`FGC-Q002`–`FGC-Q003`、`FGC-A003`–`FGC-A005`、`FGC-D005`、`FGC-E001`–`FGC-E002`、`FGC-F007`–`FGC-F026`、`FGC-P008`、`FGC-P002`、`FGC-K001`–`FGC-K003` 与 `FGC-V003` 已完成当前代码级退出门。C110C 的 AssemblyDelta Core 合同、6 项 Rust focused tests 和 ChangeSet 编译接入已完成，但新 packaged add+pose+snap readback 尚未通过；第一次复验因 compact confirm envelope 读取错误而 fail-closed，已修正探针并待重跑，旧 `@1` packaged 证据不替代它。C110C 仍未提供任意架构、任意风格或任意自由装配；真实 DeepSeek structured delta、更多 Recipe 家族、Python/GLB readback 和 M108B 独立真人 `4/5` 仍是下一阶段。完整 M109 的四领域 2K/压缩纹理与设备分级继续等待 M108B。
+## 4. 冻结回归：C111B 黄金视觉资产
 
-## 4. S1：ActiveDesignSnapshot
+目的：保存现有轻量编译链已经证明的工程事实，并避免继续用大量 token 手工修同一资产。C111B 状态为 `superseded`，不是 `done`。
 
-目标：Project、AgentAssetVersion、Selection、Preview、Quality 和 Export 只由一个服务端 Snapshot 绑定。
+必须同时满足：
 
-`FGC-S001`–`FGC-S008` 已完成：Snapshot 合同、存储/CAS、API、desktop client/reducer、Agent 恢复/选择/视口/质量/不可变回退/前进/GLB 导出，以及 legacy 只读/转换授权/原子提升均有对应 smoke 证据。S008 覆盖 preview、确认、质量、undo→redo、重启恢复、导出、preview 阻断和 selection/quality 的 revision 竞争；当前工作台 r3 Agent-first 路径也已通过（参考 GLB v1 → 可编辑资产 v2–v5）。F025 已把 legacy Graph、旧参数、旧质量与旧格式限制在显式只读表面，但兼容数据尚未完成最终迁移，工作台也尚未完成前端组合层拆分，因此不能把整个产品称为生产级单一状态运行时。
+- service panel、joint stack、auxiliary linkage、cable clamp、gripper hinge、decal、wear 都有真实 lineage；
+- PBR 五通道被 GLB 实际消费，微表面不只是统一噪声；
+- production 保持 80k–150k triangle 预算，但 triangle 数不计作结构质量；
+- 同一 GLB 的固定八视图通过 reference comparison；
+- 唯一 preview、confirm、Snapshot、export、restart exact-lineage；
+- 自动门通过后再收集三位独立真人评分。
 
-工作包：
+禁止：横向扩四领域、增加第二 renderer、用 bloom/纹理分辨率/代理评分替代结构与真人门。
 
-1. 冻结 `ActiveDesignSnapshot@1` JSON Schema、Pydantic 和 TypeScript；
-2. 新增迁移和 repository；
-3. 新增读取、选择和 legacy 转换 API；
-4. 使用 revision/ETag 防止并发旧写；
-5. 前端建立单 reducer/state machine；
-6. Agent、视口、选择卡、质量和导出改读统一 selector；
-7. legacy Concept 进入只读模式；
-8. 增加版本一致性、重启和并发 E2E。
+2026-07-28 性能与可读性检查点：production A005/SurfaceLayer 五通道 Python 标量烘焙完成有界 NumPy 向量化，同一单次 C111 production compile 从 `103.174s` 降至 `22.504s` 且字节/hash 不变。最新真实 packaged run `c111b_4ad12339eca842b2993cf2d320498416` 工程链与像素可读性门 PASS。冻结合同的 `120s` 目标绑定 `author/lower/compile_readback/render/evaluate/preview` 六阶段 Agent Turn；该 Turn 为 `94.402s`，其中 lower `93.989s`，因此生成性能门 PASS。initial `220.240s`、restart `20.262s`、total `240.502s` 是额外包含 V1 保存、A005 V2 preview→confirm、导出、八视图和新进程恢复的 QA workflow wall time，不得误作生成门。packaged QA 现把 WKWebView 线性受光表面明确转换到显示 sRGB，并由 TypeScript 与 Rust 双侧硬断言 96×96 样本的前景覆盖 ≥100 bps、中位亮度 ≥24、可读前景 ≥5000 bps；初次八视图实测中位亮度 `34–52`、可读前景 `7251–8868 bps`，重启后 PNG hash 与指标逐张一致。减少冷启动/重复编译仍是响应速度优化项，但不再阻断当前 120s 生成 Gate，且不能降低 exact-lineage、PBR、triangle 或单结果门。
 
-主要入口：
+2026-07-28 reference 检查点：通用 PV006C 原先用 Core 内固定阈值，未消费 C111B fixture 的 7600/6500/5000。现已升级为 `VisualReferenceComparisonInput@2`，把 Rust-owned `VisualReferenceAcceptancePolicy@1` 与 request/evidence graph/program/GLB/八视图一起 hash-seal；C111 policy 从 frozen v2 fixture 原始字节解析阈值、关键可见性与 source contract SHA，Provider/WebView 不能选择或降低，非 C111 program 继续使用原通用政策。v2 把 0 网络/0 可变成本的生成预算与需显式授权的视觉比较预算拆开；Rust Core 0044 迁移、短期授权、实际 Turn 绑定、调用前原子预留、取消/失败保守结算和 `VisualReferenceComparisonReport@2` 预算证据现已实现。focused Core 账本测试证明三次 ceiling 为 `33334+33333+33333=100000 microusd`，第四次、过期、谱系漂移和跨 Turn 复用均预网络失败；PV006C 聚合 Gate、F026、typecheck/contracts 通过，测试没有联网或费用。当前 Project sealed reference pixels、显式真实调用授权和真实 Provider comparison report仍 `NOT RUN`；新 packaged run 的工程、120s 六阶段生成和显示域像素可读性门均 PASS，但视觉仍明显 schematic，不能据此宣称与授权参考相似，因此阶段 A 尚未退出。
 
-- `docs/AUTHORITATIVE_STATE.md`
-- `apps/agent/forgecad_agent/application/agent_asset_editing.py`
-- `apps/agent/forgecad_agent/infrastructure/db/agent_repositories.py`
-- `apps/agent/forgecad_agent/api/agent_asset_routes.py`
-- `apps/desktop/src/features/cad-workbench/CadWorkbenchPanel.tsx`
-- `apps/desktop/src/shared/api/forgeApi.ts`
+## 5. 阶段 A：VP201–VP203 高自由度设计语言
 
-退出条件：工作台任意时刻只有一个活动版本、一个选择、一个预览；质量和导出引用该版本；重启恢复一致；版本冲突返回可恢复错误。
+### VP201 最小 typed program
 
-## 5. S2：领域澄清与统一操作
+已实现 `ForgeVisualProgram@2` envelope、typed parameters/nodes、Rust validator、canonical hash、静态预算、source map 和到现有 ShapeProgram 的最小 lowering。该完成不包含 UI、神经 seed 或完整宏系统。
 
-目标：未知或含糊输入不生成错误领域资产。
+### VP202 组合与静态展开
 
-工作包：
+已实现无副作用纯宏、词法作用域、有界 repeat/array 和 `ExpandedVisualDAG@1`。递归、孤儿宏、作用域捕获、重叠 repeat、动态代码和运行期无界展开均 fail closed。
 
-1. 将领域推断从返回 DomainPack 改为 `recognized | ambiguous | unsupported`；`DomainInferenceResult@1` 和四领域中英关键词/同义词 fixture 已由 D001 冻结；
-2. D002 已消费该 fixture，增加常见同义词、英文和组合词的实际推断行为，并在 ambiguous/unsupported 时阻止写盘；
-3. D003 已创建 clarification Item，不创建 plan/blockout/version；
-4. UI 已显示一个普通语言问题和四个用户可读选项；
-5. 选项回答以保留原始 Brief 的新 Turn 继续；
-6. 四领域与未知领域 truth set；
-7. 统一撤销/回退为 Agent asset head 操作，不复用旧 Concept undo。
+### VP203 高层几何语言
 
-退出条件：领域准确率达到测试阈值；所有未知输入在写盘前停下；无默认武器回退。
+已将 profile/extrude/revolve/loft/sweep/boolean/array/mirror、supporting box、Part 和 Material Zone 组合进同一 source map。三份非 C111 fixture 形成不同 operation/Part/Zone/GLB 指纹并通过 restricted readback；Surface 完整 binding 仍由既有 A005/SurfaceLayer 路线承担，不在 VP203 擅自扩 Shape operation。
 
-## 6. S3：前端状态机、E2E 和 CI
+阶段退出指标已通过：新对象只需编写程序数据，不新增整机专用 Rust/Python lowering；重复/悬空引用、轮廓/截面/路径/布尔/阵列和预算/capability 越权均在 worker/网络前拒绝；最终 GLB readback 可追到 v2 source node。该退出不代表 E005 分布和真人视觉质量通过。
 
-目标：把工作台组件拆为可测试的状态与视图模块。F001 characterization 已在本机 Chrome 通过，F002–F006 已完成 AgentConversation、AgentStepItem、AgentSelectionCard、四类抽屉、组合层和可访问性收敛；FGC-T002 当前包含 14 个独立工作台场景并纳入 CI；FGC-T003 已完成单 WebGL、内存和 bundle 预算门禁；FGC-G801 已完成 wedge/capsule，FGC-G802 已完成 profile/extrude，FGC-G803 已完成 revolve，FGC-G804 已完成 mirror/array/radial_array，FGC-G805 已完成受限 union/subtract，FGC-G806 已完成受控 bevel_approx/surface_panel，G807 已完成四领域 48 个后端 blockout 多样性门禁；后续需把变体目录以零基础用户可理解的方式接入前端。
+## 6. 阶段 B：VP204 低往返编译循环
 
-建议结构：
+模型默认只提交一次完整 program；hard gate 后最多一次 typed patch。缓存、增量 lowering/compile 和固定多视图不允许触发整份创意重写。
+
+阶段已退出：Rust-owned authoring session/receipt、canonical node hash、语义依赖失效、完整程序 CAS/cache、bounded operation-fragment cache、sidecar stale-handle 一次恢复与 app-server coordinator 已通过零网络 focused Gate。变化 rotor 已动态证明未变 `op_rotor` 的真实编译片段命中和变化 `op_rotor_bank` miss，证据进入 Rust receipt。Provider v2 Product Tool 路由归后续 A006，不是本阶段退出条件。
+
+目标而非当前端到端能力：无 patch P50 ≤32 秒、P90 ≤70 秒；一次 patch 后 P90 ≤105 秒。当前 VP203 三资产离线 Gate 的 geometry-only P50/P90 已低于前两项阈值，exact replay cache hit 为毫秒级，但明确排除 Provider authoring、真实视觉评估和 UI 交付延迟。继续记录 author/validate/expand/lower/compile/readback/render/evaluate/preview 分段时间、token、Provider 调用、cache hit 和成本。
+
+## 7. 阶段 C：E005 / A006 / Q004 分布验收
+
+当前 `in_progress`：E005 已冻结 30 条任务及 task/source/Provider-authorization/run/structural-matrix/human-review/distribution 七份合同，跑通单条离线 source 的生产 adapter→真实 sidecar→Schema receipt，并以 focused tests 覆盖取消/超时/replay/full+fragment cache/typed patch。结构证据已绑定 patch 后 source 的 canonical semantic graph 与最终 GLB 的材质/序列/平移/轴交换/统一缩放无关几何指纹，聚合器重算 435 对；真人合同重算 3×30/90 份七维中位数。当前两者都只有 not-run fixture/合成合同自测，不是正式结果。
+
+下一子门不得简化为“拿到授权就直接跑”。步骤 1 的 SQLite 原子 reservation/dispatch/settlement/recovery 已完成并以 30 author + 30 patch、token/成本/单次与批次时间 focused Gate 通过；0046/Core batch checkpoint 也已证明单 claim、原子 receipt seal、未触网恢复和触网不确定性 `reconciliation_required`。步骤 2 已完成不可变 prepare-once wire request、真实 body SHA/价格派生、permit-only one dispatch、transport 关联键、usage 上界和逐 reservation formal-receipt evidence 合同；步骤 2a 的生产 VP204 verifier/resume、author+patch usage/phases 合并和 Rust formal receipt writer也已完成。
+
+2026-07-29 的代码红队审查发现正式付费运行前有三个 P0 质量依赖。2b）E005-R1 统一紧凑 author source 已完成。2c）E005-R2 已完成 dynamic + formal-call + recovery/receipt Core：sealed reference bytes + unified source + generic TurntableEight 进入一次联合 visual compare/proposal 调用，Rust 后置派生 report 并密封 typed patch；accept 为一次 build，patch 为两次 build且不发第三次 VLM。不可复制的 multimodal prepared request 已接同一 0045 `Patch` reservation，预网络绑定 authorization/provider/model/pricing，完整 fixture 为 1 Author + 1 visual，OpenAI-compatible adapter 已覆盖 exact body、idempotency header、usage 与 strict proposal schema，且不使用旧 0044 双重预算。0047 检查点使 Author accounted 后可安全重启并只恢复 visual；任何 visual dispatch/未知状态进入 reconciliation，不自动重试。`E005VisualSession@1`/收据绑定真实 R2 phase、usage、TurntableEight、GLB/readback 和视觉决定，不冒充 VP204。SurfacePlan→受限 A005/PBR 与 surface tuning 已进入 R2 candidate；R3 contract slice 也已完成同源单次 `production_concept`/640px/TurntableEight 编译、11 zone/55 map PBR、完整 input hash、production evidence 和 receipt upgrade。当前缺口已收窄为 repository-backed 真实 sealed 单图/多视图/活动资产输入、completed-visual→production 跨重启恢复、完整阶段 wall-clock 和正式 batch/startup；因此立即接 30 题仍只能证明合同。正式顺序继续为：2d）先完成 R2 真实输入产品门，再补完 E005-R3 跨重启 production review/四模态/阶段 wall-clock；2e）完成 batch/startup 接线且保持 dispatch 后零自动 retry；3）用户确认精确 Provider/model/pricing/disclosure 与额度；4）运行 30 条并保留所有失败；5）生成有内容校验的盲评包；6）收集 3×30 真人评分；7）由 distribution validator 聚合。任何前置缺失时保持 `formal_eligible=false`。
+
+DeepSeek 只调用 Rust-owned typed Product Tool：inspect、author、patch、compile、render、evaluate、repair。工具按最小集合进入 registry；每次动作有 revision、预算、幂等、取消和结果校验。
+
+固定编译阶段：
 
 ```text
-cad-workbench/
-├── state/CadWorkbenchMachine.ts
-├── state/selectors.ts
-├── agent/AgentConversation.tsx
-├── viewport/WorkbenchViewport.tsx
-├── selection/SelectionCard.tsx
-├── drawers/ComponentDrawer.tsx
-├── drawers/MaterialDrawer.tsx
-├── drawers/QualityDrawer.tsx
-├── drawers/ExportDrawer.tsx
-└── CadWorkbenchPanel.tsx
+intent/reference
+→ silhouette
+→ structure
+→ form
+→ material
+→ surface
+→ lighting
+→ optimization/export
 ```
 
-先写 characterization tests，再移动代码。F002 已完成对话/步骤边界和组件树 smoke；不得在同一任务中同时重写视觉系统和状态逻辑。
+`VisualDetailInventory`、`DesignBuildLedger` 和 `VisualConvergenceReport` 必须映射真实 geometry/material/surface/readback。VLM 只能在确定性 hard gate 通过后处理审美判断，不能覆盖失败；ADR-0021 路线最多一次 typed patch。
 
-E2E 拆分：首次初始化、四领域、澄清、预览不写盘、确认版本、拒绝、材质、组件、GLB 参考、质量/导出版本一致、重启、单 WebGL context。
+冻结 30 条未见机械硬表面任务，覆盖纯文字、真实 sealed 单图、真实 sealed 多视图、结构族、复杂度、风格和当前资产局部编辑。现有 `text_plus_image_description` fixture 只保留为文字分布预检，不能冒充 image-to-3D。success@1 统计首轮与一次 patch 后结果；首次真人外观 `≥4/5` 目标为 70%，一次 patch 后为 85%。自动门、视觉 Provider、独立真人证据分别报告。
 
-退出条件：所有 E2E 独立通过；G1–G7 进入 CI；主组件只负责组合；没有双方向面板和双选择真值。
+Showcase 通过不等于产品通过。评测必须冻结且不参与实现：
 
-## 7. G8：轻量几何扩展
+- 机械臂结构自由度 Brief；
+- 纯文字、文字+单图、文字+多视图、活动模型+局部参考；
+- 成功或明确失败，不允许默认模板掩盖失败；
+- 同一资产连续修改与 source-level patch；
+- GLB、视口、导出和重启同 hash；
+- 自动 Gate 与独立真人评分分开记录。
 
-目标：在不增加神经 3D 模型的情况下提升造型多样性。
+PV006C/E005 已有合同继续证明真实授权图片证据、文本 Provider、comparison、最多一次 patch 和 exact-lineage；它们作为 U002–U005 可复用底座，不能单独证明通用类别已支持。
 
-实现操作前先按 [GitHub 参考架构](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md) 对现有 worker、JSCAD 操作语义、Manifold Python/WASM 和 Trimesh 做隔离 benchmark。记录安装体积、内存、冷启动、确定性、失败诊断、许可证和 macOS/Windows 打包；只选择一个生产执行组合，不直接复制上游应用。
+冻结集最终扩展为 30 条机械硬表面任务，并记录首轮/修复后真人评分、端到端时间、Provider 调用、缓存命中、修复次数、失败分类和估算可变成本。现有 PV006 的 20 条门保持不变；增加到 30 条属于后续商业验证层，不得通过改小既有任务阈值制造完成。
 
-实现顺序：
+## 8. 阶段 D：U004、设计伙伴验证与跨类别质量扩展
 
-1. `wedge/capsule`；
-2. `profile + extrude`；
-3. `revolve`；
-4. `mirror/array/radial_array`；
-5. 受限 `union/subtract`；
-6. `bevel_approx/surface_panel`；
-7. 各领域模板迁移和预算验证。
+U003/U004A 完成后，由 U004 评估本地形变、程序化和 local-hybrid 是否在各类对象上带来可测量净质量收益；U005 通过后，再用 5–10 家付费设计伙伴验证重复创建→修改→导出、四周留存、支持成本和单位经济。
 
-每个操作都需要 Schema、validator、runtime、确定性 topology hash、预算拒绝、GLB readback 和失败测试。不得一次实现全部操作。
+U004 当前排序是质量优先：先解决裁切主体完整性、身份/轮廓保持、中观结构、可见微细节和 PBR，再优化等待时间。时间、费用、内存和失败率必须记录且有安全上限，但在真人视觉门建立前，不以降低面数、跳过参考准备或减少必要质量步骤换取更快结果。
 
-退出条件：四领域至少各 12 个明显不同的完整 blockout；非法/超预算输入执行前拒绝；普通 Mac 无模型权重依赖。
+每个质量分层必须建立：
 
-### 7.1 用户优先：CAD 设计能力闭环
+- SubjectProfile 与适用 Representation capability；
+- Operator/Generative Pattern、本地形变模板或混合编译策略；
+- 角色、比例、部件和材质语法；
+- 未见 Brief、越界输入和 stop condition；
+- 正式 production kit 与独立真人 benchmark。
 
-以下顺序是用户在 2026-07-14 明确指定的优先级覆盖；它不放宽 ActiveDesignSnapshot、概念安全边界、preview→confirm、单一 WebGL 或非工程产品范围。每次只领取一个任务，后项在前项 Gate 通过前保持 `blocked`：
+类别从入口上同时开放；优化顺序由真实失败分布决定。首个跨类别冻结集必须包含机械/产品、角色/人形、动物/生物、植物/自然物、家具/生活物、建筑/环境、载具和混合对象，角色/生物不再另立产品准入决策。
 
-```text
-FGC-G819 运行时操作白名单单一真值
-  → FGC-Q003 真实编译/GLB readback 质量真值
-  → FGC-G820 ProfileSketch 与截面合同
-  → FGC-G821 增强 Extrude/Revolve
-  → FGC-G822 受限 Loft
-  → FGC-G823 受限 Sweep
-  → FGC-G824 Manifold Python/WASM/现有 Worker benchmark 与 ADR
-  → FGC-G824A provenance、GLB readback 与隔离取消补证
-  → FGC-G824B 生产式 staging 与权威状态原子提升边界
-  → FGC-G824C macOS packaged candidate、预算与 SBOM 选择建议
-  → FGC-G824D Windows x64 packaged provenance/lifecycle 实机证据
-  → FGC-G825 单一稳健 CSG 与不可变特征历史
-  → FGC-G826 edge finish、法线、UV0、tangent 与稳定 zone provenance
-  → FGC-A003 DeepSeek Provider 可观察性与错误/流式生命周期
-  → FGC-F025 Agent-first 工作台与 legacy 隔离
-  → FGC-D005 四领域语义比例配方与受限绑定
-  → FGC-A004 受限 Agent Action Loop
-  → FGC-M108A 生产概念工件真值与轻量 PBR 管线
-  → FGC-K001 Rust app-server 协议、initialize 与桌面桥接
-  → FGC-K002 Rust Agent 生命周期、Provider 与 Product Tool 所有权
-  → FGC-K003 Rust Project/Snapshot/ChangeSet/SQLite 所有权
-  → FGC-C105 可编辑组件配方
-  → FGC-M108B Recipe 驱动的生产级概念视觉基线与独立 4/5 门（外部 blocked，不是当前实现依赖）
-  → FGC-F026 Codex 式简洁工作台 shell、左侧历史/组件、右侧 3D 与底部输入
-  → FGC-A005 可设计的产品专属 Skill
-  → FGC-R007A 参考证据与受限 ChangeSet 闭环
-  → FGC-V003 单次合成、硬门与有界原位修复的唯一结果
-  → FGC-C106 机械臂优先生产 Recipe 目录
-  → FGC-R007B 生产 Recipe 参考保真度
-  → FGC-M109A 机械臂同源轻量预览与按需 1K/99k 展示档
-  → FGC-M108B 四领域正式视觉验收
-  → FGC-M109 自适应 production profile / 1K–2K 压缩 PBR / LOD
-  → FGC-D006 通用机械领域包扩展
-```
+M108B 保留为多个已晋级领域的正式 production kit 与独立真人跨领域基准，不再阻塞第一机械硬表面商业切片。它仍必须满足原四领域/真人协议，不能因为优先级后移而降低阈值；M109 的跨领域纹理/LOD/设备分级继续等待 M108B。
 
-- G819 已建立 `ShapeProgramRuntimeManifest@1`：Schema enum 由 manifest 生成且 contracts gate 检查漂移，Pydantic `ShapeProgramPayload`、Worker executor coverage、preview/confirm、质量和导出共同消费该清单；未知/失去执行器的操作返回 `UNSUPPORTED_RUNTIME_OPERATION`，并由故障注入 smoke 验证零副作用；
-- Q003 必须从同一编译/GLB readback 结果取得 triangle、bounds、operation 与失败信息，不以重复的 primitive 常数估算代替；
-- G820–G823 必须按 ProfileSketch、增强 Extrude/Revolve、Loft、Sweep 四个原子任务逐项建立 Schema、Pydantic、runtime、预算、确定性 topology hash、GLB readback 和失败测试；SVG/HTML 只做编辑器，不成为几何真值；
-- G824 只做现有 Worker、Manifold Python 和 Manifold WASM 的可复现实测与 ADR，不在 benchmark 任务中同时集成；G824A–G824D 已补齐 provenance/readback、隔离取消、真实 SQLite/对象库提升、macOS packaged 预算/许可证和 Windows frozen artifact。G825 已只接入 ADR-0013 选择的 Manifold Python 生产 CSG，并保存不可变 feature node/input/result hash 与 surface/material provenance，失败不输出部分 GLB；后续不得再引入第二默认内核或隐藏 fallback；
-- G826 已建立受控边缘完成、法线、UV0、tangent 与 stable face/Material Zone provenance；它没有自动引入纹理资产或工程材料，M108A 才消费这些真实表面事实；
-- A003 已解决未配置却像“无响应”的问题：metadata/Keychain/supervisor/capability preflight、真实网络调用标记、stream/cancel、用量和 DeepSeek 400/401/402/422/429/500/503/空 JSON/Schema 错误均有 Gate；失败不静默回退并冒充 Provider 成功；
-- F025 只隔离 legacy 参数、旧导出和 Graph Inspector，不移动 Agent Snapshot/CAS、ChangeSet、质量、下载或 renderer 真值；
-- D005 只能声明四领域的概念比例/姿态配方和有界步长，不增加自由工程尺寸、制造参数或功能结论；
-- A004 已只允许 DeepSeek/离线 Planner 调用 13 个 ForgeCAD Product Tool，遵守 G819、审批、12 次调用、时间和费用，并按官方 thinking/tool-call 合同在同一短生命周期上下文续传 `reasoning_content`；工具 Item 不保存原始隐藏推理，桌面不再自动串接三次方向预览请求；
-- M108A 先在 G826 真实表面事实之上闭合双档 GLB、完整 PBR/多材质区、production readback、质量/导出和派生缓存；它不承担独立视觉 `4/5`，也不能把 profile 名称当作视觉达标；
-- K001 已按 ADR-0014 完成协议与桌面传输所有权：Rust-owned 入口覆盖 initialize、JSON-RPC、通知、取消、背压、cursor replay 和 Tauri bridge，packaged WebView 还验证重启后从既有 cursor 连续恢复；K001 的 Python writer 字段只作为历史迁移 fixture 保留；
-- K002 已完成 Rust Agent 生命周期/Provider/Product Tool 所有权迁移；K003 已完成 Project/Snapshot/ChangeSet/Quality/Export、SQLite/WAL、CAS 和对象库所有权迁移。当前只有 Rust app-server/core 写产品状态，Python 只执行受限几何；
-- C105 已在 K003 的 Rust-owned core 上完成代码所有、first-party visual-only 的可编辑组件 Recipe：8 项 registry 覆盖四领域，候选展开零写，固定 optional child slot、connector/pivot、Recipe ref/registry hash 与来源审阅事实在确认后持久化，non-root active edit 与替换/比例/材质继续走 ChangeSet preview→confirm，Python 只编译 Rust 已展开的受限几何；版本升级、undo/redo、重启和 stale/lock 拒绝均有 Gate。其四领域 4 个 production GLB 合计 416 triangles，只能作为机制/跨语言线路证据。M108B 的工程 checkpoint 已建立，但正式 Recipe kit 与三位独立真人逐领域三项中位数 `4/5` 尚未收齐，因而保持外部 `blocked`，不再作为当前实现链的前置；
-- C106 已完成 3 roots、10 Parts/9 connections、22,212 triangles/21 primitives/10 zones/512 v4 PBR 与 9/9 A005 slots 的机械臂黄金路径；exact discriminator 保证每 Turn 只选 1 个 root，production 真实经 `RestrictedGeometryExecutor`，provider call 从 deny-on-call/FakeDeepSeekClient 实测为 0，A005 immutable v2 与旧 v1 隔离。这是 M108A/Q003/G826 同源的机械臂机制退出证据，不是图片级或 M108B 真人 `4/5`；
-- C107 在不改变上述产品所有权下，把 service-display 深化为 56,244 triangles/109 primitives，并将受限 `SurfaceLayerProgram@1` 经密封 Rust lowering 和 Python restricted executor 真实绑定到 GLB Material Zone；SVG 只负责编辑预览，同一 renderer 增加选择/测量并复用既有剖切。当前仍只有 512 贴图且截图未达目标图，1K/2K 与 LOD 留给 M109；
-- M109A 已在用户明确的机械臂 MVP 优先级下先行完成：preview 保持 18,324 triangles/128 PBR，按需 production 达到 99,092 triangles/1K 五通道 PBR，并保持同一 ShapeProgram、产品状态、质量/导出/CAS 与单 renderer。截图证明剩余主矛盾是 Recipe 结构细节而不是三角形预算；完整 M109 仍负责四领域 2K/压缩纹理和设备分级；
-- F026 先调整组合层与信息架构：左侧承载项目/对话记录与组件库，中央承载会话/步骤及 `GenerationResultPresentation@1` 状态槽，底部固定输入与“+”菜单，3D 停靠在右侧并可把同一 canvas 移到中央 focus；不创建第二 renderer。必须移除三方向 UI；legacy Planner 仅能经临时适配器取第一条文本方向并编译/展示一个 3D 结果，不能把该结果称为 V003；
-- A005 已完成受限表面细节语言；R007A 已让用户授权的图片/GLB 作为只读、可追溯的证据并经标准 ChangeSet 闭环重建。C106 已提供机械臂 production Recipe 基线；R007B 已证明单图/多视图/GLB 会形成不同受限计划，并在真实 packaged 同一 renderer 中完成只读参考→新结果 exact-lineage 对比。其 manifest 仍固定 `visual_fidelity_validated=false`，视觉相似度继续由 M108B/人工评审处理；
-- V003 最后将 Agent 路由到一次完整合成、真实 hard-gate 和最多两次同意图原位修复。它不生成多个完整模型、不做评分比较；失败明确、零版本副作用，“换一个思路”开启新 Turn。D006 继续在这些任务之后按一次一个原子任务实施。
+## 9. 自主 Provider 与本地表示能力
 
-### 7.2 3D 机械设计系统的几何边界
+运行时 AI 只允许 DeepSeek 与千问。DeepSeek 负责受限程序 author/patch，千问负责图片证据和候选比较；任何第三方聚合图像/网格 API 均不得作为默认或实验兜底。本地 Rust/Python 几何、确定性 PBR、图像处理和用户导入合法 GLB 继续可用，因为它们不属于 AI Provider。
 
-新的几何子链不使用“HTML 六面拼接”或“所有对象只从立方体裁剪”。目标语法路由为：
+U004 必须优先补齐：
 
-```text
-平直外壳       → Profile + Extrude + 局部 CSG
-连续主壳       → ordered sections + Loft + 局部 CSG
-轴对称部件     → Revolve
-管路/框架      → Sweep
-重复视觉细节   → Array / Radial Array
-装配级完整产品 → EditableComponentRecipe + Connector
-浅表面细节     → decal / normal / roughness
-```
+- 可表达角色、生物、植物和软体比例/姿态的受限 deformable source；
+- 将程序化结构、形变曲面、材质区和微细节结合的 local-hybrid compiler；
+- 千问 observed/inferred/unknown 证据到 geometry/PBR channel 的可审计映射；
+- GLB/readback、Part/Zone、固定多视图、最多一次 typed patch、版本和导出 exact-lineage。
 
-每个 operation 只有在 G819 manifest 中具有真实执行器、预算和 readback 后才可被 Agent/Recipe/Skill 使用。前端 SVG 只序列化 `ProfileSketch@1`；GSAP 只处理 mini/focus、步骤、抽屉、相机和确认动画；可选 SDF/体素只允许产生可丢弃候选，不能进入 editable asset 真值。
+兼容 schema 中的 `mesh_seed` 继续 unavailable。若某类对象缺少受检本地表示，返回 typed limitation；不得恢复远程 Mesh API，也不得以三角形数量、Provider 成功或渲染特效代替视觉相似度和真人门。
 
-### 7.3 Codex 式设计工作区与视觉收敛主链
+## 10. 90 天小团队验证窗口
 
-ADR-0017 将下一阶段从“继续增加固定整机目录”改为“先关闭机械臂黄金资产，再提取可由 Agent 编写的设计语言”。它不改变 ADR-0016、V003、Rust-first、单 renderer 或 GLB 真值：
+该窗口用于排序和 Go/No-Go，不是绕过任务依赖的日期承诺：
 
-```text
-C111A 机械臂黄金表面资产 + 冻结 VisualDetailInventory
-  → C112 Operator/Generative Pattern 提取
-  → C113 DesignWorkspace/Patch/CAS 草稿
-  → C114 MechanicalMorphologyProgram 与 Rust lowering
-  → C115 生成式 Profile/Section authoring
-  → A006 Codex 式 typed Product Tool 循环
-  → Q004 固定 build passes + VisualConvergenceReport
-  → E004 未见机械臂 Brief 自由度与连续修改验收
-  → M108B/D006/M109 按证据扩展领域与质量档
-```
+| 时间窗口 | 唯一主线 | 退出证据 |
+| --- | --- | --- |
+| 第 1–21 天 | VP201–VP202 语言核 | typed program、validator/hash/source map、纯宏/有界展开和静态预算 |
+| 第 22–49 天 | VP203–VP204 高层组合与低往返 | 未见 Brief 产生不同 topology/profile/part/material 指纹；一次 author + 最多一次 patch |
+| 第 50–77 天 | E005/A006/Q004/PV006C | 30 条未见任务、真实多模态组合、质量/时间/成本/失败分布 |
+| 第 71–90 天 | 5–10 家设计伙伴封闭验证 | 重复创建→修改→导出、付费、四周留存和支持成本 |
 
-约束：
+依赖未退出时窗口顺延；不得为了追赶日期横向启动领域扩展。
 
-- C111A 未退出前只能深化当前机械臂，不建立另一套完整语言或扩展其他整机；
-- `VisualDetailInventory` 的 critical 项必须映射到实际 Recipe/Shape operation/Material Zone/A005 输出并由 readback/render 证明；
-- DesignWorkspace revision 只是 Rust-owned 草稿，不推进 AssetVersion 或 Snapshot；
-- DeepSeek 只能修改 typed sources，不能输出任意 JavaScript、Python、mesh bytes、URL 或路径；
-- V003 仍只有一次完整合成和最多两次同意图原位修复，不采用上游更长循环；
-- 自动图像/VLM Gate 不能替代 M108B 真人 `4/5`；
-- img2threejs 当前只作为锁定 commit 的方法参考，不进入安装包、SBOM 或产品运行时。
+商业验证目标均为 `target`：30 条未见任务；首次真人 `≥4/5` 达 70%，一次 patch 后达 85%；无 patch P50 ≤32 秒/P90 ≤70 秒、一次 patch 后 P90 ≤105 秒；严重回归 `<10%`；可变成本不高于实收收入 25%；至少 5 家付费伙伴且第 4 周核心闭环周留存不少于 50%。
 
-## 8. V1：概念视图
+## 11. 发布与 legacy 删除
 
-目标：从同一活动 Agent 资产生成三分之四、正面、侧面、顶部和可选爆炸图。
+发布工作不与 VP201–E005 主线抢占当前任务，但现有阻断保持：
 
-约束：
+- 非空跨平台 sidecar；
+- 签名、公证、全新机安装和升级；
+- 密钥恢复和备份；
+- 广泛多客户端并发 E2E。
 
-- 复用同一场景/渲染管线；
-- 不创建持久第二 WebGL renderer；
-- 相机、背景、灯光和尺寸可复现；
-- 输出绑定活动 AgentAssetVersion 和 Snapshot revision；
-- 概念图不能回退旧 Concept export；
-- R002/R003 的四视图与条件式爆炸 PNG，以及 R004 的当前 PNG/manifest ZIP 在 Agent 资产测试通过后可进入用户指南；转台视频和工程渲染仍不得承诺。
+legacy 删除必须按 M0–M6 迁移顺序完成。启动、发布 Gate、旧库转换和恢复仍引用的代码不是死代码。
 
-退出条件：R002 已满足四视图 hash/provenance/readback、重复生成一致性和桌面单图下载；R003 已满足映射事实驱动的条件式爆炸概念图、透明 alpha readback、重复生成一致性和单图下载；R004 已满足当前 PNG/manifest ZIP 的来源、hash/readback、稳定 member 顺序、重复字节一致和 stale fingerprint 拒绝；R005 已满足 Agent-only 直接 GLB/单图/图包 UI 和浏览器下载 E2E，本机 `.app` 启动/Agent 健康检查也已通过，原生 WebView 点击仍须在授予 macOS 辅助功能权限的会话复验。转台视频与任何工程渲染仍属于后续任务，不得回填为已完成。
+## 12. 每个任务的交付格式
 
-## 9. M1：材质与组件
+1. 记录任务 ID、依赖和任务前基线；
+2. 只修改任务范围内代码/合同/文档；
+3. 提供成功、失败、取消、重启/幂等证据；
+4. 运行任务 Gate 和基础文档/安全门；
+5. 更新任务索引、handoff、能力矩阵；
+6. 明确 PASS、FAIL、KNOWN FAIL、NOT RUN；
+7. 未满足退出条件时不得写“基本完成”。
 
-目标：从 13 个六类参数材质继续扩展为可检索、可追溯的视觉材料目录。
+触发联网、计费或外部评审的任务还必须记录：操作者授权、Provider/model、最大请求/图片/token、最大 wall time、估算成本上限、cache key、停止条件和脱敏证据路径。默认网络调用数为 0；真实 Provider、视觉 Provider、packaged app、真人评分和付费伙伴必须各自标记 `PASS / FAIL / KNOWN FAIL / NOT RUN`。
 
-分批目录：金属、聚合物、橡胶、复合材料、透明、涂层、木材/皮革/织物。所有项必须有稳定 ID、PBR 参数、纹理对象、来源、许可证、版本和预览。
+## 13. 项目停止继续扩张的条件
 
-组件扩展遵守 Domain Pack role、Connector/Joint、质量、原创和审阅状态；待审、受限或质量失败资产不能成为正式默认候选。
+发生以下任一情况时先做产品复盘，不新增领域：
 
-退出条件：材质只影响目标 Zone；GLB 回读一致；组件兼容率达到阈值；不把视觉材料冒充工程材料。
+- VP201–VP203 仍需为每个对象增加整机专用 lowering；
+- VP204 无法把默认创意调用限制为一次 author + 最多一次 patch；
+- E005 未见任务通过率、真人质量或方差不可接受；
+- 单次生成成本/耗时无法进入桌面产品预算；
+- 神经模型质量进步使纯程序化路线长期失去用户价值。
+- 冻结分布的可变成本超过实收收入 25%，且模型路由/缓存/计费无法修正；
+- 封闭试用没有至少 5 家付费伙伴，或第 4 周核心闭环周留存低于 50%。
 
-## 10. R1：生产化
-
-工作包：
-
-1. 备份覆盖 Agent imported GLB 对象；
-2. Python/Rust 单元测试和依赖审计；
-3. 构建目标平台非空 sidecar；
-4. supervisor 只在开发构建允许 `local-dev-python`；
-5. 新机器安装、首次初始化、Provider、生成、编辑、导出和重启恢复；
-6. 真实 Provider 四领域评测；
-7. 刘邦完成正式资产独立审阅；
-8. macOS/Windows 签名与外部发布。
-
-退出条件以 `docs/PRODUCTION_RELEASE_CHECKLIST.md` 为准；任何必需项失败则发布状态为 blocked。
-
-## 11. 每阶段交付格式
-
-每个阶段交付必须包含：
-
-- 合同/ADR；
-- 迁移和回滚；
-- 实现与生成类型；
-- 单元、集成和 E2E；
-- 当前能力文档；
-- Gate 命令与真实结果；
-- 未完成项和下一任务 ID。
-
-不得只交付 UI、只交付 Schema 或只交付 smoke。
-
-## 12. N：Forge Studio 视觉优先神经 MVP（已由 ADR-0019 取代默认主链）
-
-该段保存 ADR-0018 的历史实施顺序。N001/N002 和 N003/N004 已完成的通用授权、任务、取消、恢复、下载和 readback 工程可以复用，但真实 Fal 付费调用、N005 双源资产和神经 GLB 主链不再是当前 MVP 前置。
-
-执行顺序：
-
-1. N001：Rust 合同、同意/lineage、纯任务状态机和资产包清单；
-2. N002：可替换远程 Provider 端口、确定性假后端、幂等/取消/恢复；
-3. N003：文字/授权图片到概念参考；
-4. N004：真实高质量 Image-to-3D 远程适配器；首个可调用基线为 Fal Hunyuan3D v3.1 Pro，Pixal3D/TRELLIS.2 继续作为可替换质量对照；
-5. N005：`procedural_shape_program | neural_visual_glb` 双源版本和 Snapshot；
-6. N006：真实 GLB/PBR readback、固定八视角和质量硬门；
-7. N007：F026 单结果工作台、进度和自然语言子版本修改；
-8. N008：`ForgeAssetPackage@1`；
-9. N009：20 条未见 Brief、五类别、15/20 真人 4/5 和完整桌面 E2E。
-
-N001 完成前不得发起真实 GPU 费用；N004 前必须有可配置 endpoint、secure credential、预算/超时、数据授权和删除策略。任何远程响应只有在 Rust readback/quality 接受后才是候选资产，用户确认前不得写入版本。
-
-## 13. PV：Forge Studio 程序化视觉 MVP（当前最高优先级）
-
-用户在 2026-07-26 再次明确：FAL 成本过高，专用神经 Image-to-3D 可以从默认产品删除；Forge Studio 应像 Codex 一样由 DeepSeek 编写并连续修改三维视觉程序。ADR-0019 为当前权威。
-
-```text
-PV001 路线切换、默认工作台退役 FAL、ForgeVisualProgram 最小合同
-→ PV002 C111 机械臂黄金资产封装为 ForgeVisualProgram fixture
-→ PV003 DeepSeek typed inspect/author/patch Product Tool
-→ PV004 固定 build passes、Detail Inventory 与八视角收敛门
-→ PV005 三轮连续语言修改、确认、重启与 GLB/资产包
-→ PV006A Rust 多模态请求/证据图/程序绑定
-→ PV006B 独立 Vision Evidence Provider
-→ PV006C 工作台多模态生成与局部修改闭环
-→ PV006 20 条多模态盲测与真人视觉验收
-→ PV007 按证据扩展未来道具、无人机、工业设备、汽车和飞机
-```
-
-当前检查点（2026-07-27）：PV001–PV005、PV006A 与 PV006B 已实现。PV006C 的 offline exact-lineage→author/patch→八视图比较/修复→confirm/Snapshot/同字节导出/资产包链已通过；真实 `qwen3.7-plus` 单图证据也已返回并由 Rust 验证。DeepSeek 组合 Turn 已真实联网，但尚未产出 GLB：13/16 tool transport drift、视觉证据后的重复 discovery、60 秒高推理 timeout 和 4 MiB aggregate SSE 上限均已被精确失败证据暴露并修复。最新代码只向多模态新建 Turn 广告 author/inspect/patch/build，使用 180 秒单请求和 16 MiB aggregate SSE，同时保留 payload、Turn、工具数与取消硬门。最新包因 macOS 锁屏尚未重跑；下一原子动作仍是同一单图真实 E2E，成功后再进入 PV006 的 20 条多模态真人门。
-
-强制边界：
-
-- 默认 UI、普通 Brief 和 MVP Gate 不得要求 FAL Key或发起付费图像/神经 3D 请求；
-- Fal-specific adapter 可留在默认关闭的实验扩展中，不删除历史 migration；
-- `ForgeVisualProgram@1` 只封装现有 ShapeProgram/AssemblyGraph/Material Zone/Surface Program，Rust 拒绝任意代码、悬空引用和虚假细节绑定；
-- img2threejs 只提供细节清单、阶段化程序生成、确定性优先多视角检查和有界修复方法；当前不执行其任意 TypeScript，也不以 THREE.Group 取代 GLB/Snapshot；
-- 第一个退出样例是未来工业机械臂收藏品。在它完成一句话生成、三轮修改、八视角、唯一结果、重启和 GLB 导出前，不横向扩展其他整机领域。
+此时应在 UI 中按表示能力诚实降级，优先接入可替换的按量 Provider 或收窄商业承诺；不得把对象静默替换成已支持模板，也不得用“通用”掩盖失败类别。

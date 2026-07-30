@@ -70,7 +70,7 @@ try {
     await module[exportName]()
   }
 
-  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench] = await Promise.all([
+  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, visionEvidenceTransport, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench, referenceViewportPresentation, resultCards, agentTurnSubmission, viewportOverlays, referenceEvidenceAdapterLoader] = await Promise.all([
     readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanel.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentConversation.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentSelectionCard.tsx'), 'utf8'),
@@ -79,11 +79,17 @@ try {
     readFile(join(WORKBENCH_SOURCE, 'SurfaceAdornmentDrawer.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'ReferenceEvidenceDrawer.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'VisionEvidencePanel.tsx'), 'utf8'),
+    readFile(join(DESKTOP_SOURCE, 'shared', 'tauri', 'visionEvidence.ts'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'viewportDockState.ts'), 'utf8'),
     readFile(join(DESKTOP_SOURCE, 'shared', 'api', 'forgeApi.ts'), 'utf8'),
     readFile(join(DESKTOP_SOURCE, 'shared', 'api', 'packagedArmWebviewQa.ts'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'ModuleGraphViewport.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'useConceptWorkbench.ts'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'referenceViewportPresentation.ts'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanelResultCards.tsx'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'agentTurnSubmissionLoader.ts'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'cadWorkbenchPanelViewportOverlays.tsx'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'referenceEvidenceAdapterLoader.ts'), 'utf8'),
   ])
 
   assert((panel.match(/<ModuleGraphViewport/g) ?? []).length === 1, 'F026 must keep exactly one mounted viewport component')
@@ -95,8 +101,9 @@ try {
     'R007B reference/result A/B must feed the selected viewport source into the one existing renderer',
   )
   assert(
-    panel.includes('const viewportGlb = referenceViewportActive')
-      && panel.includes('const viewportShapeProgram = referenceViewportActive ? null : agentBlockoutShapeProgram')
+    referenceViewportPresentation.includes('const viewportGlb = activeReferenceViewport')
+      && referenceViewportPresentation.includes('const viewportShapeProgram = activeReferenceViewport ? null : blockoutShapeProgram')
+      && panel.includes('useCadWorkbenchPanelViewportState')
       && panel.includes('replaceReferenceViewport(null)'),
     'R007B must return to the result by changing inputs instead of replacing the canvas or camera owner',
   )
@@ -116,8 +123,8 @@ try {
     'F026 first launch must not automatically reopen a pre-Agent legacy project and make the current app look stale',
   )
   assert(!panel.includes('const presentationDirection = kernelResult.plan?.directions[0]'), 'a missing V003 decision must not fall back to the legacy planner first direction')
-  assert(panel.includes('state="compatibility_result"'), 'existing legacy previews must remain explicitly labelled as compatibility results')
-  assert(panel.includes("presentation.state === 'ready'") && panel.includes('loadSingleResultPreviewGlb'), 'formal ready must come from the sealed V003 decision and load its exact GLB')
+  assert(resultCards.includes('state="compatibility_result"'), 'existing legacy previews must remain explicitly labelled as compatibility results')
+  assert(panel.includes("presentation.state === 'ready'") && agentTurnSubmission.includes('loadSingleResultPreviewGlb'), 'formal ready must come from the sealed V003 decision and load its exact GLB')
   assert(panel.includes('confirmSingleResultPreview') && forgeApi.includes("':preview.glb'") && forgeApi.includes("':confirm'"), 'formal V003 preview and confirm must use the Rust-owned single-result routes')
   assert(panel.includes("singleResultDecisionPresentation.presentation.state === 'processing'"), 'the fixed composer must stay in its sending state while one formal V003 turn is compiling')
   assert(!panel.includes('data-variant-rank') && !panel.includes('Agent 完整外观方向'), 'the workbench must not restore direction-card selectors')
@@ -128,7 +135,12 @@ try {
   }
   assert(composer.includes('f026-composer-fixed') && composer.includes('<details') && composer.includes('<summary'), 'composer must remain fixed and expose its + actions through one native menu')
   assert(panel.includes('<SurfaceAdornmentDrawer') && panel.includes('surfaceAdornmentDisabledReason'), 'A005 appearance detail entry must be target-gated by the active saved asset, part, and zone')
-  assert(panel.includes('agentAssetChangeSet && !surfaceAdornmentOpen'), 'an A005-owned preview must keep its open drawer available so the user can retain or cancel it')
+  assert(
+    panel.includes('<SurfaceAdornmentDrawer')
+      && panel.includes('agentAssetChangeSet')
+      && panel.includes('onClose={() => setSurfaceAdornmentOpen(false)}'),
+    'an A005-owned preview must keep its drawer mounted so the user can retain or cancel it',
+  )
   assert(adornment.includes("status: 'unavailable'") && adornment.includes("status: 'preview_ready'") && adornment.includes('surfaceAdornmentPreviewEndpoint'), 'A005 UI must use explicit preview states and a centralized endpoint contract')
   assert(packagedArmQa.includes('[aria-label="选择部件 连杆护甲"][aria-pressed="true"]'), 'packaged A005 QA must wait for Rust Snapshot part selection before opening the drawer')
   assert(packagedArmQa.includes("['', 'none', 'compiled_agent_preview_pbr', 'compiled_agent_production_pbr']"), 'packaged QA must treat empty and lightweight preview hydration as pending while requiring the production PBR terminal state')
@@ -143,8 +155,8 @@ try {
   assert(
     panel.includes("measureEnabled={activeTool === 'measure'}")
       && panel.includes('onMeasurePoint={handleMeasurePoint}')
-      && panel.includes('data-testid="measurement-overlay"')
-      && panel.includes('固定标注'),
+      && viewportOverlays.includes('data-testid="measurement-overlay"')
+      && viewportOverlays.includes('固定标注'),
     'the existing one-renderer viewport must connect the measure tool to real raycast points and an ephemeral inspection overlay',
   )
   assert(
@@ -154,13 +166,13 @@ try {
     'measurement must raycast both legacy and Agent GLB roots through the existing renderer and freeze orbit for its two-click interaction',
   )
   assert(panel.includes('<ReferenceEvidenceDrawer') && panel.includes('referenceEvidenceRequestEpochRef'), 'R007 reference input must be project-scoped and invalidate late responses')
-  const referenceAdapterSource = panel.slice(panel.indexOf('const referenceEvidenceAdapter'), panel.indexOf('const navigateAgentAsset'))
+  const referenceAdapterSource = referenceEvidenceAdapterLoader
   assert(referenceAdapterSource.includes('content_base64: contentBase64') && referenceAdapterSource.includes("media_type: kind === 'glb' ? 'model/gltf-binary' : file.type"), 'R007 must send image and GLB bytes to the zero-version-side-effect evidence endpoint')
   assert(!referenceAdapterSource.includes('api.importAgentGlb('), 'R007 must not create an external AgentAssetVersion before rebuild confirmation')
   assert(
     referenceAdapterSource.includes('const glb = await content.blob.arrayBuffer()')
       && referenceAdapterSource.indexOf('const glb = await content.blob.arrayBuffer()')
-        < referenceAdapterSource.lastIndexOf('epoch !== referenceEvidenceRequestEpochRef.current'),
+        < referenceAdapterSource.lastIndexOf('epoch !== getCurrentEpoch()'),
     'R007B reference GLB decoding must re-check the project epoch before updating the shared viewport',
   )
   const referenceCancelSource = referenceAdapterSource.slice(
@@ -192,18 +204,29 @@ try {
   assert(referenceEvidence.includes('保留') && referenceEvidence.includes('主动改变') && referenceEvidence.includes('仍未知'), 'R007B must present the three bounded reference/rebuild comparison columns')
   assert(referenceEvidence.includes('单张图片只约束') && referenceEvidence.includes('保真度上限'), 'R007B must make single-image and missing-view fidelity limits explicit')
   assert(
-    visionEvidence.includes('使用这些证据生成 3D')
+    visionEvidence.includes('授权比较并生成 3D')
       && visionEvidence.includes('setAnalyzedRequest(next.request)')
-      && panel.includes('visual_evidence_graph: multimodalContext.graph'),
-    'PV006C must use the Rust-normalized request and exact evidence graph in one native Agent Turn',
+      && visionEvidence.includes('authorizeVisualReferenceComparison(')
+      && visionEvidenceTransport.includes('maximum_variable_cost_microusd: 100000')
+      && visionEvidenceTransport.includes('maximum_calls: 3')
+      && agentTurnSubmission.includes('author_context: multimodalContext ?')
+      && agentTurnSubmission.includes('evidence_id: reference.evidence_id')
+      && agentTurnSubmission.includes('visual_evidence_graph: multimodalContext.graph')
+      && agentTurnSubmission.includes('visual_reference_comparison_authorization_id'),
+    'PV006C/U002 must send lightweight evidence selectors while preserving the exact graph and Rust budget authorization for compatibility normalization',
   )
   assert(!referenceEvidence.includes('相似度分数') || referenceEvidence.includes('不显示相似度分数'), 'R007B must not present a similarity score')
   assert(
     !panel.includes('VisualGenerationCard')
       && !panel.includes('useVisualGeneration')
       && !panel.includes('FAL API Key')
-      && !panel.includes('neural_visual_candidate_pbr'),
-    'the default F026 workbench must use the Rust-owned programmatic turn and must not require or advertise Fal/neural generation',
+      && !panel.includes('onMeshSeedReady')
+      && !visionEvidence.includes('MeshSeed')
+      && !visionEvidence.includes('mesh_seed')
+      && visionEvidence.includes('千问视觉')
+      && visionEvidence.includes('aliyuncs.com')
+      && visionEvidence.includes('qwen'),
+    'F026 must keep one Rust-owned generation path, expose Qwen-only visual evidence, and contain no remote Mesh Seed route',
   )
   assert(dockState.includes("'docked' | 'focus'") && !dockState.includes('canvas:'), 'viewport dock state must remain a pure dock/focus presentation state')
 
@@ -216,7 +239,7 @@ try {
       'docked_focus_presentation_state',
       'single_viewport_component',
       'no_direction_selection_or_appearance_rotation',
-      'default_programmatic_turn_without_fal',
+      'deepseek_qwen_only_provider_boundary',
     ],
   }, null, 2))
 } finally {

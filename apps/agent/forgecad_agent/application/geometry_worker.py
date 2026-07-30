@@ -29,6 +29,18 @@ from .surface_layer_pbr import (
     surface_layer_visual_texture_png_bytes,
     surface_layer_visual_texture_set,
 )
+from .reference_uv_projection import (
+    ALGORITHM_ID as REFERENCE_UV_EVIDENCE_ALGORITHM_ID,
+    ALGORITHM_VERSION as REFERENCE_UV_EVIDENCE_ALGORITHM_VERSION,
+    CAMERA_RASTER_ALGORITHM_ID,
+    CAMERA_RASTER_ALGORITHM_VERSION,
+    CAMERA_RASTER_SCHEMA_VERSION,
+    CameraUvRasterTriangle,
+    ReferenceCameraUvRasterBake,
+    ReferenceUvEvidenceBake,
+    bake_reference_camera_uv_raster,
+    bake_reference_uv_evidence,
+)
 from .visual_intent import visual_intent_for_direction
 from .visual_texture_sets import (
     GeometryArtifactProfileId,
@@ -122,6 +134,18 @@ class GeometryBuildResult:
 class GeometryCompileResult:
     glb_bytes: bytes
     readback: GeometryCompileReadback
+    operation_fragment_cache: Dict[str, "GeometryOperationFragment"]
+    fragment_cache_hit_operation_ids: Tuple[str, ...]
+    fragment_cache_miss_operation_ids: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GeometryOperationFragment:
+    fragment_sha256: str
+    operation_id: str
+    primitives: Tuple[GeometryPrimitive, ...]
+    csg_depth: int
+    feature: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -168,11 +192,16 @@ class ImportedGlbInspection:
     node_count: int
 
 
-MAX_IMPORTED_GLB_BYTES = 32 * 1024 * 1024
+# Keep user-supplied GLB imports bounded while allowing the C111B golden
+# production asset (about 34 MB with 1K five-channel PBR) to reach the normal
+# metadata-only inspection path. This is an upload bound, not a geometry or
+# visual-quality claim.
+MAX_IMPORTED_GLB_BYTES = 48 * 1024 * 1024
 MAX_IMPORTED_GLB_TRIANGLES = 250_000
 MAX_CSG_DEPTH = 8
 MAX_EDGE_FINISH_RADIUS_RATIO = 0.25
 MAX_EDGE_FINISH_SUBDIVISIONS = 3
+MAX_LATTICE_CORNER_OFFSET_RATIO = 0.25
 VISUAL_UV_REPEAT_MM = 320.0
 # Keep bounded primitives lightweight while avoiding the visibly faceted
 # 16-sided silhouette that dominated wheels, rotors, joints and capsule shells
@@ -201,6 +230,7 @@ _WORKER_EXECUTOR_IDS = frozenset({
     "restricted_subtract",
     "bevel_approximation",
     "surface_panel_attachment",
+    "bounded_lattice_deform",
 })
 
 
@@ -428,9 +458,9 @@ def _surface_adornments_by_zone(
 
 def _surface_layers_by_zone(
     boxes: Sequence[GeometryPrimitive],
-    lowering: Mapping[str, object] | None,
+    lowerings: Sequence[Mapping[str, object]],
 ) -> dict[str, Mapping[str, object]]:
-    """Bind one sealed Design Surface to its exact existing material zone.
+    """Bind sealed Design Surfaces to their exact existing material zones.
 
     A retained surface layer is not a new material selector.  Its Rust
     lowering carries the reviewed A005 base-material mapping, and this worker
@@ -438,18 +468,8 @@ def _surface_layers_by_zone(
     the zone's visual-only PBR texture set.
     """
 
-    if lowering is None:
+    if not lowerings:
         return {}
-    normalized = normalize_surface_layer_lowering(lowering)
-    adornments = normalized["adornments"]
-    if not adornments:
-        raise ValueError("surface layer lowering requires a reviewed A005 binding")
-    zone_ids = {str(item["target_zone_id"]) for item in adornments}
-    base_materials = {str(item["base_material"]) for item in adornments}
-    if len(zone_ids) != 1 or len(base_materials) != 1:
-        raise ValueError("surface layer lowering must bind one exact material zone")
-    zone_id = next(iter(zone_ids))
-    expected_index, _ = builtin_visual_material_binding(next(iter(base_materials)))
     material_indices_by_zone: dict[str, set[int]] = {}
     for primitive in boxes:
         if isinstance(primitive, BoxPrimitive):
@@ -467,12 +487,62 @@ def _surface_layers_by_zone(
                 material_indices_by_zone.setdefault(triangle_zone, set()).add(
                     builtin_visual_material_binding(triangle_material)[0]
                 )
-    actual_indices = material_indices_by_zone.get(zone_id)
-    if not actual_indices:
-        raise ValueError("surface layer target zone is not present in the compiled geometry")
-    if actual_indices != {expected_index}:
-        raise ValueError("surface layer base material does not match the target zone")
-    return {zone_id: normalized}
+    resolved: dict[str, Mapping[str, object]] = {}
+    for lowering in lowerings:
+        normalized = normalize_surface_layer_lowering(lowering)
+        adornments = normalized["adornments"]
+        if not adornments:
+            raise ValueError("surface layer lowering requires a reviewed A005 binding")
+        zone_ids = {str(item["target_zone_id"]) for item in adornments}
+        base_materials = {str(item["base_material"]) for item in adornments}
+        if len(zone_ids) != 1 or len(base_materials) != 1:
+            raise ValueError("surface layer lowering must bind one exact material zone")
+        zone_id = next(iter(zone_ids))
+        if zone_id in resolved:
+            raise ValueError("surface layer lowerings cannot target the same material zone")
+        expected_index, _ = builtin_visual_material_binding(next(iter(base_materials)))
+        actual_indices = material_indices_by_zone.get(zone_id)
+        if not actual_indices:
+            raise ValueError("surface layer target zone is not present in the compiled geometry")
+        if actual_indices != {expected_index}:
+            raise ValueError("surface layer base material does not match the target zone")
+        resolved[zone_id] = normalized
+    return resolved
+
+
+ReferenceUvEvidenceBakeRequest = ReferenceUvEvidenceBake | ReferenceCameraUvRasterBake
+
+
+def _reference_uv_evidence_by_zone(
+    bakes: Sequence[ReferenceUvEvidenceBakeRequest],
+    *,
+    surface_layers_by_zone: Mapping[str, Mapping[str, object]],
+    artifact_profile_id: GeometryArtifactProfileId,
+) -> dict[str, ReferenceUvEvidenceBakeRequest]:
+    """Permit reference pixels only on an already-retained Design Surface.
+
+    The generic author cannot use a reference image to introduce an arbitrary
+    material selector or to inflate an output texture profile.  Rust has
+    already bound the exact evidence, camera claim, and material zone; this
+    worker rechecks the remaining executable boundaries before any pixels can
+    enter the GLB.
+    """
+
+    expected_profile = geometry_artifact_profile_manifest(artifact_profile_id)
+    expected_dimensions = (
+        int(expected_profile["texture_width"]),
+        int(expected_profile["texture_height"]),
+    )
+    resolved: dict[str, ReferenceUvEvidenceBakeRequest] = {}
+    for bake in bakes:
+        if (bake.texture_width, bake.texture_height) != expected_dimensions:
+            raise ValueError("reference UV evidence dimensions do not match the artifact profile")
+        if bake.target_material_zone_id not in surface_layers_by_zone:
+            raise ValueError("reference UV evidence requires an exact retained Design Surface material zone")
+        if bake.target_material_zone_id in resolved:
+            raise ValueError("reference UV evidence cannot target the same material zone twice")
+        resolved[bake.target_material_zone_id] = bake
+    return resolved
 
 
 def compile_shape_program(
@@ -481,26 +551,44 @@ def compile_shape_program(
     artifact_profile_id: GeometryArtifactProfileId = "interactive_preview",
     surface_adornment_programs: Sequence[Mapping[str, object]] = (),
     surface_layer_lowering: Mapping[str, object] | None = None,
+    surface_layer_lowerings: Sequence[Mapping[str, object]] = (),
+    reference_uv_evidence_bakes: Sequence[Mapping[str, object]] = (),
     cancel_check: Callable[[], bool] | None = None,
     csg_timeout_seconds: float = DEFAULT_CSG_TIMEOUT_SECONDS,
+    operation_fragment_cache: Mapping[str, GeometryOperationFragment] | None = None,
 ) -> GeometryCompileResult:
     """Compile once, then bind all trusted facts to the resulting GLB readback."""
     artifact_profile = geometry_artifact_profile_manifest(artifact_profile_id)
     surface_adornments = _normalize_surface_adornment_programs(surface_adornment_programs)
-    normalized_surface_layer = (
-        normalize_surface_layer_lowering(surface_layer_lowering)
+    if surface_layer_lowering is not None and surface_layer_lowerings:
+        raise ValueError("cannot mix legacy and multi-zone surface layer lowerings")
+    raw_surface_layers = (
+        (surface_layer_lowering,)
         if surface_layer_lowering is not None
-        else None
+        else surface_layer_lowerings
     )
-    if normalized_surface_layer is not None:
-        lowered_adornments = normalized_surface_layer["adornments"]
+    normalized_surface_layers = [
+        normalize_surface_layer_lowering(lowering) for lowering in raw_surface_layers
+    ]
+    reference_uv_evidence: list[ReferenceUvEvidenceBakeRequest] = []
+    for value in reference_uv_evidence_bakes:
+        if not isinstance(value, Mapping):
+            raise ValueError("reference UV evidence input must be an object")
+        reference_uv_evidence.append(
+            ReferenceCameraUvRasterBake.from_value(value)
+            if value.get("schema_version") == CAMERA_RASTER_SCHEMA_VERSION
+            else ReferenceUvEvidenceBake.from_value(value)
+        )
+    lowered_adornments = tuple(
+        item for lowering in normalized_surface_layers for item in lowering["adornments"]
+    )
+    if lowered_adornments:
         if any(item not in surface_adornments for item in lowered_adornments):
             raise ValueError("surface layer lowering lost a Rust-lowered A005 adornment")
         layer_zones = {item["target_zone_id"] for item in lowered_adornments}
-        if any(
-            item["target_zone_id"] in layer_zones and item not in lowered_adornments
-            for item in surface_adornments
-        ):
+        if len(layer_zones) != len(normalized_surface_layers):
+            raise ValueError("surface layer lowerings cannot target duplicate zones")
+        if any(item["target_zone_id"] in layer_zones and item not in lowered_adornments for item in surface_adornments):
             raise ValueError("surface layer lowering conflicts with another adornment on its zone")
         # The retained five-channel bake supersedes (rather than stacks with)
         # only its intermediate A005 texture set. Independent adornments on
@@ -523,6 +611,11 @@ def compile_shape_program(
     csg_depth_by_id: Dict[str, int] = {}
     feature_hash_by_id: Dict[str, str] = {}
     feature_history: List[Dict[str, Any]] = []
+    retained_fragment_cache: Dict[str, GeometryOperationFragment] = dict(
+        operation_fragment_cache or {}
+    )
+    fragment_cache_hit_operation_ids: List[str] = []
+    fragment_cache_miss_operation_ids: List[str] = []
     for operation in program.get("operations", []):
         if not isinstance(operation, dict):
             raise _runtime_operation_error("", "", "operation must be an object")
@@ -538,7 +631,31 @@ def compile_shape_program(
         material_id = str(args.get("material_id", "")) or None
         material_zone_id = str(args.get("zone_id", "")) or None
         material = _material_index(material_id or "")
-        if op in {"mirror", "array", "radial_array", "union", "subtract"} and any(
+        input_hashes = [
+            feature_hash_by_id[str(input_id)]
+            for input_id in operation.get("inputs", [])
+        ]
+        fragment_sha256 = _geometry_operation_fragment_sha256(
+            operation,
+            input_hashes=input_hashes,
+            profile_inputs=profile_inputs,
+            artifact_profile_sha256=str(artifact_profile["profile_sha256"]),
+        )
+        cached_fragment = retained_fragment_cache.get(fragment_sha256)
+        if (
+            cached_fragment is not None
+            and cached_fragment.operation_id == operation_id
+            and cached_fragment.fragment_sha256 == fragment_sha256
+        ):
+            resolved[operation_id] = list(cached_fragment.primitives)
+            csg_depth_by_id[operation_id] = cached_fragment.csg_depth
+            feature = dict(cached_fragment.feature)
+            feature_hash_by_id[operation_id] = str(feature["result_sha256"])
+            feature_history.append(feature)
+            fragment_cache_hit_operation_ids.append(operation_id)
+            continue
+        fragment_cache_miss_operation_ids.append(operation_id)
+        if op in {"mirror", "array", "radial_array", "union", "subtract", "lattice_deform"} and any(
             _primitive_has_static_rotation(item)
             for input_id in operation.get("inputs", [])
             for item in resolved.get(str(input_id), [])
@@ -778,6 +895,17 @@ def compile_shape_program(
                 rotation_origin_mm=base.rotation_origin_mm or base.center_mm,
             )
             resolved[operation_id] = [*source, panel]
+        elif op == "lattice_deform":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if not source:
+                raise _runtime_operation_error(operation_id, op, "lattice_deform requires one exportable mesh input")
+            resolved[operation_id] = [_apply_bounded_lattice_deform(
+                source,
+                corner_offsets=args.get("corner_offsets"),
+                operation_id=operation_id,
+                part_role=role,
+            )]
         elif op in {"mirror", "array", "radial_array"}:
             inputs = operation.get("inputs", [])
             source = resolved.get(inputs[0], []) if inputs else []
@@ -884,12 +1012,23 @@ def compile_shape_program(
         feature = _feature_node_readback(
             operation=operation,
             primitives=resolved.get(operation_id, []),
-            input_hashes=[feature_hash_by_id[str(input_id)] for input_id in operation.get("inputs", [])],
+            input_hashes=input_hashes,
             csg_depth=csg_depth_by_id[operation_id],
             artifact_profile_sha256=str(artifact_profile["profile_sha256"]),
         )
         feature_hash_by_id[operation_id] = str(feature["result_sha256"])
         feature_history.append(feature)
+        operation_primitives = tuple(resolved.get(operation_id, []))
+        if len(operation_primitives) <= 512 and all(
+            isinstance(item, BoxPrimitive) for item in operation_primitives
+        ):
+            retained_fragment_cache[fragment_sha256] = GeometryOperationFragment(
+                fragment_sha256=fragment_sha256,
+                operation_id=operation_id,
+                primitives=operation_primitives,
+                csg_depth=csg_depth_by_id[operation_id],
+                feature=dict(feature),
+            )
     boxes = [item for output in program.get("outputs", []) if isinstance(output, dict) for item in resolved.get(str(output.get("operation_id")), [])]
     if not boxes:
         raise ValueError("ShapeProgram has no exportable geometry outputs")
@@ -901,13 +1040,19 @@ def compile_shape_program(
             f"compiled triangle count {expected_triangles} exceeds artifact budget {effective_triangle_budget}",
         )
     adornments_by_zone = _surface_adornments_by_zone(boxes, surface_adornments)
-    surface_layers_by_zone = _surface_layers_by_zone(boxes, normalized_surface_layer)
+    surface_layers_by_zone = _surface_layers_by_zone(boxes, normalized_surface_layers)
+    reference_uv_evidence_by_zone = _reference_uv_evidence_by_zone(
+        reference_uv_evidence,
+        surface_layers_by_zone=surface_layers_by_zone,
+        artifact_profile_id=artifact_profile_id,
+    )
     glb, compiler_bounds = _build_glb(
         boxes,
         feature_history=feature_history,
         artifact_profile_id=artifact_profile_id,
         surface_adornments_by_zone=adornments_by_zone,
         surface_layers_by_zone=surface_layers_by_zone,
+        reference_uv_evidence_by_zone=reference_uv_evidence_by_zone,
     )
     try:
         facts = read_shape_program_glb_facts(glb)
@@ -956,7 +1101,44 @@ def compile_shape_program(
         material_ids=sorted(_material_ids_for_primitives(boxes)),
         readback_status="passed",
     )
-    return GeometryCompileResult(glb_bytes=glb, readback=readback)
+    return GeometryCompileResult(
+        glb_bytes=glb,
+        readback=readback,
+        operation_fragment_cache=retained_fragment_cache,
+        fragment_cache_hit_operation_ids=tuple(fragment_cache_hit_operation_ids),
+        fragment_cache_miss_operation_ids=tuple(fragment_cache_miss_operation_ids),
+    )
+
+
+def _geometry_operation_fragment_sha256(
+    operation: Mapping[str, Any],
+    *,
+    input_hashes: Sequence[str],
+    profile_inputs: Mapping[str, Mapping[str, Any]],
+    artifact_profile_sha256: str,
+) -> str:
+    args = operation.get("args")
+    referenced_profile_inputs: Dict[str, Mapping[str, Any]] = {}
+    if isinstance(args, Mapping):
+        for field in ("profile_input_id", "section_set_input_id"):
+            input_id = args.get(field)
+            if isinstance(input_id, str) and input_id in profile_inputs:
+                referenced_profile_inputs[input_id] = profile_inputs[input_id]
+    payload = {
+        "algorithm": "forgecad-geometry-fragment-v1",
+        "artifact_profile_sha256": artifact_profile_sha256,
+        "operation": operation,
+        "input_hashes": list(input_hashes),
+        "profile_inputs": referenced_profile_inputs,
+    }
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def build_glb_from_shape_program(program: Dict[str, Any]) -> Tuple[bytes, List[float], int]:
@@ -1454,13 +1636,24 @@ def _read_visual_pbr_facts(
     def number_matches(value: Any, expected: float) -> bool:
         return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)) and math.isclose(float(value), expected)
 
-    def texture_map(texture_index: Any, role: str, expected_map: Any) -> Dict[str, Any]:
+    def texture_map(
+        texture_index: Any,
+        role: str,
+        expected_map: Any,
+        *,
+        reference_receipt: Mapping[str, object] | None = None,
+    ) -> Dict[str, Any]:
         if type(texture_index) is not int or texture_index < 0 or texture_index >= len(textures):
             raise ValueError("GLB PBR texture reference is invalid")
         texture = textures[texture_index]
         if not isinstance(texture, dict):
             raise ValueError("GLB texture entry is invalid")
-        if set(texture) != {"name", "source"} or texture.get("name") != expected_map.texture_id:
+        expected_texture_id = (
+            reference_receipt["base_color_texture_id"]
+            if reference_receipt is not None and role == "base_color"
+            else expected_map.texture_id
+        )
+        if set(texture) != {"name", "source"} or texture.get("name") != expected_texture_id:
             raise ValueError("GLB PBR sampling state does not match the fixed repeat/linear contract")
         image_index = texture.get("source")
         if type(image_index) is not int or image_index < 0 or image_index >= len(images):
@@ -1468,7 +1661,7 @@ def _read_visual_pbr_facts(
         image = images[image_index]
         if not isinstance(image, dict) or "uri" in image or image.get("mimeType") != "image/png":
             raise ValueError("GLB PBR image must be embedded PNG data")
-        if image.get("name") != expected_map.texture_id:
+        if image.get("name") != expected_texture_id:
             raise ValueError("GLB PBR image identity does not match its built-in texture")
         view_index = image.get("bufferView")
         if type(view_index) is not int or view_index < 0 or view_index >= len(views):
@@ -1505,26 +1698,42 @@ def _read_visual_pbr_facts(
         expected_space = "srgb" if role in {"base_color", "emissive"} else "linear"
         if metadata.get("color_space") != expected_space:
             raise ValueError("GLB PBR image has an invalid colour space")
-        if metadata.get("source") != "forgecad_builtin" or metadata.get("license") != "not_applicable":
-            raise ValueError("GLB PBR image provenance is outside the built-in boundary")
         expected_metadata = expected_map.model_dump(mode="json")
-        expected_payload = (
-            surface_layer_visual_texture_png_bytes(
-                normalized_surface_layer,
-                artifact_profile_id=artifact_profile_id,
-                texture_role=role,
+        if reference_receipt is not None and role == "base_color":
+            expected_metadata = {
+                **expected_metadata,
+                "texture_id": reference_receipt["base_color_texture_id"],
+                "byte_size": reference_receipt["base_color_byte_size"],
+                "sha256": reference_receipt["base_color_sha256"],
+                "source": "imported_reference",
+                "license": "unknown",
+            }
+            if (
+                metadata != expected_metadata
+                or hashlib.sha256(payload).hexdigest() != reference_receipt["base_color_sha256"]
+                or len(payload) != reference_receipt["base_color_byte_size"]
+            ):
+                raise ValueError("GLB reference UV evidence base colour does not match its receipt")
+        else:
+            if metadata.get("source") != "forgecad_builtin" or metadata.get("license") != "not_applicable":
+                raise ValueError("GLB PBR image provenance is outside the built-in boundary")
+            expected_payload = (
+                surface_layer_visual_texture_png_bytes(
+                    normalized_surface_layer,
+                    artifact_profile_id=artifact_profile_id,
+                    texture_role=role,
+                )
+                if normalized_surface_layer is not None
+                else surface_adornment_visual_texture_png_bytes(
+                    normalized_adornment,
+                    artifact_profile_id=artifact_profile_id,
+                    texture_role=role,
+                )
+                if normalized_adornment is not None
+                else visual_texture_png_bytes(expected_map.texture_id)
             )
-            if normalized_surface_layer is not None
-            else surface_adornment_visual_texture_png_bytes(
-                normalized_adornment,
-                artifact_profile_id=artifact_profile_id,
-                texture_role=role,
-            )
-            if normalized_adornment is not None
-            else visual_texture_png_bytes(expected_map.texture_id)
-        )
-        if metadata != expected_metadata or payload != expected_payload:
-            raise ValueError("GLB PBR image does not match the built-in texture truth")
+            if metadata != expected_metadata or payload != expected_payload:
+                raise ValueError("GLB PBR image does not match the built-in texture truth")
         return {
             "texture_id": metadata.get("texture_id"),
             "texture_role": role,
@@ -1552,6 +1761,7 @@ def _read_visual_pbr_facts(
         texture_material_id = extras.get("forgecad_texture_material_id") if isinstance(extras, dict) else None
         surface_layer = extras.get("forgecad_surface_layer_lowering") if isinstance(extras, dict) else None
         adornment = extras.get("forgecad_surface_adornment") if isinstance(extras, dict) else None
+        reference_receipt = extras.get("forgecad_reference_uv_evidence") if isinstance(extras, dict) else None
         normalized_adornment: dict[str, object] | None = None
         normalized_surface_layer: dict[str, object] | None = None
         if surface_layer is not None:
@@ -1579,7 +1789,19 @@ def _read_visual_pbr_facts(
                 or set(zone_ids) != {expected_zone_id}
             ):
                 raise ValueError("GLB material does not match the retained surface layer PBR truth")
+            if reference_receipt is not None:
+                _validate_reference_uv_evidence_receipt(
+                    receipt=reference_receipt,
+                    images=images,
+                    binary=binary,
+                    views=views,
+                    expected_zone_id=expected_zone_id,
+                    expected_width=int(expected_texture_set.maps[0].width),
+                    expected_height=int(expected_texture_set.maps[0].height),
+                )
         elif adornment is None:
+            if reference_receipt is not None:
+                raise ValueError("GLB reference UV evidence requires a retained Design Surface material")
             try:
                 expected_texture_set = builtin_visual_texture_set_for_readback(
                     material_index,
@@ -1595,6 +1817,8 @@ def _read_visual_pbr_facts(
             ):
                 raise ValueError("GLB material does not match the built-in VisualTextureSet identity")
         else:
+            if reference_receipt is not None:
+                raise ValueError("GLB reference UV evidence cannot target an A005 material row")
             normalized_adornment = normalize_surface_adornment_program(adornment)
             expected_texture_set = surface_adornment_visual_texture_set(
                 normalized_adornment,
@@ -1654,7 +1878,12 @@ def _read_visual_pbr_facts(
         }
         expected_maps = {item.texture_role: item for item in expected_texture_set.maps}
         maps = [
-            texture_map(refs[role], role, expected_maps[role])
+            texture_map(
+                refs[role],
+                role,
+                expected_maps[role],
+                reference_receipt=reference_receipt if role == "base_color" else None,
+            )
             for role in ("base_color", "metallic_roughness", "normal", "occlusion", "emissive")
         ]
         extensions = material.get("extensions", {})
@@ -1777,8 +2006,155 @@ def _read_visual_pbr_facts(
                 if normalized_surface_layer is not None
                 else {}
             ),
+            **(
+                {"reference_uv_evidence": dict(reference_receipt)}
+                if reference_receipt is not None
+                else {}
+            ),
         })
     return results
+
+
+def _validate_reference_uv_evidence_receipt(
+    *,
+    receipt: object,
+    images: Sequence[Any],
+    binary: bytes,
+    views: Sequence[Any],
+    expected_zone_id: str,
+    expected_width: int,
+    expected_height: int,
+) -> None:
+    """Verify the GLB-local receipt for a bounded observed-UV bake.
+
+    This is deliberately not a generic image import path.  The material keeps
+    its retained Design Surface lowering; the receipt can only replace the
+    base-colour bytes for an explicit observed rectangle and must carry an
+    embedded inverse mask for the still-unobserved texels.
+    """
+
+    common_required = {
+        "schema_version", "algorithm_id", "algorithm_version", "projection_id",
+        "projection_sha256", "source_evidence_id", "source_image_sha256",
+        "camera_hypothesis_id", "camera_provenance_sha256", "target_material_zone_id",
+        "base_color_texture_id", "base_color_sha256",
+        "base_color_byte_size", "unobserved_texel_mask_id",
+        "unobserved_texel_mask_sha256", "unobserved_texel_mask_byte_size",
+        "observed_texel_count", "unobserved_texel_count",
+    }
+    legacy_required = common_required | {"observed_uv_rect_bps"}
+    camera_raster_required = common_required | {
+        "world_to_clip_sha256", "raster_triangle_count",
+    }
+    if not isinstance(receipt, dict) or set(receipt) not in {
+        frozenset(legacy_required),
+        frozenset(camera_raster_required),
+    }:
+        raise ValueError("GLB reference UV evidence receipt has an invalid shape")
+    is_camera_raster = set(receipt) == camera_raster_required
+    if (
+        receipt.get("schema_version") != (
+            "ReferenceCameraUvRasterBakeReceipt@2"
+            if is_camera_raster
+            else "ReferenceUvEvidenceBakeReceipt@1"
+        )
+        or receipt.get("algorithm_id") != (
+            CAMERA_RASTER_ALGORITHM_ID
+            if is_camera_raster
+            else REFERENCE_UV_EVIDENCE_ALGORITHM_ID
+        )
+        or receipt.get("algorithm_version") != (
+            CAMERA_RASTER_ALGORITHM_VERSION
+            if is_camera_raster
+            else REFERENCE_UV_EVIDENCE_ALGORITHM_VERSION
+        )
+        or receipt.get("target_material_zone_id") != expected_zone_id
+    ):
+        raise ValueError("GLB reference UV evidence receipt identity is invalid")
+    stable_ids = (
+        "projection_id", "source_evidence_id", "camera_hypothesis_id",
+        "base_color_texture_id", "unobserved_texel_mask_id",
+    )
+    if any(
+        not isinstance(receipt.get(field), str)
+        or not receipt[field]
+        or len(receipt[field]) > 128
+        or any(not (character.isascii() and (character.isalnum() or character in "_-")) for character in receipt[field])
+        for field in stable_ids
+    ):
+        raise ValueError("GLB reference UV evidence receipt identifiers are invalid")
+    hashes = [
+        "projection_sha256", "source_image_sha256", "camera_provenance_sha256",
+        "base_color_sha256", "unobserved_texel_mask_sha256",
+    ]
+    if is_camera_raster:
+        hashes.append("world_to_clip_sha256")
+    if any(
+        not isinstance(receipt.get(field), str)
+        or len(receipt[field]) != 64
+        or any(character not in "0123456789abcdef" for character in receipt[field])
+        for field in hashes
+    ):
+        raise ValueError("GLB reference UV evidence receipt hashes are invalid")
+    if is_camera_raster:
+        if (
+            type(receipt.get("raster_triangle_count")) is not int
+            or receipt["raster_triangle_count"] <= 0
+            or receipt["raster_triangle_count"] > 120_000
+        ):
+            raise ValueError("GLB camera UV raster receipt triangle count is invalid")
+    else:
+        rect = receipt.get("observed_uv_rect_bps")
+        if (
+            not isinstance(rect, list)
+            or len(rect) != 4
+            or any(type(component) is not int for component in rect)
+            or not (0 <= rect[0] < rect[2] <= 10_000 and 0 <= rect[1] < rect[3] <= 10_000)
+        ):
+            raise ValueError("GLB reference UV evidence receipt rectangle is invalid")
+    numeric_fields = (
+        "base_color_byte_size", "unobserved_texel_mask_byte_size",
+        "observed_texel_count", "unobserved_texel_count",
+    )
+    if any(type(receipt.get(field)) is not int or receipt[field] <= 0 for field in numeric_fields):
+        raise ValueError("GLB reference UV evidence receipt counts are invalid")
+    if receipt["observed_texel_count"] + receipt["unobserved_texel_count"] != expected_width * expected_height:
+        raise ValueError("GLB reference UV evidence coverage does not match the PBR texture dimensions")
+    mask_id = receipt["unobserved_texel_mask_id"]
+    mask_images = [item for item in images if isinstance(item, dict) and item.get("name") == mask_id]
+    if len(mask_images) != 1:
+        raise ValueError("GLB reference UV evidence mask image is missing or ambiguous")
+    mask_image = mask_images[0]
+    if mask_image.get("mimeType") != "image/png" or "uri" in mask_image:
+        raise ValueError("GLB reference UV evidence mask must be embedded PNG data")
+    mask_extras = mask_image.get("extras")
+    expected_mask_metadata = {
+        "projection_sha256": receipt["projection_sha256"],
+        "sha256": receipt["unobserved_texel_mask_sha256"],
+        "byte_size": receipt["unobserved_texel_mask_byte_size"],
+    }
+    if not isinstance(mask_extras, dict) or mask_extras.get("forgecad_reference_uv_evidence_mask") != expected_mask_metadata:
+        raise ValueError("GLB reference UV evidence mask metadata is invalid")
+    view_index = mask_image.get("bufferView")
+    if type(view_index) is not int or view_index < 0 or view_index >= len(views):
+        raise ValueError("GLB reference UV evidence mask view is invalid")
+    view = views[view_index]
+    if not isinstance(view, dict) or view.get("buffer") != 0 or "byteStride" in view:
+        raise ValueError("GLB reference UV evidence mask view is invalid")
+    offset = view.get("byteOffset", 0)
+    length = view.get("byteLength")
+    if (
+        type(offset) is not int or offset < 0 or offset % 4 != 0
+        or type(length) is not int or length <= 0 or offset + length > len(binary)
+    ):
+        raise ValueError("GLB reference UV evidence mask exceeds its binary buffer")
+    payload = binary[offset:offset + length]
+    if (
+        len(payload) != receipt["unobserved_texel_mask_byte_size"]
+        or hashlib.sha256(payload).hexdigest() != receipt["unobserved_texel_mask_sha256"]
+        or _readback_png_dimensions(payload) != (expected_width, expected_height)
+    ):
+        raise ValueError("GLB reference UV evidence mask bytes do not match the receipt")
 
 
 def _readback_png_dimensions(payload: bytes) -> Tuple[int, int]:
@@ -2130,7 +2506,7 @@ def inspect_imported_glb(payload: bytes) -> ImportedGlbInspection:
     using glTF's metre convention.
     """
     if len(payload) < 20 or len(payload) > MAX_IMPORTED_GLB_BYTES:
-        raise ValueError("导入 GLB 超出 20 B–32 MB 的轻量限制。")
+        raise ValueError("导入 GLB 超出 20 B–48 MB 的轻量限制。")
     document, binary = _parse_glb_chunks(payload)
     if document.get("asset", {}).get("version") != "2.0":
         raise ValueError("只支持 glTF 2.0 GLB。")
@@ -4631,6 +5007,70 @@ def _primitive_csg_solid(primitive: GeometryPrimitive) -> Dict[str, Any]:
     return {"triangles": triangles}
 
 
+def _apply_bounded_lattice_deform(
+    source: Sequence[GeometryPrimitive],
+    *,
+    corner_offsets: Any,
+    operation_id: str,
+    part_role: str,
+) -> CsgMeshPrimitive:
+    """Apply a fixed 2x2x2 trilinear cage to one bounded local mesh source.
+
+    Offsets are fractions of the current source AABB.  We deliberately keep
+    the mesh topology intact: no subdivision, remeshing, imported geometry or
+    executable user code is introduced by this local representation.
+    """
+
+    if not isinstance(corner_offsets, list) or len(corner_offsets) != 8:
+        raise _runtime_operation_error(operation_id, "lattice_deform", "requires exactly eight corner offsets")
+    try:
+        offsets = [tuple(float(value) for value in offset) for offset in corner_offsets]
+    except (TypeError, ValueError) as exc:
+        raise _runtime_operation_error(operation_id, "lattice_deform", "corner offsets must be numeric triplets") from exc
+    if any(len(offset) != 3 for offset in offsets) or any(
+        not math.isfinite(value) or abs(value) > MAX_LATTICE_CORNER_OFFSET_RATIO
+        for offset in offsets
+        for value in offset
+    ):
+        raise _runtime_operation_error(operation_id, "lattice_deform", "corner offsets exceed the bounded cage")
+    if not any(abs(value) > 1e-9 for offset in offsets for value in offset):
+        raise _runtime_operation_error(operation_id, "lattice_deform", "corner offsets must change the source mesh")
+
+    triangles = [dict(triangle) for primitive in source for triangle in _primitive_csg_solid(primitive)["triangles"]]
+    vertices = [tuple(float(value) for value in vertex) for triangle in triangles for vertex in triangle["vertices_mm"]]
+    if not vertices:
+        raise _runtime_operation_error(operation_id, "lattice_deform", "source mesh has no vertices")
+    lower = tuple(min(vertex[axis] for vertex in vertices) for axis in range(3))
+    upper = tuple(max(vertex[axis] for vertex in vertices) for axis in range(3))
+    extent = tuple(upper[axis] - lower[axis] for axis in range(3))
+    if any(value <= 1e-6 or not math.isfinite(value) for value in extent):
+        raise _runtime_operation_error(operation_id, "lattice_deform", "source mesh has a degenerate deformation bounds")
+
+    def deform(vertex: tuple[float, float, float]) -> list[float]:
+        unit = tuple(min(1.0, max(0.0, (vertex[axis] - lower[axis]) / extent[axis])) for axis in range(3))
+        displacement = [0.0, 0.0, 0.0]
+        for index, offset in enumerate(offsets):
+            ix, iy, iz = index & 1, (index >> 1) & 1, (index >> 2) & 1
+            weight = (unit[0] if ix else 1.0 - unit[0]) * (unit[1] if iy else 1.0 - unit[1]) * (unit[2] if iz else 1.0 - unit[2])
+            for axis in range(3):
+                displacement[axis] += weight * offset[axis] * extent[axis]
+        return [vertex[axis] + displacement[axis] for axis in range(3)]
+
+    for triangle in triangles:
+        deformed = [deform(tuple(float(value) for value in vertex)) for vertex in triangle["vertices_mm"]]
+        edge_a = [deformed[1][axis] - deformed[0][axis] for axis in range(3)]
+        edge_b = [deformed[2][axis] - deformed[0][axis] for axis in range(3)]
+        cross = (
+            edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
+            edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
+            edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
+        )
+        if not all(math.isfinite(value) for vertex in deformed for value in vertex) or sum(value * value for value in cross) <= 1e-12:
+            raise _runtime_operation_error(operation_id, "lattice_deform", "deformation would create a degenerate triangle")
+        triangle["vertices_mm"] = deformed
+    return CsgMeshPrimitive(part_role=part_role, feature_node_id=operation_id, triangles=tuple(triangles))
+
+
 def _solid_is_closed(solid: Mapping[str, Any]) -> bool:
     edges: Dict[Tuple[Tuple[float, float, float], Tuple[float, float, float]], int] = {}
     for triangle in solid.get("triangles", []):
@@ -5063,6 +5503,68 @@ def _surface_complete_payload(
     }
 
 
+def _camera_uv_raster_triangles_from_surface_payload(
+    payload: Mapping[str, Any],
+) -> list[CameraUvRasterTriangle]:
+    """Expose only the final, already-validated GLB surface to the rasterizer.
+
+    The reference raster cannot receive agent-owned source geometry.  It sees
+    the same split vertices, positions, UV0 and material-zone provenance that
+    will be written into the GLB, including any CSG/static transforms already
+    resolved by the restricted compiler.
+    """
+
+    extras = payload.get("extras")
+    zone_id = (
+        extras.get("forgecad_material_zone_id")
+        if isinstance(extras, Mapping)
+        else None
+    )
+    if not isinstance(zone_id, str) or not zone_id:
+        raise ValueError("camera UV raster requires a final material zone")
+    positions_bytes = payload.get("positions")
+    uvs_bytes = payload.get("uvs")
+    indices_bytes = payload.get("indices")
+    index_component = payload.get("index_component")
+    if not all(isinstance(value, bytes) for value in (positions_bytes, uvs_bytes, indices_bytes)):
+        raise ValueError("camera UV raster requires final binary mesh payloads")
+    if len(positions_bytes) % 12 or len(uvs_bytes) % 8:
+        raise ValueError("camera UV raster mesh payload dimensions are invalid")
+    positions = struct.unpack(f"<{len(positions_bytes) // 4}f", positions_bytes)
+    uvs = struct.unpack(f"<{len(uvs_bytes) // 4}f", uvs_bytes)
+    if len(positions) // 3 != len(uvs) // 2:
+        raise ValueError("camera UV raster final vertex attributes do not align")
+    index_format, index_size = {5123: ("H", 2), 5125: ("I", 4)}.get(
+        index_component,
+        (None, None),
+    )
+    if index_format is None or index_size is None or len(indices_bytes) % index_size:
+        raise ValueError("camera UV raster final index payload is invalid")
+    indices = struct.unpack(f"<{len(indices_bytes) // index_size}{index_format}", indices_bytes)
+    if len(indices) % 3:
+        raise ValueError("camera UV raster final indices are not triangles")
+    vertex_count = len(positions) // 3
+    if any(index >= vertex_count for index in indices):
+        raise ValueError("camera UV raster final index exceeds vertex data")
+
+    def position(vertex_index: int) -> tuple[float, float, float]:
+        offset = vertex_index * 3
+        return tuple(float(value) for value in positions[offset:offset + 3])  # type: ignore[return-value]
+
+    def uv(vertex_index: int) -> tuple[float, float]:
+        offset = vertex_index * 2
+        return tuple(float(value) for value in uvs[offset:offset + 2])  # type: ignore[return-value]
+
+    return [
+        CameraUvRasterTriangle(
+            material_zone_id=zone_id,
+            positions=(position(first), position(second), position(third)),
+            uvs=(uv(first), uv(second), uv(third)),
+        )
+        for first, second, third in zip(indices[0::3], indices[1::3], indices[2::3])
+    ]
+
+
 def _build_glb(
     boxes: Sequence[GeometryPrimitive],
     *,
@@ -5070,11 +5572,13 @@ def _build_glb(
     artifact_profile_id: GeometryArtifactProfileId,
     surface_adornments_by_zone: Mapping[str, Mapping[str, object]],
     surface_layers_by_zone: Mapping[str, Mapping[str, object]],
+    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeRequest],
 ) -> Tuple[bytes, List[float]]:
     binary = bytearray()
     views: List[Dict[str, Any]] = []
     accessors: List[Dict[str, Any]] = []
     primitives: List[Dict[str, Any]] = []
+    camera_raster_triangles: list[CameraUvRasterTriangle] = []
     used_material_indices: set[int] = set()
     minimum = [float("inf")] * 3
     maximum = [float("-inf")] * 3
@@ -5138,6 +5642,9 @@ def _build_glb(
                 part_instance_id=part_instance_id,
                 primitive_id=f"primitive_{box_index:04d}_{payload_index:03d}",
             )
+            camera_raster_triangles.extend(
+                _camera_uv_raster_triangles_from_surface_payload(payload)
+            )
             positions = payload["positions"]
             normals = payload["normals"]
             uvs = payload["uvs"]
@@ -5181,6 +5688,8 @@ def _build_glb(
         used_material_indices=used_material_indices,
         surface_adornments=sorted_surface_adornments,
         surface_layers=sorted_surface_layers,
+        reference_uv_evidence_by_zone=reference_uv_evidence_by_zone,
+        camera_raster_triangles=tuple(camera_raster_triangles),
     )
     document: Dict[str, Any] = {
         "asset": {"version": "2.0", "generator": "ForgeCAD ShapeProgram surface-complete/1"},
@@ -5226,6 +5735,8 @@ def _append_visual_pbr_resources(
     used_material_indices: set[int],
     surface_adornments: Sequence[Mapping[str, object]],
     surface_layers: Sequence[Mapping[str, object]],
+    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeRequest],
+    camera_raster_triangles: Sequence[CameraUvRasterTriangle],
 ) -> Dict[str, Any]:
     """Embed complete visual-only PBR maps in the same GLB as geometry.
 
@@ -5408,6 +5919,8 @@ def _append_visual_pbr_resources(
         if material_index not in used_material_indices:
             continue
         normalized_layer = normalize_surface_layer_lowering(lowering)
+        target_zone_id = str(normalized_layer["adornments"][0]["target_zone_id"])
+        reference_evidence = reference_uv_evidence_by_zone.get(target_zone_id)
         texture_set = surface_layer_visual_texture_set(
             normalized_layer,
             artifact_profile_id=artifact_profile_id,
@@ -5416,25 +5929,111 @@ def _append_visual_pbr_resources(
         base_index, texture_base_material_id = builtin_visual_material_binding(base_material_id)
         properties = builtin_material_properties(base_index)
         texture_by_role: Dict[str, int] = {}
+        reference_result = None
         for texture_map in texture_set.maps:
             payload = surface_layer_visual_texture_png_bytes(
                 normalized_layer,
                 artifact_profile_id=artifact_profile_id,
                 texture_role=texture_map.texture_role,
             )
-            if hashlib.sha256(payload).hexdigest() != texture_map.sha256 or len(payload) != texture_map.byte_size:
+            texture_metadata = texture_map.model_dump(mode="json")
+            if reference_evidence is not None and texture_map.texture_role == "base_color":
+                reference_result = (
+                    bake_reference_camera_uv_raster(
+                        payload,
+                        reference_evidence,
+                        camera_raster_triangles,
+                    )
+                    if isinstance(reference_evidence, ReferenceCameraUvRasterBake)
+                    else bake_reference_uv_evidence(payload, reference_evidence)
+                )
+                payload = reference_result.base_color_png
+                texture_metadata = {
+                    **texture_metadata,
+                    "texture_id": f"vtex_reference_{reference_result.projection_sha256[:24]}",
+                    "byte_size": len(payload),
+                    "sha256": reference_result.base_color_sha256,
+                    "source": "imported_reference",
+                    "license": "unknown",
+                }
+            elif hashlib.sha256(payload).hexdigest() != texture_map.sha256 or len(payload) != texture_map.byte_size:
                 raise ValueError("surface layer texture bytes do not match their manifest")
             view_index = _add_binary_view(binary, views, payload)
             image_index = len(images)
             images.append({
-                "name": texture_map.texture_id,
+                "name": texture_metadata["texture_id"],
                 "bufferView": view_index,
                 "mimeType": texture_map.mime_type,
-                "extras": {"forgecad_visual_texture": texture_map.model_dump(mode="json")},
+                "extras": {"forgecad_visual_texture": texture_metadata},
             })
             texture_index = len(textures)
-            textures.append({"name": texture_map.texture_id, "source": image_index})
+            textures.append({"name": texture_metadata["texture_id"], "source": image_index})
             texture_by_role[texture_map.texture_role] = texture_index
+        reference_receipt: dict[str, object] | None = None
+        if reference_evidence is not None:
+            if reference_result is None:
+                raise ValueError("reference UV evidence did not produce the required base-colour receipt")
+            mask_id = f"vtexmask_reference_{reference_result.projection_sha256[:24]}"
+            mask_view_index = _add_binary_view(
+                binary,
+                views,
+                reference_result.unobserved_texel_mask_png,
+            )
+            images.append({
+                "name": mask_id,
+                "bufferView": mask_view_index,
+                "mimeType": "image/png",
+                "extras": {"forgecad_reference_uv_evidence_mask": {
+                    "projection_sha256": reference_result.projection_sha256,
+                    "sha256": reference_result.unobserved_texel_mask_sha256,
+                    "byte_size": len(reference_result.unobserved_texel_mask_png),
+                }},
+            })
+            is_camera_raster = isinstance(reference_evidence, ReferenceCameraUvRasterBake)
+            reference_receipt = {
+                "schema_version": (
+                    "ReferenceCameraUvRasterBakeReceipt@2"
+                    if is_camera_raster
+                    else "ReferenceUvEvidenceBakeReceipt@1"
+                ),
+                "algorithm_id": (
+                    CAMERA_RASTER_ALGORITHM_ID
+                    if is_camera_raster
+                    else REFERENCE_UV_EVIDENCE_ALGORITHM_ID
+                ),
+                "algorithm_version": (
+                    CAMERA_RASTER_ALGORITHM_VERSION
+                    if is_camera_raster
+                    else REFERENCE_UV_EVIDENCE_ALGORITHM_VERSION
+                ),
+                "projection_id": reference_evidence.projection_id,
+                "projection_sha256": reference_result.projection_sha256,
+                "source_evidence_id": reference_evidence.source_evidence_id,
+                "source_image_sha256": reference_evidence.source_image_sha256,
+                "camera_hypothesis_id": reference_evidence.camera_hypothesis_id,
+                "camera_provenance_sha256": reference_evidence.camera_provenance_sha256,
+                "target_material_zone_id": target_zone_id,
+                "base_color_texture_id": f"vtex_reference_{reference_result.projection_sha256[:24]}",
+                "base_color_sha256": reference_result.base_color_sha256,
+                "base_color_byte_size": len(reference_result.base_color_png),
+                "unobserved_texel_mask_id": mask_id,
+                "unobserved_texel_mask_sha256": reference_result.unobserved_texel_mask_sha256,
+                "unobserved_texel_mask_byte_size": len(reference_result.unobserved_texel_mask_png),
+                "observed_texel_count": reference_result.observed_texel_count,
+                "unobserved_texel_count": reference_result.unobserved_texel_count,
+            }
+            if is_camera_raster:
+                reference_receipt["world_to_clip_sha256"] = hashlib.sha256(
+                    json.dumps(
+                        list(reference_evidence.world_to_clip_row_major),
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest()
+                reference_receipt["raster_triangle_count"] = len(camera_raster_triangles)
+            else:
+                reference_receipt["observed_uv_rect_bps"] = list(
+                    reference_evidence.observed_uv_rect_bps
+                )
         pbr: Dict[str, Any] = {
             "baseColorFactor": [1, 1, 1, float(properties["alpha"])],
             "metallicFactor": 1,
@@ -5456,6 +6055,11 @@ def _append_visual_pbr_resources(
                 "forgecad_surface_layer_lowering": dict(normalized_layer),
                 "forgecad_surface_layer_lowering_sha256": surface_layer_lowering_sha256(normalized_layer),
                 "forgecad_surface_layer_retained_layers_sha256": normalized_layer["retained_layers_sha256"],
+                **(
+                    {"forgecad_reference_uv_evidence": reference_receipt}
+                    if reference_receipt is not None
+                    else {}
+                ),
                 "forgecad_visual_only": True,
             },
         }

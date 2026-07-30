@@ -10,8 +10,10 @@ path = "src/lib.rs"
 
 [dependencies]
 base64 = "0.22"
+chrono = "0.4.45"
 forgecad-app-server-protocol = { path = "../forgecad-app-server-protocol" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+meshopt = "0.6.2"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

@@ -20,7 +20,8 @@ use crate::{
     ChangeSetStatus, ComponentRecipeRef, ConfirmedAsset, ContentAddressedObjectStore, CoreError,
     CoreResult, CreateReferenceEvidenceRequest, DraftCandidate, DraftCandidateBundleReadback,
     DraftCandidateStatus, ExpandedComponentCandidate, ExportReference,
-    ExternalGlbImportBundleReadback, ForgeCadGlbReadback, ImportExternalGlbRequest,
+    ExternalGlbImportBundleReadback, ForgeCadGlbReadback, GameDeliveryCandidateBundleReadback,
+    ImportExternalGlbRequest,
     ImportExternalGlbResponse, ImportedGlbRecord, LegacyActiveDesignConversionResponse,
     LegacyActiveDesignSource, LegacyAgentConversionIntent, MaterialTextureLicense,
     MaterialTextureObject, MaterialTextureQuery, MaterialTextureRole, MaterialTextureSource,
@@ -30,9 +31,17 @@ use crate::{
     RecipeSlotBinding, RecipeSurfaceAdornmentSlot, ReferenceEvidence, ReferenceEvidenceKind,
     ReferenceGuidedRebuildPlan, ReferenceGuidedRebuildPlanStatus, ReferenceSurfaceAnalysis,
     RegisterMaterialTextureRequest, RenderPreset, SkillEvalStatus, SnapshotEtag, StoredObject,
-    SurfaceAdornmentProgram, VisualRemoteJobRecord, VisualRemoteJobState, WriterLease,
+    SurfaceAdornmentProgram, VisualReferenceComparisonAuthorization,
+    VisualReferenceComparisonBudgetEvidence, VisualReferenceComparisonInput,
+    VisualReferenceComparisonReservation, VisualRemoteJobRecord, VisualRemoteJobState,
+    UniversalAssetSourceV2, WriterLease,
     EXTERNAL_GLB_REFERENCE_ROLE, REFERENCE_EVIDENCE_SCHEMA_VERSION, REFERENCE_EVIDENCE_SOURCE_ROLE,
     REFERENCE_GUIDED_REBUILD_PLAN_SCHEMA_VERSION,
+    VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_SCHEMA_VERSION,
+    VISUAL_REFERENCE_COMPARISON_BUDGET_EVIDENCE_SCHEMA_VERSION,
+    VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
+    VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD,
+    VISUAL_REFERENCE_COMPARISON_RESERVATION_SCHEMA_VERSION,
 };
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -1151,6 +1160,29 @@ impl CoreRepository {
         }
         let bytes = self.read_object(&evidence.source_object_sha256)?;
         Ok((evidence, bytes))
+    }
+
+    /// Builds a transient worker-only photo projection DTO from an immutable
+    /// evidence ID. The caller supplies a Rust-derived camera and an exact
+    /// retained material zone; it can never substitute a hash, source path or
+    /// arbitrary image bytes for this repository-owned source.
+    pub fn build_reference_camera_uv_raster_bake(
+        &self,
+        project_id: &str,
+        evidence_id: &str,
+        binding: &crate::ProjectionCameraBinding,
+        target_material_zone_id: &str,
+        texture_profile: crate::ReferenceCameraUvRasterTextureProfile,
+    ) -> CoreResult<crate::ReferenceCameraUvRasterBake> {
+        let (evidence, source_png_bytes) =
+            self.read_reference_evidence_content(project_id, evidence_id)?;
+        crate::build_reference_camera_uv_raster_bake(
+            &evidence,
+            &source_png_bytes,
+            binding,
+            target_material_zone_id,
+            texture_profile,
+        )
     }
 
     /// Persists a constrained R007 plan.  This is not a candidate and does
@@ -2311,6 +2343,250 @@ impl CoreRepository {
         Ok(())
     }
 
+    /// Reads a game-delivery candidate only when the visual LOD0 source,
+    /// delivery GLB and interactive preview were committed as one complete
+    /// initial asset bundle. This is deliberately separate from the legacy
+    /// two-GLB readback: `production_glb` continues to mean the visual source
+    /// for existing quality and editable-asset flows.
+    pub fn read_game_delivery_candidate_bundle(
+        &self,
+        artifact_id: &str,
+        asset_version_id: &str,
+        quality_report_id: &str,
+    ) -> CoreResult<Option<GameDeliveryCandidateBundleReadback>> {
+        let connection = open_connection(self.db_path())?;
+        let Some(bundle) = game_delivery_candidate_bundle_from_connection(
+            &connection,
+            artifact_id,
+            asset_version_id,
+            quality_report_id,
+        )?
+        else {
+            return Ok(None);
+        };
+        self.validate_game_delivery_candidate_bundle(&bundle)?;
+        Ok(Some(bundle))
+    }
+
+    /// Atomically promotes a game-ready category-open candidate. The visual
+    /// LOD0 remains the source bound to geometry/PBR quality; the separate
+    /// delivery GLB is verified against the same sealed UAS@2 game profile
+    /// before SQLite receives any version/head/Snapshot side effect.
+    pub fn commit_game_delivery_candidate_bundle(
+        &self,
+        mut candidate: BlockoutCandidate,
+        visual_source_lod0_glb: &[u8],
+        game_delivery_glb: &[u8],
+        interactive_preview_glb: &[u8],
+        version: &AgentAssetVersion,
+        quality: &QualityReport,
+    ) -> CoreResult<GameDeliveryCandidateBundleReadback> {
+        ensure_canonical_shape_program(
+            &version.shape_program,
+            "CANDIDATE_NON_CANONICAL_SHAPE_PROGRAM",
+        )?;
+        validate_glb_container(visual_source_lod0_glb)?;
+        validate_glb_container(game_delivery_glb)?;
+        validate_glb_container(interactive_preview_glb)?;
+
+        let _ = self.read_game_delivery_candidate_bundle(
+            &candidate.artifact_id,
+            &version.asset_version_id,
+            &quality.quality_report_id,
+        )?;
+
+        let mut visual_source = self.object_store.stage(visual_source_lod0_glb, "glb")?.promote()?;
+        let mut delivery = match self.object_store.stage(game_delivery_glb, "glb").and_then(|staged| staged.promote()) {
+            Ok(promoted) => promoted,
+            Err(error) => {
+                visual_source.cleanup_after_rollback();
+                return Err(error);
+            }
+        };
+        let mut interactive = match self.object_store.stage(interactive_preview_glb, "glb").and_then(|staged| staged.promote()) {
+            Ok(promoted) => promoted,
+            Err(error) => {
+                delivery.cleanup_after_rollback();
+                visual_source.cleanup_after_rollback();
+                return Err(error);
+            }
+        };
+        let visual_source_stored = visual_source.metadata().clone();
+        let delivery_stored = delivery.metadata().clone();
+        let interactive_stored = interactive.metadata().clone();
+        let requested_source_sha = candidate.glb_sha256.clone();
+        candidate.glb_sha256 = visual_source_stored.sha256.clone();
+
+        let validation = (|| {
+            if !requested_source_sha.is_empty() && requested_source_sha != visual_source_stored.sha256 {
+                return Err(CoreError::conflict(
+                    "GAME_DELIVERY_BUNDLE_IDEMPOTENCY_CONFLICT",
+                    "Candidate visual-source GLB hash differs from the promoted bytes.",
+                ));
+            }
+            validate_candidate_bundle_input(
+                &candidate,
+                version,
+                quality,
+                &visual_source_stored,
+                &interactive_stored,
+            )?;
+            validate_game_delivery_bundle_input(
+                version,
+                visual_source_lod0_glb,
+                game_delivery_glb,
+                &visual_source_stored,
+                &delivery_stored,
+            )
+        })();
+        if let Err(error) = validation {
+            interactive.cleanup_after_rollback();
+            delivery.cleanup_after_rollback();
+            visual_source.cleanup_after_rollback();
+            return Err(error);
+        }
+
+        let result = self.write(|transaction| {
+            if let Some(existing) = game_delivery_candidate_bundle_from_connection(
+                transaction,
+                &candidate.artifact_id,
+                &version.asset_version_id,
+                &quality.quality_report_id,
+            )? {
+                validate_game_delivery_bundle_replay(
+                    &existing,
+                    &candidate,
+                    version,
+                    quality,
+                    &visual_source_stored,
+                    &delivery_stored,
+                    &interactive_stored,
+                )?;
+                return Ok(existing);
+            }
+
+            let project_id = candidate.project_id.as_deref().ok_or_else(|| {
+                CoreError::invalid_data(
+                    "CANDIDATE_BUNDLE_PROJECT_REQUIRED",
+                    "Candidate bundle must bind a Project before commit.",
+                )
+            })?;
+            let project_exists: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM projects WHERE project_id=?)",
+                [project_id],
+                |row| row.get(0),
+            )?;
+            if !project_exists {
+                return Err(CoreError::not_found("Project"));
+            }
+            let activation = candidate_bundle_activation(transaction, project_id)?;
+            insert_object_metadata(transaction, &visual_source_stored, &candidate.created_at)?;
+            insert_object_metadata(transaction, &delivery_stored, &candidate.created_at)?;
+            insert_object_metadata(transaction, &interactive_stored, &candidate.created_at)?;
+            transaction.execute(
+                "INSERT INTO agent_blockout_candidates(artifact_id, project_id, plan_id, direction_id, domain_pack_id, status, candidate_json, shape_program_json, assembly_graph_json, material_bindings_json, glb_base64, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'candidate', ?, ?, ?, ?, '', ?, ?)",
+                params![candidate.artifact_id, candidate.project_id, candidate.plan_id, candidate.direction_id, candidate.domain_pack_id, json_text(&candidate.candidate)?, json_text(&candidate.shape_program)?, json_text(&candidate.assembly_graph)?, json_text(&candidate.material_bindings)?, candidate.created_at, candidate.updated_at],
+            )?;
+            transaction.execute(
+                "INSERT INTO forgecad_core_candidate_objects(artifact_id, glb_sha256, created_at) VALUES (?, ?, ?)",
+                params![candidate.artifact_id, visual_source_stored.sha256, candidate.created_at],
+            )?;
+            insert_version(transaction, version)?;
+            transaction.execute(
+                "INSERT INTO agent_asset_heads(project_id, asset_version_id, updated_at) VALUES (?, ?, ?)",
+                params![version.project_id, version.asset_version_id, version.created_at],
+            )?;
+            if matches!(&activation, CandidateBundleActivation::FreshProject) {
+                insert_snapshot(transaction, &initial_snapshot(version)?)?;
+            }
+            for (role, object) in [
+                ("production_glb", &visual_source_stored),
+                ("visual_source_lod0_glb", &visual_source_stored),
+                ("game_delivery_glb", &delivery_stored),
+                ("interactive_preview_glb", &interactive_stored),
+            ] {
+                transaction.execute(
+                    "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, ?, ?, ?)",
+                    params![version.asset_version_id, role, object.sha256, version.created_at],
+                )?;
+            }
+            let changed = transaction.execute(
+                "UPDATE agent_blockout_candidates SET status='committed', updated_at=? WHERE artifact_id=? AND status='candidate'",
+                params![version.created_at, candidate.artifact_id],
+            )?;
+            if changed != 1 {
+                return Err(candidate_bundle_incomplete(bundle_input_ids(&candidate, version, quality), vec!["candidate_status"]));
+            }
+            transaction.execute(
+                "INSERT INTO agent_asset_quality_reports(quality_report_id, project_id, asset_version_id, report_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                params![quality.quality_report_id, quality.project_id, quality.asset_version_id, json_text(&quality.report)?, quality.status.as_str(), quality.created_at],
+            )?;
+            let changed = match &activation {
+                CandidateBundleActivation::FreshProject => transaction.execute(
+                    "UPDATE active_design_snapshots SET quality_report_id=?, quality_asset_version_id=?, revision=revision+1, updated_at=? WHERE project_id=? AND source='agent_asset' AND revision=1",
+                    params![quality.quality_report_id, quality.asset_version_id, quality.created_at, quality.project_id],
+                )?,
+                CandidateBundleActivation::AuthorizedLegacy(intent) => {
+                    promote_authorized_legacy_snapshot(transaction, intent, version, quality)?;
+                    1
+                }
+            };
+            if changed != 1 {
+                return Err(candidate_bundle_incomplete(bundle_input_ids(&candidate, version, quality), vec!["snapshot_quality"]));
+            }
+            game_delivery_candidate_bundle_from_connection(
+                transaction,
+                &candidate.artifact_id,
+                &version.asset_version_id,
+                &quality.quality_report_id,
+            )?
+            .ok_or_else(|| candidate_bundle_incomplete(bundle_input_ids(&candidate, version, quality), vec!["transaction_readback"]))
+        });
+
+        match result {
+            Ok(bundle) => {
+                let source_finalize = visual_source.finalize_commit();
+                let delivery_finalize = delivery.finalize_commit();
+                let interactive_finalize = interactive.finalize_commit();
+                if source_finalize.is_err() || delivery_finalize.is_err() || interactive_finalize.is_err() {
+                    self.recover_object_store()?;
+                }
+                self.validate_game_delivery_candidate_bundle(&bundle)?;
+                Ok(bundle)
+            }
+            Err(error) => {
+                interactive.cleanup_after_rollback();
+                delivery.cleanup_after_rollback();
+                visual_source.cleanup_after_rollback();
+                Err(error)
+            }
+        }
+    }
+
+    fn validate_game_delivery_candidate_bundle(
+        &self,
+        bundle: &GameDeliveryCandidateBundleReadback,
+    ) -> CoreResult<()> {
+        let base = CandidateBundleReadback {
+            candidate: bundle.candidate.clone(),
+            version: bundle.version.clone(),
+            snapshot: bundle.snapshot.clone(),
+            quality: bundle.quality.clone(),
+            production_glb: bundle.visual_source_lod0_glb.clone(),
+            interactive_preview_glb: bundle.interactive_preview_glb.clone(),
+        };
+        self.validate_candidate_bundle(&base)?;
+        let source_bytes = self.read_object(&bundle.visual_source_lod0_glb.sha256)?;
+        let delivery_bytes = self.read_object(&bundle.game_delivery_glb.sha256)?;
+        validate_game_delivery_bundle_input(
+            &bundle.version,
+            &source_bytes,
+            &delivery_bytes,
+            &stored_from_record(&bundle.visual_source_lod0_glb),
+            &stored_from_record(&bundle.game_delivery_glb),
+        )
+    }
+
     /// Selects the single winning candidate and atomically commits the first
     /// immutable version, head, Snapshot and production-GLB object binding.
     pub fn commit_candidate(
@@ -2538,6 +2814,279 @@ impl CoreRepository {
             }
         }
         Ok(records)
+    }
+
+    /// Issues one short-lived, idempotent user authorization bound to the
+    /// exact Project, multimodal request, evidence graph and Rust policy.
+    /// This creates no design version, geometry, preview or Provider call.
+    #[allow(clippy::too_many_arguments)]
+    pub fn issue_visual_reference_comparison_authorization(
+        &self,
+        authorization_id: &str,
+        client_request_id: &str,
+        project_id: &str,
+        request_sha256: &str,
+        evidence_graph_sha256: &str,
+        acceptance_policy_sha256: &str,
+        authorized_at_unix_ms: i64,
+        expires_at_unix_ms: i64,
+    ) -> CoreResult<VisualReferenceComparisonAuthorization> {
+        let authorization_binding_sha256 = crate::visual_reference_authorization_binding_sha256(
+            project_id,
+            request_sha256,
+            evidence_graph_sha256,
+            acceptance_policy_sha256,
+            VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
+            VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD,
+        )?;
+        let proposed = VisualReferenceComparisonAuthorization {
+            schema_version: VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_SCHEMA_VERSION.into(),
+            authorization_id: authorization_id.into(),
+            client_request_id: client_request_id.into(),
+            project_id: project_id.into(),
+            request_sha256: request_sha256.into(),
+            evidence_graph_sha256: evidence_graph_sha256.into(),
+            acceptance_policy_sha256: acceptance_policy_sha256.into(),
+            authorization_binding_sha256,
+            bound_turn_id: None,
+            status: "authorized".into(),
+            maximum_calls: VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
+            maximum_variable_cost_microusd:
+                VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD,
+            reservations_created: 0,
+            calls_accounted: 0,
+            accounted_cost_ceiling_microusd: 0,
+            reserved_cost_ceiling_microusd: 0,
+            authorized_at_unix_ms,
+            expires_at_unix_ms,
+            updated_at_unix_ms: authorized_at_unix_ms,
+        };
+        proposed.validate()?;
+        self.write(|transaction| {
+            if let Some(existing) = visual_reference_authorization_by_client_request_id(
+                transaction,
+                client_request_id,
+            )? {
+                if existing.project_id != proposed.project_id
+                    || existing.request_sha256 != proposed.request_sha256
+                    || existing.evidence_graph_sha256 != proposed.evidence_graph_sha256
+                    || existing.acceptance_policy_sha256 != proposed.acceptance_policy_sha256
+                    || existing.maximum_calls != proposed.maximum_calls
+                    || existing.maximum_variable_cost_microusd
+                        != proposed.maximum_variable_cost_microusd
+                {
+                    return Err(CoreError::conflict(
+                        "VISUAL_REFERENCE_AUTHORIZATION_IDEMPOTENCY_CONFLICT",
+                        "The authorization request ID was already bound to different visual evidence or policy.",
+                    ));
+                }
+                return Ok(existing);
+            }
+            let project_active: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM projects WHERE project_id=? AND status='active')",
+                [project_id],
+                |row| row.get(0),
+            )?;
+            if !project_active {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_AUTHORIZATION_PROJECT_INACTIVE",
+                    "Visual comparison authorization requires one active Rust-owned Project.",
+                ));
+            }
+            transaction.execute(
+                "INSERT INTO visual_reference_comparison_authorizations(authorization_id, client_request_id, project_id, request_sha256, evidence_graph_sha256, acceptance_policy_sha256, authorization_binding_sha256, bound_turn_id, status, maximum_calls, maximum_variable_cost_microusd, reservations_created, calls_accounted, accounted_cost_ceiling_microusd, reserved_cost_ceiling_microusd, authorized_at_unix_ms, expires_at_unix_ms, updated_at_unix_ms) VALUES (?,?,?,?,?,?,?,NULL,'authorized',?,?,0,0,0,0,?,?,?)",
+                params![
+                    proposed.authorization_id,
+                    proposed.client_request_id,
+                    proposed.project_id,
+                    proposed.request_sha256,
+                    proposed.evidence_graph_sha256,
+                    proposed.acceptance_policy_sha256,
+                    proposed.authorization_binding_sha256,
+                    proposed.maximum_calls,
+                    proposed.maximum_variable_cost_microusd,
+                    proposed.authorized_at_unix_ms,
+                    proposed.expires_at_unix_ms,
+                    proposed.updated_at_unix_ms,
+                ],
+            )?;
+            require_visual_reference_authorization(transaction, authorization_id)
+        })
+    }
+
+    pub fn visual_reference_comparison_authorization(
+        &self,
+        authorization_id: &str,
+    ) -> CoreResult<Option<VisualReferenceComparisonAuthorization>> {
+        let connection = open_connection(self.db_path())?;
+        visual_reference_authorization_from_connection(&connection, authorization_id)
+    }
+
+    /// Atomically reserves the next conservative call ceiling before any
+    /// Provider future can be polled. The first reservation also binds the
+    /// authorization to the app-server's actual Turn ID.
+    pub fn reserve_visual_reference_comparison(
+        &self,
+        authorization_id: &str,
+        turn_id: &str,
+        project_id: &str,
+        input: &VisualReferenceComparisonInput,
+        now_unix_ms: i64,
+    ) -> CoreResult<VisualReferenceComparisonReservation> {
+        let comparison_input_sha256 = crate::semantic_sha256(input)?;
+        let acceptance_policy_sha256 = crate::semantic_sha256(&input.acceptance_policy)?;
+        self.write(|transaction| {
+            let authorization = require_visual_reference_authorization(transaction, authorization_id)?;
+            if authorization.status != "authorized"
+                || now_unix_ms >= authorization.expires_at_unix_ms
+            {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_AUTHORIZATION_INACTIVE",
+                    "Visual comparison authorization is consumed, cancelled or expired.",
+                ));
+            }
+            if authorization.project_id != project_id
+                || authorization.request_sha256 != input.request_sha256
+                || authorization.evidence_graph_sha256 != input.evidence_graph_sha256
+                || authorization.acceptance_policy_sha256 != acceptance_policy_sha256
+            {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_AUTHORIZATION_LINEAGE_MISMATCH",
+                    "Visual comparison authorization does not match the exact Project, request, graph and policy.",
+                ));
+            }
+            if authorization
+                .bound_turn_id
+                .as_deref()
+                .is_some_and(|bound| bound != turn_id)
+            {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_AUTHORIZATION_TURN_MISMATCH",
+                    "Visual comparison authorization is already bound to a different Turn.",
+                ));
+            }
+            let active_reservation: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM visual_reference_comparison_reservations WHERE authorization_id=? AND state='reserved')",
+                [authorization_id],
+                |row| row.get(0),
+            )?;
+            if active_reservation {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_RESERVATION_ACTIVE",
+                    "A visual comparison call is already reserved for this authorization.",
+                ));
+            }
+            let remaining_calls = authorization.maximum_calls - authorization.calls_accounted;
+            let remaining_cost = authorization.maximum_variable_cost_microusd
+                - authorization.accounted_cost_ceiling_microusd;
+            if remaining_calls == 0 || remaining_cost == 0 {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_BUDGET_EXHAUSTED",
+                    "Visual comparison stopped before network execution because its call or cost ceiling is exhausted.",
+                ));
+            }
+            let reserved_cost = remaining_cost.div_ceil(u64::from(remaining_calls));
+            let reservation_ordinal = authorization.reservations_created + 1;
+            let call_number = authorization.calls_accounted + 1;
+            let reservation_id = crate::visual_reference_budget::visual_reference_reservation_id(
+                authorization_id,
+                turn_id,
+                &comparison_input_sha256,
+                reservation_ordinal,
+            )?;
+            transaction.execute(
+                "INSERT INTO visual_reference_comparison_reservations(reservation_id, authorization_id, turn_id, comparison_input_sha256, call_number, reservation_ordinal, reserved_cost_ceiling_microusd, state, network_call_made, outcome_code, created_at_unix_ms, settled_at_unix_ms) VALUES (?,?,?,?,?,?,?,'reserved',NULL,NULL,?,NULL)",
+                params![reservation_id, authorization_id, turn_id, comparison_input_sha256, call_number, reservation_ordinal, reserved_cost, now_unix_ms],
+            )?;
+            transaction.execute(
+                "UPDATE visual_reference_comparison_authorizations SET bound_turn_id=COALESCE(bound_turn_id, ?), reservations_created=?, reserved_cost_ceiling_microusd=?, updated_at_unix_ms=? WHERE authorization_id=?",
+                params![turn_id, reservation_ordinal, reserved_cost, now_unix_ms, authorization_id],
+            )?;
+            let reservation = VisualReferenceComparisonReservation {
+                schema_version: VISUAL_REFERENCE_COMPARISON_RESERVATION_SCHEMA_VERSION.into(),
+                reservation_id,
+                authorization_id: authorization_id.into(),
+                authorization_binding_sha256: authorization.authorization_binding_sha256,
+                turn_id: turn_id.into(),
+                comparison_input_sha256,
+                call_number,
+                reservation_ordinal,
+                reserved_cost_ceiling_microusd: reserved_cost,
+                created_at_unix_ms: now_unix_ms,
+            };
+            reservation.validate()?;
+            Ok(reservation)
+        })
+    }
+
+    /// Settles a reservation exactly once. A network-attempted call accounts
+    /// its full conservative ceiling; a proven pre-network failure releases
+    /// it. Repeated settlement is an idempotent audit readback.
+    pub fn settle_visual_reference_comparison(
+        &self,
+        reservation_id: &str,
+        network_call_made: bool,
+        outcome_code: &str,
+        settled_at_unix_ms: i64,
+    ) -> CoreResult<VisualReferenceComparisonBudgetEvidence> {
+        self.write(|transaction| {
+            let (authorization_id, turn_id, comparison_input_sha256, call_number, reserved_cost, state, stored_network): (String, String, String, u8, u64, String, Option<bool>) = transaction.query_row(
+                "SELECT authorization_id, turn_id, comparison_input_sha256, call_number, reserved_cost_ceiling_microusd, state, network_call_made FROM visual_reference_comparison_reservations WHERE reservation_id=?",
+                [reservation_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
+            ).map_err(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => CoreError::not_found("visual reference comparison reservation"),
+                other => CoreError::Sqlite(other),
+            })?;
+            if state != "reserved" && stored_network != Some(network_call_made) {
+                return Err(CoreError::conflict(
+                    "VISUAL_REFERENCE_SETTLEMENT_CONFLICT",
+                    "Visual comparison reservation was already settled with a different network outcome.",
+                ));
+            }
+            if state == "reserved" {
+                let next_state = if network_call_made { "accounted" } else { "released" };
+                transaction.execute(
+                    "UPDATE visual_reference_comparison_reservations SET state=?, network_call_made=?, outcome_code=?, settled_at_unix_ms=? WHERE reservation_id=? AND state='reserved'",
+                    params![next_state, network_call_made, outcome_code, settled_at_unix_ms, reservation_id],
+                )?;
+                if network_call_made {
+                    transaction.execute(
+                        "UPDATE visual_reference_comparison_authorizations SET calls_accounted=calls_accounted+1, accounted_cost_ceiling_microusd=accounted_cost_ceiling_microusd+?, reserved_cost_ceiling_microusd=0, status=CASE WHEN calls_accounted+1 >= maximum_calls OR accounted_cost_ceiling_microusd+? >= maximum_variable_cost_microusd THEN 'consumed' ELSE status END, updated_at_unix_ms=? WHERE authorization_id=?",
+                        params![reserved_cost, reserved_cost, settled_at_unix_ms, authorization_id],
+                    )?;
+                } else {
+                    transaction.execute(
+                        "UPDATE visual_reference_comparison_authorizations SET reserved_cost_ceiling_microusd=0, updated_at_unix_ms=? WHERE authorization_id=?",
+                        params![settled_at_unix_ms, authorization_id],
+                    )?;
+                }
+            }
+            let authorization = require_visual_reference_authorization(transaction, &authorization_id)?;
+            let final_state: String = transaction.query_row(
+                "SELECT state FROM visual_reference_comparison_reservations WHERE reservation_id=?",
+                [reservation_id],
+                |row| row.get(0),
+            )?;
+            let evidence = VisualReferenceComparisonBudgetEvidence {
+                schema_version: VISUAL_REFERENCE_COMPARISON_BUDGET_EVIDENCE_SCHEMA_VERSION.into(),
+                authorization_id,
+                authorization_binding_sha256: authorization.authorization_binding_sha256,
+                reservation_id: reservation_id.into(),
+                turn_id,
+                comparison_input_sha256,
+                call_number,
+                maximum_calls: authorization.maximum_calls,
+                maximum_variable_cost_microusd: authorization.maximum_variable_cost_microusd,
+                reserved_cost_ceiling_microusd: reserved_cost,
+                settlement: final_state,
+                network_call_made,
+                calls_accounted_after: authorization.calls_accounted,
+                accounted_cost_ceiling_microusd_after: authorization.accounted_cost_ceiling_microusd,
+                settled_at_unix_ms,
+            };
+            Ok(evidence)
+        })
     }
 
     pub fn snapshot(&self, project_id: &str) -> CoreResult<Option<ActiveDesignSnapshot>> {
@@ -5376,6 +5925,70 @@ fn visual_remote_stage(state: &VisualRemoteJobState) -> &'static str {
         VisualRemoteJobState::Failed { .. } => "failed",
         VisualRemoteJobState::Cancelled { .. } => "cancelled",
     }
+}
+
+fn visual_reference_authorization_by_client_request_id(
+    connection: &Connection,
+    client_request_id: &str,
+) -> CoreResult<Option<VisualReferenceComparisonAuthorization>> {
+    let authorization_id: Option<String> = connection
+        .query_row(
+            "SELECT authorization_id FROM visual_reference_comparison_authorizations WHERE client_request_id=?",
+            [client_request_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    authorization_id
+        .as_deref()
+        .map(|id| require_visual_reference_authorization(connection, id))
+        .transpose()
+}
+
+fn visual_reference_authorization_from_connection(
+    connection: &Connection,
+    authorization_id: &str,
+) -> CoreResult<Option<VisualReferenceComparisonAuthorization>> {
+    let authorization = connection
+        .query_row(
+            "SELECT client_request_id, project_id, request_sha256, evidence_graph_sha256, acceptance_policy_sha256, authorization_binding_sha256, bound_turn_id, status, maximum_calls, maximum_variable_cost_microusd, reservations_created, calls_accounted, accounted_cost_ceiling_microusd, reserved_cost_ceiling_microusd, authorized_at_unix_ms, expires_at_unix_ms, updated_at_unix_ms FROM visual_reference_comparison_authorizations WHERE authorization_id=?",
+            [authorization_id],
+            |row| {
+                Ok(VisualReferenceComparisonAuthorization {
+                    schema_version: VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_SCHEMA_VERSION.into(),
+                    authorization_id: authorization_id.into(),
+                    client_request_id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    request_sha256: row.get(2)?,
+                    evidence_graph_sha256: row.get(3)?,
+                    acceptance_policy_sha256: row.get(4)?,
+                    authorization_binding_sha256: row.get(5)?,
+                    bound_turn_id: row.get(6)?,
+                    status: row.get(7)?,
+                    maximum_calls: row.get(8)?,
+                    maximum_variable_cost_microusd: row.get(9)?,
+                    reservations_created: row.get(10)?,
+                    calls_accounted: row.get(11)?,
+                    accounted_cost_ceiling_microusd: row.get(12)?,
+                    reserved_cost_ceiling_microusd: row.get(13)?,
+                    authorized_at_unix_ms: row.get(14)?,
+                    expires_at_unix_ms: row.get(15)?,
+                    updated_at_unix_ms: row.get(16)?,
+                })
+            },
+        )
+        .optional()?;
+    if let Some(value) = &authorization {
+        value.validate()?;
+    }
+    Ok(authorization)
+}
+
+fn require_visual_reference_authorization(
+    connection: &Connection,
+    authorization_id: &str,
+) -> CoreResult<VisualReferenceComparisonAuthorization> {
+    visual_reference_authorization_from_connection(connection, authorization_id)?
+        .ok_or_else(|| CoreError::not_found("visual reference comparison authorization"))
 }
 
 fn visual_remote_job_from_connection(
@@ -10454,6 +11067,198 @@ fn candidate_bundle_from_connection(
     Ok(Some(bundle))
 }
 
+fn game_delivery_candidate_bundle_from_connection(
+    connection: &Connection,
+    artifact_id: &str,
+    asset_version_id: &str,
+    quality_report_id: &str,
+) -> CoreResult<Option<GameDeliveryCandidateBundleReadback>> {
+    let base = candidate_bundle_from_connection(
+        connection,
+        artifact_id,
+        asset_version_id,
+        quality_report_id,
+    )?;
+    let visual_source = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        asset_version_id,
+        "visual_source_lod0_glb",
+    )?;
+    let delivery = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        asset_version_id,
+        "game_delivery_glb",
+    )?;
+    // Ordinary candidates intentionally have neither of these game-only
+    // roles. Returning None lets their legacy two-GLB replay path continue;
+    // a half-written game bundle (one role present) is still fail-closed.
+    if visual_source.is_none() && delivery.is_none() {
+        return Ok(None);
+    }
+    let base = base.ok_or_else(|| candidate_bundle_incomplete(
+        serde_json::json!({
+            "artifact_id": artifact_id,
+            "asset_version_id": asset_version_id,
+            "quality_report_id": quality_report_id,
+        }),
+        vec!["candidate_bundle"],
+    ))?;
+    let visual_source_lod0_glb = visual_source.ok_or_else(|| candidate_bundle_incomplete(
+        bundle_ids(&base),
+        vec!["visual_source_lod0_glb"],
+    ))?;
+    let game_delivery_glb = delivery.ok_or_else(|| candidate_bundle_incomplete(
+        bundle_ids(&base),
+        vec!["game_delivery_glb"],
+    ))?;
+    let bundle = GameDeliveryCandidateBundleReadback {
+        candidate: base.candidate,
+        version: base.version,
+        snapshot: base.snapshot,
+        quality: base.quality,
+        visual_source_lod0_glb,
+        game_delivery_glb,
+        interactive_preview_glb: base.interactive_preview_glb,
+    };
+    validate_game_delivery_candidate_bundle_readback(&bundle)?;
+    Ok(Some(bundle))
+}
+
+fn game_delivery_source_from_version(version: &AgentAssetVersion) -> CoreResult<UniversalAssetSourceV2> {
+    let source = version
+        .assembly_graph
+        .get("universal_asset_source_v2")
+        .cloned()
+        .ok_or_else(|| CoreError::conflict(
+            "GAME_DELIVERY_SOURCE_PROVENANCE_REQUIRED",
+            "A game-delivery bundle requires the exact UAS@2 source in its AssemblyGraph.",
+        ))?;
+    let source: UniversalAssetSourceV2 = serde_json::from_value(source).map_err(|_| {
+        CoreError::conflict(
+            "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+            "Game-delivery UAS@2 provenance could not be decoded.",
+        )
+    })?;
+    source.validate()?;
+    if source.game_asset_delivery.is_none() || source.game_asset_profile.is_none() {
+        return Err(CoreError::conflict(
+            "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+            "Game-delivery UAS@2 provenance has no sealed profile and receipt.",
+        ));
+    }
+    Ok(source)
+}
+
+fn validate_game_delivery_bundle_input(
+    version: &AgentAssetVersion,
+    visual_source_lod0_glb: &[u8],
+    game_delivery_glb: &[u8],
+    visual_source: &StoredObject,
+    delivery: &StoredObject,
+) -> CoreResult<()> {
+    if visual_source.extension != "glb"
+        || delivery.extension != "glb"
+        || visual_source.byte_size == 0
+        || delivery.byte_size == 0
+    {
+        return Err(CoreError::invalid_data(
+            "GAME_DELIVERY_BUNDLE_OBJECT_INVALID",
+            "Game delivery requires non-empty visual-source and delivery GLB objects.",
+        ));
+    }
+    let source = game_delivery_source_from_version(version)?;
+    let profile = source.game_asset_profile.as_ref().ok_or_else(|| CoreError::conflict(
+        "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+        "Game-delivery UAS@2 provenance has no sealed game asset profile.",
+    ))?;
+    let receipt = source.game_asset_delivery.as_ref().ok_or_else(|| CoreError::conflict(
+        "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+        "Game-delivery UAS@2 provenance has no sealed delivery receipt.",
+    ))?;
+    let source_readback = crate::verify_forgecad_glb(visual_source_lod0_glb, Some("production_concept"))?;
+    let bindings = crate::derive_game_asset_delivery_bindings(&source)?;
+    let delivery_readback = crate::verify_game_asset_delivery_glb(
+        visual_source_lod0_glb,
+        game_delivery_glb,
+        profile,
+        &bindings,
+    )?;
+    if source_readback.glb_sha256 != visual_source.sha256
+        || source_readback.glb_byte_size != visual_source.byte_size
+        || delivery_readback != *receipt
+        || delivery_readback.delivery_glb_sha256 != delivery.sha256
+        || delivery_readback.source_glb_sha256 != visual_source.sha256
+    {
+        return Err(CoreError::conflict(
+            "GAME_DELIVERY_BUNDLE_READBACK_DRIFT",
+            "Visual-source GLB, delivery GLB and sealed game delivery receipt are not one exact pair.",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_game_delivery_candidate_bundle_readback(
+    bundle: &GameDeliveryCandidateBundleReadback,
+) -> CoreResult<()> {
+    let base = CandidateBundleReadback {
+        candidate: bundle.candidate.clone(),
+        version: bundle.version.clone(),
+        snapshot: bundle.snapshot.clone(),
+        quality: bundle.quality.clone(),
+        production_glb: bundle.visual_source_lod0_glb.clone(),
+        interactive_preview_glb: bundle.interactive_preview_glb.clone(),
+    };
+    validate_candidate_bundle_readback(&base, Some(bundle.version.asset_version_id.as_str()))?;
+    if bundle.visual_source_lod0_glb.sha256 != bundle.candidate.glb_sha256
+        || bundle.visual_source_lod0_glb.extension != "glb"
+        || bundle.game_delivery_glb.extension != "glb"
+        || bundle.visual_source_lod0_glb.byte_size == 0
+        || bundle.game_delivery_glb.byte_size == 0
+        || bundle.visual_source_lod0_glb.ref_count < 2
+        || bundle.game_delivery_glb.ref_count < 1
+    {
+        return Err(CoreError::conflict(
+            "GAME_DELIVERY_BUNDLE_OBJECT_INVALID",
+            "Game delivery object roles do not retain the required dual-GLB identities.",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_game_delivery_bundle_replay(
+    existing: &GameDeliveryCandidateBundleReadback,
+    candidate: &BlockoutCandidate,
+    version: &AgentAssetVersion,
+    quality: &QualityReport,
+    visual_source: &StoredObject,
+    delivery: &StoredObject,
+    interactive: &StoredObject,
+) -> CoreResult<()> {
+    let base = CandidateBundleReadback {
+        candidate: existing.candidate.clone(),
+        version: existing.version.clone(),
+        snapshot: existing.snapshot.clone(),
+        quality: existing.quality.clone(),
+        production_glb: existing.visual_source_lod0_glb.clone(),
+        interactive_preview_glb: existing.interactive_preview_glb.clone(),
+    };
+    validate_candidate_bundle_replay(&base, candidate, version, quality, visual_source, interactive)?;
+    if existing.visual_source_lod0_glb.sha256 != visual_source.sha256
+        || existing.visual_source_lod0_glb.byte_size != visual_source.byte_size
+        || existing.game_delivery_glb.sha256 != delivery.sha256
+        || existing.game_delivery_glb.byte_size != delivery.byte_size
+    {
+        return Err(CoreError::conflict_with_details(
+            "GAME_DELIVERY_BUNDLE_IDEMPOTENCY_CONFLICT",
+            "Game delivery bundle identity was already used for a different dual-GLB pair.",
+            bundle_input_ids(candidate, version, quality),
+        ));
+    }
+    Ok(())
+}
+
 fn object_for_reference_from_connection(
     connection: &Connection,
     reference_kind: &str,
@@ -11232,6 +12037,204 @@ mod tests {
             self.repository.commit_initial_asset(&version).unwrap();
             version
         }
+    }
+
+    fn visual_comparison_input() -> VisualReferenceComparisonInput {
+        VisualReferenceComparisonInput {
+            schema_version: crate::VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION.into(),
+            request_sha256: "a".repeat(64),
+            evidence_graph_sha256: "b".repeat(64),
+            program_binding_sha256: "c".repeat(64),
+            source_program_sha256: "d".repeat(64),
+            glb_sha256: "e".repeat(64),
+            acceptance_policy: crate::VisualReferenceAcceptancePolicy::default_policy(),
+            reference_sources: Vec::new(),
+            candidate_view_profile: None,
+            candidate_views: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn visual_reference_budget_reserves_before_call_and_never_exceeds_three_calls_or_100000_microusd(
+    ) {
+        let fixture = Fixture::new();
+        fixture.seed();
+        let input = visual_comparison_input();
+        let policy_sha256 = crate::semantic_sha256(&input.acceptance_policy).unwrap();
+        let authorization = fixture
+            .repository
+            .issue_visual_reference_comparison_authorization(
+                "visauth_budget_gate",
+                "client_budget_gate",
+                "project_a",
+                &input.request_sha256,
+                &input.evidence_graph_sha256,
+                &policy_sha256,
+                1_000,
+                901_000,
+            )
+            .unwrap();
+        assert_eq!(authorization.calls_accounted, 0);
+
+        let released = fixture
+            .repository
+            .reserve_visual_reference_comparison(
+                &authorization.authorization_id,
+                "turn_budget_gate",
+                "project_a",
+                &input,
+                1_100,
+            )
+            .unwrap();
+        assert_eq!(released.call_number, 1);
+        assert_eq!(released.reserved_cost_ceiling_microusd, 33_334);
+        let released_evidence = fixture
+            .repository
+            .settle_visual_reference_comparison(
+                &released.reservation_id,
+                false,
+                "CREDENTIAL_MISSING",
+                1_101,
+            )
+            .unwrap();
+        assert_eq!(released_evidence.settlement, "released");
+        assert_eq!(released_evidence.calls_accounted_after, 0);
+        assert_eq!(released_evidence.accounted_cost_ceiling_microusd_after, 0);
+
+        let mut accounted_total = 0;
+        for (index, expected_cost) in [33_334_u64, 33_333, 33_333].into_iter().enumerate() {
+            let reservation = fixture
+                .repository
+                .reserve_visual_reference_comparison(
+                    &authorization.authorization_id,
+                    "turn_budget_gate",
+                    "project_a",
+                    &input,
+                    1_200 + index as i64,
+                )
+                .unwrap();
+            assert_eq!(reservation.call_number, index as u8 + 1);
+            assert_eq!(reservation.reserved_cost_ceiling_microusd, expected_cost);
+            let evidence = fixture
+                .repository
+                .settle_visual_reference_comparison(
+                    &reservation.reservation_id,
+                    true,
+                    "PROVIDER_COMPLETED",
+                    1_300 + index as i64,
+                )
+                .unwrap();
+            accounted_total += expected_cost;
+            assert_eq!(evidence.settlement, "accounted");
+            assert_eq!(
+                evidence.accounted_cost_ceiling_microusd_after,
+                accounted_total
+            );
+        }
+        assert_eq!(accounted_total, 100_000);
+        let exhausted = fixture
+            .repository
+            .reserve_visual_reference_comparison(
+                &authorization.authorization_id,
+                "turn_budget_gate",
+                "project_a",
+                &input,
+                1_500,
+            )
+            .unwrap_err();
+        assert_eq!(exhausted.code(), "VISUAL_REFERENCE_AUTHORIZATION_INACTIVE");
+        let final_authorization = fixture
+            .repository
+            .visual_reference_comparison_authorization(&authorization.authorization_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(final_authorization.status, "consumed");
+        assert_eq!(final_authorization.calls_accounted, 3);
+        assert_eq!(final_authorization.accounted_cost_ceiling_microusd, 100_000);
+    }
+
+    #[test]
+    fn visual_reference_budget_rejects_stale_lineage_expiry_and_turn_rebinding_before_network() {
+        let fixture = Fixture::new();
+        fixture.seed();
+        let input = visual_comparison_input();
+        let policy_sha256 = crate::semantic_sha256(&input.acceptance_policy).unwrap();
+        let authorization = fixture
+            .repository
+            .issue_visual_reference_comparison_authorization(
+                "visauth_lineage_gate",
+                "client_lineage_gate",
+                "project_a",
+                &input.request_sha256,
+                &input.evidence_graph_sha256,
+                &policy_sha256,
+                2_000,
+                3_000,
+            )
+            .unwrap();
+        let mut stale = input.clone();
+        stale.request_sha256 = "f".repeat(64);
+        assert_eq!(
+            fixture
+                .repository
+                .reserve_visual_reference_comparison(
+                    &authorization.authorization_id,
+                    "turn_lineage_gate",
+                    "project_a",
+                    &stale,
+                    2_100,
+                )
+                .unwrap_err()
+                .code(),
+            "VISUAL_REFERENCE_AUTHORIZATION_LINEAGE_MISMATCH"
+        );
+        let reservation = fixture
+            .repository
+            .reserve_visual_reference_comparison(
+                &authorization.authorization_id,
+                "turn_lineage_gate",
+                "project_a",
+                &input,
+                2_200,
+            )
+            .unwrap();
+        fixture
+            .repository
+            .settle_visual_reference_comparison(
+                &reservation.reservation_id,
+                false,
+                "PRE_NETWORK_CANCELLED",
+                2_201,
+            )
+            .unwrap();
+        assert_eq!(
+            fixture
+                .repository
+                .reserve_visual_reference_comparison(
+                    &authorization.authorization_id,
+                    "turn_other",
+                    "project_a",
+                    &input,
+                    2_300,
+                )
+                .unwrap_err()
+                .code(),
+            "VISUAL_REFERENCE_AUTHORIZATION_TURN_MISMATCH"
+        );
+        assert_eq!(
+            fixture
+                .repository
+                .reserve_visual_reference_comparison(
+                    &authorization.authorization_id,
+                    "turn_lineage_gate",
+                    "project_a",
+                    &input,
+                    3_000,
+                )
+                .unwrap_err()
+                .code(),
+            "VISUAL_REFERENCE_AUTHORIZATION_INACTIVE"
+        );
     }
 
     fn seed_pending_deletion(
@@ -12276,10 +13279,43 @@ mod tests {
             .unwrap();
         assert_eq!(readback, evidence);
         assert!(!bytes.is_empty());
+        let binding = crate::derive_projection_camera_binding(
+            &"b".repeat(64),
+            "turntable_000",
+            [1.0, 1.5, 0.8],
+        )
+        .unwrap();
+        let bake = fixture
+            .repository
+            .build_reference_camera_uv_raster_bake(
+                "project_a",
+                &evidence.evidence_id,
+                &binding,
+                "zone_armor_primary",
+                crate::ReferenceCameraUvRasterTextureProfile::Preview128,
+            )
+            .unwrap();
+        assert_eq!(bake.source_evidence_id, evidence.evidence_id);
+        assert_eq!(bake.source_image_sha256, evidence.source_object_sha256);
+        assert_eq!(bake.camera_provenance_sha256, binding.binding_sha256);
         assert_eq!(
             fixture
                 .repository
                 .read_reference_evidence_content("another_project", &evidence.evidence_id)
+                .unwrap_err()
+                .code(),
+            "REFERENCE_EVIDENCE_PROJECT_MISMATCH"
+        );
+        assert_eq!(
+            fixture
+                .repository
+                .build_reference_camera_uv_raster_bake(
+                    "another_project",
+                    &evidence.evidence_id,
+                    &binding,
+                    "zone_armor_primary",
+                    crate::ReferenceCameraUvRasterTextureProfile::Preview128,
+                )
                 .unwrap_err()
                 .code(),
             "REFERENCE_EVIDENCE_PROJECT_MISMATCH"

@@ -23,6 +23,8 @@ use crate::{
 const VISUAL_BRIEF_TOOL_NAME: &str = "submit_visual_design_direction";
 const MAX_USER_INTENT_BYTES: usize = 8_192;
 const MAX_VISUAL_BRIEF_OUTPUT_TOKENS: u64 = 2_048;
+const MAX_CONCEPT_PROMPT_BYTES: usize = 4_096;
+const REFERENCE_COMPLETION_GUARD: &str = "The supplied reference image is authoritative for every visible feature. Preserve the exact subject identity, visible silhouette, proportions, pose, part layout, material zones, colors, panel seams, openings, lights and asymmetry. Do not redesign, simplify, stylize, replace or add unrelated parts. Only reconstruct cropped or occluded portions coherently, remove the background, and expand the canvas so the entire single subject is visible from head/top to feet/base in a centered three-quarter product view. Keep fine visible details sharp. Clean neutral background, no text, no stand, no detached parts.";
 
 const SYSTEM_MESSAGE: &str = r#"You are Forge Studio's visual director.
 Convert the user's request into one visually coherent 3D asset direction.
@@ -184,13 +186,18 @@ impl VisualBriefDirector {
             )
         })?;
 
+        let concept_prompt = if brief.input_evidence.is_empty() {
+            direction.concept_prompt
+        } else {
+            reference_completion_prompt(&direction.concept_prompt)
+        };
         let concept_request = ConceptImageGenerationRequest {
             schema_version: CONCEPT_IMAGE_GENERATION_REQUEST_SCHEMA_VERSION.into(),
             request_id: stable_id("concept_request", &seed),
             project_id: brief.project_id.clone(),
             turn_id: brief.turn_id.clone(),
             brief_id,
-            prompt: direction.concept_prompt,
+            prompt: concept_prompt,
             input_image_object_sha256: brief
                 .input_evidence
                 .first()
@@ -261,6 +268,23 @@ fn valid_id(value: &str) -> bool {
 
 fn stable_id(prefix: &str, digest: &str) -> String {
     format!("{prefix}_{}", &digest[..24])
+}
+
+fn reference_completion_prompt(provider_prompt: &str) -> String {
+    let separator = "\n\n";
+    let maximum_provider_bytes = MAX_CONCEPT_PROMPT_BYTES
+        .saturating_sub(REFERENCE_COMPLETION_GUARD.len())
+        .saturating_sub(separator.len());
+    let mut end = provider_prompt.len().min(maximum_provider_bytes);
+    while end > 0 && !provider_prompt.is_char_boundary(end) {
+        end -= 1;
+    }
+    let provider_direction = provider_prompt[..end].trim();
+    if provider_direction.is_empty() {
+        REFERENCE_COMPLETION_GUARD.into()
+    } else {
+        format!("{REFERENCE_COMPLETION_GUARD}{separator}{provider_direction}")
+    }
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -428,5 +452,55 @@ mod tests {
             .block_on(director.direct(bad, CancellationToken::new()))
             .unwrap_err();
         assert_eq!(error.code, "VISUAL_BRIEF_EVIDENCE_INVALID");
+    }
+
+    #[test]
+    fn image_evidence_gets_a_rust_owned_identity_preserving_completion_prompt() {
+        let provider_prompt = "Make a complete premium object on a clean background.";
+        let provider = FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            true,
+            true,
+            vec![Ok(response(json!({
+                "object_class": "open subject",
+                "visual_summary": "Preserve the uploaded subject.",
+                "style_terms": ["reference faithful"],
+                "material_terms": ["reference materials"],
+                "concept_prompt": provider_prompt
+            })))],
+        );
+        let mut request = input();
+        request.input_evidence.push(VisualInputEvidence {
+            evidence_id: "evidence_1".into(),
+            object_sha256: "a".repeat(64),
+            media_type: "image/png".into(),
+            rights_confirmed: true,
+            remote_processing_authorized: true,
+        });
+        let output = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(
+                VisualBriefDirector::new(Arc::new(provider))
+                    .direct(request, CancellationToken::new()),
+            )
+            .unwrap();
+
+        assert!(output
+            .concept_request
+            .prompt
+            .starts_with("The supplied reference image is authoritative"));
+        assert!(output.concept_request.prompt.contains("Do not redesign"));
+        assert!(output
+            .concept_request
+            .prompt
+            .contains("entire single subject"));
+        assert!(output.concept_request.prompt.ends_with(provider_prompt));
+        assert!(output.concept_request.prompt.len() <= MAX_CONCEPT_PROMPT_BYTES);
+        output
+            .concept_request
+            .validate_against(&output.brief)
+            .unwrap();
     }
 }

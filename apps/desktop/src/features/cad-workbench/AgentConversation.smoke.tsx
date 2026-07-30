@@ -2,6 +2,7 @@ import { isValidElement, type ReactNode } from 'react'
 import { AgentConversation, type AgentConversationProps } from './AgentConversation.js'
 import { agentProcessSteps } from './AgentStepItem.js'
 import { deriveCandidatePreviewQuality } from './candidatePreviewQualityLogic.js'
+import { buildCandidatePreviewQualityPresentation } from './candidatePreviewQualityPresentation.js'
 import { validateCandidateGeometry } from './candidatePreviewValidation.js'
 
 const baseProps: AgentConversationProps = {
@@ -36,6 +37,7 @@ const baseProps: AgentConversationProps = {
   conceptFamilySuggestions: [['汽车', '设计一辆汽车'], ['飞机', '设计一架飞机']],
   presentationProfile: 'showcase',
   styleOptionsOpen: true,
+  showAdvancedControls: true,
   onAssistantModeChange: () => undefined,
   onSuggestionSelect: () => undefined,
   onPresentationProfileChange: () => undefined,
@@ -86,6 +88,7 @@ const baseProps: AgentConversationProps = {
             micro_similarity_bps: 3500,
           },
           visual_convergence_report: {
+            schema_version: 'VisualConvergenceReport@2',
             fixed_view_count: 8,
             repair_attempt_count: 1,
             detail_coverage: { macro_bound: 1, meso_bound: 0, micro_bound: 0, critical_unresolved: 1 },
@@ -138,8 +141,7 @@ const baseProps: AgentConversationProps = {
     }],
     provider_id: 'deterministic_rules',
   },
-  candidatePreviewPresent: true,
-  candidatePreviewQuality: null,
+  candidatePreviewQualityPresentation: buildCandidatePreviewQualityPresentation(true, null),
 }
 
 function collectText(node: ReactNode): string {
@@ -150,6 +152,12 @@ function collectText(node: ReactNode): string {
   if (typeof node.type === 'function') {
     const renderFunction = node.type as (props: unknown) => ReactNode
     return collectText(renderFunction(node.props))
+  }
+  if (typeof node.type === 'object' && node.type !== null && 'type' in node.type) {
+    const memoType = node.type as { type?: unknown }
+    if (typeof memoType.type === 'function') {
+      return collectText((memoType.type as (props: unknown) => ReactNode)(node.props))
+    }
   }
   return collectText((node.props as { children?: ReactNode }).children)
 }
@@ -162,6 +170,12 @@ function hasAriaLabel(node: ReactNode, expected: string): boolean {
     const renderFunction = node.type as (props: unknown) => ReactNode
     return hasAriaLabel(renderFunction(node.props), expected)
   }
+  if (typeof node.type === 'object' && node.type !== null && 'type' in node.type) {
+    const memoType = node.type as { type?: unknown }
+    if (typeof memoType.type === 'function') {
+      return hasAriaLabel((memoType.type as (props: unknown) => ReactNode)(node.props), expected)
+    }
+  }
   const props = node.props as { 'aria-label'?: string; children?: ReactNode }
   return props['aria-label'] === expected || hasAriaLabel(props.children, expected)
 }
@@ -172,7 +186,10 @@ function assert(value: unknown, message: string): asserts value {
 
 export function runAgentConversationSmoke(): void {
   const quality = deriveCandidatePreviewQuality(baseProps.agentKernelItems)
-  const output = AgentConversation({ ...baseProps, candidatePreviewQuality: quality })
+  const output = AgentConversation({
+    ...baseProps,
+    candidatePreviewQualityPresentation: buildCandidatePreviewQualityPresentation(true, quality),
+  })
   const text = collectText(output)
   const processSteps = agentProcessSteps(baseProps.agentKernelItems)
   assert(!text.includes('空项目已就绪'), 'an existing Agent asset must not render the empty Project state')
@@ -222,7 +239,7 @@ export function runAgentConversationSmoke(): void {
       failure_code: null,
     },
   }))
-  assert(configuredText.includes('模型服务已配置') && !configuredText.includes('private-provider-model-id'), 'provider status must not expose the configured model identifier')
+  assert(configuredText.includes('DeepSeek 已配置') && !configuredText.includes('private-provider-model-id'), 'provider status must identify DeepSeek without exposing the configured model identifier')
   assert(!hasAriaLabel(output, '设计需求'), 'the fixed F026 composer, not the scrollable timeline, must own the input')
   const emptyProjectOutput = AgentConversation({
     ...baseProps,

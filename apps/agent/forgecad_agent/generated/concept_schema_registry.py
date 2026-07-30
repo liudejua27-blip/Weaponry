@@ -19,11 +19,14 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "agent-skill-eval-report.schema.json": "33f4bff52ab4406c62bffb7ff8d0e101e0989f7f350ef617840d46fdfeb87f6f",
   "agent-skill-manifest.schema.json": "ae55828cb3bd9cf4f8d0633fb9e7799df0f48c0f42d48508e4d00034f15c6bf3",
   "agent-structure-suggestion.schema.json": "33fe0fc96901378c48916e415ad2606401ed6d20cca171c73e25b35cba6bff91",
+  "appearance-evidence-bundle.schema.json": "a02888a6ba2be4236b7d93dd6e114cba2909c6938715bff991c11e734dfc32ec",
   "arm-design-intent.schema.json": "6fe730de845a5f3887da4e354ea9cbfeba9a932332483ea8f06047f2bcff4ce2",
   "assembly-delta-program.schema.json": "c513fa47ca80ccbec3737bc81bb9b5608c528254f00ba8a1d7908e9f58e61256",
   "assembly-graph.schema.json": "627ce9eeaaefcf7e6553d86b38a2d55a2cd7723fb47954dd8da4df2c43721bd2",
   "blockout-concept-preview.schema.json": "c25ce1ba16ac21a51baabae4d2bb81e39a5b845c336068cb20ce342380ae33e8",
   "c111-structural-detail-contract.schema.json": "691289830212b5abd2041b690530c7d5375026c843575053f233ed2c7bde5ca7",
+  "c111b-human-review.schema.json": "acd116b22d09881b620768660745e129821013a641f31fbc7f97e9d0c583b991",
+  "c111b-visual-acceptance-contract.schema.json": "7bfb96b458f88bc08bdb7fe053b01c1efbd0f40b51789daaaee98eb4f57d0452",
   "common.schema.json": "7edf00bfe2cd3cc6afff5228b84f7c1986465310c81dd9ff1e9f379efd255d36",
   "component-recipe-candidate.schema.json": "c238e90e1b3255c3dea18ddbcec94ee72ad5984196bc5c792b86befc665219e3",
   "component-recipe-instance-provenance.schema.json": "f3a974629caaae99ffa1c84691f5609aec49a174d649577292feff43d900745a",
@@ -36,16 +39,40 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "domain-inference-result.schema.json": "cd63fbb353057ad9bea672d9d431f3dca226f909df062f6891681294e474b16a",
   "domain-pack-manifest.schema.json": "2dbd1b5ae16b1d2fbe7af8dd37ba9f31842114a9c08a213bb41297725879c6eb",
   "domain-semantic-proportion-recipe.schema.json": "a298a0671f6266f9849afaa03809b4f565c727613a34b34fa49b08d7f91028f9",
+  "e005-author-source-manifest-v1.schema.json": "28b177c8b3fec01af19b2e1cc24e20d5de37ac5ea7ccbedb3d8725e810b88917",
+  "e005-distribution-report-v1.schema.json": "1e5a9986c3474ac6b04932fbbab0181b01e1b6bd056917f2219f7c14587fe5f3",
+  "e005-human-review-bundle-v1.schema.json": "5c87d6ee459c09cd55b8220f33871004baa4a4252bb8102e41aaafd0a7f19a38",
+  "e005-production-review-v1.schema.json": "7aecf7311b97d9922667034e013dfaaf313970cfc226d88961d825c628cc123a",
+  "e005-provider-budget-evidence-v1.schema.json": "d7a4d7073c38c0b67adbd33623d4ff77d53f54696059979fa8577a7eb0709359",
+  "e005-provider-run-authorization-v1.schema.json": "de4c9e2dd790eb617c364245b9dd7c56f102995b6e9692e4b0f7c4270fe93ffa",
+  "e005-run-receipt-v1.schema.json": "d54c85e7b03e8666c72a9fc4b74473bf5608f83bee63c75466ad195a69bde2f3",
+  "e005-structural-difference-matrix-v1.schema.json": "42d7ea39febb8e6c611d9c90e66c16d7aa676c36e0dd5924824370ea32248cb7",
+  "e005-unseen-task-set-v1.schema.json": "f18903a656ebf76143e2d7dd4cecc68615136ba031d1f864e182fd9d37308a77",
+  "e005-visual-patch-proposal-v1.schema.json": "73ff7e895a086cfa7f325a03e287585e58e7287d3623cdabf038a77f029af239",
+  "e005-visual-patch-v1.schema.json": "081ebbf64e250b714dcc27328eec0fb33bbee4aaa696683eb245c5127e81e849",
+  "e005-visual-review-evidence-v1.schema.json": "d6611f7f40eb94a367c64328efea6e9a015eb640760d7017e0a4dab6a5637002",
+  "e005-visual-session-receipt-v1.schema.json": "00d1e684d813bcca1208ef17aef6823ea4e0e7a754cc0a794504461852bc553d",
+  "e005-visual-session-v1.schema.json": "cbd0f11af4272345210ab73923822ed6f699d344d6817f377337d64e65d868f0",
   "editable-component-recipe.schema.json": "dc78c0b7302462082b427d48e8d1a567c00bd46e9551bd413ff64dab6294cce3",
+  "expanded-visual-dag-v1.schema.json": "bd78409921e811285c43267cf8816662cfd8ffdd3892a6342ccf508b772c925c",
+  "expanded-visual-geometry-dag-v1.schema.json": "b8cda58ae605523d1f91bd892b739bc06f6079539340a32b3acb463901e41c84",
+  "forge-visual-author-source-v1.schema.json": "2e761190cc05dd17d010ec3428e0255cc9bb8c55772095639b72636e6d2f1b43",
   "forge-visual-authoring-intent.schema.json": "a8fd7704b3087c2a4b3ff4cb38a666601ef27c9d2107ae87a822edc90f2f9372",
+  "forge-visual-composition-v2.schema.json": "d7d57402d142c52177c9a828e36708ad51a39535315f21805914ccab24ffe3a8",
+  "forge-visual-geometry-patch-v1.schema.json": "542f8b6f06e9875c8d1fa6831600c7ffebffa9d3bba9ca7a635c181fcfaf0539",
+  "forge-visual-geometry-program-v2.schema.json": "8ea0f719d5c5ff53f34a84d1ff3796c795dc727727352ccfafeb37b4e463b229",
   "forge-visual-patch.schema.json": "a1a5e6cfbbc76c6a167f1f7c49b13c0d0a747004c4b8eabbd4e959a899dd5ea0",
+  "forge-visual-program-revision.schema.json": "1095df3d57afbd3efe82304ce266587be6b8526a371fe3112cc4b039287a1b72",
+  "forge-visual-program-v2.schema.json": "48815c4fc630a98c0bfba6773f0205b8f59719dad44d04f1af48e1ad6a7552d5",
   "forge-visual-program.schema.json": "0d17bdbc0e210ee8abe33d0e084bb2e754657de97124d58f3bf3de2d87724db8",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
-  "geometry-compile-readback.schema.json": "f88c32e4888a5cc923cc11786920790d16d52a816883b57b4ab6572407073bd9",
+  "geometry-compile-readback.schema.json": "2b746d63f5aa6c67ff6ff6ae8f4861ca79c4ea58a1d35ac876397fe9e7d9a00a",
+  "geometry-incremental-plan-v1.schema.json": "be209566ec4738604cb5c9c5b0c41757a5dcbefc3660dabd603e4e6b4e3ebe4b",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
   "material-texture-object.schema.json": "5818946a17dfa9dd19b13133aa3afab6717604f7b8258e17332d341271bfc1d2",
+  "material-zone-appearance.schema.json": "bc70e35ab6b7f93615bb575fff087231eff0f110d5a9fce8775acbb34f795520",
   "mechanical-concept-spec.schema.json": "f16ec5a742e26f01cb7f70e69a10203b1e94f55abaf2aa76504724ec56125b6f",
   "mechanical-style-token.schema.json": "771af5f26d368dc7081b2c9a8a7749c2304bfc5b07420689098b1c07ce0704a2",
   "model-quality-report.schema.json": "390407b5eb1f67c95ed17fd3373f30321642d7c965bd85a5c69fb046333115cc",
@@ -59,21 +86,38 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
   "provider-connection-state.schema.json": "b3e683f4d2ec694fe1a8b35c3662c7123883eb68da25459194d22031fdcb2c8a",
   "provider-execution-trace.schema.json": "be119b3631dd5588b6f2cdeea2c44211ea4ad8a8434745a6a178a19806f08b6c",
-  "reference-evidence-create-request.schema.json": "183a39aaff745ff97e9262bfa11a437da97c93e453c8a338224c4c5ec1cf6c2b",
-  "reference-evidence.schema.json": "c5476bd3a0a436ca037383831445724026033f89f6ad817ec8a0ab999a734a04",
+  "reference-camera-hypothesis.schema.json": "a3c17acf48ddbeaa544b207e6be77671ae7547c5a5ed8394d97ea1897284ab13",
+  "reference-evidence-create-request.schema.json": "f006e624d9fd5fb85c33a5150f78d36ae5f11ea65b204985fb221feebc05ea59",
+  "reference-evidence.schema.json": "b531c67b62d98e01221282c2383b1e57b25fd61a527e4aa54de9bdaab5d5f1c8",
   "reference-guided-rebuild-plan.schema.json": "d6aca3453f8043b52642cf0174db8721c7a30676dedce75316e87f9a4fd7eb85",
   "reference-guided-rebuild-preview-request.schema.json": "bf8f359c36febbffcfbb1fdaf2b0efb47d835214c7a5b6e3887fa70931bac787",
   "reference-surface-analysis.schema.json": "a55516503d79441ac81a14a7b723f3732d9fd18930d1f67526243db014eb5794",
+  "representation-limitation.schema.json": "b511faa0513ef432ed5fcdef09f591beebf7de1835690e87433877e1a5cdf395",
+  "representation-plan.schema.json": "556374b712a256907a183904a5e7b12ae1170fa64b0f89c0f002c03ea78471aa",
   "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
-  "shape-program.schema.json": "b019c577a33eedb8de228bb80c6571da8bfbdb1ada9c7d65604a240dc67d753e",
+  "restricted-geometry-execution-evidence-v1.schema.json": "fbae0d1973cfee4e149b6885895d69dd2c46918474f405838dfde4688b17747f",
+  "shape-program.schema.json": "7634f8bc6d2473a659ad2e2f92a2e638fe5d61342da8104599d86a3e28878f53",
+  "subject-profile.schema.json": "698f7489cf70e2cc56081c190eddb53ab2a64c37eab391cd37ad1c6e7fad4f4a",
   "surface-adornment-program.schema.json": "c91ceb6919e11bc5cc6114a36e26b833e32906dfc84f00e19ec3499833446e83",
   "surface-layer-program.schema.json": "be291936de86b757f3be98ec7773d5ed379f82a7708c633ebb8eb9e8574e162b",
+  "universal-asset-source-v2.schema.json": "e1bd40402ebcadee467cde58997ff5bf064a40e40a4263c270e953721bbcd73c",
+  "universal-asset-source.schema.json": "223f73dd8c553778ccfce2a3b12876b28fda70894947dcb3127a9dd18c21bb8e",
+  "universal-author-outcome.schema.json": "20f90c527dcce42b2ec6c5afe285fbc23dd4b1300659cdaa8b56e79609dba312",
+  "universal-author-request.schema.json": "c3da2ae64cb606fdf2f038fba2ac8e19cb843740797c6d4ffc90fe0e8668f1d3",
+  "visual-convergence-input-v2.schema.json": "6965984b65fd4f3bf04deebe2c348ec5f9093d4e05b287e77aedf6fe85aba54b",
   "visual-convergence-input.schema.json": "e4670c75fa46863786a969ac1600f67adfc54b4a03379f19ea2bcf5e5efe5e21",
+  "visual-convergence-report-v2.schema.json": "38e29888a20cd3693e8d260e26a6ac597355ded7be2ce5362fc280aa686a8482",
   "visual-convergence-report.schema.json": "af6ace5ebc351abc20cc9282cf82da368b3c818e9aa1ed6d7f53926e13a2b392",
+  "visual-detail-claim-v2.schema.json": "3deaf7f349f6ed2cf319fe5fc4ccee253c3a1e653131526555b96fb577b61d1d",
+  "visual-evidence-graph-v2.schema.json": "53f388a08a0c03893dd47015ae5805f2008b7376b1a803a67a7e1e75bb24139b",
   "visual-evidence-graph.schema.json": "ba3fe33f2ce809ed025c388ea7ef0416477fef8866e0889e34df8ed877a18c08",
+  "visual-feature-contract.schema.json": "62f89aa17b9abc139b5e8c73791a977eae485c46c2c78527355d92a850c3f65f",
   "visual-intent-mapping.schema.json": "5f5360234126188da3448f7507eb46c2e7575dbbaee9ff1f6b1b27c3aa8ca04f",
-  "visual-reference-comparison-input.schema.json": "9d04fcd468c5ffb61a17b512c448ee50eee45a7284ad22b8129b7b2a4ca1de47",
-  "visual-reference-comparison-report.schema.json": "43e4e6f795b67344f35401933ac4f53caa77367f7a577a3b33bf9e66a2ce7e2a",
+  "visual-program-authoring-session-v1.schema.json": "ee6fc7bff26b98bf435544f0bbd0baa4149fd6d39f63e32136a5c55bb1f0ff7b",
+  "visual-program-execution-receipt-v1.schema.json": "9a19a305a97cd20feee7184ea7b461d3b5198fe291a8c1e755ab7b7cd24075ba",
+  "visual-program-gate-outcome-v1.schema.json": "825e8f153e472bbadf75bba77ceb56eeff3c98dc663d121d60adc8a5b97035c7",
+  "visual-reference-comparison-input.schema.json": "2475e096aa116322a91e3c2e57c5e4a5f8252028be38b84cd1e9709a0b3c989b",
+  "visual-reference-comparison-report.schema.json": "0de217f4922d12ffa67fe9d76cf77b70362a44564eb560f799626e7347c49d4e",
   "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
 }
@@ -1976,6 +2020,128 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "AgentStructureSuggestionList",
     "type": "object"
   },
+  "appearance-evidence-bundle.schema.json": {
+    "$defs": {
+      "artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "algorithm_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "artifact_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "content_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_only": {
+            "const": true
+          },
+          "kind": {
+            "enum": [
+              "mask",
+              "region",
+              "delighted_color_hint",
+              "normal_hint",
+              "roughness_hint",
+              "metallic_hint",
+              "unobserved_texel_mask"
+            ]
+          }
+        },
+        "required": [
+          "artifact_id",
+          "evidence_id",
+          "kind",
+          "content_sha256",
+          "algorithm_id",
+          "algorithm_version",
+          "evidence_only"
+        ],
+        "type": "object"
+      },
+      "reference": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "evidence_sha256"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/appearance-evidence-bundle.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Hash-only reference, camera and derived appearance evidence. It contains no pixels, paths, URLs, shader code or material truth.",
+    "properties": {
+      "bundle_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "camera_hypotheses": {
+        "items": {
+          "$ref": "reference-camera-hypothesis.schema.json"
+        },
+        "maxItems": 24,
+        "type": "array"
+      },
+      "derived_artifacts": {
+        "items": {
+          "$ref": "#/$defs/artifact"
+        },
+        "maxItems": 256,
+        "type": "array"
+      },
+      "references": {
+        "items": {
+          "$ref": "#/$defs/reference"
+        },
+        "maxItems": 12,
+        "type": "array"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "AppearanceEvidenceBundle@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "bundle_id",
+      "request_sha256",
+      "references",
+      "camera_hypotheses",
+      "derived_artifacts"
+    ],
+    "title": "AppearanceEvidenceBundle",
+    "type": "object"
+  },
   "arm-design-intent.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/arm-design-intent.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2971,6 +3137,889 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "lineages"
     ],
     "title": "C111StructuralDetailContract",
+    "type": "object"
+  },
+  "c111b-human-review.schema.json": {
+    "$defs": {
+      "blindView": {
+        "additionalProperties": false,
+        "properties": {
+          "blind_view_id": {
+            "pattern": "^view_[0-9]{2}$",
+            "type": "string"
+          },
+          "file": {
+            "pattern": "^reviewers/reviewer_[0-9a-f]{16}/views/view_[0-9]{2}\\.png$",
+            "type": "string"
+          },
+          "position": {
+            "maximum": 8,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "source_view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "back",
+              "left",
+              "right",
+              "top",
+              "gripper_iso",
+              "gripper_front"
+            ]
+          }
+        },
+        "required": [
+          "position",
+          "blind_view_id",
+          "source_view_id",
+          "file",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "capture": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "pattern": "^captures/[a-z_]+\\.png$",
+            "type": "string"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "source_glb_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "view_id": {
+            "enum": [
+              "iso",
+              "front",
+              "back",
+              "left",
+              "right",
+              "top",
+              "gripper_iso",
+              "gripper_front"
+            ]
+          }
+        },
+        "required": [
+          "view_id",
+          "file",
+          "sha256",
+          "source_glb_sha256"
+        ],
+        "type": "object"
+      },
+      "interactionReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_runtime_fingerprint_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "event_log_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "interactions": {
+            "additionalProperties": false,
+            "properties": {
+              "material_zone_inspection": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "orbit": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "part_selection": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "zoom": {
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orbit",
+              "zoom",
+              "part_selection",
+              "material_zone_inspection"
+            ],
+            "type": "object"
+          },
+          "load_state": {
+            "const": "ready"
+          },
+          "packet_id": {
+            "pattern": "^packet_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "receipt_id": {
+            "pattern": "^receipt_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "receipt_origin": {
+            "const": "forgecad_workbench_runtime"
+          },
+          "receipt_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "renderer_id": {
+            "const": "ForgeCADWorkbenchRenderer@1"
+          },
+          "reviewer_id": {
+            "pattern": "^reviewer_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "C111BWorkbenchInteractionReceipt@1"
+          },
+          "session_ended_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "session_started_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "source_glb_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "static_images_only": {
+            "const": false
+          },
+          "workbench_id": {
+            "const": "ForgeCADWorkbench@1"
+          }
+        },
+        "required": [
+          "schema_version",
+          "receipt_id",
+          "receipt_origin",
+          "receipt_sha256",
+          "reviewer_id",
+          "packet_id",
+          "source_glb_sha256",
+          "capture_runtime_fingerprint_sha256",
+          "workbench_id",
+          "renderer_id",
+          "load_state",
+          "static_images_only",
+          "session_started_at",
+          "session_ended_at",
+          "event_log_sha256",
+          "interactions"
+        ],
+        "type": "object"
+      },
+      "kit": {
+        "additionalProperties": false,
+        "properties": {
+          "blind_protocol": {
+            "additionalProperties": false,
+            "properties": {
+              "agent_or_vlm_allowed": {
+                "const": false
+              },
+              "anonymous_reviewers": {
+                "const": true
+              },
+              "dimension_median_minimum": {
+                "const": 4
+              },
+              "dimensions": {
+                "const": [
+                  "macro",
+                  "meso",
+                  "micro",
+                  "pbr",
+                  "presentation",
+                  "usability"
+                ]
+              },
+              "human_only": {
+                "const": true
+              },
+              "independent_reviewer_count": {
+                "const": 3
+              },
+              "randomization_commitment_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "randomized_view_order": {
+                "const": true
+              },
+              "reviewer_median_minimum": {
+                "const": 4
+              },
+              "score_scale": {
+                "const": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            "required": [
+              "anonymous_reviewers",
+              "randomized_view_order",
+              "randomization_commitment_sha256",
+              "independent_reviewer_count",
+              "human_only",
+              "agent_or_vlm_allowed",
+              "dimensions",
+              "score_scale",
+              "dimension_median_minimum",
+              "reviewer_median_minimum"
+            ],
+            "type": "object"
+          },
+          "frozen_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "lineage": {
+            "additionalProperties": false,
+            "properties": {
+              "capture_manifest_file": {
+                "const": "evidence/capture-manifest.json"
+              },
+              "capture_manifest_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "capture_runtime_fingerprint_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "captures": {
+                "items": {
+                  "$ref": "#/$defs/capture"
+                },
+                "maxItems": 8,
+                "minItems": 8,
+                "type": "array"
+              },
+              "contract_file": {
+                "const": "evidence/visual-acceptance-contract.json"
+              },
+              "contract_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "glb_byte_size": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "glb_file": {
+                "const": "artifact/model.glb"
+              },
+              "glb_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "readback_file": {
+                "const": "evidence/readback.json"
+              },
+              "readback_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            },
+            "required": [
+              "glb_file",
+              "glb_sha256",
+              "glb_byte_size",
+              "contract_file",
+              "contract_sha256",
+              "readback_file",
+              "readback_sha256",
+              "capture_manifest_file",
+              "capture_manifest_sha256",
+              "capture_runtime_fingerprint_sha256",
+              "captures"
+            ],
+            "type": "object"
+          },
+          "review_id": {
+            "pattern": "^c111b_review_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "reviewer_packets": {
+            "items": {
+              "$ref": "#/$defs/reviewerPacket"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "C111BHumanReviewKit@1"
+          },
+          "status": {
+            "const": "frozen_before_scoring"
+          },
+          "workbench_protocol": {
+            "additionalProperties": false,
+            "properties": {
+              "renderer_id": {
+                "const": "ForgeCADWorkbenchRenderer@1"
+              },
+              "required_interactions": {
+                "const": [
+                  "orbit",
+                  "zoom",
+                  "part_selection",
+                  "material_zone_inspection"
+                ]
+              },
+              "same_runtime_fingerprint_required": {
+                "const": true
+              },
+              "static_images_sufficient": {
+                "const": false
+              },
+              "usability_requires_interaction_receipt": {
+                "const": true
+              },
+              "workbench_id": {
+                "const": "ForgeCADWorkbench@1"
+              }
+            },
+            "required": [
+              "workbench_id",
+              "renderer_id",
+              "same_runtime_fingerprint_required",
+              "usability_requires_interaction_receipt",
+              "static_images_sufficient",
+              "required_interactions"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "schema_version",
+          "review_id",
+          "status",
+          "frozen_at",
+          "lineage",
+          "blind_protocol",
+          "workbench_protocol",
+          "reviewer_packets"
+        ],
+        "type": "object"
+      },
+      "responses": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_or_vlm_used": {
+            "const": false
+          },
+          "kit_manifest_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "review_id": {
+            "pattern": "^c111b_review_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "review_origin": {
+            "const": "independent_human"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/$defs/review"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "C111BHumanReviewResponses@1"
+          }
+        },
+        "required": [
+          "schema_version",
+          "review_id",
+          "kit_manifest_sha256",
+          "review_origin",
+          "agent_or_vlm_used",
+          "reviews"
+        ],
+        "type": "object"
+      },
+      "review": {
+        "additionalProperties": false,
+        "properties": {
+          "human_reviewer": {
+            "const": true
+          },
+          "implementation_participant": {
+            "const": false
+          },
+          "independent_of_implementation": {
+            "const": true
+          },
+          "interaction_receipt": {
+            "$ref": "#/$defs/interactionReceipt"
+          },
+          "packet_id": {
+            "pattern": "^packet_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "review_method": {
+            "const": "human_only_no_agent_no_vlm"
+          },
+          "reviewer_id": {
+            "pattern": "^reviewer_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "scores": {
+            "$ref": "#/$defs/scores"
+          },
+          "submitted_at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "viewed_blind_view_ids": {
+            "items": {
+              "pattern": "^view_[0-9]{2}$",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviewer_id",
+          "packet_id",
+          "human_reviewer",
+          "independent_of_implementation",
+          "implementation_participant",
+          "review_method",
+          "submitted_at",
+          "viewed_blind_view_ids",
+          "scores",
+          "interaction_receipt"
+        ],
+        "type": "object"
+      },
+      "reviewerPacket": {
+        "additionalProperties": false,
+        "properties": {
+          "packet_file": {
+            "pattern": "^reviewers/reviewer_[0-9a-f]{16}/packet\\.json$",
+            "type": "string"
+          },
+          "packet_id": {
+            "pattern": "^packet_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "packet_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "reviewer_id": {
+            "pattern": "^reviewer_[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "view_order": {
+            "items": {
+              "$ref": "#/$defs/blindView"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviewer_id",
+          "packet_id",
+          "packet_file",
+          "packet_sha256",
+          "view_order"
+        ],
+        "type": "object"
+      },
+      "scores": {
+        "additionalProperties": false,
+        "properties": {
+          "macro": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "meso": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "micro": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pbr": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "presentation": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "usability": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "macro",
+          "meso",
+          "micro",
+          "pbr",
+          "presentation",
+          "usability"
+        ],
+        "type": "object"
+      },
+      "sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "timestamp": {
+        "format": "date-time",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/c111b-human-review.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Frozen blind-review kit and human-only responses for one exact C111B GLB.",
+    "oneOf": [
+      {
+        "$ref": "#/$defs/kit"
+      },
+      {
+        "$ref": "#/$defs/responses"
+      }
+    ],
+    "title": "C111BHumanReview"
+  },
+  "c111b-visual-acceptance-contract.schema.json": {
+    "$id": "https://forgecad.local/schemas/c111b-visual-acceptance-contract.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "authorized_reference": {
+        "additionalProperties": false,
+        "properties": {
+          "reference_set_id": {
+            "type": "string"
+          },
+          "repository_storage": {
+            "const": "external_user_authorized"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "source_filename": {
+            "type": "string"
+          },
+          "source_kind": {
+            "const": "user_authorized_reference"
+          },
+          "status": {
+            "const": "digest_verified"
+          }
+        },
+        "required": [
+          "reference_set_id",
+          "source_filename",
+          "source_kind",
+          "repository_storage",
+          "sha256",
+          "status"
+        ],
+        "type": "object"
+      },
+      "budgets": {
+        "additionalProperties": false,
+        "properties": {
+          "cost": {
+            "additionalProperties": false,
+            "properties": {
+              "currency": {
+                "const": "USD"
+              },
+              "generation_maximum_variable_cost_microusd": {
+                "const": 0
+              },
+              "hard_stop_before_call": {
+                "const": true
+              },
+              "record_estimate": {
+                "const": true
+              },
+              "visual_comparison_maximum_variable_cost_microusd": {
+                "const": 100000
+              }
+            },
+            "required": [
+              "currency",
+              "generation_maximum_variable_cost_microusd",
+              "visual_comparison_maximum_variable_cost_microusd",
+              "hard_stop_before_call",
+              "record_estimate"
+            ],
+            "type": "object"
+          },
+          "production_triangle_count": {
+            "additionalProperties": false,
+            "properties": {
+              "maximum": {
+                "const": 150000
+              },
+              "minimum": {
+                "const": 80000
+              }
+            },
+            "required": [
+              "minimum",
+              "maximum"
+            ],
+            "type": "object"
+          },
+          "provider": {
+            "additionalProperties": false,
+            "properties": {
+              "generation": {
+                "additionalProperties": false,
+                "properties": {
+                  "maximum_calls": {
+                    "const": 0
+                  },
+                  "network_allowed": {
+                    "const": false
+                  },
+                  "record_cache_hits": {
+                    "const": true
+                  },
+                  "record_usage": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "network_allowed",
+                  "maximum_calls",
+                  "record_cache_hits",
+                  "record_usage"
+                ],
+                "type": "object"
+              },
+              "visual_comparison": {
+                "additionalProperties": false,
+                "properties": {
+                  "maximum_calls_per_candidate": {
+                    "const": 3
+                  },
+                  "maximum_same_intent_repairs": {
+                    "const": 2
+                  },
+                  "network_allowed_when_authorized": {
+                    "const": true
+                  },
+                  "record_cache_hits": {
+                    "const": true
+                  },
+                  "record_usage": {
+                    "const": true
+                  },
+                  "requires_explicit_user_authorization": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "requires_explicit_user_authorization",
+                  "network_allowed_when_authorized",
+                  "maximum_calls_per_candidate",
+                  "maximum_same_intent_repairs",
+                  "record_cache_hits",
+                  "record_usage"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "generation",
+              "visual_comparison"
+            ],
+            "type": "object"
+          },
+          "texture": {
+            "additionalProperties": false,
+            "properties": {
+              "maximum_map_count": {
+                "const": 320
+              },
+              "minimum_resolution": {
+                "const": 1024
+              },
+              "required_roles": {
+                "items": {
+                  "enum": [
+                    "base_color",
+                    "metallic_roughness",
+                    "normal",
+                    "occlusion",
+                    "emissive"
+                  ]
+                },
+                "maxItems": 5,
+                "minItems": 5,
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "minimum_resolution",
+              "required_roles",
+              "maximum_map_count"
+            ],
+            "type": "object"
+          },
+          "timing": {
+            "additionalProperties": false,
+            "properties": {
+              "record_stage_durations": {
+                "const": true
+              },
+              "required_stage_keys": {
+                "items": {
+                  "enum": [
+                    "author",
+                    "lower",
+                    "compile_readback",
+                    "render",
+                    "evaluate",
+                    "preview"
+                  ]
+                },
+                "maxItems": 6,
+                "minItems": 6,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "target_total_seconds": {
+                "const": 120
+              }
+            },
+            "required": [
+              "target_total_seconds",
+              "record_stage_durations",
+              "required_stage_keys"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "production_triangle_count",
+          "texture",
+          "timing",
+          "provider",
+          "cost"
+        ],
+        "type": "object"
+      },
+      "claims": {
+        "items": {
+          "type": "object"
+        },
+        "maxItems": 4,
+        "minItems": 4,
+        "type": "array"
+      },
+      "contract_id": {
+        "pattern": "^c111b_[a-z0-9_]+$",
+        "type": "string"
+      },
+      "evidence_lineage": {
+        "type": "object"
+      },
+      "fixed_views": {
+        "const": [
+          "iso",
+          "front",
+          "back",
+          "left",
+          "right",
+          "top",
+          "gripper_iso",
+          "gripper_front"
+        ],
+        "type": "array"
+      },
+      "formal_eligible": {
+        "const": false
+      },
+      "independent_human_review": {
+        "type": "object"
+      },
+      "must_not_show": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "minItems": 4,
+        "type": "array"
+      },
+      "must_show": {
+        "items": {
+          "type": "object"
+        },
+        "maxItems": 7,
+        "minItems": 7,
+        "type": "array"
+      },
+      "registry_id": {
+        "const": "registry_c111_golden_surface_robotic_arm_v1"
+      },
+      "root_recipe_id": {
+        "const": "recipe_c111_arm_golden_surface"
+      },
+      "schema_version": {
+        "const": "C111BVisualAcceptanceContract@2"
+      },
+      "status": {
+        "const": "frozen"
+      },
+      "stop_conditions": {
+        "items": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "minItems": 7,
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "contract_id",
+      "status",
+      "formal_eligible",
+      "root_recipe_id",
+      "registry_id",
+      "authorized_reference",
+      "must_show",
+      "must_not_show",
+      "claims",
+      "fixed_views",
+      "budgets",
+      "independent_human_review",
+      "stop_conditions",
+      "evidence_lineage"
+    ],
+    "title": "C111BVisualAcceptanceContract",
     "type": "object"
   },
   "common.schema.json": {
@@ -4631,6 +5680,3733 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "DomainSemanticProportionRecipe",
     "type": "object"
   },
+  "e005-author-source-manifest-v1.schema.json": {
+    "$defs": {
+      "entry": {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "source_status": {
+                  "const": "unavailable"
+                }
+              },
+              "required": [
+                "source_status"
+              ]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "source_program_sha256"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "source_program"
+                    ]
+                  }
+                ]
+              },
+              "properties": {
+                "authoring_mode": {
+                  "const": "not_authorized"
+                }
+              },
+              "required": [
+                "failure_code"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "source_status": {
+                  "const": "authored"
+                }
+              },
+              "required": [
+                "source_status"
+              ]
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "failure_code"
+                ]
+              },
+              "properties": {
+                "authoring_mode": {
+                  "enum": [
+                    "frozen_offline_fixture",
+                    "live_provider"
+                  ]
+                }
+              },
+              "required": [
+                "source_program_sha256",
+                "source_program"
+              ]
+            }
+          }
+        ],
+        "properties": {
+          "authoring_mode": {
+            "enum": [
+              "not_authorized",
+              "frozen_offline_fixture",
+              "live_provider"
+            ]
+          },
+          "failure_code": {
+            "enum": [
+              "E005_SOURCE_UNAVAILABLE",
+              "E005_PROVIDER_UNAUTHORIZED"
+            ]
+          },
+          "source_program": {
+            "$ref": "https://forgecad.local/schemas/forge-visual-geometry-program-v2.schema.json"
+          },
+          "source_program_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "source_status": {
+            "enum": [
+              "unavailable",
+              "authored"
+            ]
+          },
+          "task_id": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "required": [
+          "task_id",
+          "authoring_mode",
+          "source_status"
+        ],
+        "type": "object"
+      },
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-author-source-manifest-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/entry"
+        },
+        "maxItems": 30,
+        "minItems": 30,
+        "type": "array"
+      },
+      "manifest_id": {
+        "$ref": "#/$defs/id"
+      },
+      "schema_version": {
+        "const": "E005AuthorSourceManifest@1"
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "manifest_id",
+      "task_set_sha256",
+      "entries"
+    ],
+    "title": "E005AuthorSourceManifestV1",
+    "type": "object"
+  },
+  "e005-distribution-report-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-distribution-report-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "formal_eligible": {
+              "const": true
+            }
+          },
+          "required": [
+            "formal_eligible"
+          ]
+        },
+        "then": {
+          "properties": {
+            "first_pass_human_quality_count": {
+              "minimum": 21
+            },
+            "human_review_complete_count": {
+              "const": 30
+            },
+            "human_review_receipt_count": {
+              "const": 90
+            },
+            "independent_reviewers_per_task_minimum": {
+              "const": 3
+            },
+            "lineage_complete_count": {
+              "const": 30
+            },
+            "max_ms": {
+              "maximum": 105000
+            },
+            "not_run_count": {
+              "const": 0
+            },
+            "p50_ms": {
+              "maximum": 32000
+            },
+            "p90_ms": {
+              "maximum": 70000
+            },
+            "run_count": {
+              "const": 30
+            },
+            "structural_difference_matrix_pass": {
+              "const": true
+            },
+            "structural_pair_count": {
+              "const": 435
+            },
+            "structurally_distinct_pair_count": {
+              "const": 435
+            },
+            "total_receipt_count": {
+              "const": 30
+            },
+            "within_one_patch_human_quality_count": {
+              "minimum": 26
+            }
+          },
+          "required": [
+            "p50_ms",
+            "p90_ms",
+            "max_ms"
+          ]
+        }
+      }
+    ],
+    "properties": {
+      "cancelled_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "failed_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "failure_histogram": {
+        "additionalProperties": {
+          "maximum": 30,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxProperties": 32,
+        "type": "object"
+      },
+      "first_pass_human_quality_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "first_pass_success_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "formal_eligible": {
+        "type": "boolean"
+      },
+      "human_review_bundle_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "human_review_complete_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "human_review_receipt_count": {
+        "maximum": 90,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "independent_reviewers_per_task_minimum": {
+        "maximum": 3,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "lineage_complete_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_ms": {
+        "maximum": 900000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "not_run_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "p50_ms": {
+        "maximum": 900000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "p90_ms": {
+        "maximum": 900000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "patched_success_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "provider_authorization_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "receipts_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "report_id": {
+        "$ref": "#/$defs/id"
+      },
+      "run_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "E005DistributionReport@1"
+      },
+      "structural_difference_matrix_pass": {
+        "type": "boolean"
+      },
+      "structural_matrix_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "structural_pair_count": {
+        "maximum": 435,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "structurally_distinct_pair_count": {
+        "maximum": 435,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "total_receipt_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "within_one_patch_human_quality_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "report_id",
+      "task_set_sha256",
+      "provider_authorization_sha256",
+      "total_receipt_count",
+      "run_count",
+      "not_run_count",
+      "first_pass_success_count",
+      "patched_success_count",
+      "failed_count",
+      "cancelled_count",
+      "human_review_complete_count",
+      "human_review_receipt_count",
+      "human_review_bundle_sha256",
+      "independent_reviewers_per_task_minimum",
+      "first_pass_human_quality_count",
+      "within_one_patch_human_quality_count",
+      "lineage_complete_count",
+      "structural_matrix_sha256",
+      "structural_pair_count",
+      "structurally_distinct_pair_count",
+      "structural_difference_matrix_pass",
+      "formal_eligible",
+      "failure_histogram",
+      "receipts_sha256"
+    ],
+    "title": "E005DistributionReportV1",
+    "type": "object"
+  },
+  "e005-human-review-bundle-v1.schema.json": {
+    "$defs": {
+      "fixed_views": {
+        "additionalProperties": false,
+        "properties": {
+          "front": {
+            "$ref": "#/$defs/hash"
+          },
+          "iso": {
+            "$ref": "#/$defs/hash"
+          },
+          "side": {
+            "$ref": "#/$defs/hash"
+          },
+          "top": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "front",
+          "iso",
+          "side",
+          "top"
+        ],
+        "type": "object"
+      },
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      },
+      "review": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_or_vlm_used": {
+            "const": false
+          },
+          "blind_packet_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "fixed_view_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "fixed_views": {
+            "$ref": "#/$defs/fixed_views"
+          },
+          "human_reviewer": {
+            "const": true
+          },
+          "implementation_participant": {
+            "const": false
+          },
+          "independent_of_implementation": {
+            "const": true
+          },
+          "overall_score": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "result_stage": {
+            "enum": [
+              "first_pass",
+              "after_patch"
+            ]
+          },
+          "review_id": {
+            "pattern": "^e005_reviewitem_[a-z0-9_-]{3,96}$",
+            "type": "string"
+          },
+          "reviewer_commitment_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "reviewer_id": {
+            "$ref": "#/$defs/reviewer_id"
+          },
+          "run_id": {
+            "$ref": "#/$defs/id"
+          },
+          "run_receipt_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "scores": {
+            "$ref": "#/$defs/scores"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "task_id": {
+            "$ref": "#/$defs/id"
+          },
+          "view_order": {
+            "items": {
+              "enum": [
+                "front",
+                "iso",
+                "side",
+                "top"
+              ]
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "review_id",
+          "reviewer_id",
+          "reviewer_commitment_sha256",
+          "task_id",
+          "run_id",
+          "run_receipt_sha256",
+          "fixed_view_sha256",
+          "fixed_views",
+          "blind_packet_sha256",
+          "view_order",
+          "human_reviewer",
+          "independent_of_implementation",
+          "implementation_participant",
+          "agent_or_vlm_used",
+          "submitted_at",
+          "result_stage",
+          "scores",
+          "overall_score"
+        ],
+        "type": "object"
+      },
+      "reviewer_commitment": {
+        "additionalProperties": false,
+        "properties": {
+          "identity_commitment_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "reviewer_id": {
+            "$ref": "#/$defs/reviewer_id"
+          }
+        },
+        "required": [
+          "reviewer_id",
+          "identity_commitment_sha256"
+        ],
+        "type": "object"
+      },
+      "reviewer_id": {
+        "pattern": "^reviewer_[a-z0-9_-]{3,96}$",
+        "type": "string"
+      },
+      "scores": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_free": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "hidden_surface_reasonableness": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "identity_alignment": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "macro_shape": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "meso_structure": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "micro_detail": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pbr_material": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "macro_shape",
+          "meso_structure",
+          "micro_detail",
+          "identity_alignment",
+          "pbr_material",
+          "hidden_surface_reasonableness",
+          "artifact_free"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-human-review-bundle-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "not_run"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "review_count": {
+              "const": 0
+            },
+            "reviewer_commitments": {
+              "maxItems": 0
+            },
+            "reviews": {
+              "maxItems": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "complete"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "review_count": {
+              "const": 90
+            },
+            "reviewer_commitments": {
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "reviews": {
+              "maxItems": 90,
+              "minItems": 90
+            }
+          }
+        }
+      }
+    ],
+    "properties": {
+      "bundle_id": {
+        "pattern": "^e005_review_[a-z0-9_-]{3,96}$",
+        "type": "string"
+      },
+      "review_count": {
+        "maximum": 90,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "reviewer_commitments": {
+        "items": {
+          "$ref": "#/$defs/reviewer_commitment"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "reviews": {
+        "items": {
+          "$ref": "#/$defs/review"
+        },
+        "maxItems": 90,
+        "type": "array"
+      },
+      "reviews_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "run_receipts_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "E005HumanReviewBundle@1"
+      },
+      "status": {
+        "enum": [
+          "not_run",
+          "complete"
+        ]
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "bundle_id",
+      "task_set_sha256",
+      "run_receipts_sha256",
+      "status",
+      "reviewer_commitments",
+      "review_count",
+      "reviews",
+      "reviews_sha256"
+    ],
+    "title": "E005HumanReviewBundleV1",
+    "type": "object"
+  },
+  "e005-production-review-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-production-review-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "artifact_profile_id": {
+        "const": "production_concept"
+      },
+      "compile_duration_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "compile_readback_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "elapsed_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "fixed_view_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "fixed_views": {
+        "additionalProperties": false,
+        "properties": {
+          "turntable_000": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_045": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_090": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_135": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_180": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_225": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_270": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_315": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "turntable_000",
+          "turntable_045",
+          "turntable_090",
+          "turntable_135",
+          "turntable_180",
+          "turntable_225",
+          "turntable_270",
+          "turntable_315"
+        ],
+        "type": "object"
+      },
+      "glb_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "lower_duration_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "material_zone_count": {
+        "maximum": 512,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "normalized_geometry_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "render_duration_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "restricted_geometry_evidence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "restricted_geometry_input_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "E005ProductionReview@1"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "surface_adornment_count": {
+        "maximum": 32,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "surface_adornment_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "surface_plan_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "visual_texture_map_count": {
+        "maximum": 160,
+        "minimum": 5,
+        "type": "integer"
+      },
+      "visual_texture_provenance_verified": {
+        "const": true
+      },
+      "visual_texture_set_count": {
+        "maximum": 32,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_program_sha256",
+      "surface_plan_sha256",
+      "surface_adornment_sha256",
+      "restricted_geometry_input_sha256",
+      "surface_adornment_count",
+      "glb_sha256",
+      "normalized_geometry_sha256",
+      "fixed_view_sha256",
+      "fixed_views",
+      "compile_readback_sha256",
+      "restricted_geometry_evidence_sha256",
+      "artifact_profile_id",
+      "material_zone_count",
+      "visual_texture_set_count",
+      "visual_texture_map_count",
+      "visual_texture_provenance_verified",
+      "lower_duration_ms",
+      "compile_duration_ms",
+      "render_duration_ms",
+      "elapsed_ms"
+    ],
+    "title": "E005ProductionReviewV1",
+    "type": "object"
+  },
+  "e005-provider-budget-evidence-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,160}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-provider-budget-evidence-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "settlement": {
+              "const": "accounted"
+            }
+          },
+          "required": [
+            "settlement"
+          ]
+        },
+        "then": {
+          "properties": {
+            "network_call_made": {
+              "const": true
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "settlement": {
+              "const": "released"
+            }
+          },
+          "required": [
+            "settlement"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "output_source_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "output_gate_sha256"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "network_call_made": {
+              "const": false
+            },
+            "outcome_code": {
+              "const": "PRE_DISPATCH_RELEASED"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "outcome_code": {
+              "enum": [
+                "PROVIDER_COMPLETED_PASSED",
+                "PROVIDER_COMPLETED_REPAIRABLE"
+              ]
+            }
+          },
+          "required": [
+            "outcome_code"
+          ]
+        },
+        "then": {
+          "required": [
+            "output_source_sha256",
+            "output_gate_sha256"
+          ]
+        }
+      }
+    ],
+    "properties": {
+      "accounted_cost_ceiling_microusd_after": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "accounted_input_tokens_after": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "accounted_output_tokens_after": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "author_calls_accounted_after": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "authorization_binding_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "authorization_id": {
+        "$ref": "#/$defs/id"
+      },
+      "call_kind": {
+        "enum": [
+          "author",
+          "patch"
+        ]
+      },
+      "call_number": {
+        "maximum": 60,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "calls_accounted_after": {
+        "maximum": 60,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "kind_call_number": {
+        "maximum": 30,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "model_id": {
+        "$ref": "#/$defs/id"
+      },
+      "network_call_made": {
+        "type": "boolean"
+      },
+      "outcome_code": {
+        "enum": [
+          "PRE_DISPATCH_RELEASED",
+          "PROVIDER_COMPLETED_PASSED",
+          "PROVIDER_COMPLETED_REPAIRABLE",
+          "PROVIDER_COMPLETED_FAILED",
+          "PROVIDER_TIMEOUT",
+          "PROVIDER_CANCELLED",
+          "PROVIDER_TRANSPORT_FAILED",
+          "RECOVERED_UNCERTAIN_DISPATCH"
+        ]
+      },
+      "output_gate_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "output_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "patch_calls_accounted_after": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "provider_id": {
+        "$ref": "#/$defs/id"
+      },
+      "request_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "reservation_id": {
+        "$ref": "#/$defs/id"
+      },
+      "reserved_cost_ceiling_microusd": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "reserved_input_tokens": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "reserved_output_tokens": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "E005ProviderBudgetEvidence@1"
+      },
+      "settled_at_unix_ms": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "settlement": {
+        "enum": [
+          "accounted",
+          "released"
+        ]
+      },
+      "task_id": {
+        "$ref": "#/$defs/id"
+      },
+      "task_payload_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "authorization_id",
+      "authorization_binding_sha256",
+      "reservation_id",
+      "task_id",
+      "task_payload_sha256",
+      "request_sha256",
+      "provider_id",
+      "model_id",
+      "call_kind",
+      "call_number",
+      "kind_call_number",
+      "settlement",
+      "network_call_made",
+      "outcome_code",
+      "reserved_input_tokens",
+      "reserved_output_tokens",
+      "reserved_cost_ceiling_microusd",
+      "author_calls_accounted_after",
+      "patch_calls_accounted_after",
+      "calls_accounted_after",
+      "accounted_input_tokens_after",
+      "accounted_output_tokens_after",
+      "accounted_cost_ceiling_microusd_after",
+      "settled_at_unix_ms"
+    ],
+    "title": "E005ProviderBudgetEvidenceV1",
+    "type": "object"
+  },
+  "e005-provider-run-authorization-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-provider-run-authorization-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "not_authorized"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "provider_id"
+                ]
+              },
+              {
+                "required": [
+                  "model_id"
+                ]
+              },
+              {
+                "required": [
+                  "source_policy_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "pricing_snapshot_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "disclosure_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "authorized_at"
+                ]
+              },
+              {
+                "required": [
+                  "expires_at"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "grant_mode": {
+              "const": "none"
+            },
+            "maximum_author_calls": {
+              "const": 0
+            },
+            "maximum_batch_wall_time_ms": {
+              "const": 0
+            },
+            "maximum_input_tokens": {
+              "const": 0
+            },
+            "maximum_output_tokens": {
+              "const": 0
+            },
+            "maximum_patch_calls": {
+              "const": 0
+            },
+            "maximum_single_call_wall_time_ms": {
+              "const": 0
+            },
+            "maximum_total_calls": {
+              "const": 0
+            },
+            "maximum_variable_cost_microusd": {
+              "const": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "authorized"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "grant_mode": {
+              "const": "explicit_user_confirmation"
+            },
+            "maximum_author_calls": {
+              "const": 30
+            },
+            "maximum_batch_wall_time_ms": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maximum_input_tokens": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maximum_output_tokens": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maximum_patch_calls": {
+              "const": 30
+            },
+            "maximum_single_call_wall_time_ms": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maximum_total_calls": {
+              "const": 60
+            },
+            "maximum_variable_cost_microusd": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "provider_id",
+            "model_id",
+            "source_policy_sha256",
+            "pricing_snapshot_sha256",
+            "disclosure_sha256",
+            "authorized_at",
+            "expires_at"
+          ]
+        }
+      }
+    ],
+    "properties": {
+      "authorization_binding_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "authorization_id": {
+        "$ref": "#/$defs/id"
+      },
+      "authorized_at": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "disclosure_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "grant_mode": {
+        "enum": [
+          "none",
+          "explicit_user_confirmation"
+        ]
+      },
+      "maximum_author_calls": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_batch_wall_time_ms": {
+        "maximum": 10800000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_input_tokens": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_output_tokens": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_patch_calls": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_single_call_wall_time_ms": {
+        "maximum": 105000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_total_calls": {
+        "maximum": 60,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum_variable_cost_microusd": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "model_id": {
+        "$ref": "#/$defs/id"
+      },
+      "pricing_snapshot_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "provider_id": {
+        "$ref": "#/$defs/id"
+      },
+      "schema_version": {
+        "const": "E005ProviderRunAuthorization@1"
+      },
+      "source_policy_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "status": {
+        "enum": [
+          "not_authorized",
+          "authorized"
+        ]
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "whole_object_template_policy": {
+        "const": "forbidden"
+      }
+    },
+    "required": [
+      "schema_version",
+      "authorization_id",
+      "task_set_sha256",
+      "status",
+      "grant_mode",
+      "maximum_author_calls",
+      "maximum_patch_calls",
+      "maximum_total_calls",
+      "maximum_input_tokens",
+      "maximum_output_tokens",
+      "maximum_variable_cost_microusd",
+      "maximum_batch_wall_time_ms",
+      "maximum_single_call_wall_time_ms",
+      "whole_object_template_policy",
+      "authorization_binding_sha256"
+    ],
+    "title": "E005ProviderRunAuthorizationV1",
+    "type": "object"
+  },
+  "e005-run-receipt-v1.schema.json": {
+    "$defs": {
+      "failure_code": {
+        "enum": [
+          "E005_SOURCE_UNAVAILABLE",
+          "E005_PROVIDER_UNAUTHORIZED",
+          "E005_AUTHORING_FAILED",
+          "E005_SCHEMA_INVALID",
+          "E005_EXPANSION_FAILED",
+          "E005_LOWERING_FAILED",
+          "E005_COMPILE_FAILED",
+          "E005_READBACK_FAILED",
+          "E005_RENDER_FAILED",
+          "E005_HARD_GATE_FAILED",
+          "E005_PATCH_FAILED",
+          "E005_CANCELLED",
+          "E005_TIMEOUT",
+          "E005_INTERNAL_ERROR"
+        ]
+      },
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      },
+      "phase_receipt": {
+        "additionalProperties": false,
+        "properties": {
+          "cache": {
+            "enum": [
+              "hit",
+              "miss",
+              "not_applicable"
+            ]
+          },
+          "duration_ms": {
+            "maximum": 240000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "fragment_cache_hit_operation_ids": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "fragment_cache_miss_operation_ids": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "input_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "output_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "phase": {
+            "enum": [
+              "author",
+              "validate",
+              "expand",
+              "lower",
+              "compile_readback",
+              "render",
+              "evaluate",
+              "patch",
+              "preview"
+            ]
+          },
+          "sequence": {
+            "maximum": 32,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sequence",
+          "phase",
+          "duration_ms",
+          "input_sha256",
+          "output_sha256",
+          "cache"
+        ],
+        "type": "object"
+      },
+      "turntable_views": {
+        "additionalProperties": false,
+        "properties": {
+          "turntable_000": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_045": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_090": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_135": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_180": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_225": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_270": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_315": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "turntable_000",
+          "turntable_045",
+          "turntable_090",
+          "turntable_135",
+          "turntable_180",
+          "turntable_225",
+          "turntable_270",
+          "turntable_315"
+        ],
+        "type": "object"
+      },
+      "usage": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_cost_microusd": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "output_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_tool_calls": {
+            "maximum": 32,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prompt_cache_hit_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prompt_cache_miss_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_requests": {
+            "maximum": 2,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_requests",
+          "product_tool_calls",
+          "input_tokens",
+          "output_tokens",
+          "prompt_cache_hit_tokens",
+          "prompt_cache_miss_tokens",
+          "estimated_cost_microusd"
+        ],
+        "type": "object"
+      },
+      "workbench_views": {
+        "additionalProperties": false,
+        "properties": {
+          "front": {
+            "$ref": "#/$defs/hash"
+          },
+          "iso": {
+            "$ref": "#/$defs/hash"
+          },
+          "side": {
+            "$ref": "#/$defs/hash"
+          },
+          "top": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "front",
+          "iso",
+          "side",
+          "top"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-run-receipt-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "run_mode": {
+              "const": "offline_deterministic"
+            }
+          },
+          "required": [
+            "run_mode"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "provider_authorization_id"
+                ]
+              },
+              {
+                "required": [
+                  "provider_authorization_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "provider_call_evidence"
+                ]
+              },
+              {
+                "required": [
+                  "provider_call_evidence_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "visual_review_evidence"
+                ]
+              },
+              {
+                "required": [
+                  "production_review_evidence"
+                ]
+              },
+              {
+                "required": [
+                  "production_review_evidence_sha256"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "distribution_eligible": {
+              "const": false
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "run_mode": {
+              "const": "formal_provider"
+            }
+          },
+          "required": [
+            "run_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "author_source_mode": {
+              "const": "provider_authored_v2"
+            },
+            "distribution_eligible": {
+              "const": true
+            }
+          },
+          "required": [
+            "provider_authorization_id",
+            "provider_authorization_sha256",
+            "provider_call_evidence",
+            "provider_call_evidence_sha256"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "patch_count": {
+              "const": 1
+            }
+          },
+          "required": [
+            "patch_count"
+          ]
+        },
+        "then": {
+          "properties": {
+            "authoring_count": {
+              "const": 1
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "not_run"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "source_program_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "expanded_program_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "shape_program_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "structural_descriptor_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "semantic_structure_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "normalized_geometry_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "topology_signature_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "operation_sequence_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "profile_signature_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "part_zone_signature_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "glb_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "fixed_view_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "fixed_views"
+                ]
+              },
+              {
+                "required": [
+                  "vp204_session_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "vp204_receipt_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "visual_session_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "visual_session_receipt_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "gate_outcome_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "compile_readback_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "restricted_geometry_evidence_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "visual_review_evidence"
+                ]
+              },
+              {
+                "required": [
+                  "artifact_profile_id"
+                ]
+              },
+              {
+                "required": [
+                  "runtime_manifest_version"
+                ]
+              },
+              {
+                "required": [
+                  "triangle_count"
+                ]
+              },
+              {
+                "required": [
+                  "bounds_mm"
+                ]
+              },
+              {
+                "required": [
+                  "mesh_count"
+                ]
+              },
+              {
+                "required": [
+                  "primitive_count"
+                ]
+              },
+              {
+                "required": [
+                  "material_count"
+                ]
+              },
+              {
+                "required": [
+                  "usage"
+                ]
+              },
+              {
+                "required": [
+                  "phase_receipts"
+                ]
+              },
+              {
+                "required": [
+                  "elapsed_ms"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "author_source_mode": {
+              "const": "missing"
+            },
+            "authoring_count": {
+              "const": 0
+            },
+            "billable_cost_microusd": {
+              "const": 0
+            },
+            "distribution_eligible": {
+              "const": false
+            },
+            "failure_codes": {
+              "minItems": 1
+            },
+            "human_review_status": {
+              "const": "not_run"
+            },
+            "network_provider_calls": {
+              "const": 0
+            },
+            "patch_count": {
+              "const": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "passed_without_patch"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "author_source_mode": {
+              "enum": [
+                "offline_authored_v2",
+                "provider_authored_v2"
+              ]
+            },
+            "authoring_count": {
+              "const": 1
+            },
+            "failure_codes": {
+              "maxItems": 0
+            },
+            "patch_count": {
+              "const": 0
+            }
+          },
+          "required": [
+            "source_program_sha256",
+            "expanded_program_sha256",
+            "shape_program_sha256",
+            "structural_descriptor_sha256",
+            "semantic_structure_sha256",
+            "normalized_geometry_sha256",
+            "topology_signature_sha256",
+            "operation_sequence_sha256",
+            "profile_signature_sha256",
+            "part_zone_signature_sha256",
+            "glb_sha256",
+            "fixed_view_sha256",
+            "fixed_views",
+            "gate_outcome_sha256",
+            "compile_readback_sha256",
+            "restricted_geometry_evidence_sha256",
+            "artifact_profile_id",
+            "runtime_manifest_version",
+            "triangle_count",
+            "bounds_mm",
+            "mesh_count",
+            "primitive_count",
+            "material_count",
+            "usage",
+            "phase_receipts",
+            "elapsed_ms"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "passed_after_patch"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "author_source_mode": {
+              "enum": [
+                "offline_authored_v2",
+                "provider_authored_v2"
+              ]
+            },
+            "authoring_count": {
+              "const": 1
+            },
+            "failure_codes": {
+              "maxItems": 0
+            },
+            "patch_count": {
+              "const": 1
+            }
+          },
+          "required": [
+            "source_program_sha256",
+            "expanded_program_sha256",
+            "shape_program_sha256",
+            "structural_descriptor_sha256",
+            "semantic_structure_sha256",
+            "normalized_geometry_sha256",
+            "topology_signature_sha256",
+            "operation_sequence_sha256",
+            "profile_signature_sha256",
+            "part_zone_signature_sha256",
+            "glb_sha256",
+            "fixed_view_sha256",
+            "fixed_views",
+            "gate_outcome_sha256",
+            "compile_readback_sha256",
+            "restricted_geometry_evidence_sha256",
+            "artifact_profile_id",
+            "runtime_manifest_version",
+            "triangle_count",
+            "bounds_mm",
+            "mesh_count",
+            "primitive_count",
+            "material_count",
+            "usage",
+            "phase_receipts",
+            "elapsed_ms"
+          ]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "enum": [
+                "failed",
+                "cancelled"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "failure_codes": {
+              "minItems": 1
+            },
+            "human_review_status": {
+              "const": "not_run"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "run_mode": {
+              "const": "offline_deterministic"
+            },
+            "status": {
+              "enum": [
+                "passed_without_patch",
+                "passed_after_patch"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "run_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "human_review_status": {
+              "const": "not_run"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "run_mode": {
+              "const": "formal_provider"
+            },
+            "status": {
+              "enum": [
+                "passed_without_patch",
+                "passed_after_patch"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "run_mode"
+          ]
+        },
+        "then": {
+          "properties": {
+            "human_review_status": {
+              "enum": [
+                "pending",
+                "complete"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "enum": [
+                "passed_without_patch",
+                "passed_after_patch"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "visual_review_evidence"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "vp204_session_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "vp204_receipt_sha256"
+                ]
+              }
+            ]
+          },
+          "required": [
+            "visual_session_sha256",
+            "visual_session_receipt_sha256"
+          ]
+        }
+      },
+      {
+        "if": {
+          "not": {
+            "required": [
+              "visual_review_evidence"
+            ]
+          },
+          "properties": {
+            "status": {
+              "enum": [
+                "passed_without_patch",
+                "passed_after_patch"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "visual_session_sha256"
+                ]
+              },
+              {
+                "required": [
+                  "visual_session_receipt_sha256"
+                ]
+              }
+            ]
+          },
+          "required": [
+            "vp204_session_sha256",
+            "vp204_receipt_sha256"
+          ]
+        }
+      }
+    ],
+    "properties": {
+      "artifact_profile_id": {
+        "$ref": "#/$defs/id"
+      },
+      "author_source_mode": {
+        "enum": [
+          "missing",
+          "offline_authored_v2",
+          "provider_authored_v2"
+        ]
+      },
+      "authoring_count": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "billable_cost_microusd": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "bounds_mm": {
+        "items": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      },
+      "compile_readback_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "distribution_eligible": {
+        "type": "boolean"
+      },
+      "elapsed_ms": {
+        "maximum": 900000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "expanded_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "failure_codes": {
+        "items": {
+          "$ref": "#/$defs/failure_code"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "fixed_view_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "fixed_views": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/workbench_views"
+          },
+          {
+            "$ref": "#/$defs/turntable_views"
+          }
+        ]
+      },
+      "gate_outcome_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "glb_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "human_review_status": {
+        "enum": [
+          "not_run",
+          "pending",
+          "complete"
+        ]
+      },
+      "material_count": {
+        "maximum": 256,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "mesh_count": {
+        "maximum": 4096,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "network_provider_calls": {
+        "maximum": 2,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "normalized_geometry_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "operation_sequence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "part_zone_signature_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "patch_count": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "phase_receipts": {
+        "items": {
+          "$ref": "#/$defs/phase_receipt"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "primitive_count": {
+        "maximum": 4096,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "production_review_evidence": {
+        "$ref": "e005-production-review-v1.schema.json"
+      },
+      "production_review_evidence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "profile_signature_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "provider_authorization_id": {
+        "$ref": "#/$defs/id"
+      },
+      "provider_authorization_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "provider_call_evidence": {
+        "items": {
+          "$ref": "e005-provider-budget-evidence-v1.schema.json"
+        },
+        "maxItems": 2,
+        "minItems": 1,
+        "type": "array"
+      },
+      "provider_call_evidence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "request_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "restricted_geometry_evidence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "run_id": {
+        "$ref": "#/$defs/id"
+      },
+      "run_mode": {
+        "enum": [
+          "offline_deterministic",
+          "formal_provider"
+        ]
+      },
+      "runtime_manifest_version": {
+        "$ref": "#/$defs/id"
+      },
+      "schema_version": {
+        "const": "E005RunReceipt@1"
+      },
+      "semantic_structure_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "shape_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "status": {
+        "enum": [
+          "not_run",
+          "passed_without_patch",
+          "passed_after_patch",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "structural_descriptor_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "task_id": {
+        "$ref": "#/$defs/id"
+      },
+      "task_payload_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "topology_signature_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "triangle_count": {
+        "maximum": 200000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "usage": {
+        "$ref": "#/$defs/usage"
+      },
+      "visual_review_evidence": {
+        "$ref": "e005-visual-review-evidence-v1.schema.json"
+      },
+      "visual_session_receipt_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "visual_session_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "vp204_receipt_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "vp204_session_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "run_id",
+      "task_set_sha256",
+      "task_id",
+      "status",
+      "run_mode",
+      "distribution_eligible",
+      "author_source_mode",
+      "task_payload_sha256",
+      "request_sha256",
+      "authoring_count",
+      "patch_count",
+      "network_provider_calls",
+      "billable_cost_microusd",
+      "failure_codes",
+      "human_review_status"
+    ],
+    "title": "E005RunReceiptV1",
+    "type": "object"
+  },
+  "e005-structural-difference-matrix-v1.schema.json": {
+    "$defs": {
+      "comparison": {
+        "additionalProperties": false,
+        "properties": {
+          "clone_class": {
+            "enum": [
+              "none",
+              "same_topology_parametric_clone",
+              "material_or_scale_clone",
+              "same_structure_and_geometry"
+            ]
+          },
+          "difference_axes": {
+            "items": {
+              "enum": [
+                "topology",
+                "operation_sequence",
+                "profile",
+                "part_zone",
+                "bounds",
+                "glb"
+              ]
+            },
+            "maxItems": 6,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "failure_codes": {
+            "items": {
+              "enum": [
+                "E005_STRUCTURAL_PARAMETRIC_CLONE",
+                "E005_STRUCTURAL_MATERIAL_OR_SCALE_CLONE"
+              ]
+            },
+            "maxItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "same_morphology_family": {
+            "type": "boolean"
+          },
+          "same_normalized_geometry": {
+            "type": "boolean"
+          },
+          "same_semantic_structure": {
+            "type": "boolean"
+          },
+          "structurally_distinct": {
+            "type": "boolean"
+          },
+          "task_a": {
+            "$ref": "#/$defs/id"
+          },
+          "task_b": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "required": [
+          "task_a",
+          "task_b",
+          "same_morphology_family",
+          "difference_axes",
+          "same_semantic_structure",
+          "same_normalized_geometry",
+          "clone_class",
+          "failure_codes",
+          "structurally_distinct"
+        ],
+        "type": "object"
+      },
+      "entry": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds_mm": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 100000,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "glb_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "normalized_geometry_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "operation_sequence_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "part_zone_signature_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "profile_signature_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "run_id": {
+            "$ref": "#/$defs/id"
+          },
+          "run_receipt_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "semantic_structure_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "structural_descriptor_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "task_id": {
+            "$ref": "#/$defs/id"
+          },
+          "topology_signature_sha256": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "task_id",
+          "run_id",
+          "run_receipt_sha256",
+          "structural_descriptor_sha256",
+          "semantic_structure_sha256",
+          "normalized_geometry_sha256",
+          "topology_signature_sha256",
+          "operation_sequence_sha256",
+          "profile_signature_sha256",
+          "part_zone_signature_sha256",
+          "bounds_mm",
+          "glb_sha256"
+        ],
+        "type": "object"
+      },
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-structural-difference-matrix-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "not_run"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "comparisons": {
+              "maxItems": 0
+            },
+            "entries": {
+              "maxItems": 0
+            },
+            "entry_count": {
+              "const": 0
+            },
+            "matrix_pass": {
+              "const": false
+            },
+            "pair_count": {
+              "const": 0
+            },
+            "structurally_distinct_pair_count": {
+              "const": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "complete"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "comparisons": {
+              "minItems": 435
+            },
+            "entries": {
+              "minItems": 30
+            },
+            "entry_count": {
+              "const": 30
+            },
+            "matrix_pass": {
+              "const": true
+            },
+            "pair_count": {
+              "const": 435
+            },
+            "structurally_distinct_pair_count": {
+              "const": 435
+            }
+          }
+        }
+      }
+    ],
+    "properties": {
+      "comparisons": {
+        "items": {
+          "$ref": "#/$defs/comparison"
+        },
+        "maxItems": 435,
+        "type": "array"
+      },
+      "comparisons_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "entries": {
+        "items": {
+          "$ref": "#/$defs/entry"
+        },
+        "maxItems": 30,
+        "type": "array"
+      },
+      "entries_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "entry_count": {
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "matrix_id": {
+        "$ref": "#/$defs/id"
+      },
+      "matrix_pass": {
+        "type": "boolean"
+      },
+      "pair_count": {
+        "maximum": 435,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "run_receipts_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "E005StructuralDifferenceMatrix@1"
+      },
+      "status": {
+        "enum": [
+          "not_run",
+          "complete"
+        ]
+      },
+      "structurally_distinct_pair_count": {
+        "maximum": 435,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "task_set_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "matrix_id",
+      "task_set_sha256",
+      "run_receipts_sha256",
+      "status",
+      "entry_count",
+      "entries",
+      "entries_sha256",
+      "pair_count",
+      "comparisons",
+      "comparisons_sha256",
+      "structurally_distinct_pair_count",
+      "matrix_pass"
+    ],
+    "title": "E005StructuralDifferenceMatrixV1",
+    "type": "object"
+  },
+  "e005-unseen-task-set-v1.schema.json": {
+    "$defs": {
+      "id": {
+        "pattern": "^[a-z0-9_]{3,96}$",
+        "type": "string"
+      },
+      "task": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_operation_families": {
+            "items": {
+              "enum": [
+                "box",
+                "extrude",
+                "revolve",
+                "loft",
+                "sweep",
+                "boolean",
+                "mirror",
+                "array"
+              ]
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "image_description": {
+            "maxLength": 1000,
+            "minLength": 4,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_mode": {
+            "enum": [
+              "text_only",
+              "text_plus_image_description"
+            ]
+          },
+          "morphology_family": {
+            "enum": [
+              "enclosure_chassis",
+              "articulated_tool",
+              "mobility_module",
+              "aerial_mechanical",
+              "industrial_machine",
+              "fictional_prop"
+            ]
+          },
+          "must_not_show": {
+            "items": {
+              "$ref": "#/$defs/text"
+            },
+            "maxItems": 6,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "must_show": {
+            "items": {
+              "$ref": "#/$defs/text"
+            },
+            "maxItems": 8,
+            "minItems": 3,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "prompt": {
+            "$ref": "#/$defs/text"
+          },
+          "source": {
+            "const": "project_authored_original"
+          },
+          "task_id": {
+            "$ref": "#/$defs/id"
+          },
+          "variation_axes": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "maxItems": 6,
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "task_id",
+          "morphology_family",
+          "input_mode",
+          "prompt",
+          "image_description",
+          "must_show",
+          "must_not_show",
+          "allowed_operation_families",
+          "variation_axes",
+          "source"
+        ],
+        "type": "object"
+      },
+      "text": {
+        "maxLength": 1000,
+        "minLength": 4,
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-unseen-task-set-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "authoring_policy": {
+        "additionalProperties": false,
+        "properties": {
+          "full_author_maximum": {
+            "const": 1
+          },
+          "provider_network_requires_explicit_authorization": {
+            "const": true
+          },
+          "typed_patch_maximum": {
+            "const": 1
+          }
+        },
+        "required": [
+          "full_author_maximum",
+          "typed_patch_maximum",
+          "provider_network_requires_explicit_authorization"
+        ],
+        "type": "object"
+      },
+      "frozen_date": {
+        "format": "date",
+        "type": "string"
+      },
+      "quality_thresholds": {
+        "additionalProperties": false,
+        "properties": {
+          "first_pass_human_4_of_5_minimum_bps": {
+            "const": 7000
+          },
+          "no_patch_p50_maximum_ms": {
+            "const": 32000
+          },
+          "no_patch_p90_maximum_ms": {
+            "const": 70000
+          },
+          "patched_human_4_of_5_minimum_bps": {
+            "const": 8500
+          },
+          "patched_p90_maximum_ms": {
+            "const": 105000
+          }
+        },
+        "required": [
+          "first_pass_human_4_of_5_minimum_bps",
+          "patched_human_4_of_5_minimum_bps",
+          "no_patch_p50_maximum_ms",
+          "no_patch_p90_maximum_ms",
+          "patched_p90_maximum_ms"
+        ],
+        "type": "object"
+      },
+      "schema_version": {
+        "const": "E005UnseenTaskSet@1"
+      },
+      "task_set_id": {
+        "$ref": "#/$defs/id"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/$defs/task"
+        },
+        "maxItems": 30,
+        "minItems": 30,
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "task_set_id",
+      "frozen_date",
+      "authoring_policy",
+      "quality_thresholds",
+      "tasks"
+    ],
+    "title": "E005UnseenTaskSetV1",
+    "type": "object"
+  },
+  "e005-visual-patch-proposal-v1.schema.json": {
+    "$defs": {
+      "operation": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "set_parameter_default"
+              },
+              "parameter_id": {
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "op",
+              "parameter_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_instance_position"
+              },
+              "position": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_instance_rotation"
+              },
+              "rotation": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "rotation"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_repeat_step"
+              },
+              "step": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "step"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "binding_id": {
+                "pattern": "^surface_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "edge_wear": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "micro_detail": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "op": {
+                "const": "set_surface_tuning"
+              }
+            },
+            "required": [
+              "op",
+              "binding_id",
+              "edge_wear",
+              "micro_detail"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_template_node_position"
+              },
+              "position": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "position"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "vec3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-visual-patch-proposal-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "decision": {
+              "const": "accept"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "operations": {
+              "maxItems": 0
+            },
+            "repair_claim_ids": {
+              "maxItems": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "decision": {
+              "const": "typed_visual_patch"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "operations": {
+              "minItems": 1
+            },
+            "repair_claim_ids": {
+              "minItems": 1
+            }
+          }
+        }
+      }
+    ],
+    "description": "Ephemeral Provider proposal returned with the one E005-R2 visual comparison. Rust adds the derived comparison report hash before any mutation.",
+    "properties": {
+      "comparison_input_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "decision": {
+        "enum": [
+          "accept",
+          "typed_visual_patch"
+        ]
+      },
+      "expected_source_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "operations": {
+        "items": {
+          "$ref": "#/$defs/operation"
+        },
+        "maxItems": 8,
+        "type": "array"
+      },
+      "patch_id": {
+        "maxLength": 128,
+        "pattern": "^visualpatch_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "repair_claim_ids": {
+        "items": {
+          "maxLength": 160,
+          "pattern": "^vclaim_[A-Za-z0-9_.:\\-]+$",
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "schema_version": {
+        "const": "E005VisualPatchProposal@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "patch_id",
+      "decision",
+      "expected_source_sha256",
+      "comparison_input_sha256",
+      "repair_claim_ids",
+      "operations"
+    ],
+    "title": "E005VisualPatchProposalV1",
+    "type": "object"
+  },
+  "e005-visual-patch-v1.schema.json": {
+    "$defs": {
+      "operation": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "set_parameter_default"
+              },
+              "parameter_id": {
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "op",
+              "parameter_id",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_instance_position"
+              },
+              "position": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_instance_rotation"
+              },
+              "rotation": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "rotation"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "instance_id": {
+                "pattern": "^instance_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_repeat_step"
+              },
+              "step": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "instance_id",
+              "step"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "binding_id": {
+                "pattern": "^surface_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "edge_wear": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "micro_detail": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "op": {
+                "const": "set_surface_tuning"
+              }
+            },
+            "required": [
+              "op",
+              "binding_id",
+              "edge_wear",
+              "micro_detail"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_template_node_position"
+              },
+              "position": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "position"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "vec3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-visual-patch-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "decision": {
+              "const": "accept"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "operations": {
+              "maxItems": 0
+            },
+            "repair_claim_ids": {
+              "maxItems": 0
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "decision": {
+              "const": "typed_visual_patch"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "operations": {
+              "minItems": 1
+            },
+            "repair_claim_ids": {
+              "minItems": 1
+            }
+          }
+        }
+      }
+    ],
+    "description": "E005-R2 exact visual-comparison decision. It permits accept or at most eight bounded typed edits; replacement sources and executable payloads are forbidden.",
+    "properties": {
+      "comparison_input_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "comparison_report_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "decision": {
+        "enum": [
+          "accept",
+          "typed_visual_patch"
+        ]
+      },
+      "expected_source_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "operations": {
+        "items": {
+          "$ref": "#/$defs/operation"
+        },
+        "maxItems": 8,
+        "type": "array"
+      },
+      "patch_id": {
+        "maxLength": 128,
+        "pattern": "^visualpatch_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "repair_claim_ids": {
+        "items": {
+          "maxLength": 160,
+          "pattern": "^vclaim_[A-Za-z0-9_.:\\-]+$",
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "schema_version": {
+        "const": "E005VisualPatch@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "patch_id",
+      "decision",
+      "expected_source_sha256",
+      "comparison_input_sha256",
+      "comparison_report_sha256",
+      "repair_claim_ids",
+      "operations"
+    ],
+    "title": "E005VisualPatchV1",
+    "type": "object"
+  },
+  "e005-visual-review-evidence-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "turntable_views": {
+        "additionalProperties": false,
+        "properties": {
+          "turntable_000": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_045": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_090": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_135": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_180": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_225": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_270": {
+            "$ref": "#/$defs/hash"
+          },
+          "turntable_315": {
+            "$ref": "#/$defs/hash"
+          }
+        },
+        "required": [
+          "turntable_000",
+          "turntable_045",
+          "turntable_090",
+          "turntable_135",
+          "turntable_180",
+          "turntable_225",
+          "turntable_270",
+          "turntable_315"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-visual-review-evidence-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "accepted_by_visual_review"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "decision": {
+              "const": "accept"
+            },
+            "final_visual_model_recheck_performed": {
+              "const": true
+            },
+            "geometry_build_count": {
+              "const": 1
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "status": {
+              "const": "patched_pending_visual_confirmation"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "then": {
+          "properties": {
+            "decision": {
+              "const": "typed_visual_patch"
+            },
+            "final_visual_model_recheck_performed": {
+              "const": false
+            },
+            "geometry_build_count": {
+              "const": 2
+            }
+          }
+        }
+      }
+    ],
+    "description": "Hash-only evidence for the single E005-R2 visual compare/proposal call. Pixels remain transport-only.",
+    "properties": {
+      "comparison_input_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "comparison_report_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "decision": {
+        "enum": [
+          "accept",
+          "typed_visual_patch"
+        ]
+      },
+      "final_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "final_visual_model_recheck_performed": {
+        "type": "boolean"
+      },
+      "geometry_build_count": {
+        "maximum": 2,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "initial_fixed_view_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "initial_fixed_views": {
+        "$ref": "#/$defs/turntable_views"
+      },
+      "initial_glb_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "initial_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "provider_response_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "E005VisualReviewEvidence@1"
+      },
+      "sealed_patch_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "status": {
+        "enum": [
+          "accepted_by_visual_review",
+          "patched_pending_visual_confirmation"
+        ]
+      },
+      "visual_provider_call_count": {
+        "const": 1
+      }
+    },
+    "required": [
+      "schema_version",
+      "status",
+      "decision",
+      "initial_source_sha256",
+      "final_source_sha256",
+      "initial_glb_sha256",
+      "initial_fixed_view_sha256",
+      "initial_fixed_views",
+      "comparison_input_sha256",
+      "comparison_report_sha256",
+      "provider_response_sha256",
+      "sealed_patch_sha256",
+      "geometry_build_count",
+      "visual_provider_call_count",
+      "final_visual_model_recheck_performed"
+    ],
+    "title": "E005VisualReviewEvidenceV1",
+    "type": "object"
+  },
+  "e005-visual-session-receipt-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-visual-session-receipt-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "comparison_report_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "compile_readback_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "expanded_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "fixed_view_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "glb_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "normalized_geometry_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "phases": {
+        "items": {
+          "$ref": "visual-program-execution-receipt-v1.schema.json#/$defs/phase"
+        },
+        "maxItems": 13,
+        "minItems": 8,
+        "type": "array"
+      },
+      "receipt_id": {
+        "$ref": "#/$defs/id"
+      },
+      "request_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "restricted_geometry_evidence_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "E005VisualSessionReceipt@1"
+      },
+      "session_id": {
+        "$ref": "#/$defs/id"
+      },
+      "shape_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "task_payload_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "usage": {
+        "$ref": "visual-program-execution-receipt-v1.schema.json#/$defs/usage"
+      }
+    },
+    "required": [
+      "schema_version",
+      "receipt_id",
+      "session_id",
+      "task_payload_sha256",
+      "request_sha256",
+      "source_program_sha256",
+      "expanded_program_sha256",
+      "shape_program_sha256",
+      "glb_sha256",
+      "normalized_geometry_sha256",
+      "fixed_view_sha256",
+      "compile_readback_sha256",
+      "restricted_geometry_evidence_sha256",
+      "comparison_report_sha256",
+      "phases",
+      "usage"
+    ],
+    "title": "E005VisualSessionReceiptV1",
+    "type": "object"
+  },
+  "e005-visual-session-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{3,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/e005-visual-session-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "final_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "initial_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "receipt": {
+        "$ref": "e005-visual-session-receipt-v1.schema.json"
+      },
+      "receipt_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "review_evidence": {
+        "$ref": "e005-visual-review-evidence-v1.schema.json"
+      },
+      "schema_version": {
+        "const": "E005VisualSession@1"
+      },
+      "session_id": {
+        "$ref": "#/$defs/id"
+      },
+      "state": {
+        "enum": [
+          "accepted_by_visual_review",
+          "patched_pending_visual_confirmation"
+        ]
+      },
+      "visual_patch_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "session_id",
+      "initial_source_sha256",
+      "final_source_sha256",
+      "state",
+      "visual_patch_sha256",
+      "review_evidence",
+      "receipt",
+      "receipt_sha256"
+    ],
+    "title": "E005VisualSessionV1",
+    "type": "object"
+  },
   "editable-component-recipe.schema.json": {
     "$defs": {
       "child_slot": {
@@ -5184,6 +9960,771 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "EditableComponentRecipe",
     "type": "object"
   },
+  "expanded-visual-dag-v1.schema.json": {
+    "$defs": {
+      "sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/expanded-visual-dag-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Deterministic, rebuildable VP202 cache. It is not a second asset or version truth.",
+    "properties": {
+      "budget_evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_triangle_upper_bound": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expanded_node_count": {
+            "maximum": 256,
+            "minimum": 4,
+            "type": "integer"
+          },
+          "expanded_output_count": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "macro_call_count": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "macro_count": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "primitive_count": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "macro_count",
+          "macro_call_count",
+          "expanded_node_count",
+          "expanded_output_count",
+          "primitive_count",
+          "estimated_triangle_upper_bound"
+        ],
+        "type": "object"
+      },
+      "compiler_version": {
+        "const": "forgecad-core-vp202.1"
+      },
+      "expanded_dag_sha256": {
+        "$ref": "#/$defs/sha256"
+      },
+      "expanded_program": {
+        "$ref": "forge-visual-program-v2.schema.json"
+      },
+      "expanded_program_sha256": {
+        "$ref": "#/$defs/sha256"
+      },
+      "id_algorithm_version": {
+        "const": "expanded-path-v1"
+      },
+      "lineage": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "expanded_material_zone_id": {
+              "pattern": "^zone_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "expanded_node_ids": {
+              "items": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "expanded_output_id": {
+              "pattern": "^output_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "expanded_part_id": {
+              "pattern": "^part_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "instance_indices": {
+              "items": {
+                "maximum": 63,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array"
+            },
+            "parameter_ids": {
+              "items": {
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "source_chain_id": {
+              "pattern": "^chain_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "source_macro_path": {
+              "items": {
+                "pattern": "^macro_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "expanded_output_id",
+            "expanded_node_ids",
+            "expanded_part_id",
+            "expanded_material_zone_id",
+            "source_macro_path",
+            "source_chain_id",
+            "instance_indices",
+            "parameter_ids"
+          ],
+          "type": "object"
+        },
+        "maxItems": 128,
+        "minItems": 1,
+        "type": "array"
+      },
+      "lineage_sha256": {
+        "$ref": "#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "ExpandedVisualDAG@1"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "compiler_version",
+      "id_algorithm_version",
+      "source_program_sha256",
+      "expanded_program_sha256",
+      "lineage_sha256",
+      "expanded_dag_sha256",
+      "budget_evidence",
+      "lineage",
+      "expanded_program"
+    ],
+    "title": "ExpandedVisualDagV1",
+    "type": "object"
+  },
+  "expanded-visual-geometry-dag-v1.schema.json": {
+    "$defs": {
+      "budget_evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_triangle_upper_bound": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "node_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "operation_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "output_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "part_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "profile_count": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "section_set_count": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_count",
+          "section_set_count",
+          "node_count",
+          "part_count",
+          "output_count",
+          "operation_count",
+          "estimated_triangle_upper_bound"
+        ],
+        "type": "object"
+      },
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "lineage": {
+        "additionalProperties": false,
+        "properties": {
+          "expanded_node_id": {
+            "pattern": "^node_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "instance_indices": {
+            "items": {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
+          "source_macro_path": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
+          "source_node_id": {
+            "pattern": "^node_[a-z0-9_-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_node_id",
+          "expanded_node_id",
+          "source_macro_path",
+          "instance_indices"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/expanded-visual-geometry-dag-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "budget_evidence": {
+        "$ref": "#/$defs/budget_evidence"
+      },
+      "compiler_version": {
+        "const": "forgecad-core-vp203.1"
+      },
+      "expanded_dag_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "expanded_program": {
+        "$ref": "forge-visual-geometry-program-v2.schema.json"
+      },
+      "expanded_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "id_algorithm_version": {
+        "const": "geometry-source-path-v1"
+      },
+      "lineage": {
+        "items": {
+          "$ref": "#/$defs/lineage"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "lineage_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "ExpandedVisualGeometryDAG@1"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/hash"
+      }
+    },
+    "required": [
+      "schema_version",
+      "compiler_version",
+      "id_algorithm_version",
+      "source_program_sha256",
+      "expanded_program_sha256",
+      "lineage_sha256",
+      "expanded_dag_sha256",
+      "budget_evidence",
+      "lineage",
+      "expanded_program"
+    ],
+    "title": "ExpandedVisualGeometryDAGV1",
+    "type": "object"
+  },
+  "forge-visual-author-source-v1.schema.json": {
+    "$defs": {
+      "budget": {
+        "additionalProperties": false,
+        "properties": {
+          "max_expanded_nodes": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_expanded_outputs": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_expanded_parts": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_instances": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_macros": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_operations": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_parameters": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_repeat_count": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "ForgeVisualAuthorBudget@1"
+          },
+          "triangle_budget": {
+            "maximum": 100000,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "max_parameters",
+          "max_macros",
+          "max_instances",
+          "max_repeat_count",
+          "max_expanded_nodes",
+          "max_expanded_parts",
+          "max_expanded_outputs",
+          "max_operations",
+          "triangle_budget"
+        ],
+        "type": "object"
+      },
+      "count": {
+        "oneOf": [
+          {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "parameter_id": {
+                "maxLength": 96,
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "parameter_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "instance": {
+        "additionalProperties": false,
+        "properties": {
+          "instance_id": {
+            "maxLength": 96,
+            "pattern": "^instance_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "macro_id": {
+            "maxLength": 96,
+            "pattern": "^macro_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "parent": {
+            "$ref": "#/$defs/part_ref"
+          },
+          "repeat": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "$ref": "#/$defs/count"
+              },
+              "step": {
+                "$ref": "#/$defs/vec3_scalar"
+              }
+            },
+            "required": [
+              "count",
+              "step"
+            ],
+            "type": "object"
+          },
+          "transform": {
+            "additionalProperties": false,
+            "properties": {
+              "position": {
+                "$ref": "#/$defs/vec3_scalar"
+              },
+              "rotation": {
+                "$ref": "#/$defs/vec3_scalar"
+              }
+            },
+            "required": [
+              "position",
+              "rotation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "instance_id",
+          "macro_id",
+          "transform",
+          "repeat"
+        ],
+        "type": "object"
+      },
+      "macro": {
+        "additionalProperties": false,
+        "properties": {
+          "macro_id": {
+            "maxLength": 96,
+            "pattern": "^macro_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "output_ids": {
+            "items": {
+              "maxLength": 96,
+              "pattern": "^output_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "semantic_kind": {
+            "enum": [
+              "primary_form",
+              "structural_form",
+              "detail_motif"
+            ]
+          }
+        },
+        "required": [
+          "macro_id",
+          "semantic_kind",
+          "output_ids"
+        ],
+        "type": "object"
+      },
+      "parameter": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_values": {
+            "items": {
+              "maxLength": 96,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "default": {},
+          "kind": {
+            "enum": [
+              "number",
+              "integer",
+              "boolean",
+              "enum",
+              "length",
+              "angle",
+              "ratio",
+              "color"
+            ]
+          },
+          "maximum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minimum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "parameter_id": {
+            "maxLength": 96,
+            "pattern": "^param_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "unitless",
+              "count",
+              "boolean",
+              "enum_value",
+              "millimeter",
+              "radian",
+              "ratio",
+              "linear_rgb"
+            ]
+          }
+        },
+        "required": [
+          "parameter_id",
+          "kind",
+          "unit",
+          "default",
+          "minimum",
+          "maximum",
+          "allowed_values"
+        ],
+        "type": "object"
+      },
+      "part_ref": {
+        "additionalProperties": false,
+        "properties": {
+          "instance_id": {
+            "maxLength": 96,
+            "pattern": "^instance_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "output_id": {
+            "maxLength": 96,
+            "pattern": "^output_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "repeat_index": {
+            "maximum": 63,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "instance_id",
+          "repeat_index",
+          "output_id"
+        ],
+        "type": "object"
+      },
+      "scalar": {
+        "oneOf": [
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "parameter_id": {
+                "maxLength": 96,
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "parameter_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "surface_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "binding_id": {
+            "maxLength": 96,
+            "pattern": "^surface_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "edge_wear": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "macro_id": {
+            "maxLength": 96,
+            "pattern": "^macro_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "material_id": {
+            "maxLength": 96,
+            "pattern": "^mat_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "micro_detail": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "output_id": {
+            "maxLength": 96,
+            "pattern": "^output_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "surface_profile": {
+            "enum": [
+              "painted_metal",
+              "brushed_metal",
+              "dark_inset",
+              "rubberized",
+              "emissive_trim"
+            ]
+          }
+        },
+        "required": [
+          "binding_id",
+          "macro_id",
+          "output_id",
+          "material_id",
+          "surface_profile",
+          "edge_wear",
+          "micro_detail"
+        ],
+        "type": "object"
+      },
+      "vec3_scalar": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalar"
+          }
+        ],
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/forge-visual-author-source-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "E005-R1 compact formal author envelope. It composes existing VP203 geometry templates with typed parameters, bounded macro instances, rigid assembly hierarchy, surface intent and detail-motif lineage; it cannot execute arbitrary code or external resources.",
+    "properties": {
+      "budgets": {
+        "$ref": "#/$defs/budget"
+      },
+      "domain": {
+        "maxLength": 96,
+        "minLength": 1,
+        "type": "string"
+      },
+      "geometry_templates": {
+        "$ref": "forge-visual-geometry-program-v2.schema.json"
+      },
+      "instances": {
+        "items": {
+          "$ref": "#/$defs/instance"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "macros": {
+        "items": {
+          "$ref": "#/$defs/macro"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "parameters": {
+        "items": {
+          "$ref": "#/$defs/parameter"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "program_id": {
+        "maxLength": 96,
+        "pattern": "^visual_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "root_part": {
+        "$ref": "#/$defs/part_ref"
+      },
+      "schema_version": {
+        "const": "ForgeVisualAuthorSource@1"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "surface_bindings": {
+        "items": {
+          "$ref": "#/$defs/surface_binding"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "units": {
+        "const": "millimeter"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "domain",
+      "units",
+      "seed",
+      "parameters",
+      "geometry_templates",
+      "macros",
+      "instances",
+      "root_part",
+      "surface_bindings",
+      "budgets"
+    ],
+    "title": "ForgeVisualAuthorSourceV1",
+    "type": "object"
+  },
   "forge-visual-authoring-intent.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/forge-visual-authoring-intent.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5214,6 +10755,1463 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "arm_design_intent"
     ],
     "title": "ForgeVisualAuthoringIntent",
+    "type": "object"
+  },
+  "forge-visual-composition-v2.schema.json": {
+    "$defs": {
+      "binding": {
+        "additionalProperties": false,
+        "properties": {
+          "local_parameter_id": {
+            "$ref": "#/$defs/localId"
+          },
+          "value": {
+            "$ref": "#/$defs/scopedScalar"
+          }
+        },
+        "required": [
+          "local_parameter_id",
+          "value"
+        ],
+        "type": "object"
+      },
+      "call": {
+        "additionalProperties": false,
+        "properties": {
+          "bindings": {
+            "items": {
+              "$ref": "#/$defs/binding"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "call_id": {
+            "$ref": "#/$defs/callId"
+          },
+          "macro_id": {
+            "$ref": "#/$defs/macroId"
+          },
+          "repeat": {
+            "$ref": "#/$defs/repeat"
+          }
+        },
+        "required": [
+          "call_id",
+          "macro_id",
+          "bindings",
+          "repeat"
+        ],
+        "type": "object"
+      },
+      "callId": {
+        "maxLength": 96,
+        "pattern": "^call_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "chainId": {
+        "maxLength": 96,
+        "pattern": "^chain_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "localId": {
+        "maxLength": 96,
+        "pattern": "^local_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "macroId": {
+        "maxLength": 96,
+        "pattern": "^macro_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "macroItem": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "chain_id": {
+                "$ref": "#/$defs/chainId"
+              },
+              "kind": {
+                "const": "chain"
+              },
+              "material_id": {
+                "pattern": "^mat_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/scopedVector3"
+              },
+              "primitive": {
+                "$ref": "#/$defs/primitive"
+              },
+              "role": {
+                "pattern": "^[a-z][a-z0-9_-]{1,63}$",
+                "type": "string"
+              },
+              "rotation": {
+                "$ref": "#/$defs/scopedVector3"
+              }
+            },
+            "required": [
+              "kind",
+              "chain_id",
+              "primitive",
+              "position",
+              "rotation",
+              "role",
+              "material_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "bindings": {
+                "items": {
+                  "$ref": "#/$defs/binding"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              "call_id": {
+                "$ref": "#/$defs/callId"
+              },
+              "kind": {
+                "const": "invoke"
+              },
+              "macro_id": {
+                "$ref": "#/$defs/macroId"
+              },
+              "repeat": {
+                "$ref": "#/$defs/repeat"
+              }
+            },
+            "required": [
+              "kind",
+              "call_id",
+              "macro_id",
+              "bindings",
+              "repeat"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "primitive": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "primitive_kind": {
+                "const": "box"
+              },
+              "size": {
+                "$ref": "#/$defs/scopedVector3"
+              }
+            },
+            "required": [
+              "primitive_kind",
+              "size"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "$ref": "#/$defs/scopedScalar"
+              },
+              "primitive_kind": {
+                "const": "cylinder"
+              },
+              "radius": {
+                "$ref": "#/$defs/scopedScalar"
+              }
+            },
+            "required": [
+              "primitive_kind",
+              "radius",
+              "height"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "repeat": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "$ref": "#/$defs/scopedCount"
+          },
+          "step": {
+            "$ref": "#/$defs/scopedVector3"
+          }
+        },
+        "required": [
+          "count",
+          "step"
+        ],
+        "type": "object"
+      },
+      "scopedCount": {
+        "anyOf": [
+          {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "parameter_id": {
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "parameter_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "local_parameter_id": {
+                "$ref": "#/$defs/localId"
+              }
+            },
+            "required": [
+              "local_parameter_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "scopedScalar": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "parameter_id": {
+                "maxLength": 128,
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "parameter_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "local_parameter_id": {
+                "$ref": "#/$defs/localId"
+              }
+            },
+            "required": [
+              "local_parameter_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "scopedVector3": {
+        "items": {
+          "$ref": "#/$defs/scopedScalar"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-composition-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "FGC-VP202 pure macro and bounded repeat source. It contains no executable expressions, recursion, URL, path, network or dynamic import capability.",
+    "properties": {
+      "budgets": {
+        "additionalProperties": false,
+        "properties": {
+          "max_expanded_nodes": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_expansion_depth": {
+            "maximum": 8,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_macro_calls": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_macros": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_materials": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_outputs": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_parts": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_primitives": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "ExpansionBudget@1"
+          },
+          "triangle_budget": {
+            "maximum": 100000,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "max_macros",
+          "max_macro_calls",
+          "max_expansion_depth",
+          "max_expanded_nodes",
+          "max_parts",
+          "max_materials",
+          "max_outputs",
+          "max_primitives",
+          "triangle_budget"
+        ],
+        "type": "object"
+      },
+      "calls": {
+        "items": {
+          "$ref": "#/$defs/call"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "domain": {
+        "maxLength": 96,
+        "minLength": 1,
+        "type": "string"
+      },
+      "macros": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/macroItem"
+              },
+              "maxItems": 64,
+              "minItems": 1,
+              "type": "array"
+            },
+            "macro_id": {
+              "$ref": "#/$defs/macroId"
+            },
+            "parameters": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "number",
+                      "integer",
+                      "length",
+                      "angle",
+                      "ratio"
+                    ]
+                  },
+                  "local_parameter_id": {
+                    "$ref": "#/$defs/localId"
+                  },
+                  "unit": {
+                    "enum": [
+                      "unitless",
+                      "count",
+                      "millimeter",
+                      "radian",
+                      "ratio"
+                    ]
+                  }
+                },
+                "required": [
+                  "local_parameter_id",
+                  "kind",
+                  "unit"
+                ],
+                "type": "object"
+              },
+              "maxItems": 32,
+              "type": "array"
+            }
+          },
+          "required": [
+            "macro_id",
+            "parameters",
+            "items"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "materials": {
+        "items": {
+          "$ref": "forge-visual-program-v2.schema.json#/properties/materials/items"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "parameters": {
+        "items": {
+          "$ref": "forge-visual-program-v2.schema.json#/properties/parameters/items"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "program_id": {
+        "maxLength": 96,
+        "pattern": "^visual_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ForgeVisualComposition@1"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "units": {
+        "const": "millimeter"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "domain",
+      "units",
+      "seed",
+      "parameters",
+      "materials",
+      "macros",
+      "calls",
+      "budgets"
+    ],
+    "title": "ForgeVisualCompositionV2",
+    "type": "object"
+  },
+  "forge-visual-geometry-patch-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "node_id": {
+        "maxLength": 96,
+        "pattern": "^node_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "operation": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_node_position"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "$ref": "#/$defs/positive"
+              },
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_extrude_height"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "height"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "angle": {
+                "exclusiveMinimum": 0,
+                "maximum": 6.283185307179586,
+                "type": "number"
+              },
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_revolve_angle"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "angle"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis_length": {
+                "$ref": "#/$defs/positive"
+              },
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_loft_axis_length"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "axis_length"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_sweep_profile_scale"
+              },
+              "profile_scale": {
+                "$ref": "#/$defs/scale2"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "profile_scale"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "maximum": 64,
+                "minimum": 2,
+                "type": "integer"
+              },
+              "node_id": {
+                "$ref": "#/$defs/node_id"
+              },
+              "op": {
+                "const": "set_array"
+              },
+              "spacing": {
+                "$ref": "#/$defs/positive"
+              }
+            },
+            "required": [
+              "op",
+              "node_id",
+              "count",
+              "spacing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "base_material_id": {
+                "maxLength": 96,
+                "pattern": "^mat_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "material_id": {
+                "maxLength": 96,
+                "pattern": "^mat_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "op": {
+                "const": "set_material_base"
+              }
+            },
+            "required": [
+              "op",
+              "material_id",
+              "base_material_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "point3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          },
+          {
+            "maximum": 100000,
+            "minimum": -100000,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "positive": {
+        "exclusiveMinimum": 0,
+        "maximum": 100000,
+        "type": "number"
+      },
+      "scale2": {
+        "items": false,
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "exclusiveMinimum": 0,
+            "maximum": 100000,
+            "type": "number"
+          },
+          {
+            "exclusiveMinimum": 0,
+            "maximum": 100000,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/forge-visual-geometry-patch-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "expected_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "operations": {
+        "items": {
+          "$ref": "#/$defs/operation"
+        },
+        "maxItems": 8,
+        "minItems": 1,
+        "type": "array"
+      },
+      "patch_id": {
+        "maxLength": 96,
+        "pattern": "^patch_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ForgeVisualGeometryPatch@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "patch_id",
+      "expected_source_sha256",
+      "operations"
+    ],
+    "title": "ForgeVisualGeometryPatchV1",
+    "type": "object"
+  },
+  "forge-visual-geometry-program-v2.schema.json": {
+    "$defs": {
+      "axis": {
+        "enum": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "bounded": {
+        "maximum": 100000,
+        "minimum": -100000,
+        "type": "number"
+      },
+      "budget": {
+        "additionalProperties": false,
+        "properties": {
+          "max_materials": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_nodes": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_operations": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_outputs": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_parts": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_profiles": {
+            "maximum": 32,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_section_sets": {
+            "maximum": 16,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "GeometryProgramBudget@1"
+          },
+          "triangle_budget": {
+            "maximum": 100000,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "max_profiles",
+          "max_section_sets",
+          "max_nodes",
+          "max_parts",
+          "max_materials",
+          "max_outputs",
+          "max_operations",
+          "triangle_budget"
+        ],
+        "type": "object"
+      },
+      "id": {
+        "maxLength": 96,
+        "pattern": "^[a-z][a-z0-9_-]+$",
+        "type": "string"
+      },
+      "material": {
+        "additionalProperties": false,
+        "properties": {
+          "base_material_id": {
+            "pattern": "^mat_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "material_id": {
+            "pattern": "^mat_[a-z0-9_-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "material_id",
+          "base_material_id"
+        ],
+        "type": "object"
+      },
+      "node": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "box"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "size": {
+                "$ref": "#/$defs/size3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "size",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "cap_end": {
+                "type": "boolean"
+              },
+              "cap_start": {
+                "type": "boolean"
+              },
+              "height": {
+                "$ref": "#/$defs/positive"
+              },
+              "kind": {
+                "const": "extrude"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "profile_id": {
+                "pattern": "^profile_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "profile_scale": {
+                "$ref": "#/$defs/scale2"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "profile_id",
+              "profile_scale",
+              "height",
+              "position",
+              "cap_start",
+              "cap_end"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "angle": {
+                "exclusiveMinimum": 0,
+                "maximum": 6.283185307179586,
+                "type": "number"
+              },
+              "kind": {
+                "const": "revolve"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "profile_id": {
+                "pattern": "^profile_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "profile_scale": {
+                "$ref": "#/$defs/scale2"
+              },
+              "radial_segments": {
+                "maximum": 64,
+                "minimum": 8,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "profile_id",
+              "profile_scale",
+              "angle",
+              "radial_segments",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis_length": {
+                "$ref": "#/$defs/positive"
+              },
+              "cross_section_scale": {
+                "$ref": "#/$defs/scale2"
+              },
+              "kind": {
+                "const": "loft"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "section_set_id": {
+                "pattern": "^sectionset_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "section_set_id",
+              "cross_section_scale",
+              "axis_length",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "cap_end": {
+                "type": "boolean"
+              },
+              "cap_start": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "sweep"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "path_closed": {
+                "type": "boolean"
+              },
+              "path_points": {
+                "items": {
+                  "$ref": "#/$defs/point3"
+                },
+                "maxItems": 32,
+                "minItems": 2,
+                "type": "array"
+              },
+              "path_twist_degrees": {
+                "maximum": 90,
+                "minimum": -90,
+                "type": "number"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "profile_id": {
+                "pattern": "^profile_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "profile_scale": {
+                "$ref": "#/$defs/scale2"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "profile_id",
+              "profile_scale",
+              "path_points",
+              "path_closed",
+              "path_twist_degrees",
+              "cap_start",
+              "cap_end",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/axis"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "mirror"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "axis"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/axis"
+              },
+              "count": {
+                "maximum": 64,
+                "minimum": 2,
+                "type": "integer"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "array"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "spacing": {
+                "$ref": "#/$defs/positive"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "axis",
+              "count",
+              "spacing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_ids": {
+                "items": {
+                  "pattern": "^node_[a-z0-9_-]+$",
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "minItems": 2,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "kind": {
+                "enum": [
+                  "union",
+                  "subtract"
+                ]
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_ids"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "part"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "part_id": {
+                "pattern": "^part_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "role": {
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "part_id",
+              "role"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "material_zone"
+              },
+              "material_id": {
+                "pattern": "^mat_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "zone_id": {
+                "pattern": "^zone_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "zone_id",
+              "material_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "node_base": {
+        "properties": {
+          "node_id": {
+            "pattern": "^node_[a-z0-9_-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "node_id"
+        ],
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "pattern": "^node_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "output_id": {
+            "pattern": "^output_[a-z0-9_-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_id",
+          "node_id"
+        ],
+        "type": "object"
+      },
+      "point2": {
+        "items": false,
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          },
+          {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "point3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/bounded"
+          },
+          {
+            "$ref": "#/$defs/bounded"
+          },
+          {
+            "$ref": "#/$defs/bounded"
+          }
+        ],
+        "type": "array"
+      },
+      "positive": {
+        "exclusiveMinimum": 0,
+        "maximum": 100000,
+        "type": "number"
+      },
+      "profile": {
+        "additionalProperties": false,
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/$defs/point2"
+            },
+            "maxItems": 32,
+            "minItems": 3,
+            "type": "array"
+          },
+          "profile_id": {
+            "pattern": "^profile_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "resample_count": {
+            "maximum": 256,
+            "minimum": 8,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "points",
+          "resample_count"
+        ],
+        "type": "object"
+      },
+      "scale2": {
+        "items": false,
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/positive"
+          },
+          {
+            "$ref": "#/$defs/positive"
+          }
+        ],
+        "type": "array"
+      },
+      "section": {
+        "additionalProperties": false,
+        "properties": {
+          "cap_policy": {
+            "enum": [
+              "none",
+              "start",
+              "end"
+            ]
+          },
+          "position": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          },
+          "profile_id": {
+            "pattern": "^profile_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "scale": {
+            "maximum": 4,
+            "minimum": 0.25,
+            "type": "number"
+          },
+          "section_id": {
+            "pattern": "^section_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "twist_degrees": {
+            "maximum": 45,
+            "minimum": -45,
+            "type": "number"
+          }
+        },
+        "required": [
+          "section_id",
+          "position",
+          "profile_id",
+          "scale",
+          "twist_degrees",
+          "cap_policy"
+        ],
+        "type": "object"
+      },
+      "section_set": {
+        "additionalProperties": false,
+        "properties": {
+          "main_axis": {
+            "$ref": "#/$defs/axis"
+          },
+          "section_set_id": {
+            "pattern": "^sectionset_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/$defs/section"
+            },
+            "maxItems": 12,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "section_set_id",
+          "main_axis",
+          "sections"
+        ],
+        "type": "object"
+      },
+      "size3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/positive"
+          },
+          {
+            "$ref": "#/$defs/positive"
+          },
+          {
+            "$ref": "#/$defs/positive"
+          }
+        ],
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/forge-visual-geometry-program-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "budgets": {
+        "$ref": "#/$defs/budget"
+      },
+      "domain": {
+        "maxLength": 96,
+        "minLength": 1,
+        "type": "string"
+      },
+      "materials": {
+        "items": {
+          "$ref": "#/$defs/material"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/$defs/node"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "outputs": {
+        "items": {
+          "$ref": "#/$defs/output"
+        },
+        "maxItems": 128,
+        "minItems": 1,
+        "type": "array"
+      },
+      "profiles": {
+        "items": {
+          "$ref": "#/$defs/profile"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "program_id": {
+        "maxLength": 96,
+        "pattern": "^visual_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ForgeVisualGeometryProgram@2"
+      },
+      "section_sets": {
+        "items": {
+          "$ref": "#/$defs/section_set"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "units": {
+        "const": "millimeter"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "domain",
+      "units",
+      "seed",
+      "materials",
+      "profiles",
+      "section_sets",
+      "nodes",
+      "outputs",
+      "budgets"
+    ],
+    "title": "ForgeVisualGeometryProgramV2",
     "type": "object"
   },
   "forge-visual-patch.schema.json": {
@@ -5735,6 +12733,599 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "operations"
     ],
     "title": "ForgeVisualPatch",
+    "type": "object"
+  },
+  "forge-visual-program-revision.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-program-revision.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Existing PV003 Rust-owned source revision, exposed as a reusable reference for UniversalAssetSource@1.",
+    "properties": {
+      "applied_patch_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "changed_domains": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "parent_source_program_sha256": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        ]
+      },
+      "program": {
+        "$ref": "forge-visual-program.schema.json"
+      },
+      "revision": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "ForgeVisualProgramRevision@1"
+      },
+      "source_program_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "revision",
+      "source_program_sha256",
+      "parent_source_program_sha256",
+      "program",
+      "changed_domains",
+      "applied_patch_id"
+    ],
+    "title": "ForgeVisualProgramRevision",
+    "type": "object"
+  },
+  "forge-visual-program-v2.schema.json": {
+    "$defs": {
+      "nodeId": {
+        "maxLength": 128,
+        "pattern": "^node_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "scalar": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "parameter_id": {
+                "maxLength": 128,
+                "pattern": "^param_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "parameter_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "scalarVector3": {
+        "items": {
+          "$ref": "#/$defs/scalar"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/forge-visual-program-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "ADR-0021 typed visual design source. VP201 permits only bounded primitive nodes and contains no executable code, URL, path, network or dynamic import capability.",
+    "properties": {
+      "budgets": {
+        "additionalProperties": false,
+        "properties": {
+          "max_materials": {
+            "maximum": 64,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_nodes": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_outputs": {
+            "maximum": 128,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_parts": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_primitives": {
+            "maximum": 256,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "ProgramBudget@1"
+          },
+          "triangle_budget": {
+            "maximum": 100000,
+            "minimum": 100,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "max_nodes",
+          "max_parts",
+          "max_materials",
+          "max_outputs",
+          "max_primitives",
+          "triangle_budget"
+        ],
+        "type": "object"
+      },
+      "domain": {
+        "maxLength": 96,
+        "minLength": 1,
+        "type": "string"
+      },
+      "materials": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "base_material_id": {
+              "enum": [
+                "mat_primary",
+                "mat_graphite",
+                "mat_painted_steel",
+                "mat_powder_coat",
+                "mat_aluminum",
+                "mat_signal_red",
+                "mat_composite",
+                "mat_abs_matte",
+                "mat_carbon_composite",
+                "mat_rubber",
+                "mat_rubber_tire",
+                "mat_dark_glass",
+                "mat_clear_glass",
+                "mat_emissive_blue",
+                "mat_automotive_paint"
+              ]
+            },
+            "material_id": {
+              "maxLength": 128,
+              "pattern": "^mat_[a-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "material_id",
+            "base_material_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "minItems": 1,
+        "type": "array"
+      },
+      "nodes": {
+        "items": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "box"
+                },
+                "node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "size": {
+                  "$ref": "#/$defs/scalarVector3"
+                }
+              },
+              "required": [
+                "kind",
+                "node_id",
+                "size"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "$ref": "#/$defs/scalar"
+                },
+                "kind": {
+                  "const": "cylinder"
+                },
+                "node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "radius": {
+                  "$ref": "#/$defs/scalar"
+                }
+              },
+              "required": [
+                "kind",
+                "node_id",
+                "radius",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "input_node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "kind": {
+                  "const": "transform"
+                },
+                "node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "position": {
+                  "$ref": "#/$defs/scalarVector3"
+                },
+                "rotation": {
+                  "$ref": "#/$defs/scalarVector3"
+                }
+              },
+              "required": [
+                "kind",
+                "node_id",
+                "input_node_id",
+                "position",
+                "rotation"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "input_node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "kind": {
+                  "const": "part"
+                },
+                "node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "part_id": {
+                  "maxLength": 128,
+                  "pattern": "^part_[a-z0-9_-]+$",
+                  "type": "string"
+                },
+                "role": {
+                  "pattern": "^[a-z][a-z0-9_-]{1,63}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "node_id",
+                "input_node_id",
+                "part_id",
+                "role"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "input_node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "kind": {
+                  "const": "material_zone"
+                },
+                "material_id": {
+                  "maxLength": 128,
+                  "pattern": "^mat_[a-z0-9_-]+$",
+                  "type": "string"
+                },
+                "node_id": {
+                  "$ref": "#/$defs/nodeId"
+                },
+                "zone_id": {
+                  "maxLength": 128,
+                  "pattern": "^zone_[a-z0-9_-]+$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "node_id",
+                "input_node_id",
+                "zone_id",
+                "material_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "outputs": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "node_id": {
+              "$ref": "#/$defs/nodeId"
+            },
+            "output_id": {
+              "maxLength": 128,
+              "pattern": "^output_[a-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "output_id",
+            "node_id"
+          ],
+          "type": "object"
+        },
+        "maxItems": 128,
+        "minItems": 1,
+        "type": "array"
+      },
+      "parameters": {
+        "items": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "number"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "unitless"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "integer"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "count"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "boolean"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "boolean"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "enum"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "enum_value"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "length"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "millimeter"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "angle"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "radian"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "ratio"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "ratio"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "color"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "unit": {
+                    "const": "linear_rgb"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "allowed_values": {
+              "items": {
+                "maxLength": 96,
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "default": {},
+            "kind": {
+              "enum": [
+                "number",
+                "integer",
+                "boolean",
+                "enum",
+                "length",
+                "angle",
+                "ratio",
+                "color"
+              ]
+            },
+            "maximum": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "minimum": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "parameter_id": {
+              "maxLength": 128,
+              "pattern": "^param_[a-z0-9_-]+$",
+              "type": "string"
+            },
+            "unit": {
+              "enum": [
+                "unitless",
+                "count",
+                "boolean",
+                "enum_value",
+                "millimeter",
+                "radian",
+                "ratio",
+                "linear_rgb"
+              ]
+            }
+          },
+          "required": [
+            "parameter_id",
+            "kind",
+            "unit",
+            "default",
+            "minimum",
+            "maximum",
+            "allowed_values"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "program_id": {
+        "maxLength": 128,
+        "pattern": "^visual_[a-z0-9_-]+$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "ForgeVisualProgram@2"
+      },
+      "seed": {
+        "maximum": 2147483647,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "units": {
+        "const": "millimeter"
+      }
+    },
+    "required": [
+      "schema_version",
+      "program_id",
+      "domain",
+      "units",
+      "seed",
+      "parameters",
+      "materials",
+      "nodes",
+      "outputs",
+      "budgets"
+    ],
+    "title": "ForgeVisualProgramV2",
     "type": "object"
   },
   "forge-visual-program.schema.json": {
@@ -6973,7 +14564,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 ],
                 "type": "object"
               },
-              "maxItems": 8,
+              "maxItems": 32,
               "minItems": 1,
               "type": "array"
             },
@@ -7431,6 +15022,111 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "readback_status"
     ],
     "title": "GeometryCompileReadback",
+    "type": "object"
+  },
+  "geometry-incremental-plan-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "node_ids": {
+        "items": {
+          "pattern": "^node_[a-z0-9_-]+$",
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "operation_ids": {
+        "items": {
+          "pattern": "^op_[a-z0-9_-]+$",
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "output_ids": {
+        "items": {
+          "pattern": "^output_[a-z0-9_-]+$",
+          "type": "string"
+        },
+        "maxItems": 128,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "profile_ids": {
+        "items": {
+          "pattern": "^profileinput_[a-z0-9_-]+$",
+          "type": "string"
+        },
+        "maxItems": 32,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "$id": "https://forgecad.local/schemas/geometry-incremental-plan-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "base_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "full_compile_cache_hit": {
+        "const": false
+      },
+      "invalidated_output_ids": {
+        "$ref": "#/$defs/output_ids"
+      },
+      "invalidated_profile_input_ids": {
+        "$ref": "#/$defs/profile_ids"
+      },
+      "invalidated_shape_operation_ids": {
+        "$ref": "#/$defs/operation_ids"
+      },
+      "invalidated_source_node_ids": {
+        "$ref": "#/$defs/node_ids"
+      },
+      "patch_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "patched_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "reused_output_ids": {
+        "$ref": "#/$defs/output_ids"
+      },
+      "reused_profile_input_ids": {
+        "$ref": "#/$defs/profile_ids"
+      },
+      "reused_shape_operation_ids": {
+        "$ref": "#/$defs/operation_ids"
+      },
+      "reused_source_node_ids": {
+        "$ref": "#/$defs/node_ids"
+      },
+      "schema_version": {
+        "const": "GeometryIncrementalPlan@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "base_source_sha256",
+      "patched_source_sha256",
+      "patch_sha256",
+      "reused_profile_input_ids",
+      "invalidated_profile_input_ids",
+      "reused_source_node_ids",
+      "invalidated_source_node_ids",
+      "reused_shape_operation_ids",
+      "invalidated_shape_operation_ids",
+      "reused_output_ids",
+      "invalidated_output_ids",
+      "full_compile_cache_hit"
+    ],
+    "title": "GeometryIncrementalPlanV1",
     "type": "object"
   },
   "job-event-v2.schema.json": {
@@ -7955,6 +15651,156 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "updated_at"
     ],
     "title": "MaterialTextureObject",
+    "type": "object"
+  },
+  "material-zone-appearance.schema.json": {
+    "$defs": {
+      "channel": {
+        "enum": [
+          "base_color",
+          "metallic",
+          "roughness",
+          "normal",
+          "occlusion",
+          "emissive",
+          "opacity"
+        ]
+      },
+      "projection_layer": {
+        "additionalProperties": false,
+        "properties": {
+          "camera_hypothesis_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "channels": {
+            "items": {
+              "$ref": "#/$defs/channel"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "evidence_artifact_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "layer_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "unobserved_texel_mask_artifact_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "layer_id",
+          "evidence_artifact_id",
+          "camera_hypothesis_id",
+          "channels",
+          "unobserved_texel_mask_artifact_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/material-zone-appearance.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "appearance_id": {
+        "maxLength": 360,
+        "minLength": 1,
+        "type": "string"
+      },
+      "base_material_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "channels": {
+        "items": {
+          "$ref": "#/$defs/channel"
+        },
+        "maxItems": 7,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "coating": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "finish": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "material_zone_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "projection_layers": {
+        "items": {
+          "$ref": "#/$defs/projection_layer"
+        },
+        "maxItems": 32,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "MaterialZoneAppearance@1"
+      },
+      "source_part_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "texture_height": {
+        "maximum": 2048,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "texture_width": {
+        "maximum": 2048,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "transmission_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "uncertainty_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "appearance_id",
+      "material_zone_id",
+      "source_part_id",
+      "base_material_id",
+      "finish",
+      "transmission_bps",
+      "uncertainty_bps",
+      "texture_width",
+      "texture_height",
+      "channels",
+      "projection_layers"
+    ],
+    "title": "MaterialZoneAppearance",
     "type": "object"
   },
   "mechanical-concept-spec.schema.json": {
@@ -9889,6 +17735,104 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ProviderExecutionTrace",
     "type": "object"
   },
+  "reference-camera-hypothesis.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/reference-camera-hypothesis.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Evidence-bound camera hypothesis. unresolved is not a solved camera and cannot carry fitted parameters.",
+    "properties": {
+      "confidence_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "evidence_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "hypothesis_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "landmark_feature_ids": {
+        "items": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 128,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "parameter_source": {
+        "enum": [
+          "metadata",
+          "landmark_fit",
+          "silhouette_fit",
+          "default_hypothesis",
+          "unresolved"
+        ]
+      },
+      "projection_type": {
+        "enum": [
+          "perspective",
+          "orthographic",
+          "unknown"
+        ]
+      },
+      "reprojection_error_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "schema_version": {
+        "const": "ReferenceCameraHypothesis@1"
+      },
+      "unresolved_fields": {
+        "items": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 32,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "vertical_fov_millidegrees": {
+        "maximum": 179000,
+        "minimum": 1000,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "view_id": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "hypothesis_id",
+      "evidence_id",
+      "projection_type",
+      "parameter_source",
+      "landmark_feature_ids",
+      "confidence_bps",
+      "unresolved_fields"
+    ],
+    "title": "ReferenceCameraHypothesis",
+    "type": "object"
+  },
   "reference-evidence-create-request.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/reference-evidence-create-request.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -9989,7 +17933,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "pack_future_weapon_prop",
           "pack_vehicle_concept",
           "pack_aircraft_concept",
-          "pack_robotic_arm_concept"
+          "pack_robotic_arm_concept",
+          "pack_unclassified"
         ]
       },
       "file_name": {
@@ -10219,7 +18164,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "pack_future_weapon_prop",
           "pack_vehicle_concept",
           "pack_aircraft_concept",
-          "pack_robotic_arm_concept"
+          "pack_robotic_arm_concept",
+          "pack_unclassified"
         ]
       },
       "evidence_id": {
@@ -10922,6 +18868,162 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ReferenceSurfaceAnalysis",
     "type": "object"
   },
+  "representation-limitation.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/representation-limitation.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "affected_part_ids": {
+        "items": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 256,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "code": {
+        "enum": [
+          "needs_more_views",
+          "representation_unavailable",
+          "quality_limited",
+          "provider_unavailable"
+        ]
+      },
+      "message": {
+        "maxLength": 1200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "missing_capability_ids": {
+        "items": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 64,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "retryable": {
+        "type": "boolean"
+      },
+      "schema_version": {
+        "const": "RepresentationLimitation@1"
+      },
+      "suggested_views": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "code",
+      "message",
+      "affected_part_ids",
+      "missing_capability_ids",
+      "suggested_views",
+      "retryable"
+    ],
+    "title": "RepresentationLimitation",
+    "type": "object"
+  },
+  "representation-plan.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/representation-plan.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "capability_manifest_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "parts": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "capability_id": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "covered_feature_ids": {
+              "items": {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 512,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "part_id": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "rationale": {
+              "maxLength": 1200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "representation": {
+              "enum": [
+                "procedural",
+                "deformable",
+                "mesh_seed",
+                "hybrid"
+              ]
+            }
+          },
+          "required": [
+            "part_id",
+            "representation",
+            "capability_id",
+            "covered_feature_ids",
+            "rationale"
+          ],
+          "type": "object"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "plan_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "RepresentationPlan@1"
+      },
+      "subject_profile_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "visual_feature_contract_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "plan_id",
+      "request_sha256",
+      "subject_profile_sha256",
+      "visual_feature_contract_sha256",
+      "capability_manifest_sha256",
+      "parts"
+    ],
+    "title": "RepresentationPlan",
+    "type": "object"
+  },
   "resolved-semantic-proportion-options.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/resolved-semantic-proportion-options.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11064,6 +19166,66 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ResolvedSemanticProportionOptions",
     "type": "object"
   },
+  "restricted-geometry-execution-evidence-v1.schema.json": {
+    "$defs": {
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{1,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/restricted-geometry-execution-evidence-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "compile_cache_hit": {
+        "type": "boolean"
+      },
+      "compile_cache_key_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "compile_duration_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "fragment_cache_hit_operation_ids": {
+        "items": {
+          "$ref": "#/$defs/id"
+        },
+        "maxItems": 1024,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "fragment_cache_miss_operation_ids": {
+        "items": {
+          "$ref": "#/$defs/id"
+        },
+        "maxItems": 1024,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "render_duration_ms": {
+        "maximum": 240000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "RestrictedGeometryExecutionEvidence@1"
+      }
+    },
+    "required": [
+      "schema_version",
+      "compile_cache_key_sha256",
+      "compile_cache_hit",
+      "compile_duration_ms",
+      "render_duration_ms",
+      "fragment_cache_hit_operation_ids",
+      "fragment_cache_miss_operation_ids"
+    ],
+    "title": "RestrictedGeometryExecutionEvidenceV1",
+    "type": "object"
+  },
   "shape-program.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/shape-program.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11112,6 +19274,21 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                     "linear"
                   ],
                   "type": "string"
+                },
+                "corner_offsets": {
+                  "items": {
+                    "items": {
+                      "maximum": 0.25,
+                      "minimum": -0.25,
+                      "type": "number"
+                    },
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "type": "array"
+                  },
+                  "maxItems": 8,
+                  "minItems": 8,
+                  "type": "array"
                 },
                 "count": {
                   "maximum": 64,
@@ -11282,7 +19459,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "union",
                 "subtract",
                 "bevel_approx",
-                "surface_panel"
+                "surface_panel",
+                "lattice_deform"
               ],
               "type": "string"
             },
@@ -11449,6 +19627,262 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "non_functional_only"
     ],
     "title": "ShapeProgram",
+    "type": "object"
+  },
+  "subject-profile.schema.json": {
+    "$defs": {
+      "feature": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 1200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "feature_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "level": {
+            "$ref": "#/$defs/level"
+          },
+          "part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "feature_id",
+          "part_id",
+          "level",
+          "description"
+        ],
+        "type": "object"
+      },
+      "level": {
+        "enum": [
+          "macro",
+          "meso",
+          "micro"
+        ]
+      },
+      "material": {
+        "additionalProperties": false,
+        "properties": {
+          "appearance_traits": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "label": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "material_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "material_id",
+          "label",
+          "part_ids",
+          "appearance_traits"
+        ],
+        "type": "object"
+      },
+      "part": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "semantic_role": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "traits": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "uncertainty_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id",
+          "label",
+          "semantic_role",
+          "traits",
+          "uncertainty_bps"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/subject-profile.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Open-category visual subject understanding. category and category_tags are descriptive open text, not admission enums.",
+    "properties": {
+      "category": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": "string"
+      },
+      "category_tags": {
+        "items": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 64,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "features": {
+        "items": {
+          "$ref": "#/$defs/feature"
+        },
+        "maxItems": 512,
+        "minItems": 3,
+        "type": "array"
+      },
+      "identity_label": {
+        "maxLength": 240,
+        "minLength": 1,
+        "type": "string"
+      },
+      "materials": {
+        "items": {
+          "$ref": "#/$defs/material"
+        },
+        "maxItems": 128,
+        "type": "array"
+      },
+      "negative_space": {
+        "maxLength": 1200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "occlusions": {
+        "items": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "parts": {
+        "items": {
+          "$ref": "#/$defs/part"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "pose": {
+        "maxLength": 1200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "profile_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "SubjectProfile@1"
+      },
+      "silhouette": {
+        "maxLength": 1200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "uncertainties": {
+        "items": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 64,
+        "type": "array"
+      },
+      "visible_views": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 32,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "schema_version",
+      "profile_id",
+      "request_sha256",
+      "identity_label",
+      "category",
+      "category_tags",
+      "silhouette",
+      "negative_space",
+      "pose",
+      "visible_views",
+      "occlusions",
+      "uncertainties",
+      "parts",
+      "features",
+      "materials"
+    ],
+    "title": "SubjectProfile",
     "type": "object"
   },
   "surface-adornment-program.schema.json": {
@@ -12144,6 +20578,1583 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "SurfaceLayerProgram",
     "type": "object"
   },
+  "universal-asset-source-v2.schema.json": {
+    "$defs": {
+      "appearance_compilation": {
+        "additionalProperties": false,
+        "properties": {
+          "compilation_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "compiler_id": {
+            "const": "forgecad.generic_hard_surface_appearance.v2"
+          },
+          "schema_version": {
+            "const": "GenericHardSurfaceAppearanceCompilation@2"
+          },
+          "source_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/$defs/appearance_zone"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "compiler_id",
+          "source_program_sha256",
+          "zones",
+          "compilation_sha256"
+        ],
+        "type": "object"
+      },
+      "appearance_zone": {
+        "additionalProperties": false,
+        "properties": {
+          "base_material_id": {
+            "maxLength": 96,
+            "pattern": "^mat_[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "surface_layer_program": {
+            "type": "object"
+          },
+          "surface_layer_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "target_material_zone_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "target_subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_subject_part_id",
+          "target_material_zone_id",
+          "base_material_id",
+          "surface_layer_program",
+          "surface_layer_program_sha256"
+        ],
+        "type": "object"
+      },
+      "game_asset_collision_proxy": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds_meters": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "mesh_index": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "terminal_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_part_id",
+          "terminal_operation_id",
+          "mesh_index",
+          "bounds_meters"
+        ],
+        "type": "object"
+      },
+      "game_asset_delivery_readback": {
+        "additionalProperties": false,
+        "properties": {
+          "bindings_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "collision_proxies": {
+            "items": {
+              "$ref": "#/$defs/game_asset_collision_proxy"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "delivery_glb_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "game_asset_profile_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "lod": {
+            "$ref": "#/$defs/game_asset_lod_readback"
+          },
+          "schema_version": {
+            "const": "GameAssetDeliveryReceipt@1"
+          },
+          "sockets": {
+            "items": {
+              "$ref": "#/$defs/game_asset_socket_readback"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "source_glb_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "texel_density": {
+            "$ref": "#/$defs/game_asset_texel_density"
+          }
+        },
+        "required": [
+          "schema_version",
+          "source_glb_sha256",
+          "delivery_glb_sha256",
+          "game_asset_profile_sha256",
+          "bindings_sha256",
+          "lod",
+          "collision_proxies",
+          "sockets",
+          "texel_density"
+        ],
+        "type": "object"
+      },
+      "game_asset_lod_level": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "maximum": 2,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "simplification_error": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "triangle_count": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "level",
+          "triangle_count",
+          "simplification_error"
+        ],
+        "type": "object"
+      },
+      "game_asset_lod_readback": {
+        "additionalProperties": false,
+        "properties": {
+          "delivery_glb_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "game_asset_profile_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "game_asset_profile_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "lods": {
+            "items": {
+              "$ref": "#/$defs/game_asset_lod_level"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "GameAssetLodReceipt@1"
+          },
+          "source_glb_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "schema_version",
+          "source_glb_sha256",
+          "delivery_glb_sha256",
+          "game_asset_profile_id",
+          "game_asset_profile_sha256",
+          "lods"
+        ],
+        "type": "object"
+      },
+      "game_asset_material_texel_density": {
+        "additionalProperties": false,
+        "properties": {
+          "base_color_dimensions_pixels": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "effective_texel_density_pixels_per_meter": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "material_index": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "surface_area_square_meters": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "uv_area_square_units": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "material_index",
+          "base_color_dimensions_pixels",
+          "surface_area_square_meters",
+          "uv_area_square_units",
+          "effective_texel_density_pixels_per_meter"
+        ],
+        "type": "object"
+      },
+      "game_asset_profile": {
+        "additionalProperties": false,
+        "properties": {
+          "collision_proxy_part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 128,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "lod_triangle_budgets": {
+            "items": {
+              "maximum": 150000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "profile_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "GameAssetProfile@1"
+          },
+          "sockets": {
+            "items": {
+              "$ref": "#/$defs/game_asset_socket"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "target_texel_density_pixels_per_meter": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "profile_id",
+          "lod_triangle_budgets",
+          "collision_proxy_part_ids",
+          "sockets",
+          "target_texel_density_pixels_per_meter"
+        ],
+        "type": "object"
+      },
+      "game_asset_socket": {
+        "additionalProperties": false,
+        "properties": {
+          "forward": {
+            "items": {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "pivot_meters": {
+            "items": {
+              "maximum": 100,
+              "minimum": -100,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "socket_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "socket_id",
+          "part_id",
+          "pivot_meters",
+          "forward"
+        ],
+        "type": "object"
+      },
+      "game_asset_socket_readback": {
+        "additionalProperties": false,
+        "properties": {
+          "forward": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "node_index": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pivot_meters": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "socket_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "terminal_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "socket_id",
+          "subject_part_id",
+          "terminal_operation_id",
+          "node_index",
+          "pivot_meters",
+          "forward"
+        ],
+        "type": "object"
+      },
+      "game_asset_texel_density": {
+        "additionalProperties": false,
+        "properties": {
+          "effective_texel_density_pixels_per_meter": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "material_zones": {
+            "items": {
+              "$ref": "#/$defs/game_asset_material_texel_density"
+            },
+            "maxItems": 128,
+            "minItems": 1,
+            "type": "array"
+          },
+          "surface_area_square_meters": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "target_met": {
+            "const": true
+          },
+          "target_texel_density_pixels_per_meter": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "material_zones",
+          "surface_area_square_meters",
+          "effective_texel_density_pixels_per_meter",
+          "target_texel_density_pixels_per_meter",
+          "target_met"
+        ],
+        "type": "object"
+      },
+      "lattice_deformation_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "corner_offsets": {
+            "items": {
+              "items": {
+                "maximum": 0.25,
+                "minimum": -0.25,
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            "maxItems": 8,
+            "minItems": 8,
+            "type": "array"
+          },
+          "deformation_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "deformation_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "source_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "deformation_id",
+          "subject_part_id",
+          "source_operation_id",
+          "deformation_operation_id",
+          "corner_offsets"
+        ],
+        "type": "object"
+      },
+      "local_hard_surface_hybrid_source": {
+        "additionalProperties": false,
+        "properties": {
+          "deformations": {
+            "items": {
+              "$ref": "#/$defs/lattice_deformation_binding"
+            },
+            "maxItems": 255,
+            "minItems": 1,
+            "type": "array"
+          },
+          "kind": {
+            "const": "hybrid"
+          },
+          "procedural_source": {
+            "$ref": "#/$defs/runtime_procedural_payload"
+          },
+          "source_contract_id": {
+            "const": "ForgeLocalHardSurfaceHybridSource@1"
+          }
+        },
+        "required": [
+          "kind",
+          "source_contract_id",
+          "procedural_source",
+          "deformations"
+        ],
+        "type": "object"
+      },
+      "local_lattice_deform_source": {
+        "additionalProperties": false,
+        "properties": {
+          "deformations": {
+            "items": {
+              "$ref": "#/$defs/lattice_deformation_binding"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          },
+          "kind": {
+            "const": "deformable"
+          },
+          "procedural_source": {
+            "$ref": "#/$defs/runtime_procedural_payload"
+          },
+          "source_contract_id": {
+            "const": "ForgeLocalLatticeDeformSource@1"
+          }
+        },
+        "required": [
+          "kind",
+          "source_contract_id",
+          "procedural_source",
+          "deformations"
+        ],
+        "type": "object"
+      },
+      "part_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "material_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "material_zone_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "output_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "terminal_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_part_id",
+          "output_id",
+          "terminal_operation_id",
+          "material_zone_id",
+          "material_id"
+        ],
+        "type": "object"
+      },
+      "procedural_source": {
+        "additionalProperties": false,
+        "properties": {
+          "compiler_profile_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "const": "procedural"
+          },
+          "part_bindings": {
+            "items": {
+              "$ref": "#/$defs/part_binding"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shape_program": {
+            "$ref": "shape-program.schema.json"
+          },
+          "shape_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "source_contract_id": {
+            "enum": [
+              "ForgeVisualAuthorSource@1",
+              "ForgeVisualGeometryProgram@2"
+            ]
+          },
+          "source_program": {
+            "type": "object"
+          },
+          "source_program_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "source_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "kind",
+          "source_contract_id",
+          "compiler_profile_id",
+          "source_program",
+          "source_program_id",
+          "source_program_sha256",
+          "shape_program_sha256",
+          "shape_program",
+          "part_bindings"
+        ],
+        "type": "object"
+      },
+      "runtime_procedural_payload": {
+        "additionalProperties": false,
+        "properties": {
+          "compiler_profile_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "part_bindings": {
+            "items": {
+              "$ref": "#/$defs/part_binding"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shape_program": {
+            "$ref": "shape-program.schema.json"
+          },
+          "shape_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "source_contract_id": {
+            "enum": [
+              "ForgeVisualAuthorSource@1",
+              "ForgeVisualGeometryProgram@2"
+            ]
+          },
+          "source_program": {
+            "type": "object"
+          },
+          "source_program_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "source_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "source_contract_id",
+          "compiler_profile_id",
+          "source_program",
+          "source_program_id",
+          "source_program_sha256",
+          "shape_program_sha256",
+          "shape_program",
+          "part_bindings"
+        ],
+        "type": "object"
+      },
+      "unavailable_source": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "local_mesh_patch"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "source_contract_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_contract_id",
+          "reason"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/universal-asset-source-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-derived U004 source envelope. A representation source is a sealed discriminated union. Reviewed local procedural, bounded local lattice-deform, and their per-part local hard-surface hybrid are executable; all other branches remain explicit unavailable contracts.",
+    "properties": {
+      "appearance_compilation": {
+        "$ref": "#/$defs/appearance_compilation"
+      },
+      "appearance_evidence": {
+        "$ref": "appearance-evidence-bundle.schema.json"
+      },
+      "capability_manifest_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "compiled_artifact": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "universal-asset-source.schema.json#/$defs/compiled_artifact"
+          }
+        ]
+      },
+      "component_sources": {
+        "items": {
+          "$ref": "universal-asset-source.schema.json#/$defs/component_source"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "detail_claims": {
+        "items": {
+          "$ref": "visual-detail-claim-v2.schema.json"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "game_asset_delivery": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/game_asset_delivery_readback"
+          }
+        ]
+      },
+      "game_asset_profile": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/game_asset_profile"
+          }
+        ]
+      },
+      "material_zones": {
+        "items": {
+          "$ref": "material-zone-appearance.schema.json"
+        },
+        "maxItems": 128,
+        "type": "array"
+      },
+      "representation_plan": {
+        "$ref": "representation-plan.schema.json"
+      },
+      "representation_plan_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "representation_source": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/procedural_source"
+          },
+          {
+            "$ref": "#/$defs/local_lattice_deform_source"
+          },
+          {
+            "$ref": "#/$defs/local_hard_surface_hybrid_source"
+          },
+          {
+            "$ref": "#/$defs/unavailable_source"
+          }
+        ]
+      },
+      "request": {
+        "$ref": "universal-author-request.schema.json"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "UniversalAssetSource@2"
+      },
+      "source_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "planned",
+          "compiled"
+        ]
+      },
+      "subject_profile": {
+        "$ref": "subject-profile.schema.json"
+      },
+      "subject_profile_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "visual_feature_contract": {
+        "$ref": "visual-feature-contract.schema.json"
+      },
+      "visual_feature_contract_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_id",
+      "state",
+      "request",
+      "request_sha256",
+      "subject_profile",
+      "subject_profile_sha256",
+      "visual_feature_contract",
+      "visual_feature_contract_sha256",
+      "representation_plan",
+      "representation_plan_sha256",
+      "capability_manifest_sha256",
+      "representation_source",
+      "component_sources",
+      "detail_claims",
+      "material_zones",
+      "appearance_compilation",
+      "appearance_evidence"
+    ],
+    "title": "UniversalAssetSourceV2",
+    "type": "object"
+  },
+  "universal-asset-source.schema.json": {
+    "$defs": {
+      "compiled_artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_profile_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "compile_readback_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "glb_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "readback_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "renderer_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "shape_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "source_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "view_sha256": {
+            "additionalProperties": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "maxProperties": 16,
+            "minProperties": 1,
+            "type": "object"
+          }
+        },
+        "required": [
+          "source_program_sha256",
+          "shape_program_sha256",
+          "glb_sha256",
+          "readback_sha256",
+          "compile_readback_sha256",
+          "artifact_profile_id",
+          "renderer_id",
+          "view_sha256"
+        ],
+        "type": "object"
+      },
+      "component_source": {
+        "additionalProperties": false,
+        "properties": {
+          "capability_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "component_source_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "representation": {
+            "enum": [
+              "procedural",
+              "deformable",
+              "mesh_seed",
+              "hybrid"
+            ]
+          },
+          "source_program_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "source_program_part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "source_program_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "component_source_id",
+          "subject_part_id",
+          "representation",
+          "capability_id",
+          "source_program_id",
+          "source_program_sha256",
+          "source_program_part_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/universal-asset-source.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-derived source envelope. U003 currently seals only the available procedural branch; U004 adds other executable branches without a second version truth.",
+    "properties": {
+      "appearance_evidence": {
+        "$ref": "appearance-evidence-bundle.schema.json"
+      },
+      "capability_manifest_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "compiled_artifact": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/compiled_artifact"
+          }
+        ]
+      },
+      "component_sources": {
+        "items": {
+          "$ref": "#/$defs/component_source"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "detail_claims": {
+        "items": {
+          "$ref": "visual-detail-claim-v2.schema.json"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "material_zones": {
+        "items": {
+          "$ref": "material-zone-appearance.schema.json"
+        },
+        "maxItems": 128,
+        "type": "array"
+      },
+      "procedural_source": {
+        "$ref": "forge-visual-program-revision.schema.json"
+      },
+      "representation_plan": {
+        "$ref": "representation-plan.schema.json"
+      },
+      "representation_plan_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "request": {
+        "$ref": "universal-author-request.schema.json"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "schema_version": {
+        "const": "UniversalAssetSource@1"
+      },
+      "source_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "planned",
+          "compiled"
+        ]
+      },
+      "subject_profile": {
+        "$ref": "subject-profile.schema.json"
+      },
+      "subject_profile_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "visual_feature_contract": {
+        "$ref": "visual-feature-contract.schema.json"
+      },
+      "visual_feature_contract_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_id",
+      "state",
+      "request",
+      "request_sha256",
+      "subject_profile",
+      "subject_profile_sha256",
+      "visual_feature_contract",
+      "visual_feature_contract_sha256",
+      "representation_plan",
+      "representation_plan_sha256",
+      "capability_manifest_sha256",
+      "procedural_source",
+      "component_sources",
+      "detail_claims",
+      "material_zones",
+      "appearance_evidence"
+    ],
+    "title": "UniversalAssetSource",
+    "type": "object"
+  },
+  "universal-author-outcome.schema.json": {
+    "$defs": {
+      "base_contracts": {
+        "properties": {
+          "representation_plan": {
+            "$ref": "representation-plan.schema.json"
+          },
+          "request": {
+            "$ref": "universal-author-request.schema.json"
+          },
+          "schema_version": {
+            "const": "UniversalAuthorOutcome@1"
+          },
+          "subject_profile": {
+            "$ref": "subject-profile.schema.json"
+          },
+          "visual_feature_contract": {
+            "$ref": "visual-feature-contract.schema.json"
+          }
+        },
+        "type": "object"
+      },
+      "clarification": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "const": "clarification_required"
+          },
+          "questions": {
+            "items": {
+              "maxLength": 320,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 1200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "request": {
+            "$ref": "universal-author-request.schema.json"
+          },
+          "schema_version": {
+            "const": "UniversalAuthorOutcome@1"
+          }
+        },
+        "required": [
+          "outcome",
+          "schema_version",
+          "request",
+          "reason",
+          "questions"
+        ],
+        "type": "object"
+      },
+      "executable": {
+        "additionalProperties": false,
+        "properties": {
+          "executable_payload": {
+            "type": "object"
+          },
+          "outcome": {
+            "const": "executable"
+          },
+          "representation_plan": {
+            "$ref": "representation-plan.schema.json"
+          },
+          "request": {
+            "$ref": "universal-author-request.schema.json"
+          },
+          "schema_version": {
+            "const": "UniversalAuthorOutcome@1"
+          },
+          "subject_profile": {
+            "$ref": "subject-profile.schema.json"
+          },
+          "visual_feature_contract": {
+            "$ref": "visual-feature-contract.schema.json"
+          }
+        },
+        "required": [
+          "outcome",
+          "schema_version",
+          "request",
+          "subject_profile",
+          "visual_feature_contract",
+          "representation_plan",
+          "executable_payload"
+        ],
+        "type": "object"
+      },
+      "limitation": {
+        "additionalProperties": false,
+        "properties": {
+          "limitation": {
+            "$ref": "representation-limitation.schema.json"
+          },
+          "outcome": {
+            "const": "limitation"
+          },
+          "representation_plan": {
+            "$ref": "representation-plan.schema.json"
+          },
+          "request": {
+            "$ref": "universal-author-request.schema.json"
+          },
+          "schema_version": {
+            "const": "UniversalAuthorOutcome@1"
+          },
+          "subject_profile": {
+            "$ref": "subject-profile.schema.json"
+          },
+          "visual_feature_contract": {
+            "$ref": "visual-feature-contract.schema.json"
+          }
+        },
+        "required": [
+          "outcome",
+          "schema_version",
+          "request",
+          "subject_profile",
+          "visual_feature_contract",
+          "representation_plan",
+          "limitation"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/universal-author-outcome.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Discriminated universal author result. limitation and clarification variants contain no executable geometry payload.",
+    "oneOf": [
+      {
+        "$ref": "#/$defs/executable"
+      },
+      {
+        "$ref": "#/$defs/limitation"
+      },
+      {
+        "$ref": "#/$defs/clarification"
+      }
+    ],
+    "title": "UniversalAuthorOutcome"
+  },
+  "universal-author-request.schema.json": {
+    "$defs": {
+      "active_asset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "readback_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "snapshot_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          }
+        },
+        "required": [
+          "asset_version_id",
+          "snapshot_revision",
+          "source_sha256",
+          "readback_sha256"
+        ],
+        "type": "object"
+      },
+      "locks": {
+        "additionalProperties": false,
+        "properties": {
+          "locked_material_zone_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "locked_part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "preserve_geometry": {
+            "type": "boolean"
+          },
+          "preserve_material_surface": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "preserve_geometry",
+          "preserve_material_surface",
+          "locked_part_ids",
+          "locked_material_zone_ids"
+        ],
+        "type": "object"
+      },
+      "reference_input": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "view_hint": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "evidence_id",
+          "evidence_sha256",
+          "role"
+        ],
+        "type": "object"
+      },
+      "selection": {
+        "additionalProperties": false,
+        "properties": {
+          "material_zone_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "part_ids",
+          "material_zone_ids"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/universal-author-request.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Rust-sealed category-open author request. Project, Turn, evidence, active asset, selection, locks and capability hash are server truth.",
+    "properties": {
+      "active_asset": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/active_asset"
+          }
+        ]
+      },
+      "capability_manifest_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "input_mode": {
+        "enum": [
+          "text",
+          "single_image",
+          "multiview",
+          "active_asset",
+          "mixed"
+        ]
+      },
+      "instruction": {
+        "maxLength": 200000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "locks": {
+        "$ref": "#/$defs/locks"
+      },
+      "project_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "reference_inputs": {
+        "items": {
+          "$ref": "#/$defs/reference_input"
+        },
+        "maxItems": 12,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "request_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "UniversalAuthorRequest@1"
+      },
+      "selection": {
+        "$ref": "#/$defs/selection"
+      },
+      "turn_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "request_id",
+      "project_id",
+      "turn_id",
+      "instruction",
+      "input_mode",
+      "reference_inputs",
+      "selection",
+      "locks",
+      "capability_manifest_sha256"
+    ],
+    "title": "UniversalAuthorRequest",
+    "type": "object"
+  },
+  "visual-convergence-input-v2.schema.json": {
+    "$defs": {
+      "repair_v2": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_domains": {
+            "items": {
+              "enum": [
+                "title",
+                "design_tokens",
+                "parts",
+                "geometry",
+                "assembly",
+                "material",
+                "surface",
+                "detail_inventory",
+                "export_profile"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "parent_program_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "repair_number": {
+            "const": 1
+          },
+          "result_program_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "same_intent": {
+            "const": true
+          }
+        },
+        "required": [
+          "repair_number",
+          "parent_program_sha256",
+          "result_program_sha256",
+          "changed_domains",
+          "same_intent"
+        ],
+        "type": "object"
+      },
+      "view_v2": {
+        "additionalProperties": false,
+        "properties": {
+          "glb_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "image_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "readback_passed": {
+            "type": "boolean"
+          },
+          "renderer_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "view_id": {
+            "enum": [
+              "turntable_000",
+              "turntable_045",
+              "turntable_090",
+              "turntable_135",
+              "turntable_180",
+              "turntable_225",
+              "turntable_270",
+              "turntable_315"
+            ]
+          }
+        },
+        "required": [
+          "view_id",
+          "glb_sha256",
+          "renderer_id",
+          "image_sha256",
+          "readback_passed"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/visual-convergence-input-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Product convergence envelope. @1 remains readable only for frozen V003/C111 regression evidence; new author turns use this single-patch contract.",
+    "properties": {
+      "detail_coverage": {
+        "$ref": "visual-convergence-input.schema.json#/$defs/detail_coverage"
+      },
+      "fixed_views": {
+        "items": {
+          "$ref": "#/$defs/view_v2"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "type": "array"
+      },
+      "ledger": {
+        "$ref": "visual-convergence-input.schema.json#/$defs/ledger"
+      },
+      "readback": {
+        "$ref": "visual-convergence-input.schema.json#/$defs/readback"
+      },
+      "reference_comparison": {
+        "$ref": "visual-convergence-input.schema.json#/$defs/reference_comparison"
+      },
+      "repairs": {
+        "items": {
+          "$ref": "#/$defs/repair_v2"
+        },
+        "maxItems": 1,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "VisualConvergenceInput@2"
+      }
+    },
+    "required": [
+      "schema_version",
+      "ledger",
+      "readback",
+      "fixed_views",
+      "detail_coverage",
+      "repairs"
+    ],
+    "title": "VisualConvergenceInputV2",
+    "type": "object"
+  },
   "visual-convergence-input.schema.json": {
     "$defs": {
       "detail_coverage": {
@@ -12547,6 +22558,73 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "VisualConvergenceInput",
     "type": "object"
   },
+  "visual-convergence-report-v2.schema.json": {
+    "$id": "https://forgecad.local/schemas/visual-convergence-report-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Product convergence report. @1 remains readable only for frozen V003/C111 regression evidence; new author turns use this single-patch contract.",
+    "properties": {
+      "completed_stage_count": {
+        "maximum": 7,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "failure_codes": {
+        "items": {
+          "pattern": "^[A-Z0-9_]+$",
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "fixed_view_count": {
+        "maximum": 8,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "glb_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "passed": {
+        "type": "boolean"
+      },
+      "repair_attempt_count": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "report_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualConvergenceReport@2"
+      },
+      "source_program_sha256": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "source_revision": {
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "report_sha256",
+      "source_program_sha256",
+      "source_revision",
+      "glb_sha256",
+      "passed",
+      "completed_stage_count",
+      "fixed_view_count",
+      "repair_attempt_count",
+      "failure_codes"
+    ],
+    "title": "VisualConvergenceReportV2",
+    "type": "object"
+  },
   "visual-convergence-report.schema.json": {
     "$id": "https://forgecad.local/schemas/visual-convergence-report.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -12611,6 +22689,247 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "failure_codes"
     ],
     "title": "VisualConvergenceReport",
+    "type": "object"
+  },
+  "visual-detail-claim-v2.schema.json": {
+    "$defs": {
+      "binding": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "procedural_program",
+              "geometry_output",
+              "material_zone",
+              "surface_program",
+              "projection_layer",
+              "unresolved"
+            ]
+          },
+          "source_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/visual-detail-claim-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "affected_part_ids": {
+        "items": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "bindings": {
+        "items": {
+          "$ref": "#/$defs/binding"
+        },
+        "maxItems": 256,
+        "minItems": 1,
+        "type": "array"
+      },
+      "channels": {
+        "items": {
+          "enum": [
+            "geometry",
+            "normal",
+            "base_color",
+            "roughness",
+            "metallic",
+            "emissive",
+            "opacity"
+          ]
+        },
+        "maxItems": 7,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "claim_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "evidence_status": {
+        "enum": [
+          "observed",
+          "inferred",
+          "hidden",
+          "conflicting"
+        ]
+      },
+      "feature_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "level": {
+        "enum": [
+          "macro",
+          "meso",
+          "micro"
+        ]
+      },
+      "minimum_acceptance_views": {
+        "items": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 16,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "salience_bps": {
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "VisualDetailClaim@2"
+      },
+      "silhouette_impact": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "schema_version",
+      "claim_id",
+      "feature_id",
+      "level",
+      "evidence_status",
+      "salience_bps",
+      "affected_part_ids",
+      "channels",
+      "silhouette_impact",
+      "bindings",
+      "minimum_acceptance_views"
+    ],
+    "title": "VisualDetailClaimV2",
+    "type": "object"
+  },
+  "visual-evidence-graph-v2.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/visual-evidence-graph-v2.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "claims": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "claim_id": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": {
+              "maxLength": 1200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "evidence_regions": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "evidence_id": {
+                    "maxLength": 160,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "region_per_mille": {
+                    "items": {
+                      "maximum": 1000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 4,
+                    "minItems": 4,
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "view_id": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "evidence_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 32,
+              "type": "array"
+            },
+            "feature_id": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "observed",
+                "inferred",
+                "hidden",
+                "conflicting"
+              ]
+            }
+          },
+          "required": [
+            "claim_id",
+            "feature_id",
+            "status",
+            "evidence_regions",
+            "description"
+          ],
+          "type": "object"
+        },
+        "maxItems": 512,
+        "type": "array"
+      },
+      "graph_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "VisualEvidenceGraph@2"
+      },
+      "subject_profile_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "universal_request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "graph_id",
+      "universal_request_sha256",
+      "subject_profile_sha256",
+      "claims"
+    ],
+    "title": "VisualEvidenceGraphV2",
     "type": "object"
   },
   "visual-evidence-graph.schema.json": {
@@ -12818,6 +23137,174 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "VisualEvidenceGraph",
     "type": "object"
   },
+  "visual-feature-contract.schema.json": {
+    "$defs": {
+      "region": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "region_per_mille": {
+            "items": {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "view_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "evidence_id"
+        ],
+        "type": "object"
+      },
+      "requirement": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_part_ids": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "geometry",
+                "normal",
+                "base_color",
+                "roughness",
+                "metallic",
+                "emissive",
+                "opacity"
+              ]
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "description": {
+            "maxLength": 1200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_regions": {
+            "items": {
+              "$ref": "#/$defs/region"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "evidence_status": {
+            "enum": [
+              "observed",
+              "inferred",
+              "hidden",
+              "conflicting"
+            ]
+          },
+          "feature_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "macro",
+              "meso",
+              "micro"
+            ]
+          },
+          "minimum_acceptance_views": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "salience_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "feature_id",
+          "level",
+          "description",
+          "salience_bps",
+          "evidence_status",
+          "evidence_regions",
+          "affected_part_ids",
+          "channels",
+          "minimum_acceptance_views"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/concept/visual-feature-contract.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "contract_id": {
+        "maxLength": 160,
+        "minLength": 1,
+        "type": "string"
+      },
+      "request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "requirements": {
+        "items": {
+          "$ref": "#/$defs/requirement"
+        },
+        "maxItems": 512,
+        "minItems": 1,
+        "type": "array"
+      },
+      "schema_version": {
+        "const": "VisualFeatureContract@1"
+      },
+      "subject_profile_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "required": [
+      "schema_version",
+      "contract_id",
+      "request_sha256",
+      "subject_profile_sha256",
+      "requirements"
+    ],
+    "title": "VisualFeatureContract",
+    "type": "object"
+  },
   "visual-intent-mapping.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/visual-intent-mapping.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -12952,12 +23439,394 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "VisualIntentMapping",
     "type": "object"
   },
+  "visual-program-authoring-session-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{1,128}$",
+        "type": "string"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/visual-program-authoring-session-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "applied_patch_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "authoring_count": {
+        "const": 1
+      },
+      "current_revision": {
+        "maximum": 2,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "current_source": {
+        "$ref": "forge-visual-geometry-program-v2.schema.json"
+      },
+      "current_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "gate_report_id": {
+        "$ref": "#/$defs/id"
+      },
+      "idempotency_key": {
+        "$ref": "#/$defs/id"
+      },
+      "incremental_plan": {
+        "$ref": "geometry-incremental-plan-v1.schema.json"
+      },
+      "initial_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "parent_source_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "patch_count": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "receipt": {
+        "$ref": "visual-program-execution-receipt-v1.schema.json"
+      },
+      "receipt_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "request_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "schema_version": {
+        "const": "VisualProgramAuthoringSession@1"
+      },
+      "session_id": {
+        "$ref": "#/$defs/id"
+      },
+      "state": {
+        "enum": [
+          "awaiting_initial_gate",
+          "awaiting_patch",
+          "awaiting_patched_gate",
+          "ready_for_preview",
+          "failed",
+          "cancelled"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "session_id",
+      "idempotency_key",
+      "request_sha256",
+      "current_revision",
+      "initial_source_sha256",
+      "current_source_sha256",
+      "current_source",
+      "authoring_count",
+      "patch_count",
+      "state",
+      "receipt",
+      "receipt_sha256"
+    ],
+    "title": "VisualProgramAuthoringSessionV1",
+    "type": "object"
+  },
+  "visual-program-execution-receipt-v1.schema.json": {
+    "$defs": {
+      "hash": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "id": {
+        "pattern": "^[A-Za-z0-9_.@-]{1,128}$",
+        "type": "string"
+      },
+      "phase": {
+        "additionalProperties": false,
+        "properties": {
+          "cache": {
+            "enum": [
+              "hit",
+              "miss",
+              "not_applicable"
+            ]
+          },
+          "duration_ms": {
+            "maximum": 240000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "fragment_cache_hit_operation_ids": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "maxItems": 1024,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "fragment_cache_miss_operation_ids": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "maxItems": 1024,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "input_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "output_sha256": {
+            "$ref": "#/$defs/hash"
+          },
+          "phase": {
+            "enum": [
+              "author",
+              "validate",
+              "expand",
+              "lower",
+              "compile_readback",
+              "render",
+              "evaluate",
+              "patch",
+              "preview"
+            ]
+          },
+          "sequence": {
+            "maximum": 32,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sequence",
+          "phase",
+          "duration_ms",
+          "input_sha256",
+          "output_sha256",
+          "cache"
+        ],
+        "type": "object"
+      },
+      "usage": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_cost_microusd": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "input_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "output_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "product_tool_calls": {
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prompt_cache_hit_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prompt_cache_miss_tokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_requests": {
+            "maximum": 2,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_requests",
+          "product_tool_calls",
+          "input_tokens",
+          "output_tokens",
+          "prompt_cache_hit_tokens",
+          "prompt_cache_miss_tokens",
+          "estimated_cost_microusd"
+        ],
+        "type": "object"
+      }
+    },
+    "$id": "https://forgecad.local/schemas/visual-program-execution-receipt-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "authoring_count": {
+        "const": 1
+      },
+      "cancelled": {
+        "type": "boolean"
+      },
+      "expanded_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "failure_code": {
+        "$ref": "#/$defs/id"
+      },
+      "glb_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "patch_count": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "phases": {
+        "items": {
+          "$ref": "#/$defs/phase"
+        },
+        "maxItems": 32,
+        "minItems": 1,
+        "type": "array"
+      },
+      "receipt_id": {
+        "$ref": "#/$defs/id"
+      },
+      "schema_version": {
+        "const": "VisualProgramExecutionReceipt@1"
+      },
+      "session_id": {
+        "$ref": "#/$defs/id"
+      },
+      "shape_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "source_program_sha256": {
+        "$ref": "#/$defs/hash"
+      },
+      "usage": {
+        "$ref": "#/$defs/usage"
+      }
+    },
+    "required": [
+      "schema_version",
+      "receipt_id",
+      "session_id",
+      "authoring_count",
+      "patch_count",
+      "source_program_sha256",
+      "expanded_program_sha256",
+      "shape_program_sha256",
+      "phases",
+      "usage",
+      "cancelled"
+    ],
+    "title": "VisualProgramExecutionReceiptV1",
+    "type": "object"
+  },
+  "visual-program-gate-outcome-v1.schema.json": {
+    "$id": "https://forgecad.local/schemas/visual-program-gate-outcome-v1.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "gate_report_id": {
+        "pattern": "^[A-Za-z0-9_.@-]{1,128}$",
+        "type": "string"
+      },
+      "repairable": {
+        "type": "boolean"
+      },
+      "schema_version": {
+        "const": "VisualProgramGateOutcome@1"
+      },
+      "source_program_sha256": {
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "verdict": {
+        "enum": [
+          "pass",
+          "fail",
+          "undetermined"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "gate_report_id",
+      "source_program_sha256",
+      "verdict",
+      "repairable"
+    ],
+    "title": "VisualProgramGateOutcomeV1",
+    "type": "object"
+  },
   "visual-reference-comparison-input.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/visual-reference-comparison-input.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "description": "Rust-owned hash-only envelope binding sealed references to the exact candidate GLB and fixed eight-view render set.",
     "properties": {
+      "acceptance_policy": {
+        "additionalProperties": false,
+        "properties": {
+          "critical_minimum_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "critical_not_visible_allowed": {
+            "type": "boolean"
+          },
+          "critical_requires_matched": {
+            "type": "boolean"
+          },
+          "macro_minimum_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "meso_minimum_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "micro_minimum_bps": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "policy_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "VisualReferenceAcceptancePolicy@1"
+          },
+          "source_contract_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "policy_id",
+          "critical_minimum_bps",
+          "macro_minimum_bps",
+          "meso_minimum_bps",
+          "micro_minimum_bps",
+          "critical_requires_matched",
+          "critical_not_visible_allowed"
+        ],
+        "type": "object"
+      },
+      "candidate_view_profile": {
+        "enum": [
+          "convergence_eight",
+          "turntable_eight"
+        ]
+      },
       "candidate_views": {
         "items": {
           "additionalProperties": false,
@@ -12987,7 +23856,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "right",
                 "top",
                 "gripper_iso",
-                "gripper_front"
+                "gripper_front",
+                "turntable_000",
+                "turntable_045",
+                "turntable_090",
+                "turntable_135",
+                "turntable_180",
+                "turntable_225",
+                "turntable_270",
+                "turntable_315"
               ]
             }
           },
@@ -13045,7 +23922,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "type": "string"
       },
       "schema_version": {
-        "const": "VisualReferenceComparisonInput@1"
+        "const": "VisualReferenceComparisonInput@2"
       },
       "source_program_sha256": {
         "pattern": "^[a-f0-9]{64}$",
@@ -13059,6 +23936,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "program_binding_sha256",
       "source_program_sha256",
       "glb_sha256",
+      "acceptance_policy",
       "reference_sources",
       "candidate_views"
     ],
@@ -13085,7 +23963,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "right",
                   "top",
                   "gripper_iso",
-                  "gripper_front"
+                  "gripper_front",
+                  "turntable_000",
+                  "turntable_045",
+                  "turntable_090",
+                  "turntable_135",
+                  "turntable_180",
+                  "turntable_225",
+                  "turntable_270",
+                  "turntable_315"
                 ]
               },
               "maxItems": 8,
@@ -13146,6 +24032,94 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "maxItems": 256,
         "minItems": 1,
         "type": "array"
+      },
+      "budget_evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "accounted_cost_ceiling_microusd_after": {
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "authorization_binding_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "authorization_id": {
+            "maxLength": 160,
+            "pattern": "^visauth_[A-Za-z0-9_.:\\-]+$",
+            "type": "string"
+          },
+          "call_number": {
+            "maximum": 3,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "calls_accounted_after": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "comparison_input_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maximum_calls": {
+            "const": 3
+          },
+          "maximum_variable_cost_microusd": {
+            "const": 100000
+          },
+          "network_call_made": {
+            "type": "boolean"
+          },
+          "reservation_id": {
+            "maxLength": 160,
+            "pattern": "^visreserve_[A-Za-z0-9_.:\\-]+$",
+            "type": "string"
+          },
+          "reserved_cost_ceiling_microusd": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "VisualReferenceComparisonBudgetEvidence@1"
+          },
+          "settled_at_unix_ms": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "settlement": {
+            "enum": [
+              "accounted",
+              "released"
+            ]
+          },
+          "turn_id": {
+            "maxLength": 160,
+            "pattern": "^turn_[A-Za-z0-9_.:\\-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "authorization_id",
+          "authorization_binding_sha256",
+          "reservation_id",
+          "turn_id",
+          "comparison_input_sha256",
+          "call_number",
+          "maximum_calls",
+          "maximum_variable_cost_microusd",
+          "reserved_cost_ceiling_microusd",
+          "settlement",
+          "network_call_made",
+          "calls_accounted_after",
+          "accounted_cost_ceiling_microusd_after",
+          "settled_at_unix_ms"
+        ],
+        "type": "object"
       },
       "comparison_input_sha256": {
         "pattern": "^[a-f0-9]{64}$",
@@ -13223,7 +24197,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "type": "string"
       },
       "schema_version": {
-        "const": "VisualReferenceComparisonReport@1"
+        "const": "VisualReferenceComparisonReport@2"
       }
     },
     "required": [

@@ -7,14 +7,14 @@ function text(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(text).join(' ')
   if (!isValidElement(node)) return ''
-  if (typeof node.type === 'function') return text((node.type as (props: unknown) => ReactNode)(node.props))
+  if (typeof node.type === 'function') return text((node.type as (props: unknown) => ReactNode)(node.props as unknown))
   return text((node.props as { children?: ReactNode }).children)
 }
 function find(node: ReactNode, predicate: (element: ReactElement) => boolean): ReactElement | undefined {
   if (node === null || node === undefined || typeof node === 'boolean') return undefined
   if (Array.isArray(node)) return node.map((child) => find(child, predicate)).find(Boolean)
   if (!isValidElement(node)) return undefined
-  if (typeof node.type === 'function') return find((node.type as (props: unknown) => ReactNode)(node.props), predicate)
+  if (typeof node.type === 'function') return find((node.type as (props: unknown) => ReactNode)(node.props as unknown), predicate)
   return predicate(node) ? node : find((node.props as { children?: ReactNode }).children, predicate)
 }
 
@@ -32,7 +32,7 @@ export function runWorkbenchComposerSmoke(): void {
     surfaceAdornmentDisabled: false,
   }
   const output = WorkbenchComposer(props)
-  assert(text(output).includes('选择风格') && text(output).includes('选择材质') && text(output).includes('参考图 / GLB') && text(output).includes('添加外观细节'), 'plus menu must contain implemented F026 attachment actions')
+  assert(text(output).includes('换外观') && text(output).includes('换材质') && text(output).includes('添加参考') && text(output).includes('加局部装饰'), 'plus menu must contain implemented F026 attachment actions')
   assert(text(output).includes('参考图与 GLB 可用于引导重建。'), 'reference entry must disclose the implemented R007 boundary')
   const textarea = find(output, (element) => element.type === 'textarea')
   const textareaProps = textarea?.props as { 'aria-label'?: string; placeholder?: string; onChange?: (event: { target: { value: string } }) => void; onKeyDown?: (event: { key: string; shiftKey: boolean; preventDefault: () => void }) => void } | undefined
@@ -54,8 +54,45 @@ export function runWorkbenchComposerSmoke(): void {
   const clickMenuItem = (label: string) => {
     const item = find(output, (element) => element.type === 'button' && text(element).includes(label))
     assert(item, `missing menu action: ${label}`)
-    ;(item.props as { onClick?: (event: { currentTarget: { closest: () => null } }) => void }).onClick?.({ currentTarget: { closest: () => null } })
+    ;(item.props as { onClick?: (event: {
+      currentTarget: {
+        closest: () => null
+        dataset?: Record<string, string>
+      }
+    }) => void }).onClick?.({ currentTarget: { closest: () => null, dataset: {} } })
   }
-  clickMenuItem('选择风格'); clickMenuItem('选择材质'); clickMenuItem('参考图 / GLB'); clickMenuItem('添加外观细节')
+  clickMenuItem('换外观'); clickMenuItem('换材质'); clickMenuItem('添加参考'); clickMenuItem('加局部装饰')
   assert(calls.join(',') === 'change:修改后的描述,prevent,send,style,material,reference,adornment', 'composer must forward input, send, and plus-menu actions')
+  const starterOutput = WorkbenchComposer({
+    ...props,
+    value: '',
+  })
+  const starter = find(starterOutput, (element) => {
+    const props = element.props as { type?: string; className?: string }
+    return element.type === 'button' && props.type === 'button' && props.className === 'f026-composer-starter'
+  })
+  assert(!!starter, 'composer should expose beginner starter prompts')
+  ;(starter?.props as { onClick?: (event: {
+    currentTarget: {
+      closest: () => null
+      dataset?: Record<string, string>
+    }
+  }) => void } | undefined)?.onClick?.({ currentTarget: {
+    closest: () => null,
+    dataset: {
+      prompt: '一台适合城市巡航的未来感电动车',
+    },
+  } })
+  assert(calls.includes('change:一台适合城市巡航的未来感电动车'), 'starter prompt should fill composer input')
+
+  const starterHiddenOutput = WorkbenchComposer({
+    ...props,
+    value: '',
+    showStarterPrompts: false,
+  })
+  const starterHidden = find(starterHiddenOutput, (element) => {
+    const props = element.props as { type?: string; className?: string }
+    return element.type === 'button' && props.type === 'button' && props.className === 'f026-composer-starter'
+  })
+  assert(!starterHidden, 'composer should hide starter prompts when showStarterPrompts is false')
 }

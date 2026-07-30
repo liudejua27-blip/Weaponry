@@ -16,13 +16,13 @@ const CATEGORY_ORDER: Array<AgentMaterialPreset['category'] | 'all'> = [
 ]
 
 export type MaterialDrawerProps = {
-  materialPresets: AgentMaterialPreset[]
+  materialPresets: readonly AgentMaterialPreset[]
   selectedMaterialId: string
   detailDensity?: number
   showDetailDensity?: boolean
   selectedPartLabel?: string
   selectedZoneLabel?: string
-  materialZoneIds?: string[]
+  materialZoneIds?: readonly string[]
   selectedZoneId?: string
   activeDomain?: string | null
   compatibilityOnly?: boolean

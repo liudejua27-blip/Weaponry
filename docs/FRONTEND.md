@@ -1,11 +1,13 @@
 # ForgeCAD CAD 工作台前端
 
-版本：2026-07-18
+版本：2026-07-29
 状态：当前实现、已知问题与目标约束
 
 ## 1. 唯一产品入口
 
 桌面应用只保留 CAD 工作台。旧武神首页、任务中心、独立资产库、Mode、Patch、Forge 和独立设置页不得重新成为产品导航。
+
+ADR-0022 后，工作台不增加“角色 Mode”“生物 Mode”或机械/有机双产品入口。U002 已让用户只提交文字、图片或当前资产；Agent 以普通语言展示对象理解、需要补充的视图、所选表示能力和限制。四领域澄清卡已从产品主路径移除，只保留 legacy fixture；通用澄清仅用于真实身份/目标冲突，typed limitation 用于能力不足。
 
 当前实现：
 
@@ -143,7 +145,9 @@ F005 只改变组件边界，不改变运行时真值：`WorkbenchDrawerStack` �
 
 F026 先实现 `GenerationResultPresentation@1`，其纯展示状态为 `idle | processing | compatibility_result | ready | failed`，不拥有 Snapshot、Version、Quality、Export 或候选真值。`compatibility_result` 仅由 legacy Planner 第一条文本方向的临时适配器产生，显示一个 3D 结果且明确不含 V003 Gate/修复结论；`ready` 只由 V003 的 `SingleResultDecision@1` 消费，显示一个 `SingleResultCard`：完整外观预览、Agent 理由、Brief 已覆盖/未覆盖摘要、当前来源（离线或模型服务）、“查看 3D”“继续修改”“换一个思路”三个动作。最后一个动作创建新 Turn，不能修改已确认版本。
 
-V003 的 Agent 只进行一次完整合成、硬门和最多两次同意图原位修复；UI 不显示多个完整候选、计数、方向标题或评分。F026 不渲染、隐藏或复用三方向交互；它只能将 legacy Planner 第一条文本方向适配为 `compatibility_result`。该状态不得冒充 `ready`、不得产生 `SingleResultDecision@1`，失败状态必须显示失败阶段、已保存资产是否安全和下一步。
+类别开放产品链只进行一次完整 author、硬门和最多一次同意图 typed patch；UI 不显示多个完整候选、计数、方向标题或评分。`VisualConvergenceReport@2` 以外的 legacy V003/C111 记录不得进入产品结果卡。F026 不渲染、隐藏或复用三方向交互；它只能将 legacy Planner 第一条文本方向适配为 `compatibility_result`。该状态不得冒充 `ready`、不得产生 `SingleResultDecision@1`，失败状态必须显示失败阶段、已保存资产是否安全和下一步。
+
+U004 的类别开放 executable 在 GLB/readback 后会显示“正在同工作台检查外观”，而不是复用旧结果或提前显示 `ready`。桌面把精确候选 GLB 装入唯一 `ModuleGraphViewport` 并采集固定八视图；Rust 将 Turn 置为 `waiting_for_capture`。capture 后仅恢复评估：通过才显示唯一确认卡；失败才执行一次 typed patch，补丁后的新候选必须再次采集，第二次失败显示终止且保留既有已确认资产。UI 不展示 nonce、原始图片、工具 JSON、Provider 内部重试或第二次修复入口。
 
 ### 5.4 Provider 状态与错误
 
@@ -196,7 +200,7 @@ GSAP 只用于状态已确定后的展示过渡：右侧 docked 视口移到中�
 
 交互参考 Codex 的重点是“一个任务、连续步骤、明确状态和可检查的动作”，不是把 coding agent 的终端、Mode 或权限面板搬进 CAD。默认只显示用户目标、Agent 选出的一个结果和下一步；技术详情、组件、材质、检查和导出按需展开。
 
-四领域共用同一个壳、同一套选择/版本/确认逻辑。领域包只能改变建议、角色、组件、材质和评测，不得增加汽车 Mode、飞机 Mode、机械臂 Mode 或武器专属工作台。
+所有类别共用一个壳、同一套选择/版本/确认逻辑。Domain Pack 或 Representation capability 只能改变建议、角色、组件、材质、执行计划和评测，不得增加汽车、角色、生物、飞机、机械臂或武器专属工作台。
 
 目标操作细节见 [3D 机械设计系统目标操作手册](MECHANICAL_DESIGN_OPERATIONS.md)。
 

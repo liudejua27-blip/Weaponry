@@ -11,9 +11,15 @@ use serde::{Deserialize, Serialize};
 use crate::{semantic_sha256, CoreError, CoreResult};
 
 pub const DESIGN_BUILD_LEDGER_SCHEMA_VERSION: &str = "DesignBuildLedger@1";
-pub const VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION: &str = "VisualConvergenceInput@1";
-pub const VISUAL_CONVERGENCE_REPORT_SCHEMA_VERSION: &str = "VisualConvergenceReport@1";
-pub const MAX_VISUAL_REPAIR_ATTEMPTS: u8 = 2;
+/// `@1` allowed two repairs and is retained only for frozen V003/C111
+/// regression evidence. New product turns must emit and accept this `@2`
+/// contract, whose repair ceiling matches the code-owned single typed patch.
+pub const VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION: &str = "VisualConvergenceInput@2";
+pub const VISUAL_CONVERGENCE_REPORT_SCHEMA_VERSION: &str = "VisualConvergenceReport@2";
+/// One visual patch is the reviewed quality/cost ceiling for an interactive
+/// authoring turn. A failed patch must return an actionable failure, never
+/// silently continue another generative loop.
+pub const MAX_VISUAL_REPAIR_ATTEMPTS: u8 = 1;
 pub const REQUIRED_VISUAL_VIEW_IDS: [&str; 8] = [
     "iso",
     "front",
@@ -24,6 +30,36 @@ pub const REQUIRED_VISUAL_VIEW_IDS: [&str; 8] = [
     "gripper_iso",
     "gripper_front",
 ];
+pub const TURN_TABLE_VISUAL_VIEW_IDS: [&str; 8] = [
+    "turntable_000",
+    "turntable_045",
+    "turntable_090",
+    "turntable_135",
+    "turntable_180",
+    "turntable_225",
+    "turntable_270",
+    "turntable_315",
+];
+
+/// Legacy C111 close-ups remain available solely for frozen regression
+/// evidence. Category-open authoring uses generic turntable evidence rather
+/// than assuming every target has a robotic gripper.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VisualFixedViewProfile {
+    #[default]
+    LegacyC111,
+    TurntableEight,
+}
+
+impl VisualFixedViewProfile {
+    pub fn required_view_ids(self) -> &'static [&'static str; 8] {
+        match self {
+            Self::LegacyC111 => &REQUIRED_VISUAL_VIEW_IDS,
+            Self::TurntableEight => &TURN_TABLE_VISUAL_VIEW_IDS,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -129,6 +165,8 @@ pub struct VisualConvergenceInput {
     pub ledger: DesignBuildLedger,
     pub readback: VisualGlbReadbackEvidence,
     pub fixed_views: Vec<VisualFixedViewEvidence>,
+    #[serde(default)]
+    pub fixed_view_profile: VisualFixedViewProfile,
     pub detail_coverage: VisualDetailCoverage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference_comparison: Option<VisualReferenceConvergenceEvidence>,
@@ -236,8 +274,11 @@ impl VisualConvergenceInput {
     }
 
     fn evaluate_views(&self, failures: &mut Vec<String>) {
-        let required = REQUIRED_VISUAL_VIEW_IDS
-            .into_iter()
+        let required = self
+            .fixed_view_profile
+            .required_view_ids()
+            .iter()
+            .copied()
             .collect::<BTreeSet<_>>();
         let actual = self
             .fixed_views
@@ -399,6 +440,7 @@ mod tests {
                     readback_passed: true,
                 })
                 .collect(),
+            fixed_view_profile: VisualFixedViewProfile::LegacyC111,
             detail_coverage: VisualDetailCoverage {
                 macro_bound: 3,
                 meso_bound: 12,
@@ -435,11 +477,11 @@ mod tests {
     }
 
     #[test]
-    fn pv004_critical_detail_or_third_repair_cannot_pass() {
+    fn pv004_critical_detail_or_second_repair_cannot_pass() {
         let mut input = passing_input();
         input.detail_coverage.critical_unresolved = 1;
         let source = input.ledger.source_program_sha256.clone();
-        input.repairs = (1..=3)
+        input.repairs = (1..=2)
             .map(|number| VisualRepairEvidence {
                 repair_number: number,
                 parent_program_sha256: source.clone(),
@@ -459,27 +501,18 @@ mod tests {
     }
 
     #[test]
-    fn pv004_two_same_intent_repairs_must_end_at_the_compiled_revision() {
+    fn pv004_one_same_intent_repair_must_end_at_the_compiled_revision() {
         let mut input = passing_input();
         let final_source = input.ledger.source_program_sha256.clone();
-        input.repairs = vec![
-            VisualRepairEvidence {
-                repair_number: 1,
-                parent_program_sha256: hash('8'),
-                result_program_sha256: hash('9'),
-                changed_domains: vec!["geometry".into()],
-                same_intent: true,
-            },
-            VisualRepairEvidence {
-                repair_number: 2,
-                parent_program_sha256: hash('9'),
-                result_program_sha256: final_source.clone(),
-                changed_domains: vec!["surface".into()],
-                same_intent: true,
-            },
-        ];
+        input.repairs = vec![VisualRepairEvidence {
+            repair_number: 1,
+            parent_program_sha256: hash('8'),
+            result_program_sha256: final_source.clone(),
+            changed_domains: vec!["surface".into()],
+            same_intent: true,
+        }];
         assert!(input.evaluate().unwrap().passed);
-        input.repairs[1].result_program_sha256 = hash('7');
+        input.repairs[0].result_program_sha256 = hash('7');
         let report = input.evaluate().unwrap();
         assert!(!report.passed);
         assert!(report

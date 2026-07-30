@@ -135,11 +135,20 @@ fn set_rotation(args: &mut Map<String, Value>, angle: f64) -> bool {
     true
 }
 
-fn material_for_palette(current: &str, palette: &str) -> String {
+fn material_for_palette(current: &str, palette: &str, zone_id: Option<&str>) -> String {
     match palette {
         // Keep the reviewed material vocabulary.  A palette changes the
         // existing zone assignment only; it cannot invent a Provider ID.
         "white_aluminum" if current == "mat_graphite" => "mat_aluminum".into(),
+        // C111B requires gripper armor to retain the automotive-paint
+        // identity.  Other paint zones are visual-only and use aluminum in
+        // the white-aluminum palette, which selects the built-in silver PBR
+        // compiler slot rather than retaining the fixed blue paint texture.
+        "white_aluminum"
+            if current == "mat_automotive_paint" && zone_id != Some("zone_arm_gripper_paint") =>
+        {
+            "mat_aluminum".into()
+        }
         "monochrome_technical" if current == "mat_emissive_blue" => "mat_graphite".into(),
         "industrial_yellow" if current == "mat_graphite" => "mat_aluminum".into(),
         "warm_copper" if current == "mat_graphite" => "mat_aluminum".into(),
@@ -374,7 +383,11 @@ pub fn apply_arm_geometry_family(
             }
         }
         if let Some(material) = args.get("material_id").and_then(Value::as_str) {
-            let mapped = material_for_palette(material, &intent.material_palette);
+            let mapped = material_for_palette(
+                material,
+                &intent.material_palette,
+                args.get("zone_id").and_then(Value::as_str),
+            );
             if mapped != material {
                 args.insert("material_id".into(), Value::String(mapped));
                 changed = true;

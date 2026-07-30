@@ -303,6 +303,7 @@ def validate_restricted_geometry_contract() -> dict[str, Any]:
     if _ALLOWED_EXECUTOR_ENVIRONMENT_NAMES != {
         "FORGECAD_RESTRICTED_GEOMETRY_CAPABILITY_TOKEN",
         "FORGECAD_RUNTIME_RESOURCE_ROOT",
+        "FORGECAD_SUPERVISOR_SESSION_ID",
     }:
         raise GateContractFailure("RESTRICTED_ENVIRONMENT_ALLOWLIST_DRIFT")
     if any(ownership.get(field) is not False for field in (
@@ -552,11 +553,11 @@ def _observed_pass_count(output: str) -> int | None:
 def validate_test_orchestration_contract() -> dict[str, Any]:
     python = ROOT / ".venv" / "bin" / "python"
     python_test = _run_command(
-        "python_boundary_21",
+        "python_boundary_23",
         [str(python), "-m", "pytest", "-q", "apps/agent/tests/test_k003_restricted_geometry_executor.py"],
         cwd=ROOT,
     )
-    if python_test["result"] == "passed" and python_test.get("observed_pass_count") != 21:
+    if python_test["result"] == "passed" and python_test.get("observed_pass_count") != 23:
         python_test = {**python_test, "result": "failed", "stable_error_code": "PYTHON_BOUNDARY_TEST_COUNT_DRIFT"}
 
     rust_commands = [
@@ -594,12 +595,12 @@ def validate_test_orchestration_contract() -> dict[str, Any]:
         for command_id, filter_name in rust_commands
     ]
     checks = [
-        _check("python_boundary_tests_21", python_test["result"], python_test.get("stable_error_code")),
+        _check("python_boundary_tests_23", python_test["result"], python_test.get("stable_error_code")),
         *[_check(item["command_id"], item["result"], item.get("stable_error_code")) for item in rust_results],
     ]
     fixture = {
         "python_test_module": "apps/agent/tests/test_k003_restricted_geometry_executor.py",
-        "python_expected_count": 21,
+        "python_expected_count": 23,
         "rust_golden_filters": [item[1] for item in rust_commands],
     }
     return _contract(

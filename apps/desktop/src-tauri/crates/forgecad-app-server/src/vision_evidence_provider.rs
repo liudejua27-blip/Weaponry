@@ -187,6 +187,8 @@ impl VisionEvidenceCoordinator {
             "provider_response_sha256": output.provider_response_sha256,
         }))
         .map_err(core_error)?;
+        let mut claims = output.claims;
+        assign_rust_owned_ids_to_invalid_provider_claims(&mut claims, &graph_seed);
         let graph = VisualEvidenceGraph {
             schema_version: VISUAL_EVIDENCE_GRAPH_SCHEMA_VERSION.into(),
             graph_id: format!("vegraph_{}", &graph_seed[..24]),
@@ -200,7 +202,7 @@ impl VisionEvidenceCoordinator {
                 provider_response_sha256: output.provider_response_sha256,
                 analyzed_at: output.analyzed_at,
             },
-            claims: output.claims,
+            claims,
         };
         graph
             .validate_against(&request, &evidence)
@@ -214,6 +216,26 @@ impl VisionEvidenceCoordinator {
             })?;
         Ok(graph)
     }
+}
+
+fn assign_rust_owned_ids_to_invalid_provider_claims(
+    claims: &mut [VisualEvidenceClaim],
+    graph_seed: &str,
+) {
+    for (index, claim) in claims.iter_mut().enumerate() {
+        if !is_reviewed_visual_claim_id(&claim.claim_id) {
+            claim.claim_id = format!("vclaim_{}_{:03}", &graph_seed[..24], index + 1);
+        }
+    }
+}
+
+fn is_reviewed_visual_claim_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 160
+        && value.starts_with("vclaim_")
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':'))
 }
 
 fn validate_input(
@@ -536,6 +558,50 @@ mod tests {
         assert_eq!(graph.schema_version, "VisualEvidenceGraph@1");
         assert_eq!(graph.claims.len(), 3);
         assert_eq!(*calls.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn pv006b_coordinator_replaces_only_invalid_provider_claim_ids_with_stable_rust_ids() {
+        let mut provider_output = output();
+        provider_output.claims[0].claim_id = "Macro Silhouette / 主轮廓".into();
+        let valid_provider_claim_id = provider_output.claims[1].claim_id.clone();
+        let analyze = || {
+            let coordinator = VisionEvidenceCoordinator::new(
+                Arc::new(FakeVisionProvider {
+                    calls: Arc::new(Mutex::new(0)),
+                    output: provider_output.clone(),
+                }),
+                Duration::from_secs(1),
+            )
+            .unwrap();
+            block_on(coordinator.analyze(input(), CancellationToken::new())).unwrap()
+        };
+
+        let first = analyze();
+        let second = analyze();
+        assert!(first.claims[0].claim_id.starts_with("vclaim_"));
+        assert_ne!(first.claims[0].claim_id, "Macro Silhouette / 主轮廓");
+        assert_eq!(first.claims[0].claim_id, second.claims[0].claim_id);
+        assert_eq!(first.claims[1].claim_id, valid_provider_claim_id);
+    }
+
+    #[test]
+    fn pv006b_invalid_provider_source_id_remains_fail_closed() {
+        let mut provider_output = output();
+        provider_output.claims[0].source_evidence_ids = vec!["Reference Front / 主图".into()];
+        let coordinator = VisionEvidenceCoordinator::new(
+            Arc::new(FakeVisionProvider {
+                calls: Arc::new(Mutex::new(0)),
+                output: provider_output,
+            }),
+            Duration::from_secs(1),
+        )
+        .unwrap();
+
+        let error = block_on(coordinator.analyze(input(), CancellationToken::new())).unwrap_err();
+        assert_eq!(error.code, "VISION_EVIDENCE_OUTPUT_REJECTED");
+        assert!(error.message.contains("MULTIMODAL_ID_INVALID"));
+        assert!(error.network_call_made);
     }
 
     #[test]

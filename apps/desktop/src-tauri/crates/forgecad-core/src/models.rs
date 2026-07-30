@@ -1600,6 +1600,24 @@ pub struct CandidateBundleReadback {
     pub interactive_preview_glb: ObjectRecord,
 }
 
+/// Authoritative initial promotion for a game-ready universal asset.
+///
+/// The `production_glb` remains the visual-source LOD0 so geometry quality,
+/// multi-view comparison and editable source semantics keep one stable truth.
+/// `game_delivery_glb` is a separately verified delivery artifact containing
+/// LOD/collision/socket data. Both must be committed in one transaction.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct GameDeliveryCandidateBundleReadback {
+    pub candidate: BlockoutCandidate,
+    pub version: AgentAssetVersion,
+    pub snapshot: ActiveDesignSnapshot,
+    pub quality: QualityReport,
+    pub visual_source_lod0_glb: ObjectRecord,
+    pub game_delivery_glb: ObjectRecord,
+    pub interactive_preview_glb: ObjectRecord,
+}
+
 /// Complete readback for an active, sealed ChangeSet preview. Preview bytes
 /// remain temporary and are owned by the ChangeSet until confirmation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

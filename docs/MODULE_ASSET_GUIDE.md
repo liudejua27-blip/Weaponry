@@ -1,6 +1,6 @@
 # ForgeCAD 模块资产制作规范（当前 Weapon reference 实现）
 
-> 目标产品已经升级为通用机械概念 3D Agent，首批领域包为未来武器道具、汽车、飞机和机械臂。通用角色、分件、Joint 与材质要求见 [DOMAIN_PACKS.md](DOMAIN_PACKS.md) 和 [MATERIAL_SYSTEM.md](MATERIAL_SYSTEM.md)。本文其余命令和九类 category 描述当前已实现的 `weapon-concept-v1-reference` 兼容基线，不能作为其他领域包的资产规范。
+> 目标产品已经升级为类别开放的通用参考条件 3D Agent。本文其余命令和九类 category 只描述当前 `weapon-concept-v1-reference` 历史兼容基线，不能作为其他机械 Pack、角色、生物、植物、环境或 UniversalAssetSource 的资产规范。
 
 状态：`ModulePackManifest@1`、校验 CLI 和批量注册已实现；正式 8–12 个高质量 GLB 尚需按本文制作。
 

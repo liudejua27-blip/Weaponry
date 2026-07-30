@@ -67,7 +67,7 @@ export function useLegacyModuleGraphWorkspace() {
     [],
   )
   const reconcileLegacyModuleGraphSelection = useCallback(
-    (nodes: LegacyModuleGraphNode[], rootNodeId: string | null) => dispatch({ type: 'reconcile_graph', nodes, rootNodeId }),
+    (nodes: readonly LegacyModuleGraphNode[], rootNodeId: string | null) => dispatch({ type: 'reconcile_graph', nodes: [...nodes], rootNodeId }),
     [],
   )
 

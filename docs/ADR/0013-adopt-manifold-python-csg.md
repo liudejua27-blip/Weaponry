@@ -3,12 +3,12 @@
 - 状态：Accepted
 - 日期：2026-07-15
 - 决策者：项目维护者
-- 取代：ADR-0012 的“不采用候选”结论
+- 取代：已从当前树清理的历史 ADR-0012“不采用候选”结论
 - 生效边界：G825 已按本 ADR 完成生产依赖、默认 handler 和不可变 Feature History 集成
 
 ## 背景
 
-ADR-0012 要求 provenance、隔离取消、权威状态原子提升、packaged 预算/许可证和 Windows x64 实机证据全部通过后，才能只选择一个生产 CSG。G824A–G824D 已依次补齐这些证据。
+历史 ADR-0012 曾要求 provenance、隔离取消、权威状态原子提升、packaged 预算/许可证和 Windows x64 实机证据全部通过后，才能只选择一个生产 CSG。G824A–G824D 已依次补齐这些证据；历史原文只从 Git 读取。
 
 Windows Actions run `29383382978` 的 `g824d-windows-packaged-candidate` job 在真实 Windows x64 frozen executable 内通过，并上传 `evaluations/csg-g824d/windows-report.json`。报告经 `check_g824d_windows_packaged_candidate.py` 独立校验：五组有效 fixture 的 provenance/GLB readback 通过，near-degenerate 在写出前稳定拒绝；cancel、timeout 和 ready-before-promotion 均回收进程且不提升 SQLite、对象库或部分 GLB；Version/head/Snapshot 的注入失败整体回滚、成功整体提交。
 
@@ -30,4 +30,4 @@ Python 与 WASM 的几何/provenance 结果均满足隔离 benchmark，但当前
 
 - G824D 与 G825 均标记 `done`，G826 变为唯一 `ready` 任务。
 - 当前产品只有受限、有界、封闭输入的 Manifold union/subtract；用户指南可描述该后端事实，但不得宣称自由或工程级通用 CSG。
-- 若 G825 无法满足确定性、provenance、取消、预算或零部分提升门，移除新增生产依赖和 handler，恢复 ADR-0012 的不采用状态；不得保留隐式 fallback。
+- 若 G825 无法满足确定性、provenance、取消、预算或零部分提升门，移除新增生产依赖和 handler，恢复“不采用生产 CSG 候选”的安全状态；不得保留隐式 fallback。

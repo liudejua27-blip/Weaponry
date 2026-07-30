@@ -1,20 +1,31 @@
-import { Sparkle } from '@phosphor-icons/react'
 import type { ChangeEvent } from 'react'
 import type { AgentItem, MechanicalConceptPlan } from '../../shared/types'
 import type { ProviderConfigMetadata } from '../../shared/tauri/agentSupervisor'
-import type { AgentClarification, AgentClarificationOption } from './agentConversationState.js'
-import { AgentStepItem, agentProcessSteps } from './AgentStepItem.js'
+import { parseUniversalAuthorPresentation, type AgentClarification, type AgentClarificationOption } from './agentConversationState.js'
+import { AgentStepItem, type AgentProcessStep, agentProcessSteps } from './AgentStepItem.js'
 import { LegacyCompatibilityNotice } from './LegacyCompatibilityNotice.js'
 import type { LegacyCompatibilityDisplay } from './legacyCompatibilityDisplay.js'
 import type { AgentBlockoutPreviewPresentation } from './agentBlockoutPreviewPresentation.js'
 import type { AgentPlanSourcePresentation } from './agentPlanSourcePresentation.js'
+import type { CandidatePreviewQualityPresentation } from './candidatePreviewQualityPresentation.js'
 import { CandidatePreviewQualityPanel } from './candidatePreviewQuality.js'
-import type { CandidatePreviewQuality } from './candidatePreviewQualityLogic.js'
 import { providerConfigPresentation } from './providerConnectionPresentation.js'
 
 export type { AgentClarification, AgentClarificationOption } from './agentConversationState.js'
 
 export type AgentConversationSuggestion = readonly [label: string, prompt: string]
+
+const MAX_VISIBLE_PROCESS_STEPS = 6
+const EMPTY_PROCESS_STEPS: readonly AgentProcessStep[] = []
+
+function buildRecentProcessSteps(
+  agentKernelItems: readonly AgentItem[],
+  enabled: boolean,
+): readonly AgentProcessStep[] {
+  if (!enabled) return EMPTY_PROCESS_STEPS
+  const steps = agentProcessSteps(agentKernelItems)
+  return steps.length <= MAX_VISIBLE_PROCESS_STEPS ? steps : steps.slice(-MAX_VISIBLE_PROCESS_STEPS)
+}
 
 export type AgentConversationProps = {
   loading: boolean
@@ -48,16 +59,16 @@ export type AgentConversationProps = {
   conceptFamilySuggestions: readonly AgentConversationSuggestion[]
   presentationProfile: 'quick_sketch' | 'showcase'
   styleOptionsOpen: boolean
+  showAdvancedControls: boolean
   onAssistantModeChange: (mode: 'brief' | 'change') => void
   onSuggestionSelect: (prompt: string) => void
   onPresentationProfileChange: (profile: 'quick_sketch' | 'showcase') => void
   onClarificationSelect: (option: AgentClarificationOption) => void
   agentClarification: AgentClarification | null
-  agentKernelItems: AgentItem[]
+  agentKernelItems: readonly AgentItem[]
   agentKernelUnavailable: boolean
   agentPlan: MechanicalConceptPlan | null
-  candidatePreviewPresent: boolean
-  candidatePreviewQuality: CandidatePreviewQuality | null
+  candidatePreviewQualityPresentation: CandidatePreviewQualityPresentation
 }
 
 export function AgentConversation({
@@ -92,6 +103,7 @@ export function AgentConversation({
   conceptFamilySuggestions,
   presentationProfile,
   styleOptionsOpen,
+  showAdvancedControls,
   onAssistantModeChange,
   onSuggestionSelect,
   onPresentationProfileChange,
@@ -100,11 +112,14 @@ export function AgentConversation({
   agentKernelItems,
   agentKernelUnavailable,
   agentPlan,
-  candidatePreviewPresent,
-  candidatePreviewQuality,
+  candidatePreviewQualityPresentation,
 }: AgentConversationProps) {
   const providerPresentation = providerConfigPresentation(providerConfig)
-  const processSteps = agentProcessSteps(agentKernelItems).slice(-6)
+  const processSteps = buildRecentProcessSteps(agentKernelItems, showAdvancedControls)
+  const universalAuthor = parseUniversalAuthorPresentation(agentKernelItems)
+  const beginnerWelcomeText = showAdvancedControls
+    ? '描述任意对象或添加参考图；我会先形成对象理解、视觉验收要求与逐部件表示计划。'
+    : '描述任意对象或添加参考图；先理解，再生成可执行预览或说明当前能力限制。'
   return (
     <>
       {!projectExists && !loading && (
@@ -119,26 +134,28 @@ export function AgentConversation({
           <span>直接在下方描述你想要的模型；Agent 会生成第一个 3D 资产，无需先准备旧组件。</span>
         </div>
       )}
-      <p className="agent-welcome">用一句话描述汽车、飞机、机械臂或未来概念道具；我会记录理解、执行受限步骤，并只在工作台展示当前结果。</p>
+      <p className="agent-welcome">{beginnerWelcomeText}</p>
       <LegacyCompatibilityNotice
         display={legacyCompatibility}
         onRequestLegacyAgentRebuild={onRequestLegacyAgentRebuild}
         onOpenLegacyDetails={onOpenLegacyDetails}
       />
-      <div className="provider-setup-entry" aria-label="模型服务状态">
+      <div className="provider-setup-entry" aria-label="DeepSeek 模型服务状态">
         <span className={providerPresentation.ready ? 'connected' : ''}>
           {providerPresentation.label}
         </span>
+        {showAdvancedControls ? (
           <button type="button" onClick={onToggleProviderSetup} aria-expanded={providerSetupOpen} aria-controls="forgecad-provider-setup">
-          {providerSetupOpen ? '收起配置' : '配置模型服务'}
-        </button>
+            {providerSetupOpen ? '收起 DeepSeek 配置' : '配置 DeepSeek'}
+          </button>
+        ) : null}
       </div>
-      {providerSetupOpen && (
-        <div id="forgecad-provider-setup" className="provider-setup-card" aria-label="配置模型服务">
+      {showAdvancedControls && providerSetupOpen && (
+        <div id="forgecad-provider-setup" className="provider-setup-card" aria-label="配置 DeepSeek 模型服务">
           <strong>连接你的大模型 API</strong>
-          <small>API Key 只保存到本机权限受限的私密文件，不写入项目、日志、Git 或导出包。</small>
-          <label><span>API Base URL</span><input value={providerBaseUrl} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderBaseUrlChange(event.target.value)} placeholder="https://api.deepseek.com" /></label>
-          <label><span>Model</span><input value={providerModel} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderModelChange(event.target.value)} placeholder="deepseek-v4-pro" /></label>
+          <small>只接受 DeepSeek 官方 endpoint 与 deepseek-* 模型；API Key 仅保存到本机私密文件。</small>
+          <label><span>DeepSeek Base URL</span><input value={providerBaseUrl} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderBaseUrlChange(event.target.value)} placeholder="https://api.deepseek.com" /></label>
+          <label><span>DeepSeek 模型</span><input value={providerModel} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderModelChange(event.target.value)} placeholder="deepseek-v4-pro" /></label>
           <label><span>API Key</span><input type="password" value={providerApiKey} onChange={(event: ChangeEvent<HTMLInputElement>) => onProviderApiKeyChange(event.target.value)} placeholder="只在本次配置时输入" autoComplete="off" /></label>
           <div className="provider-setup-actions">
             <button type="button" onClick={onCancelProviderSetup} disabled={providerSaving}>取消</button>
@@ -153,15 +170,17 @@ export function AgentConversation({
           取消本次模型请求
         </button>
       )}
-      <div className="concept-family-suggestions" aria-label="概念家族">
-        <span>从一个方向开始</span>
-        <div>
-          {conceptFamilySuggestions.map(([label, prompt]) => (
-            <button key={label} type="button" onClick={() => { onAssistantModeChange('brief'); onSuggestionSelect(prompt) }}>{label}</button>
-          ))}
+      {showAdvancedControls ? (
+        <div className="concept-family-suggestions" aria-label="概念家族">
+          <span>从一个方向开始</span>
+          <div>
+            {conceptFamilySuggestions.map(([label, prompt]) => (
+              <button key={label} type="button" onClick={() => { onAssistantModeChange('brief'); onSuggestionSelect(prompt) }}>{label}</button>
+            ))}
+          </div>
         </div>
-      </div>
-      {styleOptionsOpen && <div className="presentation-profile" aria-label="外观生成质量">
+      ) : null}
+      {showAdvancedControls && styleOptionsOpen && <div className="presentation-profile" aria-label="外观生成质量">
         <span>外观生成质量</span>
         <div>
           <button type="button" aria-pressed={presentationProfile === 'quick_sketch'} onClick={() => onPresentationProfileChange('quick_sketch')}>
@@ -174,28 +193,44 @@ export function AgentConversation({
           </button>
         </div>
       </div>}
-      {selectedNode && (
+      {showAdvancedControls && selectedNode ? (
         <button
           type="button"
           className={`agent-selection-context ${assistantMode === 'change' ? 'active' : ''}`}
           onClick={() => onAssistantModeChange('change')}
         >正在调整：{selectedModuleLabel}</button>
-      )}
+      ) : null}
       <div
         className={`assistant-message ${errorMessage ? 'error' : ''}`}
         role={errorMessage ? 'alert' : 'status'}
         aria-live={errorMessage ? 'assertive' : 'polite'}
       >{errorMessage ?? assistantNote}</div>
+      {universalAuthor && (
+        <div className={`agent-universal-author ${universalAuthor.outcome}`} role="status" aria-live="polite" data-testid="u002-universal-author-card">
+          <strong>{universalAuthor.identityLabel ?? '对象理解已完成'}</strong>
+          {universalAuthor.category && <small>识别对象：{universalAuthor.category}</small>}
+          {universalAuthor.keyFeatures.length > 0 && <p>关键外观：{universalAuthor.keyFeatures.join('；')}</p>}
+          {universalAuthor.outcome === 'limitation' && (
+            <>
+              <p>{universalAuthor.message ?? '当前没有可执行的高质量表示能力，未生成替代模板。'}</p>
+              {universalAuthor.suggestedViews.length > 0 && <small>建议补充视图：{universalAuthor.suggestedViews.join('、')}</small>}
+            </>
+          )}
+          {universalAuthor.outcome === 'clarification_required' && <p>{universalAuthor.message ?? '对象身份或目标存在冲突，需要补充说明。'}</p>}
+          {universalAuthor.outcome === 'executable' && <small>当前表示能力可执行，结果仍需通过编译、回读和多视图验收。</small>}
+        </div>
+      )}
       {blockoutPreviewPresentation && (
         <div className={`agent-blockout-status ${blockoutPreviewPresentation.tone}`} role={blockoutPreviewPresentation.tone === 'error' ? 'alert' : 'status'} aria-live={blockoutPreviewPresentation.tone === 'error' ? 'assertive' : 'polite'}>
           <strong>{blockoutPreviewPresentation.title}</strong>
           <small>{blockoutPreviewPresentation.detail}</small>
         </div>
       )}
-      <CandidatePreviewQualityPanel
-        candidatePresent={candidatePreviewPresent}
-        quality={candidatePreviewQuality}
-      />
+      {showAdvancedControls ? (
+        <CandidatePreviewQualityPanel
+          presentation={candidatePreviewQualityPresentation}
+        />
+      ) : null}
       {agentClarification && (
         <div className="agent-clarification" role="group" aria-label={agentClarification.kind === 'scope' ? '当前请求超出概念范围' : '需要确认设计类别'} aria-live="polite">
           <strong>{agentClarification.kind === 'scope' ? '请换一种外观创意描述' : '先确认设计对象'}</strong>
@@ -217,7 +252,7 @@ export function AgentConversation({
           )}
         </div>
       )}
-      {processSteps.length > 0 && (
+      {showAdvancedControls && processSteps.length > 0 && (
         <div className="agent-kernel-events" role="log" aria-live="polite" aria-label="Agent 步骤">
           <div className="agent-kernel-events-title">
             <span>可核验生成过程</span>
@@ -226,7 +261,7 @@ export function AgentConversation({
           {processSteps.map((step) => <AgentStepItem key={step.key} step={step} />)}
         </div>
       )}
-      {agentPlan && agentPlanSourcePresentation && (
+      {showAdvancedControls && agentPlan && agentPlanSourcePresentation && (
         <div className={`agent-plan-source ${agentPlanSourcePresentation.tone}`} role="status" aria-live="polite" data-testid="f026-plan-source">
           <strong>{agentPlanSourcePresentation.title}</strong>
           <small>{agentPlanSourcePresentation.detail}</small>

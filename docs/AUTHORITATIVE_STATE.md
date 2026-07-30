@@ -3,6 +3,8 @@
 版本：2026-07-18
 状态：S001–S008、D001–D005、F001–F006、T001–T004、G801–G826、R001–R004、M101–M107、C101–C105、Q002–Q003 与 K001–K003 的当前原子任务已按各自边界完成；F001/T002/T003 已在本机 Chrome 验证启动、澄清、预览不写盘、Agent 提交、Snapshot/导出一致、重启和单 WebGL canvas。当前 Agent 路径的恢复、选择、预览、质量、回退/前进和 GLB 导出读取同一 Snapshot；R003 的爆炸概念图和 R004 的 PNG/manifest 图包均是条件式只读派生物；Q002 将质量写入收紧为 ETag + Idempotency-Key 重放，任务级 CAS 竞争已有 smoke，广泛多客户端压力矩阵仍未完成。K003 已把 Agent 生命周期与权威产品状态/持久化统一交给 Rust app-server/core；Python 仅执行受限几何。
 
+U003 增量真值：`UniversalAssetSource@1` 是可验证的设计源 envelope，不是新的 Project、Version、Snapshot 或导出真值。Provider 不提交它；Rust 从已验证的 `UniversalAuthorRequest/SubjectProfile/VisualFeatureContract/RepresentationPlan` 和当前程序化 revision 派生 planned source，成功编译后再封存 ShapeProgram、GLB、readback 和固定视图 hash。临时 source 随 candidate/preview 生命周期存在；用户确认后，它只作为同一 `AgentAssetVersion` 的 AssemblyGraph provenance 与 semantic hash 保存，活动头仍只由 `ActiveDesignSnapshot@1` 指向。source、GLB 或任一 readback/view hash 不一致时，preview/confirm 必须失败；limitation 仍为零几何、零版本副作用。
+
 PV001 增量真值：`ForgeVisualProgram@1` 只是 DeepSeek 可编写、Rust 可校验的设计源信封和 lowering 输入，不是 Project、Version、Snapshot、ShapeProgram、AssemblyGraph、材质、GLB 或质量的替代真值。它在用户确认前不得移动 Snapshot；lowering 只引用/规范化既有受限合同，最终版本、质量和导出仍必须来自真实 GLB readback。默认工作台不再消费 neural candidate；历史远程 Provider receipt 也不能自动升级为当前资产。
 
 2026-07-27 DraftCandidate 增量边界：Core 已提供 `DraftCandidate@1` 的可恢复暂存、严格确认和确认后导出合同；暂存不得创建 `AgentAssetVersion`、移动 `ActiveDesignSnapshot`、发布 Quality 或成为 Export source。只有对同一 candidate/program/GLB lineage 完成 production readback 的显式确认事务，才可原子创建版本、质量与 Snapshot。当前该合同尚未接入正式 `SingleResultDecision` bridge，运行时初始候选仍经 legacy-named `BlockoutCandidate` 提交，已存在资产的修改仍经 ChangeSet；因此 `DraftCandidate@1` 是待接线的 Core 边界，不是当前 UI/运行时第二真值，更不能与旧候选并行写入。
@@ -97,7 +99,9 @@ NoProject
 
 ## 5. 领域与概念范围预检
 
-目标状态机不得把未知领域默认映射为武器包：
+U002 新项目入口已改为类别开放的 `UniversalAuthorRequest → SubjectProfile → VisualFeatureContract → RepresentationPlan → UniversalAuthorOutcome`。Rust 从真实 Project/Snapshot/evidence 构造请求并验证 capability；未知或未具备表示的类别进入 typed limitation，不创建几何、版本或 Snapshot。以下 `DomainInferenceResult` 状态机仅是 legacy compatibility 合同，不再拥有新项目主路径。
+
+legacy 状态机不得把未知领域默认映射为武器包：
 
 ```text
 recognized → 创建 legacy 计划；F026 兼容适配器只可读取第一条文本方向并形成单结果临时展示
@@ -105,7 +109,7 @@ ambiguous  → waiting_for_clarification
 unsupported → completed scope stop（不调用 Planner 或 Provider）
 ```
 
-`DomainInferenceResult@1` 只负责识别/澄清领域；随后 `ConceptScopeDecision@1` 才以 `allowed`、`clarification_required` 或 `unsupported` 决定是否可进入 Planner。范围停止只允许写入可读的 Thread/Turn/Item/幂等记录，不能触及 Plan、blockout、AgentAssetVersion、Snapshot、质量或导出；它不是版本状态，也不改变当前选择。澄清只问一个问题，例如“这是汽车、飞机、机械臂，还是未来概念道具？”澄清前不得生成 blockout 或创建版本。
+`DomainInferenceResult@1` 只负责 legacy 领域识别/澄清；随后 `ConceptScopeDecision@1` 才决定是否进入 legacy Planner。新 universal author 只有对象身份或目标本身矛盾时才返回 `clarification_required`，不得询问四领域选择。两条路径的停止/limitation 都只能写入可读 Turn/Item/幂等结果，不能触及 blockout、AgentAssetVersion、Snapshot、质量或导出。
 
 当前规则只覆盖明确的现实武器/制造、加工或材料配方、工程性能，以及车辆安全、适航/飞行、机器人控制/扭矩/认证请求。它是可测试、可解释的产品范围预检，而不是完整内容安全系统；其余安全边界仍由受限 ShapeProgram、工具权限、确认和导出合同共同保证。
 

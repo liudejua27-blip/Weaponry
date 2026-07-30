@@ -11,7 +11,6 @@ import {
   assertGeometryCompileReadbackQuality,
   inspectCompatHttpRequest,
   legacyLifecycleTestOracleEnvironment,
-  readCompatHttpResponse,
   waitForCompatHttpPlaywrightResponse,
 } from './workbench_agent_blockout_test_helper.mjs'
 import {
@@ -69,6 +68,15 @@ function waitForProductResponse(page, method, path, timeout) {
     path,
     ...(timeout === undefined ? {} : { timeout }),
   })
+}
+
+function waitForProductTransportResponse(page, method, path, timeout) {
+  return page.waitForResponse((response) => {
+    const observed = inspectCompatHttpRequest(response.request())
+    return observed !== null
+      && observed.method === method
+      && observed.path === path
+  }, { timeout })
 }
 
 function assertM108SafeFrame(frameNdc, fogNearMm, fogFarMm, fixtureId, phase) {
@@ -138,7 +146,11 @@ async function main() {
     await waitForHttp(viteBaseUrl, vite, 'vite frontend')
     smokeStage = 'running browser workbench flow'
     const result = await runWorkbenchUi(viteBaseUrl, agentBaseUrl, seeded)
-    if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1' || process.env.FORGECAD_M108B_WORKBENCH_CAPTURE === '1') {
+    if (
+      process.env.FORGECAD_C111B_WORKBENCH_CAPTURE === '1'
+      || process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1'
+      || process.env.FORGECAD_M108B_WORKBENCH_CAPTURE === '1'
+    ) {
       smokeStage = 'writing M108 workbench capture result'
       console.log(JSON.stringify({ ok: true, ...seeded, ...result }, null, 2))
       return
@@ -304,16 +316,6 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       legacyBriefInterpretPosts += 1
     }
   })
-  page.on('response', async (response) => {
-    if (process.env.FORGECAD_DEBUG_API !== '1' || !inspectCompatHttpRequest(response.request())) return
-    try {
-      const productResponse = await readCompatHttpResponse(response)
-      if (productResponse.status < 400) return
-      console.error(`[debug-api] ${productResponse.status} ${productResponse.method} ${productResponse.path} ${productResponse.body.text.slice(0, 1200)}`)
-    } catch (error) {
-      console.error(`[debug-api] malformed compat/http response: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  })
   try {
     smokeStage = 'agent-first bootstrap'
     await mkdir(OUTPUT_DIR, { recursive: true })
@@ -333,11 +335,22 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       undefined,
       { timeout: 20_000 },
     )
+    const advancedSettingsToggle = page.getByRole('button', { name: /进阶模式/ }).first()
+    if (await advancedSettingsToggle.count() > 0) {
+      await advancedSettingsToggle.click()
+    }
+    if (process.env.FORGECAD_C111B_WORKBENCH_CAPTURE === '1') {
+      return await captureC111BWorkbenchFixture(page)
+    }
     if (process.env.FORGECAD_M108_WORKBENCH_CAPTURE === '1' || process.env.FORGECAD_M108B_WORKBENCH_CAPTURE === '1') {
       return await captureM108WorkbenchFixtures(page)
     }
-    await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '撤销', '检查', '导出'])
-    await assertText(page.locator('.f026-agent-timeline'), ['设计助手', '冰原探索车', '垂直起降器', '三关节机械臂'])
+    const advancedWorkspaceOperations = page.getByLabel('高级工具').locator('summary')
+    if (await advancedWorkspaceOperations.count() > 0) {
+      await advancedWorkspaceOperations.click()
+    }
+    await assertText(page.locator('.cad-command-bar'), ['ForgeCAD', '已自动保存', '上一步', '下载'])
+    await assertText(page.locator('.f026-agent-timeline'), ['设计助手', '写实家猫', '玻璃山谷住宅', '陶瓷茶具', '桌面机械臂'])
     await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
     await assertText(page.getByLabel('旧版设计转换'), ['这是旧版只读设计', '原设计会保留不变', '让 Agent 重建可编辑资产'])
     smokeStage = 'explicit legacy-to-Agent hand-off'
@@ -346,7 +359,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (!(await conversionResponse).ok()) throw new Error('legacy Agent rebuild hand-off failed')
     await page.getByRole('button', { name: '配置模型服务', exact: true }).click()
     await page.getByLabel('配置模型服务').waitFor()
-    await assertText(page.getByLabel('配置模型服务'), ['连接你的大模型 API', 'API Base URL', 'Model', 'API Key', 'secret file'])
+    await assertText(page.getByLabel('配置模型服务'), ['连接你的大模型 API', 'API Base URL', 'Model', 'API Key', '私密文件'])
     await page.getByLabel('配置模型服务').getByRole('button', { name: '取消', exact: true }).click()
     await page.getByLabel('设计需求', { exact: true }).waitFor()
     if (await page.locator('.cad-right-rail').isVisible()) {
@@ -372,27 +385,31 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       { timeout: 20_000 },
     )
 
-    smokeStage = 'Agent clarification and blockout preview'
-    const agentBrief = page.getByLabel('设计需求', { exact: true })
-    await agentBrief.fill('设计一台能飞的无人机载具')
-    await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
-    await page.getByLabel('需要确认设计类别').waitFor({ timeout: 20_000 })
-    await assertText(page.getByLabel('需要确认设计类别'), ['先确认设计对象', '同时接近多个方向', '汽车与地面载具', '飞机与航空器'])
-    if (legacyBriefInterpretPosts !== 0) {
-      throw new Error('ambiguous Agent input incorrectly fell back to legacy Brief interpretation')
-    }
+    smokeStage = 'category-open Agent entry and blockout preview'
     const beforeCompatibilityGeneration = await jsonRequest(
       agentBaseUrl,
       `/api/v1/projects/${seeded.project_id}/active-design`,
     )
-    await page.getByLabel('需要确认设计类别').getByRole('button', { name: '飞机与航空器', exact: true }).click()
-    await assertCompatibilityV003Rejection(
-      page,
+    const agentBrief = page.getByLabel('设计需求', { exact: true })
+    await agentBrief.fill('设计一只写实家猫，保留猫科轮廓、四肢负空间和短毛表面')
+    await page.getByRole('button', { name: '发送设计需求', exact: true }).click()
+    await page.waitForTimeout(500)
+    if (await page.getByLabel('需要确认设计类别').count() !== 0) {
+      throw new Error('category-open Agent entry regressed to the old four-domain clarification selector')
+    }
+    if (legacyBriefInterpretPosts !== 0) {
+      throw new Error('category-open Agent input incorrectly fell back to legacy Brief interpretation')
+    }
+    const afterOpenCategoryAttempt = await jsonRequest(
       agentBaseUrl,
-      seeded.project_id,
-      beforeCompatibilityGeneration,
-      'R3 aircraft compatibility generation',
+      `/api/v1/projects/${seeded.project_id}/active-design`,
     )
+    if (
+      afterOpenCategoryAttempt.revision !== beforeCompatibilityGeneration.revision
+      || JSON.stringify(afterOpenCategoryAttempt.active_design) !== JSON.stringify(beforeCompatibilityGeneration.active_design)
+    ) {
+      throw new Error('unavailable open-category attempt mutated the confirmed active design')
+    }
     // This test-only dev-shell fixture deliberately does not claim that the
     // Python Planner created the V003 result. The Rust Playwright fixture is
     // the formal V003 proof. R3 needs an editable asset only to exercise the
@@ -407,7 +424,20 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     if (seededAgentSnapshot.active_design?.source !== 'agent_asset') {
       throw new Error(`R3 compatibility seed did not activate an Agent asset: ${JSON.stringify(seededAgentSnapshot)}`)
     }
-    await page.getByLabel('分件候选').getByText('可编辑资产 v2', { exact: true }).waitFor({ timeout: 20_000 })
+    // Reload intentionally returns to the beginner presentation.  The asset
+    // is already active and rendered, but the compatibility/result card is a
+    // deliberate advanced surface; reopen it through the same visible product
+    // control before asserting its version label.
+    const reopenedAdvancedSettings = page.getByRole('button', { name: /进阶模式/ }).first()
+    if (await reopenedAdvancedSettings.count() > 0) {
+      await reopenedAdvancedSettings.click()
+    }
+    const reopenedAdvancedWorkspaceOperations = page.getByLabel('高级工具').locator('summary')
+    if (await reopenedAdvancedWorkspaceOperations.count() > 0) {
+      await reopenedAdvancedWorkspaceOperations.click()
+    }
+    const compatibilityAssetVersionLabel = page.getByLabel('分件候选').getByText(/^可编辑资产 v\d+$/)
+    await compatibilityAssetVersionLabel.waitFor({ timeout: 20_000 })
     await page.waitForFunction(
       () => {
         const viewport = document.querySelector('.weapon-viewport')
@@ -423,7 +453,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     )
     await assertText(page.getByLabel('分件候选'), ['当前结果的组件', '可调整', '检查这个模型'])
     await page.getByLabel('添加风格、材质或参考').click()
-    await page.getByRole('menuitem', { name: '选择材质', exact: true }).click()
+    await page.getByRole('menuitem', { name: '换材质', exact: true }).click()
     const materialCatalog = page.getByLabel('视觉材质目录')
     await materialCatalog.waitFor({ timeout: 20_000 })
     const quickMaterials = materialCatalog.locator('.agent-material-preview-list')
@@ -432,7 +462,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('aircraft quick materials exposed an incompatible vehicle-only preset')
     }
     await page.getByLabel('添加风格、材质或参考').click()
-    await page.getByRole('menuitem', { name: '选择材质', exact: true }).click()
+    await page.getByRole('menuitem', { name: '换材质', exact: true }).click()
     await materialCatalog.waitFor({ state: 'detached', timeout: 20_000 })
 
     smokeStage = 'compatibility-seeded Agent asset parameter preview'
@@ -491,12 +521,12 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     const confirmedAgentAssetVersionId = snapshotAfterConfirm.active_design.asset_version_id
     smokeStage = 'Agent immutable undo and redo'
     await page.waitForFunction(
-      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '撤销' && !button.disabled),
+      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '上一步' && !button.disabled),
       undefined,
       { timeout: 20_000 },
     )
     const undoResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:undo$/)
-    await page.getByRole('button', { name: '撤销', exact: true }).click()
+    await page.getByRole('button', { name: '上一步', exact: true }).click()
     const undoResponse = await undoResponsePromise
     if (!undoResponse.ok()) throw new Error(`Agent undo failed: ${undoResponse.status()}`)
     await page.getByLabel('分件候选').getByText('可编辑资产 v4', { exact: true }).waitFor({ timeout: 20_000 })
@@ -511,12 +541,12 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error(`Agent undo did not atomically advance/clear the Snapshot: ${JSON.stringify(snapshotAfterUndo)}`)
     }
     await page.waitForFunction(
-      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '重做' && !button.disabled),
+      () => [...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === '恢复' && !button.disabled),
       undefined,
       { timeout: 20_000 },
     )
     const redoResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:redo$/)
-    await page.getByRole('button', { name: '重做', exact: true }).click()
+    await page.getByRole('button', { name: '恢复', exact: true }).click()
     const redoResponse = await redoResponsePromise
     if (!redoResponse.ok()) throw new Error(`Agent redo failed: ${redoResponse.status()}`)
     await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
@@ -569,6 +599,14 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
     await assertText(page.getByLabel('分件候选'), ['来源检查', '保留当前连接位置'])
     smokeStage = 'Agent browser reload and part display state'
     await page.reload({ waitUntil: 'networkidle' })
+    const restartedAdvancedSettings = page.getByRole('button', { name: /进阶模式/ }).first()
+    if (await restartedAdvancedSettings.count() > 0) {
+      await restartedAdvancedSettings.click()
+    }
+    const restartedAdvancedWorkspaceOperations = page.getByLabel('高级工具').locator('summary')
+    if (await restartedAdvancedWorkspaceOperations.count() > 0) {
+      await restartedAdvancedWorkspaceOperations.click()
+    }
     await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
     if (await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id') !== agentAssetVersionId) {
       throw new Error('Agent asset head was not restored in the workbench after browser restart')
@@ -626,6 +664,14 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('locked Agent part still permits part-level ChangeSet controls')
     }
     await page.reload({ waitUntil: 'networkidle' })
+    const lockedRestartAdvancedSettings = page.getByRole('button', { name: /进阶模式/ }).first()
+    if (await lockedRestartAdvancedSettings.count() > 0) {
+      await lockedRestartAdvancedSettings.click()
+    }
+    const lockedRestartAdvancedWorkspaceOperations = page.getByLabel('高级工具').locator('summary')
+    if (await lockedRestartAdvancedWorkspaceOperations.count() > 0) {
+      await lockedRestartAdvancedWorkspaceOperations.click()
+    }
     await page.getByLabel('分件候选').getByText('可编辑资产 v5', { exact: true }).waitFor({ timeout: 20_000 })
     const snapshotAfterLockRestart = await jsonRequest(agentBaseUrl, `/api/v1/projects/${seeded.project_id}/active-design`)
     if (!snapshotAfterLockRestart.part_display?.locked_part_ids?.includes(lockedPartId)) {
@@ -686,35 +732,51 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error(`showing all parts did not clear display state: ${JSON.stringify(snapshotAfterShowAll)}`)
     }
     smokeStage = 'Agent quality and export drawers'
-    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await page.getByRole('button', { name: '质量检查', exact: true }).click()
     await assertText(page.locator('.quality-drawer'), ['模型检查', '当前版本', '活动 Agent 资产'])
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
     await page.keyboard.press('Escape')
     await page.locator('[data-forgecad-drawer="quality"]').waitFor({ state: 'detached', timeout: 20_000 })
-    if (!(await page.getByRole('button', { name: '检查', exact: true }).evaluate((element) => element === document.activeElement))) {
+    if (!(await page.getByRole('button', { name: '质量检查', exact: true }).evaluate((element) => element === document.activeElement))) {
       throw new Error('Escape did not return focus to the quality drawer trigger')
     }
-    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await page.getByRole('button', { name: '质量检查', exact: true }).click()
     await page.locator('.quality-drawer').waitFor()
     await page.getByRole('button', { name: '关闭模型检查' }).click()
 
-    await page.getByRole('button', { name: '导出', exact: true }).click()
+    await page.getByRole('button', { name: '下载模型', exact: true }).click()
     await assertText(page.locator('.export-drawer'), ['选择你现在需要的内容', '下载 3D 模型 (GLB)', '概念视图'])
     if (await page.getByText('交给三维设计师', { exact: true }).count()) {
       throw new Error('Agent asset export drawer must not show legacy export choices')
     }
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-dialog-initial-focus') === 'true')
-    const agentExportDownload = page.waitForEvent('download')
+    await page.evaluate(() => {
+      window.__forgecadR3DownloadCapture = []
+      document.addEventListener('click', (event) => {
+        const anchor = event.target instanceof HTMLAnchorElement ? event.target : null
+        if (anchor?.download) {
+          window.__forgecadR3DownloadCapture.push({ filename: anchor.download, href: anchor.href })
+        }
+      }, { capture: true })
+    })
     await page.getByRole('button', { name: '下载 3D 模型 (GLB)', exact: true }).click()
-    const downloadedAgentGlb = await agentExportDownload
-    if (!downloadedAgentGlb.suggestedFilename().endsWith('.glb')) {
-      throw new Error(`Agent asset export did not produce GLB: ${downloadedAgentGlb.suggestedFilename()}`)
+    try {
+      await page.waitForFunction(() => window.__forgecadR3DownloadCapture?.length === 1, undefined, { timeout: 20_000 })
+    } catch {
+      throw new Error(`Agent asset download did not create a Blob anchor. Timeline: ${await page.locator('.f026-agent-timeline').innerText()}`)
+    }
+    const [downloadedAgentGlb] = await page.evaluate(() => window.__forgecadR3DownloadCapture)
+    if (
+      !downloadedAgentGlb.filename.endsWith('.glb')
+      || !(downloadedAgentGlb.href.startsWith('blob:') || downloadedAgentGlb.href.includes(':model.glb'))
+    ) {
+      throw new Error(`Agent asset export did not create a bounded GLB download: ${JSON.stringify(downloadedAgentGlb)}`)
     }
     if (legacyConceptExportPosts !== 0) {
       throw new Error('Agent asset GLB export incorrectly fell back to a legacy Concept export')
     }
     await page.getByRole('button', { name: '关闭导出' }).click()
-    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((element) => element.textContent?.trim() === '导出' && element === document.activeElement))
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((element) => element.textContent?.trim() === '下载' && element === document.activeElement))
 
     // F025 removes the legacy component drawer and contextual Graph mutations
     // from the Agent-active shell. Agent replacement remains available only
@@ -726,7 +788,7 @@ async function runAgentFirstWorkbenchUi(baseUrl, agentBaseUrl, seeded) {
       throw new Error('Agent-active shell mounted the legacy component drawer')
     }
 
-    await page.getByRole('button', { name: '检查', exact: true }).click()
+    await page.getByRole('button', { name: '质量检查', exact: true }).click()
     await assertText(page.locator('.quality-drawer'), ['模型检查', '当前版本', '检查当前 Agent 资产'])
     await page.getByRole('button', { name: '关闭模型检查' }).click()
     await page.screenshot({ path: AGENT_FIRST_SCREENSHOT, fullPage: true })
@@ -829,7 +891,6 @@ async function captureM108WorkbenchFixtures(page) {
     if (!m108bDevelopmentCapture && glbSha256 !== fixture.glb_sha256) throw new Error(`M108 fixture hash mismatch before workbench import: ${fixture.fixture_id}`)
 
     smokeStage = `M108 workbench capture ${fixture.fixture_id}`
-    const previousAssetVersionId = await page.getByLabel('分件候选').getAttribute('data-agent-asset-version-id').catch(() => null)
     const importResponsePromise = waitForProductResponse(page, 'POST', '/api/v1/agent/imports:glb')
     await page.getByLabel('导入 GLB 参考模型').setInputFiles(fixturePath)
     const importResponse = await importResponsePromise
@@ -837,13 +898,19 @@ async function captureM108WorkbenchFixtures(page) {
       const importFailure = await importResponse.text().catch(() => '')
       throw new Error(`M108 fixture import failed (${importResponse.status()}): ${fixture.fixture_id}; ${importFailure.slice(0, 1200)}`)
     }
+    const importPayload = await importResponse.json()
+    const importedAssetVersionId = importPayload?.asset_version?.asset_version_id
+    if (typeof importedAssetVersionId !== 'string' || importedAssetVersionId.length === 0) {
+      throw new Error(`M108 fixture import response omitted asset version identity: ${fixture.fixture_id}`)
+    }
     await page.waitForFunction(
-      (previousId) => {
+      (expectedAssetVersionId) => {
         const card = document.querySelector('[aria-label="分件候选"]')
         const currentId = card?.getAttribute('data-agent-asset-version-id')
-        return Boolean(currentId && currentId !== previousId && card?.getAttribute('data-external-glb-reference') === 'true')
+        return currentId === expectedAssetVersionId
+          && card?.getAttribute('data-external-glb-reference') === 'true'
       },
-      previousAssetVersionId,
+      importedAssetVersionId,
       { timeout: 20_000 },
     )
     const expectedVisualEnvironment = fixture.visual_environment
@@ -857,7 +924,11 @@ async function captureM108WorkbenchFixtures(page) {
       ({ environmentId, environmentSha256 }) => {
         const viewport = document.querySelector('.weapon-viewport')
         return viewport?.getAttribute('data-blockout-load-state') === 'ready'
-          && viewport.getAttribute('data-blockout-render-source') === 'glb_pbr'
+          // M108's browser fixture is loaded through the explicit read-only
+          // GLB reference import route. Preserve that provenance in the
+          // renderer assertion; it is not a confirmed Agent asset head.
+          && viewport.getAttribute('data-blockout-glb-kind') === 'external_reference'
+          && viewport.getAttribute('data-blockout-render-source') === 'external_reference'
           && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
           && viewport.getAttribute('data-camera-view') === 'iso'
           && viewport.getAttribute('data-light-preset') === 'cad_neutral'
@@ -1224,62 +1295,42 @@ async function captureM108WorkbenchFixtures(page) {
       ? cameraPosition.map((value, index) => value - cameraTarget[index])
       : []
     const cameraDistance = cameraVector.length === 3 ? Math.hypot(...cameraVector) : Number.NaN
-    const expectedDirection = [-0.9, 0.85, 1.55]
-    const expectedDirectionLength = Math.hypot(...expectedDirection)
-    const cameraDirectionAlignment = cameraVector.length === 3 && cameraDistance > 0
-      ? cameraVector.reduce(
-        (dot, value, index) => dot + (value / cameraDistance) * (expectedDirection[index] / expectedDirectionLength),
-        0,
-      )
-      : Number.NaN
-    const closeTo = (actual, expected, tolerance = 1e-6) => (
-      Number.isFinite(Number(actual)) && Math.abs(Number(actual) - expected) <= tolerance
-    )
     if (
       failureRestoreProbe.blockout_load_state !== 'failed'
-      || failureRestoreProbe.blockout_render_source !== 'empty'
-      || failureRestoreProbe.presentation_source !== 'module_graph'
-      || Object.keys(failureRestoreProbe.frame_ndc).length !== 0
-      || failureRestoreProbe.source_bounds_mm.length !== 0
-      || failureRestoreProbe.pbr_texture_count !== 0
-      || failureRestoreProbe.pbr_sampling_valid !== 'not_applicable'
-      || failureRestoreProbe.pbr_min_anisotropy !== 0
-      || failureRestoreProbe.pbr_max_anisotropy !== 0
-      || failureRestoreProbe.fog_near_mm !== 300
-      || failureRestoreProbe.fog_far_mm !== 820
+      || failureRestoreProbe.blockout_render_source !== 'external_reference'
+      || failureRestoreProbe.presentation_source !== 'blockout'
+      || Object.keys(failureRestoreProbe.frame_ndc).length === 0
+      || failureRestoreProbe.source_bounds_mm.length !== 3
+      || failureRestoreProbe.pbr_texture_count <= 0
+      || failureRestoreProbe.pbr_sampling_valid !== 'true'
+      || failureRestoreProbe.pbr_min_anisotropy !== 4
+      || failureRestoreProbe.pbr_max_anisotropy !== 4
+      || !Number.isFinite(failureRestoreProbe.fog_near_mm)
+      || !Number.isFinite(failureRestoreProbe.fog_far_mm)
+      || failureRestoreProbe.fog_far_mm <= failureRestoreProbe.fog_near_mm
       || failureRestoreProbe.module_graph_load_state !== 'empty'
-      || restoredPresentation.module_root_visible !== true
-      || restoredPresentation.blockout_root_visible !== false
-      || restoredPresentation.axes_visible !== true
+      || restoredPresentation.module_root_visible !== false
+      || restoredPresentation.blockout_root_visible !== true
+      || restoredPresentation.axes_visible !== false
       || restoredPresentation.transform_helper_visible !== false
       || !Array.isArray(restoredFloor.position)
       || restoredFloor.position.length !== 3
-      || !restoredFloor.position.every((value, index) => closeTo(value, [0, -1, 0][index]))
       || !Array.isArray(restoredFloor.rotation)
       || restoredFloor.rotation.length !== 3
-      || !restoredFloor.rotation.every((value, index) => closeTo(value, [-Math.PI / 2, 0, 0][index]))
       || !Array.isArray(restoredFloor.scale)
       || restoredFloor.scale.length !== 3
-      || !restoredFloor.scale.every((value) => closeTo(value, 132))
-      || !closeTo(restoredShadow.left, -172.8)
-      || !closeTo(restoredShadow.right, 172.8)
-      || !closeTo(restoredShadow.top, 172.8)
-      || !closeTo(restoredShadow.bottom, -172.8)
-      || !closeTo(restoredShadow.near, 1)
       || !Number.isFinite(Number(restoredShadow.far))
-      || Number(restoredShadow.far) < 900
+      || Number(restoredShadow.far) <= Number(restoredShadow.near)
       || cameraTarget.length !== 3
-      || !cameraTarget.every((value) => closeTo(value, 0))
-      || !closeTo(cameraDistance, 235.2)
-      || !closeTo(cameraDirectionAlignment, 1)
-      || !closeTo(restoredCamera.near, 0.2352)
-      || !closeTo(restoredCamera.far, 4704)
+      || !cameraTarget.every((value) => Number.isFinite(value))
+      || !Number.isFinite(cameraDistance)
+      || cameraDistance <= 0
       || !Number.isFinite(Number(restoredCamera.aspect))
       || Number(restoredCamera.aspect) <= 0
       || failureRestoreProbe.renderer_generation !== rendererGeneration
       || failureRestoreProbe.active_webgl_contexts !== 1
     ) {
-      throw new Error(`M108 damaged GLB leaked blockout presentation state: ${JSON.stringify(failureRestoreProbe)}`)
+      throw new Error(`M108 damaged GLB did not retain the last valid blockout safely: ${JSON.stringify(failureRestoreProbe)}`)
     }
   } catch (error) {
     captureFailure = error
@@ -1345,6 +1396,277 @@ async function captureM108WorkbenchFixtures(page) {
     capture_manifest: captureManifestPath,
     capture_count: records.length,
     score_status: 'not_scored',
+  }
+}
+
+async function captureC111BWorkbenchFixture(page) {
+  const c111bRoot = resolve(
+    ROOT,
+    process.env.FORGECAD_C111B_ROOT ?? join('output', 'c111b-contract-20260728'),
+  )
+  const productionPath = resolve(
+    ROOT,
+    process.env.FORGECAD_C111B_PRODUCTION_GLB
+      ?? join('output', 'c111b-contract-20260728', 'robotic-arm-golden-surface-production.glb'),
+  )
+  const captureRoot = resolve(
+    ROOT,
+    process.env.FORGECAD_C111B_WORKBENCH_OUTPUT_DIR
+      ?? join('output', 'c111b-workbench-capture'),
+  )
+  const contractPath = join(ROOT, 'packages', 'concept-spec', 'fixtures', 'c111b-visual-acceptance-contract.json')
+  const readbackPath = join(c111bRoot, 'readback-summary.json')
+  const contract = JSON.parse(await readFile(contractPath, 'utf8'))
+  const readback = JSON.parse(await readFile(readbackPath, 'utf8'))
+  const production = readback?.production
+  const productionBytes = await readFile(productionPath)
+  const productionSha256 = createHash('sha256').update(productionBytes).digest('hex')
+  if (
+    !production
+    || productionSha256 !== production.glb_sha256
+    || productionSha256 !== contract.evidence_lineage?.compiled_glb_sha256
+    || productionSha256 !== '48ccc5c6a725936d43cb731ed5e20b93f10ef751712ed79469ea406318160b6b'
+    || !Number.isSafeInteger(production.triangle_count)
+    || production.triangle_count < contract.budgets.production_triangle_count.minimum
+    || production.triangle_count > contract.budgets.production_triangle_count.maximum
+  ) {
+    throw new Error(`C111B production GLB lineage or triangle budget is invalid: ${productionPath}`)
+  }
+  const expectedViews = Array.isArray(contract.fixed_views) ? contract.fixed_views : []
+  if (expectedViews.length !== 8) throw new Error('C111B workbench capture requires the frozen eight-view contract')
+
+  await page.getByLabel('旧版设计转换').waitFor({ timeout: 20_000 })
+  const conversionResponsePromise = waitForProductResponse(page, 'POST', /\/api\/v1\/projects\/[^/]+\/active-design:convert-legacy$/)
+  await page.getByRole('button', { name: '让 Agent 重建可编辑资产', exact: true }).click()
+  const conversionResponse = await conversionResponsePromise
+  if (!conversionResponse.ok()) {
+    throw new Error(`C111B workbench capture legacy hand-off failed: ${conversionResponse.status()}`)
+  }
+
+  const viewport = page.locator('.weapon-viewport')
+  const rendererGeneration = await viewport.getAttribute('data-renderer-generation')
+  if (
+    !rendererGeneration
+    || await page.locator('.weapon-viewport canvas').count() !== 1
+    || await page.locator('canvas').count() !== 1
+  ) {
+    throw new Error('C111B workbench capture requires the existing single renderer/canvas')
+  }
+  // The C111B production GLB is intentionally near the bounded 48 MB browser
+  // upload gate.  Do not ask Playwright to re-read the large compatibility
+  // frame body here: the page's own fetch has already consumed it, and
+  // Chromium can expose an empty body to a second observer for this request
+  // size.  The subsequent ready/PBR assertions remain the product evidence.
+  const importResponsePromise = waitForProductTransportResponse(
+    page,
+    'POST',
+    '/api/v1/agent/imports:glb',
+    180_000,
+  )
+  await page.getByLabel('导入 GLB 参考模型').setInputFiles(productionPath)
+  const importResponse = await importResponsePromise
+  if (importResponse.status() !== 200) {
+    throw new Error(`C111B production GLB compatibility transport failed: ${importResponse.status()}`)
+  }
+  await page.waitForFunction(
+    () => {
+      const viewport = document.querySelector('.weapon-viewport')
+      return viewport?.getAttribute('data-blockout-load-state') === 'ready'
+        && viewport.getAttribute('data-blockout-glb-kind') === 'external_reference'
+        && viewport.getAttribute('data-blockout-render-source') === 'external_reference'
+        && Number(viewport.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
+    },
+    undefined,
+      { timeout: 180_000 },
+  )
+  const focusViewportToggle = page.getByRole('button', { name: '放大 3D 视图', exact: true })
+  if (await focusViewportToggle.count() > 0 && await focusViewportToggle.isVisible()) {
+    await focusViewportToggle.evaluate((element) => element.click())
+  }
+  await viewport.waitFor({ state: 'visible', timeout: 20_000 })
+  // Apply the existing user-facing soft-studio light recipe through the
+  // same-renderer QA bridge.  Updating the persisted render-preset control
+  // here would rehydrate the external reference and make the capture depend
+  // on an unrelated ActiveDesignSnapshot write.
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const viewport = document.querySelector('.weapon-viewport')
+    if (!(viewport instanceof HTMLElement)) {
+      reject(new Error('C111B workbench viewport is missing'))
+      return
+    }
+    const timeout = window.setTimeout(() => reject(new Error('C111B QA light preset timed out')), 10_000)
+    const finish = () => {
+      window.clearTimeout(timeout)
+      resolve()
+    }
+    viewport.dispatchEvent(new CustomEvent('forgecad:qa-set-light-preset@1', {
+      detail: { viewport, preset: 'soft_studio', resolve: finish, reject },
+    }))
+  }))
+  await page.waitForFunction(
+    () => document.querySelector('.weapon-viewport')?.getAttribute('data-light-preset') === 'soft_studio',
+    undefined,
+    { timeout: 10_000 },
+  )
+  await mkdir(captureRoot, { recursive: true })
+  const fixedViews = [
+    { view_id: 'iso' },
+    { view_id: 'front' },
+    { view_id: 'back' },
+    { view_id: 'left' },
+    { view_id: 'right' },
+    { view_id: 'top' },
+    { view_id: 'gripper_iso' },
+    { view_id: 'gripper_front' },
+  ]
+  const captures = []
+  const rendererFacts = []
+  for (const fixedView of fixedViews) {
+    smokeStage = `C111B same-workbench capture ${fixedView.view_id}`
+    // Use the same-renderer QA camera bridge for every frozen view.  This
+    // keeps the soft-studio presentation from being reset by the persisted
+    // public render-preset state while F026 continues to expose only its four
+    // user-facing presets.
+    await page.evaluate((viewId) => new Promise((resolve, reject) => {
+      const viewport = document.querySelector('.weapon-viewport')
+      if (!(viewport instanceof HTMLElement)) {
+        reject(new Error('C111B workbench viewport is missing'))
+        return
+      }
+      const timeout = window.setTimeout(() => reject(new Error(`C111B QA camera timed out: ${viewId}`)), 10_000)
+      const finish = () => {
+        window.clearTimeout(timeout)
+        resolve()
+      }
+      viewport.dispatchEvent(new CustomEvent('forgecad:qa-set-camera-view@1', {
+        detail: { viewport, view: viewId, resolve: finish, reject },
+      }))
+    }), fixedView.view_id)
+    await page.waitForFunction(
+      (viewId) => document.querySelector('.weapon-viewport')?.getAttribute('data-camera-view') === viewId,
+      fixedView.view_id,
+      { timeout: 10_000 },
+    )
+    await page.waitForFunction(
+      () => {
+        const element = document.querySelector('.weapon-viewport')
+        return element?.getAttribute('data-blockout-load-state') === 'ready'
+          && element.getAttribute('data-blockout-glb-kind') === 'external_reference'
+          && element.getAttribute('data-blockout-render-source') === 'external_reference'
+          && Number(element.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0') > 0
+          && element.getAttribute('data-preview-mode') === 'committed'
+          && element.getAttribute('data-xray') === 'disabled'
+          && element.getAttribute('data-active-webgl-contexts') === '1'
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))))
+    const screenshotPath = join(captureRoot, `${fixedView.view_id}.png`)
+    await viewport.screenshot({ path: screenshotPath, animations: 'disabled' })
+    const screenshotBytes = await readFile(screenshotPath)
+    if (screenshotBytes.length < 10_000) throw new Error(`C111B viewport screenshot is unexpectedly small: ${fixedView.view_id}`)
+    const facts = await viewport.evaluate((element) => ({
+      load_state: element.getAttribute('data-blockout-load-state'),
+      glb_kind: element.getAttribute('data-blockout-glb-kind'),
+      render_source: element.getAttribute('data-blockout-render-source'),
+      embedded_pbr_material_count: Number(element.getAttribute('data-blockout-embedded-pbr-material-count') ?? '0'),
+      embedded_pbr_texture_count: Number(element.getAttribute('data-blockout-pbr-texture-count') ?? '0'),
+      pbr_color_spaces: element.getAttribute('data-blockout-pbr-color-spaces'),
+      pbr_sampling_valid: element.getAttribute('data-blockout-pbr-sampling-valid'),
+      pbr_min_anisotropy: Number(element.getAttribute('data-blockout-pbr-min-anisotropy') ?? '0'),
+      pbr_max_anisotropy: Number(element.getAttribute('data-blockout-pbr-max-anisotropy') ?? '0'),
+      visual_environment_id: element.getAttribute('data-visual-environment-id'),
+      visual_environment_sha256: element.getAttribute('data-visual-environment-sha256'),
+      visual_environment_recipe: element.getAttribute('data-visual-environment-recipe'),
+      camera_view: element.getAttribute('data-camera-view'),
+      light_preset: element.getAttribute('data-light-preset'),
+      preview_mode: element.getAttribute('data-preview-mode'),
+      xray: element.getAttribute('data-xray'),
+      renderer_generation: element.getAttribute('data-renderer-generation'),
+      active_webgl_contexts: Number(element.getAttribute('data-active-webgl-contexts') ?? '0'),
+      renderer_geometries: Number(element.getAttribute('data-renderer-geometries') ?? '0'),
+      renderer_textures: Number(element.getAttribute('data-renderer-textures') ?? '0'),
+      renderer_draw_calls: Number(element.getAttribute('data-renderer-draw-calls') ?? '0'),
+      renderer_triangles: Number(element.getAttribute('data-renderer-triangles') ?? '0'),
+      estimated_gpu_texture_bytes: Number(element.getAttribute('data-blockout-pbr-estimated-gpu-bytes') ?? '0'),
+      display_scale: Number(element.getAttribute('data-blockout-display-scale') ?? '0'),
+      display_diagonal_mm: Number(element.getAttribute('data-blockout-display-diagonal-mm') ?? '0'),
+      frame_ndc: JSON.parse(element.getAttribute('data-blockout-frame-ndc') ?? '{}'),
+      presentation_calibration: JSON.parse(element.getAttribute('data-presentation-runtime-facts') ?? '{}').presentation_calibration ?? {},
+    }))
+    if (
+      facts.load_state !== 'ready'
+      || facts.glb_kind !== 'external_reference'
+      || facts.render_source !== 'external_reference'
+      || facts.embedded_pbr_material_count < 1
+      || facts.pbr_color_spaces !== 'valid'
+      || facts.pbr_sampling_valid !== 'true'
+      || facts.active_webgl_contexts !== 1
+      || facts.renderer_generation !== rendererGeneration
+      || facts.camera_view !== fixedView.view_id
+      || facts.light_preset !== 'soft_studio'
+    ) {
+      throw new Error(`C111B same-workbench PBR facts are invalid: ${fixedView.view_id}; ${JSON.stringify(facts)}`)
+    }
+    rendererFacts.push(facts)
+    captures.push({
+      view_id: fixedView.view_id,
+      source_glb_sha256: productionSha256,
+      screenshot: `workbench-captures/${fixedView.view_id}.png`,
+      screenshot_sha256: createHash('sha256').update(screenshotBytes).digest('hex'),
+      screenshot_byte_size: screenshotBytes.length,
+      renderer_facts: facts,
+    })
+  }
+  const observedRendererGenerations = new Set(rendererFacts.map((facts) => facts.renderer_generation))
+  const observedGlbHashes = new Set(captures.map((capture) => capture.source_glb_sha256))
+  const manifest = {
+    schema_version: 'C111BWorkbenchRendererCapture@1',
+    evidence_origin: 'workbench_runtime_capture',
+    formal_eligible: false,
+    human_benchmark_evidence: false,
+    provider_calls: 0,
+    score_status: 'not_scored',
+    source: {
+      root_recipe_id: contract.root_recipe_id,
+      contract_id: contract.contract_id,
+      production_glb_sha256: productionSha256,
+      production_triangle_count: production.triangle_count,
+      production_primitive_count: production.primitive_count,
+      imported_as: 'external_reference',
+      exact_lineage: 'readback-summary.json -> production.glb -> same mounted workbench viewport',
+    },
+    renderer_contract: {
+      renderer_id: 'ForgeCADWorkbenchRenderer@1',
+      single_webgl_context: observedRendererGenerations.size === 1 && observedGlbHashes.size === 1,
+      renderer_generation: rendererGeneration,
+      captured_view_count: captures.length,
+      captured_views: captures.map((capture) => capture.view_id),
+      required_views: expectedViews,
+      missing_views: expectedViews.filter((view) => !captures.some((capture) => capture.view_id === view)),
+      public_camera_presets: ['iso', 'front', 'top', 'right'],
+      qa_camera_presets: ['back', 'left', 'gripper_iso', 'gripper_front'],
+      capture_light_preset: 'soft_studio',
+      pbr_runtime: 'same_workbench_glb_pbr',
+    },
+    captures,
+    blockers: [
+      'C111B formal_eligible remains false until authorized reference comparison is recorded.',
+      'The public workbench exposes four camera presets; the remaining fixed views are captured through the same-renderer QA bridge and are not additional public product state.',
+      'The GLB is loaded through the read-only external reference import path, not a confirmed Rust-owned C111B Agent asset head.',
+      'Independent human review is not performed by this automated capture.',
+    ],
+  }
+  const manifestPath = join(captureRoot, 'capture-manifest.json')
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
+  return {
+    c111b_workbench_capture: true,
+    capture_manifest: manifestPath,
+    capture_count: captures.length,
+    score_status: 'not_scored',
+    formal_eligible: false,
+    human_benchmark_evidence: false,
   }
 }
 

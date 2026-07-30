@@ -1,5 +1,7 @@
 # release 证据目录规范
 
+本文件只定义生成型 release evidence 的目录布局，不定义当前产品范围或能力。当前类别开放目标、Alpha 边界和发布结论分别以 `docs/ADR/0022-universal-reference-conditioned-3d-agent.md`、`docs/USER_GUIDE.md` 和 `docs/PRODUCTION_RELEASE_CHECKLIST.md` 为准。
+
 所有门禁执行都落到：
 
 `output/release/<GATE-ID>/`

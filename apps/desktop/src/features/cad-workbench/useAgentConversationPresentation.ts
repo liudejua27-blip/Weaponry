@@ -44,11 +44,11 @@ export function useAgentConversationPresentation() {
     projectId: string | null,
     requestId: number,
     threadId: string,
-    items: AgentItem[],
+    items: readonly AgentItem[],
     presentation: AgentTurnPresentation,
   ) => {
     if (!isCurrentRequest(projectId, requestId)) return false
-    dispatch({ type: 'turn_received', projectId, requestId, threadId, items, presentation })
+    dispatch({ type: 'turn_received', projectId, requestId, threadId, items: [...items], presentation })
     return true
   }, [isCurrentRequest])
 

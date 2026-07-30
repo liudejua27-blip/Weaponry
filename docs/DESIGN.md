@@ -1,11 +1,64 @@
-# ForgeCAD 通用机械概念 3D Agent 系统设计
+# Forge Studio 通用参考条件 3D Agent 系统设计
 
-版本：v6（2026-07-15）
+版本：v8（2026-07-29）
 状态：目标架构；当前实现与迁移边界见第 3 节
 
 ## 1. 产品定义
 
-目标面向用户产品名为 **Forge Studio**：零基础用户用自然语言或授权图片生成精致 PBR GLB，并继续用自然语言修改和导出。仓库和内部兼容标识当前仍使用 ForgeCAD。ADR-0019 将“AI 编写受控三维视觉程序、Rust 安全编译”为第一阶段默认路线：ShapeProgram、AssemblyGraph、Recipe、Material Zone 和 Design Surface Compiler 共同构成主生成能力；远程图像/神经 3D adapter 保留为默认关闭的实验基础设施，不是 MVP 前置条件。
+目标面向用户产品名为 **Forge Studio**：非专业创作者和小型内容团队用自然语言与授权图片生成精致、可编辑、可回读的通用 PBR 3D 资产，并继续用自然语言修改和导出。上传/描述什么对象，系统就保持该对象身份进行生成，不以 Domain Pack 或机械硬表面白名单限制类别。仓库和内部兼容标识当前仍使用 ForgeCAD。ADR-0022 定义类别开放产品与能力沙箱；ADR-0023 固定 DeepSeek/千问唯一 AI Provider 边界；ADR-0021 提供高自由度程序化表示和一次 author + 最多一次 typed patch；ADR-0020 的小团队成本边界继续有效。
+
+## 通用视觉理解与混合表示架构（目标）
+
+```text
+Prompt + sealed image(s) / current asset
+  -> Qwen visual understanding / comparison
+  -> SubjectProfile@1
+       identity / parts / silhouette / pose / materials
+       macro / meso / micro detail / occlusion / uncertainty
+  -> VisualFeatureContract@1
+       evidence binding / salience / required views / acceptance
+  -> RepresentationPlan@1
+       per-part procedural | deformable | local_hybrid
+  -> UniversalAssetSource@1
+  -> Rust capability / schema / budget / lineage validation
+  -> DeepSeek typed ForgeVisualProgram authoring
+  -> Restricted local procedural / deformable / material compilers
+  -> one GLB/PBR + strict readback + fixed multiview
+  -> visual comparison + at most one typed patch
+  -> confirm -> AgentAssetVersion / ActiveDesignSnapshot
+```
+
+`SubjectProfile` 替代 domain allowlist：对象类别只帮助理解，不决定准入。`RepresentationPlan` 逐部件选择已声明 capability；若缺少可执行表示，返回 `representation_unavailable` 或 `quality_limited`，不得静默使用 C111、机械臂或其他整机模板。`UniversalAssetSource` 是统一 envelope；`ForgeVisualProgram@2`、本地形变和本地混合表示是其中的表示分支，不创建彼此独立的版本头。
+
+U002/U003/U004 当前实现边界：`UniversalAuthorRequest@1` 由 Rust 从真实 Turn/Project/Snapshot、sealed evidence、选择/锁定和代码所有 capability manifest 构造；Provider 一次返回 profile/feature/plan/outcome，新项目首轮只可调用 `author_universal_asset`。可执行 capability 仅限经过审查的 `procedural.robotic_arm_visual_v1`、`procedural.generic_hard_surface_v1`、`deformable.local_lattice_shell_v1`，以及后两者的逐部件本地硬表面 Hybrid；lattice 只允许既有硬表面程序化源的固定 `2×2×2` cage 外壳形变，Hybrid 要求 Rust 将每个 deformable Part 与 sealed plan、terminal lattice operation、offset、Part binding 精确重算，未声明部件继续保持程序化终端。mesh seed、任意 mesh、角色和生物表示仍明确 unavailable。limitation 是正常、零几何副作用结果。可执行结果的 `UniversalAssetSource@2` 只能由 Rust 从已验证合同和程序 revision 派生，编译后精确绑定 ShapeProgram、GLB、语义/编译 readback、renderer 和固定视图；无拟合证据的相机保持 unresolved。
+
+U004A 已移除旧远程 Mesh Seed 实验路径：主程序不再注册其 Tauri 命令，不再保存或读取对应密钥，不再拥有网络 adapter、恢复任务、前端候选入口或 live Gate。兼容数据合同和数据库迁移仅用于读取历史库，不允许恢复网络请求。`mesh_seed.generic_v1` 在 capability registry 中继续 unavailable。
+
+U004 当前只建设自主可控的本地表示：千问从 sealed 图片提取 `observed | inferred | unknown` 视觉证据，Rust 封存合同，DeepSeek 编写受限 `ForgeVisualProgram@2`，本地编译器负责 procedural/deformable/local-hybrid 几何与 Appearance。当前 P0 在 GLB/readback 后将 Turn 置为 `waiting_for_capture`，同一工作台 renderer 的八视图 evidence 被 Rust 一次性采用后才恢复 evaluate；失败时只允许一次 DeepSeek typed patch，patch 后必须以新 GLB 重新 capture，第二次失败终止。该内存 continuation 不跨重启恢复。通过此链的非游戏 `UniversalAssetSource@2` preview 使用独立 `NativeUniversalPreviewProvenance@1`，Rust 在确认前重验 request/source hash、Project/Turn、representation direction 与精确 GLB，随后沿现有单 GLB 原子版本事务持久化该 UAS provenance；它不创建旧 V003 decision，也不使用 Domain Pack/C111 填充身份。每个新 capability 仍必须具有 Part/Zone、严格 readback、固定输出多视图比较、confirm/version/Snapshot/export 和跨类别净质量证据后才能改为 available。
+
+游戏资产交付不是新的网格来源：当 Rust-sealed `GameAssetProfile@1` 已在 UAS@2 编译前确定，受限 worker 先产出可视觉验收的 source LOD0 GLB，Rust 再以同一 Part terminal binding 派生 `MSFT_lod`、off-scene collision、socket 和实测 texel-density 的 delivery GLB。source GLB 始终是视觉比较及 readback 真值；UAS 只保存 hash-bound delivery receipt。游戏确认通过专用双工件原子事务同时保存 source LOD0、delivery GLB 和 interactive preview，`production_glb` 继续指向 source 以保证质量与编辑真值不变，`game_delivery_glb` 才是用户交付物。`:model.glb`、`:export` 与 `ForgeAssetPackage@2` 必须重新校验 source/profile/binding/receipt 后仅消耗对应 delivery bytes，并同时披露 source hash；缺少 profile、readback、receipt 或任一 object role 时 fail-closed。用户 profile 选择、真实工作台 valid GLB 的 preview→confirm→export/package E2E、篡改/幂等和 packaged 验收仍是后续 Gate。
+
+## ForgeVisualProgram@2 高自由度编译架构（目标）
+
+`ForgeVisualProgram@2` 是可编辑生成设计源，不是脚本容器。它用 typed parameter、node、Part、Material Zone、Surface binding 和静态预算表达对象；Rust 将其验证并确定性展开为 `ExpandedVisualDAG@1`，再 lowering 到现有 ShapeProgram/AssemblyGraph/Material/Surface 真值。展开 DAG 是按 source hash/compiler version 可重建的缓存，不创建第二版本链。
+
+```text
+Prompt + sealed ReferenceEvidence
+  -> ForgeVisualAuthoringIntent
+  -> ForgeVisualProgram@2
+  -> validate + canonicalize + static budget
+  -> ExpandedVisualDAG@1
+  -> ShapeProgram / AssemblyGraph / MaterialGraph / SurfaceGraph
+  -> RestrictedGeometryExecutor
+  -> GLB/PBR + strict readback + source map
+  -> SingleResultDecision -> confirm -> AgentAssetVersion/Snapshot
+```
+
+第一原子切片 VP201 只实现 v2 envelope、参数/节点最小子集、canonical hash、source map 和最小 lowering；纯宏/有界 repeat 属于 VP202，高层 profile/extrude/revolve/loft/sweep/boolean/array/mirror 属于 VP203，低往返和增量编译属于 VP204。当前用户能力仍以 USER_GUIDE 为准，不得从本目标章节推导“高自由度已实现”。
+
+语言运行时禁止任意 Python/JavaScript/shell、反射、动态 import、URL/path/网络、环境变量、递归、while 和无界展开。Rust 必须在 worker/Provider 前拒绝重复/悬空引用、环、非有限值、单位/范围错误、预算和 capability 越权。最终 Part/Shape/Zone readback 必须通过 source map 回指 v2 node、macro call 和参数。
+
+执行模式共享同一真值：Procedural 处理规则结构；Parametric/Deformable 处理角色、生物和软体比例/姿态；Local Hybrid 将形变曲面、程序化结构、材质和可编辑细节组合为同一源。兼容 `mesh_seed` 计划不可执行。DeepSeek、千问或 WebView 均不能直接推进版本头、Snapshot 或导出真值。
 
 当前 ForgeCAD Alpha 用户通过唯一工作台完成：
 
@@ -14,9 +67,7 @@
 → 部件级细化 → 材质 → 检查 → 渲染与导出
 ```
 
-首批领域包为未来武器概念道具、汽车、飞机和机械臂。四者使用同一个 Agent、工作台、几何语言、装配合同、版本和导出系统。
-
-首批四包是验证同一 Core 的 Alpha 基线，不是永久领域上限。后续生活机械、工具设备、工程机械、农业机械和服务设备通过版本化 Domain Pack 与产品 Skill 加入；没有完整语义、资产和 Gate 的类别必须先澄清或停止，不能由一个万能模板猜测。
+首批四个机械 Domain Pack 继续作为 Alpha 兼容知识与回归基线，不再是输入类别清单。目标入口同时接收机械/产品、角色/人形、动物/生物、植物/自然物、家具/生活物、建筑/环境、载具和混合对象；质量按表示能力和跨类别未见基准报告，不通过登记 Domain Pack 决定能否生成。
 
 ### 安全与交付边界
 
@@ -38,9 +89,9 @@
 
 大模型编写受控 `ShapeProgram@1`，不执行任意 Python、JavaScript 或 shell。GUI 和 Agent 修改同一权威表示。
 
-### 2.4 一个核心，领域包承载语义
+### 2.4 一个核心，通用对象合同承载语义
 
-Core 只认识 Project、Assembly、Part、Shape、Material、Joint、Version 和 Tool。武器、车身、机翼、机械臂关节等语义全部进入 `DomainPackManifest@1`。
+Core 只认识 Project、Assembly、Part、Shape、Material、Joint、Version 和 Tool。对象身份、部件、轮廓、姿态、材质和不确定性进入 `SubjectProfile@1`；执行选择进入 `RepresentationPlan@1`。Domain Pack 只提供可选领域知识和限制，不能成为准入 allowlist。
 
 ### 2.5 预览先于永久修改
 
@@ -52,11 +103,11 @@ SQLite 与内容寻址对象是本地真值。默认安装不含神经 3D 模型
 
 ### 2.7 Agent 负责一次合成与硬门，用户负责目标和确认
 
-Planner 对每个 Turn 只提出一份完整受限模型。该模型经过编译、GLB readback、概念渲染和规则硬门后才显示；若只存在可局部修复的失败，最多两次修复必须保留同一 Brief、Domain Pack、核心 Recipe/轮廓意图和 parent attempt provenance。用户可以继续描述修改或明确要求换一个思路，不需要先在三张方向卡中筛选；“换一个思路”是新 Turn。完整模型的第二方向、评分比较和淘汰记录不属于此路线；只有用户确认后才进入不可变版本链。
+Planner 对每个 Turn 只提出一份完整受限模型。该模型经过编译、GLB readback、概念渲染和规则硬门后才显示；若只存在可局部修复的失败，最多一次 typed patch 必须保留同一 Brief、SubjectProfile、核心轮廓意图和 parent attempt provenance。用户可以继续描述修改或明确要求换一个思路，不需要先在三张方向卡中筛选；“换一个思路”是新 Turn。完整模型的第二方向、评分比较和淘汰记录不属于此路线；只有用户确认后才进入不可变版本链。
 
 ### 2.8 视觉真实度是完整资产管线
 
-DeepSeek 负责理解、计划、评审和工具编排，不直接产生可信网格或真实纹理。接近真实产品的外观必须来自语义比例、可编辑组件、曲面/边缘细节、稳定材质分区、UV/切线、PBR 纹理、环境光、色彩管理、真实 readback 和视觉基准的共同作用。任何单独更换模型、扩大 prompt 或增加方向数量都不能代替这条管线。
+千问负责图片理解和候选视觉比较，DeepSeek 负责设计程序、计划与工具编排；两者都不直接拥有可信网格或真实纹理。接近真实产品的外观必须来自语义比例、可编辑组件、曲面/边缘细节、稳定材质分区、UV/切线、PBR 纹理、环境光、色彩管理、真实 readback 和视觉基准的共同作用。任何单独更换模型、扩大 prompt 或增加方向数量都不能代替这条管线。
 
 ### 2.9 采用 3D 机械设计系统，而不是 HTML 六面或单一 box 雕刻
 
@@ -71,6 +122,10 @@ MechanicalStyleToken + EditableComponentRecipe + bounded parameters
 ```
 
 HTML/React 负责工作台，SVG 负责受限轮廓控制点，GSAP 负责界面与相机过渡；它们都不是几何、版本、质量或导出真值。主壳体根据结构选择 Extrude、Loft、Revolve 或 Sweep，CSG 只用于局部开孔、裁剪和组合。组件 Recipe 组合经过验证的轮廓、特征、连接、材质区和可编辑参数，使汽车、飞机、家电、机械臂与其他机械产品不再从同一组 primitive 临时拼装。
+
+### 2.10 小团队单位经济优先
+
+默认能力必须在没有本地大权重、CUDA、ComfyUI、自建 GPU 集群和第三方远程 Mesh API 时成立。本地范围、Schema、预算、缓存和编译硬门优先；联网 AI 只允许 DeepSeek 与千问。每个联网 Turn 有授权、请求/用量/时间/成本上限和停止条件，同一意图最多一次 typed patch。Luna 只可作为仓库开发执行者，不能成为运行时 Provider 或状态真值。
 
 ## 3. 当前状态与迁移边界
 
@@ -102,16 +157,18 @@ HTML/React 负责工作台，SVG 负责受限轮廓控制点，GSAP 负责界面
 
 ### 3.3 部分实现 / 目标能力
 
+路线覆盖：本节保留的 C111B/E004/PV006/M108B 表述只描述机械程序化回归和历史成熟度，不再拥有当前产品优先级。当前实施顺序与通用质量门以 U002–U005 为准。
+
 - 真实 Provider truth set、持久化运行恢复和正式审阅纹理资产仍未完成；M108A 已建立 preview/production 双档五通道 PBR、同源 GLB/视口/readback、质量/导出和派生缓存自动门，但 M108B 的 Recipe 驱动独立人工视觉基准尚未完成；R002–R004 的软件概念渲染与 PNG/manifest 图包已完成，但不等于工程渲染、装配或制造说明；
 - 复杂 ShapeProgram 操作、精确碰撞/运动学、外部 GLB 自动重建/深度分件仍未完成；
 - 自由拆分/合并、任意版本历史浏览和多格式 Agent 导出仍未完成；C103 已实现由现有 AssemblyGraph、role、受限 ShapeProgram primitive output 和连接事实驱动的拆分/合并候选，但不推断切割线、工程连接或功能；C104 已将部件锁定、隐藏和单独查看写入 Agent Snapshot：锁定阻止相关 ChangeSet，显示状态只控制同一个视口而不创建几何版本，不是工程装配约束；
 - 完整外观到高多样性 editable asset 的闭环仍是目标，不得写入用户指南为已支持。
-- 运行时操作白名单、实际 GLB 编译/回读质量、ProfileSketch、增强 Extrude/Revolve、受限 Loft/Sweep、单一 Manifold Python CSG，以及几何侧 edge finish/UV0/tangent/稳定 face→part/zone 事实已由 G819/Q003/G820–G826 实现。A003/A004 已实现 DeepSeek Provider 可观察性和受限单 Turn Product Tool Action Loop；F025/D005 已完成 Agent-first/legacy 隔离及四领域语义比例配方。M108A 在 G826 表面事实上接入 `interactive_preview` 与 `production_concept` 两个代码所有的派生 profile、多区五通道 PBR、固定展示环境、`GeometryCompileReadback@2`、二进制传输、production 质量/导出和 CAS。K001–K003 已建立 Rust-owned 协议、Agent 生命周期、DeepSeek、Product Tool 和 core 持久化所有权；C105/A005 也已完成受限 Recipe 与表面细节闭环。ADR-0016 把这些能力统一为 ForgeCAD Design Surface Compiler：设计层用 Style Token、Profile/Section、Surface Zone、Surface Adornment、`SurfaceLayerProgram@1` 和 Recipe 表达，Rust 降低并密封为 ShapeProgram/AssemblyGraph/SurfaceLayerLowering，Python 只编译已验证几何与五通道 PBR。R007A/R007B、V003、C106 与 C107 已完成机械臂工程黄金路径；当前外部质量门是 M108B，M109 保留 1K/2K、LOD 和自适应生产档。任何 production profile 或 C107 Gate 通过都不等于模型视觉已达到目标图或独立真人生产级门。
+- 运行时操作白名单、实际 GLB 编译/回读质量、ProfileSketch、增强 Extrude/Revolve、受限 Loft/Sweep、单一 Manifold Python CSG，以及几何侧 edge finish/UV0/tangent/稳定 face→part/zone 事实已由 G819/Q003/G820–G826 实现。A003/A004 已实现 DeepSeek Provider 可观察性和受限单 Turn Product Tool Action Loop；F025/D005 已完成 Agent-first/legacy 隔离及四领域语义比例配方。M108A 在 G826 表面事实上接入 `interactive_preview` 与 `production_concept` 两个代码所有的派生 profile、多区五通道 PBR、固定展示环境、`GeometryCompileReadback@2`、二进制传输、production 质量/导出和 CAS。K001–K003 已建立 Rust-owned 协议、Agent 生命周期、DeepSeek、Product Tool 和 core 持久化所有权；C105/A005 也已完成受限 Recipe 与表面细节闭环。ADR-0016 把这些能力统一为 ForgeCAD Design Surface Compiler：设计层用 Style Token、Profile/Section、Surface Zone、Surface Adornment、`SurfaceLayerProgram@1` 和 Recipe 表达，Rust 降低并密封为 ShapeProgram/AssemblyGraph/SurfaceLayerLowering，Python 只编译已验证几何与五通道 PBR。R007A/R007B、V003、C106 与 C107 已完成机械臂工程黄金路径；当前第一视觉主门是 C111B→E004/PV006，M108B 后移为 PV007 后的跨领域正式基准，M109 继续等待它。任何 production profile 或 C107 Gate 通过都不等于模型视觉已达到目标图或独立真人生产级门。
 - ADR-0014 的 Rust-first 核心所有权已经由 K001–K003 完成：Rust app-server/core 单一拥有 Thread/Turn/Item/Approval、Context、DeepSeek、Product Tool，以及 Project/Version/ActiveDesignSnapshot/ChangeSet/Quality/Export、SQLite/WAL、CAS 和对象库。Rust/Tauri 仍启动 Python FastAPI sidecar，但该进程只作为无数据库、无对象库、无密钥、无 Snapshot 写权限的 `RestrictedGeometryExecutor`；这不把几何编译重写成 Rust，也不削弱单写和受限几何边界。
 
 `ActiveDesignSnapshot` 的合同、存储、CAS、API、desktop reducer、Agent 恢复/选择/视口/质量/GLB 导出，以及 legacy 只读重建授权和不可变回退/前进已完成。D003 已提供未知/含糊领域的一问式澄清 UI，F001 已通过本机 Chrome 行为基线。当前仍不能把整个工作台称为生产级运行时：legacy 兼容 UI、原生安装恢复、广泛多客户端压力验证、真实 Provider 评测和打包发布仍待后续。
 
-### 3.3 Legacy
+### 3.4 Legacy
 
 当前 `wushen_agent.main`、旧图像/神经 3D、Patch、Unity 和 Weapon API 仍被启动脚本或回归门引用。它们不是目标产品权威源，但必须按“新入口 → 测试迁移 → 发布门迁移 → 删除 legacy”的顺序退出。
 
@@ -146,14 +203,14 @@ Rust ForgeCAD app-server
 ├── Context Builder
 ├── Provider Gateway
 │   ├── DeepSeek Adapter / preflight / stream / cancel
-│   ├── Concept Image Provider Port（实验、默认关闭；历史 N003）
-│   ├── Neural Visual Provider Port（实验、默认关闭；历史 N002–N004）
+│   ├── Qwen Vision Evidence Adapter / compare / cancel
+│   ├── DeepSeek/Qwen official endpoint + model-family allowlist
 │   └── error taxonomy / usage / redacted trace
 ├── Agent Orchestrator
-│   ├── Visual Brief / typed ForgeVisualProgram authoring（目标；PV003）
-│   ├── ForgeVisualProgram validator + lowering（PV001 最小合同）
-│   ├── Programmatic fixture/compiler/readback（目标；PV002）
-│   ├── Build ledger / bounded repair / eight views（目标；PV004）
+│   ├── Visual Brief / typed ForgeVisualProgram authoring（PV003 已实现最小合同）
+│   ├── ForgeVisualProgram validator + lowering（PV001/PV008 已实现当前机械臂链）
+│   ├── Programmatic fixture/compiler/readback（PV002 已实现当前机械臂链）
+│   ├── Build ledger / bounded repair / eight views（PV004 已实现当前机械臂链）
 │   └── Single-result decision
 ├── Product Skill Registry
 ├── Tool Registry + Runtime Policy
@@ -166,7 +223,7 @@ Rust ForgeCAD app-server
 │   ├── ShapeProgram / GLB / thumbnail
 │   ├── MaterialPreset / texture
 │   └── ChangeSet / QualityReport / Export
-├── Programmatic Visual Coordinator（目标；PV002–PV006）
+├── Programmatic Visual Coordinator（部分实现；PV002–PV005/PV008 已有机械臂证据，PV006C blocked）
 │   ├── ForgeVisualProgram / Detail Inventory / semantic hash
 │   ├── Shape + Assembly + Material + Surface lowering
 │   ├── GLB/PBR readback + fixed eight views
@@ -226,9 +283,9 @@ Agent 多轮对话使用 `ForgeCADProviderConversation@1`。DeepSeek 是无状�
 
 DeepSeek Provider 只接受受 Schema 验证的概念计划或受限产品 Tool Call。A004 已实现 `AgentActionLoop@1`：不可动态扩展的 13 项 ForgeCAD Product Tool Registry 只允许领域/参考/Style/Profile/ShapeProgram/候选 build/readback/render/evaluate/preview，限制 12 次调用、总 token、时间、费用和单次并发；永久修改继续留在既有审批/ChangeSet 路径。DeepSeek 思考模式返回 Tool Call 时，后续同一轮子请求按官方合同回传对应 `reasoning_content`；该字段只在短生命周期 Provider 执行上下文中存在，不进入用户可见思考、资产、Snapshot、Item 或长期日志。复杂概念规划使用思考模式；本地范围停止、领域澄清和确定性操作不消耗 Provider token。调用前后记录脱敏用量、缓存命中和预算结算，Provider HTTP 永远在 SQLite 事务之外执行。
 
-### 5.5 DeepSeek Provider Gateway
+### 5.5 DeepSeek / 千问固定 Provider Gateway
 
-当前默认 Base URL `https://api.deepseek.com` 和模型 `deepseek-v4-pro` 符合 2026-07-15 官方文档。A003 已实现 Gateway 的配置/运行诊断：本机无 metadata/私密凭据时稳定报告 `unconfigured + network_call_made=false`，不再把离线结果包装成真实 Provider 结果。
+当前产品代码只保留 DeepSeek 文本 adapter 与千问视觉 adapter。模型 ID、价格和能力仍会漂移，每次真实调用前必须依据当时官方资料和本机 capability preflight 验证；但供应商边界不是自由配置：DeepSeek 只接受官方 `api.deepseek.com + deepseek-*`，千问只接受官方 `aliyuncs.com + qwen*`。A003 已实现 Gateway 的配置/运行诊断：本机无 metadata/私密凭据时稳定报告 `unconfigured + network_call_made=false`，不再把离线结果包装成真实 Provider 结果。第三个 Provider 必须由新 ADR 和代码 Gate 显式批准，不能通过更改 Base URL 绕过。
 
 `ProviderConnectionState@1`：
 
@@ -240,7 +297,7 @@ unconfigured → checking → ready
 
 A003 当前实现：
 
-- 保存后先验证 metadata 和私密凭据代际可读，再确认 Rust runtime 的 provider/model capability；
+- 保存后先验证官方 endpoint、模型家族、metadata 和私密凭据代际可读，再确认 Rust runtime capability；
 - `provider:check` 和普通 Turn 产生可取消的脱敏 lifecycle；工作台轮询正在运行 Turn 以展示 Item 和取消 ID，原始 token delta 不进入 UI；
 - 固定映射 DeepSeek 400、401、402、422、429、500、503 和网络/超时；不向 UI 泄露 Key、原始响应或内部 Base URL；
 - JSON 模式 prompt 明确包含 JSON 要求和输出示例；空 `content`、缺少 choice、无效 JSON、Schema 不符分别记录为结构化错误，不能回退为离线成功；
@@ -257,7 +314,7 @@ Planner 解析 Brief、Domain Pack / Style Token / Recipe（不生成多个完�
 → 单次完整合成通过 G819 manifest 编译
 → Q003 GLB readback + R006 概念渲染
 → GenerationGateReport@1
-→ 最多两次同意图 RepairAttempt@1（仅在可局部修复时）
+→ 最多一次同意图 typed patch（仅在可局部修复时）
 → SingleResultDecision@1
 → 只向用户展示通过硬门的唯一结果
 ```
@@ -299,7 +356,7 @@ brief/reference
 
 Workspace revision 是未保存草稿，不是第二条 AssetVersion 链。每次 `DesignWorkspacePatch@1` 必须绑定预期 revision、typed AST 操作、预算和幂等键；编译、截图和比较图按 source hash 派生。只有 V003 硬门通过且用户确认，Rust 才把密封 source、ShapeProgram、AssemblyGraph、Surface Program 和 readback 原子提升为不可变资产版本并更新 `ActiveDesignSnapshot`。
 
-视觉收敛采用 [ADR-0017](ADR/0017-codex-design-workspace-visual-convergence.md) 的确定性优先方法：`VisualDetailInventory@1` 中每个关键细节都必须映射到真实 morphology/operation/Material Zone/A005 输出；固定构建阶段逐步通过合同、编译、多视图、材质和表面 Gate；视觉模型只在 hard gates 通过后判断难以确定化的外观差异。该自动判断用于开发和有界修复，不能替代 M108B 三位独立真人评分。
+视觉收敛采用 [ADR-0017](ADR/0017-codex-design-workspace-visual-convergence.md) 的确定性优先方法：`VisualDetailInventory@1` 中每个关键细节都必须映射到真实 morphology/operation/Material Zone/A005 输出；固定构建阶段逐步通过合同、编译、多视图、材质和表面 Gate；视觉模型只在 hard gates 通过后判断难以确定化的外观差异。该自动判断用于开发和有界修复，不能替代 C111B/PV006 的机械硬表面独立评分或后续 M108B 的跨领域三位真人评分。
 
 ## 6. 核心领域合同
 
@@ -344,7 +401,7 @@ Spec 描述意图和约束，不直接保存三角形或任意代码。
 
 ### 6.2.1 SingleGenerationAttempt@1、GenerationGateReport@1 与 SingleResultDecision@1
 
-`SingleGenerationAttempt@1` 绑定 `turn_id + attempt_id + ShapeProgram hash + Recipe provenance`。`GenerationGateReport@1` 绑定该尝试的 `GLB hash + compile_readback_id + render_fingerprint + gate_profile_version`，记录硬门事实、可修复字段和可读摘要；它不是审美评分或候选排序。`RepairAttempt@1` 只可由失败报告指定的字段触发，最多两次，并绑定同一 Brief、Domain Pack、核心 Recipe/轮廓意图、parent attempt 和 runtime manifest。`SingleResultDecision@1` 只引用通过硬门的最终尝试，保存通过理由和已知缺口；它不保存隐藏推理，也不成为 AgentAssetVersion。
+`SingleGenerationAttempt@1` 绑定 `turn_id + attempt_id + ShapeProgram hash + Recipe provenance`。`GenerationGateReport@1` 绑定该尝试的 `GLB hash + compile_readback_id + render_fingerprint + gate_profile_version`，记录硬门事实、可修复字段和可读摘要；它不是审美评分或候选排序。`RepairAttempt@1` 只可由失败报告指定的字段触发，最多一次，并绑定同一 Brief、SubjectProfile、核心轮廓意图、parent attempt 和 runtime manifest。`SingleResultDecision@1` 只引用通过硬门的最终尝试，保存通过理由和已知缺口；它不保存隐藏推理，也不成为 AgentAssetVersion。
 
 Brief、Domain Pack、Skill、runtime manifest、核心 Recipe/轮廓意图或安全范围任一变化都禁止原位修复，必须开启新 Turn。用户确认唯一结果后才创建 Agent 资产；用户要求“换一个思路”会创建新 Turn，绝不在同 Turn 生成第二完整模型。
 
@@ -503,11 +560,38 @@ split_part / merge_parts
 
 `DesignWorkspace@1` 是当前 Turn 的可恢复设计草稿；`DesignWorkspacePatch@1` 是带 revision/CAS 的 typed source 修改；`MechanicalMorphologyProgram@1` 表达 scaffold、连接、topology family、负空间、壳层、材料区和表面意图，并由 Rust 降低为现有 `ShapeProgram@1`、`AssemblyGraph@1` 和 A005 合同。它们不接受任意网格、代码、URL 或路径。
 
-`VisualDetailInventory@1` 将 macro/meso/micro 细节绑定到实际输出并记录 `planned | lowered | readback_verified | unresolved`；critical unresolved 项阻止唯一结果展示。`DesignBuildLedger@1` 记录同一 workspace 的 silhouette、structure、form、material、surface、lighting 和 optimization 阶段，不创建中间资产版本。`VisualConvergenceReport@1` 依次消费来源/合同、真实 GLB readback、多视图结构、PBR/Material Zone 和受控渲染证据；任一 hard gate 失败时不得由 VLM 覆盖。
+`VisualDetailInventory@1` 将 macro/meso/micro 细节绑定到实际输出并记录 `planned | lowered | readback_verified | unresolved`；critical unresolved 项阻止唯一结果展示。`DesignBuildLedger@1` 记录同一 workspace 的 silhouette、structure、form、material、surface、lighting 和 optimization 阶段，不创建中间资产版本。`VisualConvergenceReport@2` 依次消费来源/合同、真实 GLB readback、多视图结构、PBR/Material Zone 和受控渲染证据；任一 hard gate 失败时不得由 VLM 覆盖。`@1` 仅可读取旧 V003/C111 回归记录。
 
-这些是 ADR-0017 的目标合同，当前 C111A 只允许以冻结 fixture 先验证细节清单和固定视图方法；在对应 C112–Q004 原子任务完成前，USER_GUIDE 不得宣称 Agent 已经可以自由编写通用三维设计程序。
+这些是 ADR-0017 的目标合同。C111A 已被接续，当前 C111B 只允许以冻结 fixture 先验证黄金机械臂的细节清单、固定视图和质量合同；在对应 C112–Q004 原子任务完成前，USER_GUIDE 不得宣称 Agent 已经可以自由编写通用三维设计程序。
 
-## 7. 首批四领域包
+### 6.10 VisualAcceptanceContract 与成本证据
+
+`VisualAcceptanceContract@1` 是目标合同，用于把“看起来高质量”转成一次生成可执行、可审计的验收输入。最小字段包括：
+
+```text
+brief_id / domain_distribution / intended_use
+authorized_reference_ids
+must_show / must_not_show
+macro_claims / meso_claims / micro_claims / material_claims
+fixed_view_ids
+triangle_budget / texture_budget / latency_budget
+provider_call_budget / max_repair_attempts
+human_review_protocol / failure_and_stop_conditions
+```
+
+Provider 预算必须按职责隔离，不能用一个全局 `maximum_calls` 同时约束离线生成和外部视觉验收。C111B 的受控 `C111BVisualAcceptanceContract@2` 已验证该边界：生成链保持 0 网络/0 可变成本；视觉比较只有在显式用户授权、调用前预算预留和当前 Project sealed evidence 都存在时才可调用，每候选最多初次 1 次加两次同意图修复，总可变成本硬上限 `100000 microusd`。这只是 benchmark 上限，不是默认消费许可；专用 `visual_reference_comparison_report` 必须进入 evidence lineage。
+
+C111B 当前已把上述边界落成 Rust 产品状态：短期 `VisualReferenceComparisonAuthorization@1` 精确绑定 Project/request/graph/policy，第一次预留绑定实际 Turn；SQLite 0044 迁移和 CoreRepository 的 IMMEDIATE transaction 在每次网络调用前分配保守 ceiling，三次累计严格不超过 `100000 microusd`。Provider future 被取消、超时或丢弃时按已开始网络保守结算；可证明的凭据/校验等预网络失败才释放预留。`VisualReferenceComparisonReport@2` 可携带 `VisualReferenceComparisonBudgetEvidence@1`，而生产网络结果缺少该证据会被 Rust 拒绝。授权和账本不进入几何、版本或 Snapshot 真值。
+
+参考 claim 必须标为 `observed | inferred | unknown`，并绑定可验证的 reference/view/region；`inferred` 和 `unknown` 不能进入 must-show 硬事实。每条输出 claim 最终必须映射真实 source、Part/output、Material Zone/texture、GLB readback 和固定视图，不得只存在于 prompt 或 inventory 文案。
+
+质量分为 macro 轮廓/比例/负空间、meso 部件层级/连接/壳体过渡、micro 倒角/紧固/线束/Decal/磨损、PBR、presentation 和 asset usability 六层。确定性 hard gate 先检查结构、lineage 和跨视图一致性；VLM 只处理难以确定化的参考差异；独立真人判断审美和目标用途。三者证据分开存放，任何一层不能覆盖前一层失败。
+
+每个真实生成还派生 `GenerationCostEvidence@1`（目标合同）：Provider/model capability fingerprint、调用/用量、缓存命中、修复次数、阶段耗时、估算可变成本、授权和停止原因。它只用于预算、模型路由和商业验证，不进入几何真值。没有联网授权时 `network_call_count` 必须为 0。通用 GenerationCostEvidence 仍由后续 Q004/评测任务落地；C111B 已先用专用 Authorization/Reservation/BudgetEvidence 运行时合同完成视觉比较硬停，不把它泛化成所有 Provider 的成本真值。
+
+## 7. 当前机械知识包（兼容与回归）
+
+以下四包是当前 Alpha 已实现的机械知识、fixture 和回归集合，不是 ADR-0022 的对象准入列表。U002 后所有合法对象先进入 `SubjectProfile` 和 `RepresentationPlan`；包存在与否只能增强术语、Recipe 和评测，不能决定是否接受输入。
 
 ### 7.1 Future Weapon Prop
 
@@ -590,19 +674,20 @@ DeepSeek 不是网格生成或纹理服务。默认 Provider 边界只允许它�
 
 ```text
 Natural-language brief / authorized reference evidence
+→ Qwen observed/inferred/unknown evidence
 → DeepSeek typed ForgeVisualAuthoringIntent
 → Rust validate + lower to ForgeVisualProgram
 → Restricted Shape/Assembly/Material/Surface compilation
 → real GLB/PBR readback + fixed eight-view review
-→ at most two in-place repairs of the same intent
+→ at most one typed in-place repair of the same intent
 → one transient result → user confirm
 → procedural_shape_program AgentAssetVersion
 → ForgeAssetPackage
 ```
 
-该链当前已完成 PV001–PV005、PV006A–PV006C 与 PV008：Rust 合同/lowering、机械臂真实 fixture/双档编译、typed author/patch、七阶段构建与八视角收敛、同一资产三次修改/确认/恢复/GLB/六成员资产包工程闭环，以及多模态请求→独立 Vision Evidence Provider→视觉证据图→真实 Detail Inventory 的 exact-lineage 绑定。视觉 Provider 只读取本 Turn 明确授权的 CAS 图片并返回 `observed | inferred | unknown` 证据，不得生成网格、执行代码、写 Snapshot 或直接修改资产；其配置与 DeepSeek 分离，并在本机 Alpha 使用不触发 Keychain 弹窗的权限受限私密文件。随后 DeepSeek 把文字和证据融合成紧凑 `ForgeVisualAuthoringIntent@1`，Rust 绑定内部细节并继续校验、编译、八视图评估和最多两次同意图修复。2026-07-27 的真实 DeepSeek 验收已以 `provider_authoring_ir` 来源完成 author→build→readback→render→evaluate→preview→confirm→Snapshot→export；它证明工程链真实可用，不证明目标图级视觉质量或任意类别自由生成。
+该链当前已完成 PV001–PV005、PV006A/B 与 PV008：Rust 合同/lowering、机械臂真实 fixture/双档编译、typed author/patch、七阶段构建与八视角收敛、同一资产三次修改/确认/恢复/GLB/六成员资产包工程闭环，以及多模态请求、只读证据图和独立千问 Vision 端口。千问只读取本 Turn 明确授权的 CAS 图片并返回 `observed | inferred | unknown` 证据，不得生成网格、执行代码、写 Snapshot 或直接修改资产；其配置与 DeepSeek 分离。2026-07-27 的真实 DeepSeek 验收已以 `provider_authoring_ir` 来源完成 author→build→readback→render→evaluate→preview→confirm→Snapshot→export；它证明单独文本 Provider 的工程链真实可用，不证明真实千问+DeepSeek 组合、目标图级视觉质量或任意类别自由生成。
 
-PV006C 已把 Rust-normalized request+graph 接入原生 `turn/start`，在任何 Turn 写入前重读 sealed evidence、校验当前 Snapshot/选择/锁定，并要求 DeepSeek author/patch 为每条视觉 claim 提交 `bound | unresolved | evaluation_only` disposition；Rust 再构造并随 preview/AssetVersion 持久化 `MultimodalProgramEvidenceBinding@1`。候选 GLB 编译后的确切八视图与 sealed 参考像素经独立 comparison port 交给同一视觉模型，但模型只能提交逐 claim assessment；Rust 通过 hash-only `VisualReferenceComparisonInput@1` 与派生 `Report@1` 决定三层相似度、修复目标和硬门。比较失败会进入最多两次同意图 typed repair，旧 readback/view/report 全部作废；只有通过的最新报告可随唯一 preview/AssetVersion 保存。离线组合 E2E 已证明确认、Snapshot、同字节 GLB 直接导出和六成员资产包。但真实 Vision+DeepSeek 组合 E2E、PV006 的 20 条多模态盲测与真人门、PV007 的逐领域扩展仍未完成，因此不得宣称自由生成或收藏级 MVP 闭环。历史 N001–N004 神经 3D Provider 代码仍为 `experimental/default-off`；视觉理解 Provider 与神经网格生成不同，它不替换 ShapeProgram/Surface Compiler，也不要求 FAL。
+PV006C 的目标是把 Rust-normalized request+graph 接入原生 `turn/start`，在任何永久写入前重读 sealed evidence、校验当前 Snapshot/选择/锁定，并为每条视觉 claim 提交 `bound | unresolved | evaluation_only` disposition；Rust 再构造并随 preview/AssetVersion 持久化 `MultimodalProgramEvidenceBinding@1`。候选 GLB 的确切八视图与 sealed 参考像素只能通过千问 comparison port 形成逐 claim assessment；Rust 用 hash-only comparison input/report 决定三层相似度、修复目标和硬门。离线 exact-lineage 机制已有局部证据，但真实千问+DeepSeek 组合 E2E 仍缺当前可复现成功证据，因此 PV006C 保持 `blocked`。PV006 的 20 条多模态盲测与真人门、PV007 的逐领域扩展也未完成，不得宣称自由生成或收藏级 MVP 闭环。历史 N001–N004 远程网格合同仅为兼容读取，不注册命令、凭据、网络或 UI；千问视觉理解不替换 ShapeProgram/Surface Compiler。
 
 ### 9.2 建模语法路由
 
@@ -679,7 +764,7 @@ AgentAssetVersion + ShapeProgram
     └── Q003、展示、多视图、正式下载与导出
 ```
 
-`GeometryArtifactProfile@1` 的 canonical hash 必须进入 GLB root extras、`GeometryCompileReadback@2`、派生缓存 key 和响应头。production 只按实际使用材质惰性生成纹理，并写入内容寻址对象库；前端先显示 preview，再在同一 renderer 中原子替换 production。profile 仅定义工件预算和传输层级，不自动证明完整产品外观；该证明由 C105 后的 M108B 负责。
+`GeometryArtifactProfile@1` 的 canonical hash 必须进入 GLB root extras、`GeometryCompileReadback@2`、派生缓存 key 和响应头。production 只按实际使用材质惰性生成纹理，并写入内容寻址对象库；前端先显示 preview，再在同一 renderer 中原子替换 production。profile 仅定义工件预算和传输层级，不自动证明完整产品外观；C111B/E005/PV006 只保留机械程序化回归，跨类别正式质量由 U005 证明。
 
 ### 9.6 UI、GSAP 与可丢弃 SDF 边界
 
@@ -717,11 +802,11 @@ docked 与中央焦点不是两张视图；状态机只切换 `viewport_dock = d
 以下是目标工作流，不是当前 Alpha 的完整能力清单：
 
 ```text
-输入 Brief
-→ 推断领域包
-→ 回述关键理解
+输入 Brief / 授权参考 / 已有资产
+→ SubjectProfile + VisualFeatureContract
+→ RepresentationPlan；知识包只提供提示
 → 一次受限完整合成
-→ 编译/readback/概念渲染/硬门；仅可最多两次同意图原位修复
+→ 编译/readback/概念渲染/硬门；仅可最多一次同意图 typed patch
 → 只展示通过硬门的唯一结果 + 多视图概念图
 → 自动分件候选
 → 用户确认 AssemblyGraph
@@ -763,7 +848,10 @@ Provider 离线时，已有项目仍可打开、手动编辑、检查和导出�
 | 新用户首次有效导出 | 中位数 <5 分钟 |
 | 单次合成运行时/readback 硬门 | 100% 初始尝试及每次原位修复先验证，失败工件不得展示 |
 | 正式 Material Zone 外观覆盖 | 100% 有有效 PBR 绑定或明确参数回退 |
-| 四领域视觉基准 | 独立人工评测中，每个领域的比例、材质可读性、表面细节三维度中位数均 ≥4/5 |
+| U005 跨类别视觉基准 | 八类冻结未见任务分别报告；首次独立真人 `≥4/5` 至少 70%，最多一次 typed patch 后至少 85% |
+| 首次有效结果时间 | 中位数 <5 分钟，P90 <10 分钟 |
+| 可变推理与存储成本 | 商业验证中不高于实收收入的 25%；当前仅为 target |
+| 表示能力晋级 | 每种 representation/capability 单独冻结任务并达到独立人工 `≥4/5`，不继承机械臂结论 |
 | 默认可见完整模型数 | 1；不存在内部多模型比较或用户选择器 |
 
 ## 14. 后续 Engineering Pack

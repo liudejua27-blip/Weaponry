@@ -1,16 +1,19 @@
 # ForgeCAD 操作文档总索引
 
-版本：2026-07-18
+版本：2026-07-29
 状态：当前文档路由，不再承载完整 legacy 手册
 
 ForgeCAD 当前是本机 Alpha。普通用户、开发者、资产作者和发布维护者需要不同的信息；本文件只负责把读者带到唯一正确的手册，避免把 Weapon、Unity、ComfyUI 和旧 Provider 命令重新混入主操作路径。
+
+产品目标已由 ADR-0022 升级为类别开放的通用 3D Agent；当前操作仍主要覆盖机械 Alpha。目标设计先读 `PRODUCT_DEFINITION/DESIGN/ADR-0022`，当前可操作能力只读 `USER_GUIDE/QUICKSTART`，不得混写。
 
 ## 1. 按角色选择文档
 
 | 角色 | 首选文档 | 解决的问题 |
 | --- | --- | --- |
 | 零基础测试用户 | [USER_GUIDE.md](USER_GUIDE.md) | 启动、配置 Provider、生成、编辑、检查和导出当前 Agent GLB |
-| 产品设计与目标体验评审 | [MECHANICAL_DESIGN_OPERATIONS.md](MECHANICAL_DESIGN_OPERATIONS.md) | 单一最佳结果、轮廓/截面、Recipe、PBR、Provider 诊断和目标失败恢复；不是当前操作能力 |
+| 产品设计与目标体验评审 | [PRODUCT_DEFINITION.md](PRODUCT_DEFINITION.md)、[DESIGN.md](DESIGN.md) | 通用对象理解、表示路由、单一结果、PBR、Provider 诊断和目标失败恢复 |
+| 程序化机械表示设计 | [MECHANICAL_DESIGN_OPERATIONS.md](MECHANICAL_DESIGN_OPERATIONS.md) | 轮廓/截面、Recipe 和机械 ShapeProgram；不是全部类别操作 |
 | 本机开发者 | [DEVELOPMENT.md](DEVELOPMENT.md) | 环境、Tauri/Vite、测试、调试和证据采集 |
 | 组件与美术资产作者 | [ASSET_AUTHORING.md](ASSET_AUTHORING.md) | 模块制作、元数据、原创声明、独立审阅和晋级 |
 | 发布维护者 | [RELEASE_MAINTENANCE.md](RELEASE_MAINTENANCE.md) | CI、sidecar、SBOM、签名前检查和发布阻断 |
@@ -66,13 +69,13 @@ R001 已通过 `agent:r001-render-preset-smoke`：四个相机视图、三个灯
 - [Codex 原子任务索引](CODEX_TASK_INDEX.md)
 - [Codex 完成定义](CODEX_DEFINITION_OF_DONE.md)
 
-历史兼容资料位于 [legacy](legacy/README.md)。legacy 文档只服务回归和迁移，不是零基础用户操作说明，也不能作为通用机械 Agent 已完成的证据。
+旧 Weapon/Concept 的最小维护边界已并入 [兼容迁移计划](COMPATIBILITY_MIGRATION.md)。旧操作手册已从当前树删除；Git 历史只用于追溯，不能作为当前用户操作说明或通用能力证据。
 
 开发 Agent 或工作台前还应阅读：
 
 - [GitHub 参考与采用边界](AGENT_GITHUB_REFERENCE_ARCHITECTURE.md)：哪些项目只参考、哪些候选需要 benchmark、哪些路线明确拒绝；
 - [插件与 Skill 操作设计](AGENT_PLUGINS_SKILLS_DESIGN.md)：后续 Codex 使用什么插件/Skill，以及产品内 Skill 的权限和评测；
-- [文档地图](DOCUMENTATION_MAP.md)：唯一权威、历史证据、legacy 与已删除文档。
+- [文档地图](DOCUMENTATION_MAP.md)：唯一权威、当前证据、兼容边界与已删除文档。
 
 ## 4. 按任务选择插件和 Skill
 
@@ -128,7 +131,7 @@ npm run desktop:task-d-packaged-visual-program-smoke
 
 1. 用户指南只写当前通过代码和测试验证的功能；
 2. 目标能力写入 DESIGN、IMPLEMENTATION_PLAN 或 CODEX_EXECUTION_PLAN，并明确“未实现”；
-3. legacy 命令只能写入 `docs/legacy/`；
+3. 兼容命令只在 `COMPATIBILITY_MIGRATION.md` 维护，不再创建独立旧产品操作手册；
 4. 每个生产能力必须在能力—Gate 矩阵中有实现位置和自动证据；
 5. 修改 API、状态真值、备份或发布流程时，同步更新对应专门文档；
 6. 文档门禁必须拒绝断链、缺失命令和用户指南中的禁用承诺。

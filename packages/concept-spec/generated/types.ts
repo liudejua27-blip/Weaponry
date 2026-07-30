@@ -232,11 +232,11 @@ export type AgentSkillManifest = {
   "recipe_ids": Array<string>
   "material_preset_ids": Array<"mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red">
   "reference_hashes": Array<Sha256>
-  "success_examples": Array<unknown>
-  "stop_examples": Array<unknown>
-  "author": unknown
-  "source": unknown
-  "license": unknown
+  "success_examples": Array<Example>
+  "stop_examples": Array<Example>
+  "author": Provenance
+  "source": Provenance
+  "license": License
   "non_functional_only": true
 }
 
@@ -255,6 +255,15 @@ export type AgentStructureSuggestionList = {
   "summary": string
 }>
   "unavailable_message": string | null
+}
+
+export type AppearanceEvidenceBundle = {
+  "schema_version": "AppearanceEvidenceBundle@1"
+  "bundle_id": string
+  "request_sha256": Sha256
+  "references": Array<Reference>
+  "camera_hypotheses": Array<ReferenceCameraHypothesis>
+  "derived_artifacts": Array<Artifact>
 }
 
 export type ArmDesignIntent = {
@@ -353,6 +362,71 @@ export type C111StructuralDetailContract = {
   "surface_program_ids": Array<string>
   "required_texture_roles": Array<"base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive">
 }>
+}
+
+export type C111BHumanReview = Kit | Responses
+
+export type C111BVisualAcceptanceContract = {
+  "schema_version": "C111BVisualAcceptanceContract@2"
+  "contract_id": string
+  "status": "frozen"
+  "formal_eligible": false
+  "root_recipe_id": "recipe_c111_arm_golden_surface"
+  "registry_id": "registry_c111_golden_surface_robotic_arm_v1"
+  "authorized_reference": {
+  "reference_set_id": string
+  "source_filename": string
+  "source_kind": "user_authorized_reference"
+  "repository_storage": "external_user_authorized"
+  "sha256": string
+  "status": "digest_verified"
+}
+  "must_show": Array<Record<string, unknown>>
+  "must_not_show": Array<string>
+  "claims": Array<Record<string, unknown>>
+  "fixed_views": ["iso", "front", "back", "left", "right", "top", "gripper_iso", "gripper_front"]
+  "budgets": {
+  "production_triangle_count": {
+  "minimum": 80000
+  "maximum": 150000
+}
+  "texture": {
+  "minimum_resolution": 1024
+  "required_roles": Array<"base_color" | "metallic_roughness" | "normal" | "occlusion" | "emissive">
+  "maximum_map_count": 320
+}
+  "timing": {
+  "target_total_seconds": 120
+  "record_stage_durations": true
+  "required_stage_keys": Array<"author" | "lower" | "compile_readback" | "render" | "evaluate" | "preview">
+}
+  "provider": {
+  "generation": {
+  "network_allowed": false
+  "maximum_calls": 0
+  "record_cache_hits": true
+  "record_usage": true
+}
+  "visual_comparison": {
+  "requires_explicit_user_authorization": true
+  "network_allowed_when_authorized": true
+  "maximum_calls_per_candidate": 3
+  "maximum_same_intent_repairs": 2
+  "record_cache_hits": true
+  "record_usage": true
+}
+}
+  "cost": {
+  "currency": "USD"
+  "generation_maximum_variable_cost_microusd": 0
+  "visual_comparison_maximum_variable_cost_microusd": 100000
+  "hard_stop_before_call": true
+  "record_estimate": true
+}
+}
+  "independent_human_review": Record<string, unknown>
+  "stop_conditions": Array<string>
+  "evidence_lineage": Record<string, unknown>
 }
 
 export type ComponentRecipeCandidate = {
@@ -584,6 +658,305 @@ export type DomainSemanticProportionRecipe = {
   "non_functional_only": true
 }
 
+export type E005AuthorSourceManifestV1 = {
+  "schema_version": "E005AuthorSourceManifest@1"
+  "manifest_id": Id
+  "task_set_sha256": Hash
+  "entries": Array<Entry>
+}
+
+export type E005DistributionReportV1 = {
+  "schema_version": "E005DistributionReport@1"
+  "report_id": Id
+  "task_set_sha256": Hash
+  "provider_authorization_sha256": Hash
+  "total_receipt_count": number
+  "run_count": number
+  "not_run_count": number
+  "first_pass_success_count": number
+  "patched_success_count": number
+  "failed_count": number
+  "cancelled_count": number
+  "human_review_complete_count": number
+  "human_review_receipt_count": number
+  "human_review_bundle_sha256": Hash
+  "independent_reviewers_per_task_minimum": number
+  "first_pass_human_quality_count": number
+  "within_one_patch_human_quality_count": number
+  "lineage_complete_count": number
+  "structural_matrix_sha256": Hash
+  "structural_pair_count": number
+  "structurally_distinct_pair_count": number
+  "structural_difference_matrix_pass": boolean
+  "p50_ms"?: number
+  "p90_ms"?: number
+  "max_ms"?: number
+  "formal_eligible": boolean
+  "failure_histogram": Record<string, unknown>
+  "receipts_sha256": Hash
+}
+
+export type E005HumanReviewBundleV1 = {
+  "schema_version": "E005HumanReviewBundle@1"
+  "bundle_id": string
+  "task_set_sha256": Hash
+  "run_receipts_sha256": Hash
+  "status": "not_run" | "complete"
+  "reviewer_commitments": Array<ReviewerCommitment>
+  "review_count": number
+  "reviews": Array<Review>
+  "reviews_sha256": Hash
+}
+
+export type E005ProductionReviewV1 = {
+  "schema_version": "E005ProductionReview@1"
+  "source_program_sha256": Hash
+  "surface_plan_sha256": Hash
+  "surface_adornment_sha256": Hash
+  "restricted_geometry_input_sha256": Hash
+  "surface_adornment_count": number
+  "glb_sha256": Hash
+  "normalized_geometry_sha256": Hash
+  "fixed_view_sha256": Hash
+  "fixed_views": {
+  "turntable_000": Hash
+  "turntable_045": Hash
+  "turntable_090": Hash
+  "turntable_135": Hash
+  "turntable_180": Hash
+  "turntable_225": Hash
+  "turntable_270": Hash
+  "turntable_315": Hash
+}
+  "compile_readback_sha256": Hash
+  "restricted_geometry_evidence_sha256": Hash
+  "artifact_profile_id": "production_concept"
+  "material_zone_count": number
+  "visual_texture_set_count": number
+  "visual_texture_map_count": number
+  "visual_texture_provenance_verified": true
+  "lower_duration_ms": number
+  "compile_duration_ms": number
+  "render_duration_ms": number
+  "elapsed_ms": number
+}
+
+export type E005ProviderBudgetEvidenceV1 = {
+  "schema_version": "E005ProviderBudgetEvidence@1"
+  "authorization_id": Id
+  "authorization_binding_sha256": Hash
+  "reservation_id": Id
+  "task_id": Id
+  "task_payload_sha256": Hash
+  "request_sha256": Hash
+  "provider_id": Id
+  "model_id": Id
+  "call_kind": "author" | "patch"
+  "call_number": number
+  "kind_call_number": number
+  "settlement": "accounted" | "released"
+  "network_call_made": boolean
+  "outcome_code": "PRE_DISPATCH_RELEASED" | "PROVIDER_COMPLETED_PASSED" | "PROVIDER_COMPLETED_REPAIRABLE" | "PROVIDER_COMPLETED_FAILED" | "PROVIDER_TIMEOUT" | "PROVIDER_CANCELLED" | "PROVIDER_TRANSPORT_FAILED" | "RECOVERED_UNCERTAIN_DISPATCH"
+  "output_source_sha256"?: Hash
+  "output_gate_sha256"?: Hash
+  "reserved_input_tokens": number
+  "reserved_output_tokens": number
+  "reserved_cost_ceiling_microusd": number
+  "author_calls_accounted_after": number
+  "patch_calls_accounted_after": number
+  "calls_accounted_after": number
+  "accounted_input_tokens_after": number
+  "accounted_output_tokens_after": number
+  "accounted_cost_ceiling_microusd_after": number
+  "settled_at_unix_ms": number
+}
+
+export type E005ProviderRunAuthorizationV1 = {
+  "schema_version": "E005ProviderRunAuthorization@1"
+  "authorization_id": Id
+  "task_set_sha256": Hash
+  "status": "not_authorized" | "authorized"
+  "grant_mode": "none" | "explicit_user_confirmation"
+  "provider_id"?: Id
+  "model_id"?: Id
+  "source_policy_sha256"?: Hash
+  "pricing_snapshot_sha256"?: Hash
+  "disclosure_sha256"?: Hash
+  "authorized_at"?: string
+  "expires_at"?: string
+  "maximum_author_calls": number
+  "maximum_patch_calls": number
+  "maximum_total_calls": number
+  "maximum_input_tokens": number
+  "maximum_output_tokens": number
+  "maximum_variable_cost_microusd": number
+  "maximum_batch_wall_time_ms": number
+  "maximum_single_call_wall_time_ms": number
+  "whole_object_template_policy": "forbidden"
+  "authorization_binding_sha256": Hash
+}
+
+export type E005RunReceiptV1 = {
+  "schema_version": "E005RunReceipt@1"
+  "run_id": Id
+  "task_set_sha256": Hash
+  "task_id": Id
+  "status": "not_run" | "passed_without_patch" | "passed_after_patch" | "failed" | "cancelled"
+  "run_mode": "offline_deterministic" | "formal_provider"
+  "distribution_eligible": boolean
+  "author_source_mode": "missing" | "offline_authored_v2" | "provider_authored_v2"
+  "task_payload_sha256": Hash
+  "request_sha256": Hash
+  "authoring_count": number
+  "patch_count": number
+  "provider_authorization_id"?: Id
+  "provider_authorization_sha256"?: Hash
+  "provider_call_evidence"?: Array<E005ProviderBudgetEvidenceV1>
+  "provider_call_evidence_sha256"?: Hash
+  "visual_review_evidence"?: E005VisualReviewEvidenceV1
+  "production_review_evidence"?: E005ProductionReviewV1
+  "production_review_evidence_sha256"?: Hash
+  "source_program_sha256"?: Hash
+  "expanded_program_sha256"?: Hash
+  "shape_program_sha256"?: Hash
+  "structural_descriptor_sha256"?: Hash
+  "semantic_structure_sha256"?: Hash
+  "normalized_geometry_sha256"?: Hash
+  "topology_signature_sha256"?: Hash
+  "operation_sequence_sha256"?: Hash
+  "profile_signature_sha256"?: Hash
+  "part_zone_signature_sha256"?: Hash
+  "glb_sha256"?: Hash
+  "fixed_view_sha256"?: Hash
+  "fixed_views"?: WorkbenchViews | TurntableViews
+  "vp204_session_sha256"?: Hash
+  "vp204_receipt_sha256"?: Hash
+  "visual_session_sha256"?: Hash
+  "visual_session_receipt_sha256"?: Hash
+  "gate_outcome_sha256"?: Hash
+  "compile_readback_sha256"?: Hash
+  "restricted_geometry_evidence_sha256"?: Hash
+  "artifact_profile_id"?: Id
+  "runtime_manifest_version"?: Id
+  "triangle_count"?: number
+  "bounds_mm"?: Array<number>
+  "mesh_count"?: number
+  "primitive_count"?: number
+  "material_count"?: number
+  "usage"?: Usage
+  "phase_receipts"?: Array<PhaseReceipt>
+  "elapsed_ms"?: number
+  "network_provider_calls": number
+  "billable_cost_microusd": number
+  "failure_codes": Array<FailureCode>
+  "human_review_status": "not_run" | "pending" | "complete"
+}
+
+export type E005StructuralDifferenceMatrixV1 = {
+  "schema_version": "E005StructuralDifferenceMatrix@1"
+  "matrix_id": Id
+  "task_set_sha256": Hash
+  "run_receipts_sha256": Hash
+  "status": "not_run" | "complete"
+  "entry_count": number
+  "entries": Array<Entry>
+  "entries_sha256": Hash
+  "pair_count": number
+  "comparisons": Array<Comparison>
+  "comparisons_sha256": Hash
+  "structurally_distinct_pair_count": number
+  "matrix_pass": boolean
+}
+
+export type E005UnseenTaskSetV1 = {
+  "schema_version": "E005UnseenTaskSet@1"
+  "task_set_id": Id
+  "frozen_date": string
+  "authoring_policy": {
+  "full_author_maximum": 1
+  "typed_patch_maximum": 1
+  "provider_network_requires_explicit_authorization": true
+}
+  "quality_thresholds": {
+  "first_pass_human_4_of_5_minimum_bps": 7000
+  "patched_human_4_of_5_minimum_bps": 8500
+  "no_patch_p50_maximum_ms": 32000
+  "no_patch_p90_maximum_ms": 70000
+  "patched_p90_maximum_ms": 105000
+}
+  "tasks": Array<Task>
+}
+
+export type E005VisualPatchProposalV1 = {
+  "schema_version": "E005VisualPatchProposal@1"
+  "patch_id": string
+  "decision": "accept" | "typed_visual_patch"
+  "expected_source_sha256": string
+  "comparison_input_sha256": string
+  "repair_claim_ids": Array<string>
+  "operations": Array<Operation>
+}
+
+export type E005VisualPatchV1 = {
+  "schema_version": "E005VisualPatch@1"
+  "patch_id": string
+  "decision": "accept" | "typed_visual_patch"
+  "expected_source_sha256": string
+  "comparison_input_sha256": string
+  "comparison_report_sha256": string
+  "repair_claim_ids": Array<string>
+  "operations": Array<Operation>
+}
+
+export type E005VisualReviewEvidenceV1 = {
+  "schema_version": "E005VisualReviewEvidence@1"
+  "status": "accepted_by_visual_review" | "patched_pending_visual_confirmation"
+  "decision": "accept" | "typed_visual_patch"
+  "initial_source_sha256": Hash
+  "final_source_sha256": Hash
+  "initial_glb_sha256": Hash
+  "initial_fixed_view_sha256": Hash
+  "initial_fixed_views": TurntableViews
+  "comparison_input_sha256": Hash
+  "comparison_report_sha256": Hash
+  "provider_response_sha256": Hash
+  "sealed_patch_sha256": Hash
+  "geometry_build_count": number
+  "visual_provider_call_count": 1
+  "final_visual_model_recheck_performed": boolean
+}
+
+export type E005VisualSessionReceiptV1 = {
+  "schema_version": "E005VisualSessionReceipt@1"
+  "receipt_id": Id
+  "session_id": Id
+  "task_payload_sha256": Hash
+  "request_sha256": Hash
+  "source_program_sha256": Hash
+  "expanded_program_sha256": Hash
+  "shape_program_sha256": Hash
+  "glb_sha256": Hash
+  "normalized_geometry_sha256": Hash
+  "fixed_view_sha256": Hash
+  "compile_readback_sha256": Hash
+  "restricted_geometry_evidence_sha256": Hash
+  "comparison_report_sha256": Hash
+  "phases": Array<Phase>
+  "usage": Usage
+}
+
+export type E005VisualSessionV1 = {
+  "schema_version": "E005VisualSession@1"
+  "session_id": Id
+  "initial_source_sha256": Hash
+  "final_source_sha256": Hash
+  "state": "accepted_by_visual_review" | "patched_pending_visual_confirmation"
+  "visual_patch_sha256": Hash
+  "review_evidence": E005VisualReviewEvidenceV1
+  "receipt": E005VisualSessionReceiptV1
+  "receipt_sha256": Hash
+}
+
 export type EditableComponentRecipe = {
   "schema_version": "EditableComponentRecipe@1"
   "recipe_id": string
@@ -591,24 +964,81 @@ export type EditableComponentRecipe = {
   "component_role": string
   "display_name": string
   "description": string
-  "profiles": unknown
-  "section_sets": unknown
+  "profiles": ProfileRefs
+  "section_sets": SectionSetRefs
   "shape_program_template": ShapeProgram
-  "feature_template": Array<unknown>
+  "feature_template": Array<GeometryFeature>
   "parameter_bindings": Array<EditableParameterBinding>
-  "connectors": Array<unknown>
-  "pivot": unknown
-  "root_local_transform": unknown
-  "material_zones": Array<unknown>
-  "surface_adornment_slots"?: Array<unknown>
-  "child_slots": Array<unknown>
-  "allowed_domains": Array<unknown>
+  "connectors": Array<Connector>
+  "pivot": Frame
+  "root_local_transform": LocalTransform
+  "material_zones": Array<MaterialZone>
+  "surface_adornment_slots"?: Array<SurfaceAdornmentSlot>
+  "child_slots": Array<ChildSlot>
+  "allowed_domains": Array<Domain>
   "triangle_estimate": number
   "quality_status": "passed"
-  "source": unknown
-  "license": unknown
-  "review_state": unknown
+  "source": Source
+  "license": License
+  "review_state": Review
   "non_functional_only": true
+}
+
+export type ExpandedVisualDagV1 = {
+  "schema_version": "ExpandedVisualDAG@1"
+  "compiler_version": "forgecad-core-vp202.1"
+  "id_algorithm_version": "expanded-path-v1"
+  "source_program_sha256": Sha256
+  "expanded_program_sha256": Sha256
+  "lineage_sha256": Sha256
+  "expanded_dag_sha256": Sha256
+  "budget_evidence": {
+  "macro_count": number
+  "macro_call_count": number
+  "expanded_node_count": number
+  "expanded_output_count": number
+  "primitive_count": number
+  "estimated_triangle_upper_bound": number
+}
+  "lineage": Array<{
+  "expanded_output_id": string
+  "expanded_node_ids": Array<string>
+  "expanded_part_id": string
+  "expanded_material_zone_id": string
+  "source_macro_path": Array<string>
+  "source_chain_id": string
+  "instance_indices": Array<number>
+  "parameter_ids": Array<string>
+}>
+  "expanded_program": ForgeVisualProgramV2
+}
+
+export type ExpandedVisualGeometryDAGV1 = {
+  "schema_version": "ExpandedVisualGeometryDAG@1"
+  "compiler_version": "forgecad-core-vp203.1"
+  "id_algorithm_version": "geometry-source-path-v1"
+  "source_program_sha256": Hash
+  "expanded_program_sha256": Hash
+  "lineage_sha256": Hash
+  "expanded_dag_sha256": Hash
+  "budget_evidence": BudgetEvidence
+  "lineage": Array<Lineage>
+  "expanded_program": ForgeVisualGeometryProgramV2
+}
+
+export type ForgeVisualAuthorSourceV1 = {
+  "schema_version": "ForgeVisualAuthorSource@1"
+  "program_id": string
+  "domain": string
+  "units": "millimeter"
+  "seed": number
+  "parameters": Array<Parameter>
+  "geometry_templates": ForgeVisualGeometryProgramV2
+  "macros": Array<Macro>
+  "instances": Array<Instance>
+  "root_part": PartRef
+  "surface_bindings": Array<SurfaceBinding>
+  "budgets": Budget
 }
 
 export type ForgeVisualAuthoringIntent = {
@@ -616,6 +1046,59 @@ export type ForgeVisualAuthoringIntent = {
   "authoring_id": string
   "title": string
   "arm_design_intent": ArmDesignIntent
+}
+
+export type ForgeVisualCompositionV2 = {
+  "schema_version": "ForgeVisualComposition@1"
+  "program_id": string
+  "domain": string
+  "units": "millimeter"
+  "seed": number
+  "parameters": Array<unknown>
+  "materials": Array<unknown>
+  "macros": Array<{
+  "macro_id": MacroId
+  "parameters": Array<{
+  "local_parameter_id": LocalId
+  "kind": "number" | "integer" | "length" | "angle" | "ratio"
+  "unit": "unitless" | "count" | "millimeter" | "radian" | "ratio"
+}>
+  "items": Array<MacroItem>
+}>
+  "calls": Array<Call>
+  "budgets": {
+  "schema_version": "ExpansionBudget@1"
+  "max_macros": number
+  "max_macro_calls": number
+  "max_expansion_depth": number
+  "max_expanded_nodes": number
+  "max_parts": number
+  "max_materials": number
+  "max_outputs": number
+  "max_primitives": number
+  "triangle_budget": number
+}
+}
+
+export type ForgeVisualGeometryPatchV1 = {
+  "schema_version": "ForgeVisualGeometryPatch@1"
+  "patch_id": string
+  "expected_source_sha256": Hash
+  "operations": Array<Operation>
+}
+
+export type ForgeVisualGeometryProgramV2 = {
+  "schema_version": "ForgeVisualGeometryProgram@2"
+  "program_id": string
+  "domain": string
+  "units": "millimeter"
+  "seed": number
+  "materials": Array<Material>
+  "profiles": Array<Profile>
+  "section_sets": Array<SectionSet>
+  "nodes": Array<Node>
+  "outputs": Array<Output>
+  "budgets": Budget
 }
 
 export type ForgeVisualPatch = {
@@ -626,6 +1109,78 @@ export type ForgeVisualPatch = {
   "preserve_geometry": boolean
   "preserve_material_surface": boolean
   "operations": Array<SetTitle | UpsertDesignToken | RemoveDesignToken | ReplaceParts | ReplaceGeometryGraph | UpsertGeometryOperation | ReplaceAssemblyGraph | ReplaceMaterialGraph | UpsertMaterialBinding | ReplaceSurfaceGraph | UpsertSurfaceBinding | ReplaceDetailInventory | UpsertDetailInventoryItem | SetExportProfile>
+}
+
+export type ForgeVisualProgramRevision = {
+  "schema_version": "ForgeVisualProgramRevision@1"
+  "revision": number
+  "source_program_sha256": Sha256
+  "parent_source_program_sha256": null | Sha256
+  "program": ForgeVisualProgram
+  "changed_domains": Array<string>
+  "applied_patch_id": string | null
+}
+
+export type ForgeVisualProgramV2 = {
+  "schema_version": "ForgeVisualProgram@2"
+  "program_id": string
+  "domain": string
+  "units": "millimeter"
+  "seed": number
+  "parameters": Array<{
+  "parameter_id": string
+  "kind": "number" | "integer" | "boolean" | "enum" | "length" | "angle" | "ratio" | "color"
+  "unit": "unitless" | "count" | "boolean" | "enum_value" | "millimeter" | "radian" | "ratio" | "linear_rgb"
+  "default": unknown
+  "minimum": number | null
+  "maximum": number | null
+  "allowed_values": Array<string>
+}>
+  "materials": Array<{
+  "material_id": string
+  "base_material_id": "mat_primary" | "mat_graphite" | "mat_painted_steel" | "mat_powder_coat" | "mat_aluminum" | "mat_signal_red" | "mat_composite" | "mat_abs_matte" | "mat_carbon_composite" | "mat_rubber" | "mat_rubber_tire" | "mat_dark_glass" | "mat_clear_glass" | "mat_emissive_blue" | "mat_automotive_paint"
+}>
+  "nodes": Array<{
+  "kind": "box"
+  "node_id": NodeId
+  "size": ScalarVector3
+} | {
+  "kind": "cylinder"
+  "node_id": NodeId
+  "radius": Scalar
+  "height": Scalar
+} | {
+  "kind": "transform"
+  "node_id": NodeId
+  "input_node_id": NodeId
+  "position": ScalarVector3
+  "rotation": ScalarVector3
+} | {
+  "kind": "part"
+  "node_id": NodeId
+  "input_node_id": NodeId
+  "part_id": string
+  "role": string
+} | {
+  "kind": "material_zone"
+  "node_id": NodeId
+  "input_node_id": NodeId
+  "zone_id": string
+  "material_id": string
+}>
+  "outputs": Array<{
+  "output_id": string
+  "node_id": NodeId
+}>
+  "budgets": {
+  "schema_version": "ProgramBudget@1"
+  "max_nodes": number
+  "max_parts": number
+  "max_materials": number
+  "max_outputs": number
+  "max_primitives": number
+  "triangle_budget": number
+}
 }
 
 export type ForgeVisualProgram = {
@@ -910,6 +1465,22 @@ export type GeometryCompileReadback = {
   "readback_status": "passed"
 }
 
+export type GeometryIncrementalPlanV1 = {
+  "schema_version": "GeometryIncrementalPlan@1"
+  "base_source_sha256": Hash
+  "patched_source_sha256": Hash
+  "patch_sha256": Hash
+  "reused_profile_input_ids": ProfileIds
+  "invalidated_profile_input_ids": ProfileIds
+  "reused_source_node_ids": NodeIds
+  "invalidated_source_node_ids": NodeIds
+  "reused_shape_operation_ids": OperationIds
+  "invalidated_shape_operation_ids": OperationIds
+  "reused_output_ids": OutputIds
+  "invalidated_output_ids": OutputIds
+  "full_compile_cache_hit": false
+}
+
 export type JobEventV2 = {
   "schema_version": "JobEvent@2"
   "event_id": Id
@@ -989,6 +1560,22 @@ export type MaterialTextureObject = {
   "object_exists": boolean
   "created_at": IsoDatetime
   "updated_at": IsoDatetime
+}
+
+export type MaterialZoneAppearance = {
+  "schema_version": "MaterialZoneAppearance@1"
+  "appearance_id": string
+  "material_zone_id": string
+  "source_part_id": string
+  "base_material_id": string
+  "finish": string
+  "coating"?: string | null
+  "transmission_bps": number
+  "uncertainty_bps": number
+  "texture_width": number
+  "texture_height": number
+  "channels": Array<Channel>
+  "projection_layers": Array<ProjectionLayer>
 }
 
 export type MechanicalConceptSpec = {
@@ -1285,6 +1872,20 @@ export type ProviderExecutionTrace = {
   "message": string
 }
 
+export type ReferenceCameraHypothesis = {
+  "schema_version": "ReferenceCameraHypothesis@1"
+  "hypothesis_id": string
+  "evidence_id": string
+  "view_id"?: string | null
+  "projection_type": "perspective" | "orthographic" | "unknown"
+  "parameter_source": "metadata" | "landmark_fit" | "silhouette_fit" | "default_hypothesis" | "unresolved"
+  "vertical_fov_millidegrees"?: number | null
+  "reprojection_error_bps"?: number | null
+  "landmark_feature_ids": Array<string>
+  "confidence_bps": number
+  "unresolved_fields": Array<string>
+}
+
 export type ReferenceEvidenceCreateRequest = {
   "schema_version": "ReferenceEvidenceCreateRequest@1"
   "client_request_id": string
@@ -1298,7 +1899,7 @@ export type ReferenceEvidenceCreateRequest = {
   "license_statement": string
   "missing_views": Array<string>
   "user_notes": string
-  "domain_pack_id"?: "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "domain_pack_id"?: "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept" | "pack_unclassified"
 }
 
 export type ReferenceEvidence = {
@@ -1306,7 +1907,7 @@ export type ReferenceEvidence = {
   "evidence_id": string
   "project_id": string
   "kind": "image" | "glb"
-  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
+  "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept" | "pack_unclassified"
   "source_file_name": string
   "source_media_type": "image/png" | "image/jpeg" | "image/webp" | "model/gltf-binary"
   "source_object_sha256": Sha256
@@ -1372,12 +1973,38 @@ export type ReferenceSurfaceAnalysis = {
   "surface_skill_version": 2
   "surface_skill_sha256": Sha256
   "fidelity_ceiling": "single_image_visible_surface_only" | "multi_view_image_visible_surface_only" | "strict_glb_readback_visible_bounds_only"
-  "bindings": Array<unknown>
-  "retained_observation_kinds": Array<unknown>
+  "bindings": Array<Binding>
+  "retained_observation_kinds": Array<ObservationKind>
   "intentionally_changed": Array<"non_functional_recipe_interpretation" | "reviewed_recipe_component_substitution" | "material_preset_normalization" | "surface_adornment_normalization">
   "unresolved": Array<"missing_views" | "hidden_structure" | "exact_dimensions" | "material_physics" | "functional_behavior">
-  "glb_readback_facts"?: unknown | null
+  "glb_readback_facts"?: GlbReadbackFacts | null
   "created_at": IsoDatetime
+}
+
+export type RepresentationLimitation = {
+  "schema_version": "RepresentationLimitation@1"
+  "code": "needs_more_views" | "representation_unavailable" | "quality_limited" | "provider_unavailable"
+  "message": string
+  "affected_part_ids": Array<string>
+  "missing_capability_ids": Array<string>
+  "suggested_views": Array<string>
+  "retryable": boolean
+}
+
+export type RepresentationPlan = {
+  "schema_version": "RepresentationPlan@1"
+  "plan_id": string
+  "request_sha256": Sha256
+  "subject_profile_sha256": Sha256
+  "visual_feature_contract_sha256": Sha256
+  "capability_manifest_sha256": Sha256
+  "parts": Array<{
+  "part_id": string
+  "representation": "procedural" | "deformable" | "mesh_seed" | "hybrid"
+  "capability_id": string
+  "covered_feature_ids": Array<string>
+  "rationale": string
+}>
 }
 
 export type ResolvedSemanticProportionOptions = {
@@ -1407,6 +2034,16 @@ export type ResolvedSemanticProportionOptions = {
   "unavailable_message": string | null
 }
 
+export type RestrictedGeometryExecutionEvidenceV1 = {
+  "schema_version": "RestrictedGeometryExecutionEvidence@1"
+  "compile_cache_key_sha256": string
+  "compile_cache_hit": boolean
+  "compile_duration_ms": number
+  "render_duration_ms": number
+  "fragment_cache_hit_operation_ids": Array<Id>
+  "fragment_cache_miss_operation_ids": Array<Id>
+}
+
 export type ShapeProgram = {
   "schema_version": "ShapeProgram@1"
   "program_id": string
@@ -1428,7 +2065,7 @@ export type ShapeProgram = {
 }>
   "operations": Array<{
   "operation_id": string
-  "op": "box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel"
+  "op": "box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel" | "lattice_deform"
   "inputs": Array<string>
   "args": {
   "size"?: Array<number>
@@ -1459,6 +2096,7 @@ export type ShapeProgram = {
   "zone_id"?: string
   "connector_kind"?: string
   "joint_kind"?: "fixed" | "hinge" | "slider" | "ball" | "continuous"
+  "corner_offsets"?: Array<Array<number>>
   "material_id"?: string
 }
 }>
@@ -1469,6 +2107,24 @@ export type ShapeProgram = {
   "part_role": string
 }>
   "non_functional_only": true
+}
+
+export type SubjectProfile = {
+  "schema_version": "SubjectProfile@1"
+  "profile_id": string
+  "request_sha256": Sha256
+  "identity_label": string
+  "category": string
+  "category_tags": Array<string>
+  "silhouette": string
+  "negative_space": string
+  "pose": string
+  "visible_views": Array<string>
+  "occlusions": Array<string>
+  "uncertainties": Array<string>
+  "parts": Array<Part>
+  "features": Array<Feature>
+  "materials": Array<Material>
 }
 
 export type SurfaceAdornmentProgram = {
@@ -1558,6 +2214,77 @@ export type SurfaceLayerProgram = {
   "non_functional_only": true
 }
 
+export type UniversalAssetSourceV2 = {
+  "schema_version": "UniversalAssetSource@2"
+  "source_id": string
+  "state": "planned" | "compiled"
+  "request": UniversalAuthorRequest
+  "request_sha256": Sha256
+  "subject_profile": SubjectProfile
+  "subject_profile_sha256": Sha256
+  "visual_feature_contract": VisualFeatureContract
+  "visual_feature_contract_sha256": Sha256
+  "representation_plan": RepresentationPlan
+  "representation_plan_sha256": Sha256
+  "capability_manifest_sha256": Sha256
+  "representation_source": ProceduralSource | LocalLatticeDeformSource | LocalHardSurfaceHybridSource | UnavailableSource
+  "component_sources": Array<ComponentSource>
+  "detail_claims": Array<VisualDetailClaimV2>
+  "material_zones": Array<MaterialZoneAppearance>
+  "appearance_compilation": AppearanceCompilation
+  "appearance_evidence": AppearanceEvidenceBundle
+  "game_asset_profile"?: null | GameAssetProfile
+  "game_asset_delivery"?: null | GameAssetDeliveryReadback
+  "compiled_artifact"?: null | CompiledArtifact
+}
+
+export type UniversalAssetSource = {
+  "schema_version": "UniversalAssetSource@1"
+  "source_id": string
+  "state": "planned" | "compiled"
+  "request": UniversalAuthorRequest
+  "request_sha256": Sha256
+  "subject_profile": SubjectProfile
+  "subject_profile_sha256": Sha256
+  "visual_feature_contract": VisualFeatureContract
+  "visual_feature_contract_sha256": Sha256
+  "representation_plan": RepresentationPlan
+  "representation_plan_sha256": Sha256
+  "capability_manifest_sha256": Sha256
+  "procedural_source": ForgeVisualProgramRevision
+  "component_sources": Array<ComponentSource>
+  "detail_claims": Array<VisualDetailClaimV2>
+  "material_zones": Array<MaterialZoneAppearance>
+  "appearance_evidence": AppearanceEvidenceBundle
+  "compiled_artifact"?: null | CompiledArtifact
+}
+
+export type UniversalAuthorOutcome = Executable | Limitation | Clarification
+
+export type UniversalAuthorRequest = {
+  "schema_version": "UniversalAuthorRequest@1"
+  "request_id": string
+  "project_id": string
+  "turn_id": string
+  "instruction": string
+  "input_mode": "text" | "single_image" | "multiview" | "active_asset" | "mixed"
+  "reference_inputs": Array<ReferenceInput>
+  "active_asset"?: null | ActiveAsset
+  "selection": Selection
+  "locks": Locks
+  "capability_manifest_sha256": Sha256
+}
+
+export type VisualConvergenceInputV2 = {
+  "schema_version": "VisualConvergenceInput@2"
+  "ledger": Ledger
+  "readback": Readback
+  "fixed_views": Array<ViewV2>
+  "detail_coverage": DetailCoverage
+  "reference_comparison"?: ReferenceComparison
+  "repairs": Array<RepairV2>
+}
+
 export type VisualConvergenceInput = {
   "schema_version": "VisualConvergenceInput@1"
   "ledger": Ledger
@@ -1566,6 +2293,19 @@ export type VisualConvergenceInput = {
   "detail_coverage": DetailCoverage
   "reference_comparison"?: ReferenceComparison
   "repairs": Array<Repair>
+}
+
+export type VisualConvergenceReportV2 = {
+  "schema_version": "VisualConvergenceReport@2"
+  "report_sha256": string
+  "source_program_sha256": string
+  "source_revision": number
+  "glb_sha256": string
+  "passed": boolean
+  "completed_stage_count": number
+  "fixed_view_count": number
+  "repair_attempt_count": number
+  "failure_codes": Array<string>
 }
 
 export type VisualConvergenceReport = {
@@ -1579,6 +2319,38 @@ export type VisualConvergenceReport = {
   "fixed_view_count": number
   "repair_attempt_count": number
   "failure_codes": Array<string>
+}
+
+export type VisualDetailClaimV2 = {
+  "schema_version": "VisualDetailClaim@2"
+  "claim_id": string
+  "feature_id": string
+  "level": "macro" | "meso" | "micro"
+  "evidence_status": "observed" | "inferred" | "hidden" | "conflicting"
+  "salience_bps": number
+  "affected_part_ids": Array<string>
+  "channels": Array<"geometry" | "normal" | "base_color" | "roughness" | "metallic" | "emissive" | "opacity">
+  "silhouette_impact": boolean
+  "bindings": Array<Binding>
+  "minimum_acceptance_views": Array<string>
+}
+
+export type VisualEvidenceGraphV2 = {
+  "schema_version": "VisualEvidenceGraph@2"
+  "graph_id": string
+  "universal_request_sha256": Sha256
+  "subject_profile_sha256": Sha256
+  "claims": Array<{
+  "claim_id": string
+  "feature_id": string
+  "status": "observed" | "inferred" | "hidden" | "conflicting"
+  "evidence_regions": Array<{
+  "evidence_id": string
+  "view_id"?: string | null
+  "region_per_mille"?: unknown | null
+}>
+  "description": string
+}>
 }
 
 export type VisualEvidenceGraph = {
@@ -1597,6 +2369,14 @@ export type VisualEvidenceGraph = {
   "claims": Array<Claim>
 }
 
+export type VisualFeatureContract = {
+  "schema_version": "VisualFeatureContract@1"
+  "contract_id": string
+  "request_sha256": Sha256
+  "subject_profile_sha256": Sha256
+  "requirements": Array<Requirement>
+}
+
 export type VisualIntentMapping = {
   "schema_version": "VisualIntentMapping@1" | "VisualIntentMapping@2"
   "domain_pack_id": "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept"
@@ -1611,19 +2391,75 @@ export type VisualIntentMapping = {
 }>
 }
 
+export type VisualProgramAuthoringSessionV1 = {
+  "schema_version": "VisualProgramAuthoringSession@1"
+  "session_id": Id
+  "idempotency_key": Id
+  "request_sha256": Hash
+  "current_revision": number
+  "initial_source_sha256": Hash
+  "parent_source_sha256"?: Hash
+  "current_source_sha256": Hash
+  "current_source": ForgeVisualGeometryProgramV2
+  "authoring_count": 1
+  "patch_count": number
+  "state": "awaiting_initial_gate" | "awaiting_patch" | "awaiting_patched_gate" | "ready_for_preview" | "failed" | "cancelled"
+  "applied_patch_sha256"?: Hash
+  "incremental_plan"?: GeometryIncrementalPlanV1
+  "gate_report_id"?: Id
+  "receipt": VisualProgramExecutionReceiptV1
+  "receipt_sha256": Hash
+}
+
+export type VisualProgramExecutionReceiptV1 = {
+  "schema_version": "VisualProgramExecutionReceipt@1"
+  "receipt_id": Id
+  "session_id": Id
+  "authoring_count": 1
+  "patch_count": number
+  "source_program_sha256": Hash
+  "expanded_program_sha256": Hash
+  "shape_program_sha256": Hash
+  "glb_sha256"?: Hash
+  "phases": Array<Phase>
+  "usage": Usage
+  "cancelled": boolean
+  "failure_code"?: Id
+}
+
+export type VisualProgramGateOutcomeV1 = {
+  "schema_version": "VisualProgramGateOutcome@1"
+  "gate_report_id": string
+  "source_program_sha256": string
+  "verdict": "pass" | "fail" | "undetermined"
+  "repairable": boolean
+}
+
 export type VisualReferenceComparisonInput = {
-  "schema_version": "VisualReferenceComparisonInput@1"
+  "schema_version": "VisualReferenceComparisonInput@2"
   "request_sha256": string
   "evidence_graph_sha256": string
   "program_binding_sha256": string
   "source_program_sha256": string
   "glb_sha256": string
+  "acceptance_policy": {
+  "schema_version": "VisualReferenceAcceptancePolicy@1"
+  "policy_id": string
+  "source_contract_sha256"?: string
+  "critical_minimum_bps": number
+  "macro_minimum_bps": number
+  "meso_minimum_bps": number
+  "micro_minimum_bps": number
+  "critical_requires_matched": boolean
+  "critical_not_visible_allowed": boolean
+}
+  "candidate_view_profile"?: "convergence_eight" | "turntable_eight"
   "reference_sources": Array<{
   "evidence_id": string
   "evidence_sha256": string
 }>
   "candidate_views": Array<{
-  "view_id": "iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front"
+  "view_id": "iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front" | "turntable_000" | "turntable_045" | "turntable_090" | "turntable_135" | "turntable_180" | "turntable_225" | "turntable_270" | "turntable_315"
   "glb_sha256": string
   "renderer_id": string
   "image_sha256": string
@@ -1632,9 +2468,26 @@ export type VisualReferenceComparisonInput = {
 }
 
 export type VisualReferenceComparisonReport = {
-  "schema_version": "VisualReferenceComparisonReport@1"
+  "schema_version": "VisualReferenceComparisonReport@2"
   "report_sha256": string
   "comparison_input_sha256": string
+  "budget_evidence"?: {
+  "schema_version": "VisualReferenceComparisonBudgetEvidence@1"
+  "authorization_id": string
+  "authorization_binding_sha256": string
+  "reservation_id": string
+  "turn_id": string
+  "comparison_input_sha256": string
+  "call_number": number
+  "maximum_calls": 3
+  "maximum_variable_cost_microusd": 100000
+  "reserved_cost_ceiling_microusd": number
+  "settlement": "accounted" | "released"
+  "network_call_made": boolean
+  "calls_accounted_after": number
+  "accounted_cost_ceiling_microusd_after": number
+  "settled_at_unix_ms": number
+}
   "provider": {
   "provider_id": string
   "model_id": string
@@ -1647,7 +2500,7 @@ export type VisualReferenceComparisonReport = {
   "similarity_bps": number
   "confidence_bps": number
   "source_evidence_ids": Array<string>
-  "candidate_view_ids": Array<"iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front">
+  "candidate_view_ids": Array<"iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front" | "turntable_000" | "turntable_045" | "turntable_090" | "turntable_135" | "turntable_180" | "turntable_225" | "turntable_270" | "turntable_315">
   "reason": string
 }>
   "macro_similarity_bps"?: number

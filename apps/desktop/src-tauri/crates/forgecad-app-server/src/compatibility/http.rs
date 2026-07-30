@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::{CancellationToken, HandlerFuture, RequestHandler};
 
 /// Leaves enough room for the JSON-RPC envelope inside a 64 MiB frame.
-pub const MAX_RAW_COMPAT_BODY_BYTES: usize = 47 * 1024 * 1024;
+pub const MAX_RAW_COMPAT_BODY_BYTES: usize = 56 * 1024 * 1024;
 pub const MAX_ENCODED_COMPAT_BODY_BYTES: usize = MAX_RAW_COMPAT_BODY_BYTES.div_ceil(3) * 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1064,9 +1064,9 @@ mod tests {
 
     #[test]
     fn compatibility_body_has_separate_raw_and_encoded_budgets() {
-        assert_eq!(MAX_RAW_COMPAT_BODY_BYTES, 49_283_072);
-        assert_eq!(MAX_ENCODED_COMPAT_BODY_BYTES, 65_710_764);
-        assert!(MAX_ENCODED_COMPAT_BODY_BYTES < 64 * 1024 * 1024);
+        assert_eq!(MAX_RAW_COMPAT_BODY_BYTES, 58_720_256);
+        assert_eq!(MAX_ENCODED_COMPAT_BODY_BYTES, 78_293_676);
+        assert!(MAX_ENCODED_COMPAT_BODY_BYTES < 80 * 1024 * 1024);
         assert!(body_within_budget(
             &ProtocolHttpBody::Utf8 {
                 data: "xxxxx".into(),

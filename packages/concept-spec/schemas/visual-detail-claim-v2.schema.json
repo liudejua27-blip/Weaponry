@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/visual-detail-claim-v2.schema.json",
+  "title": "VisualDetailClaimV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "claim_id", "feature_id", "level", "evidence_status", "salience_bps", "affected_part_ids", "channels", "silhouette_impact", "bindings", "minimum_acceptance_views"],
+  "properties": {
+    "schema_version": { "const": "VisualDetailClaim@2" },
+    "claim_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "feature_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "level": { "enum": ["macro", "meso", "micro"] },
+    "evidence_status": { "enum": ["observed", "inferred", "hidden", "conflicting"] },
+    "salience_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+    "affected_part_ids": { "type": "array", "minItems": 1, "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+    "channels": { "type": "array", "minItems": 1, "maxItems": 7, "uniqueItems": true, "items": { "enum": ["geometry", "normal", "base_color", "roughness", "metallic", "emissive", "opacity"] } },
+    "silhouette_impact": { "type": "boolean" },
+    "bindings": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/binding" } },
+    "minimum_acceptance_views": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "source_id"],
+      "properties": {
+        "kind": { "enum": ["procedural_program", "geometry_output", "material_zone", "surface_program", "projection_layer", "unresolved"] },
+        "source_id": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    }
+  }
+}

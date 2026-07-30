@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 use crate::{
     semantic_sha256, CoreError, CoreResult, ForgeVisualProgram, ReferenceEvidence,
@@ -20,9 +21,11 @@ pub const VISUAL_EVIDENCE_GRAPH_SCHEMA_VERSION: &str = "VisualEvidenceGraph@1";
 pub const MULTIMODAL_PROGRAM_EVIDENCE_BINDING_SCHEMA_VERSION: &str =
     "MultimodalProgramEvidenceBinding@1";
 pub const VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION: &str =
-    "VisualReferenceComparisonInput@1";
+    "VisualReferenceComparisonInput@2";
 pub const VISUAL_REFERENCE_COMPARISON_REPORT_SCHEMA_VERSION: &str =
-    "VisualReferenceComparisonReport@1";
+    "VisualReferenceComparisonReport@2";
+pub const VISUAL_REFERENCE_ACCEPTANCE_POLICY_SCHEMA_VERSION: &str =
+    "VisualReferenceAcceptancePolicy@1";
 
 const MAX_REFERENCE_INPUTS: usize = 12;
 const MAX_VISUAL_CLAIMS: usize = 256;
@@ -228,6 +231,79 @@ pub struct VisualReferenceSourceFingerprint {
     pub evidence_sha256: String,
 }
 
+/// Rust-owned scoring policy sealed into one comparison input. Provider
+/// output can supply bounded observations, but cannot select or weaken these
+/// thresholds.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct VisualReferenceAcceptancePolicy {
+    pub schema_version: String,
+    pub policy_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_contract_sha256: Option<String>,
+    pub critical_minimum_bps: u16,
+    pub macro_minimum_bps: u16,
+    pub meso_minimum_bps: u16,
+    pub micro_minimum_bps: u16,
+    pub critical_requires_matched: bool,
+    pub critical_not_visible_allowed: bool,
+}
+
+impl VisualReferenceAcceptancePolicy {
+    pub fn default_policy() -> Self {
+        Self {
+            schema_version: VISUAL_REFERENCE_ACCEPTANCE_POLICY_SCHEMA_VERSION.into(),
+            policy_id: "visual_reference_default_v1".into(),
+            source_contract_sha256: None,
+            critical_minimum_bps: 6_500,
+            macro_minimum_bps: 6_500,
+            meso_minimum_bps: 5_500,
+            micro_minimum_bps: 4_500,
+            critical_requires_matched: true,
+            critical_not_visible_allowed: false,
+        }
+    }
+
+    pub fn validate(&self) -> CoreResult<()> {
+        if self.schema_version != VISUAL_REFERENCE_ACCEPTANCE_POLICY_SCHEMA_VERSION {
+            return Err(invalid(
+                "VISUAL_REFERENCE_ACCEPTANCE_POLICY_INVALID",
+                "Reference acceptance policy uses an unsupported schema version.",
+            ));
+        }
+        require_safe_token("acceptance_policy.policy_id", &self.policy_id, 160)?;
+        if let Some(source_contract_sha256) = self.source_contract_sha256.as_deref() {
+            require_sha256(
+                "acceptance_policy.source_contract_sha256",
+                source_contract_sha256,
+            )?;
+        }
+        if [
+            self.critical_minimum_bps,
+            self.macro_minimum_bps,
+            self.meso_minimum_bps,
+            self.micro_minimum_bps,
+        ]
+        .into_iter()
+        .any(|minimum| minimum > 10_000)
+        {
+            return Err(invalid(
+                "VISUAL_REFERENCE_ACCEPTANCE_POLICY_INVALID",
+                "Reference acceptance thresholds must use bounded basis points.",
+            ));
+        }
+        Ok(())
+    }
+
+    fn minimum_for_level(&self, level: VisualDetailLevel) -> u16 {
+        match level {
+            VisualDetailLevel::Macro => self.macro_minimum_bps,
+            VisualDetailLevel::Meso => self.meso_minimum_bps,
+            VisualDetailLevel::Micro => self.micro_minimum_bps,
+        }
+    }
+}
+
 /// Hash-only comparison envelope created by Rust after the candidate GLB has
 /// been rendered. Provider image bytes remain transport-only and never enter
 /// this durable identity contract.
@@ -240,8 +316,18 @@ pub struct VisualReferenceComparisonInput {
     pub program_binding_sha256: String,
     pub source_program_sha256: String,
     pub glb_sha256: String,
+    pub acceptance_policy: VisualReferenceAcceptancePolicy,
     pub reference_sources: Vec<VisualReferenceSourceFingerprint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_view_profile: Option<VisualReferenceCandidateViewProfile>,
     pub candidate_views: Vec<VisualFixedViewEvidence>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VisualReferenceCandidateViewProfile {
+    ConvergenceEight,
+    TurntableEight,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -265,6 +351,8 @@ pub struct VisualReferenceComparisonReport {
     pub report_sha256: String,
     pub comparison_input_sha256: String,
     pub provider: VisionEvidenceProviderProvenance,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget_evidence: Option<crate::VisualReferenceComparisonBudgetEvidence>,
     pub assessments: Vec<VisualReferenceClaimAssessment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub macro_similarity_bps: Option<u16>,
@@ -734,8 +822,31 @@ impl VisualReferenceComparisonInput {
         glb_sha256: &str,
         candidate_views: &[VisualFixedViewEvidence],
     ) -> CoreResult<Self> {
+        Self::build_with_policy(
+            request,
+            graph,
+            binding,
+            evidence,
+            program,
+            glb_sha256,
+            candidate_views,
+            VisualReferenceAcceptancePolicy::default_policy(),
+        )
+    }
+
+    pub fn build_with_policy(
+        request: &MultimodalDesignRequest,
+        graph: &VisualEvidenceGraph,
+        binding: &MultimodalProgramEvidenceBinding,
+        evidence: &[ReferenceEvidence],
+        program: &ForgeVisualProgram,
+        glb_sha256: &str,
+        candidate_views: &[VisualFixedViewEvidence],
+        acceptance_policy: VisualReferenceAcceptancePolicy,
+    ) -> CoreResult<Self> {
         binding.validate_against(request, graph, evidence, program)?;
         require_sha256("comparison.glb_sha256", glb_sha256)?;
+        acceptance_policy.validate()?;
         let mut reference_sources = request
             .reference_inputs
             .iter()
@@ -754,11 +865,183 @@ impl VisualReferenceComparisonInput {
             program_binding_sha256: semantic_sha256(binding)?,
             source_program_sha256: semantic_sha256(program)?,
             glb_sha256: glb_sha256.into(),
+            acceptance_policy,
             reference_sources,
+            candidate_view_profile: None,
             candidate_views,
         };
         input.validate_against(request, graph, binding, evidence, program)?;
         Ok(input)
+    }
+
+    /// Build the same sealed-reference comparison envelope for the E005
+    /// unified author source without fabricating a legacy
+    /// `ForgeVisualProgram@1` or multimodal program binding.
+    pub fn build_for_e005_source(
+        request: &MultimodalDesignRequest,
+        graph: &VisualEvidenceGraph,
+        evidence: &[ReferenceEvidence],
+        source: &Value,
+        glb_sha256: &str,
+        candidate_views: &[VisualFixedViewEvidence],
+        acceptance_policy: VisualReferenceAcceptancePolicy,
+    ) -> CoreResult<Self> {
+        graph.validate_against(request, evidence)?;
+        let lowering = crate::lower_forge_visual_author_source_v1(source)?;
+        require_sha256("comparison.glb_sha256", glb_sha256)?;
+        acceptance_policy.validate()?;
+        let mut reference_sources = request
+            .reference_inputs
+            .iter()
+            .map(|source| VisualReferenceSourceFingerprint {
+                evidence_id: source.evidence_id.clone(),
+                evidence_sha256: source.evidence_sha256.clone(),
+            })
+            .collect::<Vec<_>>();
+        reference_sources.sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
+        let mut candidate_views = candidate_views.to_vec();
+        candidate_views.sort_by(|left, right| left.view_id.cmp(&right.view_id));
+        let binding = json!({
+            "schema_version":"E005VisualComparisonBinding@1",
+            "request_sha256":semantic_sha256(request)?,
+            "evidence_graph_sha256":semantic_sha256(graph)?,
+            "source_program_sha256":lowering.source_program_sha256,
+            "assembly_graph_sha256":lowering.assembly_graph_sha256,
+            "surface_plan_sha256":lowering.surface_plan_sha256,
+            "lineage_sha256":lowering.lineage_sha256,
+        });
+        let input = Self {
+            schema_version: VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION.into(),
+            request_sha256: semantic_sha256(request)?,
+            evidence_graph_sha256: semantic_sha256(graph)?,
+            program_binding_sha256: semantic_sha256(&binding)?,
+            source_program_sha256: lowering.source_program_sha256,
+            glb_sha256: glb_sha256.into(),
+            acceptance_policy,
+            reference_sources,
+            candidate_view_profile: Some(VisualReferenceCandidateViewProfile::TurntableEight),
+            candidate_views,
+        };
+        input.validate_for_e005_source(request, graph, evidence, source)?;
+        Ok(input)
+    }
+
+    pub fn validate_for_e005_source(
+        &self,
+        request: &MultimodalDesignRequest,
+        graph: &VisualEvidenceGraph,
+        evidence: &[ReferenceEvidence],
+        source: &Value,
+    ) -> CoreResult<()> {
+        graph.validate_against(request, evidence)?;
+        let lowering = crate::lower_forge_visual_author_source_v1(source)?;
+        let binding = json!({
+            "schema_version":"E005VisualComparisonBinding@1",
+            "request_sha256":semantic_sha256(request)?,
+            "evidence_graph_sha256":semantic_sha256(graph)?,
+            "source_program_sha256":lowering.source_program_sha256,
+            "assembly_graph_sha256":lowering.assembly_graph_sha256,
+            "surface_plan_sha256":lowering.surface_plan_sha256,
+            "lineage_sha256":lowering.lineage_sha256,
+        });
+        if self.schema_version != VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION
+            || self.request_sha256 != semantic_sha256(request)?
+            || self.evidence_graph_sha256 != semantic_sha256(graph)?
+            || self.program_binding_sha256 != semantic_sha256(&binding)?
+            || self.source_program_sha256 != lowering.source_program_sha256
+            || self.candidate_view_profile
+                != Some(VisualReferenceCandidateViewProfile::TurntableEight)
+        {
+            return Err(invalid(
+                "E005_R2_COMPARISON_LINEAGE_INVALID",
+                "E005 comparison must bind the exact request, graph, unified source and compiled artifacts",
+            ));
+        }
+        self.validate_reference_and_candidate_payload(request)
+    }
+
+    fn validate_reference_and_candidate_payload(
+        &self,
+        request: &MultimodalDesignRequest,
+    ) -> CoreResult<()> {
+        require_sha256("comparison.glb_sha256", &self.glb_sha256)?;
+        self.acceptance_policy.validate()?;
+        let expected_sources = request
+            .reference_inputs
+            .iter()
+            .map(|source| (source.evidence_id.as_str(), source.evidence_sha256.as_str()))
+            .collect::<BTreeMap<_, _>>();
+        let mut actual_sources = BTreeMap::new();
+        for source in &self.reference_sources {
+            require_id(
+                "comparison.reference_sources.evidence_id",
+                &source.evidence_id,
+                Some("refevid_"),
+            )?;
+            require_sha256(
+                "comparison.reference_sources.evidence_sha256",
+                &source.evidence_sha256,
+            )?;
+            if actual_sources
+                .insert(source.evidence_id.as_str(), source.evidence_sha256.as_str())
+                .is_some()
+            {
+                return Err(invalid(
+                    "VISUAL_REFERENCE_COMPARISON_SOURCE_INVALID",
+                    "Reference comparison sources must be unique.",
+                ));
+            }
+        }
+        if actual_sources != expected_sources {
+            return Err(invalid(
+                "VISUAL_REFERENCE_COMPARISON_SOURCE_INVALID",
+                "Reference comparison sources must match the exact sealed request inputs.",
+            ));
+        }
+        let required_views = [
+            "turntable_000",
+            "turntable_045",
+            "turntable_090",
+            "turntable_135",
+            "turntable_180",
+            "turntable_225",
+            "turntable_270",
+            "turntable_315",
+        ]
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+        let mut view_ids = BTreeSet::new();
+        let mut renderer_ids = BTreeSet::new();
+        for view in &self.candidate_views {
+            require_safe_token("comparison.candidate_views.view_id", &view.view_id, 64)?;
+            require_safe_renderer_token(
+                "comparison.candidate_views.renderer_id",
+                &view.renderer_id,
+                120,
+            )?;
+            require_sha256(
+                "comparison.candidate_views.image_sha256",
+                &view.image_sha256,
+            )?;
+            require_sha256("comparison.candidate_views.glb_sha256", &view.glb_sha256)?;
+            if !view_ids.insert(view.view_id.as_str())
+                || view.glb_sha256 != self.glb_sha256
+                || !view.readback_passed
+            {
+                return Err(invalid(
+                    "VISUAL_REFERENCE_COMPARISON_VIEW_INVALID",
+                    "Every candidate view must be unique, read back and belong to the exact candidate GLB.",
+                ));
+            }
+            renderer_ids.insert(view.renderer_id.as_str());
+        }
+        if view_ids != required_views || renderer_ids.len() != 1 {
+            return Err(invalid(
+                "VISUAL_REFERENCE_COMPARISON_VIEW_INVALID",
+                "E005 reference comparison requires the exact generic turntable eight-view set from one renderer.",
+            ));
+        }
+        Ok(())
     }
 
     pub fn validate_against(
@@ -782,6 +1065,7 @@ impl VisualReferenceComparisonInput {
             ));
         }
         require_sha256("comparison.glb_sha256", &self.glb_sha256)?;
+        self.acceptance_policy.validate()?;
 
         let expected_sources = request
             .reference_inputs
@@ -816,9 +1100,25 @@ impl VisualReferenceComparisonInput {
             ));
         }
 
-        let required_views = REQUIRED_VISUAL_VIEW_IDS
+        let required_views = match self.candidate_view_profile {
+            None | Some(VisualReferenceCandidateViewProfile::ConvergenceEight) => {
+                REQUIRED_VISUAL_VIEW_IDS
+                    .into_iter()
+                    .collect::<BTreeSet<_>>()
+            }
+            Some(VisualReferenceCandidateViewProfile::TurntableEight) => [
+                "turntable_000",
+                "turntable_045",
+                "turntable_090",
+                "turntable_135",
+                "turntable_180",
+                "turntable_225",
+                "turntable_270",
+                "turntable_315",
+            ]
             .into_iter()
-            .collect::<BTreeSet<_>>();
+            .collect::<BTreeSet<_>>(),
+        };
         let mut view_ids = BTreeSet::new();
         let mut renderer_ids = BTreeSet::new();
         for view in &self.candidate_views {
@@ -859,9 +1159,22 @@ impl VisualReferenceComparisonReport {
         input: &VisualReferenceComparisonInput,
         graph: &VisualEvidenceGraph,
         provider: VisionEvidenceProviderProvenance,
+        assessments: Vec<VisualReferenceClaimAssessment>,
+    ) -> CoreResult<Self> {
+        Self::build_with_budget(input, graph, provider, None, assessments)
+    }
+
+    pub fn build_with_budget(
+        input: &VisualReferenceComparisonInput,
+        graph: &VisualEvidenceGraph,
+        provider: VisionEvidenceProviderProvenance,
+        budget_evidence: Option<crate::VisualReferenceComparisonBudgetEvidence>,
         mut assessments: Vec<VisualReferenceClaimAssessment>,
     ) -> CoreResult<Self> {
         provider.validate()?;
+        if let Some(evidence) = &budget_evidence {
+            evidence.validate_against(input)?;
+        }
         if input.evidence_graph_sha256 != semantic_sha256(graph)? {
             return Err(invalid(
                 "VISUAL_REFERENCE_COMPARISON_LINEAGE_INVALID",
@@ -876,6 +1189,7 @@ impl VisualReferenceComparisonReport {
             report_sha256: String::new(),
             comparison_input_sha256: semantic_sha256(input)?,
             provider,
+            budget_evidence,
             assessments,
             macro_similarity_bps: macro_score,
             meso_similarity_bps: meso_score,
@@ -902,6 +1216,9 @@ impl VisualReferenceComparisonReport {
             ));
         }
         self.provider.validate()?;
+        if let Some(evidence) = &self.budget_evidence {
+            evidence.validate_against(input)?;
+        }
         let (macro_score, meso_score, micro_score, failure_codes, repair_claim_ids) =
             validate_and_score_assessments(input, graph, &self.assessments)?;
         if self.macro_similarity_bps != macro_score
@@ -939,11 +1256,6 @@ fn validate_and_score_assessments(
     Vec<String>,
     Vec<String>,
 )> {
-    const CRITICAL_MINIMUM: u16 = 6_500;
-    const MACRO_MINIMUM: u16 = 6_500;
-    const MESO_MINIMUM: u16 = 5_500;
-    const MICRO_MINIMUM: u16 = 4_500;
-
     let comparable_claims = graph
         .claims
         .iter()
@@ -1033,9 +1345,16 @@ fn validate_and_score_assessments(
             VisualDetailLevel::Meso => meso_scores.push(assessment.similarity_bps),
             VisualDetailLevel::Micro => micro_scores.push(assessment.similarity_bps),
         }
+        let critical_minimum = input
+            .acceptance_policy
+            .critical_minimum_bps
+            .max(input.acceptance_policy.minimum_for_level(claim.level));
+        let critical_outcome_failed = (input.acceptance_policy.critical_requires_matched
+            && assessment.outcome != VisualReferenceMatchOutcome::Matched)
+            || (!input.acceptance_policy.critical_not_visible_allowed
+                && assessment.outcome == VisualReferenceMatchOutcome::NotVisible);
         if claim.critical
-            && (assessment.outcome != VisualReferenceMatchOutcome::Matched
-                || assessment.similarity_bps < CRITICAL_MINIMUM)
+            && (critical_outcome_failed || assessment.similarity_bps < critical_minimum)
         {
             failures.push("CRITICAL_REFERENCE_CLAIM_MISMATCH".into());
             repairs.push(claim.claim_id.clone());
@@ -1060,13 +1379,13 @@ fn validate_and_score_assessments(
     let macro_score = average_bps(&macro_scores);
     let meso_score = average_bps(&meso_scores);
     let micro_score = average_bps(&micro_scores);
-    if macro_score.is_none_or(|score| score < MACRO_MINIMUM) {
+    if macro_score.is_none_or(|score| score < input.acceptance_policy.macro_minimum_bps) {
         failures.push("REFERENCE_MACRO_MISMATCH".into());
     }
-    if meso_score.is_none_or(|score| score < MESO_MINIMUM) {
+    if meso_score.is_none_or(|score| score < input.acceptance_policy.meso_minimum_bps) {
         failures.push("REFERENCE_MESO_MISMATCH".into());
     }
-    if micro_score.is_some_and(|score| score < MICRO_MINIMUM) {
+    if micro_score.is_some_and(|score| score < input.acceptance_policy.micro_minimum_bps) {
         failures.push("REFERENCE_MICRO_MISMATCH".into());
     }
     failures.sort();
@@ -1457,6 +1776,29 @@ mod tests {
             .collect()
     }
 
+    fn turntable_views(glb_sha256: &str) -> Vec<VisualFixedViewEvidence> {
+        [
+            "turntable_000",
+            "turntable_045",
+            "turntable_090",
+            "turntable_135",
+            "turntable_180",
+            "turntable_225",
+            "turntable_270",
+            "turntable_315",
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, view_id)| VisualFixedViewEvidence {
+            view_id: view_id.into(),
+            glb_sha256: glb_sha256.into(),
+            renderer_id: "forgecad_turntable_eight_v1".into(),
+            image_sha256: format!("{:064x}", index + 96),
+            readback_passed: true,
+        })
+        .collect()
+    }
+
     fn passing_assessments() -> Vec<VisualReferenceClaimAssessment> {
         vec![
             VisualReferenceClaimAssessment {
@@ -1635,6 +1977,149 @@ mod tests {
     }
 
     #[test]
+    fn e005_r2_reference_comparison_accepts_generic_turntable_eight_without_arm_view_names() {
+        let evidence = evidence();
+        let request = request(&evidence);
+        let graph = graph(&request, &evidence);
+        let program = program();
+        let binding = binding(&request, &graph, &program);
+        let glb_sha256 = "9".repeat(64);
+        let mut input = VisualReferenceComparisonInput::build(
+            &request,
+            &graph,
+            &binding,
+            &[evidence.clone()],
+            &program,
+            &glb_sha256,
+            &candidate_views(&glb_sha256),
+        )
+        .unwrap();
+        input.candidate_view_profile = Some(VisualReferenceCandidateViewProfile::TurntableEight);
+        input.candidate_views = turntable_views(&glb_sha256);
+        input
+            .validate_against(&request, &graph, &binding, &[evidence], &program)
+            .unwrap();
+    }
+
+    #[test]
+    fn e005_r2_unified_source_comparison_and_rust_sealed_proposal_have_exact_lineage() {
+        let evidence = evidence();
+        let request = request(&evidence);
+        let graph = graph(&request, &evidence);
+        let source: Value = serde_json::from_str(include_str!(
+            "../../../../../../packages/concept-spec/fixtures/e005-r1-unified-service-console.json"
+        ))
+        .unwrap();
+        let lowering = crate::lower_forge_visual_author_source_v1(&source).unwrap();
+        let glb_sha256 = "9".repeat(64);
+        let input = VisualReferenceComparisonInput::build_for_e005_source(
+            &request,
+            &graph,
+            &[evidence.clone()],
+            &source,
+            &glb_sha256,
+            &turntable_views(&glb_sha256),
+            VisualReferenceAcceptancePolicy::default_policy(),
+        )
+        .unwrap();
+        assert_eq!(input.source_program_sha256, lowering.source_program_sha256);
+        assert_eq!(
+            input.candidate_view_profile,
+            Some(VisualReferenceCandidateViewProfile::TurntableEight)
+        );
+
+        let assessments = vec![
+            VisualReferenceClaimAssessment {
+                claim_id: "vclaim_silhouette".into(),
+                outcome: VisualReferenceMatchOutcome::Partial,
+                similarity_bps: 5_000,
+                confidence_bps: 9_100,
+                source_evidence_ids: vec![evidence.evidence_id.clone()],
+                candidate_view_ids: vec!["turntable_000".into(), "turntable_045".into()],
+                reason: "The primary silhouette requires one bounded position repair".into(),
+            },
+            VisualReferenceClaimAssessment {
+                claim_id: "vclaim_panels".into(),
+                outcome: VisualReferenceMatchOutcome::Matched,
+                similarity_bps: 7_600,
+                confidence_bps: 8_800,
+                source_evidence_ids: vec![evidence.evidence_id.clone()],
+                candidate_view_ids: vec!["turntable_000".into()],
+                reason: "The visible panel hierarchy matches".into(),
+            },
+        ];
+        let report = VisualReferenceComparisonReport::build(
+            &input,
+            &graph,
+            VisionEvidenceProviderProvenance {
+                provider_id: "vision_fixture".into(),
+                model_id: "vision_fixture".into(),
+                provider_response_sha256: "d".repeat(64),
+                analyzed_at: "2026-07-29T12:00:00Z".into(),
+            },
+            assessments,
+        )
+        .unwrap();
+        assert!(!report.passed);
+        assert_eq!(report.repair_claim_ids, vec!["vclaim_silhouette"]);
+        let proposal = json!({
+            "schema_version":"E005VisualPatchProposal@1",
+            "patch_id":"visualpatch_e005_r2_one_call",
+            "decision":"typed_visual_patch",
+            "expected_source_sha256":input.source_program_sha256,
+            "comparison_input_sha256":semantic_sha256(&input).unwrap(),
+            "repair_claim_ids":report.repair_claim_ids,
+            "operations":[{
+                "op":"set_instance_position",
+                "instance_id":"instance_shell",
+                "position":[10.0,0.0,0.0]
+            }]
+        });
+        let sealed =
+            crate::seal_e005_visual_patch_proposal_v1(&proposal, &input, &graph, &report).unwrap();
+        assert_eq!(sealed.comparison_report_sha256, report.report_sha256);
+        assert_eq!(
+            sealed.comparison_input_sha256,
+            semantic_sha256(&input).unwrap()
+        );
+
+        let mut executable_surface = proposal;
+        executable_surface["operations"] = json!([{
+            "op":"set_surface_tuning",
+            "binding_id":"surface_shell",
+            "edge_wear":0.2,
+            "micro_detail":0.8
+        }]);
+        let surface_sealed =
+            crate::seal_e005_visual_patch_proposal_v1(&executable_surface, &input, &graph, &report)
+                .unwrap();
+        let parent_lowering = crate::lower_forge_visual_author_source_v1(&source).unwrap();
+        let surface_result = crate::apply_e005_visual_patch_v1(
+            &source,
+            &serde_json::to_value(surface_sealed).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            surface_result.lowering.shape_program_sha256,
+            parent_lowering.shape_program_sha256
+        );
+        assert_ne!(
+            surface_result.lowering.surface_plan_sha256,
+            parent_lowering.surface_plan_sha256
+        );
+
+        let mut stale_source = source;
+        stale_source["seed"] = json!(999);
+        assert_eq!(
+            input
+                .validate_for_e005_source(&request, &graph, &[evidence], &stale_source)
+                .unwrap_err()
+                .code(),
+            "E005_R2_COMPARISON_LINEAGE_INVALID"
+        );
+    }
+
+    #[test]
     fn pv006c_reference_comparison_rejects_stale_views_and_incomplete_claim_coverage() {
         let evidence = evidence();
         let request = request(&evidence);
@@ -1735,6 +2220,99 @@ mod tests {
         assert_eq!(
             report.validate_against(&input, &graph).unwrap_err().code(),
             "VISUAL_REFERENCE_COMPARISON_REPORT_DERIVATION_INVALID"
+        );
+    }
+
+    #[test]
+    fn c111b_reference_policy_is_hash_bound_and_enforces_frozen_level_thresholds() {
+        let evidence = evidence();
+        let request = request(&evidence);
+        let graph = graph(&request, &evidence);
+        let program = program();
+        let binding = binding(&request, &graph, &program);
+        let glb_sha256 = "c".repeat(64);
+        let reviewed_c111 = crate::reviewed_c111_draft_visual_program().unwrap();
+        let policy = crate::c111b_visual_reference_acceptance_policy(&reviewed_c111)
+            .unwrap()
+            .unwrap();
+        assert_eq!(policy.macro_minimum_bps, 7_600);
+        assert_eq!(policy.meso_minimum_bps, 6_500);
+        assert_eq!(policy.micro_minimum_bps, 5_000);
+        assert_eq!(
+            policy.source_contract_sha256.as_deref(),
+            Some("6ea15677d504d59e19d26c3d6e0f8fdc4caa96882c574608426ec731db114a87")
+        );
+        let mut unrelated_program = reviewed_c111.clone();
+        unrelated_program.program_id = "visual_program_unrelated".into();
+        assert!(
+            crate::c111b_visual_reference_acceptance_policy(&unrelated_program)
+                .unwrap()
+                .is_none()
+        );
+
+        let input = VisualReferenceComparisonInput::build_with_policy(
+            &request,
+            &graph,
+            &binding,
+            &[evidence],
+            &program,
+            &glb_sha256,
+            &candidate_views(&glb_sha256),
+            policy,
+        )
+        .unwrap();
+        assert_eq!(
+            input.schema_version,
+            VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION
+        );
+
+        let mut below_macro = passing_assessments();
+        below_macro[0].similarity_bps = 7_500;
+        below_macro[1].outcome = VisualReferenceMatchOutcome::Partial;
+        below_macro[1].similarity_bps = 6_500;
+        let failed = VisualReferenceComparisonReport::build(
+            &input,
+            &graph,
+            VisionEvidenceProviderProvenance {
+                provider_id: "vision_fixture".into(),
+                model_id: "vision_fixture".into(),
+                provider_response_sha256: "2".repeat(64),
+                analyzed_at: "2026-07-28T13:00:00Z".into(),
+            },
+            below_macro,
+        )
+        .unwrap();
+        assert!(!failed.passed);
+        assert!(failed
+            .failure_codes
+            .contains(&"REFERENCE_MACRO_MISMATCH".into()));
+
+        let mut exact_threshold = passing_assessments();
+        exact_threshold[0].similarity_bps = 7_600;
+        exact_threshold[1].outcome = VisualReferenceMatchOutcome::Partial;
+        exact_threshold[1].similarity_bps = 6_500;
+        let passed = VisualReferenceComparisonReport::build(
+            &input,
+            &graph,
+            VisionEvidenceProviderProvenance {
+                provider_id: "vision_fixture".into(),
+                model_id: "vision_fixture".into(),
+                provider_response_sha256: "3".repeat(64),
+                analyzed_at: "2026-07-28T13:01:00Z".into(),
+            },
+            exact_threshold,
+        )
+        .unwrap();
+        assert!(passed.passed);
+
+        let mut tampered_input = input.clone();
+        tampered_input.acceptance_policy.macro_minimum_bps = 6_000;
+        assert_eq!(
+            passed
+                .validate_against(&tampered_input, &graph)
+                .unwrap_err()
+                .code(),
+            "VISUAL_REFERENCE_COMPARISON_REPORT_LINEAGE_INVALID"
         );
     }
 }

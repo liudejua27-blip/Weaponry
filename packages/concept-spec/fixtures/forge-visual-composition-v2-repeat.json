@@ -1,0 +1,91 @@
+{
+  "schema_version": "ForgeVisualComposition@1",
+  "program_id": "visual_vp202_repeat",
+  "domain": "mechanical_hard_surface",
+  "units": "millimeter",
+  "seed": 37,
+  "parameters": [
+    {
+      "parameter_id": "param_panel_width",
+      "kind": "length",
+      "unit": "millimeter",
+      "default": 56.0,
+      "minimum": 20.0,
+      "maximum": 160.0,
+      "allowed_values": []
+    },
+    {
+      "parameter_id": "param_panel_count",
+      "kind": "integer",
+      "unit": "count",
+      "default": 3,
+      "minimum": 1.0,
+      "maximum": 8.0,
+      "allowed_values": []
+    }
+  ],
+  "materials": [
+    {
+      "material_id": "mat_panel",
+      "base_material_id": "mat_painted_steel"
+    }
+  ],
+  "macros": [
+    {
+      "macro_id": "macro_panel",
+      "parameters": [
+        {
+          "local_parameter_id": "local_width",
+          "kind": "length",
+          "unit": "millimeter"
+        }
+      ],
+      "items": [
+        {
+          "kind": "chain",
+          "chain_id": "chain_shell",
+          "primitive": {
+            "primitive_kind": "box",
+            "size": [
+              { "local_parameter_id": "local_width" },
+              28.0,
+              8.0
+            ]
+          },
+          "position": [0.0, 0.0, 0.0],
+          "rotation": [0.0, 0.0, 0.0],
+          "role": "surface_panel",
+          "material_id": "mat_panel"
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "call_id": "call_panel_row",
+      "macro_id": "macro_panel",
+      "bindings": [
+        {
+          "local_parameter_id": "local_width",
+          "value": { "parameter_id": "param_panel_width" }
+        }
+      ],
+      "repeat": {
+        "count": { "parameter_id": "param_panel_count" },
+        "step": [0.0, 40.0, 0.0]
+      }
+    }
+  ],
+  "budgets": {
+    "schema_version": "ExpansionBudget@1",
+    "max_macros": 8,
+    "max_macro_calls": 16,
+    "max_expansion_depth": 4,
+    "max_expanded_nodes": 64,
+    "max_parts": 16,
+    "max_materials": 8,
+    "max_outputs": 16,
+    "max_primitives": 16,
+    "triangle_budget": 4000
+  }
+}

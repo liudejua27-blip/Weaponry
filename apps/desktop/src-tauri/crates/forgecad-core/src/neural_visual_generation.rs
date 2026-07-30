@@ -22,6 +22,7 @@ pub const NEURAL_VISUAL_GENERATION_JOB_SCHEMA_VERSION: &str = "NeuralVisualGener
 pub const VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION: &str = "VisualRemoteJobRecord@1";
 pub const NEURAL_VISUAL_ARTIFACT_SCHEMA_VERSION: &str = "NeuralVisualArtifact@1";
 pub const FORGE_ASSET_PACKAGE_SCHEMA_VERSION: &str = "ForgeAssetPackage@1";
+pub const FORGE_ASSET_PACKAGE_GAME_DELIVERY_SCHEMA_VERSION: &str = "ForgeAssetPackage@2";
 pub const REQUIRED_MULTIVIEW_RENDER_COUNT: u8 = 8;
 pub const CONCEPT_REFERENCE_WIDTH: u16 = 1024;
 pub const CONCEPT_REFERENCE_HEIGHT: u16 = 1024;
@@ -151,12 +152,24 @@ impl Neural3DResumeBinding {
         self.concept_reference.validate()?;
         self.request.validate()?;
         require_id("provider_job_id", &self.provider_job_id)?;
+        let brief_evidence_hashes = self
+            .brief
+            .input_evidence
+            .iter()
+            .map(|evidence| evidence.object_sha256.as_str())
+            .collect::<BTreeSet<_>>();
+        let additional_views_are_bound = self
+            .request
+            .additional_views
+            .iter()
+            .all(|view| brief_evidence_hashes.contains(view.image_object_sha256.as_str()));
         if self.request.project_id != self.brief.project_id
             || self.request.turn_id != self.brief.turn_id
             || self.request.brief_id != self.brief.brief_id
             || self.request.concept_reference_id != self.concept_reference.reference_id
             || self.request.concept_reference_sha256 != self.concept_reference.image_object_sha256
             || !self.request.backend_preferences.contains(&self.backend)
+            || !additional_views_are_bound
         {
             return Err(invalid(
                 "VISUAL_REMOTE_NEURAL_LINEAGE_INVALID",
@@ -772,6 +785,8 @@ pub struct Neural3DGenerationRequest {
     pub brief_id: String,
     pub concept_reference_id: String,
     pub concept_reference_sha256: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub additional_views: Vec<Neural3DAdditionalView>,
     pub quality_tier: VisualQualityTier,
     pub backend_preferences: Vec<Neural3DBackend>,
     pub idempotency_key: String,
@@ -796,6 +811,26 @@ impl Neural3DGenerationRequest {
             require_id(field, value)?;
         }
         require_sha256("concept_reference_sha256", &self.concept_reference_sha256)?;
+        if self.additional_views.len() > 3 {
+            return Err(invalid(
+                "NEURAL_3D_ADDITIONAL_VIEWS_INVALID",
+                "At most three additional left, back or right views are supported.",
+            ));
+        }
+        let mut view_roles = BTreeSet::new();
+        let mut view_hashes = BTreeSet::from([self.concept_reference_sha256.as_str()]);
+        for view in &self.additional_views {
+            require_sha256(
+                "additional_view.image_object_sha256",
+                &view.image_object_sha256,
+            )?;
+            if !view_roles.insert(view.role) || !view_hashes.insert(&view.image_object_sha256) {
+                return Err(invalid(
+                    "NEURAL_3D_ADDITIONAL_VIEWS_INVALID",
+                    "Additional neural views must have unique roles and unique image digests.",
+                ));
+            }
+        }
         if self.backend_preferences.is_empty() || self.backend_preferences.len() > 4 {
             return Err(invalid(
                 "NEURAL_3D_BACKEND_PREFERENCES_INVALID",
@@ -815,6 +850,21 @@ impl Neural3DGenerationRequest {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum Neural3DAdditionalViewRole {
+    Left,
+    Back,
+    Right,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Neural3DAdditionalView {
+    pub role: Neural3DAdditionalViewRole,
+    pub image_object_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1118,15 +1168,24 @@ pub struct ForgeAssetPackage {
     pub project_id: String,
     pub asset_version_id: String,
     pub source_artifact_sha256: String,
+    /// @1 has one visual source artifact. @2 is only used when the sealed
+    /// delivery GLB differs from that visual/readback source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_artifact_sha256: Option<String>,
     pub files: Vec<ForgeAssetPackageFile>,
 }
 
 impl ForgeAssetPackage {
     pub fn validate(&self) -> CoreResult<()> {
-        if self.schema_version != FORGE_ASSET_PACKAGE_SCHEMA_VERSION {
+        if !matches!(
+            self.schema_version.as_str(),
+            FORGE_ASSET_PACKAGE_SCHEMA_VERSION | FORGE_ASSET_PACKAGE_GAME_DELIVERY_SCHEMA_VERSION
+        ) {
             return Err(invalid(
                 "FORGE_ASSET_PACKAGE_SCHEMA_INVALID",
-                "Forge asset package must use its exact v1 schema.",
+                "Forge asset package must use a supported exact schema version.",
             ));
         }
         for (field, value) in [
@@ -1167,11 +1226,43 @@ impl ForgeAssetPackage {
             .iter()
             .find(|file| file.relative_path == "asset.glb")
             .expect("required member checked above");
-        if asset.sha256 != self.source_artifact_sha256 || asset.media_type != "model/gltf-binary" {
+        if asset.media_type != "model/gltf-binary" {
             return Err(invalid(
                 "FORGE_ASSET_PACKAGE_SOURCE_MISMATCH",
-                "asset.glb must exactly match the accepted source artifact digest and media type.",
+                "asset.glb must use the binary glTF media type.",
             ));
+        }
+        match self.schema_version.as_str() {
+            FORGE_ASSET_PACKAGE_SCHEMA_VERSION => {
+                if self.artifact_profile.is_some()
+                    || self.delivery_artifact_sha256.is_some()
+                    || asset.sha256 != self.source_artifact_sha256
+                {
+                    return Err(invalid(
+                        "FORGE_ASSET_PACKAGE_SOURCE_MISMATCH",
+                        "ForgeAssetPackage@1 asset.glb must exactly match the visual source.",
+                    ));
+                }
+            }
+            FORGE_ASSET_PACKAGE_GAME_DELIVERY_SCHEMA_VERSION => {
+                let delivery_sha256 = self.delivery_artifact_sha256.as_deref().ok_or_else(|| {
+                    invalid(
+                        "FORGE_ASSET_PACKAGE_DELIVERY_REQUIRED",
+                        "ForgeAssetPackage@2 requires the sealed delivery GLB digest.",
+                    )
+                })?;
+                require_sha256("delivery_artifact_sha256", delivery_sha256)?;
+                if self.artifact_profile.as_deref() != Some("game_delivery")
+                    || asset.sha256 != delivery_sha256
+                    || delivery_sha256 == self.source_artifact_sha256
+                {
+                    return Err(invalid(
+                        "FORGE_ASSET_PACKAGE_DELIVERY_MISMATCH",
+                        "ForgeAssetPackage@2 must package a distinct sealed game delivery GLB.",
+                    ));
+                }
+            }
+            _ => unreachable!("supported schema versions were checked above"),
         }
         Ok(())
     }
@@ -1272,10 +1363,45 @@ mod tests {
             brief_id: "brief_1".into(),
             concept_reference_id: "reference_1".into(),
             concept_reference_sha256: sha('a'),
+            additional_views: vec![],
             quality_tier: VisualQualityTier::StandardAsset,
             backend_preferences: vec![Neural3DBackend::Pixal3d, Neural3DBackend::Trellis2],
             idempotency_key: "idempotency_1".into(),
         }
+    }
+
+    #[test]
+    fn neural_request_additional_views_are_unique_and_bounded() {
+        let mut multiview = request();
+        multiview.additional_views = vec![
+            Neural3DAdditionalView {
+                role: Neural3DAdditionalViewRole::Left,
+                image_object_sha256: sha('b'),
+            },
+            Neural3DAdditionalView {
+                role: Neural3DAdditionalViewRole::Back,
+                image_object_sha256: sha('c'),
+            },
+            Neural3DAdditionalView {
+                role: Neural3DAdditionalViewRole::Right,
+                image_object_sha256: sha('d'),
+            },
+        ];
+        multiview.validate().unwrap();
+
+        let mut duplicate_role = multiview.clone();
+        duplicate_role.additional_views[1].role = Neural3DAdditionalViewRole::Left;
+        assert_eq!(
+            duplicate_role.validate().unwrap_err().code(),
+            "NEURAL_3D_ADDITIONAL_VIEWS_INVALID"
+        );
+
+        let mut duplicate_image = multiview;
+        duplicate_image.additional_views[0].image_object_sha256 = sha('a');
+        assert_eq!(
+            duplicate_image.validate().unwrap_err().code(),
+            "NEURAL_3D_ADDITIONAL_VIEWS_INVALID"
+        );
     }
 
     #[test]
@@ -1461,9 +1587,51 @@ mod tests {
             project_id: "project_1".into(),
             asset_version_id: "asset_version_1".into(),
             source_artifact_sha256: source,
+            artifact_profile: None,
+            delivery_artifact_sha256: None,
             files: members,
         };
         package.validate().unwrap();
+    }
+
+    #[test]
+    fn game_delivery_package_requires_a_distinct_sealed_delivery_digest() {
+        let source = sha('2');
+        let delivery = sha('8');
+        let members = [
+            ("asset.glb", "model/gltf-binary", delivery.clone()),
+            ("thumbnail.webp", "image/webp", sha('3')),
+            ("turntable.mp4", "video/mp4", sha('4')),
+            ("manifest.json", "application/json", sha('5')),
+            ("quality-report.json", "application/json", sha('6')),
+            ("license-metadata.json", "application/json", sha('7')),
+        ]
+        .into_iter()
+        .map(
+            |(relative_path, media_type, sha256)| ForgeAssetPackageFile {
+                relative_path: relative_path.into(),
+                media_type: media_type.into(),
+                sha256,
+                byte_size: 100,
+            },
+        )
+        .collect();
+        let mut package = ForgeAssetPackage {
+            schema_version: FORGE_ASSET_PACKAGE_GAME_DELIVERY_SCHEMA_VERSION.into(),
+            package_id: "package_game_delivery_1".into(),
+            project_id: "project_1".into(),
+            asset_version_id: "asset_version_1".into(),
+            source_artifact_sha256: source,
+            artifact_profile: Some("game_delivery".into()),
+            delivery_artifact_sha256: Some(delivery),
+            files: members,
+        };
+        package.validate().unwrap();
+        package.delivery_artifact_sha256 = None;
+        assert_eq!(
+            package.validate().unwrap_err().code(),
+            "FORGE_ASSET_PACKAGE_DELIVERY_REQUIRED"
+        );
     }
 
     #[test]

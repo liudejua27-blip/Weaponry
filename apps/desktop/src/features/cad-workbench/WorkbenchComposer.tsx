@@ -1,5 +1,18 @@
 import type { KeyboardEvent, MouseEvent } from 'react'
 import { F026Icon } from './F026Icon.js'
+import {
+  COMPOSER_INPUT_ARIA_LABEL,
+  COMPOSER_INPUT_PLACEHOLDER,
+  COMPOSER_BEGINNER_PROMPT_LABEL,
+  COMPOSER_BEGINNER_PROMPTS,
+  COMPOSER_MENU_ACTIONS_LABEL,
+  COMPOSER_MENU_ARIA_LABEL,
+  COMPOSER_PANEL_LABEL,
+  COMPOSER_SEND_ARIA_LABEL,
+  COMPOSER_SURFACE_ADORNMENT_CLOSED_HINT,
+  COMPOSER_SURFACE_ADORNMENT_OPEN_HINT,
+  resolveReferenceImportCapabilityHint,
+} from './workbenchComposerPrompts.js'
 
 export type ReferenceImportCapability = 'glb_compatible_only' | 'reference_guided_rebuild'
 
@@ -9,6 +22,8 @@ export type WorkbenchComposerProps = {
   disabled?: boolean
   sending?: boolean
   referenceImportCapability?: ReferenceImportCapability
+  showAdvancedActions?: boolean
+  showStarterPrompts?: boolean
   onChange: (value: string) => void
   onSend: () => void
   onOpenStyle: () => void
@@ -17,6 +32,7 @@ export type WorkbenchComposerProps = {
   onOpenSurfaceAdornment?: () => void
   surfaceAdornmentDisabled?: boolean
   surfaceAdornmentDetail?: string
+  starterPrompts?: readonly string[]
 }
 
 const COMPOSER_MENU_ID = 'f026-composer-actions'
@@ -96,6 +112,8 @@ export function WorkbenchComposer({
   disabled = false,
   sending = false,
   referenceImportCapability = 'glb_compatible_only',
+  showAdvancedActions = true,
+  showStarterPrompts = true,
   onChange,
   onSend,
   onOpenStyle,
@@ -103,12 +121,10 @@ export function WorkbenchComposer({
   onOpenReference,
   onOpenSurfaceAdornment,
   surfaceAdornmentDisabled = true,
-  surfaceAdornmentDetail = '请先保存设计并选择部件与材质区。',
+  surfaceAdornmentDetail = COMPOSER_SURFACE_ADORNMENT_CLOSED_HINT,
+  starterPrompts = COMPOSER_BEGINNER_PROMPTS,
 }: WorkbenchComposerProps) {
   const canSend = !disabled && !sending && value.trim().length > 0
-  const referenceDetail = referenceImportCapability === 'reference_guided_rebuild'
-    ? '参考图与 GLB 可用于引导重建。'
-    : '当前仅兼容 GLB；参考图引导重建待 R007。'
 
   const send = () => {
     if (!canSend) return
@@ -119,71 +135,155 @@ export function WorkbenchComposer({
     event.preventDefault()
     send()
   }
+  const onTextAreaChange = (event: { target: { value: string } }) => {
+    onChange(event.target.value)
+  }
+  const onStarterPromptClick = (event: MouseEvent<HTMLButtonElement>) => {
+    const prompt = event.currentTarget.dataset?.prompt
+    if (prompt !== undefined) onChange(prompt)
+  }
+  const invokeStyleAction = (event: MouseEvent<HTMLButtonElement>) => {
+    invokeMenuAction(event, onOpenStyle)
+  }
+  const invokeMaterialAction = (event: MouseEvent<HTMLButtonElement>) => {
+    invokeMenuAction(event, onOpenMaterial)
+  }
+  const invokeReferenceAction = (event: MouseEvent<HTMLButtonElement>) => {
+    invokeMenuAction(event, onOpenReference)
+  }
+  const invokeSurfaceAdornmentAction = (event: MouseEvent<HTMLButtonElement>) => {
+    if (onOpenSurfaceAdornment) invokeMenuAction(event, onOpenSurfaceAdornment)
+  }
+
+  if (!showAdvancedActions) {
+    return (
+      <div className="f026-composer-fixed" aria-label={COMPOSER_PANEL_LABEL}>
+        {showStarterPrompts && starterPrompts.length > 0 && !value && (
+          <div className="f026-composer-starters" aria-label={COMPOSER_BEGINNER_PROMPT_LABEL}>
+            <p className="f026-composer-starters-title">快速起步（点选任一）</p>
+            {starterPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="f026-composer-starter"
+                data-prompt={prompt}
+                onClick={onStarterPromptClick}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="f026-composer">
+          <textarea
+            value={value}
+            onChange={onTextAreaChange}
+            onKeyDown={onKeyDown}
+            placeholder={COMPOSER_INPUT_PLACEHOLDER}
+            aria-label={COMPOSER_INPUT_ARIA_LABEL}
+            rows={1}
+            disabled={disabled}
+          />
+          <button
+            type="button"
+            className="f026-composer-send f026-composer-send-beginner"
+            aria-label={COMPOSER_SEND_ARIA_LABEL}
+            onClick={send}
+            disabled={!canSend}
+          >
+            <span>开始生成</span>
+            <F026Icon name="send" />
+          </button>
+        </div>
+        <div className="f026-composer-hint">按 Enter 发送，Shift + Enter 换行</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="f026-composer-fixed" aria-label="设计输入">
-      <details
-        className="f026-composer-menu"
-        onToggle={(event) => setMenuOpen(event.currentTarget, event.currentTarget.open)}
-      >
-        <summary
-          aria-label="添加风格、材质或参考"
-          aria-haspopup="menu"
-          aria-expanded={false}
-          aria-controls={COMPOSER_MENU_ID}
-          onKeyDown={handleMenuTriggerKeyDown}
-        >
-          <F026Icon name="add" />
-        </summary>
-        <div id={COMPOSER_MENU_ID} role="menu" aria-label="设计附加操作" onKeyDown={handleMenuKeyDown}>
-          <button type="button" role="menuitem" onClick={(event) => invokeMenuAction(event, onOpenStyle)} disabled={disabled}>
-            <F026Icon name="style" />
-            <span>选择风格</span>
-          </button>
-          <button type="button" role="menuitem" onClick={(event) => invokeMenuAction(event, onOpenMaterial)} disabled={disabled}>
-            <F026Icon name="material" />
-            <span>选择材质</span>
-          </button>
-          <button type="button" role="menuitem" onClick={(event) => invokeMenuAction(event, onOpenReference)} disabled={disabled}>
-            <F026Icon name="reference" />
-            <span>参考图 / GLB</span>
-            <small>{referenceDetail}</small>
-          </button>
-          {onOpenSurfaceAdornment && (
+    <div className="f026-composer-fixed" aria-label={COMPOSER_PANEL_LABEL}>
+      {showStarterPrompts && starterPrompts.length > 0 && !value && (
+        <div className="f026-composer-starters" aria-label={COMPOSER_BEGINNER_PROMPT_LABEL}>
+          <p className="f026-composer-starters-title">快速起步（点选任一）</p>
+          {starterPrompts.map((prompt) => (
             <button
+              key={prompt}
               type="button"
-              role="menuitem"
-              onClick={(event) => invokeMenuAction(event, onOpenSurfaceAdornment)}
-              disabled={disabled || surfaceAdornmentDisabled}
-              title={surfaceAdornmentDisabled ? surfaceAdornmentDetail : undefined}
+              className="f026-composer-starter"
+              data-prompt={prompt}
+              onClick={onStarterPromptClick}
             >
-              <F026Icon name="style" />
-              <span>添加外观细节</span>
-              <small>{surfaceAdornmentDisabled ? surfaceAdornmentDetail : '在已选材质区预览，再决定是否保留。'}</small>
+              {prompt}
             </button>
-          )}
+          ))}
         </div>
-      </details>
+      )}
+      {showAdvancedActions ? (
+        <details
+          className="f026-composer-menu"
+          onToggle={(event) => setMenuOpen(event.currentTarget, event.currentTarget.open)}
+        >
+          <summary
+            aria-label={COMPOSER_MENU_ARIA_LABEL}
+            aria-haspopup="menu"
+            aria-expanded={false}
+            aria-controls={COMPOSER_MENU_ID}
+            onKeyDown={handleMenuTriggerKeyDown}
+          >
+            <F026Icon name="add" />
+          </summary>
+          <div id={COMPOSER_MENU_ID} role="menu" aria-label={COMPOSER_MENU_ACTIONS_LABEL} onKeyDown={handleMenuKeyDown}>
+            <button type="button" role="menuitem" onClick={invokeStyleAction} disabled={disabled}>
+              <F026Icon name="style" />
+              <span>换外观</span>
+            </button>
+            <button type="button" role="menuitem" onClick={invokeMaterialAction} disabled={disabled}>
+              <F026Icon name="material" />
+              <span>换材质</span>
+            </button>
+            <button type="button" role="menuitem" onClick={invokeReferenceAction} disabled={disabled}>
+              <F026Icon name="reference" />
+              <span>添加参考</span>
+              <small>{resolveReferenceImportCapabilityHint(referenceImportCapability)}</small>
+            </button>
+            {onOpenSurfaceAdornment && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={invokeSurfaceAdornmentAction}
+                disabled={disabled || surfaceAdornmentDisabled}
+                title={surfaceAdornmentDisabled ? surfaceAdornmentDetail : undefined}
+              >
+                <F026Icon name="style" />
+                <span>加局部装饰</span>
+                <small>{surfaceAdornmentDisabled ? surfaceAdornmentDetail : COMPOSER_SURFACE_ADORNMENT_OPEN_HINT}</small>
+              </button>
+            )}
+          </div>
+        </details>
+      ) : null}
       <div className="f026-composer">
         <textarea
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={onTextAreaChange}
           onKeyDown={onKeyDown}
-          placeholder="描述你想设计的 3D 概念模型…"
-          aria-label="设计需求"
+          placeholder={COMPOSER_INPUT_PLACEHOLDER}
+          aria-label={COMPOSER_INPUT_ARIA_LABEL}
           rows={1}
           disabled={disabled}
         />
         <button
           type="button"
-          className="f026-composer-send"
-          aria-label="发送设计需求"
+          className={`f026-composer-send ${showAdvancedActions ? '' : 'f026-composer-send-beginner'}`}
+          aria-label={COMPOSER_SEND_ARIA_LABEL}
           onClick={send}
           disabled={!canSend}
         >
+          {!showAdvancedActions ? <span>生成可编辑预览</span> : null}
           <F026Icon name="send" />
         </button>
       </div>
+      <div className="f026-composer-hint">按 Enter 发送，Shift + Enter 换行</div>
     </div>
   )
 }

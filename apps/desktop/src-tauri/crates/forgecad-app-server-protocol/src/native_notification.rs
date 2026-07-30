@@ -9,6 +9,7 @@ use crate::{
     NOTIFICATION_APPROVAL_RESOLVED, NOTIFICATION_ITEM_UPDATED, NOTIFICATION_THREAD_ARCHIVED,
     NOTIFICATION_THREAD_CREATED, NOTIFICATION_THREAD_UPDATED, NOTIFICATION_TURN_CANCELLED,
     NOTIFICATION_TURN_COMPLETED, NOTIFICATION_TURN_FAILED, NOTIFICATION_TURN_STARTED,
+    NOTIFICATION_TURN_WAITING_FOR_CAPTURE,
 };
 
 pub const NATIVE_AGENT_NOTIFICATION_SCHEMA_VERSION: &str = "NativeAgentNotification@1";
@@ -20,6 +21,7 @@ pub enum NativeAgentNotificationEvent {
     ThreadUpdated { thread: AgentThreadSummary },
     ThreadArchived { thread: AgentThreadSummary },
     TurnStarted { turn: AgentTurn },
+    TurnWaitingForCapture { turn: AgentTurn },
     ItemUpdated { item: AgentItem },
     ApprovalCreated { approval: AgentApproval },
     ApprovalResolved { approval: AgentApproval },
@@ -52,6 +54,9 @@ impl NativeAgentNotification {
             NativeAgentNotificationEvent::ThreadUpdated { .. } => NOTIFICATION_THREAD_UPDATED,
             NativeAgentNotificationEvent::ThreadArchived { .. } => NOTIFICATION_THREAD_ARCHIVED,
             NativeAgentNotificationEvent::TurnStarted { .. } => NOTIFICATION_TURN_STARTED,
+            NativeAgentNotificationEvent::TurnWaitingForCapture { .. } => {
+                NOTIFICATION_TURN_WAITING_FOR_CAPTURE
+            }
             NativeAgentNotificationEvent::ItemUpdated { .. } => NOTIFICATION_ITEM_UPDATED,
             NativeAgentNotificationEvent::ApprovalCreated { .. } => NOTIFICATION_APPROVAL_CREATED,
             NativeAgentNotificationEvent::ApprovalResolved { .. } => NOTIFICATION_APPROVAL_RESOLVED,
@@ -117,6 +122,15 @@ impl NativeAgentNotification {
                 ) {
                     return Err(RpcError::invalid_params(
                         "turn_started notification requires queued or running status.",
+                    ));
+                }
+            }
+            NativeAgentNotificationEvent::TurnWaitingForCapture { turn } => {
+                turn.validate()?;
+                require_turn_identity(self, &cursor, turn, CursorPhase::TurnStarted)?;
+                if turn.status != AgentTurnStatus::WaitingForCapture {
+                    return Err(RpcError::invalid_params(
+                        "turn_waiting_for_capture notification requires waiting_for_capture status.",
                     ));
                 }
             }

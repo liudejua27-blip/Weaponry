@@ -16,6 +16,7 @@
     {"op": "union", "executor": "restricted_union", "output_kind": "mesh", "legacy_quality_estimate": "none"},
     {"op": "subtract", "executor": "restricted_subtract", "output_kind": "mesh", "legacy_quality_estimate": "none"},
     {"op": "bevel_approx", "executor": "bevel_approximation", "output_kind": "mesh", "legacy_quality_estimate": "none"},
-    {"op": "surface_panel", "executor": "surface_panel_attachment", "output_kind": "mesh", "legacy_quality_estimate": "none"}
+    {"op": "surface_panel", "executor": "surface_panel_attachment", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "lattice_deform", "executor": "bounded_lattice_deform", "output_kind": "mesh", "legacy_quality_estimate": "none"}
   ]
 }

@@ -13,7 +13,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::CancellationToken;
 
@@ -176,6 +176,97 @@ impl ProviderRequestBudgetPolicy {
         let tokens = u128::from(available).saturating_mul(1_000_000)
             / u128::from(self.output_microusd_per_million_tokens);
         u64::try_from(tokens).unwrap_or(u64::MAX)
+    }
+}
+
+/// Transport-free commitment to the exact request representation that a
+/// Provider client will dispatch. E005 reserves against this value before it
+/// may acquire a one-shot network permit; callers cannot provide their own
+/// token or pricing estimate.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderRequestCommitment {
+    pub request_sha256: String,
+    pub pricing_snapshot_sha256: String,
+    pub budget_policy: ProviderRequestBudgetPolicy,
+}
+
+type PreparedProviderDispatch = Box<
+    dyn FnOnce(String, CancellationToken, ProviderEventSink) -> ProviderFuture<ProviderResponse>
+        + Send
+        + 'static,
+>;
+
+/// One immutable Provider request prepared before reservation and consumed by
+/// exactly one dispatch. The wire representation stays inside the Provider
+/// adapter, so E005 can reserve from its commitment without being able to
+/// rebuild or mutate it afterwards.
+pub struct PreparedProviderRequest {
+    commitment: ProviderRequestCommitment,
+    dispatch: Option<PreparedProviderDispatch>,
+}
+
+impl PreparedProviderRequest {
+    pub fn new<F>(commitment: ProviderRequestCommitment, dispatch: F) -> Result<Self, ProviderError>
+    where
+        F: FnOnce(String, CancellationToken, ProviderEventSink) -> ProviderFuture<ProviderResponse>
+            + Send
+            + 'static,
+    {
+        Ok(Self {
+            commitment: commitment.validate()?,
+            dispatch: Some(Box::new(dispatch)),
+        })
+    }
+
+    pub fn commitment(&self) -> &ProviderRequestCommitment {
+        &self.commitment
+    }
+
+    pub fn dispatch(
+        mut self,
+        remote_idempotency_key: String,
+        cancellation: CancellationToken,
+        events: ProviderEventSink,
+    ) -> ProviderFuture<ProviderResponse> {
+        if !valid_remote_idempotency_key(&remote_idempotency_key) {
+            return Box::pin(async {
+                Err(ProviderError::schema_mismatch(
+                    "Provider remote idempotency key is outside the reviewed contract.",
+                    false,
+                ))
+            });
+        }
+        self.dispatch
+            .take()
+            .expect("prepared Provider request is consumed exactly once")(
+            remote_idempotency_key,
+            cancellation,
+            events,
+        )
+    }
+}
+
+impl fmt::Debug for PreparedProviderRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparedProviderRequest")
+            .field("commitment", &self.commitment)
+            .field("dispatch", &"[ONE_SHOT]")
+            .finish()
+    }
+}
+
+impl ProviderRequestCommitment {
+    pub fn validate(self) -> Result<Self, ProviderError> {
+        if !valid_sha256(&self.request_sha256) || !valid_sha256(&self.pricing_snapshot_sha256) {
+            return Err(ProviderError::schema_mismatch(
+                "Provider request commitment is outside the reviewed contract.",
+                false,
+            ));
+        }
+        self.budget_policy.validate()?;
+        Ok(self)
     }
 }
 
@@ -598,6 +689,45 @@ pub trait ProviderClient: Send + Sync + 'static {
         ))
     }
 
+    /// Commits to the normalized request and the Provider-owned pricing
+    /// snapshot without opening a socket. Production adapters should override
+    /// this when their wire representation differs from the logical request.
+    fn request_commitment(
+        &self,
+        request: &ProviderRequest,
+    ) -> Result<ProviderRequestCommitment, ProviderError> {
+        let budget_policy = self.request_budget_policy(request)?.validate()?;
+        let pricing_snapshot_sha256 = crate::canonical::sha256_hex(
+            crate::canonical::canonical_json(&json!({
+                "schema_version": "ProviderPricingSnapshot@1",
+                "input_cost_ceiling_microusd": budget_policy.input_cost_ceiling_microusd,
+                "input_tokens_upper_bound": budget_policy.input_tokens_upper_bound,
+                "output_microusd_per_million_tokens": budget_policy.output_microusd_per_million_tokens,
+            }))
+            .as_bytes(),
+        );
+        ProviderRequestCommitment {
+            request_sha256: logical_provider_request_sha256(request)?,
+            pricing_snapshot_sha256,
+            budget_policy,
+        }
+        .validate()
+    }
+
+    /// Prepares one immutable wire request. General Provider clients fail
+    /// closed by default; only adapters reviewed for E005 may implement this
+    /// capability.
+    fn prepare_request(
+        &self,
+        _request: ProviderRequest,
+    ) -> Result<PreparedProviderRequest, ProviderError> {
+        Err(ProviderError::schema_mismatch_with_code(
+            "PROVIDER_PREPARE_ONCE_UNAVAILABLE",
+            "Provider does not expose the reviewed prepare-once capability.",
+            false,
+        ))
+    }
+
     /// Performs the explicit user-requested connectivity check. Unlike
     /// preflight, a Ready result must represent a real network call in a
     /// production implementation. The fake is scripted and never opens a
@@ -616,7 +746,86 @@ pub trait ProviderClient: Send + Sync + 'static {
         events: ProviderEventSink,
     ) -> ProviderFuture<ProviderResponse>;
 
+    /// Dispatches the previously committed request with a Rust-owned remote
+    /// idempotency key. General clients fail closed because forwarding to
+    /// `stream` would silently discard the transport binding.
+    fn stream_idempotent(
+        &self,
+        request: ProviderRequest,
+        remote_idempotency_key: String,
+        expected_request_sha256: String,
+        cancellation: CancellationToken,
+        events: ProviderEventSink,
+    ) -> ProviderFuture<ProviderResponse> {
+        let _ = (
+            request,
+            remote_idempotency_key,
+            expected_request_sha256,
+            cancellation,
+            events,
+        );
+        Box::pin(async {
+            Err(ProviderError::schema_mismatch_with_code(
+                "PROVIDER_IDEMPOTENT_STREAM_UNAVAILABLE",
+                "Provider does not expose a reviewed transport-bound idempotent stream.",
+                false,
+            ))
+        })
+    }
+
     fn cancel(&self, cancellation_id: String, cancellation_token: String) -> ProviderFuture<bool>;
+}
+
+fn logical_provider_request_sha256(request: &ProviderRequest) -> Result<String, ProviderError> {
+    let messages = request
+        .messages
+        .iter()
+        .map(|message| {
+            json!({
+                "role": match message.role {
+                    ProviderRole::System => "system",
+                    ProviderRole::User => "user",
+                    ProviderRole::Assistant => "assistant",
+                    ProviderRole::Tool => "tool",
+                },
+                "content": message.content,
+                "tool_call_id": message.tool_call_id,
+                "tool_calls": message.tool_calls,
+                "ephemeral_reasoning": message.ephemeral_reasoning.as_ref().map(EphemeralReasoning::as_str),
+            })
+        })
+        .collect::<Vec<_>>();
+    let value = json!({
+        "schema_version": "ProviderLogicalRequest@1",
+        "provider_id": request.provider_id,
+        "model": request.model,
+        "context_digest": request.context_digest,
+        "messages": messages,
+        "tools": request.tools,
+        "require_tool_call": request.require_tool_call,
+        "max_output_tokens": request.max_output_tokens,
+    });
+    serde_json::to_vec(&value).map_err(|_| {
+        ProviderError::schema_mismatch("Provider request could not be committed.", false)
+    })?;
+    Ok(crate::canonical::sha256_hex(
+        crate::canonical::canonical_json(&value).as_bytes(),
+    ))
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn valid_remote_idempotency_key(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 160
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

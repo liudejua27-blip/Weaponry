@@ -22,7 +22,7 @@ export function runGenerationResultCardSmoke(): void {
   const idle = GenerationResultCard({ state: 'idle' })
   assert(text(idle).includes('等待生成'), 'idle card must not invent a result')
   const processing = GenerationResultCard({ state: 'processing', detail: '正在检查 GLB。' })
-  assert(text(processing).includes('正在生成当前模型') && text(processing).includes('正在检查 GLB。'), 'processing card must describe the current work')
+  assert(text(processing).includes('正在处理本次设计') && text(processing).includes('正在检查 GLB。'), 'processing card must describe the current work')
   const failed = GenerationResultCard({ state: 'failed', error: 'GLB 回读失败。' })
   assert(text(failed).includes('本次生成未完成') && text(failed).includes('GLB 回读失败。'), 'failed card must expose the actual error')
   const calls: string[] = []

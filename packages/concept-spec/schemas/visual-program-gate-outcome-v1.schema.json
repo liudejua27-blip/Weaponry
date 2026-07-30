@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/visual-program-gate-outcome-v1.schema.json",
+  "title": "VisualProgramGateOutcomeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "gate_report_id", "source_program_sha256", "verdict", "repairable"],
+  "properties": {
+    "schema_version": {"const": "VisualProgramGateOutcome@1"},
+    "gate_report_id": {"type": "string", "pattern": "^[A-Za-z0-9_.@-]{1,128}$"},
+    "source_program_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "verdict": {"enum": ["pass", "fail", "undetermined"]},
+    "repairable": {"type": "boolean"}
+  }
+}

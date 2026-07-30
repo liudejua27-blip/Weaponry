@@ -9,7 +9,6 @@ import {
   referenceEvidenceScopeKey,
   readReferenceRebuildPreviewLineage,
   readReferenceRebuildRetainLineage,
-  type ReferenceDrawerCancelGuard,
   type ReferenceEvidenceAdapter,
   type ReferenceEvidenceHistoryEntry,
   type ReferenceEvidenceKind,
@@ -37,6 +36,7 @@ export type ReferenceEvidenceDrawerProps = {
       instruction: string
       request: MultimodalDesignRequest
       graph: VisualEvidenceGraph
+      visualReferenceComparisonAuthorizationId: string
     }) => Promise<void>
   }
 }
@@ -51,7 +51,7 @@ const VIEW_OPTIONS = [
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp'
 const GLB_ACCEPT = '.glb,model/gltf-binary'
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024
-const MAX_GLB_BYTES = 32 * 1024 * 1024
+const MAX_GLB_BYTES = 48 * 1024 * 1024
 
 function missingViewDescription(missingViews: string[]): string {
   const labels = missingViews.map((view) => VIEW_OPTIONS.find(([id]) => id === view)?.[1] ?? '未标注视角')
@@ -165,7 +165,7 @@ function validateFile(file: File): string | null {
   if (!kind) return '仅支持 PNG、JPEG、WebP 或自包含 GLB 参考。'
   if (file.size === 0) return '参考文件为空，未上传。'
   if (file.size > (kind === 'image' ? MAX_IMAGE_BYTES : MAX_GLB_BYTES)) {
-    return kind === 'image' ? '图片超过 16 MB 轻量限制。' : 'GLB 超过 32 MB 轻量限制。'
+    return kind === 'image' ? '图片超过 16 MB 轻量限制。' : 'GLB 超过 48 MB 轻量限制。'
   }
   return null
 }
@@ -551,7 +551,7 @@ export function ReferenceEvidenceDrawer({
           <label className="reference-evidence-file">
             <span>授权参考文件</span>
             <input ref={fileInputRef} type="file" accept={`${IMAGE_ACCEPT},${GLB_ACCEPT}`} disabled={processing || hasActivePreview} onChange={selectFile} />
-            <small>{file ? `${selectedKind === 'glb' ? 'GLB' : '图片'} · ${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : 'PNG/JPEG/WebP（≤16 MB）或 GLB（≤32 MB）'}</small>
+        <small>{file ? `${selectedKind === 'glb' ? 'GLB' : '图片'} · ${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : 'PNG/JPEG/WebP（≤16 MB）或 GLB（≤48 MB）'}</small>
           </label>
           <label className="reference-evidence-field">
             <span>来源说明</span>

@@ -39,7 +39,7 @@ const MAX_ACTION_LOOP_COST_MICROUSD: u64 = 100_000_000;
 const MAX_ACTION_LOOP_OUTPUT_TOKENS_PER_REQUEST: u64 = 100_000;
 const MAX_PROVIDER_SCHEMA_REPAIR_ATTEMPTS: u8 = 1;
 const MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS: u8 = 2;
-const MAX_VISUAL_PROGRAM_BUILD_REPAIR_ATTEMPTS: u8 = 2;
+const MAX_VISUAL_PROGRAM_BUILD_REPAIR_ATTEMPTS: u8 = 1;
 /// A repair turn has exactly one creative action.  One rejected stray call is
 /// enough to correct a Provider transport that ignored the advertised tool
 /// list; accepting a loop of inspections burns the whole Turn budget without
@@ -81,11 +81,14 @@ impl Default for ActionLoopConfig {
             // quality path enough room to finish.
             max_total_tokens: 512_000,
             max_estimated_cost_microusd: 1_000_000,
-            // DeepSeek thinking/tool-call turns can spend several thousand
-            // tokens on private reasoning before emitting a compact plan.
-            // Reserve 16K per request so a valid plan is not truncated while
-            // the finite total-token and cost ceilings still bound a Turn.
-            max_output_tokens_per_request: 16_384,
+            // A new design starts with one non-thinking, single-tool visual
+            // author call.  The compact `ForgeVisualAuthoringIntent@1` is
+            // deliberately far smaller than a full mesh/GLB, so a 4K output
+            // ceiling is enough for the first visible result while avoiding
+            // a multi-minute empty wait caused by reserving 16K tokens.
+            // High-budget formal evaluation keeps its explicit opt-in
+            // profile below; ordinary interactive creation must stay fast.
+            max_output_tokens_per_request: 4_096,
         }
     }
 }
@@ -157,6 +160,31 @@ pub struct ActionLoopInput {
     /// Optional Rust-validated visual evidence for this execution. The graph
     /// remains read-only Provider context and cannot mutate product state.
     pub multimodal_context: Option<crate::ValidatedMultimodalActionContext>,
+    /// Exact Rust-sealed U002 request. Native runtime supplies this for every
+    /// product Turn; compatibility tests may leave it absent.
+    pub universal_author_context: Option<crate::ValidatedUniversalAuthorContext>,
+    /// A Rust-owned continuation can resume a paused Turn after the desktop
+    /// has sealed same-renderer PBR evidence.  This is deliberately an
+    /// internal execution mode: it is never provider input and cannot be
+    /// selected by the WebView.
+    pub continuation: Option<ActionLoopContinuation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActionLoopContinuation {
+    CandidatePbrCapture { route: CandidatePbrCaptureRoute },
+}
+
+/// Rust records this from the accepted universal author outcome before the
+/// desktop uploads pixels. It prevents a capture resumption from guessing
+/// whether the live candidate is the legacy arm program or UAS@2.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidatePbrCaptureRoute {
+    ForgeVisualProgram,
+    UniversalHardSurface,
+    UniversalLocalLattice,
+    UniversalLocalHybrid,
 }
 
 impl fmt::Debug for ActionLoopInput {
@@ -171,6 +199,11 @@ impl fmt::Debug for ActionLoopInput {
             .field("provider_preflight", &self.provider_preflight)
             .field("context", &self.context)
             .field("has_multimodal_context", &self.multimodal_context.is_some())
+            .field(
+                "has_universal_author_context",
+                &self.universal_author_context.is_some(),
+            )
+            .field("continuation", &self.continuation)
             .finish()
     }
 }
@@ -297,6 +330,22 @@ pub struct ActionLoopResult {
     pub network_call_made: bool,
     pub item_events: Vec<ActionLoopItemEvent>,
     pub trace: RedactedExecutionTrace,
+    /// A category-open candidate may stop after deterministic GLB/readback
+    /// and before any preview. The desktop must obtain same-renderer PBR
+    /// evidence, then resume only the Rust-owned evaluation path. This is not
+    /// a saved asset, a quality result, or a user-confirmable preview.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_pbr_capture_pending: Option<CandidatePbrCapturePending>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CandidatePbrCapturePending {
+    pub schema_version: String,
+    pub project_id: String,
+    pub execution_id: String,
+    pub turn_id: String,
+    pub route: CandidatePbrCaptureRoute,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -511,8 +560,27 @@ impl ActionLoop {
             ));
         }
 
-        let mut messages = context_messages(&input.context, input.multimodal_context.as_ref());
-        let visual_program_edit = input.multimodal_context.is_none()
+        let mut messages = context_messages(
+            &input.context,
+            input.multimodal_context.as_ref(),
+            input.universal_author_context.as_ref(),
+        );
+        let resumed_capture_route = match input.continuation {
+            Some(ActionLoopContinuation::CandidatePbrCapture { route }) => Some(route),
+            None => None,
+        };
+        let mut candidate_pbr_capture_resumption = resumed_capture_route.is_some();
+        let mut universal_v2_route = matches!(
+            resumed_capture_route,
+            Some(
+                CandidatePbrCaptureRoute::UniversalHardSurface
+                    | CandidatePbrCaptureRoute::UniversalLocalLattice
+                    | CandidatePbrCaptureRoute::UniversalLocalHybrid
+            )
+        );
+        let universal_author_route = input.universal_author_context.is_some();
+        let visual_program_edit = !universal_author_route
+            && input.multimodal_context.is_none()
             && has_active_visual_program(&input.context)
             && is_plan_only_continuation(&input.context);
         // An existing ActiveDesignSnapshot plus an explicit continuation verb
@@ -537,25 +605,79 @@ impl ActionLoop {
         // project share one visual-program bootstrap. Evidence remains an
         // optional, separately validated attachment; it must not be the flag
         // that decides whether the visual chain is used.
-        let visual_program_bootstrap =
-            input.context.active_snapshot.is_none() || input.multimodal_context.is_some();
+        let visual_program_bootstrap = universal_author_route
+            || input.context.active_snapshot.is_none()
+            || input.multimodal_context.is_some();
         let visual_program_route = visual_program_bootstrap || visual_program_edit;
-        let mut provider_tools = provider_definitions_for_context(
+        let mut provider_tools = provider_definitions_for_route(
             &self.registry,
             &input.context,
             provider_input_mode,
             input.multimodal_context.is_some(),
             false,
+            universal_author_route,
         );
         let mut visual_program_ready = false;
         let mut visual_program_patch_pending = false;
         let mut visual_repair_pending = false;
         let mut visual_program_build_repair_attempts = 0u8;
+        // Product policy is one full author plus at most one typed patch.  A
+        // build retry and a PBR-convergence retry are both patches against
+        // that same candidate, so this guard spans both paths.
+        let mut visual_patch_attempted = false;
         let mut visual_repair_tool_mismatches = 0u8;
         let mut seen_call_ids = BTreeSet::new();
         let mut provider_schema_repair_attempts = 0u8;
         let mut product_tool_recovery_attempts = 0u8;
         let mut product_tool_attempts = 0u32;
+
+        if candidate_pbr_capture_resumption {
+            // The WebView has already uploaded exactly eight PBR captures and
+            // Rust has adopted the receipt.  Re-evaluate before exposing a
+            // Provider call.  A passing evaluation can create the existing
+            // formal preview; a failing evaluation exposes only the one typed
+            // patch vocabulary.
+            let resume_output = json!({
+                "outcome": "executable",
+                "execution_route": "build_current_program"
+            });
+            match self
+                .complete_rust_owned_initial_arm_synthesis(
+                    &input,
+                    "candidate_pbr_capture_resume",
+                    vec![
+                        ("evaluate_candidate", json!({})),
+                        ("prepare_candidate_preview", json!({})),
+                    ],
+                    cancellation.clone(),
+                    deadline,
+                    started,
+                    network_call_made,
+                    &mut product_tool_attempts,
+                    &mut usage,
+                    &mut item_events,
+                    &mut trace,
+                    item_event_sink.as_ref(),
+                    &mut messages,
+                    &resume_output,
+                    &mut visual_program_build_repair_attempts,
+                    true,
+                )
+                .await?
+            {
+                Some(result) => return Ok(result),
+                None => {
+                    visual_program_ready = true;
+                    visual_repair_pending = true;
+                    provider_tools = vec![if universal_v2_route {
+                        self.registry
+                            .universal_hard_surface_repair_provider_definition()
+                    } else {
+                        self.registry.visual_repair_provider_definition()
+                    }];
+                }
+            }
+        }
 
         'provider_turn: loop {
             if cancellation.is_cancelled() {
@@ -922,6 +1044,7 @@ impl ActionLoop {
                         network_call_made,
                         item_events,
                         trace,
+                        candidate_pbr_capture_pending: None,
                     });
                 }
                 ProviderFinishReason::ToolCalls => {
@@ -1010,13 +1133,20 @@ impl ActionLoop {
                         if visual_program_route
                             && !visual_program_ready
                             && call.name
-                                != if visual_program_edit {
+                                != if universal_author_route {
+                                    "author_universal_asset"
+                                } else if visual_program_edit {
                                     "inspect_forge_visual_program"
                                 } else {
                                     "author_forge_visual_program"
                                 }
                         {
-                            if product_tool_recovery_attempts < MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS {
+                            let recovery_limit = if call.name == "author_universal_asset" {
+                                1
+                            } else {
+                                MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS
+                            };
+                            if product_tool_recovery_attempts < recovery_limit {
                                 product_tool_recovery_attempts =
                                     product_tool_recovery_attempts.saturating_add(1);
                                 let mut mismatch = RedactedTraceEntry::new(
@@ -1040,7 +1170,7 @@ impl ActionLoop {
                                     role: ProviderRole::Tool,
                                     content: serde_json::to_string(&json!({
                                         "error_code": if visual_program_edit { "VISUAL_PROGRAM_INSPECT_TOOL_REQUIRED" } else { "VISUAL_PROGRAM_AUTHOR_TOOL_REQUIRED" },
-                                        "message": if visual_program_edit { "An active ForgeVisualProgram exists. Call inspect_forge_visual_program first with view=summary or full; do not resend the program or call planning, author, patch, or build yet." } else { "No visual draft exists. Call author_forge_visual_program exactly once with only authoring_intent and evidence_dispositions matching the advertised schema. Rust derives the executable program. Do not call planning, inspect, patch, or build tools." }
+                                        "message": if universal_author_route { "Call author_universal_asset exactly once. Reproduce the Rust-sealed request and return SubjectProfile@1, VisualFeatureContract@1, RepresentationPlan@1 and one executable/limitation/clarification outcome. Do not call geometry, planning or legacy author tools." } else if visual_program_edit { "An active ForgeVisualProgram exists. Call inspect_forge_visual_program first with view=summary or full; do not resend the program or call planning, author, patch, or build yet." } else { "No visual draft exists. Call author_forge_visual_program exactly once with only authoring_intent and evidence_dispositions matching the advertised schema. Rust derives the executable program. Do not call planning, inspect, patch, or build tools." }
                                     }))
                                     .expect("fixed visual bootstrap recovery serializes"),
                                     tool_call_id: Some(call.call_id),
@@ -1071,9 +1201,11 @@ impl ActionLoop {
                                 TraceEventKind::Rejected,
                             ));
                         }
+                        let bounded_call =
+                            bind_explicit_white_aluminum_palette(&call, &input.context);
                         let request = match self.registry.build_execution_request_for_mode(
                             &input.turn_id,
-                            &call,
+                            &bounded_call,
                             &input.execution_id,
                             &input.cancellation_id,
                             &input.cancellation_token,
@@ -1295,7 +1427,12 @@ impl ActionLoop {
                             &request, &result
                         ));
                         if result.status != ProductToolExecutionStatus::Completed {
-                            if product_tool_recovery_attempts < MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS {
+                            let recovery_limit = if call.name == "author_universal_asset" {
+                                1
+                            } else {
+                                MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS
+                            };
+                            if product_tool_recovery_attempts < recovery_limit {
                                 let recovery_message = if visual_repair_pending
                                     && call.name == "patch_forge_visual_program"
                                     && result.error_code.as_deref()
@@ -1322,7 +1459,11 @@ impl ActionLoop {
                                         ephemeral_reasoning: None,
                                     });
                                     if visual_program_route
-                                        && call.name == "author_forge_visual_program"
+                                        && matches!(
+                                            call.name.as_str(),
+                                            "author_universal_asset"
+                                                | "author_forge_visual_program"
+                                        )
                                     {
                                         // Failed authoring never creates an
                                         // inspectable draft. Keep the repair
@@ -1330,12 +1471,13 @@ impl ActionLoop {
                                         // contract so the Provider cannot
                                         // select inspect/patch/build against
                                         // state that does not exist.
-                                        provider_tools = provider_definitions_for_context(
+                                        provider_tools = provider_definitions_for_route(
                                             &self.registry,
                                             &input.context,
                                             provider_input_mode,
                                             input.multimodal_context.is_some(),
                                             false,
+                                            universal_author_route,
                                         );
                                     }
                                     // The recovery envelope applies to one
@@ -1358,17 +1500,86 @@ impl ActionLoop {
                             .validated_output
                             .expect("validated completed result has output");
                         let output_value = Value::Object(output.value.into_iter().collect());
+                        if visual_program_route && call.name == "author_universal_asset" {
+                            match output_value.get("outcome").and_then(Value::as_str) {
+                                Some("limitation") | Some("clarification_required") => {
+                                    let final_content = output_value
+                                        .pointer("/limitation/message")
+                                        .or_else(|| output_value.get("reason"))
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("对象已完成理解，但当前表示能力不足或需要澄清。")
+                                        .to_owned();
+                                    trace.push(RedactedTraceEntry::new(
+                                        TracePhase::Final,
+                                        TraceEventKind::Completed,
+                                        elapsed_ms(started),
+                                    ));
+                                    return Ok(ActionLoopResult {
+                                        execution_id: input.execution_id,
+                                        turn_id: input.turn_id,
+                                        final_content,
+                                        usage,
+                                        network_call_made,
+                                        item_events,
+                                        trace,
+                                        candidate_pbr_capture_pending: None,
+                                    });
+                                }
+                                Some("executable") => {
+                                    visual_program_ready = true;
+                                    universal_v2_route = matches!(
+                                        output_value.get("execution_route").and_then(Value::as_str),
+                                        Some("build_universal_hard_surface")
+                                            | Some("build_universal_local_lattice")
+                                            | Some("build_universal_local_hybrid")
+                                    );
+                                    if output_value.get("execution_route").and_then(Value::as_str)
+                                        == Some("inspect_then_typed_patch")
+                                    {
+                                        visual_program_patch_pending = true;
+                                        provider_tools = vec![self
+                                            .registry
+                                            .visual_incremental_edit_inspect_provider_definition()];
+                                    } else {
+                                        provider_tools = provider_definitions_for_route(
+                                            &self.registry,
+                                            &input.context,
+                                            provider_input_mode,
+                                            input.multimodal_context.is_some(),
+                                            true,
+                                            universal_author_route,
+                                        );
+                                    }
+                                }
+                                _ => {
+                                    return Err(failure(
+                                        "UNIVERSAL_AUTHOR_OUTCOME_INVALID",
+                                        ActionLoopFailureKind::ProductToolSchema,
+                                        "Universal author tool omitted a valid outcome discriminator.",
+                                        false,
+                                        network_call_made,
+                                        &usage,
+                                        &item_events,
+                                        &mut trace,
+                                        started,
+                                        TracePhase::ProductTool,
+                                        TraceEventKind::Rejected,
+                                    ));
+                                }
+                            }
+                        }
                         if visual_program_route && call.name == "author_forge_visual_program" {
                             visual_program_ready = true;
                             // Once Rust has validated the first visual draft,
                             // expose only the bounded inspect/patch/build
                             // continuation vocabulary.
-                            provider_tools = provider_definitions_for_context(
+                            provider_tools = provider_definitions_for_route(
                                 &self.registry,
                                 &input.context,
                                 provider_input_mode,
                                 input.multimodal_context.is_some(),
                                 true,
+                                universal_author_route,
                             );
                         }
                         if visual_program_route
@@ -1377,23 +1588,32 @@ impl ActionLoop {
                         {
                             visual_program_ready = true;
                             visual_program_patch_pending = true;
-                            provider_tools = provider_definitions_for_context(
+                            provider_tools = provider_definitions_for_route(
                                 &self.registry,
                                 &input.context,
                                 provider_input_mode,
                                 input.multimodal_context.is_some(),
                                 true,
+                                universal_author_route,
                             );
                         }
                         if visual_program_route && call.name == "patch_forge_visual_program" {
+                            if visual_repair_pending {
+                                visual_patch_attempted = true;
+                                // A patch creates a new GLB.  It must obtain a
+                                // fresh same-renderer capture before the next
+                                // evaluation; never reuse the old PBR receipt.
+                                candidate_pbr_capture_resumption = false;
+                            }
                             visual_repair_pending = false;
                             visual_program_patch_pending = false;
-                            provider_tools = provider_definitions_for_context(
+                            provider_tools = provider_definitions_for_route(
                                 &self.registry,
                                 &input.context,
                                 provider_input_mode,
                                 input.multimodal_context.is_some(),
                                 true,
+                                universal_author_route,
                             );
                         }
                         let mut tool_completed = RedactedTraceEntry::new(
@@ -1432,6 +1652,7 @@ impl ActionLoop {
                                 network_call_made,
                                 item_events,
                                 trace,
+                                candidate_pbr_capture_pending: None,
                             });
                         }
                         // An initial robotic-arm plan is the one bounded piece
@@ -1472,11 +1693,27 @@ impl ActionLoop {
                                     &mut messages,
                                     &output_value,
                                     &mut visual_program_build_repair_attempts,
+                                    candidate_pbr_capture_resumption,
                                 )
                                 .await?
                             {
                                 Some(result) => return Ok(result),
                                 None => {
+                                    if visual_patch_attempted {
+                                        return Err(failure(
+                                            "VISUAL_REPAIR_LIMIT_REACHED",
+                                            ActionLoopFailureKind::ProductTool,
+                                            "The candidate still failed its required quality gate after the single permitted typed patch. No additional Provider patch, preview, version, Snapshot, quality, or export was created.",
+                                            false,
+                                            network_call_made,
+                                            &usage,
+                                            &item_events,
+                                            &mut trace,
+                                            started,
+                                            TracePhase::ProductTool,
+                                            TraceEventKind::Rejected,
+                                        ));
+                                    }
                                     // The failed evaluation already returned
                                     // the exact revision/hash and bounded
                                     // repair claims. Advertising inspect here
@@ -1488,8 +1725,12 @@ impl ActionLoop {
                                     // local patch. Rust performs the rebuild,
                                     // readback, render and evaluation chain.
                                     visual_repair_pending = true;
-                                    provider_tools =
-                                        vec![self.registry.visual_repair_provider_definition()];
+                                    provider_tools = vec![if universal_v2_route {
+                                        self.registry
+                                            .universal_hard_surface_repair_provider_definition()
+                                    } else {
+                                        self.registry.visual_repair_provider_definition()
+                                    }];
                                     continue 'provider_turn;
                                 }
                             }
@@ -1539,6 +1780,7 @@ impl ActionLoop {
         messages: &mut Vec<ProviderMessage>,
         visual_program_output: &Value,
         visual_program_build_repair_attempts: &mut u8,
+        suppress_candidate_pbr_capture: bool,
     ) -> Result<Option<ActionLoopResult>, ActionLoopFailure> {
         for (index, (tool_name, arguments)) in steps.into_iter().enumerate() {
             if *product_tool_attempts >= self.config.max_tool_calls {
@@ -1784,7 +2026,7 @@ impl ActionLoop {
                             "error_code":"RESTRICTED_GEOMETRY_INPUT_INVALID",
                             "source_revision":visual_program_output.get("revision"),
                             "source_program_sha256":visual_program_output.get("source_program_sha256"),
-                            "required_next_action":"Rust rejected the authored visual program during restricted geometry validation. Reuse the exact operation IDs in your immediately preceding author/patch call and call patch_forge_visual_program directly; do not call inspect or author. Apply ForgeVisualPatch@1 using the supplied source_revision as expected_revision and source_program_sha256 as expected_source_sha256. Primitive inputs must be empty; mirror/array/radial_array/bevel_approx/surface_panel require exactly one earlier mesh input; union/subtract require at least two earlier mesh inputs; cylinder/capsule require radius and height. If replacing geometry_graph, include the complete ShapeProgram@1 object with schema_version, operations, outputs and non_functional_only=true. At most two build-repair patches are accepted."
+                            "required_next_action":"Rust rejected the authored visual program during restricted geometry validation. Reuse the exact operation IDs in your immediately preceding author/patch call and call patch_forge_visual_program directly; do not call inspect or author. Apply ForgeVisualPatch@1 using the supplied source_revision as expected_revision and source_program_sha256 as expected_source_sha256. Primitive inputs must be empty; mirror/array/radial_array/bevel_approx/surface_panel require exactly one earlier mesh input; union/subtract require at least two earlier mesh inputs; cylinder/capsule require radius and height. If replacing geometry_graph, include the complete ShapeProgram@1 object with schema_version, operations, outputs and non_functional_only=true. At most one build-repair patch is accepted."
                         }))
                         .expect("bounded visual build repair message serializes"),
                         tool_call_id: None,
@@ -1827,13 +2069,17 @@ impl ActionLoop {
                 // state, so restart the Provider conversation from the
                 // original bounded context and expose only actionable repair
                 // facts plus the optimistic-concurrency revision/hash.
-                *messages = context_messages(&input.context, input.multimodal_context.as_ref());
+                *messages = context_messages(
+                    &input.context,
+                    input.multimodal_context.as_ref(),
+                    input.universal_author_context.as_ref(),
+                );
                 messages.push(ProviderMessage {
                     role: ProviderRole::User,
                     content: serde_json::to_string(&json!({
                         "build_status":"convergence_failed",
                         "evaluation":compact_visual_repair_evaluation(&output_value),
-                        "required_next_action":"Rust still owns the current ForgeVisualProgram draft. Apply one typed same-intent local patch targeting only the reported claim IDs, using the supplied source_revision and source_program_sha256, then call the reserved build once. At most two visual repair attempts are accepted."
+                        "required_next_action":"Rust still owns the current ForgeVisualProgram draft. Apply one typed same-intent local patch targeting only the reported claim IDs, using the supplied source_revision and source_program_sha256, then call the reserved build once. At most one visual repair attempt is accepted."
                     }))
                     .expect("bounded convergence repair message serializes"),
                     tool_call_id: None,
@@ -1848,16 +2094,69 @@ impl ActionLoop {
             TraceEventKind::Completed,
             elapsed_ms(started),
         ));
+        let candidate_pbr_capture_pending = (!suppress_candidate_pbr_capture)
+            .then(|| pending_candidate_pbr_capture(input, visual_program_output))
+            .flatten();
+        let final_content = if candidate_pbr_capture_pending.is_some() {
+            "候选 GLB 已完成严格编译与回读，正在等待工作台同源 PBR 八视图检查；在千问比较通过前不会创建预览、版本或导出。".into()
+        } else {
+            "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。".into()
+        };
         Ok(Some(ActionLoopResult {
             execution_id: input.execution_id.clone(),
             turn_id: input.turn_id.clone(),
-            final_content: "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。".into(),
+            final_content,
             usage: usage.clone(),
             network_call_made,
             item_events: item_events.clone(),
             trace: trace.clone(),
+            candidate_pbr_capture_pending,
         }))
     }
+}
+
+fn pending_candidate_pbr_capture(
+    input: &ActionLoopInput,
+    visual_program_output: &Value,
+) -> Option<CandidatePbrCapturePending> {
+    if visual_program_output.get("outcome").and_then(Value::as_str) != Some("executable")
+        || visual_program_output
+            .get("execution_route")
+            .and_then(Value::as_str)
+            != Some("build_current_program")
+            && visual_program_output
+                .get("execution_route")
+                .and_then(Value::as_str)
+                != Some("build_universal_hard_surface")
+            && visual_program_output
+                .get("execution_route")
+                .and_then(Value::as_str)
+                != Some("build_universal_local_lattice")
+            && visual_program_output
+                .get("execution_route")
+                .and_then(Value::as_str)
+                != Some("build_universal_local_hybrid")
+    {
+        return None;
+    }
+    let context = input.universal_author_context.as_ref()?;
+    let route = match visual_program_output
+        .get("execution_route")
+        .and_then(Value::as_str)
+    {
+        Some("build_universal_hard_surface") => CandidatePbrCaptureRoute::UniversalHardSurface,
+        Some("build_universal_local_lattice") => CandidatePbrCaptureRoute::UniversalLocalLattice,
+        Some("build_universal_local_hybrid") => CandidatePbrCaptureRoute::UniversalLocalHybrid,
+        Some("build_current_program") => CandidatePbrCaptureRoute::ForgeVisualProgram,
+        _ => return None,
+    };
+    Some(CandidatePbrCapturePending {
+        schema_version: "CandidatePbrCapturePending@1".into(),
+        project_id: context.request().project_id.clone(),
+        execution_id: input.execution_id.clone(),
+        turn_id: input.turn_id.clone(),
+        route,
+    })
 }
 
 /// A visual draft is already Rust-validated before this stage.  Only the
@@ -1980,6 +2279,30 @@ fn provider_definitions_for_context(
     definitions
 }
 
+fn provider_definitions_for_route(
+    registry: &ProductToolRegistry,
+    context: &AgentContext,
+    input_mode: crate::ProviderToolInputMode,
+    has_multimodal_context: bool,
+    visual_program_authored: bool,
+    universal_author_route: bool,
+) -> Vec<crate::ProviderToolDefinition> {
+    if universal_author_route && !visual_program_authored {
+        return registry
+            .provider_definitions_for_mode(crate::ProviderToolInputMode::InitialSynthesis)
+            .into_iter()
+            .filter(|definition| definition.name == "author_universal_asset")
+            .collect();
+    }
+    provider_definitions_for_context(
+        registry,
+        context,
+        input_mode,
+        has_multimodal_context,
+        visual_program_authored,
+    )
+}
+
 fn has_active_visual_program(context: &AgentContext) -> bool {
     context
         .active_snapshot
@@ -2095,16 +2418,71 @@ fn rust_owned_visual_program_completion_steps(
     tool_name: &str,
     output: &Value,
 ) -> Option<Vec<(&'static str, Value)>> {
-    if matches!(
+    let universal_v2 = matches!(
+        tool_name,
+        "author_universal_asset" | "patch_forge_visual_program"
+    ) && matches!(
+        output.get("execution_route").and_then(Value::as_str),
+        Some("build_universal_hard_surface")
+            | Some("build_universal_local_lattice")
+            | Some("build_universal_local_hybrid")
+    ) && output
+        .pointer("/universal_asset_source/schema_version")
+        .and_then(Value::as_str)
+        == Some("UniversalAssetSource@2");
+    let authored_program = matches!(
         tool_name,
         "author_forge_visual_program" | "patch_forge_visual_program"
-    ) && output.get("program_id").and_then(Value::as_str).is_some()
+    ) && !universal_v2
+        && output.get("program_id").and_then(Value::as_str).is_some()
         && output
             .get("source_program_sha256")
             .and_then(Value::as_str)
             .is_some()
-        && output.get("stage").and_then(Value::as_str) == Some("draft")
-    {
+        && output.get("stage").and_then(Value::as_str) == Some("draft");
+    let universal_program = tool_name == "author_universal_asset"
+        && output.get("outcome").and_then(Value::as_str) == Some("executable")
+        && output.get("execution_route").and_then(Value::as_str) == Some("build_current_program")
+        && output
+            .pointer("/program_inspection/program_id")
+            .and_then(Value::as_str)
+            .is_some()
+        && output
+            .pointer("/program_inspection/source_program_sha256")
+            .and_then(Value::as_str)
+            .is_some();
+    if universal_program || universal_v2 {
+        // PBR comparison of a category-open candidate must come from the
+        // already-mounted workbench renderer, never the legacy Python raster.
+        // The Action Loop therefore pauses after fixed deterministic
+        // compilation/readback views. The bridge resumes only evaluation and
+        // preview after a one-time same-renderer capture is adopted.
+        return Some(vec![
+            (
+                "build_candidate_geometry",
+                json!({
+                    "direction_id": if universal_v2 {
+                        if output.get("execution_route").and_then(Value::as_str)
+                            == Some("build_universal_local_lattice") {
+                            "direction_universal_local_lattice"
+                        } else if output.get("execution_route").and_then(Value::as_str)
+                            == Some("build_universal_local_hybrid") {
+                            "direction_universal_local_hybrid"
+                        } else {
+                            "direction_universal_hard_surface"
+                        }
+                    } else {
+                        "direction_visual_program"
+                    },
+                    "variant_id":null,
+                    "presentation_profile":"showcase"
+                }),
+            ),
+            ("compile_readback_candidate", json!({})),
+            ("render_candidate_views", json!({})),
+        ]);
+    }
+    if authored_program {
         return Some(vec![
             (
                 "build_candidate_geometry",
@@ -2120,11 +2498,16 @@ fn rust_owned_visual_program_completion_steps(
             ("prepare_candidate_preview", json!({})),
         ]);
     }
-    if tool_name != "build_candidate_geometry"
+    let built_visual_source = output
+        .get("visual_program_source_sha256")
+        .and_then(Value::as_str)
+        .is_some()
         || output
-            .get("visual_program_source_sha256")
+            .pointer("/universal_asset_source_v2/schema_version")
             .and_then(Value::as_str)
-            .is_none()
+            == Some("UniversalAssetSource@2");
+    if tool_name != "build_candidate_geometry"
+        || !built_visual_source
         || output
             .get("design_build_ledger")
             .and_then(Value::as_object)
@@ -2155,6 +2538,18 @@ fn product_tool_recovery_message(
     ) {
         return Some(
             "Rust rejected the multimodal claim mapping. Retry once with evidence_dispositions containing exactly one entry for every claim in MultimodalActionContext@1. Bound and unresolved entries must reference real same-level detail_inventory IDs; evaluation_only may not reference details. Do not supply request, graph, hashes, URLs, paths, or credentials.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref().is_some_and(|code| {
+            code.starts_with("UNIVERSAL_")
+                || code.starts_with("SUBJECT_")
+                || code.starts_with("VISUAL_FEATURE_")
+                || code.starts_with("REPRESENTATION_")
+        })
+    {
+        return Some(
+            "Rust rejected the universal contracts without changing geometry. Retry author_universal_asset exactly once: reproduce the sealed request verbatim, keep all request/profile/feature/capability hashes consistent, reference only declared parts/features and use limitation for every unavailable representation. Never substitute C111 or a robotic-arm template for another subject.",
         );
     }
     let visual_program_authoring_error = matches!(
@@ -2190,6 +2585,9 @@ fn product_tool_recovery_message(
     );
     if visual_program_authoring_error {
         return match tool_name {
+            "author_universal_asset" => Some(
+                "Rust rejected the universal contracts without changing geometry. Retry author_universal_asset exactly once using the sealed request verbatim, valid cross-contract hashes and only capability IDs from the attached manifest. Return limitation for unavailable representations; do not substitute a robotic arm or C111 template.",
+            ),
             "author_forge_visual_program" => Some(
                 "Rust rejected the compact visual intent. Call author_forge_visual_program exactly once with a corrected ForgeVisualAuthoringIntent@1 using only the advertised mechanical visual vocabulary. Do not output ShapeProgram operations, IDs, dimensions, code, URLs, paths, or unknown fields. For multimodal work, evidence_dispositions is a top-level sibling and Rust binds each decision to real derived detail IDs.",
             ),
@@ -2230,6 +2628,11 @@ fn product_tool_schema_recovery_message(
 ) -> Option<&'static str> {
     match error_code {
         "PRODUCT_TOOL_ARGUMENTS_NOT_OBJECT" | "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID" => {
+            if tool_name == "author_universal_asset" {
+                return Some(
+                    "Rust rejected the universal author envelope. Retry exactly once with only {\"outcome\": <one UniversalAuthorOutcome@1 object>} and optional legacy_evidence_dispositions when advertised. The outcome must reproduce the sealed request and contain linked SubjectProfile@1, VisualFeatureContract@1 and RepresentationPlan@1 contracts.",
+                );
+            }
             if tool_name == "author_forge_visual_program" {
                 return Some(
                     "Rust rejected the author envelope. Retry exactly once with only {\"authoring_intent\": <one ForgeVisualAuthoringIntent@1 object>, \"evidence_dispositions\": <one entry for every current visual claim>} matching the advertised schema. Choose visual language only; Rust derives all ShapeProgram, Part, Zone, Surface and Detail identifiers. Do not add program, geometry graphs, Markdown, code, URLs, paths, or unknown fields.",
@@ -2434,6 +2837,7 @@ fn provider_error_supports_schema_repair(error: &ProviderError) -> bool {
 fn context_messages(
     context: &AgentContext,
     multimodal_context: Option<&crate::ValidatedMultimodalActionContext>,
+    universal_author_context: Option<&crate::ValidatedUniversalAuthorContext>,
 ) -> Vec<ProviderMessage> {
     let mut messages: Vec<ProviderMessage> = context
         .messages
@@ -2492,7 +2896,62 @@ fn context_messages(
             .min(messages.len());
         messages.insert(insert_at, evidence_message);
     }
+    if let Some(universal) = universal_author_context {
+        let attachment = ProviderMessage {
+            role: ProviderRole::System,
+            content: format!(
+                "以下是 Rust 封存的通用创作请求。request、hash、Project、Turn、Snapshot、selection、locks 和 capability manifest 都是只读真值，必须逐字段原样返回，不得重绑定：{}",
+                canonical_json(&universal.provider_projection())
+            ),
+            tool_call_id: None,
+            tool_calls: Vec::new(),
+            ephemeral_reasoning: None,
+        };
+        let insert_at = messages
+            .iter()
+            .take_while(|message| message.role == ProviderRole::System)
+            .count()
+            .min(messages.len());
+        messages.insert(insert_at, attachment);
+    }
     messages
+}
+
+/// A user can choose only reviewed material palettes, never arbitrary PBR
+/// colors.  When the current user request explicitly names white/silver, bind
+/// the compact visual intent to the corresponding reviewed palette after the
+/// Provider has selected its other creative enums.  This prevents a Provider
+/// from acknowledging a clear color request in prose while silently emitting
+/// the fixed graphite-blue palette into the executable candidate.
+fn bind_explicit_white_aluminum_palette(
+    call: &crate::ProviderToolCall,
+    context: &AgentContext,
+) -> crate::ProviderToolCall {
+    if !matches!(
+        call.name.as_str(),
+        "author_forge_visual_program" | "author_universal_asset"
+    ) {
+        return call.clone();
+    }
+    let explicitly_white_or_silver = context.messages.iter().any(|message| {
+        message.role == ContextRole::User
+            && ["white_aluminum", "白银", "银色", "白色", "silver", "white"]
+                .iter()
+                .any(|token| message.content.to_ascii_lowercase().contains(token))
+    });
+    if !explicitly_white_or_silver {
+        return call.clone();
+    }
+    let mut bounded = call.clone();
+    let palette_path = if call.name == "author_universal_asset" {
+        "/outcome/executable_payload/arm_design_intent/material_palette"
+    } else {
+        "/authoring_intent/arm_design_intent/material_palette"
+    };
+    if let Some(palette) = bounded.arguments.pointer_mut(palette_path) {
+        *palette = Value::String("white_aluminum".into());
+    }
+    bounded
 }
 
 fn elapsed_ms(started: Instant) -> u64 {
@@ -2716,6 +3175,21 @@ mod tests {
                         "inputs":[],
                         "args":{"size":[10.0, 20.0, 30.0]}
                     }
+                }]
+            }
+        })
+    }
+
+    fn universal_hard_surface_patch_arguments() -> Value {
+        json!({
+            "patch": {
+                "schema_version":"ForgeVisualGeometryPatch@1",
+                "patch_id":"patch_universal_hard_surface_fixture",
+                "expected_source_sha256":"a".repeat(64),
+                "operations":[{
+                    "op":"set_node_position",
+                    "node_id":"node_fixture_shell",
+                    "position":[24.0, 0.0, 0.0]
                 }]
             }
         })
@@ -3411,7 +3885,7 @@ mod tests {
                 "summary":if passed { "converged" } else { "surface provenance missing" }
             }],
             "visual_convergence_report": {
-                "schema_version":"VisualConvergenceReport@1",
+                "schema_version":"VisualConvergenceReport@2",
                 "passed":passed,
                 "failure_codes":if passed { json!([]) } else { json!(["SURFACE_PROVENANCE_MISSING"]) }
             },
@@ -3503,6 +3977,8 @@ mod tests {
             provider_preflight: None,
             context: context(),
             multimodal_context: None,
+            universal_author_context: None,
+            continuation: None,
         }
     }
 
@@ -3590,7 +4066,7 @@ mod tests {
     fn pv006c_multimodal_evidence_is_an_untrusted_system_attachment_and_changes_digest() {
         let base = context();
         let multimodal = validated_multimodal_context();
-        let messages = context_messages(&base, Some(&multimodal));
+        let messages = context_messages(&base, Some(&multimodal), None);
         let attachment = messages
             .iter()
             .find(|message| message.content.contains("MultimodalActionContext@1"))
@@ -4196,6 +4672,30 @@ mod tests {
             ]
         );
 
+        let universal_steps = rust_owned_visual_program_completion_steps(
+            "author_universal_asset",
+            &json!({
+                "outcome":"executable",
+                "execution_route":"build_current_program",
+                "program_inspection":{
+                    "program_id":"visual_program_universal",
+                    "source_program_sha256":"a".repeat(64)
+                }
+            }),
+        )
+        .expect("a category-open executable candidate must pause for workbench PBR capture");
+        assert_eq!(
+            universal_steps
+                .iter()
+                .map(|(name, _)| *name)
+                .collect::<Vec<_>>(),
+            vec![
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+            ]
+        );
+
         let visual_steps = rust_owned_visual_program_completion_steps(
             "build_candidate_geometry",
             &json!({
@@ -4668,6 +5168,142 @@ mod tests {
     }
 
     #[test]
+    fn candidate_pbr_capture_continuation_re_evaluates_before_one_typed_patch() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "evaluate_candidate",
+                "patch_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_visual_repair_auto(&registry, &names);
+            let captured = executor.captured.clone();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![Ok(named_tool_response(
+                    "call_pbr_capture_patch",
+                    "patch_forge_visual_program",
+                    visual_patch_arguments(),
+                ))],
+            );
+            let provider_records = provider.clone();
+            let mut action_input = input();
+            action_input.multimodal_context = Some(validated_multimodal_context());
+            action_input.continuation = Some(ActionLoopContinuation::CandidatePbrCapture {
+                route: CandidatePbrCaptureRoute::ForgeVisualProgram,
+            });
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(action_input, CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert_eq!(
+                captured
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|request| request.tool_name.as_str())
+                    .collect::<Vec<_>>(),
+                names,
+                "capture resumption must evaluate the sealed candidate before provider repair"
+            );
+            let records = provider_records.records();
+            assert_eq!(records.len(), 1);
+            assert_eq!(
+                records[0].tool_names,
+                vec!["patch_forge_visual_program".to_string()],
+                "a paused candidate exposes no discovery or author tool"
+            );
+            assert!(result.candidate_pbr_capture_pending.is_none());
+            assert_eq!(
+                result.final_content,
+                "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。"
+            );
+        });
+    }
+
+    #[test]
+    fn generic_hard_surface_capture_resume_advertises_only_vp204_patch_schema() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "evaluate_candidate",
+                "patch_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_visual_repair_auto(&registry, &names);
+            let generic_schema = registry
+                .universal_hard_surface_repair_provider_definition()
+                .input_schema;
+            let generic_patch = universal_hard_surface_patch_arguments();
+            let schema_probe = registry.build_execution_request(
+                "turn_generic_schema_probe",
+                &ProviderToolCall {
+                    call_id: "call_generic_schema_probe".into(),
+                    name: "patch_forge_visual_program".into(),
+                    arguments: generic_patch.clone(),
+                },
+                "execution_generic_schema_probe",
+                "cancel_generic_schema_probe",
+                "token_generic_schema_probe",
+            );
+            assert!(schema_probe.is_ok(), "{schema_probe:?}");
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![Ok(named_tool_response(
+                    "call_generic_pbr_capture_patch",
+                    "patch_forge_visual_program",
+                    generic_patch,
+                ))],
+            );
+            let records = provider.clone();
+            let mut action_input = input();
+            action_input.multimodal_context = Some(validated_multimodal_context());
+            action_input.continuation = Some(ActionLoopContinuation::CandidatePbrCapture {
+                route: CandidatePbrCaptureRoute::UniversalHardSurface,
+            });
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(action_input, CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert!(result.candidate_pbr_capture_pending.is_none());
+            let requests = records.records();
+            assert_eq!(requests.len(), 1);
+            assert_eq!(requests[0].tool_names, vec!["patch_forge_visual_program"]);
+            let schema_text = generic_schema.to_string();
+            assert!(schema_text.contains("ForgeVisualGeometryPatch@1"));
+            assert!(schema_text.contains("set_node_position"));
+            assert!(!schema_text.contains("upsert_detail_inventory_item"));
+            assert!(!schema_text.contains("replace_geometry_graph"));
+        });
+    }
+
+    #[test]
     fn pv006c_repair_rejects_provider_inspection_and_forces_one_local_patch() {
         block_on(async {
             let registry = ProductToolRegistry::default();
@@ -5060,7 +5696,7 @@ mod tests {
     }
 
     #[test]
-    fn pv006c_restricted_geometry_build_repair_is_hard_bounded_at_two_patches() {
+    fn pv006c_restricted_geometry_build_repair_is_hard_bounded_at_one_patch() {
         block_on(async {
             let registry = ProductToolRegistry::default();
             let names = [
@@ -5068,11 +5704,9 @@ mod tests {
                 "build_candidate_geometry",
                 "patch_forge_visual_program",
                 "build_candidate_geometry",
-                "patch_forge_visual_program",
-                "build_candidate_geometry",
             ];
             let executor =
-                StatefulChainExecutor::new_visual_build_failures_auto(&registry, &names, 3);
+                StatefulChainExecutor::new_visual_build_failures_auto(&registry, &names, 2);
             let provider = FakeDeepSeekClient::scripted(
                 "deepseek-chat",
                 true,
@@ -5085,11 +5719,6 @@ mod tests {
                     )),
                     Ok(named_tool_response(
                         "call_visual_patch_one",
-                        "patch_forge_visual_program",
-                        visual_patch_arguments(),
-                    )),
-                    Ok(named_tool_response(
-                        "call_visual_patch_two",
                         "patch_forge_visual_program",
                         visual_patch_arguments(),
                     )),
@@ -5110,13 +5739,9 @@ mod tests {
             .unwrap_err();
 
             assert_eq!(error.code, "RESTRICTED_GEOMETRY_INPUT_INVALID");
-            assert_eq!(provider_records.records().len(), 3);
+            assert_eq!(provider_records.records().len(), 2);
             assert_eq!(
                 provider_records.records()[1].tool_names,
-                vec!["patch_forge_visual_program".to_string()]
-            );
-            assert_eq!(
-                provider_records.records()[2].tool_names,
                 vec!["patch_forge_visual_program".to_string()]
             );
         });
@@ -5195,7 +5820,7 @@ mod tests {
 
     #[test]
     fn active_snapshot_is_forwarded_as_read_only_provider_context() {
-        let messages = context_messages(&context(), None);
+        let messages = context_messages(&context(), None, None);
         assert_eq!(messages[0].role, ProviderRole::System);
         assert!(messages[1]
             .content
@@ -5205,6 +5830,42 @@ mod tests {
         assert!(messages[0]
             .content
             .contains("只生成非功能性的生产级概念资产"));
+    }
+
+    #[test]
+    fn u004_executable_local_routes_pause_for_same_renderer_capture() {
+        for (execution_route, direction_id) in [
+            (
+                "build_universal_hard_surface",
+                "direction_universal_hard_surface",
+            ),
+            (
+                "build_universal_local_lattice",
+                "direction_universal_local_lattice",
+            ),
+            (
+                "build_universal_local_hybrid",
+                "direction_universal_local_hybrid",
+            ),
+        ] {
+            let output = json!({
+                "outcome":"executable",
+                "execution_route":execution_route,
+                "universal_asset_source":{"schema_version":"UniversalAssetSource@2"}
+            });
+            for tool_name in ["author_universal_asset", "patch_forge_visual_program"] {
+                let steps = rust_owned_visual_program_completion_steps(tool_name, &output)
+                    .expect("reviewed UAS@2 route must be Rust-completed");
+                assert_eq!(steps.len(), 3);
+                assert_eq!(steps[0].0, "build_candidate_geometry");
+                assert_eq!(
+                    steps[0].1.get("direction_id").and_then(Value::as_str),
+                    Some(direction_id)
+                );
+                assert_eq!(steps[1].0, "compile_readback_candidate");
+                assert_eq!(steps[2].0, "render_candidate_views");
+            }
+        }
     }
 
     #[test]
@@ -5933,6 +6594,8 @@ mod tests {
             }),
             context,
             multimodal_context: None,
+            universal_author_context: None,
+            continuation: None,
         };
         let debug = format!("{input:?}");
         assert!(!debug.contains(forbidden), "unsafe Debug output: {debug}");

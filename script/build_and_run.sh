@@ -211,7 +211,17 @@ wait_for_packaged_agent() {
             snapshot_write: false,
             persistent_state_writer: false,
           };
-          process.exit(JSON.stringify(payload) === JSON.stringify(expected) ? 0 : 1);
+          // The supervisor appends run-scoped diagnostic fields such as its
+          // session and process-group IDs.  They are useful for runtime
+          // recovery, but must not make a healthy packaged sidecar look
+          // unavailable merely because the health payload has additional
+          // fields.  Verify the owned safety contract and tolerate extras.
+          process.exit(
+            payload && typeof payload === "object"
+              && Object.entries(expected).every(([key, value]) => payload[key] === value)
+              ? 0
+              : 1,
+          );
         } catch (_) { process.exit(1); }
       });
     '; then

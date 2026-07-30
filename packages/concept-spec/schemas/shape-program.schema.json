@@ -149,7 +149,8 @@
               "union",
               "subtract",
               "bevel_approx",
-              "surface_panel"
+              "surface_panel",
+              "lattice_deform"
             ]
           },
           "inputs": {
@@ -334,6 +335,21 @@
                   "ball",
                   "continuous"
                 ]
+              },
+              "corner_offsets": {
+                "type": "array",
+                "minItems": 8,
+                "maxItems": 8,
+                "items": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "number",
+                    "minimum": -0.25,
+                    "maximum": 0.25
+                  }
+                }
               },
               "material_id": {
                 "type": "string",

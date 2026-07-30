@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/e005-visual-review-evidence-v1.schema.json",
+  "title": "E005VisualReviewEvidenceV1",
+  "description": "Hash-only evidence for the single E005-R2 visual compare/proposal call. Pixels remain transport-only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "decision",
+    "initial_source_sha256",
+    "final_source_sha256",
+    "initial_glb_sha256",
+    "initial_fixed_view_sha256",
+    "initial_fixed_views",
+    "comparison_input_sha256",
+    "comparison_report_sha256",
+    "provider_response_sha256",
+    "sealed_patch_sha256",
+    "geometry_build_count",
+    "visual_provider_call_count",
+    "final_visual_model_recheck_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "E005VisualReviewEvidence@1"},
+    "status": {"enum": ["accepted_by_visual_review", "patched_pending_visual_confirmation"]},
+    "decision": {"enum": ["accept", "typed_visual_patch"]},
+    "initial_source_sha256": {"$ref": "#/$defs/hash"},
+    "final_source_sha256": {"$ref": "#/$defs/hash"},
+    "initial_glb_sha256": {"$ref": "#/$defs/hash"},
+    "initial_fixed_view_sha256": {"$ref": "#/$defs/hash"},
+    "initial_fixed_views": {"$ref": "#/$defs/turntable_views"},
+    "comparison_input_sha256": {"$ref": "#/$defs/hash"},
+    "comparison_report_sha256": {"$ref": "#/$defs/hash"},
+    "provider_response_sha256": {"$ref": "#/$defs/hash"},
+    "sealed_patch_sha256": {"$ref": "#/$defs/hash"},
+    "geometry_build_count": {"type": "integer", "minimum": 1, "maximum": 2},
+    "visual_provider_call_count": {"const": 1},
+    "final_visual_model_recheck_performed": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "accepted_by_visual_review"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "decision": {"const": "accept"},
+          "geometry_build_count": {"const": 1},
+          "final_visual_model_recheck_performed": {"const": true}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "patched_pending_visual_confirmation"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "decision": {"const": "typed_visual_patch"},
+          "geometry_build_count": {"const": 2},
+          "final_visual_model_recheck_performed": {"const": false}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "turntable_views": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turntable_000", "turntable_045", "turntable_090", "turntable_135", "turntable_180", "turntable_225", "turntable_270", "turntable_315"],
+      "properties": {
+        "turntable_000": {"$ref": "#/$defs/hash"},
+        "turntable_045": {"$ref": "#/$defs/hash"},
+        "turntable_090": {"$ref": "#/$defs/hash"},
+        "turntable_135": {"$ref": "#/$defs/hash"},
+        "turntable_180": {"$ref": "#/$defs/hash"},
+        "turntable_225": {"$ref": "#/$defs/hash"},
+        "turntable_270": {"$ref": "#/$defs/hash"},
+        "turntable_315": {"$ref": "#/$defs/hash"}
+      }
+    }
+  }
+}

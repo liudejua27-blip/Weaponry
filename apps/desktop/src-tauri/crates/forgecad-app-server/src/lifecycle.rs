@@ -507,6 +507,7 @@ impl AgentLifecycleMachine {
             .map(|turn| match turn.status {
                 AgentTurnStatus::Queued
                 | AgentTurnStatus::Running
+                | AgentTurnStatus::WaitingForCapture
                 | AgentTurnStatus::WaitingForApproval
                 | AgentTurnStatus::WaitingForClarification => AgentThreadStatus::Active,
                 AgentTurnStatus::Failed => AgentThreadStatus::Error,

@@ -21,7 +21,7 @@ type AgentTurnEventCollectorOptions = {
     projectId: string | null,
     requestId: number,
     threadId: string,
-    items: AgentItem[],
+    items: readonly AgentItem[],
     presentation: AgentTurnPresentation,
   ) => boolean
   message: string

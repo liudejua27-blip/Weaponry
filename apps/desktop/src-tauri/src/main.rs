@@ -8,16 +8,13 @@ mod deepseek_provider;
 mod k003_packaged_probe;
 mod mvp_arm_packaged_probe;
 mod mvp_arm_provider;
-mod neural_3d_provider_adapter;
 mod provider_credentials;
 mod rust_core_runtime;
 mod rust_product_catalog;
 mod vision_evidence_adapter;
-mod visual_provider_acceptance_probe;
-mod visual_provider_adapters;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     env,
     ffi::OsStr,
     fs::{self, OpenOptions},
@@ -35,41 +32,37 @@ use std::os::unix::{fs::PermissionsExt, process::CommandExt};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use forgecad_app_server::{
-    accept_concept_output, accept_resumed_concept_output,
     compatibility::{AllowedHttpMethod, LocalAgentEndpoint, PreparedCompatHttpRequest},
-    validate_concept_receipt, validate_neural_visual_receipt, CancellationToken,
-    ConceptImageProviderPort, ConceptImageProviderReceipt, ConceptImageProviderStatus,
-    NeuralVisualProviderPort, NeuralVisualProviderReceipt, NeuralVisualProviderStatus,
-    VisionEvidenceCoordinator, VisionEvidenceImage, VisionEvidenceProviderRequest,
-    VisualBriefDirector, VisualBriefDirectorInput, VisualBriefDirectorOutput,
+    BudgetedVisualReferenceComparisonProvider, CancellationToken, VisionEvidenceCoordinator,
+    VisionEvidenceImage, VisionEvidenceProviderRequest,
 };
-use forgecad_app_server_protocol::ProtocolHttpBody;
+use forgecad_app_server_protocol::{
+    AgentTurn, AgentTurnStatus, CompatHttpResponse, ProtocolHttpBody, TurnCommandOutcome,
+    TurnCommandResult,
+};
 use forgecad_core::{
-    inspect_neural_visual_glb, semantic_sha256, ConceptImageBackend, ConceptImageGenerationRequest,
-    ConceptImageResumeBinding, ConceptReferenceArtifact, MultimodalDesignRequest, Neural3DBackend,
-    Neural3DGenerationRequest, Neural3DResumeBinding, NeuralVisualGlbInspection,
-    ReferenceEvidenceKind, VisualDesignBrief, VisualEvidenceGraph, VisualInputEvidence,
-    VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
-    NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION, VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION,
+    c111b_visual_reference_acceptance_policy_for_domain, semantic_sha256, MultimodalDesignRequest,
+    ReferenceEvidenceKind, SurfaceAdornmentProgram, VisualEvidenceGraph,
+    VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_LIFETIME_MS,
+    VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
+    VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD,
 };
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{Manager, State};
 
 use app_server_bridge::{
-    forgecad_protocol_connect, forgecad_protocol_disconnect, forgecad_protocol_send,
-    AppServerBridge,
+    forgecad_candidate_pbr_capture_issue, forgecad_candidate_pbr_capture_resume,
+    forgecad_candidate_pbr_capture_submit, forgecad_protocol_connect, forgecad_protocol_disconnect,
+    forgecad_protocol_send, AppServerBridge,
 };
 use deepseek_provider::{
     DeepSeekPricing, DeepSeekProviderClient, DeepSeekProviderConfig, ReqwestDeepSeekTransport,
 };
 use forgecad_app_server::ProviderClient;
 use mvp_arm_provider::{LocalRoboticArmMvpProvider, MVP_MODEL};
-use neural_3d_provider_adapter::{
-    CoreConceptImageSource, CoreNeuralGlbObjectSink, FalHunyuan3dV31ProAdapter,
-};
 use provider_credentials::{
     validate_provider_config_input, ProviderConfigMetadata, ProviderCredentialStore,
 };
@@ -77,10 +70,6 @@ use rust_core_runtime::RustCoreRuntime;
 use vision_evidence_adapter::{
     OpenAiCompatibleVisionEvidenceAdapter, PrivateFileVisionEvidenceCredentialStore,
     ReqwestVisionEvidenceTransport, VisionEvidenceConfigMetadata,
-};
-use visual_provider_adapters::{
-    CoreConceptImageObjectSink, CoreConceptInputImageSource, FalFlux2ConceptImageAdapter,
-    PrivateFileFalCredentialSource, ReqwestVisualHttpTransport, VisualHttpTransport,
 };
 use zeroize::Zeroize;
 
@@ -98,6 +87,29 @@ const ARM_WEBVIEW_QA_PROGRESS_MARKER: &str =
     "ForgeCAD mechanical-arm packaged WebView QA progress=";
 const ARM_WEBVIEW_QA_CAPTURE_MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
 const ARM_WEBVIEW_QA_CAPTURE_MAX_GLB_BYTES: usize = 16 * 1024 * 1024;
+const C111B_PACKAGED_WEBGL_SCHEMA: &str = "C111BPackagedWebGL@1";
+const C111B_PACKAGED_WEBGL_MARKER: &str = "ForgeCAD C111B packaged WebGL QA report=";
+const C111B_PACKAGED_WEBGL_PROGRESS_MARKER: &str = "ForgeCAD C111B packaged WebGL QA progress=";
+const C111B_PACKAGED_WEBGL_PRODUCTION_SHA256: &str =
+    "48ccc5c6a725936d43cb731ed5e20b93f10ef751712ed79469ea406318160b6b";
+// C111B Agent packaged QA runs the reviewed ForgeVisualProgram authoring seam.
+// This is the canonical persisted ShapeProgram lowering for that seam.  It is
+// deliberately distinct from the Recipe expansion SHA (9016...1424) recorded
+// in the C111A inventory before ForgeVisualProgram materialization.
+const C111B_PACKAGED_WEBGL_VISUAL_PROGRAM_SHAPE_SHA256: &str =
+    "f7077b747530d660b0bfb2c91f10610e9626d4a071b05ad6d9f8dc2da274d3ef";
+const C111B_PACKAGED_WEBGL_TRIANGLES: u64 = 138_248;
+const C111B_PACKAGED_WEBGL_PRIMITIVES: u64 = 157;
+const C111B_PACKAGED_WEBGL_MATERIALS: u64 = 12;
+// Retaining the reviewed A005 program does not change geometry, but it appends
+// the exact dynamic PBR rows used by the committed V2 material zones.  The
+// resulting GLB hash is action-lineage dependent, so it is carried from the
+// initial process into restart instead of being confused with the frozen V1
+// production hash above.
+const C111B_PACKAGED_WEBGL_AGENT_V2_MATERIALS: u64 = 14;
+const C111B_PACKAGED_WEBGL_AGENT_V2_COMPLETE_PBR_MATERIALS: u64 = 12;
+const C111B_PACKAGED_WEBGL_CAPTURE_MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
+const C111B_PACKAGED_WEBGL_SOURCE_MAX_BYTES: usize = 48 * 1024 * 1024;
 const RESTRICTED_GEOMETRY_CAPABILITY_HEADER: &str = "X-ForgeCAD-Restricted-Geometry-Capability";
 const RESTRICTED_GEOMETRY_OWNERSHIP_PATH: &str = "/api/v1/internal/geometry/capability/ownership";
 const SIDECAR_SUPERVISOR_SESSION_ENV: &str = "FORGECAD_SUPERVISOR_SESSION_ID";
@@ -116,6 +128,23 @@ struct AgentProcessState {
     provider_credentials: Arc<ProviderCredentialStore>,
 }
 
+#[derive(Clone)]
+struct C111bPackagedQaMetricsState {
+    local_mvp_provider: Option<Arc<LocalRoboticArmMvpProvider>>,
+    timeline: Arc<Mutex<C111bPackagedQaTimeline>>,
+}
+
+#[derive(Debug)]
+struct C111bPackagedQaTimeline {
+    started: Instant,
+    stages: Vec<(String, u64)>,
+}
+
+struct NativeProviderClientBundle {
+    client: Arc<dyn ProviderClient>,
+    local_mvp_provider: Option<Arc<LocalRoboticArmMvpProvider>>,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct ManagedSidecarLease {
     schema_version: String,
@@ -131,755 +160,10 @@ struct ForgecadSidecarIdentity {
 }
 
 struct VisualProviderState {
-    fal_credentials: Arc<PrivateFileFalCredentialSource>,
-    transport: Arc<dyn VisualHttpTransport>,
     repository: Arc<forgecad_core::CoreRepository>,
-    brief_director: VisualBriefDirector,
     vision_credentials: Arc<PrivateFileVisionEvidenceCredentialStore>,
     vision_coordinator: VisionEvidenceCoordinator,
     vision_active_requests: Mutex<HashMap<String, CancellationToken>>,
-    active_requests: Mutex<HashMap<String, CancellationToken>>,
-}
-
-impl VisualProviderState {
-    fn fal_adapter(&self, owner_id: String, uses_input_image: bool) -> FalFlux2ConceptImageAdapter {
-        let sink = Arc::new(CoreConceptImageObjectSink::new(
-            self.repository.clone(),
-            owner_id,
-            rust_core_timestamp(),
-        ));
-        if uses_input_image {
-            FalFlux2ConceptImageAdapter::new_edit(
-                self.transport.clone(),
-                self.fal_credentials.clone(),
-                sink,
-                Arc::new(CoreConceptInputImageSource::new(self.repository.clone())),
-            )
-        } else {
-            FalFlux2ConceptImageAdapter::new(
-                self.transport.clone(),
-                self.fal_credentials.clone(),
-                sink,
-            )
-        }
-    }
-
-    fn hunyuan_adapter(&self, owner_id: String) -> FalHunyuan3dV31ProAdapter {
-        FalHunyuan3dV31ProAdapter::new(
-            self.transport.clone(),
-            self.fal_credentials.clone(),
-            Arc::new(CoreConceptImageSource::new(self.repository.clone())),
-            Arc::new(CoreNeuralGlbObjectSink::new(
-                self.repository.clone(),
-                owner_id,
-                rust_core_timestamp(),
-            )),
-        )
-    }
-}
-
-#[tauri::command]
-async fn direct_visual_brief(
-    input: VisualBriefDirectorInput,
-    state: State<'_, VisualProviderState>,
-) -> Result<VisualBriefDirectorOutput, String> {
-    state
-        .brief_director
-        .direct(input, CancellationToken::new())
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
-}
-
-#[tauri::command]
-async fn generate_visual_asset(
-    input: GenerateVisualAssetRequest,
-    app: AppHandle,
-    state: State<'_, VisualProviderState>,
-) -> Result<GenerateVisualAssetResponse, String> {
-    if input.client_request_id.is_empty()
-        || input.client_request_id.len() > 128
-        || !input
-            .client_request_id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'@'))
-    {
-        return Err("VISUAL_GENERATION_REQUEST_ID_INVALID".into());
-    }
-    let cancellation = CancellationToken::new();
-    {
-        let mut active = state
-            .active_requests
-            .lock()
-            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
-        if active.contains_key(&input.client_request_id) {
-            return Err("VISUAL_GENERATION_REQUEST_ALREADY_ACTIVE".into());
-        }
-        active.insert(input.client_request_id.clone(), cancellation.clone());
-    }
-    let result = generate_visual_asset_inner(&input, &app, &state, cancellation.clone()).await;
-    if let Ok(mut active) = state.active_requests.lock() {
-        active.remove(&input.client_request_id);
-    }
-    if let Err(message) = &result {
-        let (state_value, fallback) =
-            if cancellation.is_cancelled() || message.starts_with("VISUAL_GENERATION_CANCELLED") {
-                (
-                    VisualRemoteJobState::Cancelled {
-                        code: "USER_CANCELLED".into(),
-                    },
-                    "USER_CANCELLED",
-                )
-            } else {
-                let code = stable_visual_error_code(message, "VISUAL_GENERATION_FAILED");
-                (
-                    VisualRemoteJobState::Failed { code },
-                    "VISUAL_GENERATION_FAILED",
-                )
-            };
-        let _ = finish_visual_remote_job(
-            &state.repository,
-            &input.client_request_id,
-            state_value,
-            fallback,
-        );
-    }
-    result
-}
-
-#[tauri::command]
-async fn cancel_visual_asset_generation(
-    client_request_id: String,
-    state: State<'_, VisualProviderState>,
-) -> Result<bool, String> {
-    {
-        let active = state
-            .active_requests
-            .lock()
-            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
-        if let Some(cancellation) = active.get(&client_request_id) {
-            cancellation.cancel();
-            return Ok(true);
-        }
-    }
-    let Some(record) = state
-        .repository
-        .visual_remote_job(&client_request_id)
-        .map_err(|error| format!("{}: {}", error.code(), error))?
-    else {
-        return Ok(false);
-    };
-    match &record.state {
-        VisualRemoteJobState::ConceptSubmitted { binding } => {
-            let adapter = state.fal_adapter(
-                binding.request_id.clone(),
-                binding.input_image_object_sha256.is_some(),
-            );
-            adapter
-                .cancel(ConceptImageProviderReceipt {
-                    schema_version:
-                        forgecad_app_server::CONCEPT_IMAGE_PROVIDER_RECEIPT_SCHEMA_VERSION.into(),
-                    backend: binding.backend,
-                    provider_job_id: binding.provider_job_id.clone(),
-                })
-                .await
-                .map_err(|error| format!("{}: {}", error.code, error.message))?;
-        }
-        VisualRemoteJobState::NeuralSubmitted { binding } => {
-            let adapter = state.hunyuan_adapter(binding.request.request_id.clone());
-            adapter
-                .cancel(NeuralVisualProviderReceipt {
-                    schema_version:
-                        forgecad_app_server::NEURAL_VISUAL_PROVIDER_RECEIPT_SCHEMA_VERSION.into(),
-                    backend: binding.backend,
-                    provider_job_id: binding.provider_job_id.clone(),
-                })
-                .await
-                .map_err(|error| format!("{}: {}", error.code, error.message))?;
-        }
-        _ => return Ok(false),
-    }
-    finish_visual_remote_job(
-        &state.repository,
-        &client_request_id,
-        VisualRemoteJobState::Cancelled {
-            code: "USER_CANCELLED".into(),
-        },
-        "USER_CANCELLED",
-    )?;
-    Ok(true)
-}
-
-#[tauri::command]
-fn list_recoverable_visual_asset_generations(
-    project_id: Option<String>,
-    state: State<'_, VisualProviderState>,
-) -> Result<Vec<VisualRemoteJobRecord>, String> {
-    state
-        .repository
-        .recoverable_visual_remote_jobs(project_id.as_deref())
-        .map_err(|error| format!("{}: {}", error.code(), error))
-}
-
-#[tauri::command]
-async fn resume_visual_asset_generation(
-    client_request_id: String,
-    app: AppHandle,
-    state: State<'_, VisualProviderState>,
-) -> Result<GenerateVisualAssetResponse, String> {
-    let record = state
-        .repository
-        .visual_remote_job(&client_request_id)
-        .map_err(|error| format!("{}: {}", error.code(), error))?
-        .ok_or_else(|| "VISUAL_REMOTE_JOB_NOT_FOUND".to_string())?;
-    if !record.state.is_recoverable() {
-        return Err("VISUAL_REMOTE_JOB_NOT_RECOVERABLE".into());
-    }
-    let cancellation = CancellationToken::new();
-    {
-        let mut active = state
-            .active_requests
-            .lock()
-            .map_err(|_| "VISUAL_GENERATION_STATE_UNAVAILABLE".to_string())?;
-        if active.contains_key(&client_request_id) {
-            return Err("VISUAL_GENERATION_REQUEST_ALREADY_ACTIVE".into());
-        }
-        active.insert(client_request_id.clone(), cancellation.clone());
-    }
-    emit_visual_progress(
-        &app,
-        &client_request_id,
-        "recovery",
-        "正在恢复上次未完成的远程任务",
-    );
-    let result = resume_visual_asset_inner(
-        &client_request_id,
-        record,
-        &app,
-        &state,
-        cancellation.clone(),
-    )
-    .await;
-    if let Ok(mut active) = state.active_requests.lock() {
-        active.remove(&client_request_id);
-    }
-    if let Err(message) = &result {
-        let state_value =
-            if cancellation.is_cancelled() || message.starts_with("VISUAL_GENERATION_CANCELLED") {
-                VisualRemoteJobState::Cancelled {
-                    code: "USER_CANCELLED".into(),
-                }
-            } else {
-                VisualRemoteJobState::Failed {
-                    code: stable_visual_error_code(message, "VISUAL_GENERATION_RECOVERY_FAILED"),
-                }
-            };
-        let _ = finish_visual_remote_job(
-            &state.repository,
-            &client_request_id,
-            state_value,
-            "VISUAL_GENERATION_RECOVERY_FAILED",
-        );
-    }
-    result
-}
-
-async fn generate_visual_asset_inner<R: tauri::Runtime>(
-    input: &GenerateVisualAssetRequest,
-    app: &AppHandle<R>,
-    state: &VisualProviderState,
-    cancellation: CancellationToken,
-) -> Result<GenerateVisualAssetResponse, String> {
-    let job_created_at = rust_core_timestamp();
-    emit_visual_progress(
-        app,
-        &input.client_request_id,
-        "understanding",
-        "正在理解视觉意图",
-    );
-    let directed = state
-        .brief_director
-        .direct(
-            VisualBriefDirectorInput {
-                project_id: input.project_id.clone(),
-                turn_id: input.turn_id.clone(),
-                user_intent: input.user_intent.clone(),
-                input_evidence: input.input_evidence.clone(),
-            },
-            cancellation.clone(),
-        )
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    check_visual_cancellation(&cancellation)?;
-
-    emit_visual_progress(
-        app,
-        &input.client_request_id,
-        "concept_image",
-        "正在生成视觉参考",
-    );
-    let concept_adapter = state.fal_adapter(
-        directed.concept_request.request_id.clone(),
-        directed.concept_request.input_image_object_sha256.is_some(),
-    );
-    let concept_backend = directed.concept_request.backend_preferences[0];
-    let reference_id = stable_visual_id("concept_reference", &directed.brief.brief_id);
-    let concept_receipt = concept_adapter
-        .submit(directed.concept_request.clone(), concept_backend)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    validate_concept_receipt(&concept_receipt, &directed.concept_request)
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    let concept_binding = ConceptImageResumeBinding::from_submitted_request(
-        directed.brief.clone(),
-        &directed.concept_request,
-        concept_receipt.backend,
-        concept_receipt.provider_job_id.clone(),
-        reference_id.clone(),
-        input.quality_tier,
-    )
-    .map_err(|error| format!("{}: {}", error.code(), error))?;
-    let concept_record = VisualRemoteJobRecord {
-        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
-        client_request_id: input.client_request_id.clone(),
-        project_id: input.project_id.clone(),
-        turn_id: input.turn_id.clone(),
-        state: VisualRemoteJobState::ConceptSubmitted {
-            binding: concept_binding,
-        },
-        created_at: job_created_at.clone(),
-        updated_at: rust_core_timestamp(),
-    };
-    if let Err(error) = state.repository.put_visual_remote_job(&concept_record) {
-        let _ = concept_adapter.cancel(concept_receipt.clone()).await;
-        return Err(format!("{}: {}", error.code(), error));
-    }
-    let concept_deadline = Instant::now() + Duration::from_secs(5 * 60);
-    let concept_reference = loop {
-        if cancellation.is_cancelled() {
-            let _ = concept_adapter.cancel(concept_receipt.clone()).await;
-            return Err("VISUAL_GENERATION_CANCELLED".into());
-        }
-        if Instant::now() >= concept_deadline {
-            let _ = concept_adapter.cancel(concept_receipt.clone()).await;
-            return Err("CONCEPT_IMAGE_GENERATION_TIMEOUT".into());
-        }
-        let status = concept_adapter
-            .poll(concept_receipt.clone())
-            .await
-            .map_err(|error| format!("{}: {}", error.code, error.message))?;
-        match status {
-            ConceptImageProviderStatus::Queued | ConceptImageProviderStatus::Running => {
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-            ConceptImageProviderStatus::Ready { output } => {
-                break accept_concept_output(
-                    &directed.brief,
-                    &directed.concept_request,
-                    &concept_receipt,
-                    &output,
-                    reference_id.clone(),
-                )
-                .map_err(|error| format!("{}: {}", error.code, error.message))?;
-            }
-            ConceptImageProviderStatus::Failed { code } => return Err(code),
-        }
-    };
-    let concept_png = state
-        .repository
-        .read_object(&concept_reference.image_object_sha256)
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-
-    check_visual_cancellation(&cancellation)?;
-    emit_visual_progress(
-        app,
-        &input.client_request_id,
-        "neural_3d",
-        "正在生成 3D 形体与 PBR 材质",
-    );
-    let neural_seed = sha256_text(&format!(
-        "{}:{}:{}",
-        directed.brief.brief_id, concept_reference.reference_id, input.client_request_id
-    ));
-    let neural_request = Neural3DGenerationRequest {
-        schema_version: NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION.into(),
-        request_id: stable_visual_id("neural_request", &neural_seed),
-        project_id: directed.brief.project_id.clone(),
-        turn_id: directed.brief.turn_id.clone(),
-        brief_id: directed.brief.brief_id.clone(),
-        concept_reference_id: concept_reference.reference_id.clone(),
-        concept_reference_sha256: concept_reference.image_object_sha256.clone(),
-        quality_tier: input.quality_tier,
-        backend_preferences: vec![Neural3DBackend::Hunyuan3dV31Pro],
-        idempotency_key: stable_visual_id("neural_idempotency", &neural_seed),
-    };
-    neural_request
-        .validate()
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    finish_visual_asset_from_concept(
-        &input.client_request_id,
-        job_created_at,
-        directed.brief,
-        concept_reference,
-        neural_request,
-        concept_png,
-        app,
-        state,
-        cancellation,
-    )
-    .await
-}
-
-async fn resume_visual_asset_inner<R: tauri::Runtime>(
-    client_request_id: &str,
-    record: VisualRemoteJobRecord,
-    app: &AppHandle<R>,
-    state: &VisualProviderState,
-    cancellation: CancellationToken,
-) -> Result<GenerateVisualAssetResponse, String> {
-    let job_created_at = record.created_at.clone();
-    match record.state {
-        VisualRemoteJobState::ConceptSubmitted { binding } => {
-            let adapter = state.fal_adapter(
-                binding.request_id.clone(),
-                binding.input_image_object_sha256.is_some(),
-            );
-            let receipt = ConceptImageProviderReceipt {
-                schema_version: forgecad_app_server::CONCEPT_IMAGE_PROVIDER_RECEIPT_SCHEMA_VERSION
-                    .into(),
-                backend: binding.backend,
-                provider_job_id: binding.provider_job_id.clone(),
-            };
-            let deadline = Instant::now() + Duration::from_secs(5 * 60);
-            let concept_reference = loop {
-                if cancellation.is_cancelled() {
-                    let _ = adapter.cancel(receipt.clone()).await;
-                    return Err("VISUAL_GENERATION_CANCELLED".into());
-                }
-                if Instant::now() >= deadline {
-                    let _ = adapter.cancel(receipt.clone()).await;
-                    return Err("CONCEPT_IMAGE_GENERATION_TIMEOUT".into());
-                }
-                match adapter
-                    .poll(receipt.clone())
-                    .await
-                    .map_err(|error| format!("{}: {}", error.code, error.message))?
-                {
-                    ConceptImageProviderStatus::Queued | ConceptImageProviderStatus::Running => {
-                        tokio::time::sleep(Duration::from_secs(2)).await;
-                    }
-                    ConceptImageProviderStatus::Ready { output } => {
-                        break accept_resumed_concept_output(&binding, &output)
-                            .map_err(|error| format!("{}: {}", error.code, error.message))?;
-                    }
-                    ConceptImageProviderStatus::Failed { code } => return Err(code),
-                }
-            };
-            let concept_png = state
-                .repository
-                .read_object(&concept_reference.image_object_sha256)
-                .map_err(|error| format!("{}: {}", error.code(), error))?;
-            emit_visual_progress(
-                app,
-                client_request_id,
-                "neural_3d",
-                "正在生成 3D 形体与 PBR 材质",
-            );
-            let neural_seed = sha256_text(&format!(
-                "{}:{}:{}",
-                binding.brief.brief_id, concept_reference.reference_id, client_request_id
-            ));
-            let neural_request = Neural3DGenerationRequest {
-                schema_version: NEURAL_3D_GENERATION_REQUEST_SCHEMA_VERSION.into(),
-                request_id: stable_visual_id("neural_request", &neural_seed),
-                project_id: binding.brief.project_id.clone(),
-                turn_id: binding.brief.turn_id.clone(),
-                brief_id: binding.brief.brief_id.clone(),
-                concept_reference_id: concept_reference.reference_id.clone(),
-                concept_reference_sha256: concept_reference.image_object_sha256.clone(),
-                quality_tier: binding.quality_tier,
-                backend_preferences: vec![Neural3DBackend::Hunyuan3dV31Pro],
-                idempotency_key: stable_visual_id("neural_idempotency", &neural_seed),
-            };
-            neural_request
-                .validate()
-                .map_err(|error| format!("{}: {}", error.code(), error))?;
-            finish_visual_asset_from_concept(
-                client_request_id,
-                job_created_at,
-                binding.brief,
-                concept_reference,
-                neural_request,
-                concept_png,
-                app,
-                state,
-                cancellation,
-            )
-            .await
-        }
-        VisualRemoteJobState::NeuralSubmitted { binding } => {
-            let concept_png = state
-                .repository
-                .read_object(&binding.concept_reference.image_object_sha256)
-                .map_err(|error| format!("{}: {}", error.code(), error))?;
-            let adapter = state.hunyuan_adapter(binding.request.request_id.clone());
-            let receipt = NeuralVisualProviderReceipt {
-                schema_version: forgecad_app_server::NEURAL_VISUAL_PROVIDER_RECEIPT_SCHEMA_VERSION
-                    .into(),
-                backend: binding.backend,
-                provider_job_id: binding.provider_job_id.clone(),
-            };
-            poll_neural_visual_asset(
-                client_request_id,
-                binding.brief,
-                binding.concept_reference,
-                concept_png,
-                adapter,
-                receipt,
-                app,
-                state,
-                cancellation,
-            )
-            .await
-        }
-        _ => Err("VISUAL_REMOTE_JOB_NOT_RECOVERABLE".into()),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn finish_visual_asset_from_concept<R: tauri::Runtime>(
-    client_request_id: &str,
-    job_created_at: String,
-    brief: VisualDesignBrief,
-    concept_reference: ConceptReferenceArtifact,
-    neural_request: Neural3DGenerationRequest,
-    concept_png: Vec<u8>,
-    app: &AppHandle<R>,
-    state: &VisualProviderState,
-    cancellation: CancellationToken,
-) -> Result<GenerateVisualAssetResponse, String> {
-    let neural_adapter = state.hunyuan_adapter(neural_request.request_id.clone());
-    let neural_receipt = neural_adapter
-        .submit(neural_request.clone(), Neural3DBackend::Hunyuan3dV31Pro)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    validate_neural_visual_receipt(&neural_receipt, Neural3DBackend::Hunyuan3dV31Pro)
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    let neural_record = VisualRemoteJobRecord {
-        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
-        client_request_id: client_request_id.into(),
-        project_id: brief.project_id.clone(),
-        turn_id: brief.turn_id.clone(),
-        state: VisualRemoteJobState::NeuralSubmitted {
-            binding: Neural3DResumeBinding {
-                brief: brief.clone(),
-                concept_reference: concept_reference.clone(),
-                request: neural_request.clone(),
-                backend: neural_receipt.backend,
-                provider_job_id: neural_receipt.provider_job_id.clone(),
-            },
-        },
-        created_at: job_created_at,
-        updated_at: rust_core_timestamp(),
-    };
-    if let Err(error) = state.repository.put_visual_remote_job(&neural_record) {
-        let _ = neural_adapter.cancel(neural_receipt.clone()).await;
-        return Err(format!("{}: {}", error.code(), error));
-    }
-    poll_neural_visual_asset(
-        client_request_id,
-        brief,
-        concept_reference,
-        concept_png,
-        neural_adapter,
-        neural_receipt,
-        app,
-        state,
-        cancellation,
-    )
-    .await
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn poll_neural_visual_asset<R: tauri::Runtime>(
-    client_request_id: &str,
-    brief: VisualDesignBrief,
-    concept_reference: ConceptReferenceArtifact,
-    concept_png: Vec<u8>,
-    neural_adapter: FalHunyuan3dV31ProAdapter,
-    neural_receipt: NeuralVisualProviderReceipt,
-    app: &AppHandle<R>,
-    state: &VisualProviderState,
-    cancellation: CancellationToken,
-) -> Result<GenerateVisualAssetResponse, String> {
-    let neural_deadline = Instant::now() + Duration::from_secs(15 * 60);
-    let artifact = loop {
-        if cancellation.is_cancelled() {
-            let _ = neural_adapter.cancel(neural_receipt.clone()).await;
-            return Err("VISUAL_GENERATION_CANCELLED".into());
-        }
-        if Instant::now() >= neural_deadline {
-            let _ = neural_adapter.cancel(neural_receipt.clone()).await;
-            return Err("NEURAL_3D_GENERATION_TIMEOUT".into());
-        }
-        match neural_adapter
-            .poll(neural_receipt.clone())
-            .await
-            .map_err(|error| format!("{}: {}", error.code, error.message))?
-        {
-            NeuralVisualProviderStatus::Queued | NeuralVisualProviderStatus::Running => {
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-            NeuralVisualProviderStatus::Ready { artifact } => break artifact,
-            NeuralVisualProviderStatus::Failed { code } => return Err(code),
-        }
-    };
-
-    emit_visual_progress(
-        app,
-        client_request_id,
-        "readback",
-        "正在校验 GLB 与材质绑定",
-    );
-    let glb = state
-        .repository
-        .read_object(&artifact.glb_sha256)
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    let inspection =
-        inspect_neural_visual_glb(&glb).map_err(|error| format!("{}: {}", error.code(), error))?;
-    if inspection.sha256 != artifact.glb_sha256 || inspection.byte_size != artifact.glb_byte_size {
-        return Err("NEURAL_GLB_CAS_READBACK_MISMATCH".into());
-    }
-    complete_visual_remote_job(&state.repository, client_request_id, inspection.clone())?;
-    emit_visual_progress(app, client_request_id, "ready", "唯一 3D 结果已就绪");
-    Ok(GenerateVisualAssetResponse {
-        brief,
-        concept_reference,
-        inspection,
-        concept_png_base64: BASE64_STANDARD.encode(concept_png),
-        glb_base64: BASE64_STANDARD.encode(glb),
-    })
-}
-
-fn finish_visual_remote_job(
-    repository: &forgecad_core::CoreRepository,
-    client_request_id: &str,
-    state: VisualRemoteJobState,
-    missing_fallback: &str,
-) -> Result<(), String> {
-    let Some(previous) = repository
-        .visual_remote_job(client_request_id)
-        .map_err(|error| format!("{}: {}", error.code(), error))?
-    else {
-        // Brief/credential failures happen before any remote queue receipt and
-        // therefore correctly have no recoverable journal row.
-        let _ = missing_fallback;
-        return Ok(());
-    };
-    let terminal = VisualRemoteJobRecord {
-        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
-        client_request_id: previous.client_request_id,
-        project_id: previous.project_id,
-        turn_id: previous.turn_id,
-        state,
-        created_at: previous.created_at,
-        updated_at: rust_core_timestamp(),
-    };
-    repository
-        .put_visual_remote_job(&terminal)
-        .map(|_| ())
-        .map_err(|error| format!("{}: {}", error.code(), error))
-}
-
-fn complete_visual_remote_job(
-    repository: &forgecad_core::CoreRepository,
-    client_request_id: &str,
-    inspection: NeuralVisualGlbInspection,
-) -> Result<(), String> {
-    let previous = repository
-        .visual_remote_job(client_request_id)
-        .map_err(|error| format!("{}: {}", error.code(), error))?
-        .ok_or_else(|| "VISUAL_REMOTE_JOB_NOT_FOUND".to_string())?;
-    let VisualRemoteJobState::NeuralSubmitted { binding } = previous.state else {
-        return Err("VISUAL_REMOTE_JOB_COMPLETION_STATE_INVALID".into());
-    };
-    let completed = VisualRemoteJobRecord {
-        schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
-        client_request_id: previous.client_request_id,
-        project_id: previous.project_id,
-        turn_id: previous.turn_id,
-        state: VisualRemoteJobState::Completed {
-            binding,
-            inspection,
-        },
-        created_at: previous.created_at,
-        updated_at: rust_core_timestamp(),
-    };
-    repository
-        .put_visual_remote_job(&completed)
-        .map(|_| ())
-        .map_err(|error| format!("{}: {}", error.code(), error))
-}
-
-fn stable_visual_error_code(message: &str, fallback: &str) -> String {
-    let candidate = message.split(':').next().unwrap_or_default().trim();
-    if !candidate.is_empty()
-        && candidate.len() <= 96
-        && candidate
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
-    {
-        candidate.into()
-    } else {
-        fallback.into()
-    }
-}
-
-fn emit_visual_progress<R: tauri::Runtime>(
-    app: &AppHandle<R>,
-    client_request_id: &str,
-    stage: &'static str,
-    detail: &'static str,
-) {
-    let _ = app.emit(
-        "forgecad://visual-generation-progress",
-        VisualGenerationProgress {
-            client_request_id: client_request_id.into(),
-            stage,
-            detail,
-        },
-    );
-}
-
-fn check_visual_cancellation(cancellation: &CancellationToken) -> Result<(), String> {
-    if cancellation.is_cancelled() {
-        Err("VISUAL_GENERATION_CANCELLED".into())
-    } else {
-        Ok(())
-    }
-}
-
-fn stable_visual_id(prefix: &str, seed: &str) -> String {
-    let digest = sha256_text(seed);
-    format!("{prefix}_{}", &digest[..24])
-}
-
-fn sha256_text(value: &str) -> String {
-    format!("{:x}", Sha256::digest(value.as_bytes()))
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct VisualProviderConfigMetadata {
-    provider: String,
-    configured: bool,
-    storage: String,
-    requires_os_prompt: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SaveVisualProviderConfigRequest {
-    fal_api_key: String,
 }
 
 #[derive(Deserialize)]
@@ -915,76 +199,34 @@ struct AnalyzeVisualEvidenceResult {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SubmitConceptImageRequest {
-    brief: VisualDesignBrief,
-    request: ConceptImageGenerationRequest,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PollConceptImageRequest {
-    brief: VisualDesignBrief,
-    request: ConceptImageGenerationRequest,
-    receipt: ConceptImageProviderReceipt,
-    reference_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CancelConceptImageRequest {
-    request: ConceptImageGenerationRequest,
-    receipt: ConceptImageProviderReceipt,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PollNeural3dRequest {
-    request: Neural3DGenerationRequest,
-    receipt: NeuralVisualProviderReceipt,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PollConceptImageResponse {
-    status: ConceptImageProviderStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reference: Option<ConceptReferenceArtifact>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct GenerateVisualAssetRequest {
+struct AuthorizeVisualReferenceComparisonRequest {
     client_request_id: String,
-    project_id: String,
-    turn_id: String,
-    user_intent: String,
-    quality_tier: VisualQualityTier,
-    #[serde(default)]
-    input_evidence: Vec<VisualInputEvidence>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GenerateVisualAssetResponse {
-    brief: VisualDesignBrief,
-    concept_reference: ConceptReferenceArtifact,
-    inspection: NeuralVisualGlbInspection,
-    concept_png_base64: String,
-    glb_base64: String,
+    request: MultimodalDesignRequest,
+    visual_evidence_graph: VisualEvidenceGraph,
+    maximum_calls: u8,
+    maximum_variable_cost_microusd: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct VisualGenerationProgress {
-    client_request_id: String,
-    stage: &'static str,
-    detail: &'static str,
+struct AuthorizeVisualReferenceComparisonResult {
+    authorization_id: String,
+    authorization_binding_sha256: String,
+    expires_at_unix_ms: i64,
+    maximum_calls: u8,
+    maximum_variable_cost_microusd: u64,
 }
 
-impl Drop for SaveVisualProviderConfigRequest {
-    fn drop(&mut self) {
-        self.fal_api_key.zeroize();
-    }
+/// Explicit user approval for exactly one already-captured category-open
+/// candidate. The request carries no model payload: Rust derives the complete
+/// comparison scope from the live execution and sealed evidence.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthorizeCandidatePbrVisualComparisonRequest {
+    client_request_id: String,
+    execution_id: String,
+    project_id: String,
+    turn_id: String,
 }
 
 static K001_PACKAGED_PROBE_COMPLETION: OnceLock<(Mutex<bool>, Condvar)> = OnceLock::new();
@@ -1051,9 +293,14 @@ where
 
 fn build_native_provider_client(
     credentials: Arc<ProviderCredentialStore>,
-) -> Result<Arc<dyn ProviderClient>, String> {
+) -> Result<NativeProviderClientBundle, String> {
     if mvp_offline_arm_enabled() {
-        return Ok(Arc::new(LocalRoboticArmMvpProvider::new()));
+        let local_mvp_provider = Arc::new(LocalRoboticArmMvpProvider::new());
+        let client: Arc<dyn ProviderClient> = local_mvp_provider.clone();
+        return Ok(NativeProviderClientBundle {
+            client,
+            local_mvp_provider: Some(local_mvp_provider),
+        });
     }
     let pricing = DeepSeekPricing::new(
         K002_INPUT_BUDGET_MICROUSD_PER_MILLION_TOKENS,
@@ -1065,7 +312,10 @@ fn build_native_provider_client(
         .map_err(|_| "ForgeCAD HTTPS Provider transport could not be initialized.".to_string())?;
     let client = DeepSeekProviderClient::new(credentials, Arc::new(transport), config)
         .map_err(|_| "ForgeCAD DeepSeek Provider client could not be initialized.".to_string())?;
-    Ok(Arc::new(client))
+    Ok(NativeProviderClientBundle {
+        client: Arc::new(client),
+        local_mvp_provider: None,
+    })
 }
 
 fn mvp_offline_arm_enabled() -> bool {
@@ -1344,6 +594,222 @@ struct ArmWebviewQaPngCapture {
     height: u32,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct C111bPackagedWebglQaConfig {
+    schema_version: &'static str,
+    phase: String,
+    mode: String,
+    source_sha256: &'static str,
+    triangle_count: u64,
+    primitive_count: u64,
+    material_count: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_project_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_asset_version_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_snapshot_revision: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_export_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaSourceRequest {
+    schema_version: String,
+    include_bytes: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct C111bPackagedWebglQaSource {
+    schema_version: &'static str,
+    file_name: &'static str,
+    sha256: String,
+    byte_size: u64,
+    triangle_count: u64,
+    primitive_count: u64,
+    material_count: u64,
+    complete_pbr_material_count: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_base64: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaCaptureRequest {
+    schema_version: String,
+    phase: String,
+    view_id: String,
+    source_sha256: String,
+    bytes_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaRasterReadability {
+    pixel_encoding: String,
+    display_transfer: String,
+    sample_pixel_count: u64,
+    foreground_pixel_count: u64,
+    foreground_coverage_bps: u64,
+    foreground_median_luma: u64,
+    foreground_readable_bps: u64,
+    background_rgb: [u8; 3],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaCapture {
+    view_id: String,
+    relative_path: String,
+    sha256: String,
+    byte_size: u64,
+    width: u32,
+    height: u32,
+    source_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    readability: Option<C111bPackagedWebglQaRasterReadability>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaReadbackRequest {
+    schema_version: String,
+    project_id: String,
+    asset_version_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaReadback {
+    schema_version: String,
+    project_id: String,
+    asset_version_id: String,
+    source_sha256: String,
+    shape_program_schema: String,
+    external_reference: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glb_byte_size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glb_triangle_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glb_primitive_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glb_material_count: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedWebglQaReport {
+    schema_version: String,
+    phase: String,
+    ok: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    project_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    asset_version_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    snapshot_revision: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    triangle_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    primitive_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    material_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    complete_pbr_material_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    renderer_generation: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    active_webgl_contexts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    canvas_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    blockout_glb_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    render_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    light_preset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    captures: Option<Vec<C111bPackagedWebglQaCapture>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    readback: Option<C111bPackagedWebglQaReadback>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    formal_eligible: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    human_benchmark_evidence: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reference_comparison: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    thread_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    turn_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_protocol_requests: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    product_tool_calls: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    output_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    prompt_cache_hit_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    prompt_cache_miss_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    same_intent_repair_attempts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    same_intent_repairs_applied: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_schema_repair_requests: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    product_tool_schema_repair_requests: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    estimated_cost_microusd: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    billable_variable_cost_microusd: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    billable_variable_cost_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    turn_total_elapsed_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    turn_phase_timings_ms: Option<BTreeMap<String, u64>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    turn_trace_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    turn_metrics_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    network_provider_calls: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    network_call_made: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    credential_reads: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_metrics_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    credential_metrics_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    end_to_end_elapsed_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stage_timings: Option<Vec<C111bPackagedQaStageTiming>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    timing_metrics_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    restart_hydrated: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    error_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct C111bPackagedQaStageTiming {
+    stage: String,
+    elapsed_ms: u64,
+    duration_since_previous_ms: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ArmWebviewQaGlbCapture {
@@ -1496,6 +962,939 @@ fn forgecad_arm_webview_qa_capture(
     Ok(receipt)
 }
 
+fn c111b_packaged_webgl_source_path() -> Result<PathBuf, String> {
+    let home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or_else(|| "C111B packaged WebGL QA HOME is missing.".to_string())?;
+    if !home.is_absolute() {
+        return Err("C111B packaged WebGL QA HOME must be absolute.".into());
+    }
+    Ok(home.join("qa-inputs").join("c111b-production.glb"))
+}
+
+fn c111b_packaged_webgl_config() -> Result<Option<C111bPackagedWebglQaConfig>, String> {
+    if env::var("FORGECAD_C111B_WEBVIEW_QA").as_deref() != Ok("1") {
+        return Ok(None);
+    }
+    if env::var("FORGECAD_DISABLE_PROVIDER_CONFIG").as_deref() != Ok("1") {
+        return Err(
+            "C111B packaged WebGL QA requires Provider configuration to be disabled.".into(),
+        );
+    }
+    let phase = env::var("FORGECAD_C111B_WEBVIEW_QA_PHASE")
+        .map_err(|_| "C111B packaged WebGL QA phase is missing.".to_string())?;
+    if !matches!(phase.as_str(), "initial" | "restart") {
+        return Err("C111B packaged WebGL QA phase must be initial or restart.".into());
+    }
+    let mode =
+        env::var("FORGECAD_C111B_WEBVIEW_QA_MODE").unwrap_or_else(|_| "external_reference".into());
+    if !matches!(mode.as_str(), "external_reference" | "agent_asset") {
+        return Err(
+            "C111B packaged WebGL QA mode must be external_reference or agent_asset.".into(),
+        );
+    }
+    let expected = if phase == "restart" {
+        Some((
+            k002_probe_stable_id_env("FORGECAD_C111B_WEBVIEW_QA_EXPECT_PROJECT_ID")?,
+            k002_probe_stable_id_env("FORGECAD_C111B_WEBVIEW_QA_EXPECT_ASSET_VERSION_ID")?,
+            k002_probe_u64_env(
+                "FORGECAD_C111B_WEBVIEW_QA_EXPECT_SNAPSHOT_REVISION",
+                1,
+                u64::MAX,
+            )?,
+            env::var("FORGECAD_C111B_WEBVIEW_QA_EXPECT_EXPORT_SHA256").map_err(|_| {
+                "C111B packaged WebGL QA expected export SHA is missing.".to_string()
+            })?,
+        ))
+    } else {
+        None
+    };
+    if expected
+        .as_ref()
+        .is_some_and(|value| validate_k001_probe_sha(&value.3).is_err())
+    {
+        return Err("C111B packaged WebGL QA expected export SHA is invalid.".into());
+    }
+    let material_count = if mode == "agent_asset" {
+        C111B_PACKAGED_WEBGL_AGENT_V2_MATERIALS
+    } else {
+        C111B_PACKAGED_WEBGL_MATERIALS
+    };
+    Ok(Some(C111bPackagedWebglQaConfig {
+        schema_version: C111B_PACKAGED_WEBGL_SCHEMA,
+        phase,
+        mode,
+        source_sha256: C111B_PACKAGED_WEBGL_PRODUCTION_SHA256,
+        triangle_count: C111B_PACKAGED_WEBGL_TRIANGLES,
+        primitive_count: C111B_PACKAGED_WEBGL_PRIMITIVES,
+        material_count,
+        expected_project_id: expected.as_ref().map(|value| value.0.clone()),
+        expected_asset_version_id: expected.as_ref().map(|value| value.1.clone()),
+        expected_snapshot_revision: expected.as_ref().map(|value| value.2),
+        expected_export_sha256: expected.map(|value| value.3),
+    }))
+}
+
+fn c111b_packaged_webgl_validate_source(bytes: &[u8]) -> Result<(u64, u64, u64, u64), String> {
+    if bytes.is_empty() || bytes.len() > C111B_PACKAGED_WEBGL_SOURCE_MAX_BYTES {
+        return Err("C111B packaged WebGL QA source byte length is invalid.".into());
+    }
+    let sha256 = format!("{:x}", Sha256::digest(bytes));
+    if sha256 != C111B_PACKAGED_WEBGL_PRODUCTION_SHA256 {
+        return Err(
+            "C111B packaged WebGL QA source SHA-256 is not the frozen production asset.".into(),
+        );
+    }
+    let (triangle_count, complete_pbr_material_count) = arm_webview_qa_glb_readback(bytes)?;
+    let document = c111b_packaged_webgl_glb_json(bytes)?;
+    let primitive_count = document
+        .get("meshes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "C111B packaged WebGL QA GLB meshes are missing.".to_string())?
+        .iter()
+        .map(|mesh| {
+            mesh.get("primitives")
+                .and_then(Value::as_array)
+                .map(|primitives| primitives.len() as u64)
+                .ok_or_else(|| "C111B packaged WebGL QA GLB primitives are missing.".to_string())
+        })
+        .try_fold(0_u64, |total, next| {
+            total
+                .checked_add(next?)
+                .ok_or_else(|| "C111B packaged WebGL QA primitive count overflowed.".to_string())
+        })?;
+    let material_count = document
+        .get("materials")
+        .and_then(Value::as_array)
+        .map(|materials| materials.len() as u64)
+        .ok_or_else(|| "C111B packaged WebGL QA GLB materials are missing.".to_string())?;
+    if triangle_count != C111B_PACKAGED_WEBGL_TRIANGLES
+        || primitive_count != C111B_PACKAGED_WEBGL_PRIMITIVES
+        || material_count != C111B_PACKAGED_WEBGL_MATERIALS
+        || complete_pbr_material_count == 0
+    {
+        return Err(
+            "C111B packaged WebGL QA source inventory drifted from the frozen contract.".into(),
+        );
+    }
+    Ok((
+        triangle_count,
+        primitive_count,
+        material_count,
+        complete_pbr_material_count,
+    ))
+}
+
+#[tauri::command]
+fn forgecad_c111b_webview_qa_config() -> Result<Option<C111bPackagedWebglQaConfig>, String> {
+    c111b_packaged_webgl_config()
+}
+
+#[tauri::command]
+fn forgecad_c111b_webview_qa_source(
+    request: C111bPackagedWebglQaSourceRequest,
+) -> Result<C111bPackagedWebglQaSource, String> {
+    let Some(config) = c111b_packaged_webgl_config()? else {
+        return Err("C111B packaged WebGL QA source is disabled.".into());
+    };
+    if config.mode != "external_reference" {
+        return Err("C111B Agent-asset QA does not accept an external GLB source.".into());
+    }
+    if request.schema_version != C111B_PACKAGED_WEBGL_SCHEMA {
+        return Err("C111B packaged WebGL QA source schema is invalid.".into());
+    }
+    let path = c111b_packaged_webgl_source_path()?;
+    let bytes = fs::read(&path)
+        .map_err(|_| "C111B packaged WebGL QA exact production GLB is missing.".to_string())?;
+    let (triangle_count, primitive_count, material_count, complete_pbr_material_count) =
+        c111b_packaged_webgl_validate_source(&bytes)?;
+    Ok(C111bPackagedWebglQaSource {
+        schema_version: config.schema_version,
+        file_name: "c111b-production.glb",
+        sha256: config.source_sha256.to_string(),
+        byte_size: bytes.len() as u64,
+        triangle_count,
+        primitive_count,
+        material_count,
+        complete_pbr_material_count,
+        bytes_base64: request.include_bytes.then(|| BASE64_STANDARD.encode(bytes)),
+    })
+}
+
+#[tauri::command]
+fn forgecad_c111b_webview_qa_capture(
+    capture: C111bPackagedWebglQaCaptureRequest,
+) -> Result<C111bPackagedWebglQaCapture, String> {
+    let Some(config) = c111b_packaged_webgl_config()? else {
+        return Err("C111B packaged WebGL QA capture is disabled.".into());
+    };
+    if capture.schema_version != C111B_PACKAGED_WEBGL_SCHEMA || capture.phase != config.phase {
+        return Err("C111B packaged WebGL QA capture identity is invalid.".into());
+    }
+    if validate_k001_probe_sha(&capture.source_sha256).is_err()
+        || (config.mode == "external_reference" && capture.source_sha256 != config.source_sha256)
+        || (config.mode == "agent_asset"
+            && config.phase == "restart"
+            && config.expected_export_sha256.as_deref() != Some(capture.source_sha256.as_str()))
+    {
+        return Err("C111B packaged WebGL QA capture source lineage is invalid.".into());
+    }
+    if !matches!(
+        capture.view_id.as_str(),
+        "iso" | "front" | "back" | "left" | "right" | "top" | "gripper_iso" | "gripper_front"
+    ) {
+        return Err("C111B packaged WebGL QA view is not in the frozen eight-view set.".into());
+    }
+    if capture.bytes_base64.len()
+        > (C111B_PACKAGED_WEBGL_CAPTURE_MAX_PNG_BYTES.saturating_add(2) / 3).saturating_mul(4)
+    {
+        return Err("C111B packaged WebGL QA screenshot is too large.".into());
+    }
+    let bytes = BASE64_STANDARD
+        .decode(capture.bytes_base64.as_bytes())
+        .map_err(|_| "C111B packaged WebGL QA screenshot is not valid Base64.".to_string())?;
+    if bytes.is_empty() || bytes.len() > C111B_PACKAGED_WEBGL_CAPTURE_MAX_PNG_BYTES {
+        return Err("C111B packaged WebGL QA screenshot byte length is invalid.".into());
+    }
+    let (width, height) = arm_webview_qa_png_dimensions(&bytes)?;
+    let relative_path = format!(
+        "qa-artifacts/c111b-webgl/{}/{}.png",
+        config.phase, capture.view_id
+    );
+    let root = sidecar_log_path()
+        .parent()
+        .ok_or_else(|| "C111B packaged WebGL QA artifact root is unavailable.".to_string())?
+        .to_path_buf();
+    let path = root.join(&relative_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| {
+            "C111B packaged WebGL QA artifact directory could not be created.".to_string()
+        })?;
+    }
+    let sha256 = format!("{:x}", Sha256::digest(&bytes));
+    fs::write(&path, &bytes)
+        .map_err(|_| "C111B packaged WebGL QA screenshot could not be written.".to_string())?;
+    Ok(C111bPackagedWebglQaCapture {
+        view_id: capture.view_id,
+        relative_path,
+        sha256,
+        byte_size: bytes.len() as u64,
+        width,
+        height,
+        source_sha256: capture.source_sha256,
+        readability: None,
+    })
+}
+
+#[tauri::command]
+async fn forgecad_c111b_webview_qa_readback(
+    request: C111bPackagedWebglQaReadbackRequest,
+    bridge: State<'_, AppServerBridge>,
+) -> Result<C111bPackagedWebglQaReadback, String> {
+    let Some(config) = c111b_packaged_webgl_config()? else {
+        return Err("C111B packaged WebGL QA readback is disabled.".into());
+    };
+    if request.schema_version != C111B_PACKAGED_WEBGL_SCHEMA
+        || !forgecad_app_server_protocol::valid_stable_id(&request.project_id)
+        || !forgecad_app_server_protocol::valid_stable_id(&request.asset_version_id)
+    {
+        return Err("C111B packaged WebGL QA readback request is invalid.".into());
+    }
+    let asset = r007b_packaged_get_json(
+        bridge.inner(),
+        format!("/api/v1/agent/asset-versions/{}", request.asset_version_id),
+    )
+    .await?;
+    if asset.get("project_id").and_then(Value::as_str) != Some(request.project_id.as_str())
+        || asset.get("asset_version_id").and_then(Value::as_str)
+            != Some(request.asset_version_id.as_str())
+    {
+        return Err("C111B packaged WebGL QA asset identity is invalid.".into());
+    }
+    if config.mode == "external_reference"
+        && (asset
+            .pointer("/shape_program/schema_version")
+            .and_then(Value::as_str)
+            != Some("ExternalGLBReference@1")
+            || asset
+                .pointer("/shape_program/editable")
+                .and_then(Value::as_bool)
+                != Some(false)
+            || asset
+                .pointer("/shape_program/source_sha256")
+                .and_then(Value::as_str)
+                != Some(C111B_PACKAGED_WEBGL_PRODUCTION_SHA256))
+    {
+        return Err("C111B packaged WebGL QA exact external-reference lineage is invalid.".into());
+    }
+    if config.mode == "agent_asset" {
+        let parent_asset_version_id = c111b_validate_agent_asset_lineage(
+            &asset,
+            C111B_PACKAGED_WEBGL_VISUAL_PROGRAM_SHAPE_SHA256,
+        )?;
+        let parent = r007b_packaged_get_json(
+            bridge.inner(),
+            format!("/api/v1/agent/asset-versions/{parent_asset_version_id}"),
+        )
+        .await?;
+        c111b_validate_agent_parent_lineage(
+            &parent,
+            &request.project_id,
+            &parent_asset_version_id,
+            C111B_PACKAGED_WEBGL_VISUAL_PROGRAM_SHAPE_SHA256,
+        )?;
+        let (_response, bytes) = r007b_packaged_get_binary(
+            bridge.inner(),
+            format!(
+                "/api/v1/agent/asset-versions/{}:model.glb",
+                request.asset_version_id
+            ),
+        )
+        .await?;
+        let source_sha256 = format!("{:x}", Sha256::digest(&bytes));
+        let (triangle_count, complete_pbr_material_count) = arm_webview_qa_glb_readback(&bytes)?;
+        let document = c111b_packaged_webgl_glb_json(&bytes)?;
+        let primitive_count = document
+            .get("meshes")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "C111B packaged WebGL QA Agent GLB meshes are missing.".to_string())?
+            .iter()
+            .map(|mesh| {
+                mesh.get("primitives")
+                    .and_then(Value::as_array)
+                    .map(|primitives| primitives.len() as u64)
+                    .ok_or_else(|| {
+                        "C111B packaged WebGL QA Agent GLB primitives are missing.".to_string()
+                    })
+            })
+            .try_fold(0_u64, |total, next| {
+                total.checked_add(next?).ok_or_else(|| {
+                    "C111B packaged WebGL QA Agent primitive count overflowed.".to_string()
+                })
+            })?;
+        let material_count = document
+            .get("materials")
+            .and_then(Value::as_array)
+            .map(|materials| materials.len() as u64)
+            .ok_or_else(|| {
+                "C111B packaged WebGL QA Agent GLB materials are missing.".to_string()
+            })?;
+        if triangle_count != C111B_PACKAGED_WEBGL_TRIANGLES
+            || primitive_count != C111B_PACKAGED_WEBGL_PRIMITIVES
+            || material_count != C111B_PACKAGED_WEBGL_AGENT_V2_MATERIALS
+            || complete_pbr_material_count != C111B_PACKAGED_WEBGL_AGENT_V2_COMPLETE_PBR_MATERIALS
+            || (config.phase == "restart"
+                && config.expected_export_sha256.as_deref() != Some(source_sha256.as_str()))
+        {
+            append_supervisor_log(&format!(
+                "ForgeCAD C111B packaged WebGL QA diagnostic=agent_production_glb_inventory_mismatch actual_sha256={source_sha256} expected_restart_sha256={} actual_triangles={triangle_count} expected_triangles={} actual_primitives={primitive_count} expected_primitives={} actual_materials={material_count} expected_materials={} complete_pbr_materials={complete_pbr_material_count} expected_complete_pbr_materials={}",
+                config.expected_export_sha256.as_deref().unwrap_or("initial_dynamic_lineage"),
+                C111B_PACKAGED_WEBGL_TRIANGLES,
+                C111B_PACKAGED_WEBGL_PRIMITIVES,
+                C111B_PACKAGED_WEBGL_AGENT_V2_MATERIALS,
+                C111B_PACKAGED_WEBGL_AGENT_V2_COMPLETE_PBR_MATERIALS,
+            ));
+            return Err(
+                "C111B packaged WebGL QA Agent production GLB inventory or hash is invalid.".into(),
+            );
+        }
+        return Ok(C111bPackagedWebglQaReadback {
+            schema_version: C111B_PACKAGED_WEBGL_SCHEMA.into(),
+            project_id: request.project_id,
+            asset_version_id: request.asset_version_id,
+            source_sha256,
+            shape_program_schema: "ShapeProgram@1".into(),
+            external_reference: false,
+            glb_byte_size: Some(bytes.len() as u64),
+            glb_triangle_count: Some(triangle_count),
+            glb_primitive_count: Some(primitive_count),
+            glb_material_count: Some(material_count),
+        });
+    }
+    Ok(C111bPackagedWebglQaReadback {
+        schema_version: C111B_PACKAGED_WEBGL_SCHEMA.into(),
+        project_id: request.project_id,
+        asset_version_id: request.asset_version_id,
+        source_sha256: C111B_PACKAGED_WEBGL_PRODUCTION_SHA256.to_string(),
+        shape_program_schema: "ExternalGLBReference@1".into(),
+        external_reference: true,
+        glb_byte_size: None,
+        glb_triangle_count: None,
+        glb_primitive_count: None,
+        glb_material_count: None,
+    })
+}
+
+fn c111b_validate_agent_asset_lineage(
+    asset: &Value,
+    expected_shape_program_sha256: &str,
+) -> Result<String, String> {
+    let shape_program = asset.get("shape_program").ok_or_else(|| {
+        "C111B packaged WebGL QA Agent ShapeProgram lineage is invalid.".to_string()
+    })?;
+    let shape_program_sha256 = semantic_sha256(shape_program).map_err(|_| {
+        "C111B packaged WebGL QA Agent ShapeProgram lineage is invalid.".to_string()
+    })?;
+    if shape_program.get("schema_version").and_then(Value::as_str) != Some("ShapeProgram@1") {
+        return Err("C111B packaged WebGL QA Agent ShapeProgram schema is invalid.".into());
+    }
+    if shape_program
+        .get("non_functional_only")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
+        return Err("C111B packaged WebGL QA Agent non-functional scope is invalid.".into());
+    }
+    if shape_program_sha256 != expected_shape_program_sha256 {
+        append_supervisor_log(&format!(
+            "ForgeCAD C111B packaged WebGL QA diagnostic=shape_program_sha256_mismatch actual={shape_program_sha256} expected={expected_shape_program_sha256}"
+        ));
+        return Err("C111B packaged WebGL QA Agent ShapeProgram hash is invalid.".into());
+    }
+    if asset.get("version_no").and_then(Value::as_u64) != Some(2) {
+        return Err("C111B packaged WebGL QA Agent V2 lineage is invalid.".into());
+    }
+    if asset.get("status").and_then(Value::as_str) != Some("committed") {
+        return Err("C111B packaged WebGL QA Agent V2 status is invalid.".into());
+    }
+    let parent_asset_version_id = asset
+        .get("parent_asset_version_id")
+        .and_then(Value::as_str)
+        .filter(|value| forgecad_app_server_protocol::valid_stable_id(value))
+        .ok_or_else(|| "C111B packaged WebGL QA Agent parent lineage is invalid.".to_string())?;
+
+    let adornments = asset
+        .pointer("/assembly_graph/surface_adornments")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "C111B packaged WebGL QA Agent A005 lineage is missing.".to_string())?;
+    let matching = adornments
+        .iter()
+        .filter(|value| {
+            value.get("target_zone_id").and_then(Value::as_str) == Some("zone_arm_link_shell")
+        })
+        .collect::<Vec<_>>();
+    if matching.len() != 1 {
+        return Err("C111B packaged WebGL QA Agent A005 lineage is invalid.".into());
+    }
+    let program: SurfaceAdornmentProgram = serde_json::from_value((*matching[0]).clone())
+        .map_err(|_| "C111B packaged WebGL QA Agent A005 lineage is invalid.".to_string())?;
+    program
+        .validate()
+        .map_err(|_| "C111B packaged WebGL QA Agent A005 lineage is invalid.".to_string())?;
+    if program.target_zone_id != "zone_arm_link_shell"
+        || program.kind != "normal_relief"
+        || program.motif != "parallel_groove"
+        || program.intensity != "subtle"
+        || program.coverage != "center_band"
+        || program.base_material != "mat_composite"
+        || program.skill_id != "skill_first_party_surface_adornment"
+        || program.skill_version != 3
+    {
+        return Err("C111B packaged WebGL QA Agent A005 lineage is invalid.".into());
+    }
+    let program_sha256 = program
+        .canonical_sha256()
+        .map_err(|_| "C111B packaged WebGL QA Agent A005 lineage is invalid.".to_string())?;
+    let binding_key = format!("{}:{}", program.target_part_id, program.target_zone_id);
+    let expected_material_id = format!("mat_a005_{}", &program_sha256[..32]);
+    if asset
+        .get("material_bindings")
+        .and_then(Value::as_object)
+        .and_then(|bindings| bindings.get(&binding_key))
+        .and_then(Value::as_str)
+        != Some(expected_material_id.as_str())
+    {
+        return Err("C111B packaged WebGL QA Agent A005 material seal is invalid.".into());
+    }
+    Ok(parent_asset_version_id.to_string())
+}
+
+fn c111b_validate_agent_parent_lineage(
+    parent: &Value,
+    project_id: &str,
+    parent_asset_version_id: &str,
+    expected_shape_program_sha256: &str,
+) -> Result<(), String> {
+    let shape_program = parent
+        .get("shape_program")
+        .ok_or_else(|| "C111B packaged WebGL QA Agent parent lineage is invalid.".to_string())?;
+    let shape_program_sha256 = semantic_sha256(shape_program)
+        .map_err(|_| "C111B packaged WebGL QA Agent parent lineage is invalid.".to_string())?;
+    if parent.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || parent.get("asset_version_id").and_then(Value::as_str) != Some(parent_asset_version_id)
+        || parent
+            .get("parent_asset_version_id")
+            .is_some_and(|value| !value.is_null())
+        || parent.get("version_no").and_then(Value::as_u64) != Some(1)
+        || shape_program_sha256 != expected_shape_program_sha256
+    {
+        return Err("C111B packaged WebGL QA Agent parent lineage is invalid.".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn forgecad_c111b_webview_qa_report(
+    mut report: C111bPackagedWebglQaReport,
+    metrics: State<'_, C111bPackagedQaMetricsState>,
+    bridge: State<'_, AppServerBridge>,
+) -> Result<(), String> {
+    let Some(config) = c111b_packaged_webgl_config()? else {
+        return Err("C111B packaged WebGL QA reporting is disabled.".into());
+    };
+    if report.schema_version != C111B_PACKAGED_WEBGL_SCHEMA || report.phase != config.phase {
+        return Err("C111B packaged WebGL QA report identity is invalid.".into());
+    }
+    attach_c111b_packaged_native_metrics(&mut report, &config, &metrics, Some(&bridge)).await?;
+    if !report.ok {
+        let code = report
+            .error_code
+            .as_deref()
+            .ok_or_else(|| "C111B packaged WebGL QA failure requires error_code.".to_string())?;
+        if !forgecad_app_server_protocol::valid_stable_id(code) {
+            return Err("C111B packaged WebGL QA error_code is invalid.".into());
+        }
+    } else {
+        validate_c111b_packaged_webgl_success(&report, &config)?;
+    }
+    let encoded = serde_json::to_string(&report)
+        .map_err(|_| "C111B packaged WebGL QA report could not be serialized.".to_string())?;
+    append_supervisor_log(&format!("{C111B_PACKAGED_WEBGL_MARKER}{encoded}"));
+    Ok(())
+}
+
+async fn attach_c111b_packaged_native_metrics(
+    report: &mut C111bPackagedWebglQaReport,
+    config: &C111bPackagedWebglQaConfig,
+    metrics: &C111bPackagedQaMetricsState,
+    bridge: Option<&AppServerBridge>,
+) -> Result<(), String> {
+    attach_c111b_packaged_timing_metrics(report, metrics)?;
+    if config.mode == "agent_asset" {
+        let provider = metrics.local_mvp_provider.as_ref().ok_or_else(|| {
+            "C111B Agent packaged QA requires the native offline Provider counter.".to_string()
+        })?;
+        if !report.ok {
+            clear_c111b_turn_metrics(report);
+            report.provider_protocol_requests = Some(provider.calls());
+            report.turn_metrics_source =
+                Some("native_failure_without_terminal_turn_projection".into());
+        } else if config.phase == "initial" {
+            let thread_id = report
+                .thread_id
+                .as_deref()
+                .filter(|value| forgecad_app_server_protocol::valid_stable_id(value))
+                .ok_or_else(|| "C111B Agent packaged QA thread ID is invalid.".to_string())?;
+            let turn_id = report
+                .turn_id
+                .as_deref()
+                .filter(|value| forgecad_app_server_protocol::valid_stable_id(value))
+                .ok_or_else(|| "C111B Agent packaged QA turn ID is invalid.".to_string())?;
+            let value = mvp_arm_packaged_probe::native(
+                bridge.ok_or_else(|| {
+                    "C111B Agent packaged QA terminal Turn bridge is unavailable.".to_string()
+                })?,
+                "c111b_webview_report_turn_read",
+                "turn/read",
+                json!({
+                    "schema_version": "AgentTurnCommand@1",
+                    "command_id": "c111b_webview_report_turn_read",
+                    "command": {
+                        "operation": "read",
+                        "thread_id": thread_id,
+                        "turn_id": turn_id,
+                    }
+                }),
+            )
+            .await
+            .map_err(|_| "C111B Agent packaged QA terminal Turn readback failed.".to_string())?;
+            let turn = c111b_terminal_turn_from_result(value)?;
+            attach_c111b_terminal_turn_metrics(report, &turn, provider.calls())?;
+        } else {
+            report.thread_id = None;
+            report.turn_id = None;
+            clear_c111b_turn_metrics(report);
+            report.provider_protocol_requests = Some(provider.calls());
+            report.turn_metrics_source = Some("native_no_turn_on_restart".into());
+        }
+        report.network_provider_calls = Some(0);
+        report.network_call_made = Some(false);
+        report.credential_reads = Some(0);
+        report.provider_metrics_source = Some(
+            if report.ok && config.phase == "initial" {
+                "rust_terminal_turn_plus_native_local_mvp_counter"
+            } else {
+                "native_local_mvp_atomic_counter"
+            }
+            .into(),
+        );
+        report.credential_metrics_source = Some("native_structural_no_credential_source".into());
+        report.billable_variable_cost_microusd = Some(0);
+        report.billable_variable_cost_source = Some("native_offline_no_billable_transport".into());
+    } else {
+        report.thread_id = None;
+        report.turn_id = None;
+        clear_c111b_turn_metrics(report);
+        report.provider_protocol_requests = Some(0);
+        report.network_provider_calls = Some(0);
+        report.network_call_made = Some(false);
+        report.credential_reads = Some(0);
+        report.provider_metrics_source = Some("native_no_agent_provider_path".into());
+        report.credential_metrics_source = Some("native_no_agent_provider_path".into());
+        report.billable_variable_cost_microusd = Some(0);
+        report.billable_variable_cost_source = Some("native_no_agent_provider_path".into());
+    }
+    Ok(())
+}
+
+fn c111b_terminal_turn_from_result(value: Value) -> Result<AgentTurn, String> {
+    let terminal: TurnCommandResult = serde_json::from_value(value).map_err(|_| {
+        "C111B Agent packaged QA terminal Turn result contract is invalid.".to_string()
+    })?;
+    terminal.validate().map_err(|_| {
+        "C111B Agent packaged QA terminal Turn result validation failed.".to_string()
+    })?;
+    if terminal.command_id != "c111b_webview_report_turn_read" {
+        return Err("C111B Agent packaged QA terminal Turn command identity diverged.".into());
+    }
+    match terminal.result {
+        TurnCommandOutcome::Turn { turn } => Ok(turn),
+        _ => Err("C111B Agent packaged QA terminal Turn outcome is invalid.".into()),
+    }
+}
+
+fn clear_c111b_turn_metrics(report: &mut C111bPackagedWebglQaReport) {
+    report.product_tool_calls = Some(0);
+    report.input_tokens = Some(0);
+    report.output_tokens = Some(0);
+    report.prompt_cache_hit_tokens = Some(0);
+    report.prompt_cache_miss_tokens = Some(0);
+    report.same_intent_repair_attempts = Some(0);
+    report.same_intent_repairs_applied = Some(0);
+    report.provider_schema_repair_requests = Some(0);
+    report.product_tool_schema_repair_requests = Some(0);
+    report.estimated_cost_microusd = Some(0);
+    report.turn_total_elapsed_ms = Some(0);
+    report.turn_phase_timings_ms = Some(BTreeMap::new());
+    report.turn_trace_sha256 = None;
+    report.turn_metrics_source = None;
+}
+
+fn attach_c111b_terminal_turn_metrics(
+    report: &mut C111bPackagedWebglQaReport,
+    turn: &AgentTurn,
+    provider_calls: u64,
+) -> Result<(), String> {
+    if Some(turn.thread_id.as_str()) != report.thread_id.as_deref()
+        || Some(turn.turn_id.as_str()) != report.turn_id.as_deref()
+        || turn.status != AgentTurnStatus::Completed
+    {
+        return Err("C111B Agent packaged QA terminal Turn identity is invalid.".into());
+    }
+    let usage = &turn.usage;
+    let required_u64 = |field: &str| {
+        usage
+            .get(field)
+            .and_then(Value::as_u64)
+            .ok_or_else(|| format!("C111B Agent packaged QA Turn usage {field} is invalid."))
+    };
+    let provider_requests = required_u64("provider_requests")?;
+    if provider_requests != provider_calls
+        || usage.get("network_call_made").and_then(Value::as_bool) != Some(false)
+        || usage.get("outcome").and_then(Value::as_str) != Some("completed")
+    {
+        return Err("C111B Agent packaged QA Turn and native Provider facts disagree.".into());
+    }
+    let trace = usage
+        .get("redacted_trace")
+        .ok_or_else(|| "C111B Agent packaged QA redacted Turn trace is missing.".to_string())?;
+    let (turn_total_elapsed_ms, turn_phase_timings_ms) = c111b_turn_timings(trace)?;
+    report.provider_protocol_requests = Some(provider_requests);
+    report.product_tool_calls = Some(required_u64("product_tool_calls")?);
+    report.input_tokens = Some(required_u64("input_tokens")?);
+    report.output_tokens = Some(required_u64("output_tokens")?);
+    report.prompt_cache_hit_tokens = Some(required_u64("prompt_cache_hit_tokens")?);
+    report.prompt_cache_miss_tokens = Some(required_u64("prompt_cache_miss_tokens")?);
+    report.estimated_cost_microusd = Some(required_u64("estimated_cost_microusd")?);
+    let (same_intent_repair_attempts, provider_schema_repairs, product_tool_schema_repairs) =
+        c111b_repair_request_counts(trace)?;
+    let same_intent_repairs_applied = c111b_same_intent_repairs_applied(turn)?;
+    if same_intent_repairs_applied > same_intent_repair_attempts || same_intent_repair_attempts > 2
+    {
+        return Err("C111B Agent packaged QA repair evidence is inconsistent.".into());
+    }
+    report.same_intent_repair_attempts = Some(same_intent_repair_attempts);
+    report.same_intent_repairs_applied = Some(same_intent_repairs_applied);
+    report.provider_schema_repair_requests = Some(provider_schema_repairs);
+    report.product_tool_schema_repair_requests = Some(product_tool_schema_repairs);
+    report.turn_total_elapsed_ms = Some(turn_total_elapsed_ms);
+    report.turn_phase_timings_ms = Some(turn_phase_timings_ms);
+    report.turn_trace_sha256 = Some(
+        usage
+            .get("trace_sha256")
+            .and_then(Value::as_str)
+            .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+            .ok_or_else(|| "C111B Agent packaged QA Turn trace digest is invalid.".to_string())?
+            .to_string(),
+    );
+    report.turn_metrics_source = Some("rust_terminal_turn_readback".into());
+    Ok(())
+}
+
+fn c111b_same_intent_repairs_applied(turn: &AgentTurn) -> Result<u64, String> {
+    turn.items
+        .iter()
+        .rev()
+        .find_map(|item| {
+            (item.payload.get("tool_name").and_then(Value::as_str) == Some("evaluate_candidate"))
+                .then(|| {
+                    item.payload
+                        .get("tool_result")
+                        .and_then(|value| {
+                            value.pointer(
+                        "/validated_output/value/visual_convergence_report/repair_attempt_count",
+                    )
+                        })
+                        .and_then(Value::as_u64)
+                })
+                .flatten()
+        })
+        .ok_or_else(|| {
+            "C111B Agent packaged QA repair count is missing from Rust evaluation.".into()
+        })
+}
+
+fn c111b_repair_request_counts(trace: &Value) -> Result<(u64, u64, u64), String> {
+    let entries = trace
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "C111B Agent packaged QA redacted trace entries are missing.".to_string())?;
+    let same_intent = entries
+        .iter()
+        .filter(|entry| {
+            entry.get("phase").and_then(Value::as_str) == Some("product_tool")
+                && entry.get("event").and_then(Value::as_str) == Some("started")
+                && entry.get("tool_name").and_then(Value::as_str)
+                    == Some("patch_forge_visual_program")
+        })
+        .count() as u64;
+    let provider_schema = entries
+        .iter()
+        .filter(|entry| {
+            entry.get("error_code").and_then(Value::as_str)
+                == Some("PROVIDER_SCHEMA_REPAIR_REQUESTED")
+        })
+        .count() as u64;
+    let product_tool_schema = entries
+        .iter()
+        .filter(|entry| {
+            entry.get("error_code").and_then(Value::as_str)
+                == Some("PRODUCT_TOOL_SCHEMA_REPAIR_REQUESTED")
+        })
+        .count() as u64;
+    Ok((same_intent, provider_schema, product_tool_schema))
+}
+
+fn c111b_turn_timings(trace: &Value) -> Result<(u64, BTreeMap<String, u64>), String> {
+    let entries = trace
+        .get("entries")
+        .and_then(Value::as_array)
+        .filter(|entries| !entries.is_empty())
+        .ok_or_else(|| "C111B Agent packaged QA redacted trace entries are missing.".to_string())?;
+    let mut starts = HashMap::<String, (u64, Option<String>)>::new();
+    let mut timings = BTreeMap::<String, u64>::new();
+    let mut total = 0u64;
+    for (index, entry) in entries.iter().enumerate() {
+        if entry.get("sequence").and_then(Value::as_u64) != Some(index as u64 + 1) {
+            return Err("C111B Agent packaged QA trace sequence is invalid.".into());
+        }
+        let phase = entry
+            .get("phase")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "C111B Agent packaged QA trace phase is invalid.".to_string())?;
+        let event = entry
+            .get("event")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "C111B Agent packaged QA trace event is invalid.".to_string())?;
+        let elapsed = entry
+            .get("elapsed_ms")
+            .and_then(Value::as_u64)
+            .filter(|value| *value <= 300_000)
+            .ok_or_else(|| "C111B Agent packaged QA trace elapsed time is invalid.".to_string())?;
+        if elapsed < total {
+            return Err("C111B Agent packaged QA trace elapsed time moved backwards.".into());
+        }
+        total = elapsed;
+        if event == "started" {
+            if starts
+                .insert(
+                    phase.to_string(),
+                    (
+                        elapsed,
+                        entry
+                            .get("call_id")
+                            .and_then(Value::as_str)
+                            .map(str::to_string),
+                    ),
+                )
+                .is_some()
+            {
+                return Err("C111B Agent packaged QA trace has overlapping phase spans.".into());
+            }
+        } else if matches!(
+            event,
+            "completed"
+                | "failed"
+                | "rejected"
+                | "cancelled"
+                | "budget_exceeded"
+                | "late_result_ignored"
+        ) {
+            if let Some((started, started_call_id)) = starts.remove(phase) {
+                let completed_call_id = entry.get("call_id").and_then(Value::as_str);
+                if started_call_id.as_deref().is_some()
+                    && started_call_id.as_deref() != completed_call_id
+                {
+                    return Err("C111B Agent packaged QA trace call pairing is invalid.".into());
+                }
+                let duration = elapsed.saturating_sub(started);
+                if let Some(stage) =
+                    c111b_pipeline_stage(phase, entry.get("tool_name").and_then(Value::as_str))
+                {
+                    let aggregate = timings.entry(stage.into()).or_default();
+                    *aggregate = aggregate.saturating_add(duration);
+                }
+            }
+        }
+    }
+    if !starts.is_empty()
+        || total == 0
+        || ![
+            "author",
+            "lower",
+            "compile_readback",
+            "render",
+            "evaluate",
+            "preview",
+        ]
+        .iter()
+        .all(|phase| timings.contains_key(*phase))
+    {
+        return Err("C111B Agent packaged QA Turn phase timing is incomplete.".into());
+    }
+    Ok((total, timings))
+}
+
+fn c111b_pipeline_stage(phase: &str, tool_name: Option<&str>) -> Option<&'static str> {
+    match (phase, tool_name) {
+        ("provider", Some("author_forge_visual_program"))
+        | ("product_tool", Some("author_forge_visual_program")) => Some("author"),
+        ("product_tool", Some("build_candidate_geometry")) => Some("lower"),
+        ("product_tool", Some("compile_readback_candidate")) => Some("compile_readback"),
+        ("product_tool", Some("render_candidate_views")) => Some("render"),
+        ("product_tool", Some("evaluate_candidate")) => Some("evaluate"),
+        ("product_tool", Some("prepare_candidate_preview")) => Some("preview"),
+        _ => None,
+    }
+}
+
+fn attach_c111b_packaged_timing_metrics(
+    report: &mut C111bPackagedWebglQaReport,
+    metrics: &C111bPackagedQaMetricsState,
+) -> Result<(), String> {
+    let mut timeline = metrics
+        .timeline
+        .lock()
+        .map_err(|_| "C111B packaged QA timing state is unavailable.".to_string())?;
+    let elapsed = u64::try_from(timeline.started.elapsed().as_millis())
+        .unwrap_or(u64::MAX)
+        .min(900_000);
+    if timeline
+        .stages
+        .last()
+        .is_none_or(|(stage, _)| stage != "report_received")
+    {
+        timeline.stages.push(("report_received".into(), elapsed));
+    }
+    let mut previous = 0u64;
+    let timings = timeline
+        .stages
+        .iter()
+        .map(|(stage, elapsed_ms)| {
+            let timing = C111bPackagedQaStageTiming {
+                stage: stage.clone(),
+                elapsed_ms: *elapsed_ms,
+                duration_since_previous_ms: elapsed_ms.saturating_sub(previous),
+            };
+            previous = *elapsed_ms;
+            timing
+        })
+        .collect::<Vec<_>>();
+    report.end_to_end_elapsed_ms = Some(elapsed);
+    report.stage_timings = Some(timings);
+    report.timing_metrics_source = Some("native_monotonic_progress_receipts".into());
+    Ok(())
+}
+
+#[tauri::command]
+fn forgecad_c111b_webview_qa_progress(
+    stage: String,
+    metrics: State<'_, C111bPackagedQaMetricsState>,
+) -> Result<(), String> {
+    if c111b_packaged_webgl_config()?.is_none() {
+        return Err("C111B packaged WebGL QA progress is disabled.".into());
+    }
+    if !forgecad_app_server_protocol::valid_stable_id(&stage) {
+        return Err("C111B packaged WebGL QA progress stage is invalid.".into());
+    }
+    if c111b_fixed_timing_stage(&stage) {
+        let mut timeline = metrics
+            .timeline
+            .lock()
+            .map_err(|_| "C111B packaged QA timing state is unavailable.".to_string())?;
+        if timeline
+            .stages
+            .iter()
+            .any(|(existing, _)| existing == &stage)
+        {
+            return Err("C111B packaged QA timing stage was reported twice.".into());
+        }
+        let elapsed = u64::try_from(timeline.started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if elapsed > 900_000 {
+            return Err("C111B packaged QA timing exceeded its bounded window.".into());
+        }
+        timeline.stages.push((stage.clone(), elapsed));
+    }
+    append_supervisor_log(&format!("{C111B_PACKAGED_WEBGL_PROGRESS_MARKER}{stage}"));
+    Ok(())
+}
+
+fn c111b_fixed_timing_stage(stage: &str) -> bool {
+    matches!(
+        stage,
+        "workbench_ready"
+            | "visible_import_requested"
+            | "external_asset_ready"
+            | "external_captures_ready"
+            | "external_restart_workbench_ready"
+            | "external_restart_snapshot_hydrated"
+            | "external_restart_captures_ready"
+            | "agent_workbench_ready"
+            | "agent_brief_sent"
+            | "agent_v1_confirmed"
+            | "agent_selection_card_ready"
+            | "agent_link_part_selected"
+            | "agent_adornment_drawer_ready"
+            | "agent_v2_confirmed"
+            | "agent_export_readback_ready"
+            | "agent_captures_ready"
+            | "agent_restart_workbench_ready"
+            | "agent_restart_snapshot_hydrated"
+            | "agent_restart_export_readback_ready"
+            | "agent_restart_captures_ready"
+    )
+}
+
 fn r007b_packaged_artifact_root() -> Result<PathBuf, String> {
     let home = env::var_os("HOME")
         .map(PathBuf::from)
@@ -1544,6 +1943,37 @@ async fn r007b_packaged_get_json(bridge: &AppServerBridge, path: String) -> Resu
     };
     serde_json::from_str(&data)
         .map_err(|_| "R007B packaged lineage JSON could not be decoded.".to_string())
+}
+
+async fn r007b_packaged_get_binary(
+    bridge: &AppServerBridge,
+    path: String,
+) -> Result<(CompatHttpResponse, Vec<u8>), String> {
+    let endpoint =
+        LocalAgentEndpoint::parse("http://127.0.0.1:1").map_err(|error| error.message)?;
+    let response = bridge
+        .execute_k003_packaged_compat(
+            PreparedCompatHttpRequest {
+                endpoint,
+                method: AllowedHttpMethod::Get,
+                path,
+                headers: Vec::new(),
+                body: ProtocolHttpBody::Empty,
+            },
+            CancellationToken::new(),
+        )
+        .await
+        .map_err(|error| error.message)?;
+    if !(200..300).contains(&response.status) {
+        return Err("C111B packaged Agent GLB readback was rejected.".into());
+    }
+    let ProtocolHttpBody::Base64 { data } = &response.body else {
+        return Err("C111B packaged Agent GLB readback was not binary.".into());
+    };
+    let bytes = BASE64_STANDARD
+        .decode(data)
+        .map_err(|_| "C111B packaged Agent GLB readback Base64 is invalid.".to_string())?;
+    Ok((response, bytes))
 }
 
 /// Returns only sealed Rust-owned facts needed by the opt-in packaged visual
@@ -1901,6 +2331,356 @@ fn arm_webview_qa_glb_readback(bytes: &[u8]) -> Result<(u64, u64), String> {
         return Err("Mechanical-arm WebView QA GLB production PBR readback is incomplete.".into());
     }
     Ok((triangle_count, complete_pbr_material_count))
+}
+
+fn c111b_packaged_webgl_glb_json(bytes: &[u8]) -> Result<Value, String> {
+    const GLB_MAGIC: u32 = 0x4654_6c67;
+    const GLB_JSON_CHUNK: u32 = 0x4e4f_534a;
+    if bytes.len() < 20 {
+        return Err("C111B packaged WebGL QA GLB is truncated.".into());
+    }
+    let read_u32 = |offset: usize| -> Result<u32, String> {
+        let slice = bytes
+            .get(offset..offset + 4)
+            .ok_or_else(|| "C111B packaged WebGL QA GLB is truncated.".to_string())?;
+        Ok(u32::from_le_bytes(slice.try_into().map_err(|_| {
+            "C111B packaged WebGL QA GLB is malformed.".to_string()
+        })?))
+    };
+    if read_u32(0)? != GLB_MAGIC || read_u32(4)? != 2 || read_u32(8)? as usize != bytes.len() {
+        return Err("C111B packaged WebGL QA GLB header is invalid.".into());
+    }
+    let json_length = read_u32(12)? as usize;
+    if read_u32(16)? != GLB_JSON_CHUNK
+        || 20usize
+            .checked_add(json_length)
+            .map_or(true, |end| end > bytes.len())
+    {
+        return Err("C111B packaged WebGL QA GLB JSON chunk is invalid.".into());
+    }
+    serde_json::from_slice(
+        bytes
+            .get(20..20 + json_length)
+            .ok_or_else(|| "C111B packaged WebGL QA GLB JSON is truncated.".to_string())?,
+    )
+    .map_err(|_| "C111B packaged WebGL QA GLB JSON cannot be decoded.".to_string())
+}
+
+fn validate_c111b_packaged_webgl_success(
+    report: &C111bPackagedWebglQaReport,
+    config: &C111bPackagedWebglQaConfig,
+) -> Result<(), String> {
+    let report_source_sha256 = report.source_sha256.as_deref().unwrap_or_default();
+    let source_lineage_valid = if config.mode == "agent_asset" {
+        validate_k001_probe_sha(report_source_sha256).is_ok()
+            && (config.phase != "restart"
+                || config.expected_export_sha256.as_deref() == Some(report_source_sha256))
+    } else {
+        report_source_sha256 == config.source_sha256
+    };
+    let complete_pbr_valid = if config.mode == "agent_asset" {
+        report.complete_pbr_material_count
+            == Some(C111B_PACKAGED_WEBGL_AGENT_V2_COMPLETE_PBR_MATERIALS)
+    } else {
+        report.complete_pbr_material_count.unwrap_or_default() > 0
+    };
+    if report.error_code.is_some()
+        || !source_lineage_valid
+        || report.triangle_count != Some(config.triangle_count)
+        || report.primitive_count != Some(config.primitive_count)
+        || report.material_count != Some(config.material_count)
+        || !complete_pbr_valid
+        || report.renderer_generation.unwrap_or_default() == 0
+        || report.active_webgl_contexts != Some(1)
+        || report.canvas_count != Some(1)
+        || report.blockout_glb_kind.as_deref()
+            != Some(if config.mode == "agent_asset" {
+                "compiled_agent_production_pbr"
+            } else {
+                "external_reference"
+            })
+        || report.render_source.as_deref()
+            != Some(if config.mode == "agent_asset" {
+                "glb_pbr"
+            } else {
+                "external_reference"
+            })
+        || report.light_preset.as_deref() != Some("soft_studio")
+        || report.formal_eligible != Some(false)
+        || report.human_benchmark_evidence != Some(false)
+        || report.reference_comparison != Some(false)
+        || report.provider_protocol_requests
+            != Some(
+                if config.mode == "agent_asset" && config.phase == "initial" {
+                    1
+                } else {
+                    0
+                },
+            )
+        || report.network_provider_calls != Some(0)
+        || report.network_call_made != Some(false)
+        || report.credential_reads != Some(0)
+        || report.billable_variable_cost_microusd != Some(0)
+        || report.billable_variable_cost_source.as_deref()
+            != Some(if config.mode == "agent_asset" {
+                "native_offline_no_billable_transport"
+            } else {
+                "native_no_agent_provider_path"
+            })
+        || report.provider_metrics_source.as_deref()
+            != Some(
+                if config.mode == "agent_asset" && config.phase == "initial" {
+                    "rust_terminal_turn_plus_native_local_mvp_counter"
+                } else if config.mode == "agent_asset" {
+                    "native_local_mvp_atomic_counter"
+                } else {
+                    "native_no_agent_provider_path"
+                },
+            )
+        || report.credential_metrics_source.as_deref()
+            != Some(if config.mode == "agent_asset" {
+                "native_structural_no_credential_source"
+            } else {
+                "native_no_agent_provider_path"
+            })
+    {
+        return Err(
+            "C111B packaged WebGL QA renderer, source or non-claim facts are invalid.".into(),
+        );
+    }
+    validate_c111b_packaged_metrics(report, config)?;
+    let project_id = report
+        .project_id
+        .as_deref()
+        .ok_or_else(|| "C111B packaged WebGL QA project ID is missing.".to_string())?;
+    let asset_version_id = report
+        .asset_version_id
+        .as_deref()
+        .ok_or_else(|| "C111B packaged WebGL QA asset version ID is missing.".to_string())?;
+    if !forgecad_app_server_protocol::valid_stable_id(project_id)
+        || !forgecad_app_server_protocol::valid_stable_id(asset_version_id)
+        || report.snapshot_revision.unwrap_or_default() == 0
+    {
+        return Err("C111B packaged WebGL QA product identity is invalid.".into());
+    }
+    if config.phase == "restart"
+        && (config.expected_project_id.as_deref() != Some(project_id)
+            || config.expected_asset_version_id.as_deref() != Some(asset_version_id)
+            || config.expected_snapshot_revision != report.snapshot_revision)
+    {
+        return Err("C111B packaged WebGL QA restart Snapshot lineage diverged.".into());
+    }
+    let readback = report
+        .readback
+        .as_ref()
+        .ok_or_else(|| "C111B packaged WebGL QA exact readback is missing.".to_string())?;
+    if readback.project_id != project_id
+        || readback.asset_version_id != asset_version_id
+        || readback.source_sha256 != report_source_sha256
+        || (config.mode == "agent_asset"
+            && (readback.shape_program_schema != "ShapeProgram@1"
+                || readback.external_reference
+                || readback.glb_byte_size.is_none()
+                || readback.glb_triangle_count != Some(config.triangle_count)
+                || readback.glb_primitive_count != Some(config.primitive_count)
+                || readback.glb_material_count != Some(config.material_count)))
+        || (config.mode == "external_reference"
+            && (readback.shape_program_schema != "ExternalGLBReference@1"
+                || !readback.external_reference))
+    {
+        return Err("C111B packaged WebGL QA exact readback lineage is invalid.".into());
+    }
+    let captures = report
+        .captures
+        .as_ref()
+        .ok_or_else(|| "C111B packaged WebGL QA fixed-view captures are missing.".to_string())?;
+    let expected_views = [
+        "iso",
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "gripper_iso",
+        "gripper_front",
+    ];
+    if captures.len() != expected_views.len()
+        || expected_views.iter().any(|view| {
+            captures
+                .iter()
+                .filter(|capture| capture.view_id == *view)
+                .count()
+                != 1
+        })
+    {
+        return Err("C111B packaged WebGL QA fixed-view set is incomplete or duplicated.".into());
+    }
+    for capture in captures {
+        let expected_path = format!(
+            "qa-artifacts/c111b-webgl/{}/{}.png",
+            config.phase, capture.view_id
+        );
+        if capture.relative_path != expected_path
+            || capture.source_sha256 != report_source_sha256
+            || validate_k001_probe_sha(&capture.sha256).is_err()
+            || capture.byte_size == 0
+            || capture.width < 320
+            || capture.height < 240
+        {
+            return Err("C111B packaged WebGL QA screenshot receipt is invalid.".into());
+        }
+        let readability = capture.readability.as_ref().ok_or_else(|| {
+            "C111B packaged WebGL QA screenshot readability is missing.".to_string()
+        })?;
+        if readability.pixel_encoding != "display_srgb"
+            || readability.display_transfer != "wkwebview_linear_lit_surface_to_srgb"
+            || readability.sample_pixel_count != 96 * 96
+            || readability.foreground_pixel_count == 0
+            || readability.foreground_coverage_bps < 100
+            || readability.foreground_median_luma < 24
+            || readability.foreground_readable_bps < 5000
+        {
+            return Err("C111B packaged WebGL QA screenshot readability is invalid.".into());
+        }
+    }
+    if config.phase == "initial" && report.restart_hydrated != Some(false) {
+        return Err("C111B packaged WebGL QA initial report has invalid restart state.".into());
+    }
+    if config.phase == "restart" && report.restart_hydrated != Some(true) {
+        return Err("C111B packaged WebGL QA restart report has invalid hydration state.".into());
+    }
+    Ok(())
+}
+
+fn validate_c111b_packaged_metrics(
+    report: &C111bPackagedWebglQaReport,
+    config: &C111bPackagedWebglQaConfig,
+) -> Result<(), String> {
+    let agent_initial = config.mode == "agent_asset" && config.phase == "initial";
+    if agent_initial {
+        let expected_pipeline = [
+            "author",
+            "lower",
+            "compile_readback",
+            "render",
+            "evaluate",
+            "preview",
+        ];
+        let phase_timings = report
+            .turn_phase_timings_ms
+            .as_ref()
+            .ok_or_else(|| "C111B packaged QA Turn timing evidence is missing.".to_string())?;
+        if report.product_tool_calls != Some(6)
+            || report.input_tokens != Some(1)
+            || report.output_tokens != Some(1)
+            || report.prompt_cache_hit_tokens != Some(0)
+            || report.prompt_cache_miss_tokens != Some(0)
+            || report.same_intent_repair_attempts != Some(0)
+            || report.same_intent_repairs_applied != Some(0)
+            || report.provider_schema_repair_requests != Some(0)
+            || report.product_tool_schema_repair_requests != Some(0)
+            || report.estimated_cost_microusd != Some(1)
+            || report
+                .turn_total_elapsed_ms
+                .is_none_or(|value| value == 0 || value > 300_000)
+            || phase_timings.len() != expected_pipeline.len()
+            || expected_pipeline
+                .iter()
+                .any(|stage| !phase_timings.contains_key(*stage))
+            || report
+                .turn_trace_sha256
+                .as_deref()
+                .is_none_or(|value| validate_k001_probe_sha(value).is_err())
+            || report.turn_metrics_source.as_deref() != Some("rust_terminal_turn_readback")
+        {
+            return Err(
+                "C111B packaged QA terminal Turn usage, repair, cost or timing facts are invalid."
+                    .into(),
+            );
+        }
+    } else if report.product_tool_calls != Some(0)
+        || report.input_tokens != Some(0)
+        || report.output_tokens != Some(0)
+        || report.prompt_cache_hit_tokens != Some(0)
+        || report.prompt_cache_miss_tokens != Some(0)
+        || report.same_intent_repair_attempts != Some(0)
+        || report.same_intent_repairs_applied != Some(0)
+        || report.provider_schema_repair_requests != Some(0)
+        || report.product_tool_schema_repair_requests != Some(0)
+        || report.estimated_cost_microusd != Some(0)
+        || report.turn_total_elapsed_ms != Some(0)
+        || report
+            .turn_phase_timings_ms
+            .as_ref()
+            .is_none_or(|value| !value.is_empty())
+        || report.turn_trace_sha256.is_some()
+        || (config.mode == "agent_asset"
+            && report.turn_metrics_source.as_deref() != Some("native_no_turn_on_restart"))
+    {
+        return Err("C111B packaged QA non-Turn phase reported fabricated Turn metrics.".into());
+    }
+
+    let expected_stages: &[&str] = match (config.mode.as_str(), config.phase.as_str()) {
+        ("agent_asset", "initial") => &[
+            "agent_workbench_ready",
+            "agent_brief_sent",
+            "agent_v1_confirmed",
+            "agent_selection_card_ready",
+            "agent_link_part_selected",
+            "agent_adornment_drawer_ready",
+            "agent_v2_confirmed",
+            "agent_export_readback_ready",
+            "agent_captures_ready",
+            "report_received",
+        ],
+        ("agent_asset", "restart") => &[
+            "agent_restart_workbench_ready",
+            "agent_restart_snapshot_hydrated",
+            "agent_restart_export_readback_ready",
+            "agent_restart_captures_ready",
+            "report_received",
+        ],
+        ("external_reference", "initial") => &[
+            "workbench_ready",
+            "visible_import_requested",
+            "external_asset_ready",
+            "external_captures_ready",
+            "report_received",
+        ],
+        ("external_reference", "restart") => &[
+            "external_restart_workbench_ready",
+            "external_restart_snapshot_hydrated",
+            "external_restart_captures_ready",
+            "report_received",
+        ],
+        _ => return Err("C111B packaged QA timing mode or phase is invalid.".into()),
+    };
+    let timings = report
+        .stage_timings
+        .as_ref()
+        .ok_or_else(|| "C111B packaged QA native lifecycle timing is missing.".to_string())?;
+    let mut previous = 0u64;
+    let duration_invalid = timings.iter().any(|timing| {
+        let invalid =
+            timing.duration_since_previous_ms != timing.elapsed_ms.saturating_sub(previous);
+        previous = timing.elapsed_ms;
+        invalid
+    });
+    if timings.len() != expected_stages.len()
+        || timings
+            .iter()
+            .zip(expected_stages)
+            .any(|(timing, expected)| timing.stage != *expected || timing.elapsed_ms > 900_000)
+        || timings
+            .windows(2)
+            .any(|pair| pair[0].elapsed_ms > pair[1].elapsed_ms)
+        || duration_invalid
+        || report.end_to_end_elapsed_ms != timings.last().map(|timing| timing.elapsed_ms)
+        || report.timing_metrics_source.as_deref() != Some("native_monotonic_progress_receipts")
+    {
+        return Err("C111B packaged QA native lifecycle timing is invalid.".into());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -2790,45 +3570,6 @@ fn clear_provider_config(
 }
 
 #[tauri::command]
-fn get_visual_provider_config(
-    state: State<'_, VisualProviderState>,
-) -> Result<VisualProviderConfigMetadata, String> {
-    Ok(VisualProviderConfigMetadata {
-        provider: "fal_flux_2".into(),
-        configured: state
-            .fal_credentials
-            .configured()
-            .map_err(|error| error.message)?,
-        storage: "private_secret_file".into(),
-        requires_os_prompt: false,
-    })
-}
-
-#[tauri::command]
-fn save_visual_provider_config(
-    mut request: SaveVisualProviderConfigRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<VisualProviderConfigMetadata, String> {
-    let secret = std::mem::take(&mut request.fal_api_key);
-    state
-        .fal_credentials
-        .save(secret)
-        .map_err(|error| error.message)?;
-    get_visual_provider_config(state)
-}
-
-#[tauri::command]
-fn clear_visual_provider_config(
-    state: State<'_, VisualProviderState>,
-) -> Result<VisualProviderConfigMetadata, String> {
-    state
-        .fal_credentials
-        .delete()
-        .map_err(|error| error.message)?;
-    get_visual_provider_config(state)
-}
-
-#[tauri::command]
 fn get_vision_evidence_provider_config(
     state: State<'_, VisualProviderState>,
 ) -> Result<VisionEvidenceConfigMetadata, String> {
@@ -2931,6 +3672,143 @@ async fn analyze_visual_evidence_inner(
     })
 }
 
+/// Explicit one-click authorization for the subsequent reference comparison
+/// loop. Rust re-reads and validates all sealed evidence, fixes the reviewed
+/// policy and hard caps, and persists a short-lived grant. This command does
+/// not call a Provider or create any design/version artifact.
+#[tauri::command]
+fn authorize_visual_reference_comparison(
+    input: AuthorizeVisualReferenceComparisonRequest,
+    state: State<'_, VisualProviderState>,
+) -> Result<AuthorizeVisualReferenceComparisonResult, String> {
+    validate_visual_client_request_id(&input.client_request_id)
+        .map_err(|_| "VISUAL_REFERENCE_AUTHORIZATION_REQUEST_ID_INVALID".to_string())?;
+    if input.maximum_calls != VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS
+        || input.maximum_variable_cost_microusd
+            != VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD
+    {
+        return Err("VISUAL_REFERENCE_AUTHORIZATION_CAP_MISMATCH".into());
+    }
+    let mut evidence = Vec::with_capacity(input.request.reference_inputs.len());
+    for reference in &input.request.reference_inputs {
+        let (sealed, _) = state
+            .repository
+            .read_reference_evidence_content(&input.request.project_id, &reference.evidence_id)
+            .map_err(|error| format!("{}: {}", error.code(), error))?;
+        evidence.push(sealed);
+    }
+    if !evidence
+        .iter()
+        .any(|item| item.kind == ReferenceEvidenceKind::Image)
+    {
+        return Err("VISUAL_REFERENCE_AUTHORIZATION_IMAGE_REQUIRED".into());
+    }
+    input
+        .request
+        .validate_with_evidence(&evidence)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    input
+        .visual_evidence_graph
+        .validate_against(&input.request, &evidence)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let policy = if input.request.domain_pack_id == "pack_robotic_arm_concept" {
+        c111b_visual_reference_acceptance_policy_for_domain(&input.request.domain_pack_id)
+            .map_err(|error| format!("{}: {}", error.code(), error))?
+    } else {
+        forgecad_core::VisualReferenceAcceptancePolicy::default_policy()
+    };
+    let request_sha256 =
+        semantic_sha256(&input.request).map_err(|error| format!("{}: {}", error.code(), error))?;
+    let graph_sha256 = semantic_sha256(&input.visual_evidence_graph)
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let policy_sha256 =
+        semantic_sha256(&policy).map_err(|error| format!("{}: {}", error.code(), error))?;
+    let now_unix_ms = current_unix_ms();
+    let authorization_id = generate_visual_reference_authorization_id()?;
+    let authorization = state
+        .repository
+        .issue_visual_reference_comparison_authorization(
+            &authorization_id,
+            &input.client_request_id,
+            &input.request.project_id,
+            &request_sha256,
+            &graph_sha256,
+            &policy_sha256,
+            now_unix_ms,
+            now_unix_ms + VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_LIFETIME_MS,
+        )
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    Ok(AuthorizeVisualReferenceComparisonResult {
+        authorization_id: authorization.authorization_id,
+        authorization_binding_sha256: authorization.authorization_binding_sha256,
+        expires_at_unix_ms: authorization.expires_at_unix_ms,
+        maximum_calls: authorization.maximum_calls,
+        maximum_variable_cost_microusd: authorization.maximum_variable_cost_microusd,
+    })
+}
+
+/// Creates and binds a short-lived Qwen comparison grant for the exact
+/// universal candidate that is paused after same-renderer PBR capture. This
+/// command deliberately performs no Provider call, no geometry work and no
+/// preview/version write; the subsequent Rust-owned continuation still has
+/// to reserve the grant against the recomputed comparison input.
+#[tauri::command]
+fn authorize_candidate_pbr_visual_comparison(
+    input: AuthorizeCandidatePbrVisualComparisonRequest,
+    bridge: State<'_, AppServerBridge>,
+    state: State<'_, VisualProviderState>,
+) -> Result<AuthorizeVisualReferenceComparisonResult, String> {
+    validate_visual_client_request_id(&input.client_request_id)
+        .map_err(|_| "UNIVERSAL_VISUAL_AUTHORIZATION_REQUEST_ID_INVALID".to_string())?;
+    let scope = bridge
+        .pending_universal_visual_comparison_authorization(
+            &input.execution_id,
+            &input.project_id,
+            &input.turn_id,
+        )?
+        .ok_or_else(|| {
+            "UNIVERSAL_VISUAL_AUTHORIZATION_NOT_REQUIRED_OR_ALREADY_BOUND".to_string()
+        })?;
+    if scope.maximum_calls != VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS
+        || scope.maximum_variable_cost_microusd
+            != VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD
+    {
+        return Err("UNIVERSAL_VISUAL_AUTHORIZATION_CAP_MISMATCH".into());
+    }
+    let now_unix_ms = current_unix_ms();
+    let authorization_id = generate_visual_reference_authorization_id()?;
+    let authorization = state
+        .repository
+        .issue_visual_reference_comparison_authorization(
+            &authorization_id,
+            &input.client_request_id,
+            &scope.project_id,
+            &scope.request_sha256,
+            &scope.evidence_graph_sha256,
+            &scope.acceptance_policy_sha256,
+            now_unix_ms,
+            now_unix_ms + VISUAL_REFERENCE_COMPARISON_AUTHORIZATION_LIFETIME_MS,
+        )
+        .map_err(|error| format!("{}: {}", error.code(), error))?;
+    let bound = bridge.bind_universal_visual_comparison_authorization(
+        &input.execution_id,
+        &input.project_id,
+        &input.turn_id,
+        &authorization.authorization_id,
+        &authorization.authorization_binding_sha256,
+    )?;
+    if bound != scope {
+        return Err("UNIVERSAL_VISUAL_AUTHORIZATION_SCOPE_DRIFT".into());
+    }
+    Ok(AuthorizeVisualReferenceComparisonResult {
+        authorization_id: authorization.authorization_id,
+        authorization_binding_sha256: authorization.authorization_binding_sha256,
+        expires_at_unix_ms: authorization.expires_at_unix_ms,
+        maximum_calls: authorization.maximum_calls,
+        maximum_variable_cost_microusd: authorization.maximum_variable_cost_microusd,
+    })
+}
+
 #[tauri::command]
 fn cancel_visual_evidence_analysis(
     client_request_id: String,
@@ -2989,149 +3867,6 @@ fn finish_visual_evidence_request(
     if let Ok(mut active) = active_requests.lock() {
         active.remove(client_request_id);
     }
-}
-
-#[tauri::command]
-async fn submit_concept_image(
-    input: SubmitConceptImageRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<ConceptImageProviderReceipt, String> {
-    input
-        .request
-        .validate_against(&input.brief)
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    let backend = *input
-        .request
-        .backend_preferences
-        .first()
-        .ok_or_else(|| "CONCEPT_IMAGE_BACKEND_PREFERENCES_INVALID".to_string())?;
-    if backend != ConceptImageBackend::FalFlux2 {
-        return Err("CONCEPT_IMAGE_BACKEND_NOT_CONFIGURED".into());
-    }
-    let adapter = state.fal_adapter(
-        input.request.request_id.clone(),
-        input.request.input_image_object_sha256.is_some(),
-    );
-    adapter
-        .submit(input.request, backend)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
-}
-
-#[tauri::command]
-async fn poll_concept_image(
-    input: PollConceptImageRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<PollConceptImageResponse, String> {
-    input
-        .request
-        .validate_against(&input.brief)
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    validate_concept_receipt(&input.receipt, &input.request)
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    let adapter = state.fal_adapter(
-        input.request.request_id.clone(),
-        input.request.input_image_object_sha256.is_some(),
-    );
-    let status = adapter
-        .poll(input.receipt.clone())
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    let reference = match &status {
-        ConceptImageProviderStatus::Ready { output } => Some(
-            accept_concept_output(
-                &input.brief,
-                &input.request,
-                &input.receipt,
-                output,
-                input.reference_id,
-            )
-            .map_err(|error| format!("{}: {}", error.code, error.message))?,
-        ),
-        _ => None,
-    };
-    Ok(PollConceptImageResponse { status, reference })
-}
-
-#[tauri::command]
-async fn cancel_concept_image(
-    input: CancelConceptImageRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<(), String> {
-    validate_concept_receipt(&input.receipt, &input.request)
-        .map_err(|error| format!("{}: {}", error.code, error.message))?;
-    let uses_input_image = input.request.input_image_object_sha256.is_some();
-    let adapter = state.fal_adapter(input.request.request_id, uses_input_image);
-    adapter
-        .cancel(input.receipt)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
-}
-
-#[tauri::command]
-async fn submit_neural_3d(
-    request: Neural3DGenerationRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<NeuralVisualProviderReceipt, String> {
-    request
-        .validate()
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    let backend = *request
-        .backend_preferences
-        .first()
-        .ok_or_else(|| "NEURAL_3D_BACKEND_PREFERENCES_INVALID".to_string())?;
-    if backend != Neural3DBackend::Hunyuan3dV31Pro {
-        return Err("NEURAL_3D_BACKEND_NOT_CONFIGURED".into());
-    }
-    let adapter = state.hunyuan_adapter(request.request_id.clone());
-    adapter
-        .submit(request, backend)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
-}
-
-#[tauri::command]
-async fn poll_neural_3d(
-    input: PollNeural3dRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<NeuralVisualProviderStatus, String> {
-    input
-        .request
-        .validate()
-        .map_err(|error| format!("{}: {}", error.code(), error))?;
-    if input.receipt.backend != Neural3DBackend::Hunyuan3dV31Pro
-        || !input
-            .request
-            .backend_preferences
-            .contains(&input.receipt.backend)
-    {
-        return Err("NEURAL_VISUAL_REMOTE_RECEIPT_MISMATCH".into());
-    }
-    let adapter = state.hunyuan_adapter(input.request.request_id);
-    adapter
-        .poll(input.receipt)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
-}
-
-#[tauri::command]
-async fn cancel_neural_3d(
-    input: PollNeural3dRequest,
-    state: State<'_, VisualProviderState>,
-) -> Result<(), String> {
-    if input.receipt.backend != Neural3DBackend::Hunyuan3dV31Pro
-        || !input
-            .request
-            .backend_preferences
-            .contains(&input.receipt.backend)
-    {
-        return Err("NEURAL_VISUAL_REMOTE_RECEIPT_MISMATCH".into());
-    }
-    let adapter = state.hunyuan_adapter(input.request.request_id);
-    adapter
-        .cancel(input.receipt)
-        .await
-        .map_err(|error| format!("{}: {}", error.code, error.message))
 }
 
 impl AgentProcessState {
@@ -3411,8 +4146,16 @@ fn main() {
     let supervisor_session_id = generate_supervisor_session_id()
         .expect("ForgeCAD must create a non-secret managed-sidecar session marker");
     let provider_credentials = ProviderCredentialStore::production();
-    let native_provider = build_native_provider_client(provider_credentials.clone())
+    let native_provider_bundle = build_native_provider_client(provider_credentials.clone())
         .expect("ForgeCAD must initialize its Rust-owned DeepSeek Provider client");
+    let native_provider = native_provider_bundle.client.clone();
+    let c111b_packaged_qa_metrics = C111bPackagedQaMetricsState {
+        local_mvp_provider: native_provider_bundle.local_mvp_provider,
+        timeline: Arc::new(Mutex::new(C111bPackagedQaTimeline {
+            started: Instant::now(),
+            stages: Vec::new(),
+        })),
+    };
     let library_root = rust_core_library_root()
         .expect("ForgeCAD must resolve the local Rust product-state library");
     let rust_core = Arc::new(
@@ -3439,13 +4182,6 @@ fn main() {
             panic!("ForgeCAD app-server bridge initialization failed before cutover: {error}");
         }
     };
-    let visual_transport = ReqwestVisualHttpTransport::new().unwrap_or_else(|error| {
-        let _ = rust_core.rollback_cutover_before_publish();
-        panic!(
-            "Forge Studio visual HTTPS transport failed before cutover: {}",
-            error.message
-        );
-    });
     let vision_credentials = Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
         library_root
             .join("secrets")
@@ -3472,8 +4208,12 @@ fn main() {
             );
         }),
     );
+    let budgeted_visual_comparison = Arc::new(BudgetedVisualReferenceComparisonProvider::new(
+        vision_adapter.clone(),
+        Arc::new(rust_core.repository().clone()),
+    ));
     app_server_bridge
-        .attach_visual_reference_comparison_provider(vision_adapter.clone())
+        .attach_visual_reference_comparison_provider(budgeted_visual_comparison)
         .unwrap_or_else(|error| {
             let _ = rust_core.rollback_cutover_before_publish();
             panic!("Forge Studio visual reference comparator failed before cutover: {error}");
@@ -3489,16 +4229,10 @@ fn main() {
             },
         );
     let visual_provider_state = VisualProviderState {
-        fal_credentials: Arc::new(PrivateFileFalCredentialSource::new(
-            library_root.join("secrets").join("visual").join("fal.key"),
-        )),
-        transport: Arc::new(visual_transport),
         repository: Arc::new(rust_core.repository().clone()),
-        brief_director: VisualBriefDirector::new(native_provider),
         vision_credentials,
         vision_coordinator,
         vision_active_requests: Mutex::new(HashMap::new()),
-        active_requests: Mutex::new(HashMap::new()),
     };
     if let Err(error) = rust_core.publish() {
         let _ = rust_core.rollback_cutover_before_publish();
@@ -3512,6 +4246,7 @@ fn main() {
     let app = tauri::Builder::default()
         .manage(app_server_bridge)
         .manage(visual_provider_state)
+        .manage(c111b_packaged_qa_metrics)
         .manage(AgentProcessState {
             child: Mutex::new(None),
             mode: Mutex::new(AGENT_MODE_LOCAL.to_string()),
@@ -3554,7 +4289,6 @@ fn main() {
                     deepseek_delta_acceptance_probe::run_if_enabled(
                         app.state::<AppServerBridge>().inner().clone(),
                     );
-                    visual_provider_acceptance_probe::run_if_enabled(app.handle().clone());
                 }
                 Err(error) => {
                     eprintln!("ForgeCAD Agent startup failed: {error}");
@@ -3571,25 +4305,13 @@ fn main() {
             get_provider_config,
             save_provider_config,
             clear_provider_config,
-            get_visual_provider_config,
-            save_visual_provider_config,
-            clear_visual_provider_config,
             get_vision_evidence_provider_config,
             save_vision_evidence_provider_config,
             clear_vision_evidence_provider_config,
             analyze_visual_evidence,
             cancel_visual_evidence_analysis,
-            direct_visual_brief,
-            generate_visual_asset,
-            cancel_visual_asset_generation,
-            list_recoverable_visual_asset_generations,
-            resume_visual_asset_generation,
-            submit_concept_image,
-            poll_concept_image,
-            cancel_concept_image,
-            submit_neural_3d,
-            poll_neural_3d,
-            cancel_neural_3d,
+            authorize_visual_reference_comparison,
+            authorize_candidate_pbr_visual_comparison,
             forgecad_k001_packaged_probe_config,
             forgecad_k001_packaged_probe_report,
             forgecad_k002_packaged_probe_config,
@@ -3599,6 +4321,15 @@ fn main() {
             forgecad_arm_webview_qa_r007b_lineage,
             forgecad_arm_webview_qa_report,
             forgecad_arm_webview_qa_progress,
+            forgecad_c111b_webview_qa_config,
+            forgecad_c111b_webview_qa_source,
+            forgecad_c111b_webview_qa_capture,
+            forgecad_c111b_webview_qa_readback,
+            forgecad_c111b_webview_qa_report,
+            forgecad_c111b_webview_qa_progress,
+            forgecad_candidate_pbr_capture_issue,
+            forgecad_candidate_pbr_capture_submit,
+            forgecad_candidate_pbr_capture_resume,
             forgecad_protocol_connect,
             forgecad_protocol_send,
             forgecad_protocol_disconnect
@@ -3873,6 +4604,27 @@ fn generate_internal_capability_token() -> Result<String, String> {
         token.push(HEX[(byte & 0x0f) as usize] as char);
     }
     Ok(token)
+}
+
+fn generate_visual_reference_authorization_id() -> Result<String, String> {
+    let mut bytes = [0_u8; 16];
+    getrandom::fill(&mut bytes)
+        .map_err(|_| "secure visual comparison authorization generation failed".to_string())?;
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut suffix = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        suffix.push(HEX[(byte >> 4) as usize] as char);
+        suffix.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    Ok(format!("visauth_{suffix}"))
+}
+
+fn current_unix_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| i64::try_from(duration.as_millis()).ok())
+        .unwrap_or(0)
 }
 
 fn generate_supervisor_session_id() -> Result<String, String> {
@@ -4490,56 +5242,350 @@ fn agent_python(repo_root: &Path) -> PathBuf {
 mod tests {
     use std::{
         cell::Cell,
-        collections::{BTreeMap, VecDeque},
+        collections::BTreeMap,
         env,
         ffi::OsStr,
         future::Future,
-        io::Cursor,
         process::{Command, Stdio},
         sync::{Arc, Mutex},
-        time::Duration,
+        time::Instant,
     };
 
-    use forgecad_app_server::ConceptImageProviderError;
-    use forgecad_app_server_protocol::{AppServerCursor, CursorPhase};
-    use forgecad_core::{
-        ConceptImageBackend, ConceptImageGenerationRequest, ConceptImageResumeBinding,
-        CoreRepository, Project, ProjectStatus, VisualDesignBrief, VisualInputKind,
-        VisualQualityTier, VisualRemoteJobRecord, VisualRemoteJobState,
-        CONCEPT_IMAGE_GENERATION_REQUEST_SCHEMA_VERSION, VISUAL_DESIGN_BRIEF_SCHEMA_VERSION,
-        VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION,
-    };
-    use image::ImageFormat;
+    use forgecad_app_server_protocol::{AgentTurn, AppServerCursor, CursorPhase};
+    use forgecad_core::semantic_sha256;
     use serde_json::{json, Value};
-    use sha2::{Digest, Sha256};
-    use tempfile::tempdir;
-
-    use crate::visual_provider_adapters::{
-        VisualHttpFuture, VisualHttpRequest, VisualHttpResponse, VisualHttpTransport,
-    };
 
     use super::{
         agent_health_url, apply_sidecar_environment, arm_webview_qa_glb_readback,
-        arm_webview_qa_png_dimensions, build_loopback_get_request, cancel_visual_evidence_request,
+        arm_webview_qa_png_dimensions, attach_c111b_packaged_native_metrics,
+        attach_c111b_terminal_turn_metrics, build_loopback_get_request,
+        c111b_terminal_turn_from_result, c111b_validate_agent_asset_lineage,
+        c111b_validate_agent_parent_lineage, cancel_visual_evidence_request,
         classify_capability_ownership_response, finish_packaged_probe_report,
         finish_visual_evidence_request, generate_internal_capability_token,
         generate_supervisor_session_id, managed_sidecar_lease_is_orphaned,
-        register_visual_evidence_request, resume_visual_asset_inner, status_from_probe,
-        valid_internal_capability_token, valid_supervisor_session_id,
-        validate_arm_webview_qa_success, validate_k001_probe_success, validate_k002_probe_success,
-        validate_provider_config_input, AgentProbe, ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture,
-        ArmWebviewQaReport, CancellationToken, ForgecadSidecarIdentity, K001PackagedProbeReport,
+        register_visual_evidence_request, status_from_probe, valid_internal_capability_token,
+        valid_supervisor_session_id, validate_arm_webview_qa_success, validate_k001_probe_success,
+        validate_k002_probe_success, validate_provider_config_input, AgentProbe,
+        ArmWebviewQaGlbCapture, ArmWebviewQaPngCapture, ArmWebviewQaReport,
+        C111bPackagedQaMetricsState, C111bPackagedQaTimeline, C111bPackagedWebglQaConfig,
+        C111bPackagedWebglQaReport, ForgecadSidecarIdentity, K001PackagedProbeReport,
         K002PackagedProbeReport, LocalRoboticArmMvpProvider, LoopbackProbeResponse,
-        ManagedSidecarLease, OpenAiCompatibleVisionEvidenceAdapter, PrivateFileFalCredentialSource,
-        PrivateFileVisionEvidenceCredentialStore, ProviderConfigMetadata,
-        ReqwestVisionEvidenceTransport, VisionEvidenceCoordinator, VisualBriefDirector,
-        VisualProviderState, ARM_WEBVIEW_QA_SCHEMA, K001_PACKAGED_PROBE_SCHEMA,
-        K002_PACKAGED_PROBE_SCHEMA, PROVIDER_ENVIRONMENT_KEYS,
+        ManagedSidecarLease, ProviderConfigMetadata, ARM_WEBVIEW_QA_SCHEMA,
+        K001_PACKAGED_PROBE_SCHEMA, K002_PACKAGED_PROBE_SCHEMA, PROVIDER_ENVIRONMENT_KEYS,
         RESTRICTED_GEOMETRY_CAPABILITY_HEADER, RESTRICTED_GEOMETRY_OWNERSHIP_PATH,
     };
 
     const SIDECAR_ENVIRONMENT_PROBE_CHILD: &str = "FORGECAD_TEST_SIDECAR_ENVIRONMENT_PROBE_CHILD";
     const SIDECAR_ENVIRONMENT_PROBE_MARKER: &str = "ForgeCAD sidecar environment probe=";
+
+    fn run_visual_async<T>(future: impl Future<Output = T>) -> T {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(future)
+    }
+
+    #[test]
+    fn c111b_agent_readback_requires_exact_v1_to_a005_v2_lineage() {
+        let shape_program = json!({
+            "schema_version": "ShapeProgram@1",
+            "non_functional_only": true,
+            "operations": [],
+            "outputs": []
+        });
+        let shape_program_sha256 = semantic_sha256(&shape_program).unwrap();
+        let adornment = json!({
+            "schema_version": "SurfaceAdornmentProgram@1",
+            "program_id": "adorn_c111b_test",
+            "target_part_id": "part_c111b_link",
+            "target_zone_id": "zone_arm_link_shell",
+            "kind": "normal_relief",
+            "motif": "parallel_groove",
+            "intensity": "subtle",
+            "coverage": "center_band",
+            "seed": 77,
+            "base_material": "mat_composite",
+            "execution": "texture_bake",
+            "skill_id": "skill_first_party_surface_adornment",
+            "skill_version": 3,
+            "skill_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "generator": "a005_v1",
+            "non_functional_only": true
+        });
+        let adornment_sha256 = semantic_sha256(&adornment).unwrap();
+        let material_id = format!("mat_a005_{}", &adornment_sha256[..32]);
+        let mut material_bindings = serde_json::Map::new();
+        material_bindings.insert(
+            "part_c111b_link:zone_arm_link_shell".into(),
+            Value::String(material_id),
+        );
+        let asset = json!({
+            "project_id": "project_c111b",
+            "asset_version_id": "asset_v2",
+            "parent_asset_version_id": "asset_v1",
+            "version_no": 2,
+            "status": "committed",
+            "shape_program": shape_program,
+            "assembly_graph": {"surface_adornments": [adornment]},
+            "material_bindings": Value::Object(material_bindings)
+        });
+        assert_eq!(
+            c111b_validate_agent_asset_lineage(&asset, &shape_program_sha256).unwrap(),
+            "asset_v1"
+        );
+
+        let parent = json!({
+            "project_id": "project_c111b",
+            "asset_version_id": "asset_v1",
+            "parent_asset_version_id": null,
+            "version_no": 1,
+            "shape_program": asset["shape_program"].clone()
+        });
+        c111b_validate_agent_parent_lineage(
+            &parent,
+            "project_c111b",
+            "asset_v1",
+            &shape_program_sha256,
+        )
+        .unwrap();
+
+        let mut drifted_shape = asset.clone();
+        drifted_shape["shape_program"]["operations"] = json!([{"op":"box"}]);
+        assert!(c111b_validate_agent_asset_lineage(&drifted_shape, &shape_program_sha256).is_err());
+        let mut missing_seal = asset.clone();
+        missing_seal["material_bindings"] = json!({});
+        assert!(c111b_validate_agent_asset_lineage(&missing_seal, &shape_program_sha256).is_err());
+        let mut wrong_parent = parent;
+        wrong_parent["version_no"] = json!(2);
+        assert!(c111b_validate_agent_parent_lineage(
+            &wrong_parent,
+            "project_c111b",
+            "asset_v1",
+            &shape_program_sha256,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn c111b_packaged_metrics_are_native_owned_and_overwrite_webview_claims() {
+        let mut report: C111bPackagedWebglQaReport = serde_json::from_value(json!({
+            "schema_version": "C111BPackagedWebGL@1",
+            "phase": "restart",
+            "ok": true,
+            "provider_protocol_requests": 999,
+            "network_provider_calls": 999,
+            "network_call_made": true,
+            "credential_reads": 999,
+            "provider_metrics_source": "untrusted_webview",
+            "credential_metrics_source": "untrusted_webview"
+        }))
+        .unwrap();
+        let config = C111bPackagedWebglQaConfig {
+            schema_version: "C111BPackagedWebGL@1",
+            phase: "restart".into(),
+            mode: "agent_asset".into(),
+            source_sha256: "48ccc5c6a725936d43cb731ed5e20b93f10ef751712ed79469ea406318160b6b",
+            triangle_count: 138_248,
+            primitive_count: 157,
+            material_count: 12,
+            expected_project_id: None,
+            expected_asset_version_id: None,
+            expected_snapshot_revision: None,
+            expected_export_sha256: None,
+        };
+        let metrics = C111bPackagedQaMetricsState {
+            local_mvp_provider: Some(Arc::new(LocalRoboticArmMvpProvider::new())),
+            timeline: Arc::new(Mutex::new(C111bPackagedQaTimeline {
+                started: Instant::now(),
+                stages: Vec::new(),
+            })),
+        };
+        run_visual_async(attach_c111b_packaged_native_metrics(
+            &mut report,
+            &config,
+            &metrics,
+            None,
+        ))
+        .unwrap();
+        assert_eq!(report.provider_protocol_requests, Some(0));
+        assert_eq!(report.network_provider_calls, Some(0));
+        assert_eq!(report.network_call_made, Some(false));
+        assert_eq!(report.credential_reads, Some(0));
+        assert_eq!(
+            report.provider_metrics_source.as_deref(),
+            Some("native_local_mvp_atomic_counter")
+        );
+        assert_eq!(
+            report.credential_metrics_source.as_deref(),
+            Some("native_structural_no_credential_source")
+        );
+
+        let mut external_report = report;
+        let external_config = C111bPackagedWebglQaConfig {
+            mode: "external_reference".into(),
+            ..config
+        };
+        let external_metrics = C111bPackagedQaMetricsState {
+            local_mvp_provider: None,
+            timeline: Arc::new(Mutex::new(C111bPackagedQaTimeline {
+                started: Instant::now(),
+                stages: Vec::new(),
+            })),
+        };
+        run_visual_async(attach_c111b_packaged_native_metrics(
+            &mut external_report,
+            &external_config,
+            &external_metrics,
+            None,
+        ))
+        .unwrap();
+        assert_eq!(external_report.provider_protocol_requests, Some(0));
+        assert_eq!(external_report.network_provider_calls, Some(0));
+        assert_eq!(external_report.network_call_made, Some(false));
+        assert_eq!(
+            external_report.provider_metrics_source.as_deref(),
+            Some("native_no_agent_provider_path")
+        );
+        assert_eq!(
+            external_report.credential_metrics_source.as_deref(),
+            Some("native_no_agent_provider_path")
+        );
+    }
+
+    #[test]
+    fn c111b_terminal_turn_metrics_override_untrusted_usage_and_bind_six_stages() {
+        let stages = [
+            ("author_forge_visual_program", "provider"),
+            ("author_forge_visual_program", "product_tool"),
+            ("build_candidate_geometry", "product_tool"),
+            ("compile_readback_candidate", "product_tool"),
+            ("render_candidate_views", "product_tool"),
+            ("evaluate_candidate", "product_tool"),
+            ("prepare_candidate_preview", "product_tool"),
+        ];
+        let mut entries = vec![
+            json!({"sequence":1,"phase":"context","event":"started","elapsed_ms":0}),
+            json!({"sequence":2,"phase":"context","event":"completed","elapsed_ms":1}),
+        ];
+        let mut elapsed = 1u64;
+        for (tool_name, phase) in stages {
+            let call_id = format!("call_{tool_name}_{elapsed}");
+            entries.push(json!({
+                "sequence": entries.len() + 1,
+                "phase": phase,
+                "event": "started",
+                "elapsed_ms": elapsed,
+                "call_id": call_id,
+            }));
+            elapsed += 1;
+            entries.push(json!({
+                "sequence": entries.len() + 1,
+                "phase": phase,
+                "event": "completed",
+                "elapsed_ms": elapsed,
+                "call_id": call_id,
+                "tool_name": tool_name,
+            }));
+        }
+        entries.push(json!({
+            "sequence": entries.len() + 1,
+            "phase": "final",
+            "event": "completed",
+            "elapsed_ms": elapsed + 1,
+        }));
+        let turn = json!({
+            "thread_id":"thread_c111b_test",
+            "turn_id":"turn_c111b_test",
+            "request_text":"生成机械臂",
+            "status":"completed",
+            "usage":{
+                "provider_requests":1,
+                "product_tool_calls":6,
+                "input_tokens":1,
+                "output_tokens":1,
+                "prompt_cache_hit_tokens":0,
+                "prompt_cache_miss_tokens":0,
+                "estimated_cost_microusd":1,
+                "network_call_made":false,
+                "outcome":"completed",
+                "trace_sha256":"a".repeat(64),
+                "redacted_trace":{"entries":entries}
+            },
+            "items":[{
+                "item_id":"item_c111b_evaluate",
+                "thread_id":"thread_c111b_test",
+                "turn_id":"turn_c111b_test",
+                "sequence":1,
+                "item_type":"tool_result",
+                "status":"completed",
+                "payload":{
+                    "tool_name":"evaluate_candidate",
+                    "tool_result":{"validated_output":{"value":{
+                        "visual_convergence_report":{"repair_attempt_count":0}
+                    }}}
+                },
+                "created_at":"2026-07-28T00:00:00Z"
+            }],
+            "created_at":"2026-07-28T00:00:00Z",
+            "updated_at":"2026-07-28T00:00:01Z"
+        });
+        let turn: AgentTurn = serde_json::from_value(turn).unwrap();
+        let terminal_result = json!({
+            "schema_version":"AgentTurnCommandResult@1",
+            "command_id":"c111b_webview_report_turn_read",
+            "result":{
+                "outcome":"turn",
+                "turn":turn
+            }
+        });
+        let turn = c111b_terminal_turn_from_result(terminal_result.clone()).unwrap();
+        let mut unknown_field = terminal_result.clone();
+        unknown_field["untrusted_extra"] = json!(true);
+        assert!(c111b_terminal_turn_from_result(unknown_field).is_err());
+        let mut wrong_command = terminal_result;
+        wrong_command["command_id"] = json!("different_command");
+        assert!(c111b_terminal_turn_from_result(wrong_command).is_err());
+        let mut report: C111bPackagedWebglQaReport = serde_json::from_value(json!({
+            "schema_version":"C111BPackagedWebGL@1",
+            "phase":"initial",
+            "ok":true,
+            "thread_id":"thread_c111b_test",
+            "turn_id":"turn_c111b_test",
+            "provider_protocol_requests":999,
+            "product_tool_calls":999,
+            "input_tokens":999,
+            "estimated_cost_microusd":999,
+            "same_intent_repair_attempts":999
+        }))
+        .unwrap();
+        attach_c111b_terminal_turn_metrics(&mut report, &turn, 1).unwrap();
+        assert_eq!(report.provider_protocol_requests, Some(1));
+        assert_eq!(report.product_tool_calls, Some(6));
+        assert_eq!(report.input_tokens, Some(1));
+        assert_eq!(report.estimated_cost_microusd, Some(1));
+        assert_eq!(report.same_intent_repair_attempts, Some(0));
+        assert_eq!(report.same_intent_repairs_applied, Some(0));
+        assert_eq!(
+            report
+                .turn_phase_timings_ms
+                .as_ref()
+                .map(|value| value.keys().cloned().collect::<Vec<_>>()),
+            Some(vec![
+                "author".into(),
+                "compile_readback".into(),
+                "evaluate".into(),
+                "lower".into(),
+                "preview".into(),
+                "render".into(),
+            ])
+        );
+        assert_eq!(
+            report.turn_metrics_source.as_deref(),
+            Some("rust_terminal_turn_readback")
+        );
+    }
 
     #[test]
     fn pv006b_visual_analysis_registry_rejects_duplicates_cancels_and_cleans_up() {
@@ -4555,286 +5601,6 @@ mod tests {
         assert!(cancellation.is_cancelled());
         finish_visual_evidence_request(&active, request_id);
         assert!(!cancel_visual_evidence_request(&active, request_id).unwrap());
-    }
-
-    struct ScriptedVisualTransport {
-        responses: Mutex<VecDeque<VisualHttpResponse>>,
-        requests: Mutex<Vec<VisualHttpRequest>>,
-    }
-
-    impl ScriptedVisualTransport {
-        fn new(responses: Vec<VisualHttpResponse>) -> Self {
-            Self {
-                responses: Mutex::new(responses.into()),
-                requests: Mutex::new(Vec::new()),
-            }
-        }
-    }
-
-    impl VisualHttpTransport for ScriptedVisualTransport {
-        fn execute(&self, request: VisualHttpRequest) -> VisualHttpFuture<VisualHttpResponse> {
-            self.requests.lock().unwrap().push(request);
-            let response = self.responses.lock().unwrap().pop_front();
-            Box::pin(async move {
-                response.ok_or_else(|| {
-                    ConceptImageProviderError::new(
-                        "TEST_VISUAL_TRANSPORT_EXHAUSTED",
-                        "Scripted visual response sequence was exhausted.",
-                    )
-                })
-            })
-        }
-    }
-
-    fn visual_json(value: Value) -> VisualHttpResponse {
-        VisualHttpResponse {
-            status: 200,
-            content_type: Some("application/json".into()),
-            body: serde_json::to_vec(&value).unwrap(),
-            network_call_made: true,
-        }
-    }
-
-    fn visual_concept_png() -> Vec<u8> {
-        let image = image::RgbaImage::from_pixel(1024, 1024, image::Rgba([8, 24, 48, 255]));
-        let mut bytes = Vec::new();
-        image::DynamicImage::ImageRgba8(image)
-            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-            .unwrap();
-        bytes
-    }
-
-    fn visual_pbr_candidate_glb() -> Vec<u8> {
-        let mut binary = Vec::new();
-        for value in [0.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0] {
-            binary.extend_from_slice(&value.to_le_bytes());
-        }
-        for index in [0_u16, 1, 2] {
-            binary.extend_from_slice(&index.to_le_bytes());
-        }
-        while binary.len() % 4 != 0 {
-            binary.push(0);
-        }
-        let document = json!({
-            "asset": {"version": "2.0"},
-            "scene": 0,
-            "scenes": [{"nodes": [0]}],
-            "nodes": [{"mesh": 0}],
-            "buffers": [{"byteLength": binary.len()}],
-            "bufferViews": [
-                {"buffer": 0, "byteOffset": 0, "byteLength": 36},
-                {"buffer": 0, "byteOffset": 36, "byteLength": 6}
-            ],
-            "accessors": [
-                {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0,0,0], "max": [1,1,0]},
-                {"bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR"}
-            ],
-            "materials": [{"pbrMetallicRoughness": {"baseColorFactor": [0.1,0.2,0.3,1], "metallicFactor": 0.8, "roughnessFactor": 0.35}}],
-            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "material": 0}]}]
-        });
-        let mut json_bytes = serde_json::to_vec(&document).unwrap();
-        while json_bytes.len() % 4 != 0 {
-            json_bytes.push(b' ');
-        }
-        let total = 12 + 8 + json_bytes.len() + 8 + binary.len();
-        let mut glb = Vec::with_capacity(total);
-        glb.extend_from_slice(b"glTF");
-        glb.extend_from_slice(&2_u32.to_le_bytes());
-        glb.extend_from_slice(&(total as u32).to_le_bytes());
-        glb.extend_from_slice(&(json_bytes.len() as u32).to_le_bytes());
-        glb.extend_from_slice(&0x4e4f534a_u32.to_le_bytes());
-        glb.extend_from_slice(&json_bytes);
-        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
-        glb.extend_from_slice(&0x004e4942_u32.to_le_bytes());
-        glb.extend_from_slice(&binary);
-        glb
-    }
-
-    fn run_visual_async<T>(future: impl Future<Output = T>) -> T {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .build()
-            .unwrap()
-            .block_on(future)
-    }
-
-    #[test]
-    fn persisted_concept_receipt_resumes_through_neural_glb_and_seals_completion() {
-        run_visual_async(async {
-            let root = tempdir().unwrap();
-            let repository = Arc::new(
-                CoreRepository::open(
-                    root.path().join("library.db"),
-                    root.path(),
-                    "visual_resume_desktop_gate",
-                )
-                .unwrap(),
-            );
-            repository
-                .ensure_default_domain_profile("2026-07-26T11:00:00Z")
-                .unwrap();
-            repository
-                .create_project(&Project {
-                    project_id: "project_visual_desktop_gate".into(),
-                    profile_id: "profile_weapon_concept_v1".into(),
-                    domain_type: "weapon_concept".into(),
-                    name: "Visual desktop gate".into(),
-                    status: ProjectStatus::Active,
-                    current_version_id: None,
-                    created_at: "2026-07-26T11:00:01Z".into(),
-                    updated_at: "2026-07-26T11:00:01Z".into(),
-                })
-                .unwrap();
-            let credentials = Arc::new(PrivateFileFalCredentialSource::new(
-                root.path().join("secrets").join("visual").join("fal.key"),
-            ));
-            credentials.save("test-only-visual-secret".into()).unwrap();
-            let concept_png = visual_concept_png();
-            let glb = visual_pbr_candidate_glb();
-            let transport = Arc::new(ScriptedVisualTransport::new(vec![
-                visual_json(json!({"status": "COMPLETED"})),
-                visual_json(json!({
-                    "has_nsfw_concepts": [false],
-                    "images": [{
-                        "width": 1024,
-                        "height": 1024,
-                        "content_type": "image/png",
-                        "url": "https://v3.fal.media/files/test/concept.png"
-                    }]
-                })),
-                VisualHttpResponse {
-                    status: 200,
-                    content_type: Some("image/png".into()),
-                    body: concept_png.clone(),
-                    network_call_made: true,
-                },
-                visual_json(json!({"request_id": "hunyuan-resume-job"})),
-                visual_json(json!({"status": "COMPLETED"})),
-                visual_json(json!({
-                    "model_glb": {
-                        "content_type": "model/gltf-binary",
-                        "file_size": glb.len(),
-                        "url": "https://v3b.fal.media/files/test/model.glb"
-                    }
-                })),
-                VisualHttpResponse {
-                    status: 200,
-                    content_type: Some("model/gltf-binary".into()),
-                    body: glb.clone(),
-                    network_call_made: true,
-                },
-            ]));
-            let state = VisualProviderState {
-                fal_credentials: credentials,
-                transport: transport.clone(),
-                repository: repository.clone(),
-                brief_director: VisualBriefDirector::new(Arc::new(
-                    LocalRoboticArmMvpProvider::new(),
-                )),
-                vision_credentials: {
-                    Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
-                        root.path().join("secrets").join("vision-evidence"),
-                    ))
-                },
-                vision_coordinator: {
-                    let credentials = Arc::new(PrivateFileVisionEvidenceCredentialStore::new(
-                        root.path().join("secrets").join("vision-evidence"),
-                    ));
-                    let adapter = OpenAiCompatibleVisionEvidenceAdapter::new(
-                        credentials,
-                        Arc::new(ReqwestVisionEvidenceTransport::new().unwrap()),
-                        Duration::from_secs(30),
-                    )
-                    .unwrap();
-                    VisionEvidenceCoordinator::new(Arc::new(adapter), Duration::from_secs(40))
-                        .unwrap()
-                },
-                vision_active_requests: Mutex::new(std::collections::HashMap::new()),
-                active_requests: Mutex::new(std::collections::HashMap::new()),
-            };
-            let brief = VisualDesignBrief {
-                schema_version: VISUAL_DESIGN_BRIEF_SCHEMA_VERSION.into(),
-                brief_id: "visual_brief_desktop_gate".into(),
-                project_id: "project_visual_desktop_gate".into(),
-                turn_id: "visual_turn_desktop_gate".into(),
-                input_kind: VisualInputKind::Text,
-                user_intent_sha256: "a".repeat(64),
-                object_class: "fictional mechanical collectible".into(),
-                visual_summary: "Layered titanium shell with luminous blue surface lines.".into(),
-                style_terms: vec!["industrial_futurism".into()],
-                material_terms: vec!["brushed_titanium".into()],
-                input_evidence: vec![],
-            };
-            let request = ConceptImageGenerationRequest {
-                schema_version: CONCEPT_IMAGE_GENERATION_REQUEST_SCHEMA_VERSION.into(),
-                request_id: "concept_request_desktop_gate".into(),
-                project_id: brief.project_id.clone(),
-                turn_id: brief.turn_id.clone(),
-                brief_id: brief.brief_id.clone(),
-                prompt: "One complete isolated fictional mechanical collectible, centered three-quarter view, clean background.".into(),
-                input_image_object_sha256: None,
-                input_image_media_type: None,
-                backend_preferences: vec![ConceptImageBackend::FalFlux2],
-                width: 1024,
-                height: 1024,
-                output_media_type: "image/png".into(),
-                isolated_subject: true,
-                clean_background: true,
-                image_count: 1,
-                idempotency_key: "concept_idempotency_desktop_gate".into(),
-            };
-            let binding = ConceptImageResumeBinding::from_submitted_request(
-                brief,
-                &request,
-                ConceptImageBackend::FalFlux2,
-                "flux-resume-job".into(),
-                "concept_reference_desktop_gate".into(),
-                VisualQualityTier::StandardAsset,
-            )
-            .unwrap();
-            let record = VisualRemoteJobRecord {
-                schema_version: VISUAL_REMOTE_JOB_RECORD_SCHEMA_VERSION.into(),
-                client_request_id: "visual_generation_desktop_gate".into(),
-                project_id: binding.brief.project_id.clone(),
-                turn_id: binding.brief.turn_id.clone(),
-                state: VisualRemoteJobState::ConceptSubmitted { binding },
-                created_at: "2026-07-26T11:00:02Z".into(),
-                updated_at: "2026-07-26T11:00:03Z".into(),
-            };
-            repository.put_visual_remote_job(&record).unwrap();
-            let app = tauri::test::mock_app();
-            let response = resume_visual_asset_inner(
-                "visual_generation_desktop_gate",
-                record,
-                app.handle(),
-                &state,
-                CancellationToken::new(),
-            )
-            .await
-            .unwrap();
-            assert_eq!(
-                response.inspection.sha256,
-                format!("{:x}", Sha256::digest(&glb))
-            );
-            assert_eq!(response.inspection.material_count, 1);
-            assert!(matches!(
-                repository
-                    .visual_remote_job("visual_generation_desktop_gate")
-                    .unwrap()
-                    .unwrap()
-                    .state,
-                VisualRemoteJobState::Completed { .. }
-            ));
-            assert!(repository
-                .recoverable_visual_remote_jobs(None)
-                .unwrap()
-                .is_empty());
-            let requests = transport.requests.lock().unwrap();
-            assert_eq!(requests.len(), 7);
-            assert!(requests[2].authorization.is_none());
-            assert!(requests[6].authorization.is_none());
-            assert!(!format!("{requests:?}").contains("test-only-visual-secret"));
-        });
     }
 
     #[test]
@@ -5045,13 +5811,13 @@ mod tests {
     #[test]
     fn provider_input_is_trimmed_before_storage() {
         let result = validate_provider_config_input(
-            "  https://api.example.test/// ",
-            "  demo-model  ",
+            "  https://api.deepseek.com/// ",
+            "  deepseek-demo  ",
             "  secret  ",
         )
         .expect("valid provider input");
-        assert_eq!(result.0, "https://api.example.test");
-        assert_eq!(result.1, "demo-model");
+        assert_eq!(result.0, "https://api.deepseek.com");
+        assert_eq!(result.1, "deepseek-demo");
         assert_eq!(result.2.as_str(), "secret");
     }
 

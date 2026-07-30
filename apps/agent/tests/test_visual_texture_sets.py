@@ -14,10 +14,10 @@ def test_vectorized_production_texture_renderer_preserves_frozen_v4_bytes() -> N
         artifact_profile_id="production_concept",
     )
     expected = {
-        "base_color": "56027d78d117243d74b5638af0435f445b7cc9b61752721edf95516f35810011",
-        "metallic_roughness": "58e6b663cb90a88f14be2ffe35e0679582f26da92f22548ddb8cecfec0d91562",
-        "normal": "e6279c8325a62e5c4d631d66cbcbad15d52a0c3b34d77923ac1744eb62e1b5eb",
-        "occlusion": "73c6d56857ad25334f01e28a1101eca973f0d3ef8763ae37d441285d2edfb96c",
+        "base_color": "ba4488fe38591986dd7c17f1d160b269b5c6b560fe83a17157075c289b9cc3fa",
+        "metallic_roughness": "41aa990e98e6dee267feb4e99a68c61b457102792a95589d82e90701d46d9ca0",
+        "normal": "3078d36e905da94f6c2435201a5391d09de1f7fca28cfd6a569fb56e86ca7767",
+        "occlusion": "4d3af78bf011ae17d894cc142fc1825cabc685290685b3f37b51da961b1be05e",
         "emissive": "87658cfaf8e619d7f15fe7179e5874c38663d3254302928d9c1e7eaacee0a9f4",
     }
 

@@ -186,6 +186,8 @@ def _assert_semantics(program: Mapping[str, Any]) -> None:
             _assert_bevel_reference(operation, operation_by_id)
         elif op_name == "surface_panel":
             _assert_surface_panel_reference(operation, operation_by_id)
+        elif op_name == "lattice_deform":
+            _assert_lattice_deform_reference(operation, operation_by_id)
         elif op_name in {"union", "subtract"}:
             _assert_boolean_references(operation, operation_by_id, op_name.upper())
             depth = 1 + max(csg_depth_by_id.get(input_id, 0) for input_id in operation["inputs"])
@@ -497,3 +499,38 @@ def _assert_surface_panel_reference(operation: Mapping[str, Any], operation_by_i
     position = operation["args"].get("position")
     if position is not None and abs(float(position[1])) > 1e-9:
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_OFFSET: {operation['operation_id']}")
+
+
+def _assert_lattice_deform_reference(
+    operation: Mapping[str, Any], operation_by_id: Mapping[str, Mapping[str, Any]]
+) -> None:
+    """Validate the fixed 2x2x2 local deformation cage.
+
+    This is deliberately not a generic mesh modifier.  It can only deform one
+    earlier bounded mesh with eight relative offsets, each limited to one
+    quarter of the source AABB extent.  The Worker preserves triangle count
+    and all material/part provenance.
+    """
+
+    if len(operation["inputs"]) != 1 or operation["inputs"][0] not in operation_by_id:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_INPUT: {operation['operation_id']}")
+    if operation_by_id[operation["inputs"][0]]["op"] == "profile":
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_PROFILE_INPUT: {operation['operation_id']}")
+    offsets = operation["args"].get("corner_offsets")
+    if not isinstance(offsets, list) or len(offsets) != 8:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_OFFSETS: {operation['operation_id']}")
+    flattened: list[float] = []
+    for offset in offsets:
+        if not isinstance(offset, list) or len(offset) != 3:
+            raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_OFFSETS: {operation['operation_id']}")
+        try:
+            values = [float(value) for value in offset]
+        except (TypeError, ValueError) as exc:
+            raise ShapeProgramValidationError(
+                f"SHAPE_PROGRAM_LATTICE_OFFSETS: {operation['operation_id']}"
+            ) from exc
+        if any(not math.isfinite(value) or abs(value) > 0.25 for value in values):
+            raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_OFFSET_BOUNDS: {operation['operation_id']}")
+        flattened.extend(values)
+    if not any(abs(value) > 1e-9 for value in flattened):
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_NO_EFFECT: {operation['operation_id']}")

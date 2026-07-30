@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/schemas/concept/subject-profile.schema.json",
+  "title": "SubjectProfile",
+  "description": "Open-category visual subject understanding. category and category_tags are descriptive open text, not admission enums.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "request_sha256", "identity_label", "category", "category_tags", "silhouette", "negative_space", "pose", "visible_views", "occlusions", "uncertainties", "parts", "features", "materials"],
+  "properties": {
+    "schema_version": { "const": "SubjectProfile@1" },
+    "profile_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "request_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+    "identity_label": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "category": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "category_tags": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+    "silhouette": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "negative_space": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "pose": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "visible_views": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+    "occlusions": { "type": "array", "maxItems": 64, "items": { "type": "string", "minLength": 1, "maxLength": 320 } },
+    "uncertainties": { "type": "array", "maxItems": 64, "items": { "type": "string", "minLength": 1, "maxLength": 320 } },
+    "parts": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/part" } },
+    "features": { "type": "array", "minItems": 3, "maxItems": 512, "items": { "$ref": "#/$defs/feature" } },
+    "materials": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/material" } }
+  },
+  "$defs": {
+    "level": { "enum": ["macro", "meso", "micro"] },
+    "part": { "type": "object", "additionalProperties": false, "required": ["part_id", "label", "semantic_role", "traits", "uncertainty_bps"], "properties": {
+      "part_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+      "parent_part_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 160 },
+      "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+      "semantic_role": { "type": "string", "minLength": 1, "maxLength": 160 },
+      "traits": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "uncertainty_bps": { "type": "integer", "minimum": 0, "maximum": 10000 }
+    } },
+    "feature": { "type": "object", "additionalProperties": false, "required": ["feature_id", "part_id", "level", "description"], "properties": {
+      "feature_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+      "part_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+      "level": { "$ref": "#/$defs/level" },
+      "description": { "type": "string", "minLength": 1, "maxLength": 1200 }
+    } },
+    "material": { "type": "object", "additionalProperties": false, "required": ["material_id", "label", "part_ids", "appearance_traits"], "properties": {
+      "material_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+      "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+      "part_ids": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+      "appearance_traits": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }
+    } }
+  }
+}

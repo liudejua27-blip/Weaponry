@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import pytest
 from fastapi import FastAPI
 
@@ -41,6 +42,7 @@ from forgecad_agent.application.surface_layer_pbr import (
     surface_layer_lowering_sha256,
     surface_layer_material_id,
 )
+from forgecad_agent.application.reference_uv_projection import _encode_png_rgb
 from wushen_agent import main as main_module
 
 
@@ -238,6 +240,51 @@ def _sealed_surface_layer_input() -> dict[str, Any]:
     }
 
 
+def _reference_uv_evidence_bake(*, zone_id: str = "zone_body_shell") -> dict[str, Any]:
+    source = np.zeros((2, 2, 3), dtype=np.uint8)
+    source[:, :, :] = (210, 214, 220)
+    source_png = _encode_png_rgb(source)
+    return {
+        "schema_version": "ReferenceUvEvidenceBake@1",
+        "projection_id": "projection_k003_front",
+        "source_evidence_id": "evidence_k003_front",
+        "source_image_sha256": hashlib.sha256(source_png).hexdigest(),
+        "source_png_base64": base64.b64encode(source_png).decode("ascii"),
+        "camera_hypothesis_id": "camera_k003_front",
+        "camera_provenance_sha256": "b" * 64,
+        "target_material_zone_id": zone_id,
+        "texture_width": 128,
+        "texture_height": 128,
+        "observed_uv_rect_bps": [2500, 2500, 7500, 7500],
+    }
+
+
+def _reference_camera_uv_raster_bake(*, zone_id: str = "zone_body_shell") -> dict[str, Any]:
+    source = np.zeros((8, 8, 3), dtype=np.uint8)
+    source[:, :, :] = (210, 214, 220)
+    source_png = _encode_png_rgb(source)
+    return {
+        "schema_version": "ReferenceCameraUvRasterBake@2",
+        "projection_id": "projection_k003_camera_front",
+        "source_evidence_id": "evidence_k003_camera_front",
+        "source_image_sha256": hashlib.sha256(source_png).hexdigest(),
+        "source_png_base64": base64.b64encode(source_png).decode("ascii"),
+        "camera_hypothesis_id": "camera_k003_camera_front",
+        "camera_provenance_sha256": "c" * 64,
+        "target_material_zone_id": zone_id,
+        "texture_width": 128,
+        "texture_height": 128,
+        # This fixture's 100×40×20 mm box is centred at the origin, so the
+        # identity clip transform is a deterministic bounded test camera.
+        "world_to_clip_row_major": [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ],
+    }
+
+
 @dataclass(frozen=True)
 class _Response:
     status_code: int
@@ -387,6 +434,118 @@ def test_surface_layer_input_is_exactly_sealed_and_binds_retained_pbr_to_the_fin
     mismatched["surface_adornment_programs"] = []
     with pytest.raises(ValueError, match="exact Rust-lowered A005"):
         RestrictedGeometryExecutionRequest.model_validate(mismatched)
+
+
+def test_reference_uv_evidence_bake_is_bound_to_one_retained_zone_and_read_back_from_the_final_glb() -> None:
+    payload = _execution_payload(execution_id="exec_reference_uv")
+    sealed = _sealed_surface_layer_input()
+    payload["surface_layer_input"] = sealed
+    payload["surface_adornment_programs"] = sealed["lowering"]["adornments"]
+    payload["reference_uv_evidence_bakes"] = [_reference_uv_evidence_bake()]
+
+    executor = RestrictedGeometryExecutor(
+        environment={RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV: CAPABILITY}
+    )
+    result = executor.execute(RestrictedGeometryExecutionRequest.model_validate(payload))
+    assert result.readback is not None
+    retained = next(
+        item
+        for item in result.readback["visual_texture_sets"]
+        if item.get("surface_layer_lowering") is not None
+    )
+    receipt = retained["reference_uv_evidence"]
+    base_color = next(item for item in retained["maps"] if item["texture_role"] == "base_color")
+    assert receipt["target_material_zone_id"] == "zone_body_shell"
+    assert receipt["base_color_texture_id"] == base_color["texture_id"]
+    assert receipt["base_color_sha256"] == base_color["sha256"]
+    assert base_color["source"] == "imported_reference"
+    assert receipt["observed_texel_count"] == 64 * 64
+    assert receipt["unobserved_texel_count"] == 128 * 128 - 64 * 64
+
+    wrong_zone = copy.deepcopy(payload)
+    wrong_zone["reference_uv_evidence_bakes"][0]["target_material_zone_id"] = "zone_not_bound"
+    with pytest.raises(ValueError, match="exact sealed retained surface layer"):
+        RestrictedGeometryExecutionRequest.model_validate(wrong_zone)
+
+
+def test_camera_uv_raster_bake_is_depth_filtered_and_read_back_from_the_final_glb() -> None:
+    payload = _execution_payload(execution_id="exec_reference_camera_raster")
+    sealed = _sealed_surface_layer_input()
+    payload["surface_layer_input"] = sealed
+    payload["surface_adornment_programs"] = sealed["lowering"]["adornments"]
+    payload["reference_uv_evidence_bakes"] = [_reference_camera_uv_raster_bake()]
+
+    executor = RestrictedGeometryExecutor(
+        environment={RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV: CAPABILITY}
+    )
+    result = executor.execute(RestrictedGeometryExecutionRequest.model_validate(payload))
+    assert result.readback is not None
+    retained = next(
+        item
+        for item in result.readback["visual_texture_sets"]
+        if item.get("surface_layer_lowering") is not None
+    )
+    receipt = retained["reference_uv_evidence"]
+    assert receipt["schema_version"] == "ReferenceCameraUvRasterBakeReceipt@2"
+    assert receipt["algorithm_id"] == "forgecad.reference_camera_uv_raster"
+    assert receipt["world_to_clip_sha256"] == hashlib.sha256(
+        json.dumps(_reference_camera_uv_raster_bake()["world_to_clip_row_major"], separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert receipt["raster_triangle_count"] > 0
+    assert receipt["observed_texel_count"] > 0
+    assert receipt["observed_texel_count"] + receipt["unobserved_texel_count"] == 128 * 128
+
+
+def test_multi_zone_surface_layer_inputs_bake_distinct_retained_pbr_materials() -> None:
+    payload = _execution_payload(execution_id="exec_surface_layers_multi")
+    program = copy.deepcopy(VALID_PROGRAM)
+    program["operations"].append({
+        "operation_id": "op_trim",
+        "op": "box",
+        "inputs": [],
+        "args": {
+            "size": [40, 18, 8],
+            "part_role": "accent_trim",
+            "material_id": "mat_graphite",
+            "zone_id": "zone_trim",
+        },
+    })
+    program["outputs"].append({
+        "output_id": "output_trim",
+        "operation_id": "op_trim",
+        "kind": "mesh",
+        "part_role": "accent_trim",
+    })
+    first = _sealed_surface_layer_input()
+    second = _sealed_surface_layer_input()
+    second["lowering"]["adornments"][0]["program_id"] = "adorn_k003_surface_trim"
+    second["lowering"]["adornments"][0]["target_part_id"] = "part_trim"
+    second["lowering"]["adornments"][0]["target_zone_id"] = "zone_trim"
+    second["lowering_sha256"] = surface_layer_lowering_sha256(second["lowering"])
+    payload["shape_program"] = program
+    payload["surface_layer_inputs"] = [first, second]
+    payload["surface_adornment_programs"] = (
+        first["lowering"]["adornments"] + second["lowering"]["adornments"]
+    )
+    request = RestrictedGeometryExecutionRequest.model_validate(payload)
+    executor = RestrictedGeometryExecutor(
+        environment={RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV: CAPABILITY}
+    )
+    result = executor.execute(request)
+    assert result.readback is not None
+    retained = [
+        item for item in result.readback["visual_texture_sets"]
+        if item.get("surface_layer_lowering") is not None
+    ]
+    assert {tuple(item["material_zone_ids"]) for item in retained} == {
+        ("zone_body_shell",),
+        ("zone_trim",),
+    }
+
+    duplicate = copy.deepcopy(payload)
+    duplicate["surface_layer_inputs"] = [first, copy.deepcopy(first)]
+    with pytest.raises(ValueError, match="duplicate material zones"):
+        RestrictedGeometryExecutionRequest.model_validate(duplicate)
 
 
 def test_surface_layer_rejects_a_missing_zone_and_a_forged_retained_seal() -> None:

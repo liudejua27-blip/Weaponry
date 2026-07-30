@@ -4,6 +4,7 @@ type ReadyGenerationResultCardProps = {
   state: 'ready'
   summary: string
   versionLabel?: string
+  compactMode?: boolean
   onSave?: () => void
   onContinueEditing: () => void
 }
@@ -11,6 +12,7 @@ type CompatibilityGenerationResultCardProps = {
   state: 'compatibility_result'
   summary: string
   versionLabel?: string
+  compactMode?: boolean
   onSave?: () => void
   onContinueEditing: () => void
 }
@@ -49,9 +51,9 @@ export function GenerationResultCard(props: GenerationResultCardProps) {
   }
   if (props.state === 'processing') {
     return (
-      <section className="f026-generation-result" data-generation-state="processing" aria-live="polite" aria-label="正在生成模型">
+      <section className="f026-generation-result" data-generation-state="processing" aria-live="polite" aria-label="正在处理设计请求">
         <F026Icon name="loading" className="f026-generation-result-icon f026-spin" />
-        <div><strong>正在生成当前模型</strong><p>{props.detail ?? 'Agent 正在构建并检查 3D 结果。'}</p></div>
+        <div><strong>正在处理本次设计</strong><p>{props.detail ?? '正在等待模型服务或受限 3D 构建的下一步结果。'}</p></div>
       </section>
     )
   }
@@ -65,6 +67,7 @@ export function GenerationResultCard(props: GenerationResultCardProps) {
     )
   }
   const isCompatibilityResult = props.state === 'compatibility_result'
+  const compactMode = Boolean(props.compactMode)
   return (
     <section
       className="f026-generation-result"
@@ -80,7 +83,7 @@ export function GenerationResultCard(props: GenerationResultCardProps) {
           : (props.versionLabel ?? '正式生成质量门已通过')}</small>
       </div>
       <div className="f026-generation-result-actions">
-        <button type="button" onClick={props.onContinueEditing}><F026Icon name="edit" /> 继续修改</button>
+        {compactMode ? null : <button type="button" onClick={props.onContinueEditing}><F026Icon name="edit" /> 继续修改</button>}
         {props.onSave && <button type="button" onClick={props.onSave} aria-label="保存为可编辑模型"><F026Icon name="save" /> 确认保存</button>}
       </div>
     </section>

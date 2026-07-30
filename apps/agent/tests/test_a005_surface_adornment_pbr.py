@@ -17,6 +17,8 @@ from forgecad_agent.application.restricted_geometry_executor import (
 )
 from forgecad_agent.application.visual_texture_sets import (
     builtin_visual_material_count,
+    surface_adornment_visual_texture_png_bytes,
+    surface_adornment_visual_texture_set,
     surface_adornment_texture_cache_facts,
 )
 
@@ -137,6 +139,32 @@ def _png_pixels(payload: bytes) -> tuple[int, int, tuple[tuple[int, int, int], .
         for row in rows
         for offset in range(0, width * 3, 3)
     )
+
+
+def test_vectorized_a005_production_bake_preserves_frozen_bytes() -> None:
+    adornment = _adornment()
+    texture_set = surface_adornment_visual_texture_set(
+        adornment,
+        artifact_profile_id="production_concept",
+    )
+    expected = {
+        "base_color": "4cc15556b31b4bacbd524fcb035d543761976988d1dfa53b5747c9f65bf5f446",
+        "metallic_roughness": "4f5c723cbf69ac6c7306f71a9a6ed0a3c4517c41b13bbfb57cc2cd7db30e9642",
+        "normal": "b8fa627ca2ff57b1f43b0a5a5e99b04a20627f36542486b263e51d80ca4413d2",
+        "occlusion": "c3e44e1e38b3f37aebe0e699cf4e5f107bd90c547a575369c962ba3920cd5e92",
+        "emissive": "87658cfaf8e619d7f15fe7179e5874c38663d3254302928d9c1e7eaacee0a9f4",
+    }
+
+    assert {
+        item.texture_role: hashlib.sha256(
+            surface_adornment_visual_texture_png_bytes(
+                adornment,
+                artifact_profile_id="production_concept",
+                texture_role=item.texture_role,
+            )
+        ).hexdigest()
+        for item in texture_set.maps
+    } == expected
 
 
 @pytest.mark.parametrize(

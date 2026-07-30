@@ -73,9 +73,19 @@ fn require_safe_text(field: &str, value: &str, max_chars: usize) -> CoreResult<(
     Ok(())
 }
 
-fn material_for_palette(current: &str, palette: &str) -> String {
+fn material_for_palette(current: &str, palette: &str, zone_id: &str) -> String {
     match palette {
         "white_aluminum" if current == "mat_graphite" => "mat_aluminum".into(),
+        // The C111 reviewer fixture keeps the three gripper armor outputs on
+        // automotive paint as an exact structural-detail contract.  Every
+        // other paint zone is presentation material, so the white-aluminum
+        // palette must replace it with the reviewed high-metallic aluminum
+        // slot instead of silently retaining the fixed blue paint texture.
+        "white_aluminum"
+            if current == "mat_automotive_paint" && zone_id != "zone_arm_gripper_paint" =>
+        {
+            "mat_aluminum".into()
+        }
         "monochrome_technical" if current == "mat_emissive_blue" => "mat_graphite".into(),
         "industrial_yellow" if current == "mat_graphite" => "mat_aluminum".into(),
         "warm_copper" if current == "mat_graphite" => "mat_aluminum".into(),
@@ -135,6 +145,7 @@ pub fn lower_forge_visual_authoring_intent(value: &Value) -> CoreResult<ForgeVis
         binding.material_id = material_for_palette(
             &binding.material_id,
             &intent.arm_design_intent.material_palette,
+            &binding.material_zone_id,
         );
     }
 
@@ -219,9 +230,16 @@ mod tests {
             lower_forge_visual_authoring_intent(&intent("graphite_blue", "long_reach")).unwrap();
         assert!(program.program_id.starts_with("visualprog_provider_ir_"));
         assert_eq!(program.parts.len(), 10);
+        let reviewed_output_count = reviewed_c111_draft_visual_program().unwrap().geometry_graph
+            ["outputs"]
+            .as_array()
+            .unwrap()
+            .len();
+        assert!(reviewed_output_count >= 96);
         assert_eq!(
             program.geometry_graph["outputs"].as_array().unwrap().len(),
-            96
+            reviewed_output_count,
+            "Provider authoring must preserve the complete current reviewed substrate"
         );
         assert_eq!(program.detail_inventory.len(), 27);
         assert!(program
@@ -244,6 +262,25 @@ mod tests {
             semantic_sha256(&aluminum.geometry_graph).unwrap()
         );
         assert_ne!(graphite.material_graph, aluminum.material_graph);
+    }
+
+    #[test]
+    fn pv008_white_aluminum_replaces_presentation_paint_but_preserves_c111_gripper_contract() {
+        let program =
+            lower_forge_visual_authoring_intent(&intent("white_aluminum", "balanced")).unwrap();
+        assert!(program.material_graph.iter().all(|binding| {
+            binding.material_zone_id == "zone_arm_gripper_paint"
+                || binding.material_id != "mat_automotive_paint"
+        }));
+        assert!(program.material_graph.iter().any(|binding| {
+            binding.material_zone_id == "zone_arm_gripper_paint"
+                && binding.material_id == "mat_automotive_paint"
+        }));
+        assert!(program.material_graph.iter().any(|binding| {
+            binding.material_zone_id == "zone_arm_link_armor"
+                && binding.material_id == "mat_aluminum"
+        }));
+        lower_forge_visual_program(&serde_json::to_value(program).unwrap()).unwrap();
     }
 
     #[test]

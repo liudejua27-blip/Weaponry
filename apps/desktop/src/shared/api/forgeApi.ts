@@ -1026,9 +1026,17 @@ export class ForgeApiClient {
     return readAgentAssetGlbBinary(response)
   }
 
+  getAgentAssetProductionGlbUrl(assetVersionId: string): string {
+    return appServerTransport.resourceUrl(
+      `/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:model.glb`,
+    )
+  }
+
   async downloadAgentAssetProductionGlb(assetVersionId: string): Promise<AgentAssetGlbDownload> {
-    const response = await protocolRequest(
-      `${this.baseUrl}/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:model.glb`,
+    const response = await fetch(
+      appServerTransport.resourceUrl(
+        `/api/v1/agent/asset-versions/${encodeURIComponent(assetVersionId)}:model.glb`,
+      ),
       { headers: { Accept: 'model/gltf-binary' }, cache: 'no-store' },
     )
     if (!response.ok) await readJson<never>(response)
@@ -2818,7 +2826,7 @@ function readNativeAgentTurn(value: unknown, context: string): AgentTurn {
     request_text: expectNonEmptyString(record.request_text, `${context}.request_text`),
     status: expectEnum(
       record.status,
-      ['queued', 'running', 'waiting_for_approval', 'waiting_for_clarification', 'completed', 'failed', 'cancelled'] as const,
+      ['queued', 'running', 'waiting_for_capture', 'waiting_for_approval', 'waiting_for_clarification', 'completed', 'failed', 'cancelled'] as const,
       `${context}.status`,
     ),
     error_code: readOptionalStableId(record.error_code, `${context}.error_code`),
@@ -2923,6 +2931,7 @@ function readNativeLifecycleNotificationTurnId(
   }
   if (
     notification.method === 'turn/started'
+    || notification.method === 'turn/waiting_for_capture'
     || notification.method === 'turn/completed'
     || notification.method === 'turn/failed'
     || notification.method === 'turn/cancelled'
@@ -2941,6 +2950,7 @@ function readNativeTurnNotification(
 ): AgentTurn | null {
   const eventByMethod = {
     'turn/started': 'turn_started',
+    'turn/waiting_for_capture': 'turn_waiting_for_capture',
     'turn/completed': 'turn_completed',
     'turn/failed': 'turn_failed',
     'turn/cancelled': 'turn_cancelled',
@@ -2973,7 +2983,9 @@ function readNativeTurnNotification(
       ? 'failed'
       : notification.method === 'turn/cancelled'
         ? 'cancelled'
-        : null
+        : notification.method === 'turn/waiting_for_capture'
+          ? 'waiting_for_capture'
+          : null
   if (expectedStatus && turn.status !== expectedStatus) {
     throw nativeContractError(`${notification.method} Turn status mismatch`)
   }
@@ -3375,5 +3387,12 @@ function singleResultArtifactEtag(artifactSha256: string): string {
   }
   return `"sha256:${artifactSha256.toLowerCase()}"`
 }
+
+/**
+ * Structural API surface used by feature loaders. Keep this alias alongside
+ * the concrete client so extracted workbench modules can depend on the
+ * callable contract without constructing a second client or owning state.
+ */
+export type ForgeApi = ForgeApiClient
 
 export const forgeApi = new ForgeApiClient()

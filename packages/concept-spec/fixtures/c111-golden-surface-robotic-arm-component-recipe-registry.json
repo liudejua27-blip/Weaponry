@@ -513,10 +513,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 36],
+              "position": [0, 0, 40],
               "axis": [0, 0, 1],
-              "radius": 112,
-              "height": 16,
+              "radius": 122,
+              "height": 20,
               "part_role": "secondary_form",
               "material_id": "mat_composite",
               "zone_id": "zone_arm_joint_ring"
@@ -540,8 +540,8 @@
               "radius": 126,
               "height": 26,
               "part_role": "secondary_form",
-              "material_id": "mat_graphite",
-              "zone_id": "zone_arm_joint_core"
+              "material_id": "mat_automotive_paint",
+              "zone_id": "zone_arm_joint_paint"
             }
           },
           {
@@ -552,15 +552,15 @@
               "position": [
                 0,
                 0,
-                84
+                88
               ],
               "axis": [
                 0,
                 0,
                 1
               ],
-              "radius": 62,
-              "height": 22,
+              "radius": 78,
+              "height": 28,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_joint_cap"
@@ -574,15 +574,15 @@
               "position": [
                 0,
                 0,
-                102
+                108
               ],
               "axis": [
                 0,
                 0,
                 1
               ],
-              "radius": 44,
-              "height": 14,
+              "radius": 54,
+              "height": 16,
               "part_role": "secondary_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_joint_core"
@@ -596,15 +596,15 @@
               "position": [
                 0,
                 0,
-                114
+                120
               ],
               "axis": [
                 0,
                 0,
                 1
               ],
-              "radius": 22,
-              "height": 7,
+              "radius": 28,
+              "height": 8,
               "part_role": "secondary_form",
               "material_id": "mat_emissive_blue",
               "zone_id": "zone_arm_joint_signal"
@@ -617,16 +617,16 @@
             "args": {
               "position": [
                 0,
-                60,
-                105
+                66,
+                112
               ],
               "axis": [
                 0,
                 0,
                 1
               ],
-              "radius": 12,
-              "height": 12,
+              "radius": 15,
+              "height": 14,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_joint_cap"
@@ -639,16 +639,16 @@
             "args": {
               "position": [
                 0,
-                -60,
-                105
+                -66,
+                112
               ],
               "axis": [
                 0,
                 0,
                 1
               ],
-              "radius": 12,
-              "height": 12,
+              "radius": 15,
+              "height": 14,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_joint_cap"
@@ -748,6 +748,12 @@
           },
           {
             "output_id": "output_joint_outer_ring_secondary",
+            "operation_id": "op_joint_outer_ring_secondary",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_upper_guard",
             "operation_id": "op_joint_upper_guard",
             "kind": "mesh",
             "part_role": "secondary_form"
@@ -755,6 +761,18 @@
           {
             "output_id": "output_joint_lower_guard",
             "operation_id": "op_joint_lower_guard",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_upper_fastener",
+            "operation_id": "op_joint_upper_fastener",
+            "kind": "mesh",
+            "part_role": "secondary_form"
+          },
+          {
+            "output_id": "output_joint_lower_fastener",
+            "operation_id": "op_joint_lower_fastener",
             "kind": "mesh",
             "part_role": "secondary_form"
           }
@@ -987,10 +1005,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 26],
+              "position": [0, 0, 30],
               "axis": [0, 0, 1],
-              "radius": 68,
-              "height": 12,
+              "radius": 76,
+              "height": 14,
               "part_role": "secondary_form",
               "material_id": "mat_composite",
               "zone_id": "zone_arm_wrist_ring"
@@ -1001,10 +1019,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 36],
+              "position": [0, 0, 42],
               "rotation": [1.5707963267948966, 0, 0],
-              "radius": 75,
-              "height": 18,
+              "radius": 80,
+              "height": 20,
               "part_role": "secondary_form",
               "material_id": "mat_composite",
               "zone_id": "zone_arm_wrist_ring"
@@ -1015,10 +1033,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 52],
+              "position": [0, 0, 58],
               "axis": [0, 0, 1],
-              "radius": 38,
-              "height": 16,
+              "radius": 46,
+              "height": 20,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_wrist_cap"
@@ -1029,10 +1047,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 64],
+              "position": [0, 0, 76],
               "axis": [0, 0, 1],
-              "radius": 26,
-              "height": 10,
+              "radius": 32,
+              "height": 12,
               "part_role": "secondary_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_wrist_core"
@@ -1043,10 +1061,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 0, 72],
+              "position": [0, 0, 88],
               "axis": [0, 0, 1],
-              "radius": 12,
-              "height": 5,
+              "radius": 16,
+              "height": 6,
               "part_role": "secondary_form",
               "material_id": "mat_emissive_blue",
               "zone_id": "zone_arm_wrist_signal"
@@ -1057,10 +1075,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, 36, 64],
+              "position": [0, 40, 80],
               "axis": [0, 0, 1],
-              "radius": 7,
-              "height": 8,
+              "radius": 9,
+              "height": 9,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_wrist_cap"
@@ -1071,10 +1089,10 @@
             "op": "cylinder",
             "inputs": [],
             "args": {
-              "position": [0, -36, 64],
+              "position": [0, -40, 80],
               "axis": [0, 0, 1],
-              "radius": 7,
-              "height": 8,
+              "radius": 9,
+              "height": 9,
               "part_role": "secondary_form",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_wrist_cap"
@@ -1592,8 +1610,8 @@
               ],
               "size": [
                 860,
-                94,
-                92
+                178,
+                174
               ],
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
@@ -1607,7 +1625,7 @@
               "op_link_body"
             ],
             "args": {
-              "radius": 18,
+              "radius": 22,
               "segments": 3,
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
@@ -1620,7 +1638,7 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [78, 52],
+              "cross_section_scale": [132, 88],
               "axis_length": 820,
               "position": [0, 0, 0],
               "part_role": "upper_link_form",
@@ -1633,8 +1651,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [0, 0, 68],
-              "size": [690, 108, 34],
+              "position": [0, 0, 82],
+              "size": [760, 126, 42],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1667,7 +1685,7 @@
                 0
               ],
               "size": [
-                440,
+                520,
                 10,
                 18
               ],
@@ -1688,13 +1706,13 @@
             "args": {
               "position": [
                 -24,
-                86,
+                102,
                 0
               ],
               "size": [
-                740,
-                24,
-                92
+                760,
+                28,
+                120
               ],
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
@@ -1713,11 +1731,11 @@
                 1,
                 0
               ],
-              "size": [
-                560,
-                10,
-                92
-              ],
+                "size": [
+                  620,
+                  10,
+                  120
+                ],
               "position": [
                 0,
                 0,
@@ -1733,8 +1751,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [0, 0, -68],
-              "size": [690, 108, 34],
+              "position": [0, 0, -82],
+              "size": [760, 126, 42],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1767,7 +1785,7 @@
                 0
               ],
               "size": [
-                440,
+                520,
                 10,
                 18
               ],
@@ -1788,7 +1806,7 @@
             "args": {
               "position": [
                 66,
-                92,
+                102,
                 0
               ],
               "size": [
@@ -1863,9 +1881,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [70, 37],
-              "axis_length": 200,
-              "position": [-232, 0, 54],
+              "cross_section_scale": [108, 68],
+              "axis_length": 230,
+              "position": [-232, 0, 76],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1877,9 +1895,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [72, 39],
-              "axis_length": 204,
-              "position": [0, 0, 62],
+              "cross_section_scale": [116, 72],
+              "axis_length": 230,
+              "position": [0, 0, 82],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1891,9 +1909,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [66, 36],
-              "axis_length": 200,
-              "position": [232, 0, 62],
+              "cross_section_scale": [102, 64],
+              "axis_length": 230,
+              "position": [232, 0, 76],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1905,9 +1923,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [70, 37],
-              "axis_length": 200,
-              "position": [-232, 0, -54],
+              "cross_section_scale": [108, 68],
+              "axis_length": 230,
+              "position": [-232, 0, -76],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1919,9 +1937,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [72, 39],
-              "axis_length": 204,
-              "position": [0, 0, -62],
+              "cross_section_scale": [116, 72],
+              "axis_length": 230,
+              "position": [0, 0, -82],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1933,9 +1951,9 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [66, 36],
-              "axis_length": 200,
-              "position": [232, 0, -62],
+              "cross_section_scale": [102, 64],
+              "axis_length": 230,
+              "position": [232, 0, -76],
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_link_armor"
@@ -1947,7 +1965,7 @@
             "inputs": [],
             "args": {
               "position": [-370, 0, 0],
-        "size": [118, 112, 142],
+        "size": [156, 168, 206],
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_link_rail"
@@ -1959,7 +1977,7 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [105, 82],
+              "cross_section_scale": [138, 108],
               "axis_length": 180,
               "position": [-360, 0, 0],
               "part_role": "upper_link_form",
@@ -1973,7 +1991,7 @@
             "inputs": [],
             "args": {
               "position": [370, 0, 0],
-        "size": [118, 112, 142],
+        "size": [156, 168, 206],
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_link_rail"
@@ -1985,7 +2003,7 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_link_sections",
-              "cross_section_scale": [105, 82],
+              "cross_section_scale": [138, 108],
               "axis_length": 180,
               "position": [360, 0, 0],
               "part_role": "upper_link_form",
@@ -2000,7 +2018,7 @@
             "args": {
               "position": [-402, 0, 0],
               "axis": [0, 0, 1],
-        "radius": 104,
+        "radius": 116,
         "height": 62,
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
@@ -2028,7 +2046,7 @@
             "args": {
               "position": [402, 0, 0],
               "axis": [0, 0, 1],
-        "radius": 104,
+        "radius": 116,
         "height": 62,
               "part_role": "upper_link_form",
               "material_id": "mat_automotive_paint",
@@ -2056,7 +2074,7 @@
             "args": {
               "position": [0, -52, 42],
               "axis": [1, 0, 0],
-              "radius": 10,
+              "radius": 12,
               "height": 720,
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
@@ -2070,7 +2088,7 @@
             "args": {
               "position": [0, -52, -42],
               "axis": [1, 0, 0],
-              "radius": 10,
+              "radius": 12,
               "height": 720,
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
@@ -2082,9 +2100,9 @@
             "op": "capsule",
             "inputs": [],
             "args": {
-              "position": [0, 62, 0],
+              "position": [0, 104, 0],
               "axis": [1, 0, 0],
-              "radius": 18,
+              "radius": 29,
               "height": 720,
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
@@ -2096,9 +2114,9 @@
             "op": "capsule",
             "inputs": [],
             "args": {
-              "position": [0, -62, 0],
+              "position": [0, -104, 0],
               "axis": [1, 0, 0],
-              "radius": 18,
+              "radius": 29,
               "height": 720,
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
@@ -2112,8 +2130,8 @@
             "args": {
               "position": [0, 0, 0],
               "axis": [0.36, 0.93, 0],
-              "radius": 14,
-              "height": 170,
+              "radius": 20,
+              "height": 226,
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
               "zone_id": "zone_arm_link_trim"
@@ -2124,8 +2142,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [0, 0, 102],
-              "size": [10, 118, 6],
+              "position": [0, 0, 120],
+              "size": [10, 132, 6],
               "part_role": "upper_link_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_link_rail"
@@ -2136,8 +2154,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [0, 0, -102],
-              "size": [10, 118, 6],
+              "position": [0, 0, -120],
+              "size": [10, 132, 6],
               "part_role": "upper_link_form",
               "material_id": "mat_composite",
               "zone_id": "zone_arm_link_trim"
@@ -2256,6 +2274,48 @@
           {
             "output_id": "output_link_panel_seam_b",
             "operation_id": "op_link_panel_seam_b",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_armor_plate",
+            "operation_id": "op_link_armor_plate",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_side_rail_a",
+            "operation_id": "op_link_side_rail_a",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_armor_right",
+            "operation_id": "op_link_armor_right",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_side_rail_b",
+            "operation_id": "op_link_side_rail_b",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_root_guard_cap",
+            "operation_id": "op_link_root_guard_cap",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_tip_guard",
+            "operation_id": "op_link_tip_guard",
+            "kind": "mesh",
+            "part_role": "upper_link_form"
+          },
+          {
+            "output_id": "output_link_frame_rail_lower",
+            "operation_id": "op_link_frame_rail_lower",
             "kind": "mesh",
             "part_role": "upper_link_form"
           }
@@ -2958,13 +3018,13 @@
             "args": {
           "position": [
             0,
-            38,
-            118
+            74,
+            126
           ],
           "size": [
-            44,
-            32,
-            64
+            70,
+            56,
+            80
               ],
               "part_role": "visual_detail",
               "material_id": "mat_aluminum",
@@ -2984,15 +3044,65 @@
                 0
               ],
           "size": [
-            36,
-            6,
-            42
+            58,
+            8,
+            56
               ],
               "position": [
                 0,
                 0,
                 0
               ],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable_clamp_trim"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_root_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [-260, 58, 112],
+              "size": [52, 40, 48],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable_clamp_trim"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_root",
+            "op": "surface_panel",
+            "inputs": ["op_cable_clamp_root_base"],
+            "args": {
+              "axis": [0, 1, 0],
+              "size": [44, 7, 36],
+              "position": [0, 0, 0],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable_clamp_trim"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_tip_base",
+            "op": "box",
+            "inputs": [],
+            "args": {
+              "position": [260, 44, 112],
+              "size": [52, 40, 48],
+              "part_role": "visual_detail",
+              "material_id": "mat_aluminum",
+              "zone_id": "zone_arm_cable_clamp_trim"
+            }
+          },
+          {
+            "operation_id": "op_cable_clamp_tip",
+            "op": "surface_panel",
+            "inputs": ["op_cable_clamp_tip_base"],
+            "args": {
+              "axis": [0, 1, 0],
+              "size": [44, 7, 36],
+              "position": [0, 0, 0],
               "part_role": "visual_detail",
               "material_id": "mat_aluminum",
               "zone_id": "zone_arm_cable_clamp_trim"
@@ -3023,6 +3133,18 @@
             "operation_id": "op_cable_clamp_bridge",
             "kind": "mesh",
             "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_clamp_root",
+            "operation_id": "op_cable_clamp_root",
+            "kind": "mesh",
+            "part_role": "visual_detail"
+          },
+          {
+            "output_id": "output_cable_clamp_tip",
+            "operation_id": "op_cable_clamp_tip",
+            "kind": "mesh",
+            "part_role": "visual_detail"
           }
         ],
         "non_functional_only": true
@@ -3041,6 +3163,16 @@
         {
           "feature_id": "feature_cable_clamp_bridge",
           "operation_id": "op_cable_clamp_bridge",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_cable_clamp_root",
+          "operation_id": "op_cable_clamp_root",
+          "role": "visual_detail"
+        },
+        {
+          "feature_id": "feature_cable_clamp_tip",
+          "operation_id": "op_cable_clamp_tip",
           "role": "visual_detail"
         }
       ],
@@ -3301,8 +3433,8 @@
             "inputs": [],
             "args": {
               "section_set_input_id": "profileinput_gripper_palm_sections",
-        "cross_section_scale": [64, 68],
-        "axis_length": 104,
+        "cross_section_scale": [78, 84],
+        "axis_length": 132,
         "position": [-18, 0, 0],
               "part_role": "end_effector_form",
               "material_id": "mat_automotive_paint",
@@ -3314,8 +3446,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [-34, 82, 0],
-              "size": [104, 12, 70],
+              "position": [-28, 96, 0],
+              "size": [124, 16, 88],
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper"
@@ -3338,8 +3470,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [-34, -82, 0],
-              "size": [104, 12, 70],
+              "position": [-28, -96, 0],
+              "size": [124, 16, 88],
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper"
@@ -3364,7 +3496,7 @@
             "args": {
               "position": [95, 54, 16],
               "rotation": [0, 0, -0.18],
-              "size": [146, 38, 40],
+              "size": [138, 52, 48],
               "part_role": "end_effector_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_gripper_paint"
@@ -3422,7 +3554,7 @@
             "args": {
               "position": [176, 82, 10],
               "rotation": [0, 0, -0.42],
-        "size": [48, 30, 28],
+        "size": [54, 38, 34],
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper"
@@ -3447,7 +3579,7 @@
             "args": {
               "position": [95, -54, 16],
               "rotation": [0, 0, 0.18],
-              "size": [146, 38, 40],
+              "size": [138, 52, 48],
               "part_role": "end_effector_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_gripper_paint"
@@ -3505,7 +3637,7 @@
             "args": {
               "position": [176, -82, 10],
               "rotation": [0, 0, 0.42],
-        "size": [48, 30, 28],
+        "size": [54, 38, 34],
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper"
@@ -3530,7 +3662,7 @@
             "args": {
               "position": [95, 0, -42],
               "rotation": [0, -0.18, 0],
-              "size": [146, 38, 40],
+              "size": [138, 52, 48],
               "part_role": "end_effector_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_gripper_paint"
@@ -3580,7 +3712,7 @@
             "args": {
               "position": [176, 0, -78],
               "rotation": [0, -0.42, 0],
-        "size": [48, 30, 28],
+        "size": [54, 38, 34],
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper"
@@ -3817,8 +3949,8 @@
             "args": {
               "position": [154, 70, 18],
               "axis": [0, 1, 0],
-        "radius": 13,
-        "height": 24,
+        "radius": 17,
+        "height": 30,
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper_knuckle"
@@ -3831,8 +3963,8 @@
             "args": {
               "position": [154, -70, 18],
               "axis": [0, 1, 0],
-        "radius": 13,
-        "height": 24,
+        "radius": 17,
+        "height": 30,
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper_knuckle"
@@ -3845,8 +3977,8 @@
             "args": {
               "position": [154, 0, -68],
               "axis": [0, 0, 1],
-        "radius": 13,
-        "height": 24,
+        "radius": 17,
+        "height": 30,
               "part_role": "end_effector_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_gripper_knuckle"
@@ -3892,7 +4024,7 @@
           },
           {
             "output_id": "output_gripper_finger_c_panel",
-            "operation_id": "op_gripper_finger_c_sweep",
+            "operation_id": "op_gripper_finger_c_panel",
             "kind": "mesh",
             "part_role": "end_effector_form"
           },
@@ -3904,13 +4036,31 @@
           },
           {
             "output_id": "output_gripper_finger_a_pad",
-            "operation_id": "op_gripper_finger_a_sweep",
+            "operation_id": "op_gripper_finger_a_pad",
             "kind": "mesh",
             "part_role": "end_effector_form"
           },
           {
             "output_id": "output_gripper_finger_b_pad",
+            "operation_id": "op_gripper_finger_b_pad",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_a_tendon",
+            "operation_id": "op_gripper_finger_a_sweep",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_b_tendon",
             "operation_id": "op_gripper_finger_b_sweep",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_finger_c_tendon",
+            "operation_id": "op_gripper_finger_c_sweep",
             "kind": "mesh",
             "part_role": "end_effector_form"
           },
@@ -3929,6 +4079,12 @@
           {
             "output_id": "output_gripper_palm_armor_a",
             "operation_id": "op_gripper_palm_armor_a",
+            "kind": "mesh",
+            "part_role": "end_effector_form"
+          },
+          {
+            "output_id": "output_gripper_palm_armor_b",
+            "operation_id": "op_gripper_palm_armor_b",
             "kind": "mesh",
             "part_role": "end_effector_form"
           },
@@ -4570,14 +4726,14 @@
         "inputs": [],
         "args": {
           "points": [
-            [-340, -300],
-            [340, -300],
-            [410, -230],
-            [410, 230],
-            [340, 300],
-            [-340, 300],
-            [-410, 230],
-            [-410, -230]
+            [-459, -390],
+            [459, -390],
+            [554, -299],
+            [554, 299],
+            [459, 390],
+            [-459, 390],
+            [-554, 299],
+            [-554, -299]
           ]
         }
       },
@@ -4587,8 +4743,8 @@
         "inputs": [],
         "args": {
           "section_set_input_id": "profileinput_c111_base_enclosure",
-          "cross_section_scale": [410, 300],
-          "axis_length": 150,
+          "cross_section_scale": [540, 390],
+          "axis_length": 170,
           "position": [0, -40, 0],
           "part_role": "base_form",
         "material_id": "mat_graphite",
@@ -4601,14 +4757,14 @@
         "inputs": [],
         "args": {
           "points": [
-            [-318, -270],
-            [318, -270],
-            [378, -210],
-            [378, 210],
-            [318, 270],
-            [-318, 270],
-            [-378, 210],
-            [-378, -210]
+            [-429, -351],
+            [429, -351],
+            [510, -273],
+            [510, 273],
+            [429, 351],
+            [-429, 351],
+            [-510, 273],
+            [-510, -273]
           ]
         }
       },
@@ -4618,8 +4774,8 @@
         "inputs": [],
         "args": {
             "section_set_input_id": "profileinput_c111_base_enclosure",
-            "cross_section_scale": [370, 270],
-            "axis_length": 70,
+            "cross_section_scale": [500, 351],
+            "axis_length": 75,
             "position": [0, 40, 0],
             "part_role": "base_form",
             "material_id": "mat_graphite",
@@ -4632,14 +4788,14 @@
         "inputs": [],
         "args": {
           "points": [
-            [-274, -226],
-            [274, -226],
-            [326, -174],
-            [326, 174],
-            [274, 226],
-            [-274, 226],
-            [-326, 174],
-            [-326, -174]
+            [-370, -294],
+            [370, -294],
+            [440, -226],
+            [440, 226],
+            [370, 294],
+            [-370, 294],
+            [-440, 226],
+            [-440, -226]
           ]
         }
       },
@@ -4649,8 +4805,8 @@
         "inputs": [],
         "args": {
           "section_set_input_id": "profileinput_c111_base_enclosure",
-          "cross_section_scale": [320, 225],
-          "axis_length": 50,
+          "cross_section_scale": [430, 293],
+          "axis_length": 55,
           "position": [0, 100, 0],
           "part_role": "base_form",
         "material_id": "mat_graphite",
@@ -4696,7 +4852,7 @@
                 0
               ],
               "count": 16,
-              "radius": 308,
+              "radius": 400,
               "angle": 6.283185307179586,
               "part_role": "base_form",
               "material_id": "mat_graphite",
@@ -4709,9 +4865,9 @@
             "inputs": [],
             "args": {
               "position": [
-                -165,
+                -220,
                 -8,
-                300
+                390
               ],
               "radius": 5,
               "height": 28,
@@ -4737,8 +4893,8 @@
                 0,
                 0
               ],
-              "count": 18,
-              "spacing": 18,
+              "count": 10,
+              "spacing": 30,
               "part_role": "base_form",
               "material_id": "mat_emissive_blue",
               "zone_id": "zone_arm_base_signal"
@@ -4749,8 +4905,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [-220, -12, 292],
-              "size": [170, 64, 28],
+              "position": [-260, -12, 380],
+              "size": [200, 64, 28],
               "part_role": "base_form",
               "material_id": "mat_automotive_paint",
               "zone_id": "zone_arm_base_paint"
@@ -4786,7 +4942,7 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [290, -210, 416],
+              "position": [390, -40, 390],
               "size": [198, 86, 26],
               "part_role": "base_form",
               "material_id": "mat_aluminum",
@@ -4810,8 +4966,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [0, -10, 292],
-              "size": [704, 24, 22],
+              "position": [0, -10, 380],
+              "size": [950, 24, 22],
               "part_role": "base_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_base_fastener"
@@ -4834,8 +4990,8 @@
             "op": "box",
             "inputs": [],
             "args": {
-              "position": [-388, -10, 0],
-              "size": [24, 24, 430],
+              "position": [-518, -10, 0],
+              "size": [24, 24, 550],
               "part_role": "base_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_base_fastener"
@@ -4860,7 +5016,7 @@
             "args": {
               "axis": [1, 0, 0],
               "count": 2,
-              "spacing": 796,
+              "spacing": 1036,
               "part_role": "base_form",
               "material_id": "mat_graphite",
               "zone_id": "zone_arm_base_fastener"
@@ -4873,7 +5029,7 @@
             "args": {
               "position": [0, 28, 0],
               "axis": [0, 1, 0],
-              "radius": 286,
+              "radius": 370,
               "height": 18,
               "part_role": "base_form",
               "material_id": "mat_automotive_paint",
@@ -5206,13 +5362,13 @@
           "connector_id": "connector_service_shoulder",
           "kind": "shell_join",
           "position": [
-            140,
-            670,
+          80,
+          680,
             0
           ],
           "normal": [
-            -0.5881716976750462,
-            0.8087360843031886,
+        -0.495,
+        0.868892973,
             0
           ],
           "up": [
@@ -5225,13 +5381,13 @@
           "connector_id": "connector_service_lower_link",
           "kind": "shell_join",
           "position": [
-            -90,
-            1085,
+          -100,
+          1040,
             0
           ],
           "normal": [
-            -0.5881716976750462,
-            0.8087360843031886,
+        -0.495,
+        0.868892973,
             0
           ],
           "up": [
@@ -5244,13 +5400,13 @@
           "connector_id": "connector_service_elbow",
           "kind": "shell_join",
           "position": [
-            -360,
-            1500,
+          -330,
+          1400,
             0
           ],
           "normal": [
-            -0.5881716976750462,
-            0.8087360843031886,
+        -0.495,
+        0.868892973,
             0
           ],
           "up": [
@@ -5263,8 +5419,8 @@
           "connector_id": "connector_service_upper_link",
           "kind": "shell_join",
           "position": [
-            -760,
-            1305,
+          -650,
+          1240,
             0
           ],
           "normal": [
@@ -5282,8 +5438,8 @@
           "connector_id": "connector_service_wrist",
           "kind": "shell_join",
           "position": [
-            -1140,
-            1110,
+          -980,
+          1050,
             0
           ],
           "normal": [
@@ -5301,9 +5457,9 @@
           "connector_id": "connector_service_cable",
           "kind": "trim_join",
           "position": [
-            -650,
-            1320,
-            90
+          -610,
+          1270,
+          112
           ],
           "normal": [
             -0.884,
@@ -5320,13 +5476,13 @@
           "connector_id": "connector_service_gripper",
           "kind": "shell_join",
       "position": [
-        -1280,
-        960,
+          -1130,
+          900,
         0
           ],
           "normal": [
-            -0.72,
-            -0.693974063,
+          -0.707106781,
+          -0.707106781,
             0
           ],
           "up": [
@@ -5468,7 +5624,7 @@
           "required": true
         },
         {
-          "slot_id": "slot_service_shoulder",
+    "slot_id": "slot_service_shoulder",
           "accepted_roles": [
             "joint_housing"
           ],
@@ -5486,16 +5642,16 @@
               0,
               0
             ],
-            "scale": [
-              1,
-              1,
-              1
-            ]
+      "scale": [
+        1,
+        1,
+        1
+      ]
           },
           "required": true
         },
         {
-          "slot_id": "slot_service_lower_link",
+    "slot_id": "slot_service_lower_link",
           "accepted_roles": [
             "link_armor"
           ],
@@ -5513,11 +5669,11 @@
               0,
               0
             ],
-            "scale": [
-              1,
-              1,
-              1
-            ]
+      "scale": [
+        1,
+        1,
+        1
+      ]
           },
           "required": true
         },
@@ -5549,7 +5705,7 @@
           "required": true
         },
         {
-          "slot_id": "slot_service_upper_link",
+    "slot_id": "slot_service_upper_link",
           "accepted_roles": [
             "link_armor"
           ],
@@ -5567,11 +5723,11 @@
               0,
               0
             ],
-            "scale": [
-              1,
-              1,
-              1
-            ]
+      "scale": [
+        1,
+        1,
+        1
+      ]
           },
           "required": true
         },
@@ -5630,7 +5786,7 @@
           "required": true
         },
         {
-          "slot_id": "slot_service_gripper",
+    "slot_id": "slot_service_gripper",
           "accepted_roles": [
             "end_effector_form"
           ],
@@ -5648,11 +5804,11 @@
               0,
               0
             ],
-            "scale": [
-              1,
-              1,
-              1
-            ]
+      "scale": [
+        1,
+        1,
+        1
+      ]
           },
           "required": true
         },

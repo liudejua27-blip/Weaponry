@@ -1,9 +1,9 @@
-# ForgeCAD 3D 机械设计系统目标操作手册
+# ForgeCAD 程序化机械表示目标操作手册
 
-版本：v1（2026-07-17）
-状态：目标操作设计；不是当前本机 Alpha 用户指南
+版本：v2（2026-07-29）
+状态：ADR-0022 通用产品中的 procedural mechanical 表示手册；不是全部类别操作，也不是当前本机 Alpha 用户指南
 
-本手册定义 ForgeCAD 完成后，零基础用户如何用一句话、参考图和少量可视化操作生成、检查和继续编辑机械概念 3D。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准；F026 已移除三方向 UI，过渡期仅允许第一条 legacy 文本方向适配为一个临时 3D 结果。后端已有受限 Profile/Extrude/Revolve/Loft/Sweep runtime、唯一 Manifold Python union/subtract、不可变 Feature History，以及 G826 的 edge finish/UV0/tangent/稳定 face→part/zone GLB readback；零基础工作台仍没有自由轮廓、Loft、Sweep 或 CSG 编辑入口。
+本手册定义通用 Forge Studio 中程序化机械表示如何生成、检查和继续编辑规则结构。角色、生物、植物、布料和复杂有机表面应由 deformable/local-hybrid 与 U004 合同覆盖，不能硬塞进本机械 ShapeProgram。当前真实操作以 [零基础用户指南](USER_GUIDE.md) 为准。
 
 ADR-0015 已把视觉路线拆为两层：M108A 已建立同一 ShapeProgram 的 `interactive_preview`（128×128 v3）与 `production_concept`（512×512 v4、`GeometryCompileReadback@2`、production 质量/导出/CAS）工件管线；K003 与 C105 也已完成机制闭环。M108B 仍须用 Recipe-backed fixture 和至少三位独立真人逐领域三项中位数 `4/5` 验证生产级概念资产视觉基线。现有固定 showcase 和 C105 的 416-triangle 四领域 fixture 只能作为机制/preflight 证据，不能按本文宣称已经达到完整目标产品能力。ADR-0016 将本路线正式命名为 ForgeCAD Design Surface Compiler。
 
@@ -271,7 +271,7 @@ GSAP 只用于提高操作连续性：
 
 | 能力 | 当前本机 Alpha 软件 | 目标状态 |
 | --- | --- | --- |
-| 结果生成 | F026 过渡期只显示第一条 legacy 文本方向适配的一个临时 3D 结果；它没有 V003 Gate 结论 | Agent 单次合成，失败时最多两次同意图原位修复，只显示一个通过结果 |
+| 结果生成 | F026 过渡期只显示第一条 legacy 文本方向适配的一个临时 3D 结果；它没有 V003 Gate 结论 | 当前类别开放产品链一次 author，失败时最多一次同意图 typed patch，只显示一个通过结果；旧 V003 的两次修复仅作回归读取 |
 | 主形体 | 已有受限 Profile/Loft/Sweep/Revolve/CSG runtime，但固定 showcase 仍以 primitive 和绝对坐标组合为主 | Recipe 自动选择轮廓、Loft、Sweep、Revolve 与受限 CSG |
 | 轮廓编辑 | 未提供 | 受限 SVG/ProfileSketch 编辑 |
 | 布尔 | 单一 Manifold Python 受限 union/subtract 已实现，无自由 UI | Recipe 内受限采用并保留 feature/source provenance |

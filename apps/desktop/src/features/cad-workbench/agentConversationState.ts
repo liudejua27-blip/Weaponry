@@ -33,7 +33,91 @@ export type AgentConversationState = {
 }
 
 export const DEFAULT_AGENT_ASSISTANT_NOTE =
-  '输入汽车、飞机、机械臂或未来道具创意；Agent 会先记录理解，再生成可预览方向。'
+  '描述任意对象，或上传单图/多视图；Agent 会先理解对象与关键外观，再生成可执行结果或明确说明当前限制。'
+
+export type UniversalAuthorPresentation = {
+  outcome: 'executable' | 'limitation' | 'clarification_required'
+  identityLabel: string | null
+  category: string | null
+  keyFeatures: string[]
+  limitationCode: string | null
+  message: string | null
+  suggestedViews: string[]
+}
+
+export type CandidatePbrCapturePendingPresentation = {
+  schemaVersion: 'CandidatePbrCapturePending@1'
+  executionId: string
+  projectId: string
+  turnId: string
+  route: 'forge_visual_program' | 'universal_hard_surface'
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
+}
+
+export function parseUniversalAuthorPresentation(items: readonly AgentItem[]): UniversalAuthorPresentation | null {
+  for (const item of [...items].reverse()) {
+    if (item.item_type !== 'tool_result' || item.payload.tool_name !== 'author_universal_asset') continue
+    const toolResult = record(item.payload.tool_result)
+    const validated = record(toolResult?.validated_output)
+    const value = record(validated?.value)
+    if (!value) continue
+    const outcome = value?.outcome
+    if (outcome !== 'executable' && outcome !== 'limitation' && outcome !== 'clarification_required') continue
+    const profile = record(value.subject_profile)
+    const features = Array.isArray(profile?.features) ? profile.features : []
+    const limitation = record(value.limitation)
+    return {
+      outcome,
+      identityLabel: typeof profile?.identity_label === 'string' ? profile.identity_label : null,
+      category: typeof profile?.category === 'string' ? profile.category : null,
+      keyFeatures: features
+        .map((feature) => record(feature)?.description)
+        .filter((description): description is string => typeof description === 'string')
+        .slice(0, 3),
+      limitationCode: typeof limitation?.code === 'string' ? limitation.code : null,
+      message: typeof limitation?.message === 'string'
+        ? limitation.message
+        : typeof value.reason === 'string' ? value.reason : null,
+      suggestedViews: Array.isArray(limitation?.suggested_views)
+        ? limitation.suggested_views.filter((view): view is string => typeof view === 'string')
+        : [],
+    }
+  }
+  return null
+}
+
+/**
+ * The pending descriptor is emitted by the Rust Action Loop only after a
+ * candidate has completed compile/readback. It is not a preview, asset
+ * version, or user-confirmable result.
+ */
+export function parseCandidatePbrCapturePending(
+  items: readonly AgentItem[],
+): CandidatePbrCapturePendingPresentation | null {
+  for (const item of [...items].reverse()) {
+    if (item.item_type !== 'assistant_message') continue
+    const pending = record(item.payload.candidate_pbr_capture_pending)
+    if (
+      pending?.schema_version === 'CandidatePbrCapturePending@1'
+      && typeof pending.execution_id === 'string'
+      && typeof pending.project_id === 'string'
+      && typeof pending.turn_id === 'string'
+      && (pending.route === 'forge_visual_program' || pending.route === 'universal_hard_surface')
+    ) {
+      return {
+        schemaVersion: 'CandidatePbrCapturePending@1',
+        executionId: pending.execution_id,
+        projectId: pending.project_id,
+        turnId: pending.turn_id,
+        route: pending.route,
+      }
+    }
+  }
+  return null
+}
 
 export const initialAgentConversationState: AgentConversationState = {
   projectId: null,
@@ -165,11 +249,9 @@ export function parseAgentTurnPresentation(items: readonly AgentItem[], requestT
       : []
     if (
       typeof payload.question === 'string'
-      && (payload.status === 'ambiguous' || payload.status === 'unsupported')
-      && (
-        ((payload.kind === 'domain' || typeof payload.kind !== 'string') && options.length > 0)
-        || (payload.kind === 'scope' && payload.status === 'unsupported' && options.length === 0)
-      )
+      && payload.kind === 'scope'
+      && payload.status === 'unsupported'
+      && options.length === 0
     ) {
       return {
         clarification: {

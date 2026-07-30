@@ -3,7 +3,7 @@
 版本：2026-07-13
 目标：在开发机上启动当前本机 Alpha 并验证最小 Agent 闭环
 
-ForgeCAD 是轻量通用机械概念 3D Agent。当前首批领域是未来武器概念道具、汽车、飞机和机械臂；几何主要由受限 `box`/`cylinder` ShapeProgram 生成，不需要安装本地神经 3D 模型、CUDA、ComfyUI 或 Blender。
+Forge Studio 的目标是轻量、类别开放的通用参考条件 3D Agent。U002 已让当前软件接受开放对象描述和 sealed 参考并形成对象理解/表示计划；U003 已让当前程序化结果进入统一 source、外观证据和 GLB/readback/固定视图谱系。只有验证后的机械臂程序化 capability 可执行，其他类别会显示 typed limitation。U004–U005 尚未实现，因此本 Quickstart 只验证当前程序化闭环，不证明角色、生物、植物、环境或任意图片生成。默认不需要安装本地神经 3D 模型、CUDA、ComfyUI 或 Blender。
 
 ## 1. 安装开发依赖
 
@@ -72,10 +72,10 @@ npm run agent:s8-active-design-navigation-smoke
 
 `npm run desktop:r3-concept-workbench-smoke` 已验证当前 Agent 核心流程，包括 preview/confirm、质量、撤销/重做、重启恢复和 GLB 导出。它不代表完整并发、原生安装或发布验证已完成。
 
-## 5. 当前用户闭环
+## 5. 当前 Alpha 用户闭环
 
 ```text
-明确写出汽车/飞机/机械臂/未来武器概念道具
+明确写出当前 Alpha 可识别的汽车/飞机/机械臂/未来武器概念道具
 → 查看一个临时兼容 3D 结果（仅取 legacy Planner 第一条文本方向；不是 V003）
 → 生成简单完整 blockout
 → 查看分件候选
@@ -88,6 +88,8 @@ npm run agent:s8-active-design-navigation-smoke
 ```
 
 当前不包含转台视频、自由拆分/合并、任意版本历史浏览或 Agent OBJ/MP4/源包导出。部件锁定、隐藏和单独查看属于当前 Agent Snapshot 的受限工作台状态，不是工程装配约束。Agent 下载抽屉只显示“下载 3D 模型 (GLB)”、“生成概念图”和生成后的单图/概念图包动作；当前视图可下载为只含 PNG 与 manifest 的概念图包。它们都是只读预览，不会创建版本，也不含模型源文件或工程资料。
+
+目标通用入口不会要求用户先选 Domain Pack；U002 完成后，未知对象应形成 `SubjectProfile/RepresentationPlan` 或返回 typed limitation，不得静默回退为上述四类。该目标状态以 ADR-0022 和任务索引为准。
 
 ## 6. 下一步阅读
 

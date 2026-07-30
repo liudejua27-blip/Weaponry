@@ -2,10 +2,10 @@ import type { AgentThreadSummary, ConceptProjectSummary } from '../../shared/typ
 import { displayPartRole } from './partRoleLabels.js'
 import { F026Icon } from './F026Icon.js'
 
-type SidebarPart = {
+export type WorkbenchSidebarPart = {
   part_id: string
   role: string
-  material_zone_ids: string[]
+  material_zone_ids: readonly string[]
 }
 
 /**
@@ -19,13 +19,14 @@ export type WorkbenchSidebarProps = {
   activeProjectId: string | null
   threads: readonly AgentThreadSummary[]
   activeThreadId: string | null
-  parts: readonly SidebarPart[]
+  parts: readonly WorkbenchSidebarPart[]
   selectedPartId: string | null
   loading?: boolean
   onCreateProject: () => void
   onSelectProject: (projectId: string) => void
   onSelectThread: (threadId: string) => void
   onSelectPart: (partId: string) => void
+  compactMode?: boolean
 }
 
 export function WorkbenchSidebar({
@@ -40,7 +41,46 @@ export function WorkbenchSidebar({
   onSelectProject,
   onSelectThread,
   onSelectPart,
+  compactMode = false,
 }: WorkbenchSidebarProps) {
+  if (compactMode) {
+    return (
+      <aside className="f026-sidebar" aria-label="项目管理（新手模式）">
+        <div className="f026-sidebar-heading">
+          <span>工作区</span>
+          <button type="button" onClick={onCreateProject} disabled={loading} aria-label="新建设计">
+            <F026Icon name="add" />
+            <span>新建设计</span>
+          </button>
+        </div>
+
+        <section className="f026-sidebar-section" aria-labelledby="f026-projects-heading">
+          <div className="f026-sidebar-section-heading">
+            <F026Icon name="project" />
+            <span id="f026-projects-heading">项目</span>
+          </div>
+          <div className="f026-sidebar-list" aria-label="项目列表">
+            {projects.length === 0 ? (
+              <p className="f026-sidebar-empty">还没有设计项目。</p>
+            ) : projects.map((project) => (
+              <button
+                key={project.project_id}
+                type="button"
+                className={project.project_id === activeProjectId ? 'active' : ''}
+                aria-pressed={project.project_id === activeProjectId}
+                onClick={() => onSelectProject(project.project_id)}
+                disabled={loading}
+              >
+                <strong>{project.name}</strong>
+                <small>{project.status}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      </aside>
+    )
+  }
+
   return (
     <aside className="f026-sidebar" aria-label="项目、对话记录与组件库">
       <div className="f026-sidebar-heading">

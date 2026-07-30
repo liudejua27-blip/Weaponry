@@ -14,17 +14,17 @@ export function useLegacyModuleGraphOverlay() {
   )
 
   const openLegacyModuleGraphOverlay = useCallback(
-    (projectId: string | null, graphId: string | null, defaultHiddenNodeIds: string[]) => {
+    (projectId: string | null, graphId: string | null, defaultHiddenNodeIds: readonly string[]) => {
       dispatch({
         type: 'open_context',
         contextKey: createLegacyModuleGraphOverlayContextKey(projectId, graphId),
-        defaultHiddenNodeIds,
+        defaultHiddenNodeIds: [...defaultHiddenNodeIds],
       })
     },
     [],
   )
   const reconcileLegacyModuleGraphOverlayNodes = useCallback(
-    (nodeIds: string[]) => dispatch({ type: 'reconcile_nodes', nodeIds }),
+    (nodeIds: readonly string[]) => dispatch({ type: 'reconcile_nodes', nodeIds: [...nodeIds] }),
     [],
   )
   const toggleLegacyHiddenNode = useCallback(

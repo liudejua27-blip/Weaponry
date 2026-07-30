@@ -1,6 +1,6 @@
 # ForgeCAD 发布维护手册
 
-版本：2026-07-13
+版本：2026-07-29
 适用对象：版本维护者、CI 维护者和发布负责人
 
 ## 1. 当前发布状态
@@ -16,6 +16,8 @@
 - macOS/Windows 签名和安装验证未完成。
 
 完整阻断清单见 [PRODUCTION_RELEASE_CHECKLIST.md](PRODUCTION_RELEASE_CHECKLIST.md)。
+
+ADR-0022 不自动扩大当前发布声明。U002 只允许发布说明写“类别开放理解与诚实能力限制”；只有 U003–U005 及其同 commit 证据完成后，才能写“类别开放生成”。打包层不得通过捆绑通用 coding Agent、任意 DCC 插件或未审神经权重绕过产品 capability sandbox。
 
 ## 2. 发布候选的 Git 条件
 

@@ -1,15 +1,74 @@
-# ForgeCAD 真实 Provider 四领域评测合同
+# ForgeCAD Provider 与视觉组合评测合同
 
-版本：2026-07-14
-状态：`FGC-E001` 合同与 `FGC-E002` 隔离执行器已实现；真实执行为 `external`，尚未运行
+版本：2026-07-29
+状态：E001/E002 为历史四领域计划合同；E005 为保留的机械硬表面回归合同；当前通用产品正式质量任务是 U005（等待 U002–U004）。E005 prepare-once/预算/恢复 runner Core 已有本地证据，但 main/startup 正式批次、30 条真实运行与真人评审仍 `NOT RUN`
 
-本文件是 ForgeCAD 通用机械概念 Agent 的真实 Provider 评测唯一权威。它取代旧 Weapon R4 评测作为新产品的后续执行依据；旧 R4 数据、命令和结果仅是 legacy 兼容证据，不能用于证明汽车、飞机、机械臂或通用工作台的模型质量。
+本文件是 ForgeCAD Provider 授权、预算、脱敏、真实执行和证据口径的唯一权威。ADR-0023 后，真实运行只允许 DeepSeek 文本设计和千问视觉理解/比较；任何历史合同中的 generic Provider 字段都不能授权第三家服务。E001/E002 的“恰好三个方向”合同保留为历史 Planner/领域/安全回归，不再定义当前 F026/V003 单一结果产品体验，也不能证明视觉生成质量。旧 R4 数据、命令和结果仅是 legacy 兼容证据。
+
+## 0. 2026-07-29 通用产品评测迁移
+
+当前产品路线由 ADR-0022 和任务索引定义：类别开放入口通过 U002–U004 建立后，U005 才在跨类别分布评测“文字/授权图片→一次 typed author→真实 GLB/PBR/readback→固定多视图→最多一次同意图 typed patch→唯一结果→确认/版本/导出”。E005 的机械硬表面任务、授权账本和质量合同不删除、不改小阈值，但降为 procedural regression，不能代表通用分布。
+
+评测拆成四个互不替代的证据层：
+
+| 层 | 当前入口 | 证明什么 | 不能证明什么 |
+| --- | --- | --- | --- |
+| DeepSeek 文本工程链 | PV008 | 真实 DeepSeek 可提交紧凑意图并进入 Rust 编译/版本链 | 图片理解、视觉相似度、自由生成 |
+| 千问视觉证据合同 | PV006A/B | 授权图片、CAS、`observed/inferred/unknown` 和独立端口存在 | 真实千问+DeepSeek 组合成功 |
+| 真实组合链 | PV006C（blocked） | 图片证据、typed author/patch、comparison、repair 和 exact-lineage 在同一真实 Turn 成立 | 未见任务总体质量 |
+| 机械程序化回归 | E005（superseded as product gate） | 30 条未见硬表面合同、预算、失败与真人协议 | 角色、生物、植物、环境或通用产品质量 |
+| 跨类别正式质量 | U005（blocked by U002–U004） | 八类输入的身份保持、表示适配、外观、时间、成本和独立真人评分 | 未运行前不证明任意类别高质量 |
+
+### 0.3 E005 专用授权边界
+
+E001/E002 的 80-call 授权、C111B 的 reference-comparison `visauth_` 和普通 Agent Turn 均不授权 E005。E005 只能消费 `E005ProviderRunAuthorization@1`：精确绑定 task-set、Provider/model、source policy、pricing/disclosure、有效期，以及最多 30 author、30 patch、60 total 和输入/输出 token、成本、批次/单次 wall-time 上限；整机模板策略恒为 `forbidden`。未授权 fixture 的所有额度为 0，任何 formal receipt/report 必须引用同一 authorization hash。
+
+迁移 `0045_e005_provider_budget.sql` 与 Rust `e005_provider_budget.rs` 已实现 canonical authorization→冻结正式 task-set/30 task hash→`reserve → dispatch → settle/recover`。公开 API 的 now/deadline 由 Core 系统时钟生成；每次 reserve 在 `BEGIN IMMEDIATE` 中同时检查 authorization binding、Provider/model、task payload、author/patch 资格、token/成本和单次/批次 deadline。同一 reservation 只允许一个 worker 原子取得 dispatch；未 dispatch 可释放，dispatch 后即使超时、取消、传输失败或崩溃恢复也按预留上限保守计账。启动恢复释放遗留 reserved 并保守结算遗留 dispatching；首次 settlement evidence 与 after-counters canonical 持久化，重放返回同一 hash 内容。首轮通过不能 patch；repairable author 的 source/gate 必须逐 hash 匹配；第 31 次 author、第 31 次 patch、第 61 次总调用和 usage/deadline 超限均在网络前拒绝。当前 `E005FormalProviderRunner` 已从 prepare-once 的规范 wire request 派生 request SHA、token/cost ceiling，并通过 0047 保存 Author→visual handoff；visual dispatch 不确定时进入 reconciliation，绝不自动 retry。仍缺 main/startup 的正式 30 题编排、真实四模态输入、completed-visual→production 跨重启与完整阶段计时，因此这些 PASS 不授权也不执行 E005 live batch。
+
+### 0.1 保留的 E005 冻结输入方向
+
+E005 保留 30 条未见机械硬表面任务；既有 PV006 的 20 条退出条件保持不变。它现在用于程序化表示回归和 U005 的机械子集，不再单独决定产品类别范围：
+
+- 纯文字新资产；
+- 文字+单张授权参考；
+- 文字+多视图 contact sheet；
+- 已确认资产+局部参考修改；
+- 含糊、越界、不足证据和预算停止样例。
+
+测试集必须先冻结、后实现，且不进入模型的设计上下文。默认模板产生的“看似成功”必须按未满足 Brief 计为失败。
+
+### 0.2 每条运行记录
+
+```text
+run_id / experiment_id / task_id
+provider_and_model_capability_fingerprint
+operator_authorization / authorized_reference_hashes
+request_count / token_or_image_usage / cache_hits
+max_one_typed_patch / stage_latency / total_latency
+estimated_variable_cost / stop_reason / redacted_evidence_path
+GLB/readback/view/report/version/export hashes
+human_score / reviewer_independence / failure_category
+```
+
+模型 ID、价格和能力会漂移。执行前必须查 DeepSeek/千问当时官方资料、完成 capability preflight，并把实际 fingerprint 写入 run report；不得从本文件旧值推断可用性。任何非 DeepSeek/千问供应商必须预网络拒绝。没有明确操作者授权时，网络调用和估算外部费用必须为 0。
+
+### 0.3 当前目标阈值
+
+以下是下一轮产品验证 `target`，不是已实现能力：
+
+- 首次结果独立真人 `≥4/5` 至少 70%；
+- 最多一次同一意图 typed patch 后至少 85%；
+- 首次有效结果中位数 `<5 分钟`、P90 `<10 分钟`；
+- 严重回归率 `<10%`；
+- 可变推理与存储成本不高于实收收入 25%。
+
+自动结构/readback Gate、VLM comparison 和独立真人评分分别记录。任一 deterministic hard gate 失败都不能被 VLM 或真人“看起来不错”覆盖；VLM、Luna、Codex 或实现作者也不能代替独立真人评分。
 
 ## 1. 目的与非目标
 
-评测的目的是确认一个已配置的大模型 Provider 能否把零基础用户的创意安全转换为 `MechanicalConceptPlan@1`：正确选择四领域之一、给出恰好三个完整外观方向、保持非功能性概念边界，并在含糊或越界输入时停止。
+本节是 E001/E002 **历史兼容评测**。它确认一个已配置的大模型 Provider 能否把零基础用户的创意安全转换为 `MechanicalConceptPlan@1`：正确选择四领域之一、给出恰好三个完整外观方向、保持非功能性概念边界，并在含糊或越界输入时停止。
 
-它不评测照片真实度、工程 CAD、真实武器、制造、结构、适航、车辆安全、机器人控制或材料性能；也不会在评测过程中生成、确认或导出资产。
+它不评测照片真实度、工程 CAD、真实武器、制造、结构、适航、车辆安全、机器人控制或材料性能；也不会在评测过程中生成、确认或导出资产，因此不能作为当前单一结果视觉产品的通过证据。
 
 ## 2. 固定输入与指标
 

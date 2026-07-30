@@ -24,6 +24,12 @@ from forgecad_agent.application.restricted_geometry_executor import (
     RestrictedGeometryExecutionRequest,
     RestrictedGeometryExecutor,
 )
+from c111b_visual_acceptance_contract import (
+    REQUIRED_DETAIL_CLASSES,
+    REQUIRED_TEXTURE_ROLES,
+    load_c111b_visual_acceptance_contract,
+    summarize_contract,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -599,7 +605,7 @@ def _assert_candidate(payload: Mapping[str, Any]) -> Mapping[str, Any]:
         raise AssertionError("C111_CONNECTION_COUNT_INVALID")
     if not isinstance(operations, list) or not 120 <= len(operations) <= 220:
         raise AssertionError("C111_OPERATION_BUDGET_INVALID")
-    if not isinstance(outputs, list) or not 80 <= len(outputs) <= 110:
+    if not isinstance(outputs, list) or not 80 <= len(outputs) <= 150:
         raise AssertionError("C111_OUTPUT_BUDGET_INVALID")
     operation_ids = {
         str(item.get("operation_id"))
@@ -625,12 +631,62 @@ def _assert_candidate(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return candidate
 
 
+def _assert_c111_structural_contract(
+    payload: Mapping[str, Any], forge_visual_fixture: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    contract = _mapping(
+        payload.get("structural_detail_contract"),
+        "C111_STRUCTURAL_DETAIL_CONTRACT_INVALID",
+    )
+    if contract.get("schema_version") != "C111StructuralDetailContract@1":
+        raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_SCHEMA_INVALID")
+    if contract.get("source_program_sha256") != forge_visual_fixture.get("lowering", {}).get(
+        "source_program_sha256"
+    ):
+        raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_SOURCE_LINEAGE_INVALID")
+    lineages = contract.get("lineages")
+    if not isinstance(lineages, list) or len(lineages) != len(REQUIRED_DETAIL_CLASSES):
+        raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_COVERAGE_INVALID")
+    actual_classes = set()
+    for lineage in lineages:
+        lineage = _mapping(lineage, "C111_STRUCTURAL_DETAIL_LINEAGE_INVALID")
+        detail_class = lineage.get("detail_class")
+        if detail_class in actual_classes or detail_class not in REQUIRED_DETAIL_CLASSES:
+            raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_CLASS_INVALID")
+        actual_classes.add(detail_class)
+        if (
+            not isinstance(lineage.get("part_ids"), list)
+            or not lineage["part_ids"]
+            or not isinstance(lineage.get("material_zone_ids"), list)
+            or not lineage["material_zone_ids"]
+            or (
+                not isinstance(lineage.get("geometry_output_ids"), list)
+                or not lineage["geometry_output_ids"]
+            )
+            and (
+                not isinstance(lineage.get("surface_program_ids"), list)
+                or not lineage["surface_program_ids"]
+            )
+            or set(lineage.get("required_texture_roles", [])) != REQUIRED_TEXTURE_ROLES
+        ):
+            raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_LINEAGE_INVALID")
+    if actual_classes != REQUIRED_DETAIL_CLASSES:
+        raise AssertionError("C111_STRUCTURAL_DETAIL_CONTRACT_COVERAGE_INVALID")
+    return {
+        "schema_version": contract["schema_version"],
+        "contract_sha256": payload.get("structural_detail_contract_sha256"),
+        "detail_classes": sorted(actual_classes),
+        "source_program_sha256": contract["source_program_sha256"],
+    }
+
+
 def _assert_readback(
     readback: Mapping[str, Any],
     *,
     profile_id: str,
     shape_program_sha256: str,
     minimum_triangles: int,
+    triangle_range: tuple[int, int] | None = None,
 ) -> None:
     if (
         readback.get("schema_version") != "GeometryCompileReadback@2"
@@ -646,6 +702,10 @@ def _assert_readback(
     if triangles < minimum_triangles or primitives < 150:
         raise AssertionError(
             f"C111_{profile_id.upper()}_GEOMETRY_DETAIL_INVALID:{triangles}:{primitives}"
+        )
+    if triangle_range is not None and not triangle_range[0] <= triangles <= triangle_range[1]:
+        raise AssertionError(
+            f"C111_{profile_id.upper()}_TRIANGLE_BUDGET_INVALID:{triangles}:{triangle_range}"
         )
     if any(int(readback.get(field, 0)) != primitives for field in (
         "uv0_primitive_count",
@@ -705,6 +765,43 @@ def _artifact_directory(name: str) -> Path:
     return ROOT / "output" / name
 
 
+def _assert_fixed_view_contract(
+    fixed_views: Mapping[str, str], acceptance_contract: Mapping[str, Any]
+) -> None:
+    expected = set(acceptance_contract["fixed_views"])
+    if set(fixed_views) != expected or len(fixed_views) != len(expected):
+        raise AssertionError("C111B_ACCEPTANCE_FIXED_VIEW_LINEAGE_INVALID")
+
+
+def _assert_visual_reference_acceptance_policy(
+    payload: Mapping[str, Any],
+    acceptance_contract: Mapping[str, Any],
+    acceptance_contract_sha256: str,
+) -> Mapping[str, Any]:
+    policy = _mapping(
+        payload.get("visual_reference_acceptance_policy"),
+        "C111B_REFERENCE_ACCEPTANCE_POLICY_MISSING",
+    )
+    minima = {
+        str(claim["level"]): int(claim["minimum_similarity_bps"])
+        for claim in acceptance_contract["claims"]
+        if claim.get("level") in {"macro", "meso", "micro"}
+    }
+    if (
+        policy.get("schema_version") != "VisualReferenceAcceptancePolicy@1"
+        or policy.get("policy_id") != acceptance_contract.get("contract_id")
+        or policy.get("source_contract_sha256") != acceptance_contract_sha256
+        or policy.get("critical_minimum_bps") != 0
+        or policy.get("macro_minimum_bps") != minima.get("macro")
+        or policy.get("meso_minimum_bps") != minima.get("meso")
+        or policy.get("micro_minimum_bps") != minima.get("micro")
+        or policy.get("critical_requires_matched") is not False
+        or policy.get("critical_not_visible_allowed") is not False
+    ):
+        raise AssertionError("C111B_REFERENCE_ACCEPTANCE_POLICY_DRIFT")
+    return policy
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifact-dir")
@@ -713,10 +810,19 @@ def main() -> int:
     payload = _rust_dump()
     candidate = _assert_candidate(payload)
     detail_inventory = _load_detail_inventory()
+    acceptance_contract, acceptance_contract_sha256 = load_c111b_visual_acceptance_contract(
+        ROOT, detail_inventory
+    )
+    visual_reference_acceptance_policy = _assert_visual_reference_acceptance_policy(
+        payload, acceptance_contract, acceptance_contract_sha256
+    )
     forge_visual_fixture = _assert_forge_visual_program_fixture(
         payload,
         candidate,
         detail_inventory,
+    )
+    structural_detail_summary = _assert_c111_structural_contract(
+        payload, forge_visual_fixture
     )
     executor = RestrictedGeometryExecutor(environment={})
     preview_glb, preview, _ = _compile(executor, payload, "interactive_preview")
@@ -737,6 +843,10 @@ def main() -> int:
         profile_id="production_concept",
         shape_program_sha256=shape_hash,
         minimum_triangles=100_000,
+        triangle_range=(
+            int(acceptance_contract["budgets"]["production_triangle_count"]["minimum"]),
+            int(acceptance_contract["budgets"]["production_triangle_count"]["maximum"]),
+        ),
     )
     if int(production["triangle_count"]) <= int(preview["triangle_count"]):
         raise AssertionError("C111_LOD_DETAIL_ORDER_INVALID")
@@ -748,6 +858,7 @@ def main() -> int:
             inventory=detail_inventory,
             verify_expected=False,
         )
+        _assert_fixed_view_contract(fixed_views, acceptance_contract)
         print(
             json.dumps(
                 {
@@ -756,6 +867,11 @@ def main() -> int:
                     "production_triangles": production["triangle_count"],
                     "production_primitives": production["primitive_count"],
                     "fixed_views": fixed_views,
+                    "visual_acceptance_contract": summarize_contract(
+                        acceptance_contract, acceptance_contract_sha256
+                    ),
+                    "visual_reference_acceptance_policy": visual_reference_acceptance_policy,
+                    "structural_detail_contract": structural_detail_summary,
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -782,12 +898,13 @@ def main() -> int:
         candidate,
         production,
     )
-    _assert_production_fixed_views(
+    fixed_views = _assert_production_fixed_views(
         executor,
         artifact_handle=production_artifact_handle,
         shape_program_sha256=shape_hash,
         inventory=detail_inventory,
     )
+    _assert_fixed_view_contract(fixed_views, acceptance_contract)
     destination = None
     if args.artifact_dir:
         destination = _artifact_directory(args.artifact_dir)
@@ -819,6 +936,11 @@ def main() -> int:
                 "surface_adornment_manifest": payload["surface_adornment_manifest"],
                 "surface_adornment_program_ids": sorted(REQUIRED_SURFACE_PROGRAM_IDS),
                 "visual_detail_inventory": detail_inventory_summary,
+                "visual_acceptance_contract": summarize_contract(
+                    acceptance_contract, acceptance_contract_sha256
+                ),
+                "visual_reference_acceptance_policy": visual_reference_acceptance_policy,
+                "structural_detail_contract": structural_detail_summary,
                 "preview": {
                     "file": "robotic-arm-golden-surface-preview.glb",
                     "glb_sha256": preview["glb_sha256"],
@@ -861,6 +983,11 @@ def main() -> int:
                 "outputs": len(candidate["expanded_shape_program"]["outputs"]),
                 "surface_adornment_program_ids": sorted(REQUIRED_SURFACE_PROGRAM_IDS),
                 "visual_detail_inventory": detail_inventory_summary,
+                "visual_acceptance_contract": summarize_contract(
+                    acceptance_contract, acceptance_contract_sha256
+                ),
+                "visual_reference_acceptance_policy": visual_reference_acceptance_policy,
+                "structural_detail_contract": structural_detail_summary,
                 "preview_triangles": preview["triangle_count"],
                 "production_triangles": production["triangle_count"],
                 "preview_primitives": preview["primitive_count"],

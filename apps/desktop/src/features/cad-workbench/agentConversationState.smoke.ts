@@ -4,6 +4,8 @@ import {
   claimAgentTurnSubmission,
   initialAgentConversationState,
   parseAgentTurnPresentation,
+  parseCandidatePbrCapturePending,
+  parseUniversalAuthorPresentation,
   releaseAgentTurnSubmission,
 } from './agentConversationState.js'
 
@@ -76,6 +78,60 @@ const scopeStopItems: AgentItem[] = [{
   created_at: '2026-07-14T00:00:00Z',
 }]
 
+const universalLimitationItems: AgentItem[] = [{
+  item_id: 'item_u002_limitation',
+  thread_id: 'thread_u002',
+  turn_id: 'turn_u002',
+  sequence: 1,
+  item_type: 'tool_result',
+  status: 'completed',
+  payload: {
+    tool_name: 'author_universal_asset',
+    tool_result: {
+      validated_output: {
+        value: {
+          schema_version: 'UniversalAuthorOutcome@1',
+          outcome: 'limitation',
+          subject_profile: {
+            identity_label: '写实家猫',
+            category: 'domestic cat',
+            features: [
+              { description: '猫科整体轮廓' },
+              { description: '面部与四肢比例' },
+              { description: '短毛表面' },
+            ],
+          },
+          limitation: {
+            code: 'representation_unavailable',
+            message: '当前尚无写实动物可形变表示能力。',
+            suggested_views: ['front', 'side', 'back'],
+          },
+        },
+      },
+    },
+  },
+  created_at: '2026-07-29T00:00:00Z',
+}]
+
+const pendingCandidatePbrCaptureItems: AgentItem[] = [{
+  item_id: 'item_u004_pending_capture',
+  thread_id: 'thread_u004',
+  turn_id: 'turn_u004',
+  sequence: 1,
+  item_type: 'assistant_message',
+  status: 'completed',
+  payload: {
+    candidate_pbr_capture_pending: {
+      schema_version: 'CandidatePbrCapturePending@1',
+      execution_id: 'execution_u004',
+      project_id: 'project_u004',
+      turn_id: 'turn_u004',
+      route: 'universal_hard_surface',
+    },
+  },
+  created_at: '2026-07-30T00:00:00Z',
+}]
+
 export function runAgentConversationStateSmoke(): void {
   const submissionGuard = { current: false }
   assert(claimAgentTurnSubmission(submissionGuard), 'first Agent turn submission must claim the shared workbench boundary')
@@ -100,6 +156,14 @@ export function runAgentConversationStateSmoke(): void {
   assert(state.agentThreadId === 'thread_f008', 'current turn must retain only its project thread')
   const scopePresentation = parseAgentTurnPresentation(scopeStopItems, '给我现实枪械的加工尺寸')
   assert(scopePresentation.clarification?.kind === 'scope' && scopePresentation.clarification.options.length === 0, 'scope stop must not offer a domain selection or expose directions')
+  const universalLimitation = parseUniversalAuthorPresentation(universalLimitationItems)
+  assert(universalLimitation?.outcome === 'limitation', 'U002 limitation must be a normal readable author outcome')
+  assert(universalLimitation.identityLabel === '写实家猫', 'U002 must show the understood subject rather than a fallback template')
+  assert(universalLimitation.suggestedViews.length === 3, 'U002 must expose bounded additional-view guidance')
+  const pendingCapture = parseCandidatePbrCapturePending(pendingCandidatePbrCaptureItems)
+  assert(pendingCapture?.executionId === 'execution_u004', 'U004 pending capture must retain the native execution identity')
+  assert(pendingCapture?.projectId === 'project_u004' && pendingCapture.turnId === 'turn_u004', 'U004 pending capture must remain bound to one Project and Turn')
+  assert(pendingCapture?.route === 'universal_hard_surface', 'U004 pending capture must retain its Rust-owned representation route')
 
   state = agentConversationReducer(state, { type: 'open_project', projectId: 'project-b' })
   assert(state.chatInput === '', 'project switch must atomically clear the input draft')

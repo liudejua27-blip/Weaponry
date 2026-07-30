@@ -88,7 +88,12 @@ export function AgentSelectionCard({
   // The candidate card may render before the server-owned Snapshot finishes
   // hydrating after a restart. Keep all durable asset actions unavailable until
   // the visible asset is confirmed as the active Snapshot asset.
-  const persistedActionsDisabled = Boolean(agentAssetChangeSet) || isSnapshotActionPending || !activeAgentAssetVersion
+  const visibleAssetIsActive = Boolean(
+    agentAssetVersion
+    && activeAgentAssetVersion
+    && agentAssetVersion.asset_version_id === activeAgentAssetVersion.asset_version_id,
+  )
+  const persistedActionsDisabled = Boolean(agentAssetChangeSet) || isSnapshotActionPending || !visibleAssetIsActive
   const displayHasHiddenParts = Boolean((partDisplay?.hidden_part_ids ?? []).length)
   const isolatedPartId = partDisplay?.isolated_part_id ?? null
   return (
@@ -119,6 +124,9 @@ export function AgentSelectionCard({
             className={selectedPartId === part.part_id ? 'active' : ''}
             aria-label={`选择部件 ${displayPartRole(part.role)}`}
             aria-pressed={selectedPartId === part.part_id}
+            data-qa-part-id={part.part_id}
+            data-qa-part-role={part.role}
+            data-qa-material-zone-ids={part.material_zone_ids.join(' ')}
             disabled={!isVisible}
             onClick={() => void onSelectPart(part.part_id)}
           >

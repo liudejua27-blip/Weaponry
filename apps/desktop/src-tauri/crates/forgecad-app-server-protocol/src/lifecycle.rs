@@ -92,6 +92,9 @@ pub enum AgentThreadStatus {
 pub enum AgentTurnStatus {
     Queued,
     Running,
+    /// The candidate has compiled but requires one local same-renderer PBR
+    /// capture before the Rust-owned quality tail can continue.
+    WaitingForCapture,
     WaitingForApproval,
     WaitingForClarification,
     Completed,
@@ -406,6 +409,88 @@ impl CreateAgentThreadRequest {
 pub struct MultimodalTurnContextInput {
     pub request: Value,
     pub visual_evidence_graph: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_reference_comparison_authorization_id: Option<String>,
+}
+
+/// Lightweight U002 client input. The client may select already sealed
+/// evidence and annotate its intended role/view, but it cannot provide a
+/// Project, Turn, Snapshot, asset version, hash or executable capability.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct UniversalAuthorReferenceInput {
+    pub evidence_id: String,
+    pub role: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_hint: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct UniversalAuthorContextInput {
+    #[serde(default)]
+    pub references: Vec<UniversalAuthorReferenceInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_evidence_graph: Option<Value>,
+}
+
+impl UniversalAuthorContextInput {
+    pub fn validate(&self) -> Result<(), RpcError> {
+        if self.references.len() > 12 {
+            return Err(invalid_field(
+                "start_turn.author_context.references",
+                "may contain at most 12 sealed evidence selectors",
+            ));
+        }
+        let mut evidence_ids = BTreeSet::new();
+        for reference in &self.references {
+            validate_stable_id_with_max(
+                "start_turn.author_context.references.evidence_id",
+                &reference.evidence_id,
+                160,
+            )?;
+            if !reference.evidence_id.starts_with("refevid_")
+                || !evidence_ids.insert(reference.evidence_id.as_str())
+            {
+                return Err(invalid_field(
+                    "start_turn.author_context.references.evidence_id",
+                    "must be a unique refevid_ identity",
+                ));
+            }
+            validate_text(
+                "start_turn.author_context.references.role",
+                &reference.role,
+                1,
+                80,
+            )?;
+            if let Some(view_hint) = reference.view_hint.as_deref() {
+                validate_text(
+                    "start_turn.author_context.references.view_hint",
+                    view_hint,
+                    1,
+                    80,
+                )?;
+            }
+        }
+        if let Some(graph) = &self.visual_evidence_graph {
+            if !graph.is_object() {
+                return Err(invalid_field(
+                    "start_turn.author_context.visual_evidence_graph",
+                    "must be a JSON object",
+                ));
+            }
+            reject_multimodal_wire_secrets(graph)?;
+        }
+        let bytes = serde_json::to_vec(self)
+            .map_err(|_| invalid_field("start_turn.author_context", "must be serializable JSON"))?;
+        if bytes.len() > MAX_MULTIMODAL_TURN_CONTEXT_BYTES {
+            return Err(invalid_field(
+                "start_turn.author_context",
+                "exceeds the 256 KiB protocol limit",
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl MultimodalTurnContextInput {
@@ -415,6 +500,20 @@ impl MultimodalTurnContextInput {
                 "start_turn.multimodal_context",
                 "must contain request and visual_evidence_graph objects",
             ));
+        }
+        if let Some(authorization_id) = self.visual_reference_comparison_authorization_id.as_deref()
+        {
+            validate_stable_id_with_max(
+                "start_turn.multimodal_context.visual_reference_comparison_authorization_id",
+                authorization_id,
+                160,
+            )?;
+            if !authorization_id.starts_with("visauth_") {
+                return Err(invalid_field(
+                    "start_turn.multimodal_context.visual_reference_comparison_authorization_id",
+                    "must use a visauth_ identity",
+                ));
+            }
         }
         let bytes = serde_json::to_vec(self).map_err(|_| {
             invalid_field("start_turn.multimodal_context", "must be serializable JSON")
@@ -488,6 +587,8 @@ pub struct StartAgentTurnRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clarification_domain_pack_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author_context: Option<UniversalAuthorContextInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multimodal_context: Option<MultimodalTurnContextInput>,
 }
 
@@ -508,11 +609,16 @@ impl StartAgentTurnRequest {
             "start_turn.clarification_domain_pack_id",
             self.clarification_domain_pack_id.as_deref(),
         )?;
-        if self.clarification_domain_pack_id.is_some() && self.multimodal_context.is_some() {
+        if self.clarification_domain_pack_id.is_some()
+            && (self.multimodal_context.is_some() || self.author_context.is_some())
+        {
             return Err(invalid_field(
                 "start_turn.multimodal_context",
                 "cannot be combined with a clarification answer",
             ));
+        }
+        if let Some(context) = &self.author_context {
+            context.validate()?;
         }
         if let Some(context) = &self.multimodal_context {
             context.validate()?;
@@ -711,6 +817,7 @@ mod tests {
             client_request_id: "request_turn_1".into(),
             message: "继续优化表面流线".into(),
             clarification_domain_pack_id: Some("vehicle".into()),
+            author_context: None,
             multimodal_context: None,
         }
         .validate()
@@ -743,6 +850,7 @@ mod tests {
             client_request_id: "request_turn_2".into(),
             message: "x".repeat(MAX_REQUEST_TEXT_CHARS + 1),
             clarification_domain_pack_id: None,
+            author_context: None,
             multimodal_context: None,
         };
         assert!(oversized_message.validate().is_err());
@@ -760,11 +868,13 @@ mod tests {
         let safe = MultimodalTurnContextInput {
             request: json!({"schema_version":"MultimodalDesignRequest@1","request_id":"mmreq_1"}),
             visual_evidence_graph: json!({"schema_version":"VisualEvidenceGraph@1","graph_id":"vegraph_1"}),
+            visual_reference_comparison_authorization_id: Some("visauth_protocol_fixture".into()),
         };
         StartAgentTurnRequest {
             client_request_id: "request_multimodal_1".into(),
             message: "使用已验证参考图生成机械概念外观".into(),
             clarification_domain_pack_id: None,
+            author_context: None,
             multimodal_context: Some(safe.clone()),
         }
         .validate()
@@ -774,9 +884,11 @@ mod tests {
             client_request_id: "request_multimodal_secret".into(),
             message: "生成机械概念外观".into(),
             clarification_domain_pack_id: None,
+            author_context: None,
             multimodal_context: Some(MultimodalTurnContextInput {
                 request: json!({"api_key":"forbidden"}),
                 visual_evidence_graph: json!({}),
+                visual_reference_comparison_authorization_id: None,
             }),
         };
         assert!(secret.validate().is_err());
@@ -785,9 +897,11 @@ mod tests {
             client_request_id: "request_multimodal_oversized".into(),
             message: "生成机械概念外观".into(),
             clarification_domain_pack_id: None,
+            author_context: None,
             multimodal_context: Some(MultimodalTurnContextInput {
                 request: json!({"description":"x".repeat(MAX_MULTIMODAL_TURN_CONTEXT_BYTES)}),
                 visual_evidence_graph: json!({}),
+                visual_reference_comparison_authorization_id: None,
             }),
         };
         assert!(oversized.validate().is_err());
@@ -796,9 +910,47 @@ mod tests {
             client_request_id: "request_multimodal_clarification".into(),
             message: "生成机械概念外观".into(),
             clarification_domain_pack_id: Some("pack_robotic_arm_concept".into()),
+            author_context: None,
             multimodal_context: Some(safe),
         };
         assert!(clarification.validate().is_err());
+    }
+
+    #[test]
+    fn u002_author_context_accepts_only_evidence_selectors_and_can_normalize_legacy_evidence() {
+        let author_context = UniversalAuthorContextInput {
+            references: vec![UniversalAuthorReferenceInput {
+                evidence_id: "refevid_u002_front".into(),
+                role: "primary_silhouette".into(),
+                view_hint: Some("front".into()),
+            }],
+            visual_evidence_graph: Some(json!({
+                "schema_version":"VisualEvidenceGraph@2",
+                "graph_id":"vegraph_u002"
+            })),
+        };
+        StartAgentTurnRequest {
+            client_request_id: "request_u002_author".into(),
+            message: "生成写实家猫".into(),
+            clarification_domain_pack_id: None,
+            author_context: Some(author_context.clone()),
+            multimodal_context: None,
+        }
+        .validate()
+        .unwrap();
+        StartAgentTurnRequest {
+            client_request_id: "request_u002_conflict".into(),
+            message: "生成写实家猫".into(),
+            clarification_domain_pack_id: None,
+            author_context: Some(author_context),
+            multimodal_context: Some(MultimodalTurnContextInput {
+                request: json!({}),
+                visual_evidence_graph: json!({}),
+                visual_reference_comparison_authorization_id: None,
+            }),
+        }
+        .validate()
+        .unwrap();
     }
 
     #[test]
