@@ -5451,8 +5451,12 @@ button.f026-create-setup-example:active {
 }
 
 @media (min-width: 1025px) {
-  #root:has(.f026-layout-beginner) .cad-global-actions-more {
+  #root:has(.f026-layout-beginner) .cad-global-actions-more:not([open]) {
     display: none;
+  }
+
+  #root:has(.f026-layout-beginner) .cad-command-bar:has(.cad-global-actions-more[open]) {
+    z-index: 5;
   }
 
   #root:has(.f026-layout-beginner) .f026-sidebar-footer {

@@ -361,7 +361,7 @@ async function main() {
         assert(afterQuality.quality?.quality_report_id === qualityPayload.quality_report_id, 'Snapshot must reference this quality response')
         await quality.getByRole('button', { name: '关闭模型检查', exact: true }).click()
         await quality.waitFor({ state: 'detached', timeout: TIMEOUT_MS })
-        await page.getByRole('button', { name: '流程导出', exact: true }).click()
+        await page.locator('button[aria-label="流程导出"]').click()
         const exportDrawer = page.locator('.export-drawer')
         await exportDrawer.waitFor({ timeout: TIMEOUT_MS })
         await assertText(exportDrawer, ['选择你现在需要的内容', '下载 3D 模型 (GLB)', '概念视图'])
