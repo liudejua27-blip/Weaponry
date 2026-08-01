@@ -10,7 +10,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const DESKTOP_SOURCE = join(ROOT, 'apps', 'desktop', 'src')
 const forgeApiPath = join(DESKTOP_SOURCE, 'shared', 'api', 'forgeApi.ts')
-const workbenchPath = join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'CadWorkbenchPanel.tsx')
+const workbenchPath = join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'WorkbenchShell.tsx')
 const transportPath = join(DESKTOP_SOURCE, 'shared', 'api', 'appServerTransport.ts')
 const output = await mkdtemp(join(tmpdir(), 'forgecad-k001-transport-'))
 const compatibilityFixture = JSON.parse(await readFile(

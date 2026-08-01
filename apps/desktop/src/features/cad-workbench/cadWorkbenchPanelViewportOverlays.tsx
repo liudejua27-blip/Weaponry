@@ -26,13 +26,6 @@ type CadWorkbenchPanelViewportOverlaysProps = {
   onCameraViewChange: (next: CameraView) => void
   onLightPresetChange: (next: LightPreset) => void
   onToggleExplode: () => void
-  quickModifyPresets?: readonly {
-    label: string
-    summary: string
-    prompt: string
-  }[]
-  canQuickModify?: boolean
-  onQuickModify?: (next: string) => void | Promise<void>
 }
 
 const MEASURE_MODE_DISTANCE_TEXT = '点到点'
@@ -55,16 +48,12 @@ export function CadWorkbenchPanelViewportOverlays({
   onCameraViewChange,
   onLightPresetChange,
   onToggleExplode,
-  quickModifyPresets,
-  canQuickModify = false,
-  onQuickModify,
 }: CadWorkbenchPanelViewportOverlaysProps): ReactElement {
   const measurementLine = measurementPrompt.length > 0
     ? measurementPrompt
     : measurementReadoutText
       ? `测量：${measurementReadoutText}`
       : '单位：mm'
-  const hasQuickModifyPresets = quickModifyPresets && quickModifyPresets.length > 0
   return (
     <>
       {activeTool === 'measure' ? (
@@ -131,32 +120,6 @@ export function CadWorkbenchPanelViewportOverlays({
         <span>{viewportReadoutText}</span>
         <span>{measurementLine}</span>
       </div>
-      {hasQuickModifyPresets ? (
-        <section className="viewport-quick-modify" aria-label="快速修改预设">
-          <div className="viewport-quick-modify-title">AI 快速修改</div>
-          <div className="viewport-quick-modify-actions">
-            {quickModifyPresets?.map((item) => (
-              <button
-                type="button"
-                key={item.label}
-                className="agent-quick-modify-action"
-                title={item.summary}
-                onClick={() => { void onQuickModify?.(item.prompt) }}
-                disabled={!canQuickModify}
-              >
-                <span>{item.label}</span>
-                <small>{item.summary}</small>
-              </button>
-            ))}
-          </div>
-          {!canQuickModify ? (
-            <p className="agent-quick-modify-note" role="note">
-              <strong>先完成 AI 生成</strong>
-              <small>完成第一轮生成并进入修改模式后再使用快速修改。</small>
-            </p>
-          ) : null}
-        </section>
-      ) : null}
     </>
   )
 }

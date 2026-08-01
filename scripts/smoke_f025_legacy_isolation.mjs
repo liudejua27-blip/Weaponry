@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url'
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const SOURCE = join(ROOT, 'apps', 'desktop', 'src', 'features', 'cad-workbench')
 
-const [panel, conceptHook, inspector, legacyNotice, exportDrawer, qualityDrawer, drawerStack, viewport, forgeApi] = await Promise.all([
+const [panel, implementation, conceptHook, inspector, legacyNotice, exportDrawer, qualityDrawer, drawerStack, viewport, forgeApi, catalogSync] = await Promise.all([
   readFile(join(SOURCE, 'CadWorkbenchPanel.tsx'), 'utf8'),
+  readFile(join(SOURCE, 'WorkbenchShell.tsx'), 'utf8'),
   readFile(join(SOURCE, 'useConceptWorkbench.ts'), 'utf8'),
   readFile(join(SOURCE, 'WorkbenchInspectorRail.tsx'), 'utf8'),
   readFile(join(SOURCE, 'LegacyCompatibilityNotice.tsx'), 'utf8'),
@@ -17,9 +18,10 @@ const [panel, conceptHook, inspector, legacyNotice, exportDrawer, qualityDrawer,
   readFile(join(SOURCE, 'WorkbenchDrawerStack.tsx'), 'utf8'),
   readFile(join(SOURCE, 'ModuleGraphViewport.tsx'), 'utf8'),
   readFile(join(ROOT, 'apps', 'desktop', 'src', 'shared', 'api', 'forgeApi.ts'), 'utf8'),
+  readFile(join(SOURCE, 'useCadWorkbenchPanelMaterialCatalogAndFilterSync.ts'), 'utf8'),
 ])
 
-assert((panel.match(/<ModuleGraphViewport/g) ?? []).length === 1, 'workbench must keep exactly one viewport component')
+assert((implementation.match(/<ModuleGraphViewport/g) ?? []).length === 1, 'workbench must keep exactly one viewport component')
 assert(panel.split('\n').length < 2200, 'CadWorkbenchPanel must remain below the F025 responsibility budget')
 for (const forbidden of [
   'concept.planBrief(',
@@ -29,7 +31,7 @@ for (const forbidden of [
   'concept.previewNodeTransform(',
   'concept.previewModuleReplacement(',
 ]) {
-  assert(!panel.includes(forbidden), `Agent orchestration still calls legacy command: ${forbidden}`)
+  assert(!implementation.includes(forbidden), `Agent orchestration still calls legacy command: ${forbidden}`)
 }
 
 assert(conceptHook.includes('loadLegacyDetails = legacyDetailsEnabledRef.current'), 'legacy detail reads must be gated')
@@ -43,9 +45,9 @@ for (const retiredRead of ['listDesignVariants(', 'listChangeSets(', 'listChange
   assert(!loadProjectBody.includes(retiredRead), `legacy detail hydration still depends on unused retired read: ${retiredRead}`)
 }
 assert(loadProjectBody.includes('getConceptVersion(') && loadProjectBody.includes('getModuleGraph('), 'legacy detail hydration must retain immutable Version and ModuleGraph reads')
-assert(panel.includes('api.listModuleAssets(context.packId)'), 'legacy workbench must request the current Pack catalog from the Rust adapter')
-assert(panel.includes('modules={concept.legacyDetailsEnabled ? catalogModules : []}'), 'reviewed catalog metadata must reach the sole viewport')
-assert(panel.includes('getModuleFileUrl={getModuleFileUrl}'), 'legacy viewport must receive the bounded module file resolver')
+assert(catalogSync.includes('.listModuleAssets(context.packId)'), 'legacy workbench must request the current Pack catalog from the Rust adapter')
+assert(implementation.includes('modules={concept.legacyDetailsEnabled ? catalogModules : []}'), 'reviewed catalog metadata must reach the sole viewport')
+assert(implementation.includes('getModuleFileUrl={getModuleFileUrl}'), 'legacy viewport must receive the bounded module file resolver')
 assert(viewport.includes('getModuleFileUrl(node.module_id)') && viewport.includes('loader.load(url,'), 'ModuleGraph nodes must resolve catalog module IDs through the GLB file endpoint')
 assert(forgeApi.includes('/api/v1/module-assets`)') && forgeApi.includes('/api/v1/module-assets/${encodeURIComponent(moduleId)}/file'), 'desktop API must retain the list-to-file legacy route pair')
 assert(legacyNotice.includes('查看旧版只读信息') && inspector.includes('if (!legacyDetailsOpen) return null'), 'legacy details must require explicit entry')
