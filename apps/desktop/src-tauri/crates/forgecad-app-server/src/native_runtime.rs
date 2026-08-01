@@ -20,16 +20,16 @@ use forgecad_app_server_protocol::{
     AgentApproval, AgentItem, AgentItemStatus, AgentItemType, AgentThreadDetail, AgentThreadStatus,
     AgentThreadSummary, AgentTurn, AgentTurnStatus, AppServerCursor, ApprovalCommand,
     ApprovalCommandOperation, ApprovalCommandOutcome, ApprovalCommandResult, ApprovalDecision,
-    ApprovalStatus, CursorPhase, ItemCommand, ItemCommandOperation, ItemCommandOutcome,
-    ItemCommandResult, LifecyclePersistenceCommand, LifecyclePersistenceOperation,
-    LifecyclePersistenceOutcome, LifecyclePersistenceResult, MigrationOwnership,
-    MigrationOwnershipResult, MultimodalTurnContextInput, NativeAgentNotification,
-    NativeAgentNotificationEvent, ProviderCancelCommand, ProviderCancelResult,
-    ProviderCheckCommand, ProviderCheckResult, ProviderFailureCategory, ProviderLifecycleStatus,
-    ProviderPreflightCommand, ProviderPreflightResult, ResolveAgentApprovalRequest, RpcError,
-    ThreadCommand, ThreadCommandOperation, ThreadCommandOutcome, ThreadCommandResult, TurnCommand,
-    TurnCommandOperation, TurnCommandOutcome, TurnCommandResult, UniversalAuthorContextInput,
-    GameAssetDeliveryRequestInput,
+    ApprovalStatus, CursorPhase, GameAssetDeliveryRequestInput, ItemCommand, ItemCommandOperation,
+    ItemCommandOutcome, ItemCommandResult, LifecyclePersistenceCommand,
+    LifecyclePersistenceOperation, LifecyclePersistenceOutcome, LifecyclePersistenceResult,
+    MigrationOwnership, MigrationOwnershipResult, MultimodalTurnContextInput,
+    NativeAgentNotification, NativeAgentNotificationEvent, ProviderCancelCommand,
+    ProviderCancelResult, ProviderCheckCommand, ProviderCheckResult, ProviderFailureCategory,
+    ProviderLifecycleStatus, ProviderPreflightCommand, ProviderPreflightResult,
+    ResolveAgentApprovalRequest, RpcError, ThreadCommand, ThreadCommandOperation,
+    ThreadCommandOutcome, ThreadCommandResult, TurnCommand, TurnCommandOperation,
+    TurnCommandOutcome, TurnCommandResult, UniversalAuthorContextInput,
     APPROVAL_COMMAND_RESULT_SCHEMA_VERSION, ITEM_COMMAND_RESULT_SCHEMA_VERSION,
     LIFECYCLE_PERSISTENCE_COMMAND_SCHEMA_VERSION, METHOD_APPROVAL_CREATE, METHOD_APPROVAL_READ,
     METHOD_APPROVAL_RESOLVE, METHOD_ITEM_LIST, METHOD_ITEM_READ, METHOD_MIGRATION_OWNERSHIP_READ,
@@ -46,11 +46,10 @@ use serde_json::{json, Map, Value};
 use tokio::sync::Mutex as AsyncMutex;
 
 use forgecad_core::{
-    GameAssetDeliveryRequest,
-    representation_capability_manifest_sha256, semantic_sha256, MultimodalDesignRequest,
-    ReferenceEvidence, UniversalActiveAssetBinding, UniversalAuthorRequest, UniversalDesignLocks,
-    UniversalInputMode, UniversalReferenceInput, UniversalSelectionScope, VisualEvidenceGraph,
-    UNIVERSAL_AUTHOR_REQUEST_SCHEMA_VERSION,
+    representation_capability_manifest_sha256, semantic_sha256, GameAssetDeliveryRequest,
+    MultimodalDesignRequest, ReferenceEvidence, UniversalActiveAssetBinding,
+    UniversalAuthorRequest, UniversalDesignLocks, UniversalInputMode, UniversalReferenceInput,
+    UniversalSelectionScope, VisualEvidenceGraph, UNIVERSAL_AUTHOR_REQUEST_SCHEMA_VERSION,
 };
 
 use crate::{
@@ -62,8 +61,9 @@ use crate::{
     ContextBuildInput, ContextBuilder, ContextMessage, ContextRole, ContextToolManifest,
     GenerationSourceBinding, GenerationSourceKind, HandlerFuture, LifecyclePersistencePort,
     LifecyclePortError, LifecyclePortErrorKind, ProductToolExecutorPort, ProductToolRegistry,
-    ProviderClient, ProviderError, ProviderErrorCategory as InternalProviderErrorCategory,
-    ProviderPreflight, RedactedExecutionTrace, RequestHandler, ValidatedMultimodalActionContext,
+    ProjectConversationMemory, ProviderClient, ProviderConversationBuildInput, ProviderError,
+    ProviderErrorCategory as InternalProviderErrorCategory, ProviderPreflight,
+    RedactedExecutionTrace, RequestHandler, ValidatedMultimodalActionContext,
     ValidatedUniversalAuthorContext,
 };
 
@@ -637,11 +637,15 @@ impl NativeAgentRuntime {
                     schema_version: input.schema_version,
                     profile_id: input.profile_id,
                     lod_triangle_budgets: input.lod_triangle_budgets,
-                    target_texel_density_pixels_per_meter:
-                        input.target_texel_density_pixels_per_meter,
+                    target_texel_density_pixels_per_meter: input
+                        .target_texel_density_pixels_per_meter,
                 };
                 request.validate().map_err(|error| {
-                    application_error("GAME_ASSET_DELIVERY_REQUEST_INVALID", &error.to_string(), false)
+                    application_error(
+                        "GAME_ASSET_DELIVERY_REQUEST_INVALID",
+                        &error.to_string(),
+                        false,
+                    )
                 })?;
                 Ok::<GameAssetDeliveryRequest, RpcError>(request)
             })
@@ -656,7 +660,13 @@ impl NativeAgentRuntime {
             .as_ref()
             .map(|request| semantic_sha256(request))
             .transpose()
-            .map_err(|error| application_error("GAME_ASSET_DELIVERY_REQUEST_INVALID", &error.to_string(), false))?;
+            .map_err(|error| {
+                application_error(
+                    "GAME_ASSET_DELIVERY_REQUEST_INVALID",
+                    &error.to_string(),
+                    false,
+                )
+            })?;
 
         if let Some(existing) = thread
             .turns
@@ -743,29 +753,62 @@ impl NativeAgentRuntime {
             ));
         }
 
+        let project_memory = persisted_project_memory(&thread);
+        let capability_manifest_hash = representation_capability_manifest_sha256()
+            .map_err(|error| application_error(error.code(), &error.to_string(), false))?;
         let context = ContextBuilder
-            .build(ContextBuildInput {
-                system_prompt: FORGECAD_NATIVE_SYSTEM_PROMPT.into(),
-                thread_summary: thread.summary.summary.clone(),
-                recent_messages: bounded_conversation_history(&thread, &message),
-                // K003 now supplies the current Snapshot through the
-                // Rust-owned Product Tool port. Compatibility executors may
-                // still return None, but production turns never accept a
-                // client-supplied asset/version identity as truth.
-                active_snapshot,
-                allowed_component_ids: Vec::new(),
-                allowed_material_ids: Vec::new(),
-                tools: self
-                    .inner
-                    .registry
-                    .definitions()
-                    .map(|definition| ContextToolManifest {
-                        name: definition.name.clone(),
-                        description: definition.description.clone(),
-                        input_schema: definition.input_schema.clone(),
-                    })
-                    .collect(),
-            })
+            .build_with_provider_conversation(
+                ContextBuildInput {
+                    system_prompt: FORGECAD_NATIVE_SYSTEM_PROMPT.into(),
+                    thread_summary: thread.summary.summary.clone(),
+                    recent_messages: bounded_conversation_history(&thread),
+                    // K003 now supplies the current Snapshot through the
+                    // Rust-owned Product Tool port. Compatibility executors may
+                    // still return None, but production turns never accept a
+                    // client-supplied asset/version identity as truth.
+                    active_snapshot,
+                    allowed_component_ids: Vec::new(),
+                    allowed_material_ids: Vec::new(),
+                    tools: self
+                        .inner
+                        .registry
+                        .definitions()
+                        .map(|definition| ContextToolManifest {
+                            name: definition.name.clone(),
+                            description: definition.description.clone(),
+                            input_schema: definition.input_schema.clone(),
+                        })
+                        .collect(),
+                },
+                ProviderConversationBuildInput {
+                    provider_id: thread.summary.provider_id.clone(),
+                    // Preflight is deliberately performed after the durable
+                    // Turn is created. This is a stable selected-model slot,
+                    // not a claim that DeepSeek has server-side thread state.
+                    model: "selected-provider-model".into(),
+                    system_policy_version: "ForgeCADNativeSystemPolicy@1".into(),
+                    forge_visual_program_schema_version: "ForgeVisualProgram@2".into(),
+                    capability_manifest_hash,
+                    provider_behavior_flags: BTreeMap::from([
+                        (
+                            "thinking_tool_replay".into(),
+                            "ephemeral_reasoning_content".into(),
+                        ),
+                        (
+                            "provider_context".into(),
+                            "client_replayed_stateless_chat".into(),
+                        ),
+                    ]),
+                    project_memory,
+                    current_turn: vec![ContextMessage {
+                        role: ContextRole::User,
+                        content: message.clone(),
+                        name: None,
+                        tool_call_id: None,
+                    }],
+                    input_token_budget: crate::DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET,
+                },
+            )
             .map_err(|error| application_error(&error.code, &error.message, false))?;
 
         // Bind Project identity before the first durable Turn mutation. The
@@ -1401,7 +1444,7 @@ impl NativeAgentRuntime {
                     .await;
             }
             Ok(result) if active.cancellation.is_cancelled() => {
-                let evidence = AgentTurnEvidence::from_result(&result);
+                let evidence = AgentTurnEvidence::from_cancelled_result(&result);
                 self.finish_turn(&active, AgentTurnFinish::Cancelled(evidence))
                     .await;
             }
@@ -1417,7 +1460,7 @@ impl NativeAgentRuntime {
                     .is_err()
                     || active.cancellation.is_cancelled()
                 {
-                    let evidence = AgentTurnEvidence::from_result(&result);
+                    let evidence = AgentTurnEvidence::from_cancelled_result(&result);
                     self.finish_turn(&active, AgentTurnFinish::Cancelled(evidence))
                         .await;
                     return;
@@ -1428,7 +1471,7 @@ impl NativeAgentRuntime {
                     .is_err()
                     || active.cancellation.is_cancelled()
                 {
-                    let evidence = AgentTurnEvidence::from_result(&result);
+                    let evidence = AgentTurnEvidence::from_cancelled_result(&result);
                     self.finish_turn(&active, AgentTurnFinish::Cancelled(evidence))
                         .await;
                     return;
@@ -1444,7 +1487,7 @@ impl NativeAgentRuntime {
                                 format!("{error:?}"),
                             );
                         }
-                        let evidence = AgentTurnEvidence::from_result(&result);
+                        let evidence = AgentTurnEvidence::from_cancelled_result(&result);
                         self.finish_turn(&active, AgentTurnFinish::Cancelled(evidence))
                             .await;
                     }
@@ -1643,7 +1686,7 @@ impl NativeAgentRuntime {
                     .await
                     .is_err()
                 {
-                    let evidence = AgentTurnEvidence::from_result(&result);
+                    let evidence = AgentTurnEvidence::from_cancelled_result(&result);
                     self.finish_turn(&active, AgentTurnFinish::Cancelled(evidence))
                         .await;
                     return Err(application_error(
@@ -2967,6 +3010,8 @@ struct AgentTurnEvidence {
     usage: ActionLoopUsage,
     network_call_made: bool,
     trace: Option<RedactedExecutionTrace>,
+    project_conversation_memory: Option<ProjectConversationMemory>,
+    prompt_prefix_receipt: Option<crate::PromptPrefixReceipt>,
 }
 
 impl AgentTurnEvidence {
@@ -2975,6 +3020,8 @@ impl AgentTurnEvidence {
             usage: ActionLoopUsage::default(),
             network_call_made,
             trace: None,
+            project_conversation_memory: None,
+            prompt_prefix_receipt: None,
         }
     }
 
@@ -2983,6 +3030,21 @@ impl AgentTurnEvidence {
             usage: result.usage.clone(),
             network_call_made: result.network_call_made,
             trace: Some(result.trace.clone()),
+            project_conversation_memory: result.project_conversation_memory.clone(),
+            prompt_prefix_receipt: result.prompt_prefix_receipt.clone(),
+        }
+    }
+
+    fn from_cancelled_result(result: &ActionLoopResult) -> Self {
+        Self {
+            usage: result.usage.clone(),
+            network_call_made: result.network_call_made,
+            trace: Some(result.trace.clone()),
+            // A result that loses the cancellation race is not a confirmed
+            // round. Keep its accounting and redacted trace, but never let
+            // visible memory or a cache receipt become confirmed state.
+            project_conversation_memory: None,
+            prompt_prefix_receipt: None,
         }
     }
 
@@ -2991,6 +3053,8 @@ impl AgentTurnEvidence {
             usage: failure.usage.clone(),
             network_call_made: failure.network_call_made,
             trace: Some(failure.trace.clone()),
+            project_conversation_memory: None,
+            prompt_prefix_receipt: None,
         }
     }
 }
@@ -3167,6 +3231,18 @@ fn terminal_usage(
     if let Some(code) = error_code {
         usage.insert("error_code".into(), json!(code));
     }
+    if let Some(memory) = &evidence.project_conversation_memory {
+        usage.insert(
+            "project_conversation_memory".into(),
+            serde_json::to_value(memory).unwrap_or(Value::Null),
+        );
+    }
+    if let Some(receipt) = &evidence.prompt_prefix_receipt {
+        usage.insert(
+            "prompt_prefix_receipt".into(),
+            serde_json::to_value(receipt).unwrap_or(Value::Null),
+        );
+    }
     if let Some(trace) = &evidence.trace {
         let trace_value = serde_json::to_value(trace).unwrap_or(Value::Null);
         usage.insert(
@@ -3257,11 +3333,8 @@ fn max_thread_sequence(turns: &[AgentTurn]) -> u64 {
         .unwrap_or(0)
 }
 
-fn bounded_conversation_history(
-    thread: &AgentThreadDetail,
-    current_message: &str,
-) -> Vec<ContextMessage> {
-    let mut messages = thread
+fn bounded_conversation_history(thread: &AgentThreadDetail) -> Vec<ContextMessage> {
+    thread
         .turns
         .iter()
         .flat_map(|turn| turn.items.iter())
@@ -3286,14 +3359,23 @@ fn bounded_conversation_history(
                 tool_call_id: None,
             })
         })
-        .collect::<Vec<_>>();
-    messages.push(ContextMessage {
-        role: ContextRole::User,
-        content: current_message.to_string(),
-        name: None,
-        tool_call_id: None,
-    });
-    messages
+        .collect::<Vec<_>>()
+}
+
+fn persisted_project_memory(thread: &AgentThreadDetail) -> ProjectConversationMemory {
+    thread
+        .turns
+        .iter()
+        .rev()
+        .filter(|turn| turn.status == AgentTurnStatus::Completed)
+        .find_map(|turn| {
+            turn.usage
+                .get("project_conversation_memory")
+                .cloned()
+                .and_then(|value| serde_json::from_value::<ProjectConversationMemory>(value).ok())
+                .and_then(|memory| memory.validate().ok().map(|_| memory))
+        })
+        .unwrap_or_default()
 }
 
 fn terminal_status(status: &AgentTurnStatus) -> bool {
@@ -5202,7 +5284,12 @@ mod tests {
             wait_terminal(&persistence, &thread_id, &turn_id).await;
             let turn = persistence
                 .thread(&thread_id)
-                .and_then(|thread| thread.turns.into_iter().find(|turn| turn.turn_id == turn_id))
+                .and_then(|thread| {
+                    thread
+                        .turns
+                        .into_iter()
+                        .find(|turn| turn.turn_id == turn_id)
+                })
                 .unwrap();
             let digest = turn.items[0]
                 .payload
@@ -5223,7 +5310,10 @@ mod tests {
             )
             .await
             .unwrap_err();
-            assert_eq!(error.data.application_code, "AGENT_CLIENT_REQUEST_REUSE_CONFLICT");
+            assert_eq!(
+                error.data.application_code,
+                "AGENT_CLIENT_REQUEST_REUSE_CONFLICT"
+            );
             assert_eq!(provider.turn_sessions.load(Ordering::SeqCst), 1);
             assert_eq!(persistence.thread(&thread_id).unwrap().turns.len(), 1);
         });
@@ -5436,8 +5526,10 @@ mod tests {
                 first[0],
                 ("system".into(), FORGECAD_NATIVE_SYSTEM_PROMPT.into())
             );
-            assert_eq!(first[1].0, "user");
-            assert!(first[1].1.contains("未来游戏道具外观"));
+            assert_eq!(first[1].0, "system");
+            assert!(first[1].1.contains("ProjectConversationMemory@1"));
+            assert_eq!(first[2].0, "user");
+            assert!(first[2].1.contains("未来游戏道具外观"));
             drop(observed);
 
             let turn_methods = notifications
@@ -5614,6 +5706,8 @@ mod tests {
             );
             assert_eq!(turn.items[2].item_type, AgentItemType::AssistantMessage);
             assert_eq!(turn.items[2].status, AgentItemStatus::Failed);
+            assert!(turn.usage.get("project_conversation_memory").is_none());
+            assert!(turn.usage.get("prompt_prefix_receipt").is_none());
             assert_eq!(
                 turn.error_code.as_deref(),
                 Some("PROVIDER_TRANSPORT_FAILED")
@@ -5653,6 +5747,10 @@ mod tests {
             let restarted_turn =
                 read_turn(&restarted, &thread_id, &turn_id, "failure_restart").await;
             assert_eq!(restarted_turn.usage, turn.usage);
+            assert!(restarted_turn
+                .usage
+                .get("project_conversation_memory")
+                .is_none());
         });
     }
 
@@ -5816,6 +5914,8 @@ mod tests {
                 turn.usage.get("outcome").and_then(Value::as_str),
                 Some("cancelled")
             );
+            assert!(turn.usage.get("project_conversation_memory").is_none());
+            assert!(turn.usage.get("prompt_prefix_receipt").is_none());
             assert!(turn
                 .usage
                 .get("redacted_trace")
@@ -6667,6 +6767,25 @@ mod tests {
                 _ => panic!("unexpected first history Turn"),
             };
             wait_terminal(&persistence, &thread_id, &first_turn_id).await;
+            let first_terminal = persistence
+                .thread(&thread_id)
+                .and_then(|thread| find_turn(&thread, &first_turn_id).ok().cloned())
+                .unwrap();
+            assert!(first_terminal
+                .usage
+                .get("project_conversation_memory")
+                .is_some());
+            let first_receipt = first_terminal
+                .usage
+                .get("prompt_prefix_receipt")
+                .expect("completed turn stores prompt prefix receipt");
+            assert_eq!(
+                first_receipt.get("schema_version").and_then(Value::as_str),
+                Some("PromptPrefixReceipt@1")
+            );
+            assert!(serde_json::to_string(&first_terminal)
+                .unwrap()
+                .contains("ProjectConversationMemory@1"));
 
             let second = start_turn_request(
                 &runtime,
@@ -6691,11 +6810,12 @@ mod tests {
                     .iter()
                     .map(|(role, _)| role.as_str())
                     .collect::<Vec<_>>(),
-                vec!["system", "user", "assistant", "user"]
+                vec!["system", "system", "user", "assistant", "user"]
             );
-            assert_eq!(second_context[1].1, "先建立可信轮廓。");
-            assert_eq!(second_context[2].1, "第一轮概念已完成。");
-            assert_eq!(second_context[3].1, "继续细化纹理、图案与流线。");
+            assert!(second_context[1].1.contains("先建立可信轮廓。"));
+            assert_eq!(second_context[2].1, "先建立可信轮廓。");
+            assert_eq!(second_context[3].1, "第一轮概念已完成。");
+            assert_eq!(second_context[4].1, "继续细化纹理、图案与流线。");
             let policy = &second_context[0].1;
             for required in [
                 "类别开放的参考条件 3D Agent",

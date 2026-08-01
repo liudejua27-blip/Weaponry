@@ -27,10 +27,10 @@ use tokio::time::Instant;
 
 use crate::{
     canonical::canonical_json, AgentContext, CancellationToken, ContextRole,
-    ProductToolExecutorPort, ProductToolPortError, ProductToolRegistry, ProviderClient,
-    ProviderError, ProviderFinishReason, ProviderMessage, ProviderRequest, ProviderRole,
-    ProviderStreamEvent, ProviderUsage, RedactedExecutionTrace, RedactedTraceEntry, TraceEventKind,
-    TracePhase, MAX_PRODUCT_TOOL_CALLS,
+    ProductToolExecutorPort, ProductToolPortError, ProductToolRegistry, ProjectConversationMemory,
+    PromptPrefixReceipt, ProviderClient, ProviderError, ProviderFinishReason, ProviderMessage,
+    ProviderRequest, ProviderRole, ProviderStreamEvent, ProviderUsage, RedactedExecutionTrace,
+    RedactedTraceEntry, TraceEventKind, TracePhase, MAX_PRODUCT_TOOL_CALLS,
 };
 
 const MAX_ACTION_LOOP_WALL_TIME_MS: u64 = 900_000;
@@ -330,6 +330,42 @@ impl ActionLoopUsage {
     }
 }
 
+fn completed_conversation_artifacts(
+    input: &ActionLoopInput,
+    usage: &ActionLoopUsage,
+    assistant_message: &str,
+) -> (
+    Option<ProjectConversationMemory>,
+    Option<PromptPrefixReceipt>,
+) {
+    let envelope = &input.context.provider_conversation;
+    let receipt = PromptPrefixReceipt::from_envelope(
+        envelope,
+        usage.prompt_cache_hit_tokens,
+        usage.prompt_cache_miss_tokens,
+    );
+    let snapshot_digest = input
+        .context
+        .active_snapshot
+        .as_ref()
+        .map(|snapshot| crate::canonical::sha256_hex(canonical_json(snapshot).as_bytes()));
+    let memory = envelope
+        .current_turn
+        .iter()
+        .find(|message| message.role == ContextRole::User)
+        .and_then(|message| {
+            envelope
+                .project_memory
+                .after_completed_turn(
+                    message.content.as_str(),
+                    assistant_message,
+                    snapshot_digest.clone(),
+                )
+                .ok()
+        });
+    (memory, Some(receipt))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ActionLoopResult {
@@ -346,6 +382,12 @@ pub struct ActionLoopResult {
     /// a saved asset, a quality result, or a user-confirmable preview.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_pbr_capture_pending: Option<CandidatePbrCapturePending>,
+    /// Visible, Rust-owned memory and cache accounting for the completed
+    /// envelope. Provider reasoning is intentionally absent from both values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_conversation_memory: Option<ProjectConversationMemory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_prefix_receipt: Option<PromptPrefixReceipt>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -1056,6 +1098,8 @@ impl ActionLoop {
                         TraceEventKind::Completed,
                         elapsed_ms(started),
                     ));
+                    let (project_conversation_memory, prompt_prefix_receipt) =
+                        completed_conversation_artifacts(&input, &usage, &final_content);
                     return Ok(ActionLoopResult {
                         execution_id: input.execution_id,
                         turn_id: input.turn_id,
@@ -1065,6 +1109,8 @@ impl ActionLoop {
                         item_events,
                         trace,
                         candidate_pbr_capture_pending: None,
+                        project_conversation_memory,
+                        prompt_prefix_receipt,
                     });
                 }
                 ProviderFinishReason::ToolCalls => {
@@ -1536,6 +1582,12 @@ impl ActionLoop {
                                         TraceEventKind::Completed,
                                         elapsed_ms(started),
                                     ));
+                                    let (project_conversation_memory, prompt_prefix_receipt) =
+                                        completed_conversation_artifacts(
+                                            &input,
+                                            &usage,
+                                            &final_content,
+                                        );
                                     return Ok(ActionLoopResult {
                                         execution_id: input.execution_id,
                                         turn_id: input.turn_id,
@@ -1545,6 +1597,8 @@ impl ActionLoop {
                                         item_events,
                                         trace,
                                         candidate_pbr_capture_pending: None,
+                                        project_conversation_memory,
+                                        prompt_prefix_receipt,
                                     });
                                 }
                                 Some("executable") => {
@@ -1669,16 +1723,21 @@ impl ActionLoop {
                                 TraceEventKind::Completed,
                                 elapsed_ms(started),
                             ));
+                            let final_content =
+                                "已验证当前机械臂的增量设计方案，可在工作台预览后确认。";
+                            let (project_conversation_memory, prompt_prefix_receipt) =
+                                completed_conversation_artifacts(&input, &usage, final_content);
                             return Ok(ActionLoopResult {
                                 execution_id: input.execution_id,
                                 turn_id: input.turn_id,
-                                final_content:
-                                    "已验证当前机械臂的增量设计方案，可在工作台预览后确认。".into(),
+                                final_content: final_content.into(),
                                 usage,
                                 network_call_made,
                                 item_events,
                                 trace,
                                 candidate_pbr_capture_pending: None,
+                                project_conversation_memory,
+                                prompt_prefix_receipt,
                             });
                         }
                         // An initial robotic-arm plan is the one bounded piece
@@ -2127,10 +2186,14 @@ impl ActionLoop {
             .then(|| pending_candidate_pbr_capture(input, visual_program_output))
             .flatten();
         let final_content = if candidate_pbr_capture_pending.is_some() {
-            "候选 GLB 已完成严格编译与回读，正在等待工作台同源 PBR 八视图检查；在千问比较通过前不会创建预览、版本或导出。".into()
+            String::from(
+                "候选 GLB 已完成严格编译与回读，正在等待工作台同源 PBR 八视图检查；在千问比较通过前不会创建预览、版本或导出。",
+            )
         } else {
-            "已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。".into()
+            String::from("已完成一次受审的程序化视觉资产合成，可在工作台预览后确认。")
         };
+        let (project_conversation_memory, prompt_prefix_receipt) =
+            completed_conversation_artifacts(input, &usage, &final_content);
         Ok(Some(ActionLoopResult {
             execution_id: input.execution_id.clone(),
             turn_id: input.turn_id.clone(),
@@ -2140,6 +2203,8 @@ impl ActionLoop {
             item_events: item_events.clone(),
             trace: trace.clone(),
             candidate_pbr_capture_pending,
+            project_conversation_memory,
+            prompt_prefix_receipt,
         }))
     }
 }
@@ -2693,7 +2758,9 @@ fn product_tool_recovery_message(
     if tool_name == "author_universal_asset"
         && matches!(
             result.error_code.as_deref(),
-            Some("FORGE_VISUAL_VP203_SECTION_SET_INVALID" | "FORGE_VISUAL_VP203_SECTION_CAP_INVALID")
+            Some(
+                "FORGE_VISUAL_VP203_SECTION_SET_INVALID" | "FORGE_VISUAL_VP203_SECTION_CAP_INVALID"
+            )
         )
     {
         return Some(
@@ -4703,11 +4770,7 @@ mod tests {
                 "same resample_count",
                 "cap_policy",
             ),
-            (
-                "FORGE_VISUAL_VP203_SECTION_CAP_INVALID",
-                "start",
-                "last",
-            ),
+            ("FORGE_VISUAL_VP203_SECTION_CAP_INVALID", "start", "last"),
             (
                 "FORGE_VISUAL_VP203_REFERENCE_MISSING",
                 "profile_id",
@@ -6265,11 +6328,12 @@ mod tests {
     fn active_snapshot_is_forwarded_as_read_only_provider_context() {
         let messages = context_messages(&context(), None, None);
         assert_eq!(messages[0].role, ProviderRole::System);
-        assert!(messages[1]
+        assert!(messages[1].content.contains("ProjectConversationMemory@1"));
+        assert!(messages[2]
             .content
             .contains("当前 Rust-owned ActiveDesignSnapshot"));
-        assert!(messages[1].content.contains("snapshot_1"));
-        assert_eq!(messages[2].role, ProviderRole::User);
+        assert!(messages[2].content.contains("snapshot_1"));
+        assert_eq!(messages[3].role, ProviderRole::User);
         assert!(messages[0]
             .content
             .contains("只生成非功能性的生产级概念资产"));
@@ -6392,6 +6456,13 @@ mod tests {
             let result = loop_.run(input(), CancellationToken::new()).await.unwrap();
             assert_eq!(result.usage.product_tool_calls, 1);
             assert_eq!(records.records()[1].prior_reasoning_count, 1);
+            assert_eq!(
+                result
+                    .prompt_prefix_receipt
+                    .as_ref()
+                    .map(|receipt| receipt.schema_version.as_str()),
+                Some("PromptPrefixReceipt@1")
+            );
             let serialized = serde_json::to_string(&result).unwrap();
             for forbidden in ["private chain of thought", "reasoning_content", "api_key"] {
                 assert!(!serialized.contains(forbidden));

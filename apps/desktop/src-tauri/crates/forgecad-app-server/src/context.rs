@@ -4,19 +4,269 @@
 //! machine paths, and Provider reasoning are rejected before a request can be
 //! handed to a [`crate::ProviderClient`].
 
-use std::{collections::BTreeSet, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::canonical::{canonical_json, sha256_hex};
 
 pub const CONTEXT_SCHEMA_VERSION: &str = "AgentContext@1";
+pub const PROVIDER_CONVERSATION_ENVELOPE_SCHEMA_VERSION: &str = "ProviderConversationEnvelope@2";
+pub const PROJECT_CONVERSATION_MEMORY_SCHEMA_VERSION: &str = "ProjectConversationMemory@1";
+pub const PROMPT_PREFIX_RECEIPT_SCHEMA_VERSION: &str = "PromptPrefixReceipt@1";
+pub const DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET: usize = 48_000;
+pub const MAX_PROVIDER_RECENT_TURNS: usize = 4;
+pub const MAX_PROJECT_MEMORY_ITEMS: usize = 24;
+pub const MAX_PROJECT_MEMORY_ITEM_CHARS: usize = 1_024;
 pub const MAX_CONTEXT_MESSAGES: usize = 8;
 // User design briefs may be substantially longer than a chat message. The
 // Provider transport still applies a finite byte/request ceiling, while the
 // Context builder no longer imposes a small product-facing text limit.
 pub const MAX_CONTEXT_TEXT_CHARS: usize = 200_000;
+
+/// Structured, product-owned memory. It contains visible decisions and
+/// bounded state only; Provider hidden reasoning is deliberately not a field
+/// of this contract.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectConversationMemory {
+    pub schema_version: String,
+    pub subject_identity_and_intent: Vec<String>,
+    pub confirmed_visual_decisions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_asset_snapshot_digest: Option<String>,
+    pub unresolved_questions: Vec<String>,
+    pub rejected_choices_and_limitations: Vec<String>,
+    pub revision: u64,
+}
+
+impl Default for ProjectConversationMemory {
+    fn default() -> Self {
+        Self {
+            schema_version: PROJECT_CONVERSATION_MEMORY_SCHEMA_VERSION.into(),
+            subject_identity_and_intent: Vec::new(),
+            confirmed_visual_decisions: Vec::new(),
+            current_asset_snapshot_digest: None,
+            unresolved_questions: Vec::new(),
+            rejected_choices_and_limitations: Vec::new(),
+            revision: 0,
+        }
+    }
+}
+
+impl ProjectConversationMemory {
+    pub fn validate(&self) -> Result<(), ContextBuildError> {
+        if self.schema_version != PROJECT_CONVERSATION_MEMORY_SCHEMA_VERSION
+            || self.revision > 1_000_000
+        {
+            return Err(ContextBuildError::new(
+                "AGENT_PROJECT_MEMORY_SCHEMA_INVALID",
+                ContextBuildErrorKind::Serialization,
+                "Project conversation memory is outside the reviewed schema.",
+            ));
+        }
+        for (field, values) in [
+            (
+                "subject_identity_and_intent",
+                &self.subject_identity_and_intent,
+            ),
+            (
+                "confirmed_visual_decisions",
+                &self.confirmed_visual_decisions,
+            ),
+            ("unresolved_questions", &self.unresolved_questions),
+            (
+                "rejected_choices_and_limitations",
+                &self.rejected_choices_and_limitations,
+            ),
+        ] {
+            if values.len() > MAX_PROJECT_MEMORY_ITEMS {
+                return Err(ContextBuildError::new(
+                    "AGENT_PROJECT_MEMORY_TOO_LARGE",
+                    ContextBuildErrorKind::InvalidText,
+                    "Project conversation memory has too many entries.",
+                ));
+            }
+            for value in values {
+                if value.chars().count() > MAX_PROJECT_MEMORY_ITEM_CHARS {
+                    return Err(ContextBuildError::new(
+                        "AGENT_PROJECT_MEMORY_ITEM_TOO_LARGE",
+                        ContextBuildErrorKind::InvalidText,
+                        "Project conversation memory contains an oversized entry.",
+                    ));
+                }
+                validate_text(field, value, false)?;
+            }
+        }
+        if let Some(digest) = &self.current_asset_snapshot_digest {
+            if !valid_sha256(digest) {
+                return Err(ContextBuildError::new(
+                    "AGENT_PROJECT_MEMORY_SNAPSHOT_DIGEST_INVALID",
+                    ContextBuildErrorKind::InvalidText,
+                    "Project memory snapshot digest must be a lowercase SHA-256.",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Advance memory only from visible user/assistant text. This helper is
+    /// intentionally deterministic and never accepts Provider reasoning.
+    pub fn after_completed_turn(
+        &self,
+        user_message: &str,
+        assistant_message: &str,
+        snapshot_digest: Option<String>,
+    ) -> Result<Self, ContextBuildError> {
+        self.validate()?;
+        validate_text("user_message", user_message, false)?;
+        validate_text("assistant_message", assistant_message, false)?;
+        let mut next = self.clone();
+        push_bounded_memory(&mut next.subject_identity_and_intent, user_message);
+        push_bounded_memory(&mut next.confirmed_visual_decisions, assistant_message);
+        next.current_asset_snapshot_digest = snapshot_digest;
+        next.revision = next.revision.saturating_add(1);
+        next.validate()?;
+        Ok(next)
+    }
+}
+
+fn push_bounded_memory(values: &mut Vec<String>, value: &str) {
+    let bounded = value
+        .chars()
+        .take(MAX_PROJECT_MEMORY_ITEM_CHARS)
+        .collect::<String>();
+    if values.last() != Some(&bounded) {
+        values.push(bounded);
+    }
+    if values.len() > MAX_PROJECT_MEMORY_ITEMS {
+        let drop_count = values.len() - MAX_PROJECT_MEMORY_ITEMS;
+        values.drain(0..drop_count);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderConversationTurn {
+    pub messages: Vec<ContextMessage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct StableProviderPrefix {
+    pub schema_version: String,
+    pub system_policy_version: String,
+    pub forge_visual_program_schema_version: String,
+    pub system_prompt: String,
+    pub tool_definitions: Vec<ContextToolManifest>,
+    pub capability_manifest_hash: String,
+    pub provider_id: String,
+    pub model: String,
+    pub provider_behavior_flags: BTreeMap<String, String>,
+    pub prefix_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderConversationEnvelope {
+    pub schema_version: String,
+    pub stable_prefix: StableProviderPrefix,
+    pub project_memory: ProjectConversationMemory,
+    pub recent_turns: Vec<ProviderConversationTurn>,
+    pub current_turn: Vec<ContextMessage>,
+    pub input_token_budget: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PromptPrefixReceipt {
+    pub schema_version: String,
+    pub prefix_hash: String,
+    pub system_policy_version: String,
+    pub tool_schema_hash: String,
+    pub capability_manifest_hash: String,
+    pub provider_model_config_hash: String,
+    pub project_memory_hash: String,
+    pub input_token_budget: u64,
+    pub prompt_cache_hit_tokens: u64,
+    pub prompt_cache_miss_tokens: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction_reason: Option<String>,
+}
+
+impl PromptPrefixReceipt {
+    pub fn from_envelope(
+        envelope: &ProviderConversationEnvelope,
+        prompt_cache_hit_tokens: u64,
+        prompt_cache_miss_tokens: u64,
+    ) -> Self {
+        let prefix = &envelope.stable_prefix;
+        let tool_schema_hash = sha256_hex(
+            canonical_json(&serde_json::to_value(&prefix.tool_definitions).unwrap_or(Value::Null))
+                .as_bytes(),
+        );
+        let provider_model_config_hash = sha256_hex(
+            canonical_json(&json!({
+                "provider_id": prefix.provider_id,
+                "model": prefix.model,
+                "flags": prefix.provider_behavior_flags,
+            }))
+            .as_bytes(),
+        );
+        let project_memory_hash = sha256_hex(
+            canonical_json(&serde_json::to_value(&envelope.project_memory).unwrap_or(Value::Null))
+                .as_bytes(),
+        );
+        Self {
+            schema_version: PROMPT_PREFIX_RECEIPT_SCHEMA_VERSION.into(),
+            prefix_hash: prefix.prefix_hash.clone(),
+            system_policy_version: prefix.system_policy_version.clone(),
+            tool_schema_hash,
+            capability_manifest_hash: prefix.capability_manifest_hash.clone(),
+            provider_model_config_hash,
+            project_memory_hash,
+            input_token_budget: envelope.input_token_budget as u64,
+            prompt_cache_hit_tokens,
+            prompt_cache_miss_tokens,
+            compaction_reason: envelope.compaction_reason.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProviderConversationBuildInput {
+    pub provider_id: String,
+    pub model: String,
+    pub system_policy_version: String,
+    pub forge_visual_program_schema_version: String,
+    pub capability_manifest_hash: String,
+    pub provider_behavior_flags: BTreeMap<String, String>,
+    pub project_memory: ProjectConversationMemory,
+    pub current_turn: Vec<ContextMessage>,
+    pub input_token_budget: usize,
+}
+
+impl ProviderConversationBuildInput {
+    fn legacy(_input: &ContextBuildInput) -> Self {
+        Self {
+            provider_id: "legacy".into(),
+            model: "legacy".into(),
+            system_policy_version: CONTEXT_SCHEMA_VERSION.into(),
+            forge_visual_program_schema_version: "ForgeVisualProgram@1".into(),
+            capability_manifest_hash: "0".repeat(64),
+            provider_behavior_flags: BTreeMap::new(),
+            project_memory: ProjectConversationMemory::default(),
+            current_turn: Vec::new(),
+            input_token_budget: DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -107,6 +357,7 @@ impl fmt::Debug for ContextBuildInput {
 pub struct AgentContext {
     pub schema_version: String,
     pub messages: Vec<ContextMessage>,
+    pub provider_conversation: ProviderConversationEnvelope,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_snapshot: Option<Value>,
     pub allowed_component_ids: Vec<String>,
@@ -121,6 +372,10 @@ impl fmt::Debug for AgentContext {
             .debug_struct("AgentContext")
             .field("schema_version", &self.schema_version)
             .field("message_count", &self.messages.len())
+            .field(
+                "provider_prefix_hash",
+                &self.provider_conversation.stable_prefix.prefix_hash,
+            )
             .field("has_active_snapshot", &self.active_snapshot.is_some())
             .field("allowed_component_count", &self.allowed_component_ids.len())
             .field("allowed_material_count", &self.allowed_material_ids.len())
@@ -163,42 +418,20 @@ pub struct ContextBuilder;
 
 impl ContextBuilder {
     pub fn build(&self, input: ContextBuildInput) -> Result<AgentContext, ContextBuildError> {
+        let conversation = ProviderConversationBuildInput::legacy(&input);
+        self.build_with_provider_conversation(input, conversation)
+    }
+
+    pub fn build_with_provider_conversation(
+        &self,
+        input: ContextBuildInput,
+        conversation_input: ProviderConversationBuildInput,
+    ) -> Result<AgentContext, ContextBuildError> {
         validate_text("system_prompt", &input.system_prompt, false)?;
         validate_text("thread_summary", &input.thread_summary, true)?;
         if let Some(snapshot) = &input.active_snapshot {
             validate_safe_value(snapshot)?;
         }
-
-        let mut messages = Vec::with_capacity(MAX_CONTEXT_MESSAGES + 2);
-        messages.push(ContextMessage {
-            role: ContextRole::System,
-            content: input.system_prompt,
-            name: None,
-            tool_call_id: None,
-        });
-        if !input.thread_summary.is_empty() {
-            messages.push(ContextMessage {
-                role: ContextRole::System,
-                content: input.thread_summary,
-                name: Some("thread_summary".into()),
-                tool_call_id: None,
-            });
-        }
-        let recent_start = input
-            .recent_messages
-            .len()
-            .saturating_sub(MAX_CONTEXT_MESSAGES);
-        for message in input.recent_messages.into_iter().skip(recent_start) {
-            validate_text("message.content", &message.content, false)?;
-            validate_optional_identifier("message.name", message.name.as_deref())?;
-            validate_optional_identifier("message.tool_call_id", message.tool_call_id.as_deref())?;
-            messages.push(message);
-        }
-
-        let allowed_component_ids =
-            sorted_unique_ids("allowed_component_ids", input.allowed_component_ids)?;
-        let allowed_material_ids =
-            sorted_unique_ids("allowed_material_ids", input.allowed_material_ids)?;
 
         let mut tools = input.tools;
         tools.sort_by(|left, right| left.name.cmp(&right.name));
@@ -216,10 +449,100 @@ impl ContextBuilder {
             }
         }
 
+        let mut memory = conversation_input.project_memory.clone();
+        memory.validate()?;
+        if memory == ProjectConversationMemory::default() && !input.thread_summary.is_empty() {
+            push_bounded_memory(
+                &mut memory.subject_identity_and_intent,
+                &input.thread_summary,
+            );
+        }
+        let recent_messages = input
+            .recent_messages
+            .into_iter()
+            .map(|message| {
+                validate_text("message.content", &message.content, false)?;
+                validate_optional_identifier("message.name", message.name.as_deref())?;
+                validate_optional_identifier(
+                    "message.tool_call_id",
+                    message.tool_call_id.as_deref(),
+                )?;
+                Ok(message)
+            })
+            .collect::<Result<Vec<_>, ContextBuildError>>()?;
+        let current_turn = conversation_input
+            .current_turn
+            .clone()
+            .into_iter()
+            .map(|message| {
+                validate_text("current_turn.content", &message.content, false)?;
+                validate_optional_identifier("current_turn.name", message.name.as_deref())?;
+                validate_optional_identifier(
+                    "current_turn.tool_call_id",
+                    message.tool_call_id.as_deref(),
+                )?;
+                Ok(message)
+            })
+            .collect::<Result<Vec<_>, ContextBuildError>>()?;
+        let recent_turns = turnize_messages(recent_messages);
+        let input_token_budget = conversation_input.input_token_budget;
+        if input_token_budget == 0 || input_token_budget > 10_000_000 {
+            return Err(ContextBuildError::new(
+                "AGENT_CONTEXT_TOKEN_BUDGET_INVALID",
+                ContextBuildErrorKind::InvalidText,
+                "Provider input token budget is outside the reviewed bound.",
+            ));
+        }
+        let stable_prefix =
+            stable_prefix(&input.system_prompt, tools.clone(), &conversation_input)?;
+        let (recent_turns, compaction_reason) = compact_turns(
+            stable_prefix_token_estimate(&stable_prefix),
+            &memory,
+            recent_turns,
+            &current_turn,
+            input_token_budget,
+        )?;
+        let envelope = ProviderConversationEnvelope {
+            schema_version: PROVIDER_CONVERSATION_ENVELOPE_SCHEMA_VERSION.into(),
+            stable_prefix,
+            project_memory: memory,
+            recent_turns,
+            current_turn,
+            input_token_budget,
+            compaction_reason,
+        };
+        let mut messages = envelope_messages(&envelope);
+        if !input.thread_summary.is_empty()
+            && !messages
+                .iter()
+                .any(|message| message.name.as_deref() == Some("thread_summary"))
+        {
+            messages.insert(
+                1.min(messages.len()),
+                ContextMessage {
+                    role: ContextRole::System,
+                    content: input.thread_summary,
+                    name: Some("thread_summary".into()),
+                    tool_call_id: None,
+                },
+            );
+        }
+        // Keep legacy callers' current message shape while the envelope is
+        // the authoritative bounded representation for new Provider turns.
+        for message in messages.iter_mut() {
+            validate_text("message.content", &message.content, false)?;
+        }
+
+        let allowed_component_ids =
+            sorted_unique_ids("allowed_component_ids", input.allowed_component_ids)?;
+        let allowed_material_ids =
+            sorted_unique_ids("allowed_material_ids", input.allowed_material_ids)?;
+
         let active_snapshot = input.active_snapshot;
         let digest_value = serde_json::json!({
             "schema_version": CONTEXT_SCHEMA_VERSION,
             "messages": messages,
+            "provider_conversation": envelope,
             "active_snapshot": active_snapshot,
             "allowed_component_ids": allowed_component_ids,
             "allowed_material_ids": allowed_material_ids,
@@ -230,6 +553,7 @@ impl ContextBuilder {
         Ok(AgentContext {
             schema_version: CONTEXT_SCHEMA_VERSION.into(),
             messages,
+            provider_conversation: envelope,
             active_snapshot,
             allowed_component_ids,
             allowed_material_ids,
@@ -252,6 +576,182 @@ fn sorted_unique_ids(field: &str, mut ids: Vec<String>) -> Result<Vec<String>, C
         ));
     }
     Ok(ids)
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn stable_prefix(
+    system_prompt: &str,
+    tool_definitions: Vec<ContextToolManifest>,
+    input: &ProviderConversationBuildInput,
+) -> Result<StableProviderPrefix, ContextBuildError> {
+    validate_text("provider_id", &input.provider_id, false)?;
+    validate_text("model", &input.model, false)?;
+    validate_text("system_policy_version", &input.system_policy_version, false)?;
+    validate_text(
+        "forge_visual_program_schema_version",
+        &input.forge_visual_program_schema_version,
+        false,
+    )?;
+    if !valid_sha256(&input.capability_manifest_hash) {
+        return Err(ContextBuildError::new(
+            "AGENT_CONTEXT_CAPABILITY_HASH_INVALID",
+            ContextBuildErrorKind::Serialization,
+            "Capability manifest hash must be a lowercase SHA-256.",
+        ));
+    }
+    for (key, value) in &input.provider_behavior_flags {
+        validate_identifier("provider_behavior_flags.key", key)?;
+        validate_text("provider_behavior_flags.value", value, false)?;
+    }
+    let mut prefix = StableProviderPrefix {
+        schema_version: "StableProviderPrefix@1".into(),
+        system_policy_version: input.system_policy_version.clone(),
+        forge_visual_program_schema_version: input.forge_visual_program_schema_version.clone(),
+        system_prompt: system_prompt.into(),
+        tool_definitions,
+        capability_manifest_hash: input.capability_manifest_hash.clone(),
+        provider_id: input.provider_id.clone(),
+        model: input.model.clone(),
+        provider_behavior_flags: input.provider_behavior_flags.clone(),
+        prefix_hash: String::new(),
+    };
+    let hash_value = serde_json::to_value(&prefix).map_err(|_| {
+        ContextBuildError::new(
+            "AGENT_CONTEXT_PREFIX_SERIALIZATION_FAILED",
+            ContextBuildErrorKind::Serialization,
+            "Stable Provider prefix could not be serialized.",
+        )
+    })?;
+    prefix.prefix_hash = sha256_hex(canonical_json(&hash_value).as_bytes());
+    Ok(prefix)
+}
+
+fn turnize_messages(messages: Vec<ContextMessage>) -> Vec<ProviderConversationTurn> {
+    let mut turns = Vec::new();
+    let mut current = Vec::new();
+    for message in messages {
+        if matches!(message.role, ContextRole::User) && !current.is_empty() {
+            turns.push(ProviderConversationTurn { messages: current });
+            current = Vec::new();
+        }
+        current.push(message);
+    }
+    if !current.is_empty() {
+        turns.push(ProviderConversationTurn { messages: current });
+    }
+    turns
+}
+
+fn token_estimate(text: &str) -> usize {
+    text.chars().count().saturating_add(3) / 4
+}
+
+fn message_token_estimate(message: &ContextMessage) -> usize {
+    8usize
+        .saturating_add(token_estimate(&message.content))
+        .saturating_add(
+            message
+                .name
+                .as_deref()
+                .map(token_estimate)
+                .unwrap_or_default(),
+        )
+        .saturating_add(
+            message
+                .tool_call_id
+                .as_deref()
+                .map(token_estimate)
+                .unwrap_or_default(),
+        )
+}
+
+fn turn_token_estimate(turn: &ProviderConversationTurn) -> usize {
+    turn.messages.iter().map(message_token_estimate).sum()
+}
+
+fn stable_prefix_token_estimate(prefix: &StableProviderPrefix) -> usize {
+    let value = serde_json::to_string(prefix).unwrap_or_default();
+    token_estimate(&value).saturating_add(16)
+}
+
+fn memory_token_estimate(memory: &ProjectConversationMemory) -> usize {
+    token_estimate(&serde_json::to_string(memory).unwrap_or_default()).saturating_add(16)
+}
+
+fn compact_turns(
+    stable_prefix_tokens: usize,
+    memory: &ProjectConversationMemory,
+    turns: Vec<ProviderConversationTurn>,
+    current_turn: &[ContextMessage],
+    input_token_budget: usize,
+) -> Result<(Vec<ProviderConversationTurn>, Option<String>), ContextBuildError> {
+    let current_tokens = current_turn
+        .iter()
+        .map(message_token_estimate)
+        .sum::<usize>();
+    let fixed_tokens = stable_prefix_tokens
+        .saturating_add(memory_token_estimate(memory))
+        .saturating_add(current_tokens);
+    if fixed_tokens > input_token_budget {
+        return Err(ContextBuildError::new(
+            "AGENT_CONTEXT_CURRENT_TURN_OVER_BUDGET",
+            ContextBuildErrorKind::InvalidText,
+            "Provider stable prefix, memory, and current turn exceed the input token budget.",
+        ));
+    }
+
+    let mut kept_reversed = Vec::new();
+    let mut used = fixed_tokens;
+    let mut first_kept = turns.len();
+    while first_kept > 0 && kept_reversed.len() < MAX_PROVIDER_RECENT_TURNS {
+        let turn = &turns[first_kept - 1];
+        let turn_tokens = turn_token_estimate(turn);
+        if used.saturating_add(turn_tokens) > input_token_budget {
+            break;
+        }
+        used = used.saturating_add(turn_tokens);
+        kept_reversed.push(turn.clone());
+        first_kept -= 1;
+    }
+    kept_reversed.reverse();
+    let dropped = first_kept;
+    let reason = if dropped > 0 {
+        Some(format!(
+            "deterministic_token_budget_compaction:dropped_turns={dropped};kept_turns={}",
+            kept_reversed.len()
+        ))
+    } else {
+        None
+    };
+    Ok((kept_reversed, reason))
+}
+
+fn envelope_messages(envelope: &ProviderConversationEnvelope) -> Vec<ContextMessage> {
+    let mut messages = Vec::new();
+    messages.push(ContextMessage {
+        role: ContextRole::System,
+        content: envelope.stable_prefix.system_prompt.clone(),
+        name: Some("stable_prefix".into()),
+        tool_call_id: None,
+    });
+    let memory_json = serde_json::to_string(&envelope.project_memory).unwrap_or_default();
+    messages.push(ContextMessage {
+        role: ContextRole::System,
+        content: memory_json,
+        name: Some("project_memory".into()),
+        tool_call_id: None,
+    });
+    for turn in &envelope.recent_turns {
+        messages.extend(turn.messages.clone());
+    }
+    messages.extend(envelope.current_turn.clone());
+    messages
 }
 
 fn validate_optional_identifier(field: &str, value: Option<&str>) -> Result<(), ContextBuildError> {
@@ -434,7 +934,8 @@ mod tests {
             })
             .collect();
         let context = builder.build(bounded).unwrap();
-        assert_eq!(context.messages.len(), MAX_CONTEXT_MESSAGES + 2);
+        assert_eq!(context.provider_conversation.recent_turns.len(), 4);
+        assert!(context.messages.len() <= MAX_CONTEXT_MESSAGES + 2);
 
         for forbidden in [
             json!({"api_key": "sk-test"}),
@@ -482,5 +983,153 @@ mod tests {
         }
         assert!(all_debug.contains("[REDACTED]"));
         assert!(context_debug.contains(&context.context_digest));
+    }
+
+    fn provider_input(
+        current_turn: Vec<ContextMessage>,
+        input_token_budget: usize,
+    ) -> ProviderConversationBuildInput {
+        ProviderConversationBuildInput {
+            provider_id: "deepseek".into(),
+            model: "deepseek-chat".into(),
+            system_policy_version: "ForgeCADNativeSystemPolicy@1".into(),
+            forge_visual_program_schema_version: "ForgeVisualProgram@2".into(),
+            capability_manifest_hash: "a".repeat(64),
+            provider_behavior_flags: BTreeMap::from([(
+                "thinking_tool_replay".into(),
+                "ephemeral_reasoning_content".into(),
+            )]),
+            project_memory: ProjectConversationMemory::default(),
+            current_turn,
+            input_token_budget,
+        }
+    }
+
+    #[test]
+    fn stable_prefix_hash_is_independent_of_tool_order_and_json_key_order() {
+        let builder = ContextBuilder;
+        let mut first = input();
+        first.tools.push(ContextToolManifest {
+            name: "inspect_asset".into(),
+            description: "Inspect the active asset.".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {"asset_id": {"type": "string"}},
+                "required": ["asset_id"]
+            }),
+        });
+        let first_context = builder
+            .build_with_provider_conversation(
+                first.clone(),
+                provider_input(Vec::new(), DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET),
+            )
+            .unwrap();
+        first.tools.reverse();
+        first.tools[0].input_schema = json!({
+            "required": ["asset_id"],
+            "properties": {"asset_id": {"type": "string"}},
+            "type": "object"
+        });
+        let second_context = builder
+            .build_with_provider_conversation(
+                first,
+                provider_input(Vec::new(), DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET),
+            )
+            .unwrap();
+        assert_eq!(
+            first_context
+                .provider_conversation
+                .stable_prefix
+                .prefix_hash,
+            second_context
+                .provider_conversation
+                .stable_prefix
+                .prefix_hash
+        );
+    }
+
+    #[test]
+    fn token_budget_compaction_is_deterministic_and_preserves_current_turn() {
+        let builder = ContextBuilder;
+        let mut bounded = input();
+        bounded.thread_summary.clear();
+        bounded.recent_messages = (0..6)
+            .flat_map(|index| {
+                [
+                    ContextMessage {
+                        role: ContextRole::User,
+                        content: format!("user turn {index} with visible project intent"),
+                        name: None,
+                        tool_call_id: None,
+                    },
+                    ContextMessage {
+                        role: ContextRole::Assistant,
+                        content: format!("assistant decision {index}"),
+                        name: None,
+                        tool_call_id: None,
+                    },
+                ]
+            })
+            .collect();
+        let conversation = provider_input(
+            vec![ContextMessage {
+                role: ContextRole::User,
+                content: "current turn must survive compaction".into(),
+                name: None,
+                tool_call_id: None,
+            }],
+            600,
+        );
+        let first = builder
+            .build_with_provider_conversation(bounded.clone(), conversation.clone())
+            .unwrap();
+        let second = builder
+            .build_with_provider_conversation(bounded, conversation)
+            .unwrap();
+        assert_eq!(first.provider_conversation, second.provider_conversation);
+        assert_eq!(first.provider_conversation.recent_turns.len(), 4);
+        assert_eq!(
+            first.provider_conversation.current_turn[0].content,
+            "current turn must survive compaction"
+        );
+        assert_eq!(
+            first.provider_conversation.compaction_reason.as_deref(),
+            Some("deterministic_token_budget_compaction:dropped_turns=2;kept_turns=4")
+        );
+    }
+
+    #[test]
+    fn memory_and_prefix_receipt_are_visible_and_reasoning_free() {
+        let builder = ContextBuilder;
+        let context = builder
+            .build_with_provider_conversation(
+                input(),
+                provider_input(
+                    vec![ContextMessage {
+                        role: ContextRole::User,
+                        content: "remember this confirmed intent".into(),
+                        name: None,
+                        tool_call_id: None,
+                    }],
+                    DEFAULT_PROVIDER_INPUT_TOKEN_BUDGET,
+                ),
+            )
+            .unwrap();
+        let memory = context
+            .provider_conversation
+            .project_memory
+            .after_completed_turn("remember this confirmed intent", "visible answer", None)
+            .unwrap();
+        let mut next = context.provider_conversation.clone();
+        next.project_memory = memory;
+        let receipt = PromptPrefixReceipt::from_envelope(&next, 64, 0);
+        let serialized =
+            serde_json::to_string(&json!({"memory": next.project_memory, "receipt": receipt}))
+                .unwrap();
+        assert!(serialized.contains(PROJECT_CONVERSATION_MEMORY_SCHEMA_VERSION));
+        assert!(serialized.contains(PROMPT_PREFIX_RECEIPT_SCHEMA_VERSION));
+        assert!(serialized.contains("prompt_cache_hit_tokens"));
+        assert!(!serialized.contains("reasoning_content"));
+        assert!(!serialized.contains("private chain of thought"));
     }
 }
