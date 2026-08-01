@@ -43,7 +43,7 @@ try {
   const [conversationSource, conceptHookSource, panelSource] = await Promise.all([
     readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'AgentConversation.tsx'), 'utf8'),
     readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'useConceptWorkbench.ts'), 'utf8'),
-    readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'CadWorkbenchPanel.tsx'), 'utf8'),
+    readFile(join(DESKTOP_SOURCE, 'features', 'cad-workbench', 'WorkbenchShell.tsx'), 'utf8'),
   ])
   for (const [label, source] of [
     ['AgentConversation', conversationSource],

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const panelPath = join(ROOT, 'apps', 'desktop', 'src', 'features', 'cad-workbench', 'CadWorkbenchPanel.tsx')
+const panelPath = join(ROOT, 'apps', 'desktop', 'src', 'features', 'cad-workbench', 'WorkbenchShell.tsx')
 const cssPath = join(ROOT, 'apps', 'desktop', 'src', 'features', 'cad-workbench', 'cad-workbench.css')
 const lifecyclePath = join(ROOT, 'apps', 'desktop', 'src', 'features', 'cad-workbench', 'useWorkbenchLifecycle.ts')
 const componentPaths = [

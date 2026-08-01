@@ -71,7 +71,7 @@ try {
   }
 
   const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, visionEvidenceTransport, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench, referenceViewportPresentation, resultCards, agentTurnSubmission, agentTurnPayload, viewportOverlays, referenceEvidenceAdapterLoader] = await Promise.all([
-    readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanel.tsx'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'WorkbenchShell.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentConversation.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentSelectionCard.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'agentBlockoutPreviewPresentation.ts'), 'utf8'),

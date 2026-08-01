@@ -15,7 +15,7 @@ import { resolve } from 'node:path'
 import process from 'node:process'
 
 const ROOT = resolve(import.meta.dirname, '..')
-const CAD_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/CadWorkbenchPanel.tsx')
+const CAD_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/WorkbenchShell.tsx')
 const VIEWPORT_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/ModuleGraphViewport.tsx')
 const QA_PATH = resolve(ROOT, 'apps/desktop/src/shared/api/packagedArmWebviewQa.ts')
 const SCHEMA = 'ForgeCADArmViewportRegressionSmoke@1'

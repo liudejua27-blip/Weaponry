@@ -7104,3 +7104,308 @@ button.f026-create-setup-example:active {
     white-space: nowrap;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * U004-W3 presentation contract
+ * The older F026 rules above remain for compatibility surfaces. This final,
+ * intentionally small layer owns the current shell tokens and prevents
+ * fixed/bottom/z-index patches from taking ownership of the workbench.
+ * -------------------------------------------------------------------------- */
+
+/* tokens */
+.cad-workbench {
+  --workbench-bg: #07101c;
+  --workbench-surface: #0b1523;
+  --workbench-surface-raised: #101c2c;
+  --workbench-border: rgba(151, 171, 205, 0.16);
+  --workbench-text: #f4f7ff;
+  --workbench-muted: #94a3ba;
+  --workbench-accent: #5364ff;
+  --workbench-accent-strong: #6a46f5;
+  --workbench-success: #55c990;
+  --workbench-warning: #e9b96e;
+  --workbench-radius-sm: 12px;
+  --workbench-radius-md: 16px;
+  --workbench-radius-lg: 20px;
+  --workbench-header: 72px;
+  --workbench-left-rail: 264px;
+  --workbench-assistant-rail: 360px;
+  --workbench-history: 112px;
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+  overflow-x: hidden;
+  grid-template-rows: var(--workbench-header) minmax(0, 1fr);
+}
+
+/* shell */
+.cad-command-bar {
+  grid-template-columns: 224px minmax(220px, 1fr) auto;
+  gap: 16px;
+  padding: 0 24px 0 86px;
+  border-color: var(--workbench-border);
+  background: rgba(7, 16, 28, 0.96);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
+.cad-command-bar::before {
+  top: 24px;
+  left: 28px;
+  width: 16px;
+  height: 16px;
+  box-shadow: 25px 0 #f5bf4f, 50px 0 #61c554;
+}
+
+.cad-brand {
+  min-width: 0;
+  gap: 14px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.cad-brand-mark {
+  width: 34px;
+  height: 36px;
+  flex: 0 0 34px;
+  border-radius: 11px;
+}
+
+.cad-workspace-title {
+  min-width: 0;
+  justify-self: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.cad-workspace-title strong {
+  max-width: min(34vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f026-layout {
+  grid-template-columns: var(--workbench-left-rail) minmax(0, 1fr) var(--workbench-assistant-rail);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'sidebar viewport conversation';
+  gap: 0;
+  padding: 12px;
+  border: 0;
+  background: var(--workbench-bg);
+  overflow-x: hidden;
+}
+
+.f026-layout.has-history {
+  grid-template-rows: minmax(0, 1fr) var(--workbench-history);
+  grid-template-areas: 'sidebar viewport conversation' 'sidebar history history';
+}
+
+.f026-layout > .f026-sidebar { grid-area: sidebar; }
+.f026-layout > .f026-conversation-stage { grid-area: conversation; }
+.f026-layout > .f026-viewport-stage { grid-area: viewport; }
+.f026-layout > .cad-status-bar { grid-area: history; }
+
+.f026-sidebar,
+.f026-conversation-stage,
+.f026-viewport-stage,
+.cad-status-bar {
+  min-width: 0;
+  min-height: 0;
+}
+
+.f026-sidebar {
+  position: relative;
+  inset: auto;
+  width: auto;
+  padding: 18px 14px;
+  overflow: auto;
+  border: 1px solid var(--workbench-border);
+  border-radius: var(--workbench-radius-md) 0 0 var(--workbench-radius-md);
+  background: linear-gradient(180deg, rgba(11, 21, 35, 0.98), rgba(7, 16, 28, 0.98));
+  z-index: 1;
+}
+
+.f026-sidebar-heading { gap: 12px; }
+.f026-sidebar-heading h2 { color: var(--workbench-text); font-size: 17px; }
+.f026-sidebar-create {
+  min-height: 44px;
+  margin: 14px 0 18px;
+  border: 1px solid rgba(132, 126, 255, 0.78);
+  border-radius: 11px;
+  color: white;
+  background: linear-gradient(135deg, var(--workbench-accent), var(--workbench-accent-strong));
+  box-shadow: 0 10px 24px rgba(80, 74, 245, 0.22);
+}
+
+.f026-sidebar-section { border-color: var(--workbench-border); }
+.f026-sidebar-section-heading { min-height: 38px; color: var(--workbench-muted); }
+.f026-sidebar-project-button,
+.f026-sidebar-template-item {
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+}
+.f026-sidebar-project-button.active {
+  border-color: rgba(89, 101, 255, 0.82);
+  background: rgba(52, 61, 137, 0.36);
+}
+
+.f026-conversation-stage {
+  border: 1px solid var(--workbench-border);
+  border-left: 0;
+  border-right: 0;
+  background: var(--workbench-surface);
+  overflow: hidden;
+}
+
+.f026-conversation-scroll {
+  padding: 18px 20px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.f026-agent-timeline { gap: 14px; }
+.f026-agent-timeline > .cad-panel-title {
+  top: -18px;
+  margin: -18px 0 0;
+  padding: 13px 0 12px;
+  border-color: var(--workbench-border);
+  background: rgba(11, 21, 35, 0.94);
+}
+
+.f026-conversation-stage > .f026-quality-check-entry,
+.f026-conversation-stage > .f026-mini-toolbelt { display: none; }
+
+/* viewport */
+.f026-viewport-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  background: #08111d;
+}
+
+.f026-viewport-stage .viewport-shell {
+  border: 1px solid var(--workbench-border);
+  border-radius: 0 var(--workbench-radius-md) var(--workbench-radius-md) 0;
+  background: radial-gradient(circle at 52% 42%, #172b43 0, #0a1422 54%, #07101c 100%);
+}
+
+.f026-layout.is-viewport-focus {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+  grid-template-areas: 'sidebar viewport conversation';
+  padding: 0;
+}
+.f026-layout.is-viewport-focus .f026-sidebar,
+.f026-layout.is-viewport-focus .f026-conversation-stage { visibility: hidden; pointer-events: none; }
+.f026-layout.is-viewport-focus .f026-viewport-stage .viewport-shell { border-radius: 0; }
+
+.f026-viewport-focus-toggle,
+.f026-viewport-focus-close {
+  border-color: rgba(151, 171, 205, 0.25);
+  border-radius: 999px;
+  background: rgba(7, 16, 28, 0.74);
+}
+
+/* assistant */
+.assistant-panel,
+.agent-conversation-shell { min-height: 0; }
+.assistant-state { color: var(--workbench-success); }
+.assistant-message { border-radius: 14px; font-size: 13px; }
+.agent-conversation-section {
+  padding: 14px;
+  border: 1px solid var(--workbench-border);
+  border-radius: var(--workbench-radius-md);
+  background: rgba(16, 28, 44, 0.68);
+}
+.agent-conversation-section-title { color: var(--workbench-muted); font-size: 12px; letter-spacing: 0.02em; }
+.agent-analysis-card,
+.agent-empty-project,
+.agent-quick-modify { border-radius: 12px; }
+.f026-composer-fixed {
+  position: relative;
+  z-index: 2;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--workbench-border);
+  background: rgba(7, 16, 28, 0.96);
+}
+.f026-composer { min-height: 46px; border-radius: 13px; }
+.f026-composer-send { min-width: 44px; min-height: 40px; border-radius: 11px; }
+
+/* history */
+.cad-status-bar {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.8fr);
+  gap: 14px;
+  padding: 12px 16px;
+  overflow: hidden;
+  border: 1px solid var(--workbench-border);
+  border-radius: var(--workbench-radius-md);
+  background: var(--workbench-surface);
+}
+.cad-status-meta { min-width: 0; }
+.cad-status-timeline { min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.f026-layout.without-history > .cad-status-bar { display: none; }
+
+/* drawers and layering */
+.f026-layout > .cad-right-rail,
+.f026-layout > .f026-right-rail { position: absolute; }
+.cad-sidebar-backdrop { z-index: 20; }
+.f026-create-setup-overlay { z-index: 60; }
+.workbench-drawer-stack,
+[role='dialog'] { z-index: 50; }
+
+@media (max-width: 1279px) and (min-width: 1025px) {
+  .cad-workbench { --workbench-left-rail: 220px; --workbench-assistant-rail: 320px; }
+  .cad-command-bar { padding-left: 82px; }
+  .f026-layout { padding: 10px; }
+  .f026-conversation-scroll { padding-inline: 14px; }
+}
+
+@media (max-width: 1024px) {
+  .cad-workbench { --workbench-header: 64px; grid-template-rows: var(--workbench-header) minmax(0, 1fr); }
+  .cad-command-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: var(--workbench-header);
+    height: var(--workbench-header);
+    padding: 0 12px;
+  }
+  .cad-command-bar::before { display: none; }
+  .cad-brand { gap: 0; }
+  .cad-brand > span:not(.cad-brand-mark),
+  .cad-workspace-title > span { display: none; }
+  .cad-workspace-title { justify-self: start; font-size: 13px; }
+  .cad-global-actions-more-trigger { width: 42px; max-width: 42px; overflow: hidden; }
+  .f026-layout,
+  .f026-layout.has-history {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'viewport';
+    padding: 0;
+  }
+  .f026-layout > .f026-sidebar,
+  .f026-layout > .f026-conversation-stage {
+    position: fixed;
+    top: var(--workbench-header);
+    bottom: 0;
+    width: min(86vw, 320px);
+    max-width: calc(100vw - 24px);
+    border-radius: 0;
+    transition: transform 180ms ease;
+  }
+  .f026-layout > .f026-sidebar { left: 0; transform: translateX(-105%); }
+  .f026-layout > .f026-conversation-stage { right: 0; transform: translateX(105%); border: 1px solid var(--workbench-border); }
+  .f026-layout.is-sidebar-open > .f026-sidebar { transform: translateX(0); }
+  .f026-layout.is-assistant-open > .f026-conversation-stage { transform: translateX(0); }
+  .f026-layout > .f026-viewport-stage { grid-area: viewport; }
+  .f026-layout > .cad-status-bar { display: none; }
+  .f026-viewport-stage .viewport-shell { border-radius: 0; border: 0; }
+  .f026-layout.is-viewport-focus .f026-sidebar,
+  .f026-layout.is-viewport-focus .f026-conversation-stage { display: none; }
+}
+
+@media (max-width: 599px) {
+  .cad-command-bar { gap: 8px; }
+  .cad-global-actions { gap: 4px; }
+  .f026-composer-fixed { padding: 9px; }
+}

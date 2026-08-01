@@ -15,7 +15,7 @@ import { resolve } from 'node:path'
 import process from 'node:process'
 
 const ROOT = resolve(import.meta.dirname, '..')
-const PANEL_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/CadWorkbenchPanel.tsx')
+const PANEL_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/WorkbenchShell.tsx')
 const VIEWPORT_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/ModuleGraphViewport.tsx')
 const DRAWER_PATH = resolve(ROOT, 'apps/desktop/src/features/cad-workbench/ReferenceEvidenceDrawer.tsx')
 const QA_PATH = resolve(ROOT, 'apps/desktop/src/shared/api/packagedArmWebviewQa.ts')
